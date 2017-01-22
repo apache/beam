@@ -17,14 +17,12 @@
  */
 package org.apache.beam;
 
-import static org.apache.beam.sdk.util.ApiSurface.Matchers.classesInPackage;
-import static org.apache.beam.sdk.util.ApiSurface.Matchers.containsOnlyClassesMatching;
+import static org.apache.beam.sdk.util.ApiSurface.containsOnlyPackages;
 import static org.hamcrest.MatcherAssert.assertThat;
 
 import com.google.common.collect.ImmutableSet;
 import java.util.Set;
 import org.apache.beam.sdk.util.ApiSurface;
-import org.hamcrest.Matcher;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -35,29 +33,30 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class SdkCoreApiSurfaceTest {
 
-  @SuppressWarnings("unchecked")
-  private final Set<Matcher<Class<?>>> allowedClasses =
-      ImmutableSet.of(classesInPackage("org.apache.beam"),
-                      classesInPackage("com.google.api.client"),
-                      classesInPackage("com.google.api.services.bigquery"),
-                      classesInPackage("com.google.api.services.cloudresourcemanager"),
-                      classesInPackage("com.google.api.services.pubsub"),
-                      classesInPackage("com.google.api.services.storage"),
-                      classesInPackage("com.google.auth"),
-                      classesInPackage("com.google.protobuf"),
-                      classesInPackage("com.fasterxml.jackson.annotation"),
-                      classesInPackage("com.fasterxml.jackson.core"),
-                      classesInPackage("com.fasterxml.jackson.databind"),
-                      classesInPackage("org.apache.avro"),
-                      classesInPackage("org.hamcrest"),
-                      // via DataflowMatchers
-                      classesInPackage("org.codehaus.jackson"),
-                      // via Avro
-                      classesInPackage("org.joda.time"),
-                      classesInPackage("org.junit"));
-
   @Test
   public void testSdkApiSurface() throws Exception {
-    assertThat(ApiSurface.getSdkApiSurface(), containsOnlyClassesMatching(allowedClasses));
+
+    @SuppressWarnings("unchecked")
+    final Set<String> allowed =
+        ImmutableSet.of("org.apache.beam",
+                        "com.google.api.client",
+                        "com.google.api.services.bigquery",
+                        "com.google.api.services.cloudresourcemanager",
+                        "com.google.api.services.pubsub",
+                        "com.google.api.services.storage",
+                        "com.google.auth",
+                        "com.google.protobuf",
+                        "com.fasterxml.jackson.annotation",
+                        "com.fasterxml.jackson.core",
+                        "com.fasterxml.jackson.databind",
+                        "org.apache.avro",
+                        "org.hamcrest",
+                        // via DataflowMatchers
+                        "org.codehaus.jackson",
+                        // via Avro
+                        "org.joda.time",
+                        "org.junit");
+
+    assertThat(ApiSurface.getSdkApiSurface(), containsOnlyPackages(allowed));
   }
 }

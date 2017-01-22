@@ -92,12 +92,70 @@ public class ApiSurface {
   private static final Logger LOG = LoggerFactory.getLogger(ApiSurface.class);
 
   /**
+   * A factory method to create a {@link Class} matcher for classes residing in a given package.
+   */
+  public static Matcher<Class<?>> classesInPackage(final String packageName) {
+    return new Matchers.ClassInPackage(packageName);
+  }
+
+  /**
+   * A factory method to create an {@link ApiSurface} matcher, producing a positive match
+   * if the queried api surface contains ONLY classes described by the provided matchers.
+   *
+   */
+  public static Matcher<ApiSurface> containsOnlyClassesMatching(
+      final Set<Matcher<Class<?>>> classMatchers) {
+    return new Matchers.ClassesInSurfaceMatcher(classMatchers);
+  }
+
+  /**
+   * See {@link ApiSurface#containsOnlyClassesMatching(Set)}.
+   */
+  @SafeVarargs
+  public static Matcher<ApiSurface> containsOnlyClassesMatching(
+      final Matcher<Class<?>>... classMatchers) {
+    return new Matchers.ClassesInSurfaceMatcher(Sets.newHashSet(classMatchers));
+  }
+
+  /**
+   * See {@link ApiSurface#containsOnlyPackages(Set)}.
+   *
+   */
+  public static Matcher<ApiSurface> containsOnlyPackages(final String... packageNames) {
+    return containsOnlyPackages(Sets.newHashSet(packageNames));
+  }
+
+  /**
+   * A factory method to create an {@link ApiSurface} matcher, producing a positive match
+   * if the queried api surface contains classes ONLY from specified package names.
+   */
+  public static Matcher<ApiSurface> containsOnlyPackages(final Set<String> packageNames) {
+
+    final Function<String, Matcher<Class<?>>> packageNameToClassMatcher =
+        new Function<String, Matcher<Class<?>>>() {
+
+          @Override
+          public Matcher<Class<?>> apply(@Nonnull final String packageName) {
+            return classesInPackage(packageName);
+          }
+        };
+
+    final ImmutableSet<Matcher<Class<?>>> classesInPackages =
+        FluentIterable
+            .from(packageNames)
+            .transform(packageNameToClassMatcher)
+            .toSet();
+
+    return containsOnlyClassesMatching(classesInPackages);
+  }
+
+  /**
    * {@link Matcher}s for use in {@link ApiSurface} related tests that aim to keep the public API
    * conformant to a hard-coded policy by controlling what classes are allowed to be exposed by an
    * API surface.
    */
   // based on previous code by @kennknowles and others.
-  public static class Matchers {
+  private static class Matchers {
 
     private static class ClassInPackage extends TypeSafeDiagnosingMatcher<Class<?>> {
 
@@ -121,11 +179,11 @@ public class ApiSurface {
       }
     }
 
-    private static class SurfaceMatcher extends TypeSafeDiagnosingMatcher<ApiSurface> {
+    private static class ClassesInSurfaceMatcher extends TypeSafeDiagnosingMatcher<ApiSurface> {
 
       private final Set<Matcher<Class<?>>> classMatchers;
 
-      private SurfaceMatcher(final Set<Matcher<Class<?>>> classMatchers) {
+      private ClassesInSurfaceMatcher(final Set<Matcher<Class<?>>> classMatchers) {
         this.classMatchers = classMatchers;
       }
 
@@ -281,37 +339,6 @@ public class ApiSurface {
 
     }
 
-    /**
-     * A factory method to create an {@link ApiSurface} matcher, producing a positive match
-     * if the set of class matchers passed in is exposed by the queried api surface,
-     * AND
-     * none of the provided class matchers remains unmatched.
-     *
-     * @param classMatchers the class matchers that will produce a positive match for this matcher.
-     */
-    public static Matcher<ApiSurface> containsOnlyClassesMatching(
-        final Set<Matcher<Class<?>>> classMatchers) {
-      return new SurfaceMatcher(classMatchers);
-    }
-
-    /**
-     * See {@link ApiSurface.Matchers#containsOnlyClassesMatching(Set)}.
-     */
-    @SafeVarargs
-    public static Matcher<ApiSurface> containsOnlyClassesMatching(
-        final Matcher<Class<?>>... classMatchers) {
-      return new SurfaceMatcher(Sets.newHashSet(classMatchers));
-    }
-
-    /**
-     * A factory method to create a {@link Class} matcher for classes residing in a given package.
-     *
-     * @param packageName the package whose classes will produce a positive match for this matcher.
-     */
-    public static Matcher<Class<?>> classesInPackage(final String packageName) {
-      return new ClassInPackage(packageName);
-    }
-
   }
 
   ///////////////
@@ -329,6 +356,13 @@ public class ApiSurface {
    */
   public static ApiSurface ofPackage(String packageName) throws IOException {
     return ApiSurface.empty().includingPackage(packageName);
+  }
+
+  /**
+   * Returns an {@link ApiSurface} object representing the given package and all subpackages.
+   */
+  public static ApiSurface ofPackage(Package aPackage) throws IOException {
+    return ApiSurface.empty().includingPackage(aPackage.getName());
   }
 
   /**

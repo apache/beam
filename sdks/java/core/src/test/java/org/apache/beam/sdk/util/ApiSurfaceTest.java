@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.util;
 
-import static org.apache.beam.sdk.util.ApiSurface.Matchers.containsOnlyClassesMatching;
+import static org.apache.beam.sdk.util.ApiSurface.containsOnlyClassesMatching;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.emptyIterable;
 import static org.junit.Assert.assertThat;
