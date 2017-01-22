@@ -70,11 +70,11 @@ public class GroupAlsoByWindowViaWindowSetNewDoFn<
   protected final Aggregator<Long, Long> droppedDueToLateness =
       createAggregator(GroupAlsoByWindowsDoFn.DROPPED_DUE_TO_LATENESS_COUNTER, Sum.ofLongs());
   private final WindowingStrategy<Object, W> windowingStrategy;
-  private final StateInternalsFactory<K> stateInternalsFactory;
   private SystemReduceFn<K, InputT, ?, OutputT, W> reduceFn;
-  private TimerInternalsFactory<K> timerInternalsFactory;
-  private SideInputReader sideInputReader;
-  private DoFnRunners.OutputManager outputManager;
+  private transient StateInternalsFactory<K> stateInternalsFactory;
+  private transient TimerInternalsFactory<K> timerInternalsFactory;
+  private transient SideInputReader sideInputReader;
+  private transient DoFnRunners.OutputManager outputManager;
   private TupleTag<KV<K, OutputT>> mainTag;
 
   public GroupAlsoByWindowViaWindowSetNewDoFn(
