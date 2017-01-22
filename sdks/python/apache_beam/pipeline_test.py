@@ -38,10 +38,8 @@ from apache_beam.transforms import Read
 from apache_beam.transforms import WindowInto
 from apache_beam.transforms.util import assert_that
 from apache_beam.transforms.util import equal_to
-from apache_beam.transforms.window import IntervalWindow
 from apache_beam.transforms.window import SlidingWindows
 from apache_beam.transforms.window import TimestampedValue
-from apache_beam.transforms.window import WindowFn
 from apache_beam.utils.timestamp import MIN_TIMESTAMP
 
 
