@@ -32,7 +32,6 @@ import org.apache.beam.runners.core.AggregatorFactory;
 import org.apache.beam.runners.core.DoFnRunner;
 import org.apache.beam.runners.core.DoFnRunners;
 import org.apache.beam.runners.core.ExecutionContext;
-import org.apache.beam.runners.core.OldDoFn;
 import org.apache.beam.runners.core.PushbackSideInputDoFnRunner;
 import org.apache.beam.runners.core.SideInputHandler;
 import org.apache.beam.runners.flink.translation.utils.SerializedPipelineOptions;
@@ -175,13 +174,13 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
     sideInputReader = NullSideInputReader.of(sideInputs);
     if (!sideInputs.isEmpty()) {
       String operatorIdentifier =
-              this.getClass().getSimpleName() + "_"
-                      + getRuntimeContext().getIndexOfThisSubtask() + "_sideInput";
+          this.getClass().getSimpleName() + "_"
+              + getRuntimeContext().getIndexOfThisSubtask() + "_sideInput";
 
       sideInputStateBackend = this
-              .getContainingTask()
-              .createStateBackend(operatorIdentifier,
-                      new GenericTypeInfo<>(ByteBuffer.class).createSerializer(new ExecutionConfig()));
+          .getContainingTask()
+          .createStateBackend(operatorIdentifier,
+              new GenericTypeInfo<>(ByteBuffer.class).createSerializer(new ExecutionConfig()));
 
       checkState(sideInputStateBackend != null, "Side input state backend cannot be null");
 
@@ -193,10 +192,10 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
       }
 
       sideInputStateBackend.setCurrentKey(
-              ByteBuffer.wrap(CoderUtils.encodeToByteArray(VoidCoder.of(), null)));
+          ByteBuffer.wrap(CoderUtils.encodeToByteArray(VoidCoder.of(), null)));
 
       StateInternals<Void> sideInputStateInternals =
-              new FlinkStateInternals<>(sideInputStateBackend, VoidCoder.of());
+          new FlinkStateInternals<>(sideInputStateBackend, VoidCoder.of());
 
       sideInputHandler = new SideInputHandler(sideInputs, sideInputStateInternals);
       sideInputReader = sideInputHandler;
