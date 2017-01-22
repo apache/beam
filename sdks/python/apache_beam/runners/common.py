@@ -98,13 +98,9 @@ class DoFnRunner(Receiver):
       self.is_new_dofn = True
 
       # SideInputs
-      self.side_inputs = [side_input
-                          if isinstance(side_input, sideinputs.SideInputMap)
-                          else {global_window: side_input}
-                          for side_input in side_inputs]
+      self.side_inputs = side_inputs
       self.has_windowed_side_inputs = not all(
-          isinstance(si, dict) or si.is_globally_windowed()
-          for si in self.side_inputs)
+          si.is_globally_windowed() for si in self.side_inputs)
 
       self.args = args if args else []
       self.kwargs = kwargs if kwargs else {}
@@ -117,14 +113,8 @@ class DoFnRunner(Receiver):
         self.dofn = fn
         self.dofn_process = fn.process
       else:
-        # TODO(robertwb): Remove when all runners pass side input maps.
-        side_inputs = [side_input
-                       if isinstance(side_input, sideinputs.SideInputMap)
-                       else {global_window: side_input}
-                       for side_input in side_inputs]
         if side_inputs and all(
-            isinstance(side_input, dict) or side_input.is_globally_windowed()
-            for side_input in side_inputs):
+            side_input.is_globally_windowed() for side_input in side_inputs):
           args, kwargs = util.insert_values_in_args(
               args, kwargs, [side_input[global_window]
                              for side_input in side_inputs])
