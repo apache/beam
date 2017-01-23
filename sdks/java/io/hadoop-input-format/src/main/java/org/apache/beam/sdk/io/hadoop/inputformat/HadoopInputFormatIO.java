@@ -64,6 +64,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.auto.value.AutoValue;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
@@ -248,15 +249,15 @@ import com.google.common.collect.Lists;
  *   elasticSearchConf.set("es.port", "9200");
  *   elasticSearchConf.set("es.resource","ElasticIndexName/ElasticTypeName");
  *   elasticSearchConf.setClass("key.class" ,{@link org.apache.hadoop.io.Text.class}, Object.class);
- *   elasticSearchConf.setClass("value.class" ,{@link org.apache.hadoop.io.MapWritable.class} , Object.class); 
+ *   elasticSearchConf.setClass("value.class" ,{@link org.apache.hadoop.io.LinkedMapWritable.class} , Object.class); 
  *   elasticSearchConf.setClass("mapreduce.job.inputformat.class",{@link org.elasticsearch.hadoop.mr.EsInputFormat.class}, InputFormat.class);
  * </pre>
  * 
  * Call Read transform as follows:
  * 
  * <pre>
- * PCollection<KV<Text, MapWritable>> elasticData = p.apply("read",
- *     HadoopInputFormatIO.<Text, MapWritable>read().withConfiguration(elasticSearchConf));
+ * PCollection<KV<Text, LinkedMapWritable>> elasticData = p.apply("read",
+ *     HadoopInputFormatIO.<Text, LinkedMapWritable>read().withConfiguration(elasticSearchConf));
  * </pre>
  * 
  * Here no translation mechanism is required as key and value class both have default coders
@@ -610,7 +611,8 @@ public class HadoopInputFormatIO {
      * for further use by splitIntoBundles() and getEstimatesSizeBytes().
      * @throws InterruptedException 
      */
-    private void computeSplits() throws IOException, InterruptedException{
+    @VisibleForTesting
+    void computeSplits() throws IOException, InterruptedException{
       inputFormatObj = getInputFormat();
       List<InputSplit> splits =
           inputFormatObj.getSplits(Job.getInstance(conf.getHadoopConfiguration()));
@@ -817,11 +819,11 @@ public class HadoopInputFormatIO {
 
       @Override
       public Double getFractionConsumed() {
-        if (currentReader == null || recordsReturned == 0) {
-          return 0.0;
-        }
         if (doneReading) {
           return 1.0;
+        }
+        if (currentReader == null || recordsReturned == 0) {
+          return 0.0;
         }
         return getProgress();
       }

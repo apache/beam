@@ -45,6 +45,7 @@ public class ConfigurableEmployeeInputFormat extends InputFormat<Text, Employee>
     implements Configurable {
   private long NUMBER_OF_SPLITS;
   private long NUMBER_OF_RECORDS_IN_EACH_SPLIT;
+  private boolean isConfSet = false;
 
   public ConfigurableEmployeeInputFormat() {}
 
@@ -60,6 +61,7 @@ public class ConfigurableEmployeeInputFormat extends InputFormat<Text, Employee>
   public void setConf(Configuration conf) {
     NUMBER_OF_SPLITS = conf.getLong("split.count", 3L);
     NUMBER_OF_RECORDS_IN_EACH_SPLIT = conf.getLong("split.records.count", 5L);
+    isConfSet = true;
   }
 
   @Override
@@ -68,8 +70,15 @@ public class ConfigurableEmployeeInputFormat extends InputFormat<Text, Employee>
     return new ConfigurableEmployeeRecordReader();
   }
 
+  /**
+   * Returns InputSPlit list of {@link ConfigurableEmployeeInputSplit}. 
+   * Throws exception if {@link #setConf()} is not called.
+   */
   @Override
-  public List<InputSplit> getSplits(JobContext arg0) throws IOException, InterruptedException {
+  public List<InputSplit> getSplits(JobContext context) throws IOException, InterruptedException {
+    if (!isConfSet) {
+      throw new IOException("Configuration is not set.");
+    }
     List<InputSplit> inputSplitList = new ArrayList<InputSplit>();
     for (int i = 1; i <= NUMBER_OF_SPLITS; i++) {
       InputSplit inputSplitObj = new ConfigurableEmployeeInputSplit(
@@ -155,7 +164,7 @@ public class ConfigurableEmployeeInputFormat extends InputFormat<Text, Employee>
     }
 
     @Override
-    public void initialize(InputSplit split, TaskAttemptContext arg1)
+    public void initialize(InputSplit split, TaskAttemptContext context)
         throws IOException, InterruptedException {
       this.split = (ConfigurableEmployeeInputSplit) split;
       employeeListIndex = this.split.getStartIndex() - 1;

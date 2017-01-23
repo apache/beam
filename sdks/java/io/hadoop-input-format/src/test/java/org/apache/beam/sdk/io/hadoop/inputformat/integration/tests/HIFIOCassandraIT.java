@@ -132,7 +132,7 @@ public class HIFIOCassandraIT implements Serializable {
   public static Configuration getConfiguration(HIFTestOptions options) {
     Configuration conf = new Configuration();
     conf.set("cassandra.input.thrift.port", String.format("%d", options.getServerPort()));
-    conf.set("cassandra.input.thrift.address", options.getServerIp());
+    conf.set("cassandra.input.thrift.address", "");
     conf.set("cassandra.input.partitioner.class", "Murmur3Partitioner");
     conf.set("cassandra.input.keyspace", CASSANDRA_KEYSPACE);
     conf.set("cassandra.input.columnfamily", CASSANDRA_TABLE);
