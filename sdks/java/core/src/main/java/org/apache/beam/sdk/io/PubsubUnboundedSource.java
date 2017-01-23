@@ -1188,7 +1188,7 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
         @Nullable ValueProvider<TopicPath> topic,
         @Nullable String timestampLabel,
         @Nullable String idLabel) {
-      checkArgument(pubsubFactory != null,"pubsubFactory should not be null");
+      checkArgument(pubsubFactory != null, "pubsubFactory should not be null");
       this.pubsubFactory = pubsubFactory;
       this.subscription = subscription;
       this.topic = topic;
