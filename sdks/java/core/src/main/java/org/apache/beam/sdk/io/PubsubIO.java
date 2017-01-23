@@ -556,8 +556,8 @@ public class PubsubIO {
         // Validate.
         PubsubSubscription.fromPath(subscription.get());
       }
-      return new Read<>(name,
-          NestedValueProvider.of(subscription, new SubscriptionTranslator()),
+      return new Read<>(
+          name, NestedValueProvider.of(subscription, new SubscriptionTranslator()),
           null /* reset topic to null */, timestampLabel, coder, idLabel, maxNumRecords,
           maxReadTime, parseFn);
     }
