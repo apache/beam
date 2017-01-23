@@ -136,6 +136,8 @@ interface BigQueryServices extends Serializable {
 
     /**
      * Returns true if the table is empty.
+     *
+     * @throws IOException if the table is not found.
      */
     boolean isTableEmpty(String projectId, String datasetId, String tableId)
         throws IOException, InterruptedException;
