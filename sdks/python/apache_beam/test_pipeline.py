@@ -22,6 +22,7 @@ import shlex
 
 from apache_beam.internal import pickler
 from apache_beam.pipeline import Pipeline
+from apache_beam.runners.runner import PipelineState
 from apache_beam.utils.pipeline_options import PipelineOptions
 from nose.plugins.skip import SkipTest
 
@@ -58,7 +59,8 @@ class TestPipeline(Pipeline):
                runner=None,
                options=None,
                argv=None,
-               is_integration_test=False):
+               is_integration_test=False,
+               blocking=True):
     """Initialize a pipeline object for test.
 
     Args:
@@ -72,40 +74,34 @@ class TestPipeline(Pipeline):
         is None.
       is_integration_test: True if the test is an integration test, False
         otherwise.
+      blocking: Run method will wait until pipeline execution is completed.
 
     Raises:
       ValueError: if either the runner or options argument is not of the
       expected type.
     """
     self.is_integration_test = is_integration_test
+    self.options_list = self._parse_test_option_args(argv)
+    self.blocking = blocking
     if options is None:
-      options = PipelineOptions(self.get_test_option_args(argv))
+      options = PipelineOptions(self.options_list)
     super(TestPipeline, self).__init__(runner, options)
 
-  def _append_extra_opts(self, opt_list, extra_opts):
-    """Append extra pipeline options to existing option list.
+  def run(self):
+    result = super(TestPipeline, self).run()
+    if self.blocking:
+      state = result.wait_until_finish()
+      assert state == PipelineState.DONE, "Pipeline execution failed."
 
-    Test verifier (if contains) should be pickled before append, and
-    will be unpickled later in TestRunner.
-    """
-    for k, v in extra_opts.items():
-      if not v:
-        continue
-      elif isinstance(v, bool) and v:
-        opt_list.append('--%s' % k)
-      elif 'matcher' in k:
-        opt_list.append('--%s=%s' % (k, pickler.dumps(v)))
-      else:
-        opt_list.append('--%s=%s' % (k, v))
+    return result
 
-  def get_test_option_args(self, argv=None, **kwargs):
-    """Get pipeline options as argument list by parsing value of command line
-    argument: --test-pipeline-options combined with given extra options.
+  def _parse_test_option_args(self, argv):
+    """Parse value of command line argument: --test-pipeline-options to get
+    pipeline options.
 
     Args:
       argv: An iterable of command line arguments to be used. If not specified
         then sys.argv will be used as input for parsing arguments.
-      kwargs: Extra pipeline options for the test.
 
     Returns:
       An argument list of options that can be parsed by argparser or directly
@@ -125,10 +121,43 @@ class TestPipeline(Pipeline):
       raise SkipTest('IT is skipped because --test-pipeline-options '
                      'is not specified')
 
-    options_list = shlex.split(known.test_pipeline_options) \
+    return shlex.split(known.test_pipeline_options) \
       if known.test_pipeline_options else []
 
-    if kwargs:
-      self._append_extra_opts(options_list, kwargs)
+  def get_full_options_as_args(self, **extra_opts):
+    """Get full pipeline options as an argument list.
 
-    return options_list
+    Append extra pipeline options to existing option list if provided.
+    Test verifier (if contains in extra options) should be pickled before
+    appending, and will be unpickled later in the TestRunner.
+    """
+    options = list(self.options_list)
+    for k, v in extra_opts.items():
+      if not v:
+        continue
+      elif isinstance(v, bool) and v:
+        options.append('--%s' % k)
+      elif 'matcher' in k:
+        options.append('--%s=%s' % (k, pickler.dumps(v)))
+      else:
+        options.append('--%s=%s' % (k, v))
+    return options
+
+  def get_option(self, opt_name):
+    """Get a pipeline option value by name
+
+    Args:
+      opt_name: The name of the pipeline option.
+
+    Returns:
+      None if option is not found in existing option list which is generated
+      by parsing value of argument `test-pipeline-options`.
+    """
+    parser = argparse.ArgumentParser()
+    opt_name = opt_name[:2] if opt_name[:2] == '--' else opt_name
+    # Option name should start with '--' when it's used for parsing.
+    parser.add_argument('--' + opt_name,
+                        type=str,
+                        action='store')
+    known, _ = parser.parse_known_args(self.options_list)
+    return getattr(known, opt_name) if hasattr(known, opt_name) else None

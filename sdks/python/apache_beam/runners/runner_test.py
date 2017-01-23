@@ -84,9 +84,9 @@ class RunnerTest(unittest.TestCase):
     p = Pipeline(remote_runner,
                  options=PipelineOptions(self.default_properties))
 
-    (p | 'create' >> ptransform.Create([1, 2, 3])  # pylint: disable=expression-not-assigned
-     | 'do' >> ptransform.FlatMap(lambda x: [(x, x)])
-     | 'gbk' >> ptransform.GroupByKey())
+    (p | ptransform.Create([1, 2, 3])  # pylint: disable=expression-not-assigned
+     | 'Do' >> ptransform.FlatMap(lambda x: [(x, x)])
+     | ptransform.GroupByKey())
     remote_runner.job = apiclient.Job(p.options)
     super(DataflowRunner, remote_runner).run(p)
 
@@ -118,8 +118,8 @@ class RunnerTest(unittest.TestCase):
 
     now = datetime.now()
     # pylint: disable=expression-not-assigned
-    (p | 'create' >> ptransform.Create([1, 2, 3, 4, 5])
-     | 'do' >> SpecialParDo(SpecialDoFn(), now))
+    (p | ptransform.Create([1, 2, 3, 4, 5])
+     | 'Do' >> SpecialParDo(SpecialDoFn(), now))
 
     remote_runner.job = apiclient.Job(p.options)
     super(DataflowRunner, remote_runner).run(p)
@@ -147,10 +147,18 @@ class RunnerTest(unittest.TestCase):
     from apache_beam.metrics.metric import Metrics
 
     class MyDoFn(beam.DoFn):
+      def start_bundle(self, context):
+        count = Metrics.counter(self.__class__, 'bundles')
+        count.inc()
+
+      def finish_bundle(self, context):
+        count = Metrics.counter(self.__class__, 'finished_bundles')
+        count.inc()
+
       def process(self, context):
         count = Metrics.counter(self.__class__, 'elements')
         count.inc()
-        distro = Metrics.distribution(self.__class__, 'element-dist')
+        distro = Metrics.distribution(self.__class__, 'element_dist')
         distro.update(context.element)
         return [context.element]
 
@@ -158,23 +166,31 @@ class RunnerTest(unittest.TestCase):
     p = Pipeline(runner,
                  options=PipelineOptions(self.default_properties))
     # pylint: disable=expression-not-assigned
-    (p | 'create' >> ptransform.Create([1, 2, 3, 4, 5])
-     | 'do' >> beam.ParDo(MyDoFn()))
+    (p | ptransform.Create([1, 2, 3, 4, 5])
+     | 'Do' >> beam.ParDo(MyDoFn()))
     result = p.run()
+    result.wait_until_finish()
     metrics = result.metrics().query()
     namespace = '{}.{}'.format(MyDoFn.__module__,
                                MyDoFn.__name__)
+
     hc.assert_that(
         metrics['counters'],
         hc.contains_inanyorder(
             MetricResult(
-                MetricKey('do', MetricName(namespace, 'elements')),
-                5, 5)))
+                MetricKey('Do', MetricName(namespace, 'elements')),
+                5, 5),
+            MetricResult(
+                MetricKey('Do', MetricName(namespace, 'bundles')),
+                1, 1),
+            MetricResult(
+                MetricKey('Do', MetricName(namespace, 'finished_bundles')),
+                1, 1)))
     hc.assert_that(
         metrics['distributions'],
         hc.contains_inanyorder(
             MetricResult(
-                MetricKey('do', MetricName(namespace, 'element-dist')),
+                MetricKey('Do', MetricName(namespace, 'element_dist')),
                 DistributionResult(DistributionData(15, 5, 1, 5)),
                 DistributionResult(DistributionData(15, 5, 1, 5)))))
 
@@ -189,8 +205,7 @@ class RunnerTest(unittest.TestCase):
                      '--temp_location=/dev/null',
                      '--no_auth=True'
                  ]))
-    rows = p | beam.io.Read('read',
-                            beam.io.BigQuerySource('dataset.faketable'))
+    rows = p | beam.io.Read(beam.io.BigQuerySource('dataset.faketable'))
     with self.assertRaises(ValueError,
                            msg=('Coder for the GroupByKey operation'
                                 '"GroupByKey" is not a key-value coder: '

@@ -16,7 +16,6 @@
 #
 
 """Tests for datastore helper."""
-import imp
 import sys
 import unittest
 
@@ -26,11 +25,11 @@ from google.datastore.v1 import query_pb2
 from google.datastore.v1.entity_pb2 import Key
 from googledatastore.connection import RPCError
 from googledatastore import helper as datastore_helper
-from mock import MagicMock, Mock, patch
+from mock import MagicMock
 
 from apache_beam.io.datastore.v1 import fake_datastore
 from apache_beam.io.datastore.v1 import helper
-from apache_beam.utils import retry
+from apache_beam.tests.test_utils import patch_retry
 
 
 class HelperTest(unittest.TestCase):
@@ -39,31 +38,7 @@ class HelperTest(unittest.TestCase):
     self._mock_datastore = MagicMock()
     self._query = query_pb2.Query()
     self._query.kind.add().name = 'dummy_kind'
-    self.patch_retry()
-
-  def patch_retry(self):
-
-    """A function to patch retry module to use mock clock and logger."""
-    real_retry_with_exponential_backoff = retry.with_exponential_backoff
-
-    def patched_retry_with_exponential_backoff(num_retries, retry_filter):
-      """A patch for retry decorator to use a mock dummy clock and logger."""
-      return real_retry_with_exponential_backoff(
-          num_retries=num_retries, retry_filter=retry_filter, logger=Mock(),
-          clock=Mock())
-
-    patch.object(retry, 'with_exponential_backoff',
-                 side_effect=patched_retry_with_exponential_backoff).start()
-
-    # Reload module after patching.
-    imp.reload(helper)
-
-    def kill_patches():
-      patch.stopall()
-      # Reload module again after removing patch.
-      imp.reload(helper)
-
-    self.addCleanup(kill_patches)
+    patch_retry(self, helper)
 
   def permanent_datastore_failure(self, req):
     raise RPCError("dummy", 500, "failed")

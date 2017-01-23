@@ -22,6 +22,7 @@ import unittest
 
 import apache_beam as beam
 from apache_beam.examples.cookbook import custom_ptransform
+from apache_beam.test_pipeline import TestPipeline
 from apache_beam.transforms.util import assert_that
 from apache_beam.transforms.util import equal_to
 
@@ -39,7 +40,7 @@ class CustomCountTest(unittest.TestCase):
     self.run_pipeline(custom_ptransform.Count3(factor), factor=factor)
 
   def run_pipeline(self, count_implementation, factor=1):
-    p = beam.Pipeline('DirectRunner')
+    p = TestPipeline()
     words = p | beam.Create(['CAT', 'DOG', 'CAT', 'CAT', 'DOG'])
     result = words | count_implementation
     assert_that(

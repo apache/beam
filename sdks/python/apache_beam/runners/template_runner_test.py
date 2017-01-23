@@ -55,7 +55,7 @@ class TemplatingDataflowRunnerTest(unittest.TestCase):
                             '--no_auth=True']))
 
     pipeline | beam.Create([1, 2, 3]) | beam.Map(lambda x: x) # pylint: disable=expression-not-assigned
-    pipeline.run()
+    pipeline.run().wait_until_finish()
     with open(dummy_file_name) as template_file:
       saved_job_dict = json.load(template_file)
       self.assertEqual(
@@ -81,7 +81,7 @@ class TemplatingDataflowRunnerTest(unittest.TestCase):
     remote_runner.job = apiclient.Job(pipeline.options)
 
     with self.assertRaises(IOError):
-      pipeline.run()
+      pipeline.run().wait_until_finish()
 
 
 if __name__ == '__main__':

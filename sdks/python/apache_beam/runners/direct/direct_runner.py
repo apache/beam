@@ -43,7 +43,7 @@ class DirectRunner(PipelineRunner):
   def run(self, pipeline):
     """Execute the entire pipeline and returns an DirectPipelineResult."""
 
-    # TODO: Move imports to top. Pipeline <-> Runner dependecy cause problems
+    # TODO: Move imports to top. Pipeline <-> Runner dependency cause problems
     # with resolving imports when they are at top.
     # pylint: disable=wrong-import-position
     from apache_beam.runners.direct.consumer_tracking_pipeline_visitor import \
@@ -76,12 +76,10 @@ class DirectRunner(PipelineRunner):
     executor.start(self.visitor.root_transforms)
     result = DirectPipelineResult(executor, evaluation_context)
 
-    # TODO(altay): If blocking:
-    # Block until the pipeline completes. This call will return after the
-    # pipeline was fully terminated (successfully or with a failure).
-    result.await_completion()
-
     if self._cache:
+      # We are running in eager mode, block until the pipeline execution
+      # completes in order to have full results in the cache.
+      result.wait_until_finish()
       self._cache.finalize()
 
     return result
@@ -141,8 +139,11 @@ class DirectPipelineResult(PipelineResult):
   def _is_in_terminal_state(self):
     return self._state is not PipelineState.RUNNING
 
-  def await_completion(self):
+  def wait_until_finish(self, duration=None):
     if not self._is_in_terminal_state():
+      if duration:
+        raise NotImplementedError(
+            'DirectRunner does not support duration argument.')
       try:
         self._executor.await_completion()
         self._state = PipelineState.DONE

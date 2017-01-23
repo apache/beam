@@ -24,14 +24,23 @@ import unittest
 from apache_beam.pipeline import Pipeline
 from apache_beam.pipeline import PipelineOptions
 from apache_beam.pipeline import PipelineVisitor
+from apache_beam.pvalue import AsSingleton
 from apache_beam.runners.dataflow.native_io.iobase import NativeSource
+from apache_beam.test_pipeline import TestPipeline
 from apache_beam.transforms import CombineGlobally
 from apache_beam.transforms import Create
 from apache_beam.transforms import FlatMap
 from apache_beam.transforms import Map
+from apache_beam.transforms import NewDoFn
+from apache_beam.transforms import ParDo
 from apache_beam.transforms import PTransform
 from apache_beam.transforms import Read
-from apache_beam.transforms.util import assert_that, equal_to
+from apache_beam.transforms import WindowInto
+from apache_beam.transforms.util import assert_that
+from apache_beam.transforms.util import equal_to
+from apache_beam.transforms.window import IntervalWindow
+from apache_beam.transforms.window import WindowFn
+from apache_beam.utils.timestamp import MIN_TIMESTAMP
 
 
 class FakeSource(NativeSource):
@@ -94,7 +103,7 @@ class PipelineTest(unittest.TestCase):
       self.leave_composite.append(transform_node)
 
   def test_create(self):
-    pipeline = Pipeline(self.runner_name)
+    pipeline = TestPipeline(runner=self.runner_name)
     pcoll = pipeline | 'label1' >> Create([1, 2, 3])
     assert_that(pcoll, equal_to([1, 2, 3]))
 
@@ -105,13 +114,13 @@ class PipelineTest(unittest.TestCase):
     pipeline.run()
 
   def test_create_singleton_pcollection(self):
-    pipeline = Pipeline(self.runner_name)
+    pipeline = TestPipeline(runner=self.runner_name)
     pcoll = pipeline | 'label' >> Create([[1, 2, 3]])
     assert_that(pcoll, equal_to([[1, 2, 3]]))
     pipeline.run()
 
   def test_read(self):
-    pipeline = Pipeline(self.runner_name)
+    pipeline = TestPipeline(runner=self.runner_name)
     pcoll = pipeline | 'read' >> Read(FakeSource([1, 2, 3]))
     assert_that(pcoll, equal_to([1, 2, 3]))
     pipeline.run()
@@ -136,7 +145,7 @@ class PipelineTest(unittest.TestCase):
     self.assertEqual(visitor.leave_composite[0].transform, transform)
 
   def test_apply_custom_transform(self):
-    pipeline = Pipeline(self.runner_name)
+    pipeline = TestPipeline(runner=self.runner_name)
     pcoll = pipeline | 'pcoll' >> Create([1, 2, 3])
     result = pcoll | PipelineTest.CustomTransform()
     assert_that(result, equal_to([2, 3, 4]))
@@ -158,7 +167,7 @@ class PipelineTest(unittest.TestCase):
         'pvalue | "label" >> transform')
 
   def test_reuse_cloned_custom_transform_instance(self):
-    pipeline = Pipeline(self.runner_name)
+    pipeline = TestPipeline(runner=self.runner_name)
     pcoll1 = pipeline | 'pc1' >> Create([1, 2, 3])
     pcoll2 = pipeline | 'pc2' >> Create([4, 5, 6])
     transform = PipelineTest.CustomTransform()
@@ -207,7 +216,7 @@ class PipelineTest(unittest.TestCase):
     num_elements = 10
     num_maps = 100
 
-    pipeline = Pipeline('DirectRunner')
+    pipeline = TestPipeline(runner='DirectRunner')
 
     # Consumed memory should not be proportional to the number of maps.
     memory_threshold = (
@@ -238,6 +247,96 @@ class PipelineTest(unittest.TestCase):
   def test_eager_pipeline(self):
     p = Pipeline('EagerRunner')
     self.assertEqual([1, 4, 9], p | Create([1, 2, 3]) | Map(lambda x: x*x))
+
+
+class NewDoFnTest(unittest.TestCase):
+
+  def setUp(self):
+    self.runner_name = 'DirectRunner'
+
+  def test_element(self):
+    class TestDoFn(NewDoFn):
+      def process(self, element):
+        yield element + 10
+
+    pipeline = TestPipeline(runner=self.runner_name)
+    pcoll = pipeline | 'Create' >> Create([1, 2]) | 'Do' >> ParDo(TestDoFn())
+    assert_that(pcoll, equal_to([11, 12]))
+    pipeline.run()
+
+  def test_context_param(self):
+    class TestDoFn(NewDoFn):
+      def process(self, element, context=NewDoFn.ContextParam):
+        yield context.element + 10
+
+    pipeline = TestPipeline(runner=self.runner_name)
+    pcoll = pipeline | 'Create' >> Create([1, 2])| 'Do' >> ParDo(TestDoFn())
+    assert_that(pcoll, equal_to([11, 12]))
+    pipeline.run()
+
+  def test_side_input_no_tag(self):
+    class TestDoFn(NewDoFn):
+      def process(self, element, prefix, suffix):
+        return ['%s-%s-%s' % (prefix, element, suffix)]
+
+    pipeline = TestPipeline()
+    words_list = ['aa', 'bb', 'cc']
+    words = pipeline | 'SomeWords' >> Create(words_list)
+    prefix = 'zyx'
+    suffix = pipeline | 'SomeString' >> Create(['xyz'])  # side in
+    result = words | 'DecorateWordsDoFnNoTag' >> ParDo(
+        TestDoFn(), prefix, suffix=AsSingleton(suffix))
+    assert_that(result, equal_to(['zyx-%s-xyz' % x for x in words_list]))
+    pipeline.run()
+
+  def test_side_input_tagged(self):
+    class TestDoFn(NewDoFn):
+      def process(self, element, prefix, suffix=NewDoFn.SideInputParam):
+        return ['%s-%s-%s' % (prefix, element, suffix)]
+
+    pipeline = TestPipeline()
+    words_list = ['aa', 'bb', 'cc']
+    words = pipeline | 'SomeWords' >> Create(words_list)
+    prefix = 'zyx'
+    suffix = pipeline | 'SomeString' >> Create(['xyz'])  # side in
+    result = words | 'DecorateWordsDoFnNoTag' >> ParDo(
+        TestDoFn(), prefix, suffix=AsSingleton(suffix))
+    assert_that(result, equal_to(['zyx-%s-xyz' % x for x in words_list]))
+    pipeline.run()
+
+  def test_window_param(self):
+    class TestDoFn(NewDoFn):
+      def process(self, element, window=NewDoFn.WindowParam):
+        yield (float(window.start), float(window.end))
+
+    class TestWindowFn(WindowFn):
+      """Windowing function adding two disjoint windows to each element."""
+
+      def assign(self, assign_context):
+        _ = assign_context
+        return [IntervalWindow(10, 20), IntervalWindow(20, 30)]
+
+      def merge(self, existing_windows):
+        return existing_windows
+
+    pipeline = TestPipeline(runner=self.runner_name)
+    pcoll = (pipeline
+             | 'KVs' >> Create([(1, 10), (2, 20)])
+             | 'W' >> WindowInto(windowfn=TestWindowFn())
+             | 'Do' >> ParDo(TestDoFn()))
+    assert_that(pcoll, equal_to([(10.0, 20.0), (10.0, 20.0),
+                                 (20.0, 30.0), (20.0, 30.0)]))
+    pipeline.run()
+
+  def test_timestamp_param(self):
+    class TestDoFn(NewDoFn):
+      def process(self, element, timestamp=NewDoFn.TimestampParam):
+        yield timestamp
+
+    pipeline = TestPipeline(runner=self.runner_name)
+    pcoll = pipeline | 'Create' >> Create([1, 2]) | 'Do' >> ParDo(TestDoFn())
+    assert_that(pcoll, equal_to([MIN_TIMESTAMP, MIN_TIMESTAMP]))
+    pipeline.run()
 
 
 class Bacon(PipelineOptions):

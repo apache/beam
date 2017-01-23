@@ -23,10 +23,10 @@ import unittest
 import apache_beam as beam
 from apache_beam import pvalue
 from apache_beam import typehints
+from apache_beam.test_pipeline import TestPipeline
 from apache_beam.transforms.util import assert_that, equal_to
 from apache_beam.typehints import WithTypeHints
 from apache_beam.utils.pipeline_options import OptionsContext
-from apache_beam.utils.pipeline_options import PipelineOptions
 
 # These test often construct a pipeline as value | PTransform to test side
 # effects (e.g. errors).
@@ -168,7 +168,7 @@ class SideInputTest(unittest.TestCase):
     @typehints.with_input_types(str, int)
     def repeat(s, times):
       return s * times
-    p = beam.Pipeline(options=PipelineOptions([]))
+    p = TestPipeline()
     main_input = p | beam.Create(['a', 'bb', 'c'])
     side_input = p | 'side' >> beam.Create([3])
     result = main_input | beam.Map(repeat, pvalue.AsSingleton(side_input))
@@ -183,7 +183,7 @@ class SideInputTest(unittest.TestCase):
     @typehints.with_input_types(str, typehints.Iterable[str])
     def concat(glue, items):
       return glue.join(sorted(items))
-    p = beam.Pipeline(options=PipelineOptions([]))
+    p = TestPipeline()
     main_input = p | beam.Create(['a', 'bb', 'c'])
     side_input = p | 'side' >> beam.Create(['x', 'y', 'z'])
     result = main_input | beam.Map(concat, pvalue.AsIter(side_input))

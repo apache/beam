@@ -17,10 +17,21 @@
 
 """Unit test for the TestPipeline class"""
 
+import logging
 import unittest
 
+from hamcrest.core.base_matcher import BaseMatcher
+from hamcrest.core.assert_that import assert_that as hc_assert_that
+
+from apache_beam.internal import pickler
 from apache_beam.test_pipeline import TestPipeline
 from apache_beam.utils.pipeline_options import PipelineOptions
+
+
+# A simple matcher that is ued for testing extra options appending.
+class SimpleMatcher(BaseMatcher):
+  def _matches(self, item):
+    return True
 
 
 class TestPipelineTest(unittest.TestCase):
@@ -32,9 +43,6 @@ class TestPipelineTest(unittest.TestCase):
                                  'male': True,
                                  'age': 1}}
 
-  def setUp(self):
-    self.pipeline = TestPipeline()
-
   # Used for testing pipeline option creation.
   class TestParsingOptions(PipelineOptions):
 
@@ -45,19 +53,60 @@ class TestPipelineTest(unittest.TestCase):
       parser.add_argument('--age', action='store', type=int, help='mock age')
 
   def test_option_args_parsing(self):
+    test_pipeline = TestPipeline(argv=self.TEST_CASE['options'])
     self.assertListEqual(
-        self.pipeline.get_test_option_args(argv=self.TEST_CASE['options']),
-        self.TEST_CASE['expected_list'])
+        sorted(test_pipeline.get_full_options_as_args()),
+        sorted(self.TEST_CASE['expected_list']))
+
+  def test_empty_option_args_parsing(self):
+    test_pipeline = TestPipeline()
+    self.assertListEqual([],
+                         test_pipeline.get_full_options_as_args())
 
   def test_create_test_pipeline_options(self):
-    test_options = PipelineOptions(
-        self.pipeline.get_test_option_args(self.TEST_CASE['options']))
-    self.assertDictContainsSubset(
-        self.TEST_CASE['expected_dict'], test_options.get_all_options())
+    test_pipeline = TestPipeline(argv=self.TEST_CASE['options'])
+    test_options = PipelineOptions(test_pipeline.get_full_options_as_args())
+    self.assertDictContainsSubset(self.TEST_CASE['expected_dict'],
+                                  test_options.get_all_options())
+
+  EXTRA_OPT_CASES = [
+      {'options': {'name': 'Mark'},
+       'expected': ['--name=Mark']},
+      {'options': {'student': True},
+       'expected': ['--student']},
+      {'options': {'student': False},
+       'expected': []},
+      {'options': {'name': 'Mark', 'student': True},
+       'expected': ['--name=Mark', '--student']}
+  ]
 
   def test_append_extra_options(self):
-    extra_opt = {'name': 'Mark'}
-    options_list = self.pipeline.get_test_option_args(
-        argv=self.TEST_CASE['options'], **extra_opt)
-    expected_list = self.TEST_CASE['expected_list'] + ['--name=Mark']
-    self.assertListEqual(expected_list, options_list)
+    test_pipeline = TestPipeline()
+    for case in self.EXTRA_OPT_CASES:
+      opt_list = test_pipeline.get_full_options_as_args(**case['options'])
+      self.assertListEqual(sorted(opt_list), sorted(case['expected']))
+
+  def test_append_verifier_in_extra_opt(self):
+    extra_opt = {'matcher': SimpleMatcher()}
+    opt_list = TestPipeline().get_full_options_as_args(**extra_opt)
+    _, value = opt_list[0].split('=', 1)
+    matcher = pickler.loads(value)
+    self.assertTrue(isinstance(matcher, BaseMatcher))
+    hc_assert_that(None, matcher)
+
+  def test_get_option(self):
+    name, value = ('job', 'mockJob')
+    test_pipeline = TestPipeline()
+    test_pipeline.options_list = ['--%s=%s' % (name, value)]
+    self.assertEqual(test_pipeline.get_option(name), value)
+
+  def test_skip_IT(self):
+    test_pipeline = TestPipeline(is_integration_test=True)
+    test_pipeline.run()
+    # Note that this will never be reached since it should be skipped above.
+    self.fail()
+
+
+if __name__ == '__main__':
+  logging.getLogger().setLevel(logging.INFO)
+  unittest.main()

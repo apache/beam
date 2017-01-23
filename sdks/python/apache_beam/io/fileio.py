@@ -19,6 +19,7 @@
 from __future__ import absolute_import
 
 import bz2
+import cStringIO
 import glob
 import logging
 from multiprocessing.pool import ThreadPool
@@ -68,6 +69,7 @@ class _CompressionType(object):
 
 class CompressionTypes(object):
   """Enum-like class representing known compression types."""
+
   # Detect compression based on filename extension.
   #
   # The following extensions are currently recognized by auto-detection:
@@ -642,9 +644,9 @@ class ChannelFactory(object):
 class _CompressedFile(object):
   """Somewhat limited file wrapper for easier handling of compressed files."""
 
-  # The bit mask to use for the wbits parameters of the GZIP compressor and
+  # The bit mask to use for the wbits parameters of the zlib compressor and
   # decompressor objects.
-  _gzip_mask = zlib.MAX_WBITS | 16
+  _gzip_mask = zlib.MAX_WBITS | 16  # Mask when using GZIP headers.
 
   def __init__(self,
                fileobj,
@@ -652,35 +654,7 @@ class _CompressedFile(object):
                read_size=gcsio.DEFAULT_READ_BUFFER_SIZE):
     if not fileobj:
       raise ValueError('fileobj must be opened file but was %s' % fileobj)
-    self._validate_compression_type(compression_type)
 
-    self._file = fileobj
-    self._data = ''
-    self._read_size = read_size
-    self._compression_type = compression_type
-    if self._file.tell() != 0:
-      raise ValueError('fileobj must be at position 0 but was %d' %
-                       self._file.tell())
-    self._uncompressed_position = 0
-    if self._readable():
-      if self._compression_type == CompressionTypes.BZIP2:
-        self._decompressor = bz2.BZ2Decompressor()
-      else:
-        self._decompressor = zlib.decompressobj(self._gzip_mask)
-      self._read_eof = False
-    else:
-      self._decompressor = None
-
-    if self._writeable():
-      if self._compression_type == CompressionTypes.BZIP2:
-        self._compressor = bz2.BZ2Compressor()
-      else:
-        self._compressor = zlib.compressobj(zlib.Z_DEFAULT_COMPRESSION,
-                                            zlib.DEFLATED, self._gzip_mask)
-    else:
-      self._compressor = None
-
-  def _validate_compression_type(self, compression_type):
     if not CompressionTypes.is_valid_compression_type(compression_type):
       raise TypeError('compression_type must be CompressionType object but '
                       'was %s' % type(compression_type))
@@ -688,16 +662,44 @@ class _CompressedFile(object):
                            ):
       raise ValueError(
           'Cannot create object with unspecified or no compression')
-    if compression_type not in (CompressionTypes.BZIP2, CompressionTypes.GZIP):
-      raise ValueError(
-          'compression_type %s not supported for whole-file compression',
-          compression_type)
 
-  def _readable(self):
+    self._file = fileobj
+    self._compression_type = compression_type
+
+    if self._file.tell() != 0:
+      raise ValueError('fileobj must be at position 0 but was %d' %
+                       self._file.tell())
+    self._uncompressed_position = 0
+
+    if self.readable():
+      self._read_size = read_size
+      self._read_buffer = cStringIO.StringIO()
+      self._read_position = 0
+      self._read_eof = False
+
+      if self._compression_type == CompressionTypes.BZIP2:
+        self._decompressor = bz2.BZ2Decompressor()
+      else:
+        assert self._compression_type == CompressionTypes.GZIP
+        self._decompressor = zlib.decompressobj(self._gzip_mask)
+    else:
+      self._decompressor = None
+
+    if self.writeable():
+      if self._compression_type == CompressionTypes.BZIP2:
+        self._compressor = bz2.BZ2Compressor()
+      else:
+        assert self._compression_type == CompressionTypes.GZIP
+        self._compressor = zlib.compressobj(zlib.Z_DEFAULT_COMPRESSION,
+                                            zlib.DEFLATED, self._gzip_mask)
+    else:
+      self._compressor = None
+
+  def readable(self):
     mode = self._file.mode
     return 'r' in mode or 'a' in mode
 
-  def _writeable(self):
+  def writeable(self):
     mode = self._file.mode
     return 'w' in mode or 'a' in mode
 
@@ -712,10 +714,27 @@ class _CompressedFile(object):
 
   def _fetch_to_internal_buffer(self, num_bytes):
     """Fetch up to num_bytes into the internal buffer."""
-    while not self._read_eof and len(self._data) < num_bytes:
+    if (not self._read_eof and self._read_position > 0 and
+        (self._read_buffer.tell() - self._read_position) < num_bytes):
+      # There aren't enough number of bytes to accommodate a read, so we
+      # prepare for a possibly large read by clearing up all internal buffers
+      # but without dropping any previous held data.
+      self._read_buffer.seek(self._read_position)
+      data = self._read_buffer.read()
+      self._read_position = 0
+      self._read_buffer.seek(0)
+      self._read_buffer.truncate(0)
+      self._read_buffer.write(data)
+
+    while not self._read_eof and (self._read_buffer.tell() - self._read_position
+                                 ) < num_bytes:
+      # Continue reading from the underlying file object until enough bytes are
+      # available, or EOF is reached.
       buf = self._file.read(self._read_size)
       if buf:
-        self._data += self._decompressor.decompress(buf)
+        decompressed = self._decompressor.decompress(buf)
+        del buf  # Free up some possibly large and no-longer-needed memory.
+        self._read_buffer.write(decompressed)
       else:
         # EOF reached.
         # Verify completeness and no corruption and flush (if needed by
@@ -732,63 +751,67 @@ class _CompressedFile(object):
           except EOFError:
             pass  # All is as expected!
         else:
-          self._data += self._decompressor.flush()
+          self._read_buffer.write(self._decompressor.flush())
+
         # Record that we have hit the end of file, so we won't unnecessarily
         # repeat the completeness verification step above.
         self._read_eof = True
-        return
 
-  def _read_from_internal_buffer(self, num_bytes):
-    """Read up to num_bytes from the internal buffer."""
-    # TODO: this can be optimized to avoid a string copy operation.
-    result = self._data[:num_bytes]
-    self._uncompressed_position += len(result)
-    self._data = self._data[num_bytes:]
+  def _read_from_internal_buffer(self, read_fn):
+    """Read from the internal buffer by using the supplied read_fn."""
+    self._read_buffer.seek(self._read_position)
+    result = read_fn()
+    self._read_position += len(result)
+    self._read_buffer.seek(0, os.SEEK_END)  # Allow future writes.
     return result
 
   def read(self, num_bytes):
     if not self._decompressor:
       raise ValueError('decompressor not initialized')
+
     self._fetch_to_internal_buffer(num_bytes)
-    return self._read_from_internal_buffer(num_bytes)
+    return self._read_from_internal_buffer(
+        lambda: self._read_buffer.read(num_bytes))
 
   def readline(self):
     """Equivalent to standard file.readline(). Same return conventions apply."""
     if not self._decompressor:
       raise ValueError('decompressor not initialized')
-    result = ''
-    while True:
-      self._fetch_to_internal_buffer(self._read_size)
-      if not self._data:
-        break  # EOF reached.
-      index = self._data.find('\n')
-      if index == -1:
-        result += self._read_from_internal_buffer(len(self._data))
-      else:
-        result += self._read_from_internal_buffer(index + 1)
-        break  # Newline reached.
-    return result
 
-  @property
+    io = cStringIO.StringIO()
+    while True:
+      # Ensure that the internal buffer has at least half the read_size. Going
+      # with half the _read_size (as opposed to a full _read_size) to ensure
+      # that actual fetches are more evenly spread out, as opposed to having 2
+      # consecutive reads at the beginning of a read.
+      self._fetch_to_internal_buffer(self._read_size / 2)
+      line = self._read_from_internal_buffer(
+          lambda: self._read_buffer.readline())
+      io.write(line)
+      if line.endswith('\n') or not line:
+        break  # Newline or EOF reached.
+
+    return io.getvalue()
+
   def closed(self):
     return not self._file or self._file.closed()
 
   def close(self):
-    if self._file is None:
-      return
+    if self.readable():
+      self._read_buffer.close()
 
-    if self._writeable():
+    if self.writeable():
       self._file.write(self._compressor.flush())
+
     self._file.close()
 
   def flush(self):
-    if self._writeable():
+    if self.writeable():
       self._file.write(self._compressor.flush())
     self._file.flush()
 
-  # TODO: Add support for seeking to a file position.
-  @property
   def seekable(self):
+    # TODO: Add support for seeking to a file position.
     return False
 
   def tell(self):

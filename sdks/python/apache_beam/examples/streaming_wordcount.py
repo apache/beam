@@ -52,21 +52,21 @@ def run(argv=None):
 
   # Capitalize the characters in each line.
   transformed = (lines
-                 | (beam.FlatMap('split',
-                                 lambda x: re.findall(r'[A-Za-z\']+', x))
-                    .with_output_types(unicode))
-                 | 'pair_with_one' >> beam.Map(lambda x: (x, 1))
+                 | 'Split' >> (
+                     beam.FlatMap(lambda x: re.findall(r'[A-Za-z\']+', x))
+                     .with_output_types(unicode))
+                 | 'PairWithOne' >> beam.Map(lambda x: (x, 1))
                  | beam.WindowInto(window.FixedWindows(15, 0))
-                 | 'group' >> beam.GroupByKey()
-                 | 'count' >> beam.Map(lambda (word, ones): (word, sum(ones)))
-                 | 'format' >> beam.Map(lambda tup: '%s: %d' % tup))
+                 | 'Group' >> beam.GroupByKey()
+                 | 'Count' >> beam.Map(lambda (word, ones): (word, sum(ones)))
+                 | 'Format' >> beam.Map(lambda tup: '%s: %d' % tup))
 
   # Write to PubSub.
   # pylint: disable=expression-not-assigned
   transformed | beam.io.Write(
       'pubsub_write', beam.io.PubSubSink(known_args.output_topic))
 
-  p.run()
+  p.run().wait_until_finish()
 
 
 if __name__ == '__main__':

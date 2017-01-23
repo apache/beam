@@ -36,11 +36,17 @@ cdef class DoFnRunner(Receiver):
   cdef object tagged_receivers
   cdef LoggingContext logging_context
   cdef object step_name
+  cdef bint is_new_dofn
+  cdef object args
+  cdef dict kwargs
+  cdef object side_inputs
   cdef bint has_windowed_side_inputs
 
   cdef Receiver main_receivers
 
   cpdef process(self, WindowedValue element)
+  cdef old_dofn_process(self, WindowedValue element)
+  cdef new_dofn_process(self, WindowedValue element)
 
   @cython.locals(windowed_value=WindowedValue)
   cpdef _process_outputs(self, WindowedValue element, results)

@@ -23,6 +23,7 @@ import unittest
 
 import apache_beam as beam
 from apache_beam.examples.complete import top_wikipedia_sessions
+from apache_beam.test_pipeline import TestPipeline
 
 
 class ComputeTopSessionsTest(unittest.TestCase):
@@ -49,7 +50,7 @@ class ComputeTopSessionsTest(unittest.TestCase):
   ]
 
   def test_compute_top_sessions(self):
-    p = beam.Pipeline('DirectRunner')
+    p = TestPipeline()
     edits = p | beam.Create(self.EDITS)
     result = edits | top_wikipedia_sessions.ComputeTopSessions(1.0)
 

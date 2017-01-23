@@ -116,7 +116,7 @@ class _GCloudWrapperCredentials(OAuth2Credentials):
 
 def get_service_credentials():
   """Get credentials to access Google services."""
-  user_agent = 'dataflow-python-sdk/1.0'
+  user_agent = 'beam-python-sdk/1.0'
   if is_running_in_gce:
     # We are currently running as a GCE taskrunner worker.
     #

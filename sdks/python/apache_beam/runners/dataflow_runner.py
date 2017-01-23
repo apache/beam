@@ -78,7 +78,7 @@ class DataflowRunner(PipelineRunner):
     return 's%s' % self._unique_step_id
 
   @staticmethod
-  def poll_for_job_completion(runner, job_id):
+  def poll_for_job_completion(runner, result):
     """Polls for the specified job to finish running (successfully or not)."""
     last_message_time = None
     last_message_id = None
@@ -101,6 +101,7 @@ class DataflowRunner(PipelineRunner):
       else:
         return 0
 
+    job_id = result.job_id()
     while True:
       response = runner.dataflow_client.get_job(job_id)
       # If get() is called very soon after Create() the response may not contain
@@ -151,7 +152,7 @@ class DataflowRunner(PipelineRunner):
         if not page_token:
           break
 
-    runner.result = DataflowPipelineResult(response)
+    result._job = response
     runner.last_error_msg = last_error_msg
 
   def run(self, pipeline):
@@ -176,23 +177,11 @@ class DataflowRunner(PipelineRunner):
 
     # Create the job
     self.result = DataflowPipelineResult(
-        self.dataflow_client.create_job(self.job))
+        self.dataflow_client.create_job(self.job), self)
 
     if self.result.has_job and self.blocking:
-      thread = threading.Thread(
-          target=DataflowRunner.poll_for_job_completion,
-          args=(self, self.result.job_id()))
-      # Mark the thread as a daemon thread so a keyboard interrupt on the main
-      # thread will terminate everything. This is also the reason we will not
-      # use thread.join() to wait for the polling thread.
-      thread.daemon = True
-      thread.start()
-      while thread.isAlive():
-        time.sleep(5.0)
-      if self.result.current_state() != PipelineState.DONE:
-        raise DataflowRuntimeException(
-            'Dataflow pipeline failed:\n%s'
-            % getattr(self, 'last_error_msg', None), self.result)
+      self.result.wait_until_finish()
+
     return self.result
 
   def _get_typehint_based_encoding(self, typehint, window_coder):
@@ -651,9 +640,10 @@ class DataflowRunner(PipelineRunner):
 class DataflowPipelineResult(PipelineResult):
   """Represents the state of a pipeline run on the Dataflow service."""
 
-  def __init__(self, job):
+  def __init__(self, job, runner):
     """Job is a Job message from the Dataflow API."""
     self._job = job
+    self._runner = runner
 
   def job_id(self):
     return self._job.id
@@ -662,12 +652,16 @@ class DataflowPipelineResult(PipelineResult):
   def has_job(self):
     return self._job is not None
 
-  def current_state(self):
+  @property
+  def state(self):
     """Return the current state of the remote job.
 
     Returns:
       A PipelineState object.
     """
+    if not self.has_job:
+      return PipelineState.UNKNOWN
+
     values_enum = dataflow_api.Job.CurrentStateValueValuesEnum
     api_jobstate_map = {
         values_enum.JOB_STATE_UNKNOWN: PipelineState.UNKNOWN,
@@ -684,11 +678,46 @@ class DataflowPipelineResult(PipelineResult):
     return (api_jobstate_map[self._job.currentState] if self._job.currentState
             else PipelineState.UNKNOWN)
 
+  def _is_in_terminal_state(self):
+    if not self.has_job:
+      return True
+
+    return self.state in [
+        PipelineState.STOPPED, PipelineState.DONE, PipelineState.FAILED,
+        PipelineState.CANCELLED, PipelineState.DRAINED]
+
+  def wait_until_finish(self, duration=None):
+    if not self._is_in_terminal_state():
+      if not self.has_job:
+        raise IOError('Failed to get the Dataflow job id.')
+      if duration:
+        raise NotImplementedError(
+            'DataflowRunner does not support duration argument.')
+
+      thread = threading.Thread(
+          target=DataflowRunner.poll_for_job_completion,
+          args=(self._runner, self))
+
+      # Mark the thread as a daemon thread so a keyboard interrupt on the main
+      # thread will terminate everything. This is also the reason we will not
+      # use thread.join() to wait for the polling thread.
+      thread.daemon = True
+      thread.start()
+      while thread.isAlive():
+        time.sleep(5.0)
+      if self.state != PipelineState.DONE:
+        # TODO(BEAM-1290): Consider converting this to an error log based on the
+        # resolution of the issue.
+        raise DataflowRuntimeException(
+            'Dataflow pipeline failed. State: %s, Error:\n%s' %
+            (self.state, getattr(self._runner, 'last_error_msg', None)), self)
+    return self.state
+
   def __str__(self):
     return '<%s %s %s>' % (
         self.__class__.__name__,
         self.job_id(),
-        self.current_state())
+        self.state)
 
   def __repr__(self):
     return '<%s %s at %s>' % (self.__class__.__name__, self._job, hex(id(self)))

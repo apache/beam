@@ -37,21 +37,20 @@ The syntax supported is described here:
 https://cloud.google.com/bigquery/bq-command-line-tool-quickstart
 
 BigQuery sources can be used as main inputs or side inputs. A main input
-(common case) is expected to be massive and the Dataflow service will make sure
-it is split into manageable chunks and processed in parallel. Side inputs are
-expected to be small and will be read completely every time a ParDo DoFn gets
-executed. In the example below the lambda function implementing the DoFn for the
-Map transform will get on each call *one* row of the main table and *all* rows
-of the side table. The execution framework may use some caching techniques to
-share the side inputs between calls in order to avoid excessive reading::
+(common case) is expected to be massive and will be split into manageable chunks
+and processed in parallel. Side inputs are expected to be small and will be read
+completely every time a ParDo DoFn gets executed. In the example below the
+lambda function implementing the DoFn for the Map transform will get on each
+call *one* row of the main table and *all* rows of the side table. The runner
+may use some caching techniques to share the side inputs between calls in order
+to avoid excessive reading:
 
   main_table = pipeline | 'very_big' >> beam.io.Read(beam.io.BigQuerySource()
   side_table = pipeline | 'not_big' >> beam.io.Read(beam.io.BigQuerySource()
   results = (
       main_table
-      | beam.Map('process data',
-               lambda element, side_input: ...,
-               AsList(side_table)))
+      | 'process data' >> beam.Map(
+          lambda element, side_input: ..., AsList(side_table)))
 
 There is no difference in how main and side inputs are read. What makes the
 side_table a 'side input' is the AsList wrapper used when passing the table
@@ -1035,8 +1034,7 @@ class BigQueryWrapper(object):
     elif field.type == 'TIMESTAMP':
       # The UTC should come from the timezone library but this is a known
       # issue in python 2.7 so we'll just hardcode it as we're reading using
-      # utcfromtimestamp. This is just to match the output from the dataflow
-      # runner with the local runner.
+      # utcfromtimestamp.
       # Input: 1478134176.985864 --> Output: "2016-11-03 00:49:36.985864 UTC"
       dt = datetime.datetime.utcfromtimestamp(float(value))
       return dt.strftime('%Y-%m-%d %H:%M:%S.%f UTC')

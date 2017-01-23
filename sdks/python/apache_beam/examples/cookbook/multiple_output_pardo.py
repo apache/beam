@@ -40,7 +40,7 @@ pipeline configuration:
   --staging_location gs://YOUR_STAGING_DIRECTORY
   --temp_location gs://YOUR_TEMP_DIRECTORY
   --job_name YOUR_JOB_NAME
-  --runner BlockingDataflowRunner
+  --runner DataflowRunner
 
 and an output prefix on GCS:
   --output gs://YOUR_OUTPUT_PREFIX
@@ -173,7 +173,7 @@ def run(argv=None):
    | 'count words' >> CountWords()
    | 'write words' >> WriteToText(known_args.output + '-words'))
 
-  p.run()
+  return p.run()
 
 
 if __name__ == '__main__':

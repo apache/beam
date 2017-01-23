@@ -15,7 +15,7 @@
 # limitations under the License.
 #
 
-"""Utility functions used throughout the dataflow package."""
+"""Utility functions used throughout the package."""
 
 
 class ArgumentPlaceholder(object):

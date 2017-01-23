@@ -167,7 +167,7 @@ class Pipeline(object):
 
   def __exit__(self, exc_type, exc_val, exc_tb):
     if not exc_type:
-      self.run()
+      self.run().wait_until_finish()
 
   def visit(self, visitor):
     """Visits depth-first every node of a pipeline's DAG.

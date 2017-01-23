@@ -20,28 +20,25 @@
 import glob
 import logging
 import os
-import sys
 import tempfile
 import unittest
+import uuid
 
 import apache_beam as beam
-from apache_beam import io
+from apache_beam import coders
 from apache_beam import pvalue
 from apache_beam import typehints
-from apache_beam.io import fileio
 from apache_beam.transforms.util import assert_that
 from apache_beam.transforms.util import equal_to
 from apache_beam.utils.pipeline_options import TypeOptions
 from apache_beam.examples.snippets import snippets
 
 # pylint: disable=expression-not-assigned
-
-# Monky-patch to use native sink for file path re-writing.
-io.TextFileSink = fileio.NativeTextFileSink
+from apache_beam.test_pipeline import TestPipeline
 
 
 class ParDoTest(unittest.TestCase):
-  """Tests for dataflow/model/par-do."""
+  """Tests for model/par-do."""
 
   def test_pardo(self):
     # Note: "words" and "ComputeWordLengthFn" are referenced by name in
@@ -106,13 +103,14 @@ class ParDoTest(unittest.TestCase):
     # pylint: disable=line-too-long
     words = ['aa', 'bbc', 'defg']
     # [START model_pardo_with_label]
-    result = words | 'CountUniqueLetters' >> beam.Map(lambda word: len(set(word)))
+    result = words | 'CountUniqueLetters' >> beam.Map(
+        lambda word: len(set(word)))
     # [END model_pardo_with_label]
 
     self.assertEqual({1, 2, 4}, set(result))
 
   def test_pardo_side_input(self):
-    p = beam.Pipeline('DirectRunner')
+    p = TestPipeline()
     words = p | 'start' >> beam.Create(['a', 'bb', 'ccc', 'dddd'])
 
     # [START model_pardo_side_input]
@@ -230,7 +228,7 @@ class ParDoTest(unittest.TestCase):
 class TypeHintsTest(unittest.TestCase):
 
   def test_bad_types(self):
-    p = beam.Pipeline('DirectRunner', argv=sys.argv)
+    p = TestPipeline()
     evens = None  # pylint: disable=unused-variable
 
     # [START type_hints_missing_define_numbers]
@@ -292,7 +290,7 @@ class TypeHintsTest(unittest.TestCase):
 
   def test_runtime_checks_off(self):
     # pylint: disable=expression-not-assigned
-    p = beam.Pipeline('DirectRunner', argv=sys.argv)
+    p = TestPipeline()
     # [START type_hints_runtime_off]
     p | beam.Create(['a']) | beam.Map(lambda x: 3).with_output_types(str)
     p.run()
@@ -300,7 +298,7 @@ class TypeHintsTest(unittest.TestCase):
 
   def test_runtime_checks_on(self):
     # pylint: disable=expression-not-assigned
-    p = beam.Pipeline('DirectRunner', argv=sys.argv)
+    p = TestPipeline()
     with self.assertRaises(typehints.TypeCheckError):
       # [START type_hints_runtime_on]
       p.options.view_as(TypeOptions).runtime_type_check = True
@@ -309,7 +307,7 @@ class TypeHintsTest(unittest.TestCase):
       # [END type_hints_runtime_on]
 
   def test_deterministic_key(self):
-    p = beam.Pipeline('DirectRunner')
+    p = TestPipeline()
     lines = (p | beam.Create(
         ['banana,fruit,3', 'kiwi,fruit,2', 'kiwi,fruit,2', 'zucchini,veg,3']))
 
@@ -350,6 +348,80 @@ class TypeHintsTest(unittest.TestCase):
 
 
 class SnippetsTest(unittest.TestCase):
+  # Replacing text read/write transforms with dummy transforms for testing.
+  class DummyReadTransform(beam.PTransform):
+    """A transform that will replace iobase.ReadFromText.
+
+    To be used for testing.
+    """
+
+    def __init__(self, file_to_read=None):
+      self.file_to_read = file_to_read
+
+    class ReadDoFn(beam.DoFn):
+
+      def __init__(self, file_to_read):
+        self.file_to_read = file_to_read
+        self.coder = coders.StrUtf8Coder()
+
+      def process(self, context):
+        pass
+
+      def finish_bundle(self, context):
+        assert self.file_to_read
+        for file_name in glob.glob(self.file_to_read):
+          with open(file_name) as file:
+            for record in file:
+              yield self.coder.decode(record.rstrip('\n'))
+
+    def expand(self, pcoll):
+      return pcoll | beam.Create([None]) | 'DummyReadForTesting' >> beam.ParDo(
+          SnippetsTest.DummyReadTransform.ReadDoFn(self.file_to_read))
+
+  class DummyWriteTransform(beam.PTransform):
+    """A transform that will replace iobase.WriteToText.
+
+    To be used for testing.
+    """
+
+    def __init__(self, file_to_write=None, file_name_suffix=''):
+      self.file_to_write = file_to_write
+
+    class WriteDoFn(beam.DoFn):
+      def __init__(self, file_to_write):
+        self.file_to_write = file_to_write
+        self.file_obj = None
+        self.coder = coders.ToStringCoder()
+
+      def start_bundle(self, context):
+        assert self.file_to_write
+        self.file_to_write += str(uuid.uuid4())
+        self.file_obj = open(self.file_to_write, 'w')
+
+      def process(self, context):
+        assert self.file_obj
+        self.file_obj.write(self.coder.encode(context.element) + '\n')
+
+      def finish_bundle(self, context):
+        assert self.file_obj
+        self.file_obj.close()
+
+    def expand(self, pcoll):
+      return pcoll | 'DummyWriteForTesting' >> beam.ParDo(
+          SnippetsTest.DummyWriteTransform.WriteDoFn(self.file_to_write))
+
+  def setUp(self):
+    self.old_read_from_text = beam.io.ReadFromText
+    self.old_write_to_text = beam.io.WriteToText
+
+    # Monkey patching to allow testing pipelines defined in snippets.py using
+    # real data.
+    beam.io.ReadFromText = SnippetsTest.DummyReadTransform
+    beam.io.WriteToText = SnippetsTest.DummyWriteTransform
+
+  def tearDown(self):
+    beam.io.ReadFromText = self.old_read_from_text
+    beam.io.WriteToText = self.old_write_to_text
 
   def create_temp_file(self, contents=''):
     with tempfile.NamedTemporaryFile(delete=False) as f:
@@ -357,12 +429,16 @@ class SnippetsTest(unittest.TestCase):
       return f.name
 
   def get_output(self, path, sorted_output=True, suffix=''):
-    with open(path + '-00000-of-00001' + suffix) as f:
-      lines = f.readlines()
+    all_lines = []
+    for file_name in glob.glob(path + '*'):
+      with open(file_name) as f:
+        lines = f.readlines()
+        all_lines.extend([s.rstrip('\n') for s in lines])
+
     if sorted_output:
-      return sorted(s.rstrip('\n') for s in lines)
+      return sorted(s.rstrip('\n') for s in all_lines)
     else:
-      return [s.rstrip('\n') for s in lines]
+      return all_lines
 
   def test_model_pipelines(self):
     temp_path = self.create_temp_file('aa bb cc\n bb cc\n cc')
@@ -582,7 +658,7 @@ class SnippetsTest(unittest.TestCase):
 
 
 class CombineTest(unittest.TestCase):
-  """Tests for dataflow/model/combine."""
+  """Tests for model/combine."""
 
   def test_global_sum(self):
     pc = [1, 2, 3]

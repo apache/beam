@@ -15,24 +15,23 @@
 # limitations under the License.
 #
 
-"""Code snippets used in Cloud Dataflow webdocs.
+"""Code snippets used in webdocs.
 
 The examples here are written specifically to read well with the accompanying
-web docs from https://cloud.google.com/dataflow. Do not rewrite them until you
-make sure the webdocs still read well and the rewritten code supports the
-concept being described. For example, there are snippets that could be shorter
-but they are written like this to make a specific point in the docs.
+web docs. Do not rewrite them until you make sure the webdocs still read well
+and the rewritten code supports the concept being described. For example, there
+are snippets that could be shorter but they are written like this to make a
+specific point in the docs.
 
 The code snippets are all organized as self contained functions. Parts of the
 function body delimited by [START tag] and [END tag] will be included
 automatically in the web docs. The naming convention for the tags is to have as
 prefix the PATH_TO_HTML where they are included followed by a descriptive
-string. For instance a code snippet that will be used as a code example
-at https://cloud.google.com/dataflow/model/pipelines will have the tag
-model_pipelines_DESCRIPTION. The tags can contain only letters, digits and _.
+string. The tags can contain only letters, digits and _.
 """
 
 import apache_beam as beam
+from apache_beam.test_pipeline import TestPipeline
 
 # Quiet some pylint warnings that happen because of the somewhat special
 # format for the code snippets.
@@ -48,11 +47,15 @@ class SnippetUtils(object):
   from apache_beam.pipeline import PipelineVisitor
 
   class RenameFiles(PipelineVisitor):
-    """RenameFiles will rewire source and sink for unit testing.
+    """RenameFiles will rewire read/write paths for unit testing.
 
-    RenameFiles will rewire the GCS files specified in the source and
-    sink in the snippet pipeline to local files so the pipeline can be run as a
-    unit test. This is as close as we can get to have code snippets that are
+    RenameFiles will replace the GCS files specified in the read and
+    write transforms to local files so the pipeline can be run as a
+    unit test. This assumes that read and write transforms defined in snippets
+    have already been replaced by transforms 'DummyReadForTesting' and
+    'DummyReadForTesting' (see snippets_test.py).
+
+    This is as close as we can get to have code snippets that are
     executed and are also ready to presented in webdocs.
     """
 
@@ -60,21 +63,14 @@ class SnippetUtils(object):
       self.renames = renames
 
     def visit_transform(self, transform_node):
-      if hasattr(transform_node.transform, 'source'):
-        source = transform_node.transform.source
-        source.file_path = self.renames['read']
-        source.is_gcs_source = False
-      elif hasattr(transform_node.transform, 'sink'):
-        sink = transform_node.transform.sink
-        sink.file_path = self.renames['write']
-        sink.is_gcs_sink = False
+      if transform_node.full_label.find('DummyReadForTesting') >= 0:
+        transform_node.transform.fn.file_to_read = self.renames['read']
+      elif transform_node.full_label.find('DummyWriteForTesting') >= 0:
+        transform_node.transform.fn.file_to_write = self.renames['write']
 
 
 def construct_pipeline(renames):
-  """A reverse words snippet as an example for constructing a pipeline.
-
-  URL: https://cloud.google.com/dataflow/pipelines/constructing-your-pipeline
-  """
+  """A reverse words snippet as an example for constructing a pipeline."""
   import re
 
   class ReverseWords(beam.PTransform):
@@ -93,9 +89,10 @@ def construct_pipeline(renames):
   p = beam.Pipeline(options=PipelineOptions())
   # [END pipelines_constructing_creating]
 
+  p = TestPipeline() # Use TestPipeline for testing.
+
   # [START pipelines_constructing_reading]
-  lines = p | beam.io.Read('ReadMyFile',
-                           beam.io.TextFileSource('gs://some/inputData.txt'))
+  lines = p | 'ReadMyFile' >> beam.io.ReadFromText('gs://some/inputData.txt')
   # [END pipelines_constructing_reading]
 
   # [START pipelines_constructing_applying]
@@ -105,8 +102,8 @@ def construct_pipeline(renames):
 
   # [START pipelines_constructing_writing]
   filtered_words = reversed_words | 'FilterWords' >> beam.Filter(filter_words)
-  filtered_words | 'WriteMyFile' >> beam.io.Write(
-      beam.io.TextFileSink('gs://some/outputData.txt'))
+  filtered_words | 'WriteMyFile' >> beam.io.WriteToText(
+      'gs://some/outputData.txt')
   # [END pipelines_constructing_writing]
 
   p.visit(SnippetUtils.RenameFiles(renames))
@@ -117,10 +114,7 @@ def construct_pipeline(renames):
 
 
 def model_pipelines(argv):
-  """A wordcount snippet as a simple pipeline example.
-
-  URL: https://cloud.google.com/dataflow/model/pipelines
-  """
+  """A wordcount snippet as a simple pipeline example."""
   # [START model_pipelines]
   import re
 
@@ -147,20 +141,19 @@ def model_pipelines(argv):
   p = beam.Pipeline(options=pipeline_options)
 
   (p
-   | beam.io.Read(beam.io.TextFileSource(my_options.input))
+   | beam.io.ReadFromText(my_options.input)
    | beam.FlatMap(lambda x: re.findall(r'[A-Za-z\']+', x))
-   | beam.Map(lambda x: (x, 1)) | beam.combiners.Count.PerKey()
-   | beam.io.Write(beam.io.TextFileSink(my_options.output)))
+   | beam.Map(lambda x: (x, 1))
+   | beam.combiners.Count.PerKey()
+   | beam.io.WriteToText(my_options.output))
 
-  p.run()
+  result = p.run()
   # [END model_pipelines]
+  result.wait_until_finish()
 
 
 def model_pcollection(argv):
-  """Creating a PCollection from data in local memory.
-
-  URL: https://cloud.google.com/dataflow/model/pcollection
-  """
+  """Creating a PCollection from data in local memory."""
   from apache_beam.utils.pipeline_options import PipelineOptions
 
   class MyOptions(PipelineOptions):
@@ -184,17 +177,15 @@ def model_pcollection(argv):
        'Whether \'tis nobler in the mind to suffer ',
        'The slings and arrows of outrageous fortune, ',
        'Or to take arms against a sea of troubles, '])
-   | beam.io.Write(beam.io.TextFileSink(my_options.output)))
+   | beam.io.WriteToText(my_options.output))
 
-  p.run()
+  result = p.run()
   # [END model_pcollection]
+  result.wait_until_finish()
 
 
 def pipeline_options_remote(argv):
-  """"Creating a Pipeline using a PipelineOptions object for remote execution.
-
-  URL: https://cloud.google.com/dataflow/pipelines/specifying-exec-params
-  """
+  """Creating a Pipeline using a PipelineOptions object for remote execution."""
 
   from apache_beam import Pipeline
   from apache_beam.utils.pipeline_options import PipelineOptions
@@ -220,8 +211,7 @@ def pipeline_options_remote(argv):
   options = PipelineOptions(flags=argv)
 
   # For Cloud execution, set the Cloud Platform project, job_name,
-  # staging location, temp_location and specify DataflowRunner or
-  # BlockingDataflowRunner.
+  # staging location, temp_location and specify DataflowRunner.
   google_cloud_options = options.view_as(GoogleCloudOptions)
   google_cloud_options.project = 'my-project-id'
   google_cloud_options.job_name = 'myjob'
@@ -237,21 +227,16 @@ def pipeline_options_remote(argv):
   my_input = my_options.input
   my_output = my_options.output
 
-  # Overriding the runner for tests.
-  options.view_as(StandardOptions).runner = 'DirectRunner'
-  p = Pipeline(options=options)
+  p = TestPipeline()  # Use TestPipeline for testing.
 
-  lines = p | beam.io.Read(beam.io.TextFileSource(my_input))
-  lines | beam.io.Write(beam.io.TextFileSink(my_output))
+  lines = p | beam.io.ReadFromText(my_input)
+  lines | beam.io.WriteToText(my_output)
 
   p.run()
 
 
 def pipeline_options_local(argv):
-  """"Creating a Pipeline using a PipelineOptions object for local execution.
-
-  URL: https://cloud.google.com/dataflow/pipelines/specifying-exec-params
-  """
+  """Creating a Pipeline using a PipelineOptions object for local execution."""
 
   from apache_beam import Pipeline
   from apache_beam.utils.pipeline_options import PipelineOptions
@@ -264,10 +249,10 @@ def pipeline_options_local(argv):
     @classmethod
     def _add_argparse_args(cls, parser):
       parser.add_argument('--input',
-                          help='Input for the dataflow pipeline',
+                          help='Input for the pipeline',
                           default='gs://my-bucket/input')
       parser.add_argument('--output',
-                          help='Output for the dataflow pipeline',
+                          help='Output for the pipeline',
                           default='gs://my-bucket/output')
   # [END pipeline_options_define_custom_with_help_and_default]
 
@@ -282,16 +267,14 @@ def pipeline_options_local(argv):
   p = Pipeline(options=options)
   # [END pipeline_options_local]
 
-  lines = p | beam.io.Read(beam.io.TextFileSource(my_input))
-  lines | beam.io.Write(beam.io.TextFileSink(my_output))
+  p = TestPipeline()  # Use TestPipeline for testing.
+  lines = p | beam.io.ReadFromText(my_input)
+  lines | beam.io.WriteToText(my_output)
   p.run()
 
 
 def pipeline_options_command_line(argv):
-  """Creating a Pipeline by passing a list of arguments.
-
-  URL: https://cloud.google.com/dataflow/pipelines/specifying-exec-params
-  """
+  """Creating a Pipeline by passing a list of arguments."""
 
   # [START pipeline_options_command_line]
   # Use Python argparse module to parse custom arguments
@@ -304,23 +287,18 @@ def pipeline_options_command_line(argv):
 
   # Create the Pipeline with remaining arguments.
   p = beam.Pipeline(argv=pipeline_args)
-  lines = p | beam.io.Read('ReadFromText',
-                           beam.io.TextFileSource(known_args.input))
-  lines | beam.io.Write(beam.io.TextFileSink(known_args.output))
+  lines = p | 'ReadFromText' >> beam.io.ReadFromText(known_args.input)
+  lines | 'WriteToText' >> beam.io.WriteToText(known_args.output)
   # [END pipeline_options_command_line]
 
-  p.run()
+  p.run().wait_until_finish()
 
 
 def pipeline_logging(lines, output):
-  """Logging Pipeline Messages.
-
-  URL: https://cloud.google.com/dataflow/pipelines/logging
-  """
+  """Logging Pipeline Messages."""
 
   import re
   import apache_beam as beam
-  from apache_beam.utils.pipeline_options import PipelineOptions
 
   # [START pipeline_logging]
   # import Python logging module.
@@ -340,20 +318,17 @@ def pipeline_logging(lines, output):
   # Remaining WordCount example code ...
   # [END pipeline_logging]
 
-  p = beam.Pipeline(options=PipelineOptions())
+  p = TestPipeline()  # Use TestPipeline for testing.
   (p
    | beam.Create(lines)
    | beam.ParDo(ExtractWordsFn())
-   | beam.io.Write(beam.io.TextFileSink(output)))
+   | beam.io.WriteToText(output))
 
   p.run()
 
 
 def pipeline_monitoring(renames):
-  """Using monitoring interface snippets.
-
-  URL: https://cloud.google.com/dataflow/pipelines/dataflow-monitoring-intf
-  """
+  """Using monitoring interface snippets."""
 
   import re
   import apache_beam as beam
@@ -364,10 +339,10 @@ def pipeline_monitoring(renames):
     @classmethod
     def _add_argparse_args(cls, parser):
       parser.add_argument('--input',
-                          help='Input for the dataflow pipeline',
+                          help='Input for the pipeline',
                           default='gs://my-bucket/input')
       parser.add_argument('--output',
-                          help='output for the dataflow pipeline',
+                          help='output for the pipeline',
                           default='gs://my-bucket/output')
 
   class ExtractWordsFn(beam.DoFn):
@@ -399,16 +374,16 @@ def pipeline_monitoring(renames):
 
   pipeline_options = PipelineOptions()
   options = pipeline_options.view_as(WordCountOptions)
-  p = beam.Pipeline(options=pipeline_options)
+  p = TestPipeline()  # Use TestPipeline for testing.
 
   # [START pipeline_monitoring_execution]
   (p
    # Read the lines of the input text.
-   | 'ReadLines' >> beam.io.Read(beam.io.TextFileSource(options.input))
+   | 'ReadLines' >> beam.io.ReadFromText(options.input)
    # Count the words.
    | CountWords()
    # Write the formatted word counts to output.
-   | 'WriteCounts' >> beam.io.Write(beam.io.TextFileSink(options.output)))
+   | 'WriteCounts' >> beam.io.WriteToText(options.output))
   # [END pipeline_monitoring_execution]
 
   p.visit(SnippetUtils.RenameFiles(renames))
@@ -416,11 +391,7 @@ def pipeline_monitoring(renames):
 
 
 def examples_wordcount_minimal(renames):
-  """MinimalWordCount example snippets.
-
-  URL:
-  https://cloud.google.com/dataflow/examples/wordcount-example#MinimalWordCount
-  """
+  """MinimalWordCount example snippets."""
   import re
 
   import apache_beam as beam
@@ -436,7 +407,7 @@ def examples_wordcount_minimal(renames):
   google_cloud_options.job_name = 'myjob'
   google_cloud_options.staging_location = 'gs://your-bucket-name-here/staging'
   google_cloud_options.temp_location = 'gs://your-bucket-name-here/temp'
-  options.view_as(StandardOptions).runner = 'BlockingDataflowRunner'
+  options.view_as(StandardOptions).runner = 'DataflowRunner'
   # [END examples_wordcount_minimal_options]
 
   # Run it locally for testing.
@@ -448,8 +419,8 @@ def examples_wordcount_minimal(renames):
 
   (
       # [START examples_wordcount_minimal_read]
-      p | beam.io.Read(beam.io.TextFileSource(
-          'gs://dataflow-samples/shakespeare/kinglear.txt'))
+      p | beam.io.ReadFromText(
+          'gs://dataflow-samples/shakespeare/kinglear.txt')
       # [END examples_wordcount_minimal_read]
 
       # [START examples_wordcount_minimal_pardo]
@@ -465,23 +436,20 @@ def examples_wordcount_minimal(renames):
       # [END examples_wordcount_minimal_map]
 
       # [START examples_wordcount_minimal_write]
-      | beam.io.Write(beam.io.TextFileSink('gs://my-bucket/counts.txt'))
+      | beam.io.WriteToText('gs://my-bucket/counts.txt')
       # [END examples_wordcount_minimal_write]
   )
 
   p.visit(SnippetUtils.RenameFiles(renames))
 
   # [START examples_wordcount_minimal_run]
-  p.run()
+  result = p.run()
   # [END examples_wordcount_minimal_run]
+  result.wait_until_finish()
 
 
 def examples_wordcount_wordcount(renames):
-  """WordCount example snippets.
-
-  URL:
-  https://cloud.google.com/dataflow/examples/wordcount-example#WordCount
-  """
+  """WordCount example snippets."""
   import re
 
   import apache_beam as beam
@@ -495,15 +463,15 @@ def examples_wordcount_wordcount(renames):
     @classmethod
     def _add_argparse_args(cls, parser):
       parser.add_argument('--input',
-                          help='Input for the dataflow pipeline',
+                          help='Input for the pipeline',
                           default='gs://my-bucket/input')
 
   options = PipelineOptions(argv)
   p = beam.Pipeline(options=options)
   # [END examples_wordcount_wordcount_options]
 
-  lines = p | beam.io.Read(beam.io.TextFileSource(
-      'gs://dataflow-samples/shakespeare/kinglear.txt'))
+  lines = p | beam.io.ReadFromText(
+      'gs://dataflow-samples/shakespeare/kinglear.txt')
 
   # [START examples_wordcount_wordcount_composite]
   class CountWords(beam.PTransform):
@@ -530,21 +498,16 @@ def examples_wordcount_wordcount(renames):
   formatted = counts | beam.ParDo(FormatAsTextFn())
   # [END examples_wordcount_wordcount_dofn]
 
-  formatted |  beam.io.Write(beam.io.TextFileSink('gs://my-bucket/counts.txt'))
+  formatted |  beam.io.WriteToText('gs://my-bucket/counts.txt')
   p.visit(SnippetUtils.RenameFiles(renames))
-  p.run()
+  p.run().wait_until_finish()
 
 
 def examples_wordcount_debugging(renames):
-  """DebuggingWordCount example snippets.
-
-  URL:
-  https://cloud.google.com/dataflow/examples/wordcount-example#DebuggingWordCount
-  """
+  """DebuggingWordCount example snippets."""
   import re
 
   import apache_beam as beam
-  from apache_beam.utils.pipeline_options import PipelineOptions
 
   # [START example_wordcount_debugging_logging]
   # [START example_wordcount_debugging_aggregators]
@@ -585,11 +548,11 @@ def examples_wordcount_debugging(renames):
   # [END example_wordcount_debugging_logging]
   # [END example_wordcount_debugging_aggregators]
 
-  p = beam.Pipeline(options=PipelineOptions())
+  p = TestPipeline()  # Use TestPipeline for testing.
   filtered_words = (
       p
-      | beam.io.Read(beam.io.TextFileSource(
-          'gs://dataflow-samples/shakespeare/kinglear.txt'))
+      | beam.io.ReadFromText(
+          'gs://dataflow-samples/shakespeare/kinglear.txt')
       | 'ExtractWords' >> beam.FlatMap(lambda x: re.findall(r'[A-Za-z\']+', x))
       | beam.combiners.Count.PerElement()
       | 'FilterText' >> beam.ParDo(FilterTextFn('Flourish|stomach')))
@@ -601,8 +564,7 @@ def examples_wordcount_debugging(renames):
 
   output = (filtered_words
             | 'format' >> beam.Map(lambda (word, c): '%s: %s' % (word, c))
-            | beam.io.Write(
-                'write', beam.io.TextFileSink('gs://my-bucket/counts.txt')))
+            | 'Write' >> beam.io.WriteToText('gs://my-bucket/counts.txt'))
 
   p.visit(SnippetUtils.RenameFiles(renames))
   p.run()
@@ -689,7 +651,7 @@ def model_custom_source(count):
       lines, beam.equal_to(
           ['line ' + str(number) for number in range(0, count)]))
 
-  p.run()
+  p.run().wait_until_finish()
 
   # We recommend users to start Source classes with an underscore to discourage
   # using the Source class directly when a PTransform for the source is
@@ -719,7 +681,7 @@ def model_custom_source(count):
       lines, beam.equal_to(
           ['line ' + str(number) for number in range(0, count)]))
 
-  p.run()
+  p.run().wait_until_finish()
 
 
 def model_custom_sink(simplekv, KVs, final_table_name_no_ptransform,
@@ -816,12 +778,11 @@ def model_custom_sink(simplekv, KVs, final_table_name_no_ptransform,
   kvs = p | beam.core.Create(
       'CreateKVs', KVs)
 
-  kvs | beam.io.Write('WriteToSimpleKV',
-                      SimpleKVSink('http://url_to_simple_kv/',
-                                   final_table_name))
+  kvs | 'WriteToSimpleKV' >> beam.io.Write(
+      SimpleKVSink('http://url_to_simple_kv/', final_table_name))
   # [END model_custom_sink_use_new_sink]
 
-  p.run()
+  p.run().wait_until_finish()
 
   # We recommend users to start Sink class names with an underscore to
   # discourage using the Sink class directly when a PTransform for the sink is
@@ -852,16 +813,11 @@ def model_custom_sink(simplekv, KVs, final_table_name_no_ptransform,
                       'http://url_to_simple_kv/', final_table_name)
   # [END model_custom_sink_use_ptransform]
 
-  p.run()
+  p.run().wait_until_finish()
 
 
 def model_textio(renames):
-  """Using a Read and Write transform to read/write text files.
-
-  URLs:
-    https://cloud.google.com/dataflow/model/pipeline-io
-    https://cloud.google.com/dataflow/model/text-io
-  """
+  """Using a Read and Write transform to read/write text files."""
   def filter_words(x):
     import re
     return re.findall(r'[A-Za-z\']+', x)
@@ -872,30 +828,25 @@ def model_textio(renames):
   # [START model_textio_read]
   p = beam.Pipeline(options=PipelineOptions())
   # [START model_pipelineio_read]
-  lines = p | beam.io.Read(
-      'ReadFromText',
-      beam.io.TextFileSource('gs://my_bucket/path/to/input-*.csv'))
+  lines = p | 'ReadFromText' >> beam.io.ReadFromText(
+      'gs://my_bucket/path/to/input-*.csv')
   # [END model_pipelineio_read]
   # [END model_textio_read]
 
   # [START model_textio_write]
   filtered_words = lines | 'FilterWords' >> beam.FlatMap(filter_words)
   # [START model_pipelineio_write]
-  filtered_words | beam.io.Write(
-      'WriteToText', beam.io.TextFileSink('gs://my_bucket/path/to/numbers',
-                                          file_name_suffix='.csv'))
+  filtered_words | 'WriteToText' >> beam.io.WriteToText(
+      'gs://my_bucket/path/to/numbers', file_name_suffix='.csv')
   # [END model_pipelineio_write]
   # [END model_textio_write]
 
   p.visit(SnippetUtils.RenameFiles(renames))
-  p.run()
+  p.run().wait_until_finish()
 
 
 def model_datastoreio():
-  """Using a Read and Write transform to read/write to Cloud Datastore.
-
-  URL: https://cloud.google.com/dataflow/model/datastoreio
-  """
+  """Using a Read and Write transform to read/write to Cloud Datastore."""
 
   import uuid
   from google.datastore.v1 import entity_pb2
@@ -933,10 +884,7 @@ def model_datastoreio():
 
 
 def model_bigqueryio():
-  """Using a Read and Write transform to read/write to BigQuery.
-
-  URL: https://cloud.google.com/dataflow/model/bigquery-io
-  """
+  """Using a Read and Write transform to read/write to BigQuery."""
   import apache_beam as beam
   from apache_beam.utils.pipeline_options import PipelineOptions
 
@@ -988,8 +936,6 @@ def model_composite_transform_example(contents, output_path):
 
   To override the apply method, define a method "apply" that
   takes a PCollection as its only parameter and returns a PCollection.
-
-  URL: https://cloud.google.com/dataflow/model/composite-transforms
   """
   import re
 
@@ -1009,24 +955,19 @@ def model_composite_transform_example(contents, output_path):
   # [END composite_ptransform_apply_method]
   # [END composite_transform_example]
 
-  from apache_beam.utils.pipeline_options import PipelineOptions
-  p = beam.Pipeline(options=PipelineOptions())
+  p = TestPipeline()  # Use TestPipeline for testing.
   (p
    | beam.Create(contents)
    | CountWords()
-   | beam.io.Write(beam.io.TextFileSink(output_path)))
+   | beam.io.WriteToText(output_path))
   p.run()
 
 
 def model_multiple_pcollections_flatten(contents, output_path):
-  """Merging a PCollection with Flatten.
-
-  URL: https://cloud.google.com/dataflow/model/multiple-pcollections
-  """
+  """Merging a PCollection with Flatten."""
   some_hash_fn = lambda s: ord(s[0])
   import apache_beam as beam
-  from apache_beam.utils.pipeline_options import PipelineOptions
-  p = beam.Pipeline(options=PipelineOptions())
+  p = TestPipeline()  # Use TestPipeline for testing.
   partition_fn = lambda element, partitions: some_hash_fn(element) % partitions
 
   # Partition into deciles
@@ -1050,24 +991,20 @@ def model_multiple_pcollections_flatten(contents, output_path):
       # A list of tuples can be "piped" directly into a Flatten transform.
       | beam.Flatten())
   # [END model_multiple_pcollections_flatten]
-  merged | beam.io.Write(beam.io.TextFileSink(output_path))
+  merged | beam.io.WriteToText(output_path)
 
   p.run()
 
 
 def model_multiple_pcollections_partition(contents, output_path):
-  """Splitting a PCollection with Partition.
-
-  URL: https://cloud.google.com/dataflow/model/multiple-pcollections
-  """
+  """Splitting a PCollection with Partition."""
   some_hash_fn = lambda s: ord(s[0])
 
   def get_percentile(i):
     """Assume i in [0,100)."""
     return i
   import apache_beam as beam
-  from apache_beam.utils.pipeline_options import PipelineOptions
-  p = beam.Pipeline(options=PipelineOptions())
+  p = TestPipeline()  # Use TestPipeline for testing.
 
   students = p | beam.Create(contents)
 
@@ -1083,21 +1020,17 @@ def model_multiple_pcollections_partition(contents, output_path):
 
   ([by_decile[d] for d in xrange(10) if d != 4] + [fortieth_percentile]
    | beam.Flatten()
-   | beam.io.Write(beam.io.TextFileSink(output_path)))
+   | beam.io.WriteToText(output_path))
 
   p.run()
 
 
 def model_group_by_key(contents, output_path):
-  """Applying a GroupByKey Transform.
-
-  URL: https://cloud.google.com/dataflow/model/group-by-key
-  """
+  """Applying a GroupByKey Transform."""
   import re
 
   import apache_beam as beam
-  from apache_beam.utils.pipeline_options import PipelineOptions
-  p = beam.Pipeline(options=PipelineOptions())
+  p = TestPipeline()  # Use TestPipeline for testing.
   words_and_counts = (
       p
       | beam.Create(contents)
@@ -1113,18 +1046,14 @@ def model_group_by_key(contents, output_path):
   # [END model_group_by_key_transform]
   (grouped_words
    | 'count words' >> beam.Map(lambda (word, counts): (word, len(counts)))
-   | beam.io.Write(beam.io.TextFileSink(output_path)))
+   | beam.io.WriteToText(output_path))
   p.run()
 
 
 def model_co_group_by_key_tuple(email_list, phone_list, output_path):
-  """Applying a CoGroupByKey Transform to a tuple.
-
-  URL: https://cloud.google.com/dataflow/model/group-by-key
-  """
+  """Applying a CoGroupByKey Transform to a tuple."""
   import apache_beam as beam
-  from apache_beam.utils.pipeline_options import PipelineOptions
-  p = beam.Pipeline(options=PipelineOptions())
+  p = TestPipeline()  # Use TestPipeline for testing.
   # [START model_group_by_key_cogroupbykey_tuple]
   # Each data set is represented by key-value pairs in separate PCollections.
   # Both data sets share a common key type (in this example str).
@@ -1151,7 +1080,7 @@ def model_co_group_by_key_tuple(email_list, phone_list, output_path):
 
   contact_lines = result | beam.Map(join_info)
   # [END model_group_by_key_cogroupbykey_tuple]
-  contact_lines | beam.io.Write(beam.io.TextFileSink(output_path))
+  contact_lines | beam.io.WriteToText(output_path)
   p.run()
 
 
@@ -1161,9 +1090,8 @@ def model_join_using_side_inputs(
 
   import apache_beam as beam
   from apache_beam.pvalue import AsIter
-  from apache_beam.utils.pipeline_options import PipelineOptions
 
-  p = beam.Pipeline(options=PipelineOptions())
+  p = TestPipeline()  # Use TestPipeline for testing.
   # [START model_join_using_side_inputs]
   # This code performs a join by receiving the set of names as an input and
   # passing PCollections that contain emails and phone numbers as side inputs
@@ -1190,7 +1118,7 @@ def model_join_using_side_inputs(
   contact_lines = names | beam.core.Map(
       "CreateContacts", join_info, AsIter(emails), AsIter(phones))
   # [END model_join_using_side_inputs]
-  contact_lines | beam.io.Write(beam.io.TextFileSink(output_path))
+  contact_lines | beam.io.WriteToText(output_path)
   p.run()
 
 

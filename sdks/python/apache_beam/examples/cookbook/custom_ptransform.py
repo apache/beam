@@ -48,10 +48,10 @@ def run_count1(known_args, options):
   """Runs the first example pipeline."""
   logging.info('Running first pipeline')
   p = beam.Pipeline(options=options)
-  (p | beam.io.Read(beam.io.TextFileSource(known_args.input))
+  (p | beam.io.ReadFromText(known_args.input)
    | Count1()
-   | beam.io.Write(beam.io.TextFileSink(known_args.output)))
-  p.run()
+   | beam.io.WriteToText(known_args.output))
+  p.run().wait_until_finish()
 
 
 @beam.ptransform_fn
@@ -70,7 +70,7 @@ def run_count2(known_args, options):
   (p | ReadFromText(known_args.input)
    | Count2()  # pylint: disable=no-value-for-parameter
    | WriteToText(known_args.output))
-  p.run()
+  p.run().wait_until_finish()
 
 
 @beam.ptransform_fn
