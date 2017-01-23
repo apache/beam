@@ -166,6 +166,10 @@ interface BigQueryServices extends Serializable {
      */
     long insertAll(TableReference ref, List<TableRow> rowList, @Nullable List<String> insertIdList)
         throws IOException, InterruptedException;
+
+    /** Patch BigQuery {@link Table} description. */
+    Table patchTableDescription(TableReference tableReference, @Nullable String tableDescription)
+        throws IOException, InterruptedException;
   }
 
   /**

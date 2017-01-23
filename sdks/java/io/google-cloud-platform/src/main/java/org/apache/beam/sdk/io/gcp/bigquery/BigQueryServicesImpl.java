@@ -789,6 +789,31 @@ class BigQueryServicesImpl implements BigQueryServices {
       return insertAll(
           ref, rowList, insertIdList, INSERT_BACKOFF_FACTORY.backoff(), Sleeper.DEFAULT);
     }
+
+
+    @Override
+    public Table patchTableDescription(TableReference tableReference,
+                                       @Nullable String tableDescription)
+        throws IOException, InterruptedException {
+      Table table = new Table();
+      table.setDescription(tableDescription);
+
+      BackOff backoff =
+          FluentBackoff.DEFAULT
+              .withMaxRetries(MAX_RPC_RETRIES).withInitialBackoff(INITIAL_RPC_BACKOFF).backoff();
+      return executeWithRetries(
+          client.tables().patch(
+              tableReference.getProjectId(),
+              tableReference.getDatasetId(),
+              tableReference.getTableId(),
+              table),
+          String.format(
+              "Unable to patch table description: %s, aborting after %d retries.",
+              tableReference, MAX_RPC_RETRIES),
+          Sleeper.DEFAULT,
+          backoff,
+          ALWAYS_RETRY);
+    }
   }
 
   private static class BigQueryJsonReaderImpl implements BigQueryJsonReader {

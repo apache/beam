@@ -1556,7 +1556,7 @@ public class BigQueryIOTest implements Serializable {
   @Test
   public void testStreamingWriteFnCreateNever() throws Exception {
     BigQueryIO.StreamingWriteFn fn = new BigQueryIO.StreamingWriteFn(
-        null, CreateDisposition.CREATE_NEVER, new FakeBigQueryServices());
+        null, CreateDisposition.CREATE_NEVER, null, new FakeBigQueryServices());
     assertEquals(BigQueryIO.parseTableSpec("dataset.table"),
         fn.getOrCreateTable(null, "dataset.table"));
   }
