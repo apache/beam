@@ -80,7 +80,7 @@ public class HIFIOCassandraIT implements Serializable {
     SimpleFunction<Row, String> myValueTranslate = new SimpleFunction<Row, String>() {
       @Override
       public String apply(Row input) {
-        return input.getString("id");
+        return input.getString("scientist");
       }
     };
     PCollection<KV<Long, String>> cassandraData =
@@ -90,9 +90,9 @@ public class HIFIOCassandraIT implements Serializable {
         .isEqualTo(10L);
 
     List<KV<Long, String>> expectedResults =
-        Arrays.asList(KV.of(1L, "Einstein"), KV.of(2L, "Darwin"), KV.of(3L, "Copernicus"),
-            KV.of(4L, "Pasteur"), KV.of(5L, "Curie"), KV.of(6L, "Faraday"), KV.of(7L, "Newton"),
-            KV.of(8L, "Bohr"), KV.of(9L, "Galilei"), KV.of(10L, "Maxwell"));
+        Arrays.asList(KV.of(1L, "Faraday"), KV.of(2L, "Newton"), KV.of(3L, "Galilei"),
+            KV.of(4L, "Maxwell"), KV.of(5L, "Pasteur"), KV.of(6L, "Copernicus"), KV.of(7L, "Curie"),
+            KV.of(8L, "Bohr"), KV.of(9L, "Darwin"), KV.of(10L, "Einstein"));
     PAssert.that(cassandraData).containsInAnyOrder(expectedResults);
     pipeline.run();
   }
@@ -132,7 +132,7 @@ public class HIFIOCassandraIT implements Serializable {
   public static Configuration getConfiguration(HIFTestOptions options) {
     Configuration conf = new Configuration();
     conf.set("cassandra.input.thrift.port", String.format("%d", options.getServerPort()));
-    conf.set("cassandra.input.thrift.address", "");
+    conf.set("cassandra.input.thrift.address", options.getServerIp());
     conf.set("cassandra.input.partitioner.class", "Murmur3Partitioner");
     conf.set("cassandra.input.keyspace", CASSANDRA_KEYSPACE);
     conf.set("cassandra.input.columnfamily", CASSANDRA_TABLE);
