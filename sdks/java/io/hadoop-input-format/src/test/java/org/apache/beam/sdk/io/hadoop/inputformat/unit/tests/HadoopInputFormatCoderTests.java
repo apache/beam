@@ -34,6 +34,7 @@ import org.apache.hadoop.io.MapWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.InputFormat;
 import org.elasticsearch.hadoop.cfg.ConfigurationOptions;
+import org.elasticsearch.hadoop.mr.LinkedMapWritable;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -44,8 +45,8 @@ import com.datastax.driver.core.Row;
 public class HadoopInputFormatCoderTests {
 
   @Test
-  public void testMapWritableEncoding() throws Exception {
-    MapWritable map = new MapWritable();
+  public void testLinkedMapWritableEncoding() throws Exception {
+    LinkedMapWritable map = new LinkedMapWritable();
     map.put(new Text("path"), new Text("/home/asharma/MOCK1.csv"));
     map.put(new Text("country"), new Text("Czech Republic"));
     map.put(new Text("@timestamp"), new Text("2016-11-11T08:06:42.260Z"));
@@ -55,7 +56,7 @@ public class HadoopInputFormatCoderTests {
     map.put(new Text("salary"), new Text("$8.65"));
     map.put(new Text("email"), new Text("alex@example.com"));
     map.put(new Text("desc"), new Text("Other contact with macaw, subsequent encounter"));
-    WritableCoder<MapWritable> coder = WritableCoder.of(MapWritable.class);
+    WritableCoder<LinkedMapWritable> coder = WritableCoder.of(LinkedMapWritable.class);
     CoderUtils.clone(coder, map);
     CoderProperties.coderDecodeEncodeEqual(coder, map);
   }
