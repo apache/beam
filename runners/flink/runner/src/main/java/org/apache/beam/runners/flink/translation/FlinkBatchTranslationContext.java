@@ -134,21 +134,21 @@ public class FlinkBatchTranslationContext {
     return new CoderTypeInformation<>(windowedValueCoder);
   }
 
-  List<TaggedPValue> getInput(PTransform<?, ?> transform) {
+  List<TaggedPValue> getInputs(PTransform<?, ?> transform) {
     return currentTransform.getInputs();
   }
 
   @SuppressWarnings("unchecked")
-  <T extends PValue> T getOnlyInput(PTransform<T, ?> transform) {
+  <T extends PValue> T getInput(PTransform<T, ?> transform) {
     return (T) Iterables.getOnlyElement(currentTransform.getInputs()).getValue();
   }
 
-  List<TaggedPValue> getOutput(PTransform<?, ?> transform) {
+  List<TaggedPValue> getOutputs(PTransform<?, ?> transform) {
     return currentTransform.getOutputs();
   }
 
   @SuppressWarnings("unchecked")
-  <T extends PValue> T getOnlyOutput(PTransform<?, T> transform) {
+  <T extends PValue> T getOutput(PTransform<?, T> transform) {
     return (T) Iterables.getOnlyElement(currentTransform.getOutputs()).getValue();
   }
 }

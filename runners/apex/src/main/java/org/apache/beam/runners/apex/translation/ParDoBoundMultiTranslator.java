@@ -76,8 +76,8 @@ class ParDoBoundMultiTranslator<InputT, OutputT>
               ApexRunner.class.getSimpleName()));
     }
 
-    List<TaggedPValue> outputs = context.getOutput();
-    PCollection<InputT> input = (PCollection<InputT>) context.getOnlyInput();
+    List<TaggedPValue> outputs = context.getOutputs();
+    PCollection<InputT> input = (PCollection<InputT>) context.getInput();
     List<PCollectionView<?>> sideInputs = transform.getSideInputs();
     Coder<InputT> inputCoder = input.getCoder();
     WindowedValueCoder<InputT> wvInputCoder =
@@ -90,7 +90,7 @@ class ParDoBoundMultiTranslator<InputT, OutputT>
             doFn,
             transform.getMainOutputTag(),
             transform.getSideOutputTags().getAll(),
-            ((PCollection<InputT>) context.getOnlyInput()).getWindowingStrategy(),
+            ((PCollection<InputT>) context.getInput()).getWindowingStrategy(),
             sideInputs,
             wvInputCoder,
             context.<Void>stateInternalsFactory());
@@ -119,7 +119,7 @@ class ParDoBoundMultiTranslator<InputT, OutputT>
       }
     }
     context.addOperator(operator, ports);
-    context.addStream(context.getOnlyInput(), operator.input);
+    context.addStream(context.getInput(), operator.input);
     if (!sideInputs.isEmpty()) {
       addSideInputs(operator, sideInputs, context);
     }

@@ -102,20 +102,20 @@ public class FlinkStreamingTranslationContext {
 
 
   @SuppressWarnings("unchecked")
-  public <T extends PValue> T getOnlyInput(PTransform<T, ?> transform) {
+  public <T extends PValue> T getInput(PTransform<T, ?> transform) {
     return (T) Iterables.getOnlyElement(currentTransform.getInputs()).getValue();
   }
 
-  public <T extends PInput> List<TaggedPValue> getInput(PTransform<T, ?> transform) {
+  public <T extends PInput> List<TaggedPValue> getInputs(PTransform<T, ?> transform) {
     return currentTransform.getOutputs();
   }
 
   @SuppressWarnings("unchecked")
-  public <T extends PValue> T getOnlyOutput(PTransform<?, T> transform) {
+  public <T extends PValue> T getOutput(PTransform<?, T> transform) {
     return (T) Iterables.getOnlyElement(currentTransform.getOutputs()).getValue();
   }
 
-  public <OutputT extends POutput> List<TaggedPValue> getOutput(PTransform<?, OutputT> transform) {
+  public <OutputT extends POutput> List<TaggedPValue> getOutputs(PTransform<?, OutputT> transform) {
     return currentTransform.getOutputs();
   }
 

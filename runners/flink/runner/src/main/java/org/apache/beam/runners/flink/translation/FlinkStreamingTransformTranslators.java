@@ -154,7 +154,7 @@ public class FlinkStreamingTransformTranslators {
     public void translateNode(
         TextIO.Write.Bound<T> transform,
         FlinkStreamingTranslationContext context) {
-      PValue input = context.getOnlyInput(transform);
+      PValue input = context.getInput(transform);
       DataStream<WindowedValue<T>> inputDataStream = context.getInputDataStream(input);
 
       String filenamePrefix = transform.getFilenamePrefix();
@@ -196,7 +196,7 @@ public class FlinkStreamingTransformTranslators {
     @Override
     public void translateNode(Write.Bound<T> transform, FlinkStreamingTranslationContext context) {
       String name = transform.getName();
-      PValue input = context.getOnlyInput(transform);
+      PValue input = context.getInput(transform);
 
       Sink<T> sink = transform.getSink();
       if (!(sink instanceof UnboundedFlinkSink)) {
@@ -222,10 +222,10 @@ public class FlinkStreamingTransformTranslators {
     public void translateNode(
         Read.Unbounded<T> transform,
         FlinkStreamingTranslationContext context) {
-      PCollection<T> output = context.getOnlyOutput(transform);
+      PCollection<T> output = context.getOutput(transform);
 
       TypeInformation<WindowedValue<T>> outputTypeInfo =
-          context.getTypeInfo(context.getOnlyOutput(transform));
+          context.getTypeInfo(context.getOutput(transform));
 
       DataStream<WindowedValue<T>> source;
       if (transform.getSource().getClass().equals(UnboundedFlinkSource.class)) {
@@ -282,10 +282,10 @@ public class FlinkStreamingTransformTranslators {
     public void translateNode(
         Read.Bounded<T> transform,
         FlinkStreamingTranslationContext context) {
-      PCollection<T> output = context.getOnlyOutput(transform);
+      PCollection<T> output = context.getOutput(transform);
 
       TypeInformation<WindowedValue<T>> outputTypeInfo =
-          context.getTypeInfo(context.getOnlyOutput(transform));
+          context.getTypeInfo(context.getOutput(transform));
 
 
       DataStream<WindowedValue<T>> source;
@@ -344,15 +344,15 @@ public class FlinkStreamingTransformTranslators {
       rejectStateAndTimers(doFn);
 
       WindowingStrategy<?, ?> windowingStrategy =
-          context.getOnlyOutput(transform).getWindowingStrategy();
+          context.getOutput(transform).getWindowingStrategy();
 
       TypeInformation<WindowedValue<OutputT>> typeInfo =
-          context.getTypeInfo(context.getOnlyOutput(transform));
+          context.getTypeInfo(context.getOutput(transform));
 
       List<PCollectionView<?>> sideInputs = transform.getSideInputs();
 
       @SuppressWarnings("unchecked")
-      PCollection<InputT> inputPCollection = (PCollection<InputT>) context.getOnlyInput(transform);
+      PCollection<InputT> inputPCollection = (PCollection<InputT>) context.getInput(transform);
 
       TypeInformation<WindowedValue<InputT>> inputTypeInfo =
           context.getTypeInfo(inputPCollection);
@@ -371,12 +371,12 @@ public class FlinkStreamingTransformTranslators {
                 context.getPipelineOptions());
 
         DataStream<WindowedValue<InputT>> inputDataStream =
-            context.getInputDataStream(context.getOnlyInput(transform));
+            context.getInputDataStream(context.getInput(transform));
 
         SingleOutputStreamOperator<WindowedValue<OutputT>> outDataStream = inputDataStream
             .transform(transform.getName(), typeInfo, doFnOperator);
 
-        context.setOutputDataStream(context.getOnlyOutput(transform), outDataStream);
+        context.setOutputDataStream(context.getOutput(transform), outDataStream);
       } else {
         Tuple2<Map<Integer, PCollectionView<?>>, DataStream<RawUnionValue>> transformedSideInputs =
             transformSideInputs(sideInputs, context);
@@ -394,13 +394,13 @@ public class FlinkStreamingTransformTranslators {
                 context.getPipelineOptions());
 
         DataStream<WindowedValue<InputT>> inputDataStream =
-            context.getInputDataStream(context.getOnlyInput(transform));
+            context.getInputDataStream(context.getInput(transform));
 
         SingleOutputStreamOperator<WindowedValue<OutputT>> outDataStream = inputDataStream
             .connect(transformedSideInputs.f1.broadcast())
             .transform(transform.getName(), typeInfo, doFnOperator);
 
-        context.setOutputDataStream(context.getOnlyOutput(transform), outDataStream);
+        context.setOutputDataStream(context.getOutput(transform), outDataStream);
 
       }
     }
@@ -497,9 +497,9 @@ public class FlinkStreamingTransformTranslators {
 
       // we assume that the transformation does not change the windowing strategy.
       WindowingStrategy<?, ?> windowingStrategy =
-          context.getOnlyInput(transform).getWindowingStrategy();
+          context.getInput(transform).getWindowingStrategy();
 
-      List<TaggedPValue> outputs = context.getOutput(transform);
+      List<TaggedPValue> outputs = context.getOutputs(transform);
 
       Map<TupleTag<?>, Integer> tagsToLabels =
           transformTupleTagsToLabels(transform.getMainOutputTag(), outputs);
@@ -509,7 +509,7 @@ public class FlinkStreamingTransformTranslators {
       SingleOutputStreamOperator<RawUnionValue> unionOutputStream;
 
       @SuppressWarnings("unchecked")
-      PCollection<InputT> inputPCollection = (PCollection<InputT>) context.getOnlyInput(transform);
+      PCollection<InputT> inputPCollection = (PCollection<InputT>) context.getInput(transform);
 
       TypeInformation<WindowedValue<InputT>> inputTypeInfo =
           context.getTypeInfo(inputPCollection);
@@ -533,7 +533,7 @@ public class FlinkStreamingTransformTranslators {
             new CoderTypeInformation<>(outputUnionCoder);
 
         DataStream<WindowedValue<InputT>> inputDataStream =
-            context.getInputDataStream(context.getOnlyInput(transform));
+            context.getInputDataStream(context.getInput(transform));
 
         unionOutputStream = inputDataStream
             .transform(transform.getName(), outputUnionTypeInformation, doFnOperator);
@@ -560,7 +560,7 @@ public class FlinkStreamingTransformTranslators {
             new CoderTypeInformation<>(outputUnionCoder);
 
         DataStream<WindowedValue<InputT>> inputDataStream =
-            context.getInputDataStream(context.getOnlyInput(transform));
+            context.getInputDataStream(context.getInput(transform));
 
         unionOutputStream = inputDataStream
             .connect(transformedSideInputs.f1.broadcast())
@@ -637,7 +637,7 @@ public class FlinkStreamingTransformTranslators {
         FlinkStreamingTranslationContext context) {
       // just forward
       DataStream<WindowedValue<List<ElemT>>> inputDataSet =
-          context.getInputDataStream(context.getOnlyInput(transform));
+          context.getInputDataStream(context.getInput(transform));
 
       PCollectionView<ViewT> input = transform.getView();
 
@@ -656,13 +656,13 @@ public class FlinkStreamingTransformTranslators {
       @SuppressWarnings("unchecked")
       WindowingStrategy<T, BoundedWindow> windowingStrategy =
           (WindowingStrategy<T, BoundedWindow>)
-              context.getOnlyOutput(transform).getWindowingStrategy();
+              context.getOutput(transform).getWindowingStrategy();
 
       TypeInformation<WindowedValue<T>> typeInfo =
-          context.getTypeInfo(context.getOnlyOutput(transform));
+          context.getTypeInfo(context.getOutput(transform));
 
       DataStream<WindowedValue<T>> inputDataStream =
-          context.getInputDataStream(context.getOnlyInput(transform));
+          context.getInputDataStream(context.getInput(transform));
 
       WindowFn<T, ? extends BoundedWindow> windowFn = windowingStrategy.getWindowFn();
 
@@ -671,10 +671,10 @@ public class FlinkStreamingTransformTranslators {
 
       SingleOutputStreamOperator<WindowedValue<T>> outputDataStream = inputDataStream
           .flatMap(assignWindowsFunction)
-          .name(context.getOnlyOutput(transform).getName())
+          .name(context.getOutput(transform).getName())
           .returns(typeInfo);
 
-      context.setOutputDataStream(context.getOnlyOutput(transform), outputDataStream);
+      context.setOutputDataStream(context.getOutput(transform), outputDataStream);
     }
   }
 
@@ -687,9 +687,9 @@ public class FlinkStreamingTransformTranslators {
         FlinkStreamingTranslationContext context) {
 
       DataStream<WindowedValue<KV<K, InputT>>> inputDataSet =
-          context.getInputDataStream(context.getOnlyInput(transform));
+          context.getInputDataStream(context.getInput(transform));
 
-      context.setOutputDataStream(context.getOnlyOutput(transform), inputDataSet.rebalance());
+      context.setOutputDataStream(context.getOutput(transform), inputDataSet.rebalance());
 
     }
   }
@@ -703,7 +703,7 @@ public class FlinkStreamingTransformTranslators {
         GroupByKey<K, InputT> transform,
         FlinkStreamingTranslationContext context) {
 
-      PCollection<KV<K, InputT>> input = context.getOnlyInput(transform);
+      PCollection<KV<K, InputT>> input = context.getInput(transform);
 
       @SuppressWarnings("unchecked")
       WindowingStrategy<?, BoundedWindow> windowingStrategy =
@@ -741,7 +741,7 @@ public class FlinkStreamingTransformTranslators {
           SystemReduceFn.buffering(inputKvCoder.getValueCoder());
 
       TypeInformation<WindowedValue<KV<K, Iterable<InputT>>>> outputTypeInfo =
-          context.getTypeInfo(context.getOnlyOutput(transform));
+          context.getTypeInfo(context.getOutput(transform));
 
       DoFnOperator.DefaultOutputManagerFactory<
             WindowedValue<KV<K, Iterable<InputT>>>> outputManagerFactory =
@@ -770,7 +770,7 @@ public class FlinkStreamingTransformTranslators {
                   outputTypeInfo,
                   (OneInputStreamOperator) doFnOperator);
 
-      context.setOutputDataStream(context.getOnlyOutput(transform), outDataStream);
+      context.setOutputDataStream(context.getOutput(transform), outDataStream);
 
     }
   }
@@ -787,7 +787,7 @@ public class FlinkStreamingTransformTranslators {
       // if we have a merging window strategy and side inputs we cannot
       // translate as a proper combine. We have to group and then run the combine
       // over the final grouped values.
-      PCollection<KV<K, InputT>> input = context.getOnlyInput(transform);
+      PCollection<KV<K, InputT>> input = context.getInput(transform);
 
       @SuppressWarnings("unchecked")
       WindowingStrategy<?, BoundedWindow> windowingStrategy =
@@ -801,7 +801,7 @@ public class FlinkStreamingTransformTranslators {
         Combine.PerKey<K, InputT, OutputT> transform,
         FlinkStreamingTranslationContext context) {
 
-      PCollection<KV<K, InputT>> input = context.getOnlyInput(transform);
+      PCollection<KV<K, InputT>> input = context.getInput(transform);
 
       @SuppressWarnings("unchecked")
       WindowingStrategy<?, BoundedWindow> windowingStrategy =
@@ -841,7 +841,7 @@ public class FlinkStreamingTransformTranslators {
               transform.getFn(), input.getPipeline().getCoderRegistry(), inputKvCoder));
 
       TypeInformation<WindowedValue<KV<K, OutputT>>> outputTypeInfo =
-          context.getTypeInfo(context.getOnlyOutput(transform));
+          context.getTypeInfo(context.getOutput(transform));
 
       List<PCollectionView<?>> sideInputs = transform.getSideInputs();
 
@@ -867,7 +867,7 @@ public class FlinkStreamingTransformTranslators {
             keyedWorkItemStream.transform(
                 transform.getName(), outputTypeInfo, (OneInputStreamOperator) doFnOperator);
 
-        context.setOutputDataStream(context.getOnlyOutput(transform), outDataStream);
+        context.setOutputDataStream(context.getOutput(transform), outDataStream);
       } else {
         Tuple2<Map<Integer, PCollectionView<?>>, DataStream<RawUnionValue>> transformSideInputs =
             transformSideInputs(sideInputs, context);
@@ -910,7 +910,7 @@ public class FlinkStreamingTransformTranslators {
 
         keyedWorkItemStream.getExecutionEnvironment().addOperator(rawFlinkTransform);
 
-        context.setOutputDataStream(context.getOnlyOutput(transform), outDataStream);
+        context.setOutputDataStream(context.getOutput(transform), outDataStream);
       }
     }
 
@@ -948,7 +948,7 @@ public class FlinkStreamingTransformTranslators {
     public void translateNode(
         Flatten.FlattenPCollectionList<T> transform,
         FlinkStreamingTranslationContext context) {
-      List<TaggedPValue> allInputs = context.getInput(transform);
+      List<TaggedPValue> allInputs = context.getInputs(transform);
 
       if (allInputs.isEmpty()) {
 
@@ -971,7 +971,7 @@ public class FlinkStreamingTransformTranslators {
                 WindowedValue.getFullCoder(
                     (Coder<T>) VoidCoder.of(),
                     GlobalWindow.Coder.INSTANCE)));
-        context.setOutputDataStream(context.getOnlyOutput(transform), result);
+        context.setOutputDataStream(context.getOutput(transform), result);
 
       } else {
         DataStream<T> result = null;
@@ -979,7 +979,7 @@ public class FlinkStreamingTransformTranslators {
           DataStream<T> current = context.getInputDataStream(input.getValue());
           result = (result == null) ? current : result.union(current);
         }
-        context.setOutputDataStream(context.getOnlyOutput(transform), result);
+        context.setOutputDataStream(context.getOutput(transform), result);
       }
     }
   }

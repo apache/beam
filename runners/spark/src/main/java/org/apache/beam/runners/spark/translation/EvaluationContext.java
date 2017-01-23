@@ -89,32 +89,32 @@ public class EvaluationContext {
     this.currentTransform = transform;
   }
 
-  public <T extends PValue> T getOnlyInput(PTransform<T, ?> transform) {
+  public <T extends PValue> T getInput(PTransform<T, ?> transform) {
     @SuppressWarnings("unchecked")
-    T input = (T) Iterables.getOnlyElement(getInput(transform)).getValue();
+    T input = (T) Iterables.getOnlyElement(getInputs(transform)).getValue();
     return input;
   }
 
-  public <T> List<TaggedPValue> getInput(PTransform<?, ?> transform) {
+  public <T> List<TaggedPValue> getInputs(PTransform<?, ?> transform) {
     checkArgument(currentTransform != null && currentTransform.getTransform() == transform,
         "can only be called with current transform");
     return currentTransform.getInputs();
   }
 
-  public <T extends PValue> T getOnlyOutput(PTransform<?, T> transform) {
+  public <T extends PValue> T getOutput(PTransform<?, T> transform) {
     @SuppressWarnings("unchecked")
-    T output = (T) Iterables.getOnlyElement(getOutput(transform)).getValue();
+    T output = (T) Iterables.getOnlyElement(getOutputs(transform)).getValue();
     return output;
   }
 
-  public List<TaggedPValue> getOutput(PTransform<?, ?> transform) {
+  public List<TaggedPValue> getOutputs(PTransform<?, ?> transform) {
     checkArgument(currentTransform != null && currentTransform.getTransform() == transform,
         "can only be called with current transform");
     return currentTransform.getOutputs();
   }
 
   public void putDataset(PTransform<?, ? extends PValue> transform, Dataset dataset) {
-    putDataset(getOnlyOutput(transform), dataset);
+    putDataset(getOutput(transform), dataset);
   }
 
   public void putDataset(PValue pvalue, Dataset dataset) {
@@ -129,16 +129,16 @@ public class EvaluationContext {
 
   <T> void putBoundedDatasetFromValues(
       PTransform<?, ? extends PValue> transform, Iterable<T> values, Coder<T> coder) {
-    datasets.put(getOnlyOutput(transform), new BoundedDataset<>(values, jsc, coder));
+    datasets.put(getOutput(transform), new BoundedDataset<>(values, jsc, coder));
   }
 
   public <T> void putUnboundedDatasetFromQueue(
       PTransform<?, ? extends PValue> transform, Iterable<Iterable<T>> values, Coder<T> coder) {
-    datasets.put(getOnlyOutput(transform), new UnboundedDataset<>(values, jssc, coder));
+    datasets.put(getOutput(transform), new UnboundedDataset<>(values, jssc, coder));
   }
 
   public Dataset borrowDataset(PTransform<? extends PValue, ?> transform) {
-    return borrowDataset(getOnlyInput(transform));
+    return borrowDataset(getInput(transform));
   }
 
   public Dataset borrowDataset(PValue pvalue) {

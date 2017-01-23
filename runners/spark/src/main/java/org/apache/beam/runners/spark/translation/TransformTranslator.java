@@ -95,7 +95,7 @@ public final class TransformTranslator {
       @SuppressWarnings("unchecked")
       @Override
       public void evaluate(Flatten.FlattenPCollectionList<T> transform, EvaluationContext context) {
-        List<TaggedPValue> pcs = context.getInput(transform);
+        List<TaggedPValue> pcs = context.getInputs(transform);
         JavaRDD<WindowedValue<T>> unionRDD;
         if (pcs.size() == 0) {
           unionRDD = context.getSparkContext().emptyRDD();
@@ -125,7 +125,7 @@ public final class TransformTranslator {
             ((BoundedDataset<KV<K, V>>) context.borrowDataset(transform)).getRDD();
 
         @SuppressWarnings("unchecked")
-        final KvCoder<K, V> coder = (KvCoder<K, V>) context.getOnlyInput(transform).getCoder();
+        final KvCoder<K, V> coder = (KvCoder<K, V>) context.getInput(transform).getCoder();
 
         final Accumulator<NamedAggregators> accum =
             SparkAggregators.getNamedAggregators(context.getSparkContext());
@@ -138,7 +138,7 @@ public final class TransformTranslator {
                     accum,
                     coder,
                     context.getRuntimeContext(),
-                    context.getOnlyInput(transform).getWindowingStrategy())));
+                    context.getInput(transform).getWindowingStrategy())));
       }
     };
   }
@@ -151,7 +151,7 @@ public final class TransformTranslator {
                            EvaluationContext context) {
         // get the applied combine function.
         PCollection<? extends KV<K, ? extends Iterable<InputT>>> input =
-            context.getOnlyInput(transform);
+            context.getInput(transform);
         WindowingStrategy<?, ?> windowingStrategy = input.getWindowingStrategy();
         @SuppressWarnings("unchecked")
         CombineWithContext.KeyedCombineFnWithContext<K, InputT, ?, OutputT> fn =
@@ -180,10 +180,10 @@ public final class TransformTranslator {
 
       @Override
       public void evaluate(Combine.Globally<InputT, OutputT> transform, EvaluationContext context) {
-        final PCollection<InputT> input = context.getOnlyInput(transform);
+        final PCollection<InputT> input = context.getInput(transform);
         // serializable arguments to pass.
-        final Coder<InputT> iCoder = context.getOnlyInput(transform).getCoder();
-        final Coder<OutputT> oCoder = context.getOnlyOutput(transform).getCoder();
+        final Coder<InputT> iCoder = context.getInput(transform).getCoder();
+        final Coder<OutputT> oCoder = context.getOutput(transform).getCoder();
         @SuppressWarnings("unchecked")
         final CombineWithContext.CombineFnWithContext<InputT, AccumT, OutputT> combineFn =
             (CombineWithContext.CombineFnWithContext<InputT, AccumT, OutputT>)
@@ -211,11 +211,11 @@ public final class TransformTranslator {
       @Override
       public void evaluate(Combine.PerKey<K, InputT, OutputT> transform,
                            EvaluationContext context) {
-        final PCollection<KV<K, InputT>> input = context.getOnlyInput(transform);
+        final PCollection<KV<K, InputT>> input = context.getInput(transform);
         // serializable arguments to pass.
         @SuppressWarnings("unchecked")
         final KvCoder<K, InputT> inputCoder =
-            (KvCoder<K, InputT>) context.getOnlyInput(transform).getCoder();
+            (KvCoder<K, InputT>) context.getInput(transform).getCoder();
         @SuppressWarnings("unchecked")
         final CombineWithContext.KeyedCombineFnWithContext<K, InputT, AccumT, OutputT> combineFn =
             (CombineWithContext.KeyedCombineFnWithContext<K, InputT, AccumT, OutputT>)
@@ -246,7 +246,7 @@ public final class TransformTranslator {
         JavaRDD<WindowedValue<InputT>> inRDD =
             ((BoundedDataset<InputT>) context.borrowDataset(transform)).getRDD();
         WindowingStrategy<?, ?> windowingStrategy =
-            context.getOnlyInput(transform).getWindowingStrategy();
+            context.getInput(transform).getWindowingStrategy();
         Accumulator<NamedAggregators> accum =
             SparkAggregators.getNamedAggregators(context.getSparkContext());
         Map<TupleTag<?>, KV<WindowingStrategy<?, ?>, SideInputBroadcast<?>>> sideInputs =
@@ -269,7 +269,7 @@ public final class TransformTranslator {
         JavaRDD<WindowedValue<InputT>> inRDD =
             ((BoundedDataset<InputT>) context.borrowDataset(transform)).getRDD();
         WindowingStrategy<?, ?> windowingStrategy =
-            context.getOnlyInput(transform).getWindowingStrategy();
+            context.getInput(transform).getWindowingStrategy();
         Accumulator<NamedAggregators> accum =
             SparkAggregators.getNamedAggregators(context.getSparkContext());
         JavaPairRDD<TupleTag<?>, WindowedValue<?>> all = inRDD
@@ -277,7 +277,7 @@ public final class TransformTranslator {
                 new MultiDoFnFunction<>(accum, doFn, context.getRuntimeContext(),
                 transform.getMainOutputTag(), TranslationUtils.getSideInputs(
                     transform.getSideInputs(), context), windowingStrategy)).cache();
-        List<TaggedPValue> pct = context.getOutput(transform);
+        List<TaggedPValue> pct = context.getOutputs(transform);
         for (TaggedPValue e : pct) {
           @SuppressWarnings("unchecked")
           JavaPairRDD<TupleTag<?>, WindowedValue<?>> filtered =
@@ -530,7 +530,7 @@ public final class TransformTranslator {
         Iterable<T> elems = transform.getElements();
         // Use a coder to convert the objects in the PCollection to byte arrays, so they
         // can be transferred over the network.
-        Coder<T> coder = context.getOnlyOutput(transform).getCoder();
+        Coder<T> coder = context.getOutput(transform).getCoder();
         context.putBoundedDatasetFromValues(transform, elems, coder);
       }
     };
@@ -541,8 +541,8 @@ public final class TransformTranslator {
       @Override
       public void evaluate(View.AsSingleton<T> transform, EvaluationContext context) {
         Iterable<? extends WindowedValue<?>> iter =
-        context.getWindowedValues(context.getOnlyInput(transform));
-        PCollectionView<T> output = context.getOnlyOutput(transform);
+        context.getWindowedValues(context.getInput(transform));
+        PCollectionView<T> output = context.getOutput(transform);
         Coder<Iterable<WindowedValue<?>>> coderInternal = output.getCoderInternal();
 
         @SuppressWarnings("unchecked")
@@ -558,8 +558,8 @@ public final class TransformTranslator {
       @Override
       public void evaluate(View.AsIterable<T> transform, EvaluationContext context) {
         Iterable<? extends WindowedValue<?>> iter =
-            context.getWindowedValues(context.getOnlyInput(transform));
-        PCollectionView<Iterable<T>> output = context.getOnlyOutput(transform);
+            context.getWindowedValues(context.getInput(transform));
+        PCollectionView<Iterable<T>> output = context.getOutput(transform);
         Coder<Iterable<WindowedValue<?>>> coderInternal = output.getCoderInternal();
 
         @SuppressWarnings("unchecked")
@@ -577,8 +577,8 @@ public final class TransformTranslator {
       public void evaluate(View.CreatePCollectionView<ReadT, WriteT> transform,
                            EvaluationContext context) {
         Iterable<? extends WindowedValue<?>> iter =
-            context.getWindowedValues(context.getOnlyInput(transform));
-        PCollectionView<WriteT> output = context.getOnlyOutput(transform);
+            context.getWindowedValues(context.getInput(transform));
+        PCollectionView<WriteT> output = context.getOutput(transform);
         Coder<Iterable<WindowedValue<?>>> coderInternal = output.getCoderInternal();
 
         @SuppressWarnings("unchecked")

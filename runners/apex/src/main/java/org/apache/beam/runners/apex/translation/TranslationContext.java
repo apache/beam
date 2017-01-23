@@ -59,7 +59,7 @@ class TranslationContext {
   private final Map<PCollectionView<?>, PInput> viewInputs = new HashMap<>();
 
   public void addView(PCollectionView<?> view) {
-    this.viewInputs.put(view, this.getOnlyInput());
+    this.viewInputs.put(view, this.getInput());
   }
 
   public <InputT extends PInput> InputT getViewInput(PCollectionView<?> view) {
@@ -84,19 +84,19 @@ class TranslationContext {
     return getCurrentTransform().getFullName();
   }
 
-  public List<TaggedPValue> getInput() {
+  public List<TaggedPValue> getInputs() {
     return getCurrentTransform().getInputs();
   }
 
-  public PValue getOnlyInput() {
+  public PValue getInput() {
     return Iterables.getOnlyElement(getCurrentTransform().getInputs()).getValue();
   }
 
-  public List<TaggedPValue> getOutput() {
+  public List<TaggedPValue> getOutputs() {
     return getCurrentTransform().getOutputs();
   }
 
-  public PValue getOnlyOutput() {
+  public PValue getOutput() {
     return Iterables.getOnlyElement(getCurrentTransform().getOutputs()).getValue();
   }
 
@@ -106,7 +106,7 @@ class TranslationContext {
   }
 
   public void addOperator(Operator operator, OutputPort port) {
-    addOperator(operator, port, (PCollection<?>) getOnlyOutput());
+    addOperator(operator, port, (PCollection<?>) getOutput());
   }
 
   /**

@@ -34,7 +34,7 @@ class CreateValuesTranslator<T> implements TransformTranslator<Create.Values<T>>
   @Override
   public void translate(Create.Values<T> transform, TranslationContext context) {
     UnboundedSource<T, ?> unboundedSource = new ValuesSource<>(transform.getElements(),
-        ((PCollection<T>) context.getOnlyOutput()).getCoder());
+        ((PCollection<T>) context.getOutput()).getCoder());
     ApexReadUnboundedInputOperator<T, ?> operator =
         new ApexReadUnboundedInputOperator<>(unboundedSource, context.getPipelineOptions());
     context.addOperator(operator, operator.output);

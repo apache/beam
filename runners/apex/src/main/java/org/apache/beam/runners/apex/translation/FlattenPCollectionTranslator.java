@@ -43,7 +43,7 @@ class FlattenPCollectionTranslator<T> implements
 
   @Override
   public void translate(Flatten.FlattenPCollectionList<T> transform, TranslationContext context) {
-    List<TaggedPValue> inputs = context.getInput();
+    List<TaggedPValue> inputs = context.getInputs();
 
     if (inputs.isEmpty()) {
       // create a dummy source that never emits anything
@@ -54,7 +54,7 @@ class FlattenPCollectionTranslator<T> implements
           unboundedSource, context.getPipelineOptions());
       context.addOperator(operator, operator.output);
     } else {
-      PCollection<T> output = (PCollection<T>) context.getOnlyOutput();
+      PCollection<T> output = (PCollection<T>) context.getOutput();
       Map<PCollection<?>, Integer> unionTags = Collections.emptyMap();
       flattenCollections(extractPCollections(inputs), unionTags, output, context);
     }

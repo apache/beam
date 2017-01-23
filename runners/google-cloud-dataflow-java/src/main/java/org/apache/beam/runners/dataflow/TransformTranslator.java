@@ -46,14 +46,14 @@ interface TransformTranslator<TransformT extends PTransform> {
     DataflowPipelineOptions getPipelineOptions();
 
     /** Returns the input of the currently being translated transform. */
-    <InputT extends PInput> List<TaggedPValue> getInput(PTransform<InputT, ?> transform);
+    <InputT extends PInput> List<TaggedPValue> getInputs(PTransform<InputT, ?> transform);
 
-    <InputT extends PValue> InputT getOnlyInput(PTransform<InputT, ?> transform);
+    <InputT extends PValue> InputT getInput(PTransform<InputT, ?> transform);
 
     /** Returns the output of the currently being translated transform. */
-    <OutputT extends POutput> List<TaggedPValue> getOutput(PTransform<?, OutputT> transform);
+    <OutputT extends POutput> List<TaggedPValue> getOutputs(PTransform<?, OutputT> transform);
 
-    <OutputT extends PValue> OutputT getOnlyOutput(PTransform<?, OutputT> transform);
+    <OutputT extends PValue> OutputT getOutput(PTransform<?, OutputT> transform);
 
     /** Returns the full name of the currently being translated transform. */
     String getFullName(PTransform<?, ?> transform);

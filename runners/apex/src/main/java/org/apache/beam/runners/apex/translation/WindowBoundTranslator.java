@@ -43,8 +43,8 @@ class WindowBoundTranslator<T> implements TransformTranslator<Window.Bound<T>> {
 
   @Override
   public void translate(Window.Bound<T> transform, TranslationContext context) {
-    PCollection<T> output = (PCollection<T>) context.getOnlyOutput();
-    PCollection<T> input = (PCollection<T>) context.getOnlyInput();
+    PCollection<T> output = (PCollection<T>) context.getOutput();
+    PCollection<T> input = (PCollection<T>) context.getInput();
     @SuppressWarnings("unchecked")
     WindowingStrategy<T, BoundedWindow> windowingStrategy =
         (WindowingStrategy<T, BoundedWindow>) output.getWindowingStrategy();
@@ -66,7 +66,7 @@ class WindowBoundTranslator<T> implements TransformTranslator<Window.Bound<T>> {
                 input.getCoder(), windowingStrategy.getWindowFn().windowCoder()),
             context.<Void>stateInternalsFactory());
     context.addOperator(operator, operator.output);
-    context.addStream(context.getOnlyInput(), operator.input);
+    context.addStream(context.getInput(), operator.input);
   }
 
   private static class IdentityFn<T> extends DoFn<T, T> {
