@@ -234,7 +234,8 @@ class PTransformTest(unittest.TestCase):
     nums = pipeline | 'Some Numbers' >> beam.Create([1, 2, 3, 4])
     results = nums | beam.FlatMap(
         'ClassifyNumbers',
-        lambda x: [x, pvalue.SideOutputValue('even' if x % 2 == 0 else 'odd', x)]
+        lambda x: [x,
+                   pvalue.SideOutputValue('even' if x % 2 == 0 else 'odd', x)]
     ).with_outputs()
     assert_that(results[None], equal_to([1, 2, 3, 4]))
     assert_that(results.odd, equal_to([1, 3]), label='assert:odd')
@@ -247,7 +248,8 @@ class PTransformTest(unittest.TestCase):
     nums = pipeline | 'Some Numbers' >> beam.Create([1, 3, 5])
     results = nums | beam.FlatMap(
         'ClassifyNumbers',
-        lambda x: [x, pvalue.SideOutputValue('even' if x % 2 == 0 else 'odd', x)]
+        lambda x: [x,
+                   pvalue.SideOutputValue('even' if x % 2 == 0 else 'odd', x)]
     ).with_outputs()
     assert_that(results[None], equal_to([1, 3, 5]))
     assert_that(results.odd, equal_to([1, 3, 5]), label='assert:odd')

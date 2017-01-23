@@ -150,8 +150,8 @@ class SideInputsTest(unittest.TestCase):
     pipeline = self.create_pipeline()
     pcol = pipeline | 'start' >> beam.Create([1, 2])
     side = pipeline | 'side' >> beam.Create([3, 4])  # 2 values in side input.
-    pcol | 'compute' >> beam.FlatMap(
-        lambda x, s: [x * s], beam.pvalue.AsSingleton(side))  # pylint: disable=expression-not-assigned
+    pcol | 'compute' >> beam.FlatMap(  # pylint: disable=expression-not-assigned
+        lambda x, s: [x * s], beam.pvalue.AsSingleton(side))
     with self.assertRaises(ValueError):
       pipeline.run()
 
@@ -201,8 +201,9 @@ class SideInputsTest(unittest.TestCase):
 
   @attr('ValidatesRunner')
   def test_as_singleton_without_unique_labels(self):
-    # This should succeed as calling beam.pvalue.AsSingleton on the same PCollection twice
-    # with the same defaults will return the same PCollectionView.
+    # This should succeed as calling beam.pvalue.AsSingleton on the same
+    # PCollection twice with the same defaults will return the same
+    # PCollectionView.
     a_list = [2]
     pipeline = self.create_pipeline()
     main_input = pipeline | 'main input' >> beam.Create([1])
@@ -224,8 +225,8 @@ class SideInputsTest(unittest.TestCase):
 
   @attr('ValidatesRunner')
   def test_as_singleton_with_different_defaults_without_unique_labels(self):
-    # This should fail as beam.pvalue.AsSingleton with distinct default values should beam.Create
-    # distinct PCollectionViews with the same full_label.
+    # This should fail as beam.pvalue.AsSingleton with distinct default values
+    # should beam.Create distinct PCollectionViews with the same full_label.
     a_list = [2]
     pipeline = self.create_pipeline()
     main_input = pipeline | 'main input' >> beam.Create([1])
@@ -265,8 +266,8 @@ class SideInputsTest(unittest.TestCase):
 
   @attr('ValidatesRunner')
   def test_as_list_without_unique_labels(self):
-    # This should succeed as calling beam.pvalue.AsList on the same PCollection twice will
-    # return the same PCollectionView.
+    # This should succeed as calling beam.pvalue.AsList on the same
+    # PCollection twice will return the same PCollectionView.
     a_list = [1, 2, 3]
     pipeline = self.create_pipeline()
     main_input = pipeline | 'main input' >> beam.Create([1])
