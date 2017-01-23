@@ -70,6 +70,21 @@ class DoFnRunner(Receiver):
                # Preferred alternative to context
                # TODO(robertwb): Remove once all runners are updated.
                state=None):
+    """Initializes a DoFnRunner.
+
+    Args:
+      fn: user DoFn to invoke
+      args: positional side input arguments (static and placeholder), if any
+      kwargs: keyword side input arguments (static and placeholder), if any
+      side_inputs: list of sideinput.SideInputMaps for deferred side inputs
+      windowing: windowing properties of the output PCollection(s)
+      context: a DoFnContext to use (deprecated)
+      tagged_receivers: a dict of tag name to Receiver objects
+      logger: a logging module (deprecated)
+      step_name: the name of this step
+      logging_context: a LoggingContext object
+      state: handle for accessing DoFn state
+    """
     self.step_name = step_name
     self.window_fn = windowing.windowfn
     self.tagged_receivers = tagged_receivers
@@ -96,7 +111,7 @@ class DoFnRunner(Receiver):
     if isinstance(fn, core.NewDoFn):
       self.is_new_dofn = True
 
-      # SideInputs
+      # Stash values for use in new_dofn_process.
       self.side_inputs = side_inputs
       self.has_windowed_side_inputs = not all(
           si.is_globally_windowed() for si in self.side_inputs)
