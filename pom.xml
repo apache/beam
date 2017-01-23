@@ -1430,4 +1430,8 @@
       </plugin>
     </plugins>
   </reporting>
+
+  <prerequisites>
+    <maven>3.2</maven>
+  </prerequisites>
 </project>
