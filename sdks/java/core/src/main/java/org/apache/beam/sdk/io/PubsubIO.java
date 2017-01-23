@@ -558,7 +558,8 @@ public class PubsubIO {
       }
       return new Read<>(name,
           NestedValueProvider.of(subscription, new SubscriptionTranslator()),
-          topic, timestampLabel, coder, idLabel, maxNumRecords, maxReadTime, parseFn);
+          null /* reset topic to null */, timestampLabel, coder, idLabel, maxNumRecords,
+          maxReadTime, parseFn);
     }
 
     /**
@@ -584,7 +585,7 @@ public class PubsubIO {
         // Validate.
         PubsubTopic.fromPath(topic.get());
       }
-      return new Read<>(name, subscription,
+      return new Read<>(name, null /* reset subscription to null */,
           NestedValueProvider.of(topic, new TopicTranslator()),
           timestampLabel, coder, idLabel, maxNumRecords, maxReadTime, parseFn);
     }
@@ -757,6 +758,7 @@ public class PubsubIO {
     /**
      * Get the topic being read from.
      */
+    @Nullable
     public PubsubTopic getTopic() {
       return topic == null ? null : topic.get();
     }
@@ -771,6 +773,7 @@ public class PubsubIO {
     /**
      * Get the subscription being read from.
      */
+    @Nullable
     public PubsubSubscription getSubscription() {
       return subscription == null ? null : subscription.get();
     }
@@ -785,6 +788,7 @@ public class PubsubIO {
     /**
      * Get the timestamp label.
      */
+    @Nullable
     public String getTimestampLabel() {
       return timestampLabel;
     }
@@ -792,6 +796,7 @@ public class PubsubIO {
     /**
      * Get the id label.
      */
+    @Nullable
     public String getIdLabel() {
       return idLabel;
     }
@@ -800,6 +805,7 @@ public class PubsubIO {
     /**
      * Get the {@link Coder} used for the transform's output.
      */
+    @Nullable
     public Coder<T> getCoder() {
       return coder;
     }
@@ -814,6 +820,7 @@ public class PubsubIO {
     /**
      * Get the maximum read time.
      */
+    @Nullable
     public Duration getMaxReadTime() {
       return maxReadTime;
     }
@@ -821,6 +828,7 @@ public class PubsubIO {
     /**
      * Get the parse function used for PubSub attributes.
      */
+    @Nullable
     public SimpleFunction<PubsubMessage, T> getPubSubMessageParseFn() {
       return parseFn;
     }
@@ -1074,15 +1082,17 @@ public class PubsubIO {
     }
 
     /**
-     * Returns the PubSub topic being read from.
+     * Returns the PubSub topic being written to.
      */
+    @Nullable
     public PubsubTopic getTopic() {
-      return topic.get();
+      return (topic == null) ? null : topic.get();
     }
 
     /**
-     * Returns the {@link ValueProvider} for the topic being read from.
+     * Returns the {@link ValueProvider} for the topic being written to.
      */
+    @Nullable
     public ValueProvider<PubsubTopic> getTopicProvider() {
       return topic;
     }
@@ -1090,6 +1100,7 @@ public class PubsubIO {
     /**
      * Returns the timestamp label.
      */
+    @Nullable
     public String getTimestampLabel() {
       return timestampLabel;
     }
@@ -1097,6 +1108,7 @@ public class PubsubIO {
     /**
      * Returns the id label.
      */
+    @Nullable
     public String getIdLabel() {
       return idLabel;
     }
@@ -1104,6 +1116,7 @@ public class PubsubIO {
     /**
      * Returns the output coder.
      */
+    @Nullable
     public Coder<T> getCoder() {
       return coder;
     }
@@ -1111,6 +1124,7 @@ public class PubsubIO {
     /**
      * Returns the formatting function used if publishing attributes.
      */
+    @Nullable
     public SimpleFunction<T, PubsubMessage> getFormatFn() {
       return formatFn;
     }

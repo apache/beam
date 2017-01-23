@@ -1173,7 +1173,10 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
         createAggregator("elements", Sum.ofLongs());
 
     private final PubsubClientFactory pubsubFactory;
+    @Nullable
     private final ValueProvider<SubscriptionPath> subscription;
+    @Nullable
+    private final ValueProvider<TopicPath> topic;
     @Nullable
     private final String timestampLabel;
     @Nullable
@@ -1181,13 +1184,14 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
 
     public StatsFn(
         PubsubClientFactory pubsubFactory,
-        ValueProvider<SubscriptionPath> subscription,
-        @Nullable
-            String timestampLabel,
-        @Nullable
-            String idLabel) {
+        @Nullable ValueProvider<SubscriptionPath> subscription,
+        @Nullable ValueProvider<TopicPath> topic,
+        @Nullable String timestampLabel,
+        @Nullable String idLabel) {
+      checkArgument(pubsubFactory != null,"pubsubFactory should not be null");
       this.pubsubFactory = pubsubFactory;
       this.subscription = subscription;
+      this.topic = topic;
       this.timestampLabel = timestampLabel;
       this.idLabel = idLabel;
     }
@@ -1201,11 +1205,18 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
     @Override
     public void populateDisplayData(Builder builder) {
       super.populateDisplayData(builder);
-        String subscriptionString =
-            subscription == null ? null
-            : subscription.isAccessible() ? subscription.get().getPath()
+      if (subscription != null) {
+        String subscriptionString = subscription.isAccessible()
+            ? subscription.get().getPath()
             : subscription.toString();
-      builder.add(DisplayData.item("subscription", subscriptionString));
+        builder.add(DisplayData.item("subscription", subscriptionString));
+      }
+      if (topic != null) {
+        String topicString = topic.isAccessible()
+            ? topic.get().getPath()
+            : topic.toString();
+        builder.add(DisplayData.item("topic", topicString));
+      }
       builder.add(DisplayData.item("transport", pubsubFactory.getKind()));
       builder.addIfNotNull(DisplayData.item("timestampLabel", timestampLabel));
       builder.addIfNotNull(DisplayData.item("idLabel", idLabel));
@@ -1397,7 +1408,8 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
     return input.getPipeline().begin()
                 .apply(Read.from(new PubsubSource<T>(this)))
                 .apply("PubsubUnboundedSource.Stats",
-                    ParDo.of(new StatsFn<T>(pubsubFactory, subscription, timestampLabel, idLabel)));
+                    ParDo.of(new StatsFn<T>(
+                        pubsubFactory, subscription, topic, timestampLabel, idLabel)));
   }
 
   private SubscriptionPath createRandomSubscription(PipelineOptions options) {
