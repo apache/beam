@@ -164,9 +164,13 @@ class UnboundedReadEvaluatorFactory implements TransformEvaluatorFactory {
         throws IOException {
       UnboundedReader<OutputT> existing = shard.getExistingReader();
       if (existing == null) {
+        CheckpointMarkT checkpoint = shard.getCheckpoint();
+        if (checkpoint != null) {
+          checkpoint.finalizeCheckpoint();
+        }
         return shard
             .getSource()
-            .createReader(evaluationContext.getPipelineOptions(), shard.getCheckpoint());
+            .createReader(evaluationContext.getPipelineOptions(), checkpoint);
       } else {
         return existing;
       }
@@ -176,9 +180,6 @@ class UnboundedReadEvaluatorFactory implements TransformEvaluatorFactory {
         UnboundedReader<OutputT> reader, UnboundedSourceShard<OutputT, CheckpointMarkT> shard)
         throws IOException {
       if (shard.getExistingReader() == null) {
-        if (shard.getCheckpoint() != null) {
-          shard.getCheckpoint().finalizeCheckpoint();
-        }
         return reader.start();
       } else {
         return shard.getExistingReader().advance();
