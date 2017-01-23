@@ -32,10 +32,10 @@ import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.io.MapWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.InputFormat;
 import org.elasticsearch.hadoop.cfg.ConfigurationOptions;
+import org.elasticsearch.hadoop.mr.LinkedMapWritable;
 import org.junit.BeforeClass;
 import org.junit.FixMethodOrder;
 import org.junit.Test;
@@ -84,16 +84,16 @@ public class HIFIOElasticIT implements Serializable {
   public void testHifIOWithElastic() {
     Pipeline pipeline = TestPipeline.create(options);
     Configuration conf = getConfiguration(options);
-    PCollection<KV<Text, MapWritable>> esData =
-        pipeline.apply(HadoopInputFormatIO.<Text, MapWritable>read().withConfiguration(conf));
-    PCollection<Long> count = esData.apply(Count.<KV<Text, MapWritable>>globally());
+    PCollection<KV<Text, LinkedMapWritable>> esData =
+        pipeline.apply(HadoopInputFormatIO.<Text, LinkedMapWritable>read().withConfiguration(conf));
+    PCollection<Long> count = esData.apply(Count.<KV<Text, LinkedMapWritable>>globally());
     PAssert.thatSingleton(count).isEqualTo((long) 1000);
 
-    PCollection<MapWritable> values = esData.apply(Values.<MapWritable>create());
-    MapElements<MapWritable, String> transformFunc =
-        MapElements.<MapWritable, String>via(new SimpleFunction<MapWritable, String>() {
+    PCollection<LinkedMapWritable> values = esData.apply(Values.<LinkedMapWritable>create());
+    MapElements<LinkedMapWritable, String> transformFunc =
+        MapElements.<LinkedMapWritable, String>via(new SimpleFunction<LinkedMapWritable, String>() {
           @Override
-          public String apply(MapWritable mapw) {
+          public String apply(LinkedMapWritable mapw) {
             Text text = (Text) mapw.get(new Text("City"));
             return text != null ? text.toString() : "";
           }
@@ -127,9 +127,9 @@ public class HIFIOElasticIT implements Serializable {
             + "  }"
             + "}";
     conf.set(ConfigurationOptions.ES_QUERY, query);
-    PCollection<KV<Text, MapWritable>> esData =
-        pipeline.apply(HadoopInputFormatIO.<Text, MapWritable>read().withConfiguration(conf));
-    PCollection<Long> count = esData.apply(Count.<KV<Text, MapWritable>>globally());
+    PCollection<KV<Text, LinkedMapWritable>> esData =
+        pipeline.apply(HadoopInputFormatIO.<Text, LinkedMapWritable>read().withConfiguration(conf));
+    PCollection<Long> count = esData.apply(Count.<KV<Text, LinkedMapWritable>>globally());
     PAssert.thatSingleton(count).isEqualTo((long) 1);
     pipeline.run().waitUntilFinish();
   }
@@ -151,8 +151,7 @@ public class HIFIOElasticIT implements Serializable {
     conf.setClass(HadoopInputFormatIOContants.INPUTFORMAT_CLASSNAME,
         org.elasticsearch.hadoop.mr.EsInputFormat.class, InputFormat.class);
     conf.setClass(HadoopInputFormatIOContants.KEY_CLASS, Text.class, Object.class);
-    conf.setClass(HadoopInputFormatIOContants.VALUE_CLASS, MapWritable.class, Object.class);
-    conf.setClass("mapred.mapoutput.value.class", MapWritable.class, Object.class);
+    conf.setClass(HadoopInputFormatIOContants.VALUE_CLASS, LinkedMapWritable.class, Object.class);
     return conf;
   }
 }
