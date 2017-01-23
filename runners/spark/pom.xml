@@ -329,7 +329,6 @@
         <plugin>
           <groupId>org.codehaus.mojo</groupId>
           <artifactId>exec-maven-plugin</artifactId>
-          <version>1.4.0</version>
           <configuration>
             <executable>java</executable>
             <classpathScope>test</classpathScope> <!-- include provided deps -->
@@ -347,7 +346,6 @@
         <plugin>
           <groupId>org.jacoco</groupId>
           <artifactId>jacoco-maven-plugin</artifactId>
-          <version>0.7.5.201505241946</version>
           <executions>
             <execution>
               <goals>
