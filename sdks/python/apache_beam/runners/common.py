@@ -24,7 +24,6 @@ import sys
 from apache_beam.internal import util
 from apache_beam.pvalue import SideOutputValue
 from apache_beam.transforms import core
-from apache_beam.transforms import sideinputs
 from apache_beam.transforms import window
 from apache_beam.transforms.window import TimestampedValue
 from apache_beam.transforms.window import WindowFn
@@ -71,6 +70,21 @@ class DoFnRunner(Receiver):
                # Preferred alternative to context
                # TODO(robertwb): Remove once all runners are updated.
                state=None):
+    """Initializes a DoFnRunner.
+
+    Args:
+      fn: user DoFn to invoke
+      args: positional side input arguments (static and placeholder), if any
+      kwargs: keyword side input arguments (static and placeholder), if any
+      side_inputs: list of sideinput.SideInputMaps for deferred side inputs
+      windowing: windowing properties of the output PCollection(s)
+      context: a DoFnContext to use (deprecated)
+      tagged_receivers: a dict of tag name to Receiver objects
+      logger: a logging module (deprecated)
+      step_name: the name of this step
+      logging_context: a LoggingContext object
+      state: handle for accessing DoFn state
+    """
     self.step_name = step_name
     self.window_fn = windowing.windowfn
     self.tagged_receivers = tagged_receivers
@@ -97,14 +111,10 @@ class DoFnRunner(Receiver):
     if isinstance(fn, core.NewDoFn):
       self.is_new_dofn = True
 
-      # SideInputs
-      self.side_inputs = [side_input
-                          if isinstance(side_input, sideinputs.SideInputMap)
-                          else {global_window: side_input}
-                          for side_input in side_inputs]
+      # Stash values for use in new_dofn_process.
+      self.side_inputs = side_inputs
       self.has_windowed_side_inputs = not all(
-          isinstance(si, dict) or si.is_globally_windowed()
-          for si in self.side_inputs)
+          si.is_globally_windowed() for si in self.side_inputs)
 
       self.args = args if args else []
       self.kwargs = kwargs if kwargs else {}
@@ -117,14 +127,8 @@ class DoFnRunner(Receiver):
         self.dofn = fn
         self.dofn_process = fn.process
       else:
-        # TODO(robertwb): Remove when all runners pass side input maps.
-        side_inputs = [side_input
-                       if isinstance(side_input, sideinputs.SideInputMap)
-                       else {global_window: side_input}
-                       for side_input in side_inputs]
         if side_inputs and all(
-            isinstance(side_input, dict) or side_input.is_globally_windowed()
-            for side_input in side_inputs):
+            side_input.is_globally_windowed() for side_input in side_inputs):
           args, kwargs = util.insert_values_in_args(
               args, kwargs, [side_input[global_window]
                              for side_input in side_inputs])
