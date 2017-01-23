@@ -24,10 +24,6 @@ import static org.junit.Assert.assertThat;
 
 import com.google.common.base.Function;
 import com.google.common.collect.Lists;
-import java.io.Serializable;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
 import org.apache.beam.sdk.Pipeline.PipelineVisitor;
 import org.apache.beam.sdk.io.CountingSource;
 import org.apache.beam.sdk.io.Read;
@@ -50,6 +46,10 @@ import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import java.io.Serializable;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 
 /**
  * Tests for {@link TransformHierarchy}.
@@ -140,9 +140,7 @@ public class TransformHierarchyTest implements Serializable {
           }
         });
     thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage("produced by it as well as other Transforms");
-    thrown.expectMessage("primitive transform must produce all of its outputs");
-    thrown.expectMessage("composite transform must be produced by a component transform");
+    thrown.expectMessage("contains a primitive POutput produced by it");
     thrown.expectMessage("AddPc");
     thrown.expectMessage("Create");
     thrown.expectMessage(appended.expand().toString());
@@ -150,7 +148,7 @@ public class TransformHierarchyTest implements Serializable {
   }
 
   @Test
-  public void producingOwnOutputWithCompsiteFails() {
+  public void producingOwnOutputWithCompositeFails() {
     final PCollection<Long> comp =
         PCollection.createPrimitiveOutputInternal(
             pipeline, WindowingStrategy.globalDefault(), IsBounded.BOUNDED);
@@ -169,7 +167,9 @@ public class TransformHierarchyTest implements Serializable {
     hierarchy.popNode();
 
     thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage("composite transforms must be produced by component");
+    thrown.expectMessage("contains a primitive POutput produced by it");
+    thrown.expectMessage("primitive transforms are permitted to produce");
+    thrown.expectMessage("Composite");
     hierarchy.setOutput(comp);
   }
 
