@@ -12,11 +12,15 @@
  * or implied. See the License for the specific language governing permissions and limitations under
  * the License.
  */
-package org.apache.beam.sdk.io.hadoop.inputformat;
-
+package org.apache.beam.sdk.io.hadoop.inputformat.integration.tests;
 
 import java.io.Serializable;
+import java.util.Arrays;
+import java.util.List;
 
+import org.apache.beam.sdk.io.hadoop.inputformat.HadoopInputFormatIO;
+import org.apache.beam.sdk.io.hadoop.inputformat.custom.options.HIFTestOptions;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
@@ -28,11 +32,15 @@ import org.apache.hadoop.hbase.HBaseConfiguration;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.io.ImmutableBytesWritable;
 import org.apache.hadoop.hbase.util.Bytes;
+import org.junit.BeforeClass;
 import org.junit.FixMethodOrder;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.junit.runners.MethodSorters;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 /**
  * Runs test to validate HadoopInputFromatIO for a HBase instance on GCP.
  *
@@ -46,8 +54,19 @@ import org.junit.runners.MethodSorters;
  */
 @RunWith(JUnit4.class)
 @FixMethodOrder(MethodSorters.JVM)
-public class HIFIOHBaseTest implements Serializable {
+public class HIFIOHBaseIT implements Serializable {
 	private static final long serialVersionUID = 1L;
+	private static final Logger LOGGER = LoggerFactory
+			.getLogger(HIFIOCassandraIT.class);
+	private static HIFTestOptions options;
+
+	@BeforeClass
+	public static void setUp() {
+		PipelineOptionsFactory.register(HIFTestOptions.class);
+		options = TestPipeline.testingPipelineOptions()
+				.as(HIFTestOptions.class);
+		LOGGER.info("Pipeline created successfully with the options");
+	}
 
 	@Test
 	public void testHIFOnHBase() throws Throwable {
@@ -58,29 +77,40 @@ public class HIFIOHBaseTest implements Serializable {
 
 			@Override
 			public String apply(Result input) {
-				return Bytes.toString(input.getValue(Bytes.toBytes("account"),Bytes.toBytes("name")));
+				return Bytes.toString(input.getValue(Bytes.toBytes("account"),
+						Bytes.toBytes("name")));
 			}
 		};
 
-		PCollection<KV<ImmutableBytesWritable, String>> hbaseData =
-				p.apply(HadoopInputFormatIO.<ImmutableBytesWritable, String>read().withConfiguration(conf)
+		PCollection<KV<ImmutableBytesWritable, String>> hbaseData = p
+				.apply(HadoopInputFormatIO
+						.<ImmutableBytesWritable, String> read()
+						.withConfiguration(conf)
 						.withValueTranslation(myValueTranslate));
 
-		PAssert.thatSingleton(hbaseData.apply("Count", Count.<KV<ImmutableBytesWritable, String>>globally()))
-		.isEqualTo(4L);
+		PAssert.thatSingleton(
+				hbaseData.apply("Count",
+						Count.<KV<ImmutableBytesWritable, String>> globally()))
+				.isEqualTo(4L);
+		// List<KV<ImmutableBytesWritable, String>> expectedResults =
+			//        Arrays.asList(KV.of(new ImmutableBytes, "Einstein"), KV.of(2L, "Darwin"), KV.of(3L, "Copernicus"),
+			  //          KV.of(4L, "Pasteur"), KV.of(5L, "Curie"), KV.of(6L, "Faraday"), KV.of(7L, "Newton"),
+			    //        KV.of(8L, "Bohr"), KV.of(9L, "Galilei"), KV.of(10L, "Maxwell"));
+			    //PAssert.that(hbaseData).containsInAnyOrder(expectedResults);
 		p.run().waitUntilFinish();
 	}
-	
+
 	public Configuration getHBaseConfiguration() {
 		Configuration conf = HBaseConfiguration.create();
 		conf.set("hbase.zookeeper.quorum", "104.154.230.7");
 		conf.set("hbase.zookeeper.property.clientPort", "2181");
 		conf.set("hbase.mapreduce.inputtable", "studentData");
 		conf.setClass("mapreduce.job.inputformat.class",
-				org.apache.hadoop.hbase.mapreduce.TableInputFormat.class,Object.class);
+				org.apache.hadoop.hbase.mapreduce.TableInputFormat.class,
+				Object.class);
 		conf.setClass("key.class", ImmutableBytesWritable.class, Object.class);
-		conf.setClass("value.class", org.apache.hadoop.hbase.client.Result.class, Object.class);
+		conf.setClass("value.class",
+				org.apache.hadoop.hbase.client.Result.class, Object.class);
 		return conf;
 	}
 }
-
