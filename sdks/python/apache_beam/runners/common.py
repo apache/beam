@@ -69,7 +69,8 @@ class DoFnRunner(Receiver):
                logging_context=None,
                # Preferred alternative to context
                # TODO(robertwb): Remove once all runners are updated.
-               state=None):
+               state=None,
+               scoped_metrics_container=None):
     """Initializes a DoFnRunner.
 
     Args:
@@ -84,10 +85,12 @@ class DoFnRunner(Receiver):
       step_name: the name of this step
       logging_context: a LoggingContext object
       state: handle for accessing DoFn state
+      scoped_metrics_container: Context switcher for metrics container
     """
     self.step_name = step_name
     self.window_fn = windowing.windowfn
     self.tagged_receivers = tagged_receivers
+    self.scoped_metrics_container = scoped_metrics_container
 
     global_window = window.GlobalWindow()
 
@@ -236,6 +239,7 @@ class DoFnRunner(Receiver):
   def _invoke_bundle_method(self, method):
     try:
       self.logging_context.enter()
+      self.scoped_metrics_container.enter()
       self.context.set_element(None)
       f = getattr(self.dofn, method)
 
@@ -251,6 +255,7 @@ class DoFnRunner(Receiver):
     except BaseException as exn:
       self.reraise_augmented(exn)
     finally:
+      self.scoped_metrics_container.exit()
       self.logging_context.exit()
 
   def start(self):
@@ -262,6 +267,7 @@ class DoFnRunner(Receiver):
   def process(self, element):
     try:
       self.logging_context.enter()
+      self.scoped_metrics_container.enter()
       if self.is_new_dofn:
         self.new_dofn_process(element)
       else:
@@ -269,6 +275,7 @@ class DoFnRunner(Receiver):
     except BaseException as exn:
       self.reraise_augmented(exn)
     finally:
+      self.scoped_metrics_container.exit()
       self.logging_context.exit()
 
   def reraise_augmented(self, exn):

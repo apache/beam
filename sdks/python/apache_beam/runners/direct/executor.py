@@ -27,7 +27,7 @@ import traceback
 from weakref import WeakValueDictionary
 
 from apache_beam.metrics.execution import MetricsContainer
-from apache_beam.metrics.execution import MetricsEnvironment
+from apache_beam.metrics.execution import ScopedMetricsContainer
 
 
 class ExecutorService(object):
@@ -270,7 +270,7 @@ class TransformExecutor(ExecutorService.CallableTask):
     self._call_count += 1
     assert self._call_count <= (1 + len(self._applied_transform.side_inputs))
     metrics_container = MetricsContainer(self._applied_transform.full_label)
-    MetricsEnvironment.set_current_container(metrics_container)
+    scoped_metrics_container = ScopedMetricsContainer(metrics_container)
 
     for side_input in self._applied_transform.side_inputs:
       if side_input not in self._side_input_values:
@@ -288,14 +288,16 @@ class TransformExecutor(ExecutorService.CallableTask):
 
     try:
       evaluator = self._transform_evaluator_registry.for_application(
-          self._applied_transform, self._input_bundle, side_input_values)
+          self._applied_transform, self._input_bundle,
+          side_input_values, scoped_metrics_container)
 
       if self._input_bundle:
         for value in self._input_bundle.elements:
           evaluator.process_element(value)
 
-      result = evaluator.finish_bundle()
-      result.metric_updates = metrics_container.get_cumulative()
+      with scoped_metrics_container:
+        result = evaluator.finish_bundle()
+        result.metric_updates = metrics_container.get_cumulative()
 
       if self._evaluation_context.has_cache:
         for uncommitted_bundle in result.output_bundles:

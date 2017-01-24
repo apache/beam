@@ -98,36 +98,49 @@ class MetricResult(object):
         self.key, self.committed, self.attempted)
 
 
-class MetricsEnvironment(object):
+class _MetricsEnvironment(object):
   """Holds the MetricsContainer for every thread and other metric information.
 
   This class is not meant to be instantiated, instead being used to keep
   track of global state.
   """
-  METRICS_SUPPORTED = False
-  _METRICS_SUPPORTED_LOCK = threading.Lock()
+  def __init__(self):
+    self.METRICS_SUPPORTED = False
+    self._METRICS_SUPPORTED_LOCK = threading.Lock()
+    self.PER_THREAD = threading.local()
+    self.set_container_stack()
 
-  PER_THREAD = threading.local()
+  def set_container_stack(self):
+    if not hasattr(self.PER_THREAD, 'container'):
+      self.PER_THREAD.container = []
 
-  @classmethod
-  def set_metrics_supported(cls, supported):
-    with cls._METRICS_SUPPORTED_LOCK:
-      cls.METRICS_SUPPORTED = supported
+  def container_stack(self):
+    self.set_container_stack()
+    return self.PER_THREAD.container
 
-  @classmethod
-  def current_container(cls):
-    try:
-      return cls.PER_THREAD.container
-    except AttributeError:
+  def set_metrics_supported(self, supported):
+    self.set_container_stack()
+    with self._METRICS_SUPPORTED_LOCK:
+      self.METRICS_SUPPORTED = supported
+
+  def current_container(self):
+    self.set_container_stack()
+    index = len(self.PER_THREAD.container) - 1
+    if index < 0:
       return None
+    else:
+      return self.PER_THREAD.container[index]
 
-  @classmethod
-  def set_current_container(cls, container):
-    cls.PER_THREAD.container = container
+  def set_current_container(self, container):
+    self.set_container_stack()
+    self.PER_THREAD.container.append(container)
 
-  @classmethod
-  def unset_current_container(cls):
-    del cls.PER_THREAD.container
+  def unset_current_container(self):
+    self.set_container_stack()
+    self.PER_THREAD.container.pop()
+
+
+MetricsEnvironment = _MetricsEnvironment()
 
 
 class MetricsContainer(object):
@@ -181,15 +194,20 @@ class MetricsContainer(object):
 
 class ScopedMetricsContainer(object):
   def __init__(self, container):
-    self._old_container = MetricsEnvironment.current_container()
+    self._stack = MetricsEnvironment.container_stack()
     self._container = container
 
+  def enter(self):
+    self._stack.append(self._container)
+
+  def exit(self):
+    self._stack.pop()
+
   def __enter__(self):
-    MetricsEnvironment.set_current_container(self._container)
-    return self._container
+    self.enter()
 
   def __exit__(self, type, value, traceback):
-    MetricsEnvironment.set_current_container(self._old_container)
+    self.exit()
 
 
 class MetricUpdates(object):
