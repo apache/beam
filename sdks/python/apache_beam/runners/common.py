@@ -91,6 +91,9 @@ class DoFnRunner(Receiver):
 
     global_window = window.GlobalWindow()
 
+    # Need to support multiple iterations.
+    side_inputs = list(side_inputs)
+
     if logging_context:
       self.logging_context = logging_context
     else:
