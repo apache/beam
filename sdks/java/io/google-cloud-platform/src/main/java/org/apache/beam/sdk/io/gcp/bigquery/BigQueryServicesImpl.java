@@ -220,11 +220,11 @@ class BigQueryServicesImpl implements BigQueryServices {
             return; // SUCCEEDED
           }
           // ignore and retry
-          LOG.warn("Ignore the error and retry inserting the job.", e);
+          LOG.info("Ignore the error and retry inserting the job.", e);
           lastException = e;
         } catch (IOException e) {
           // ignore and retry
-          LOG.warn("Ignore the error and retry inserting the job.", e);
+          LOG.info("Ignore the error and retry inserting the job.", e);
           lastException = e;
         }
       } while (nextBackOff(sleeper, backoff));
@@ -261,7 +261,7 @@ class BigQueryServicesImpl implements BigQueryServices {
           // The job is not DONE, wait longer and retry.
         } catch (IOException e) {
           // ignore and retry
-          LOG.warn("Ignore the error and retry polling job status.", e);
+          LOG.info("Ignore the error and retry polling job status.", e);
         }
       } while (nextBackOff(sleeper, backoff));
       LOG.warn("Unable to poll job status: {}, aborting after reached max .", jobRef.getJobId());
@@ -316,12 +316,12 @@ class BigQueryServicesImpl implements BigQueryServices {
             LOG.info("No BigQuery job with job id {} found.", jobId);
             return null;
           }
-          LOG.warn(
+          LOG.info(
               "Ignoring the error encountered while trying to query the BigQuery job {}",
               jobId, e);
           lastException = e;
         } catch (IOException e) {
-          LOG.warn(
+          LOG.info(
               "Ignoring the error encountered while trying to query the BigQuery job {}",
               jobId, e);
           lastException = e;
@@ -618,10 +618,10 @@ class BigQueryServicesImpl implements BigQueryServices {
             return; // SUCCEEDED
           }
           // ignore and retry
-          LOG.warn("Ignore the error and retry creating the dataset.", e);
+          LOG.info("Ignore the error and retry creating the dataset.", e);
           lastException = e;
         } catch (IOException e) {
-          LOG.warn("Ignore the error and retry creating the dataset.", e);
+          LOG.info("Ignore the error and retry creating the dataset.", e);
           lastException = e;
         }
       } while (nextBackOff(sleeper, backoff));
@@ -891,7 +891,7 @@ class BigQueryServicesImpl implements BigQueryServices {
         if (!shouldRetry.apply(e)) {
           break;
         }
-        LOG.warn("Ignore the error and retry the request.", e);
+        LOG.info("Ignore the error and retry the request.", e);
       }
     } while (nextBackOff(sleeper, backoff));
     throw new IOException(
