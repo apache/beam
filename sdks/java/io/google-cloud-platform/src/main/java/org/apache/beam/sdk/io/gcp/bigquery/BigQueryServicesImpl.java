@@ -887,11 +887,11 @@ class BigQueryServicesImpl implements BigQueryServices {
       try {
         return request.execute();
       } catch (IOException e) {
-        LOG.warn("Ignore the error and retry the request.", e);
         lastException = e;
         if (!shouldRetry.apply(e)) {
           break;
         }
+        LOG.warn("Ignore the error and retry the request.", e);
       }
     } while (nextBackOff(sleeper, backoff));
     throw new IOException(
