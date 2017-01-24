@@ -43,8 +43,8 @@ class WindowBoundTranslator<T> implements TransformTranslator<Window.Bound<T>> {
 
   @Override
   public void translate(Window.Bound<T> transform, TranslationContext context) {
-    PCollection<T> output = context.getOutput();
-    PCollection<T> input = context.getInput();
+    PCollection<T> output = (PCollection<T>) context.getOutput();
+    PCollection<T> input = (PCollection<T>) context.getInput();
     @SuppressWarnings("unchecked")
     WindowingStrategy<T, BoundedWindow> windowingStrategy =
         (WindowingStrategy<T, BoundedWindow>) output.getWindowingStrategy();
