@@ -102,14 +102,15 @@ public class GearpumpRunner extends PipelineRunner<GearpumpPipelineResult> {
         options.getSerializers());
     ClientContext clientContext = getClientContext(options, config);
     options.setClientContext(clientContext);
+    UserConfig userConfig = UserConfig.empty();
     JavaStreamApp streamApp = new JavaStreamApp(
-        appName, clientContext, UserConfig.empty());
+        appName, clientContext, userConfig);
     TranslationContext translationContext = new TranslationContext(streamApp, options);
     GearpumpPipelineTranslator translator = new GearpumpPipelineTranslator(translationContext);
     translator.translate(pipeline);
-    streamApp.submit();
+    int appId = streamApp.submit();
 
-    return null;
+    return new GearpumpPipelineResult(clientContext, appId);
   }
 
   private ClientContext getClientContext(GearpumpPipelineOptions options, Config config) {

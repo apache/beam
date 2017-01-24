@@ -30,30 +30,33 @@ import org.apache.beam.runners.gearpump.translators.utils.DoFnRunnerFactory;
 import org.apache.beam.runners.gearpump.translators.utils.NoOpAggregatorFactory;
 import org.apache.beam.runners.gearpump.translators.utils.NoOpStepContext;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
 import org.apache.beam.sdk.util.SideInputReader;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
-
-import org.apache.gearpump.streaming.javaapi.dsl.functions.FlatMapFunction;
+import org.apache.gearpump.streaming.dsl.javaapi.functions.FlatMapFunction;
 
 /**
  * Gearpump {@link FlatMapFunction} wrapper over Beam {@link DoFn}.
  */
-public class DoFnFunction<InputT, OutputT> implements
-    FlatMapFunction<WindowedValue<InputT>, WindowedValue<OutputT>>, DoFnRunners.OutputManager {
+public class DoFnFunction<InputT, OutputT> extends
+    FlatMapFunction<WindowedValue<InputT>, WindowedValue<OutputT>> implements
+    DoFnRunners.OutputManager {
 
   private final TupleTag<OutputT> mainTag = new TupleTag<OutputT>() {};
   private List<WindowedValue<OutputT>> outputs = Lists.newArrayList();
   private final DoFnRunnerFactory<InputT, OutputT> doFnRunnerFactory;
   private DoFnRunner<InputT, OutputT> doFnRunner;
+  private final DoFn<InputT, OutputT> doFn;
 
   public DoFnFunction(
       GearpumpPipelineOptions pipelineOptions,
       DoFn<InputT, OutputT> doFn,
       WindowingStrategy<?, ?> windowingStrategy,
       SideInputReader sideInputReader) {
+    this.doFn = doFn;
     this.doFnRunnerFactory = new DoFnRunnerFactory<>(
         pipelineOptions,
         doFn,
@@ -65,6 +68,16 @@ public class DoFnFunction<InputT, OutputT> implements
         new NoOpAggregatorFactory(),
         windowingStrategy
     );
+  }
+
+  @Override
+  public void setup() {
+    DoFnInvokers.invokerFor(doFn).invokeSetup();
+  }
+
+  @Override
+  public void teardown() {
+    DoFnInvokers.invokerFor(doFn).invokeTeardown();
   }
 
   @Override

@@ -59,6 +59,7 @@ before_install:
 install:
   # Removing this here protects from inadvertent caching
   - rm -rf "$HOME/.m2/repository/org/apache/beam"
+  - rm -rf "$HOME/.m2/repository/org/apache/gearpump"
 
 script:
   - travis_retry mvn --batch-mode --update-snapshots --no-snapshot-updates $MAVEN_OVERRIDE install && travis_retry bash -ex .travis/test_wordcount.sh

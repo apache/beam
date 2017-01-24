@@ -26,13 +26,18 @@ import java.util.LinkedList;
 import java.util.List;
 
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.OutputTimeFn;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.gearpump.Message;
+import org.apache.gearpump.cluster.UserConfig;
 import org.apache.gearpump.streaming.dsl.javaapi.JavaStream;
-import org.apache.gearpump.streaming.javaapi.dsl.functions.FlatMapFunction;
+import org.apache.gearpump.streaming.dsl.javaapi.functions.FlatMapFunction;
+import org.apache.gearpump.streaming.javaapi.Task;
+import org.apache.gearpump.streaming.task.TaskContext;
 import org.joda.time.Instant;
 
 /**
@@ -49,26 +54,34 @@ public class WindowBoundTranslator<T> implements  TransformTranslator<Window.Bou
         transform.getOutputStrategyInternal(input.getWindowingStrategy());
     WindowFn<T, BoundedWindow> windowFn =
         (WindowFn<T, BoundedWindow>) outputStrategy.getWindowFn();
+    OutputTimeFn<? super BoundedWindow> outputTimeFn = (OutputTimeFn<? super BoundedWindow>)
+        outputStrategy.getOutputTimeFn();
     JavaStream<WindowedValue<T>> outputStream =
-        inputStream.flatMap(new AssignWindows(windowFn), "assign_windows");
+        inputStream
+            .flatMap(new AssignWindows(windowFn, outputTimeFn), "assign_windows")
+            .process(AssignTimestampTask.class, 1, UserConfig.empty(), "assign_timestamp");
+
     context.setOutputStream(context.getOutput(transform), outputStream);
   }
 
-
-  private static class AssignWindows<T> implements
+  private static class AssignWindows<T> extends
       FlatMapFunction<WindowedValue<T>, WindowedValue<T>> {
 
-    private final WindowFn<T, BoundedWindow> fn;
+    private final WindowFn<T, BoundedWindow> windowFn;
+    private final OutputTimeFn<? super BoundedWindow> outputTimeFn;
 
-    AssignWindows(WindowFn<T, BoundedWindow> fn) {
-      this.fn = fn;
+    AssignWindows(
+        WindowFn<T, BoundedWindow> windowFn,
+        OutputTimeFn<? super BoundedWindow> outputTimeFn) {
+      this.windowFn = windowFn;
+      this.outputTimeFn = outputTimeFn;
     }
 
     @Override
     public Iterator<WindowedValue<T>> apply(final WindowedValue<T> value) {
       List<WindowedValue<T>>  ret = new LinkedList<>();
       try {
-        Collection<BoundedWindow> windows = fn.assignWindows(fn.new AssignContext() {
+        Collection<BoundedWindow> windows = windowFn.assignWindows(windowFn.new AssignContext() {
           @Override
           public T element() {
             return value.getValue();
@@ -85,13 +98,31 @@ public class WindowBoundTranslator<T> implements  TransformTranslator<Window.Bou
           }
         });
         for (BoundedWindow window: windows) {
+          Instant timestamp = outputTimeFn.assignOutputTime(value.getTimestamp(), window);
           ret.add(WindowedValue.of(
-              value.getValue(), value.getTimestamp(), window, value.getPane()));
+              value.getValue(), timestamp, window, value.getPane()));
         }
       } catch (Exception e) {
         throw new RuntimeException(e);
       }
       return ret.iterator();
+    }
+  }
+
+  /**
+   * Assign WindowedValue timestamp to Gearpump message.
+   * @param <T> element type of WindowedValue
+   */
+  public static class AssignTimestampTask<T> extends Task {
+
+    public AssignTimestampTask(TaskContext taskContext, UserConfig userConfig) {
+      super(taskContext, userConfig);
+    }
+
+    @Override
+    public void onNext(Message message) {
+      final WindowedValue<T> value = (WindowedValue<T>) message.msg();
+      context.output(Message.apply(value, value.getTimestamp().getMillis()));
     }
   }
 }
