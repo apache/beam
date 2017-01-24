@@ -579,7 +579,7 @@
 
 <span class="c"># Apply a lambda function to the PCollection words.</span>
 <span class="c"># Save the result as the PCollection word_lengths.</span>
-<span class="n">word_lengths</span> <span class="o">=</span> <span class="n">words</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">FlatMap</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="p">[</span><span class="nb">len</span><span class="p">(</span><span class="n">x</span><span class="p">)])</span>
+<span class="n">word_lengths</span> <span class="o">=</span> <span class="n">words</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">FlatMap</span><span class="p">(</span><span class="k">lambda</span> <span class="n">word</span><span class="p">:</span> <span class="p">[</span><span class="nb">len</span><span class="p">(</span><span class="n">word</span><span class="p">)])</span>
 </code></pre>
 </div>
 
@@ -603,7 +603,7 @@
 
 <span class="c"># Apply a Map with a lambda function to the PCollection words.</span>
 <span class="c"># Save the result as the PCollection word_lengths.</span>
-<span class="n">word_lengths</span> <span class="o">=</span> <span class="n">words</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="nb">len</span><span class="p">(</span><span class="n">x</span><span class="p">))</span>
+<span class="n">word_lengths</span> <span class="o">=</span> <span class="n">words</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="nb">len</span><span class="p">)</span>
 </code></pre>
 </div>
 
@@ -678,9 +678,12 @@ tree, [2]
 </code></pre>
 </div>
 
-<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="c"># A bounded sum of positive integers.</span>
+<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="n">pc</span> <span class="o">=</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">10</span><span class="p">,</span> <span class="mi">100</span><span class="p">,</span> <span class="mi">1000</span><span class="p">]</span>
+
 <span class="k">def</span> <span class="nf">bounded_sum</span><span class="p">(</span><span class="n">values</span><span class="p">,</span> <span class="n">bound</span><span class="o">=</span><span class="mi">500</span><span class="p">):</span>
   <span class="k">return</span> <span class="nb">min</span><span class="p">(</span><span class="nb">sum</span><span class="p">(</span><span class="n">values</span><span class="p">),</span> <span class="n">bound</span><span class="p">)</span>
+<span class="n">small_sum</span> <span class="o">=</span> <span class="n">pc</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">CombineGlobally</span><span class="p">(</span><span class="n">bounded_sum</span><span class="p">)</span>              <span class="c"># [500]</span>
+<span class="n">large_sum</span> <span class="o">=</span> <span class="n">pc</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">CombineGlobally</span><span class="p">(</span><span class="n">bounded_sum</span><span class="p">,</span> <span class="n">bound</span><span class="o">=</span><span class="mi">5000</span><span class="p">)</span>  <span class="c"># [1111]</span>
 </code></pre>
 </div>
 
@@ -755,6 +758,7 @@ tree, [2]
 
   <span class="k">def</span> <span class="nf">extract_output</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="p">(</span><span class="nb">sum</span><span class="p">,</span> <span class="n">count</span><span class="p">)):</span>
     <span class="k">return</span> <span class="nb">sum</span> <span class="o">/</span> <span class="n">count</span> <span class="k">if</span> <span class="n">count</span> <span class="k">else</span> <span class="nb">float</span><span class="p">(</span><span class="s">'NaN'</span><span class="p">)</span>
+<span class="n">average</span> <span class="o">=</span> <span class="n">pc</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">CombineGlobally</span><span class="p">(</span><span class="n">AverageFn</span><span class="p">())</span>
 </code></pre>
 </div>
 
@@ -1035,6 +1039,7 @@ tree, [2]
       <span class="k">yield</span> <span class="n">context</span><span class="o">.</span><span class="n">element</span>
 
 <span class="n">small_words</span> <span class="o">=</span> <span class="n">words</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">ParDo</span><span class="p">(</span><span class="n">FilterUsingLength</span><span class="p">(),</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">3</span><span class="p">)</span>
+
 <span class="o">...</span>
 
 </code></pre>
@@ -1115,6 +1120,7 @@ tree, [2]
 <span class="n">below</span> <span class="o">=</span> <span class="n">results</span><span class="o">.</span><span class="n">below_cutoff_strings</span>
 <span class="n">above</span> <span class="o">=</span> <span class="n">results</span><span class="o">.</span><span class="n">above_cutoff_lengths</span>
 <span class="n">marked</span> <span class="o">=</span> <span class="n">results</span><span class="p">[</span><span class="s">'marked strings'</span><span class="p">]</span>  <span class="c"># indexing works as well</span>
+
 
 <span class="c"># The result is also iterable, ordered in the same order that the tags were passed to with_outputs(), the main tag (if specified) first.</span>
 
