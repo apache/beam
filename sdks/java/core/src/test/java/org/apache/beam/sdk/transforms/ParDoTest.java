@@ -48,6 +48,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import org.apache.beam.sdk.Pipeline.PipelineExecutionException;
 import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.KvCoder;
@@ -1672,6 +1673,98 @@ public class ParDoTest implements Serializable {
 
     PCollection<Integer> output = pipeline.apply(Create.of(KV.of("hello", 37))).apply(ParDo.of(fn));
     PAssert.that(output).containsInAnyOrder(3, 42);
+    pipeline.run();
+  }
+
+  /**
+   * Tests that an event time timer set absolutely for the last possible moment fires and results in
+   * supplementary output. The test is otherwise identical to {@link #testEventTimeTimerBounded()}.
+   */
+  @Test
+  @Category({RunnableOnService.class, UsesTimersInParDo.class})
+  public void testEventTimeTimerAbsolute() throws Exception {
+    final String timerId = "foo";
+
+    DoFn<KV<String, Integer>, Integer> fn =
+        new DoFn<KV<String, Integer>, Integer>() {
+
+          @TimerId(timerId)
+          private final TimerSpec spec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
+
+          @ProcessElement
+          public void processElement(
+              ProcessContext context, @TimerId(timerId) Timer timer, BoundedWindow window) {
+            timer.set(window.maxTimestamp());
+            context.output(3);
+          }
+
+          @OnTimer(timerId)
+          public void onTimer(OnTimerContext context) {
+            context.output(42);
+          }
+        };
+
+    PCollection<Integer> output = pipeline.apply(Create.of(KV.of("hello", 37))).apply(ParDo.of(fn));
+    PAssert.that(output).containsInAnyOrder(3, 42);
+    pipeline.run();
+  }
+
+  @Test
+  @Category({RunnableOnService.class, UsesTimersInParDo.class})
+  public void testAbsoluteProcessingTimeTimerRejected() throws Exception {
+    final String timerId = "foo";
+
+    DoFn<KV<String, Integer>, Integer> fn =
+        new DoFn<KV<String, Integer>, Integer>() {
+
+          @TimerId(timerId)
+          private final TimerSpec spec = TimerSpecs.timer(TimeDomain.PROCESSING_TIME);
+
+          @ProcessElement
+          public void processElement(ProcessContext context, @TimerId(timerId) Timer timer) {
+            timer.set(new Instant(0));
+          }
+
+          @OnTimer(timerId)
+          public void onTimer(OnTimerContext context) {}
+        };
+
+    PCollection<Integer> output = pipeline.apply(Create.of(KV.of("hello", 37))).apply(ParDo.of(fn));
+    thrown.expect(PipelineExecutionException.class);
+    // Note that runners can reasonably vary their message - this matcher should be flexible
+    // and can be evolved.
+    thrown.expectMessage("relative timers");
+    thrown.expectMessage("processing time");
+    pipeline.run();
+  }
+
+  @Test
+  @Category({RunnableOnService.class, UsesTimersInParDo.class})
+  public void testOutOfBoundsEventTimeTimer() throws Exception {
+    final String timerId = "foo";
+
+    DoFn<KV<String, Integer>, Integer> fn =
+        new DoFn<KV<String, Integer>, Integer>() {
+
+          @TimerId(timerId)
+          private final TimerSpec spec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
+
+          @ProcessElement
+          public void processElement(
+              ProcessContext context, BoundedWindow window, @TimerId(timerId) Timer timer) {
+            timer.set(window.maxTimestamp().plus(1L));
+          }
+
+          @OnTimer(timerId)
+          public void onTimer(OnTimerContext context) {}
+        };
+
+    PCollection<Integer> output = pipeline.apply(Create.of(KV.of("hello", 37))).apply(ParDo.of(fn));
+    thrown.expect(PipelineExecutionException.class);
+    // Note that runners can reasonably vary their message - this matcher should be flexible
+    // and can be evolved.
+    thrown.expectMessage("event time timer");
+    thrown.expectMessage("expiration");
     pipeline.run();
   }
 

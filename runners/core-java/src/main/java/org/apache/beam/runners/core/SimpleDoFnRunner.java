@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.core;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.common.collect.Iterables;
@@ -94,6 +95,8 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
 
   private final Coder<BoundedWindow> windowCoder;
 
+  private final Duration allowedLateness;
+
   // Because of setKey(Object), we really must refresh stateInternals() at each access
   private final StepContext stepContext;
 
@@ -121,6 +124,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     Coder<BoundedWindow> untypedCoder =
         (Coder<BoundedWindow>) windowingStrategy.getWindowFn().windowCoder();
     this.windowCoder = untypedCoder;
+    this.allowedLateness = windowingStrategy.getAllowedLateness();
 
     this.context =
         new DoFnContext<>(
@@ -182,7 +186,8 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     }
 
     OnTimerArgumentProvider<InputT, OutputT> argumentProvider =
-        new OnTimerArgumentProvider<>(fn, context, window, effectiveTimestamp, timeDomain);
+        new OnTimerArgumentProvider<>(
+            fn, context, window, allowedLateness, effectiveTimestamp, timeDomain);
     invoker.invokeOnTimer(timerId, argumentProvider);
   }
 
@@ -210,7 +215,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
 
   /** Returns a new {@link DoFn.ProcessContext} for the given element. */
   private DoFnProcessContext<InputT, OutputT> createProcessContext(WindowedValue<InputT> elem) {
-    return new DoFnProcessContext<InputT, OutputT>(fn, context, elem);
+    return new DoFnProcessContext<InputT, OutputT>(fn, context, elem, allowedLateness);
   }
 
   private RuntimeException wrapUserCodeException(Throwable t) {
@@ -465,6 +470,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     final DoFn<InputT, OutputT> fn;
     final DoFnContext<InputT, OutputT> context;
     final WindowedValue<InputT> windowedValue;
+    private final Duration allowedLateness;
 
     /** Lazily initialized; should only be accessed via {@link #getNamespace()}. */
     @Nullable private StateNamespace namespace;
@@ -486,11 +492,13 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     private DoFnProcessContext(
         DoFn<InputT, OutputT> fn,
         DoFnContext<InputT, OutputT> context,
-        WindowedValue<InputT> windowedValue) {
+        WindowedValue<InputT> windowedValue,
+        Duration allowedLateness) {
       fn.super();
       this.fn = fn;
       this.context = context;
       this.windowedValue = windowedValue;
+      this.allowedLateness = allowedLateness;
     }
 
     @Override
@@ -633,7 +641,8 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
       try {
         TimerSpec spec =
             (TimerSpec) signature.timerDeclarations().get(timerId).field().get(fn);
-        return new TimerInternalsTimer(getNamespace(), timerId, spec, stepContext.timerInternals());
+        return new TimerInternalsTimer(
+            window(), getNamespace(), allowedLateness, timerId, spec, stepContext.timerInternals());
       } catch (IllegalAccessException e) {
         throw new RuntimeException(e);
       }
@@ -656,6 +665,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     private final BoundedWindow window;
     private final Instant timestamp;
     private final TimeDomain timeDomain;
+    private final Duration allowedLateness;
 
     /** Lazily initialized; should only be accessed via {@link #getNamespace()}. */
     private StateNamespace namespace;
@@ -678,12 +688,14 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
         DoFn<InputT, OutputT> fn,
         DoFnContext<InputT, OutputT> context,
         BoundedWindow window,
+        Duration allowedLateness,
         Instant timestamp,
         TimeDomain timeDomain) {
       fn.super();
       this.fn = fn;
       this.context = context;
       this.window = window;
+      this.allowedLateness = allowedLateness;
       this.timestamp = timestamp;
       this.timeDomain = timeDomain;
     }
@@ -741,7 +753,8 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
       try {
         TimerSpec spec =
             (TimerSpec) signature.timerDeclarations().get(timerId).field().get(fn);
-        return new TimerInternalsTimer(getNamespace(), timerId, spec, stepContext.timerInternals());
+        return new TimerInternalsTimer(
+            window, getNamespace(), allowedLateness, timerId, spec, stepContext.timerInternals());
       } catch (IllegalAccessException e) {
         throw new RuntimeException(e);
       }
@@ -782,12 +795,25 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
 
   private static class TimerInternalsTimer implements Timer {
     private final TimerInternals timerInternals;
+
+    // The window and the namespace represent the same thing, but the namespace is a cached
+    // and specially encoded form. Since the namespace can be cached across timers, it is
+    // passed in whole rather than being computed here.
+    private final BoundedWindow window;
+    private final Duration allowedLateness;
+    private final StateNamespace namespace;
     private final String timerId;
     private final TimerSpec spec;
-    private final StateNamespace namespace;
 
     public TimerInternalsTimer(
-        StateNamespace namespace, String timerId, TimerSpec spec, TimerInternals timerInternals) {
+        BoundedWindow window,
+        StateNamespace namespace,
+        Duration allowedLateness,
+        String timerId,
+        TimerSpec spec,
+        TimerInternals timerInternals) {
+      this.window = window;
+      this.allowedLateness = allowedLateness;
       this.namespace = namespace;
       this.timerId = timerId;
       this.spec = spec;
@@ -795,9 +821,48 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     }
 
     @Override
+    public void set(Instant target) {
+      verifyAbsoluteTimeDomain();
+      verifyTargetTime(target);
+      setUnderlyingTimer(target);
+    }
+
+    @Override
     public void setForNowPlus(Duration durationFromNow) {
-      timerInternals.setTimer(
-          namespace, timerId, getCurrentTime().plus(durationFromNow), spec.getTimeDomain());
+      Instant target = getCurrentTime().plus(durationFromNow);
+      verifyTargetTime(target);
+      setUnderlyingTimer(target);
+    }
+
+    /**
+     * Ensures that the target time is reasonable. For event time timers this means that the
+     * time should be prior to window GC time.
+     */
+    private void verifyTargetTime(Instant target) {
+      if (TimeDomain.EVENT_TIME.equals(spec.getTimeDomain())) {
+        Instant windowExpiry = window.maxTimestamp().plus(allowedLateness);
+        checkArgument(!target.isAfter(windowExpiry),
+            "Attempted to set event time timer for %s but that is after"
+            + " the expiration of window %s", target, windowExpiry);
+      }
+    }
+
+    /** Verifies that the time domain of this timer is acceptable for absolute timers. */
+    private void verifyAbsoluteTimeDomain() {
+      if (!TimeDomain.EVENT_TIME.equals(spec.getTimeDomain())) {
+        throw new IllegalStateException(
+            "Cannot only set relative timers in processing time domain."
+                + " Use #setForNowPlus(Duration)");
+      }
+    }
+
+    /**
+     * Sets the timer for the target time without checking anything about whether it is
+     * a reasonable thing to do. For example, absolute processing time timers are not
+     * really sensible since the user has no way to compute a good choice of time.
+     */
+    private void setUnderlyingTimer(Instant target) {
+      timerInternals.setTimer(namespace, timerId, target, spec.getTimeDomain());
     }
 
     @Override
