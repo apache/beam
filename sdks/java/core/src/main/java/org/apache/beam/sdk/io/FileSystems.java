@@ -92,10 +92,12 @@ public class FileSystems {
    */
   @VisibleForTesting
   static FileSystem getFileSystemInternal(URI uri) {
+    checkNotNull(
+        defaultConfig,
+        "Expect the runner have called setDefaultConfigInWorkers().");
     String lowerCaseScheme = (uri.getScheme() != null
         ? uri.getScheme().toLowerCase() : LocalFileSystemRegistrar.LOCAL_FILE_SCHEME);
-    return getRegistrarInternal(lowerCaseScheme)
-        .fromOptions(checkNotNull(defaultConfig, "defaultConfig"));
+    return getRegistrarInternal(lowerCaseScheme).fromOptions(defaultConfig);
   }
 
   /**
