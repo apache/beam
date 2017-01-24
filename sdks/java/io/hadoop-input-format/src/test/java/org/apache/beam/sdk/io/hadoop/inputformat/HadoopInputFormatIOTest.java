@@ -448,7 +448,7 @@ public class HadoopInputFormatIOTest {
     SerializableConfiguration wrongConf = loadTestConfiguration(
        NewObjectsEmployeeInputFormat.class,
        Text.class,
-       MapWritable.class);// Actual value class is Employee.class.
+       MapWritable.class); // Actual value class is Employee.class.
     HadoopInputFormatIO.Read<Text, String> read = HadoopInputFormatIO.<Text, String>read()
         .withConfiguration(wrongConf.getHadoopConfiguration());
     String expectedMessage = String.format(
