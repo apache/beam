@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.io;
 
-import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.common.annotations.VisibleForTesting;
@@ -53,6 +52,8 @@ public class FileSystems {
   private static final Map<String, FileSystemRegistrar> SCHEME_TO_REGISTRAR =
       new ConcurrentHashMap<>();
 
+  private static PipelineOptions defaultConfig;
+
   private static final Map<String, PipelineOptions> SCHEME_TO_DEFAULT_CONFIG =
       new ConcurrentHashMap<>();
 
@@ -78,27 +79,12 @@ public class FileSystems {
   }
 
   /**
-   * Sets the default configuration to be used with a {@link FileSystemRegistrar} for the provided
-   * {@code scheme}.
+   * Sets the default configuration in workers.
    *
-   * <p>Syntax: <pre>scheme = alpha *( alpha | digit | "+" | "-" | "." )</pre>
-   * Upper case letters are treated as the same as lower case letters.
+   * <p>It will be used in {@link FileSystemRegistrar FileSystemRegistrars} for all schemes.
    */
-  public static void setDefaultConfig(String scheme, PipelineOptions options) {
-    String lowerCaseScheme = checkNotNull(scheme, "scheme").toLowerCase();
-    checkArgument(
-        URI_SCHEME_PATTERN.matcher(lowerCaseScheme).matches(),
-        String.format("Scheme: [%s] doesn't match URI syntax: %s",
-            lowerCaseScheme, URI_SCHEME_PATTERN.pattern()));
-    checkArgument(
-        SCHEME_TO_REGISTRAR.containsKey(lowerCaseScheme),
-        String.format("No FileSystemRegistrar found for scheme: [%s].", lowerCaseScheme));
-    SCHEME_TO_DEFAULT_CONFIG.put(lowerCaseScheme, checkNotNull(options, "options"));
-  }
-
-  @VisibleForTesting
-  static PipelineOptions getDefaultConfig(String scheme) {
-    return SCHEME_TO_DEFAULT_CONFIG.get(scheme.toLowerCase());
+  public static void setDefaultConfigInWorkers(PipelineOptions options) {
+    defaultConfig = checkNotNull(options, "options");
   }
 
   /**
@@ -108,7 +94,8 @@ public class FileSystems {
   static FileSystem getFileSystemInternal(URI uri) {
     String lowerCaseScheme = (uri.getScheme() != null
         ? uri.getScheme().toLowerCase() : LocalFileSystemRegistrar.LOCAL_FILE_SCHEME);
-    return getRegistrarInternal(lowerCaseScheme).fromOptions(getDefaultConfig(lowerCaseScheme));
+    return getRegistrarInternal(lowerCaseScheme)
+        .fromOptions(checkNotNull(defaultConfig, "defaultConfig"));
   }
 
   /**
