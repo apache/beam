@@ -14,7 +14,6 @@ const (
 	FnInChan
 	FnOutChan
 	FnContext
-	FnOptions
 )
 
 type FnParam struct {
@@ -142,6 +141,7 @@ func ReflectFn(dofn interface{}) (*UserFn, error) {
 	for i := 0; i < fntype.NumIn(); i++ {
 		t := fntype.In(i)
 		kind := FnValue
+		validate := true
 
 		switch t.Kind() {
 		case reflect.Chan:
@@ -158,12 +158,16 @@ func ReflectFn(dofn interface{}) (*UserFn, error) {
 				return nil, fmt.Errorf("Channels cannot be bidirectional: %v", t)
 			}
 
+		// TODO(herohde): function types for re-iterables?
+
 		case reflect.Struct:
-			if _, ok := FindTaggedField(t, DataTag /* ... */); ok {
+			if _, ok := reflectx.FindTaggedField(t, reflectx.DataTag, reflectx.TypeTag /* ... */); ok {
 				kind = FnContext
+				validate = false
 			}
 		}
-		if !IsValidDataType(t) {
+
+		if validate && reflectx.ClassOf(t) == reflectx.Invalid {
 			return nil, fmt.Errorf("Parameter %v for %v has unsupported type: %v", i, name, t)
 		}
 
@@ -177,7 +181,7 @@ func ReflectFn(dofn interface{}) (*UserFn, error) {
 
 		if reflectx.Error == t {
 			kind = RetError
-		} else if !IsValidDataType(t) {
+		} else if reflectx.ClassOf(t) == reflectx.Invalid {
 			return nil, fmt.Errorf("Return value %v for %v has unsupported type: %v", i, name, t)
 		}
 
@@ -201,64 +205,6 @@ func ReflectFn(dofn interface{}) (*UserFn, error) {
 	return &UserFn{Fn: fn, Name: name, Param: param, Ret: ret}, nil
 }
 
-// IsValidDataType returns true iff the type can be used as data in the
-// pipeline. Such data must be fully serializable and . Functions and channels
-// are examples of invalid types.
-func IsValidDataType(t reflect.Type) bool {
-	return isValidDataType(t, true)
-}
-
-func isValidDataType(t reflect.Type, ptr bool) bool {
-	switch t.Kind() {
-	case reflect.Invalid, reflect.UnsafePointer, reflect.Uintptr, reflect.Interface:
-		return false // no unmanageable types
-
-	case reflect.Chan, reflect.Func:
-		return false // no unserializable types
-
-	case reflect.Map, reflect.Array:
-		return false // TBD
-
-	case reflect.Complex64, reflect.Complex128:
-		return false // TBD
-
-	case reflect.Slice:
-		return IsValidDataType(t.Elem())
-
-	case reflect.Ptr:
-		if !ptr {
-			return false // no nested pointers
-		}
-		return isValidDataType(t.Elem(), false)
-
-	case reflect.Struct:
-		for i := 0; i < t.NumField(); i++ {
-			if !IsValidDataType(t.Field(i).Type) {
-				return false
-			}
-		}
-		return true
-
-	case reflect.Bool:
-		return true
-
-	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		return true
-
-	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-		return true
-
-	case reflect.Float32, reflect.Float64:
-		return true
-
-	case reflect.String:
-		return true
-
-	default:
-		panic(fmt.Sprintf("Unexpected type: %v", t))
-	}
-}
-
 // Bind returns true if the from type can be matched to the (possibly exploded)
 // to type and remainder. Is is assumed that all types involved are valid data
 // types, modulo GBK results.
@@ -268,108 +214,76 @@ func isValidDataType(t reflect.Type, ptr bool) bool {
 //   (2) KV(T,T2)       -> [T',T2'], X     (exploded)
 //   (3) KV(T, chan T2) -> [T'], [T2']::X  (GBK result)
 //
-// The return value is (X, true) if the binding is valid.
-func Bind(from reflect.Type, to []reflect.Type, rest []reflect.Type) ([]reflect.Type, bool) {
+// The return value is (T'', X, true), T'; is the receiving bound type, if the
+// binding is valid. T'' is synthetic if exploded or GBK result.
+func Bind(from reflect.Type, to []reflect.Type, rest []reflect.Type) (reflect.Type, []reflect.Type, bool) {
 	switch from.Kind() {
-	case reflect.Ptr:
-		return Bind(from.Elem(), to, rest)
+	// case reflect.Ptr:
+	// 	return Bind(from.Elem(), to, rest)
 	case reflect.Struct:
 		switch len(to) {
 		case 1:
 			// Try to match a GBK result first.
 
-			if k, v, ok := IsGBKResult(from); ok {
-				match := k.AssignableTo(to[0]) && len(rest) > 0 && v.AssignableTo(reflectx.SkipPtr(rest[0]))
+			if k, v, ok := reflectx.UnfoldGBK(from); ok {
+				match := reflectx.IsAssignable(k, to[0]) && len(rest) > 0 && reflectx.IsAssignable(v, rest[0])
 				if match {
-					return rest[1:], true
-				} else {
-					return rest, false
+					recv, _ := reflectx.MakeGBK(to[0], rest[0])
+					return recv, rest[1:], true
 				}
+				return nil, nil, false
 			}
 
 			// Then try to match an explicit KV. We line up the key and
 			// value fields based on tags.
 
-			if fromKey, fromValue, ok := IsKV(from); ok {
-				if toKey, toValue, ok := IsKV(to[0]); ok {
-					return rest, reflectx.SkipPtr(fromKey).AssignableTo(reflectx.SkipPtr(toKey)) && reflectx.SkipPtr(fromValue).AssignableTo(reflectx.SkipPtr(toValue))
+			if fromKey, fromValue, ok := reflectx.UnfoldKV(from); ok {
+				if toKey, toValue, ok := reflectx.UnfoldKV(to[0]); ok {
+					match := reflectx.IsAssignable(fromKey, toKey) && reflectx.IsAssignable(fromValue, toValue)
+					if match {
+						return to[0], rest, true
+					}
+					return nil, nil, false
 				}
 			}
 
-			return rest, from.AssignableTo(reflectx.SkipPtr(to[0]))
+			// Otherwise, we require possibly converted assignment.
+
+			if reflectx.IsAssignable(from, to[0]) {
+				return to[0], rest, true
+			}
+			return nil, nil, false
 		case 2:
 			// Try to match a KV to exploded key and value. We use
 			// tags to identify the field role. For the target, the
 			// order is [key, value].
 
-			key, value, ok := IsKV(from)
+			key, value, ok := reflectx.UnfoldKV(from)
 			if !ok {
-				return rest, false
+				return nil, nil, false
 			}
-			return rest, key.AssignableTo(reflectx.SkipPtr(to[0])) && value.AssignableTo(reflectx.SkipPtr(to[1]))
+
+			match := reflectx.IsAssignable(key, to[0]) && reflectx.IsAssignable(value, to[1])
+			if match {
+				recv, _ := reflectx.MakeKV(to[0], to[1])
+				return recv, rest, true
+			}
+			return nil, nil, false
 		default:
-			return rest, false
+			return nil, nil, false
 		}
 	default:
-		return rest, len(to) == 1 && from.AssignableTo(reflectx.SkipPtr(to[0]))
+		if len(to) == 1 && reflectx.IsAssignable(from, to[0]) {
+			return to[0], rest, true
+		}
+		return nil, nil, false
 	}
 }
 
-// BindSide returns true iff the side input can be bound.
+// TODO(herohde): use side input kind in BindSide to generalize.
+
+// BindSide returns true iff the side input can be bound. The given types are
+// assumed to be from a Chan context.
 func BindSide(from reflect.Type, to reflect.Type) bool {
-	return reflectx.SkipPtr(from).AssignableTo(reflectx.SkipPtr(to))
-}
-
-// IsKV returns (T', T'', true) if the type is of the form:
-//
-//    type T struct {
-//          K T'  `beam:"key"`
-//          V T'' `beam:"value"`
-//    }
-func IsKV(t reflect.Type) (reflect.Type, reflect.Type, bool) {
-	if t.Kind() != reflect.Struct {
-		return nil, nil, false
-	}
-	if t.NumField() != 2 {
-		return nil, nil, false
-	}
-
-	key, ok := FindTaggedField(t, KeyTag)
-	if !ok {
-		return nil, nil, false
-	}
-	value, ok := FindTaggedField(t, ValueTag)
-	if !ok {
-		return nil, nil, false
-	}
-	return key.Type, value.Type, true
-}
-
-// IsGBKResult returns (T', T'', true) if the type is of the form:
-//
-//    type T struct {
-//          K T'       `beam:"key"`
-//          V chan T'' `beam:"values"`
-//    }
-func IsGBKResult(t reflect.Type) (reflect.Type, reflect.Type, bool) {
-	if t.Kind() != reflect.Struct {
-		return nil, nil, false
-	}
-	if t.NumField() != 2 {
-		return nil, nil, false
-	}
-
-	key, ok := FindTaggedField(t, KeyTag)
-	if !ok {
-		return nil, nil, false
-	}
-	values, ok := FindTaggedField(t, ValuesTag)
-	if !ok {
-		return nil, nil, false
-	}
-
-	if values.Type.Kind() != reflect.Chan {
-		return nil, nil, false
-	}
-	return key.Type, values.Type.Elem(), true
+	return reflectx.IsAssignable(from, to)
 }

@@ -3,6 +3,8 @@ package graph
 import (
 	"fmt"
 	"github.com/apache/beam/sdks/go/pkg/beam/model"
+	"github.com/apache/beam/sdks/go/pkg/beam/reflectx"
+	"log"
 	"reflect"
 )
 
@@ -57,8 +59,32 @@ func (b *Graph) Build() (*model.Pipeline, error) {
 // TODO(herohde): remove FakeBuild and Build + Parse instead. Used for quicker
 // local runner.
 
-func (b *Graph) FakeBuild() ([]*MultiEdge, []*Node) {
-	return b.edges, b.nodes
+func (b *Graph) FakeBuild() map[int]*MultiEdge {
+	ret := make(map[int]*MultiEdge)
+	for _, edge := range b.edges {
+		ret[edge.id] = edge
+	}
+
+	for _, node := range b.nodes {
+		log.Printf("Node: %v Class: %v", node, reflectx.ClassOf(node.T))
+	}
+
+	return ret
+}
+
+// Coder contains possibly untyped encode/decode user functions that are
+// type-bound at runtime. Universal coders can thus be used for many different
+// types.
+type Coder struct {
+	ID string
+	// Need Opcode for special coders? GBK, etc.
+
+	Enc *UserFn
+	Dec *UserFn
+
+	// Data holds immediate values to be bound into "data" context field, if
+	// present. We require symmetry between enc and dec for simplicity.
+	Data interface{}
 }
 
 // Node is a typed connector, usually corresponding to PCollection<T>. The type
@@ -70,8 +96,8 @@ func (b *Graph) FakeBuild() ([]*MultiEdge, []*Node) {
 type Node struct {
 	id int
 
-	T     reflect.Type
-	Coder string
+	T     reflect.Type // type of underlying data, not representation.
+	Coder *Coder
 }
 
 func (n *Node) ID() int {
@@ -79,7 +105,11 @@ func (n *Node) ID() int {
 }
 
 func (n *Node) String() string {
-	return fmt.Sprintf("{%v: %v/%v}", n.id, n.T, n.Coder)
+	if n.Coder != nil {
+		return fmt.Sprintf("{%v: %v/%v}", n.id, n.T, n.Coder.ID)
+	} else {
+		return fmt.Sprintf("{%v: %v/x}", n.id, n.T)
+	}
 }
 
 // Scope is a syntactic Scope, such as arising from a composite PTransform. It
@@ -116,20 +146,21 @@ const (
 
 type Inbound struct {
 	From *Node
-	// TODO: view info (if sideinput), coding info (if generic).
+	T    reflect.Type // actual, accepted type by DoFn
+	// TODO: view info (if sideinput)
 }
 
 func (i *Inbound) String() string {
-	return fmt.Sprintf("In: %v", i.From)
+	return fmt.Sprintf("In: %v <- %v", i.T, i.From)
 }
 
 type Outbound struct {
 	To *Node
-	// TODO: coding info (if generic).
+	T  reflect.Type // actual, produced type by DoFn
 }
 
 func (o *Outbound) String() string {
-	return fmt.Sprintf("Out: %v", o.To)
+	return fmt.Sprintf("Out: %v -> %v", o.T, o.To)
 }
 
 // TODO(herohde): perhaps promote the "generic" aspect to an edge instead?
@@ -142,9 +173,7 @@ type MultiEdge struct {
 	Op   Opcode
 	DoFn *UserFn
 
-	// TODO(herohde): need immediate values, such as filenames for source.
-	// Also figure out how to bind in context values in general.
-	// Ctx *Context
+	// Data holds immediate values to be bound into "data" context field, if present.
 	Data interface{}
 
 	Input  []*Inbound

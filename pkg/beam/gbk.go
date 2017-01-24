@@ -3,37 +3,43 @@ package beam
 import (
 	"fmt"
 	"github.com/apache/beam/sdks/go/pkg/beam/graph"
-	"reflect"
+	"github.com/apache/beam/sdks/go/pkg/beam/reflectx"
+	"log"
 )
 
 // GroupByKey inserts a GBK transform into the pipeline.
 func GroupByKey(p *Pipeline, a PCollection) (PCollection, error) {
-	// TODO(herohde): if input is generic, we need to know the "real" underlying type.
-
-	key, value, ok := graph.IsKV(a.Type())
+	key, value, ok := reflectx.UnfoldKV(a.Type())
 	if !ok {
 		return PCollection{}, fmt.Errorf("Input type must by KV: %v", a)
 	}
 
 	// TODO(herohde): perhaps cleaner to not inject synthetic types, but
-	// instead just manage the disjunction manually.
+	// instead just manage the disjunction manually. Also, we cannot
+	// distinguish between top-level []byte and Encoded.
 
 	// (1) Create GBK result type.
 
-	t := reflect.StructOf([]reflect.StructField{
-		{Name: "Key", Tag: `beam:"key"`, Type: key},
-		{Name: "Values", Tag: `beam:"values"`, Type: reflect.ChanOf(reflect.BothDir, value)},
-	})
+	t, err := reflectx.MakeGBK(key, value)
+	if err != nil {
+		return PCollection{}, err
+	}
 
 	n := p.real.NewNode(t)
 
 	// (2) Add GBK edge
 
+	inT, _ := reflectx.MakeKV(reflectx.ByteSlice, value)
+	outT, _ := reflectx.MakeGBK(reflectx.ByteSlice, value)
+
+	log.Printf("GBK real: %v, in: %v, out: %v", t, inT, outT)
+
 	edge := p.real.NewEdge(p.parent)
 	edge.Op = graph.GBK
-	edge.Input = []*graph.Inbound{{From: a.n}}
-	edge.Output = []*graph.Outbound{{To: n}}
+	edge.Input = []*graph.Inbound{{From: a.n, T: inT}}
+	edge.Output = []*graph.Outbound{{To: n, T: outT}}
 
+	log.Printf("GBK edge: %v", edge)
 	return PCollection{n}, nil
 }
 
