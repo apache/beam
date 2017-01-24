@@ -17,12 +17,10 @@
  */
 package org.apache.beam.runners.core;
 
-import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.TimeDomain;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.sdk.values.KV;
 import org.joda.time.Instant;
 
 /**
@@ -51,22 +49,4 @@ public interface DoFnRunner<InputT, OutputT> {
    * additional tasks, such as flushing in-memory states.
    */
   void finishBundle();
-
-  /**
-   * An internal interface for signaling that a {@link OldDoFn} requires late data dropping.
-   */
-  public interface ReduceFnExecutor<K, InputT, OutputT, W> {
-    /**
-     * Gets this object as a {@link OldDoFn}.
-     *
-     * <p>Most implementors of this interface are expected to be {@link OldDoFn} instances, and will
-     * return themselves.
-     */
-    OldDoFn<KeyedWorkItem<K, InputT>, KV<K, OutputT>> asDoFn();
-
-    /**
-     * Returns an aggregator that tracks elements that are dropped due to being late.
-     */
-    Aggregator<Long, Long> getDroppedDueToLatenessAggregator();
-  }
 }
