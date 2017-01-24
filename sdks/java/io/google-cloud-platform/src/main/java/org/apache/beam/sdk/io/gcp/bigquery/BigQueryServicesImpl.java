@@ -214,6 +214,7 @@ class BigQueryServicesImpl implements BigQueryServices {
       do {
         try {
           client.jobs().insert(jobRef.getProjectId(), job).execute();
+          LOG.info("Started BigQuery job: {}.", jobRef);
           return; // SUCCEEDED
         } catch (GoogleJsonResponseException e) {
           if (errorExtractor.itemAlreadyExists(e)) {
