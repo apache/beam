@@ -628,7 +628,8 @@ public class BigQueryIOTest implements Serializable {
 
     @Override
     public long insertAll(
-        TableReference ref, List<TableRow> rowList, @Nullable List<String> insertIdList)
+        TableReference ref, List<TableRow> rowList, @Nullable List<String> insertIdList,
+        Boolean ignoreUnknownValues)
         throws IOException, InterruptedException {
       synchronized (tables) {
         assertEquals(rowList.size(), insertIdList.size());
@@ -642,6 +643,13 @@ public class BigQueryIOTest implements Serializable {
         }
         return dataSize;
       }
+    }
+
+    @Override
+    public long insertAll(
+        TableReference ref, List<TableRow> rowList, @Nullable List<String> insertIdList)
+        throws IOException, InterruptedException {
+      return insertAll(ref, rowList, insertIdList, false);
     }
   }
 
@@ -698,6 +706,12 @@ public class BigQueryIOTest implements Serializable {
     assertEquals(createDisposition, bound.createDisposition);
     assertEquals(writeDisposition, bound.writeDisposition);
     assertEquals(validate, bound.validate);
+  }
+
+  private void checkWriteObjectWithIgnoreUnknownValues(
+      BigQueryIO.Write.Bound bound,
+      boolean ignoreUnknownValues) {
+    assertEquals(ignoreUnknownValues, bound.ignoreUnknownValues);
   }
 
   @Before
@@ -1348,6 +1362,15 @@ public class BigQueryIOTest implements Serializable {
     checkWriteObjectWithValidate(
         bound, "foo.com:project", "somedataset", "sometable",
         null, CreateDisposition.CREATE_IF_NEEDED, WriteDisposition.WRITE_EMPTY, false);
+  }
+
+  @Test
+  public void testBuildWriteWithIgnoreUnknownValues() {
+    // This test just checks that using ignoreUnknownValues will not trigger object
+    // construction errors.
+    BigQueryIO.Write.Bound bound =
+        BigQueryIO.Write.to("foo.com:project:somedataset.sometable").withIgnoreUnknownValues();
+    checkWriteObjectWithIgnoreUnknownValues(bound, true);
   }
 
   @Test

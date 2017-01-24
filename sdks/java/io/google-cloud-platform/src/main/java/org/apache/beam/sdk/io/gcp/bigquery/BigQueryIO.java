@@ -1682,7 +1682,7 @@ public class BigQueryIO {
 
       // An option to indicate if table validation is desired. Default is true.
       final boolean validate;
-
+      @Nullable final Boolean ignoreUnknownValues;
       @Nullable private BigQueryServices bigQueryServices;
 
       @VisibleForTesting @Nullable String stepUuid;
@@ -1717,14 +1717,15 @@ public class BigQueryIO {
             CreateDisposition.CREATE_IF_NEEDED,
             WriteDisposition.WRITE_EMPTY,
             true /* validate */,
-            null /* bigQueryServices */);
+            null /* bigQueryServices */,
+            false /* ignoreUnknownValues */);
       }
 
       private Bound(String name, @Nullable ValueProvider<String> jsonTableRef,
           @Nullable SerializableFunction<BoundedWindow, TableReference> tableRefFunction,
           @Nullable ValueProvider<String> jsonSchema,
           CreateDisposition createDisposition, WriteDisposition writeDisposition, boolean validate,
-          @Nullable BigQueryServices bigQueryServices) {
+          @Nullable BigQueryServices bigQueryServices, @Nullable Boolean ignoreUnknownValues) {
         super(name);
         this.jsonTableRef = jsonTableRef;
         this.tableRefFunction = tableRefFunction;
@@ -1733,6 +1734,7 @@ public class BigQueryIO {
         this.writeDisposition = checkNotNull(writeDisposition, "writeDisposition");
         this.validate = validate;
         this.bigQueryServices = bigQueryServices;
+        this.ignoreUnknownValues = ignoreUnknownValues;
       }
 
       /**
@@ -1774,7 +1776,7 @@ public class BigQueryIO {
         return new Bound(name,
             NestedValueProvider.of(table, new TableRefToJson()),
             tableRefFunction, jsonSchema, createDisposition,
-            writeDisposition, validate, bigQueryServices);
+            writeDisposition, validate, bigQueryServices, ignoreUnknownValues);
       }
 
       /**
@@ -1803,7 +1805,7 @@ public class BigQueryIO {
       public Bound toTableReference(
           SerializableFunction<BoundedWindow, TableReference> tableRefFunction) {
         return new Bound(name, jsonTableRef, tableRefFunction, jsonSchema, createDisposition,
-            writeDisposition, validate, bigQueryServices);
+            writeDisposition, validate, bigQueryServices, ignoreUnknownValues);
       }
 
       /**
@@ -1815,7 +1817,7 @@ public class BigQueryIO {
       public Bound withSchema(TableSchema schema) {
         return new Bound(name, jsonTableRef, tableRefFunction,
             StaticValueProvider.of(toJsonString(schema)),
-            createDisposition, writeDisposition, validate, bigQueryServices);
+            createDisposition, writeDisposition, validate, bigQueryServices, ignoreUnknownValues);
       }
 
       /**
@@ -1824,7 +1826,7 @@ public class BigQueryIO {
       public Bound withSchema(ValueProvider<TableSchema> schema) {
         return new Bound(name, jsonTableRef, tableRefFunction,
             NestedValueProvider.of(schema, new TableSchemaToJsonSchema()),
-            createDisposition, writeDisposition, validate, bigQueryServices);
+            createDisposition, writeDisposition, validate, bigQueryServices, ignoreUnknownValues);
       }
 
       /**
@@ -1834,7 +1836,7 @@ public class BigQueryIO {
        */
       public Bound withCreateDisposition(CreateDisposition createDisposition) {
         return new Bound(name, jsonTableRef, tableRefFunction, jsonSchema,
-            createDisposition, writeDisposition, validate, bigQueryServices);
+            createDisposition, writeDisposition, validate, bigQueryServices, ignoreUnknownValues);
       }
 
       /**
@@ -1844,7 +1846,7 @@ public class BigQueryIO {
        */
       public Bound withWriteDisposition(WriteDisposition writeDisposition) {
         return new Bound(name, jsonTableRef, tableRefFunction, jsonSchema,
-            createDisposition, writeDisposition, validate, bigQueryServices);
+            createDisposition, writeDisposition, validate, bigQueryServices, ignoreUnknownValues);
       }
 
       /**
@@ -1854,13 +1856,23 @@ public class BigQueryIO {
        */
       public Bound withoutValidation() {
         return new Bound(name, jsonTableRef, tableRefFunction, jsonSchema, createDisposition,
-            writeDisposition, false, bigQueryServices);
+            writeDisposition, false, bigQueryServices, ignoreUnknownValues);
+      }
+
+      /**
+       * Returns a copy of this write transformation, but with ignoreUnknownValues set to true.
+       *
+       * <p>Does not modify this object.
+       */
+      public Bound withIgnoreUnknownValues() {
+        return new Bound(name, jsonTableRef, tableRefFunction, jsonSchema, createDisposition,
+            writeDisposition, validate, bigQueryServices, true);
       }
 
       @VisibleForTesting
       Bound withTestServices(BigQueryServices testServices) {
         return new Bound(name, jsonTableRef, tableRefFunction, jsonSchema, createDisposition,
-            writeDisposition, validate, testServices);
+            writeDisposition, validate, testServices, ignoreUnknownValues);
       }
 
       private static void verifyTableNotExistOrEmpty(
@@ -1965,7 +1977,8 @@ public class BigQueryIO {
         if (input.isBounded() == IsBounded.UNBOUNDED || tableRefFunction != null) {
           return input.apply(
               new StreamWithDeDup(getTable(), tableRefFunction,
-                  NestedValueProvider.of(jsonSchema, new JsonSchemaToTableSchema()), bqServices));
+                  NestedValueProvider.of(jsonSchema, new JsonSchemaToTableSchema()), bqServices,
+                  ignoreUnknownValues));
         }
 
         ValueProvider<TableReference> table = getTableWithDefaultProject(options);
@@ -2027,7 +2040,8 @@ public class BigQueryIO {
                 NestedValueProvider.of(table, new TableRefToJson()),
                 jsonSchema,
                 WriteDisposition.WRITE_EMPTY,
-                CreateDisposition.CREATE_IF_NEEDED)));
+                CreateDisposition.CREATE_IF_NEEDED,
+                ignoreUnknownValues)));
 
         PCollectionView<Iterable<String>> tempTablesView = tempTables
             .apply("TempTablesView", View.<String>asIterable());
@@ -2052,7 +2066,8 @@ public class BigQueryIO {
                 NestedValueProvider.of(table, new TableRefToJson()),
                 jsonSchema,
                 writeDisposition,
-                createDisposition)));
+                createDisposition,
+                ignoreUnknownValues)));
 
         return PDone.in(input.getPipeline());
       }
@@ -2189,6 +2204,11 @@ public class BigQueryIO {
         return validate;
       }
 
+      /** Returns {@code true} if ignoreUnknownValues is enabled. */
+      public Boolean getIgnoreUnknownValues() {
+        return ignoreUnknownValues;
+      }
+
       private BigQueryServices getBigQueryServices() {
         if (bigQueryServices == null) {
           bigQueryServices = new BigQueryServicesImpl();
@@ -2305,6 +2325,7 @@ public class BigQueryIO {
       private final ValueProvider<String> jsonSchema;
       private final WriteDisposition writeDisposition;
       private final CreateDisposition createDisposition;
+      private final Boolean ignoreUnknownValues;
 
       public WriteTables(
           boolean singlePartition,
@@ -2315,6 +2336,28 @@ public class BigQueryIO {
           ValueProvider<String> jsonSchema,
           WriteDisposition writeDisposition,
           CreateDisposition createDisposition) {
+        this(
+          singlePartition,
+          bqServices,
+          jobIdToken,
+          tempFilePrefix,
+          jsonTableRef,
+          jsonSchema,
+          writeDisposition,
+          createDisposition,
+          false /* ignoreUnknownValues */);
+      }
+
+      public WriteTables(
+        boolean singlePartition,
+        BigQueryServices bqServices,
+        String jobIdToken,
+        String tempFilePrefix,
+        ValueProvider<String> jsonTableRef,
+        ValueProvider<String> jsonSchema,
+        WriteDisposition writeDisposition,
+        CreateDisposition createDisposition,
+        Boolean ignoreUnknownValues) {
         this.singlePartition = singlePartition;
         this.bqServices = bqServices;
         this.jobIdToken = jobIdToken;
@@ -2323,6 +2366,7 @@ public class BigQueryIO {
         this.jsonSchema = jsonSchema;
         this.writeDisposition = writeDisposition;
         this.createDisposition = createDisposition;
+        this.ignoreUnknownValues = ignoreUnknownValues;
       }
 
       @ProcessElement
@@ -2342,7 +2386,8 @@ public class BigQueryIO {
                 jsonSchema == null ? null : jsonSchema.get(), TableSchema.class),
             partition,
             writeDisposition,
-            createDisposition);
+            createDisposition,
+            ignoreUnknownValues);
         c.output(toJsonString(ref));
 
         removeTemporaryFiles(c.getPipelineOptions(), tempFilePrefix, partition);
@@ -2355,14 +2400,16 @@ public class BigQueryIO {
           @Nullable TableSchema schema,
           List<String> gcsUris,
           WriteDisposition writeDisposition,
-          CreateDisposition createDisposition) throws InterruptedException, IOException {
+          CreateDisposition createDisposition,
+          Boolean ignoreUnknownValues) throws InterruptedException, IOException {
         JobConfigurationLoad loadConfig = new JobConfigurationLoad()
             .setDestinationTable(ref)
             .setSchema(schema)
             .setSourceUris(gcsUris)
             .setWriteDisposition(writeDisposition.name())
             .setCreateDisposition(createDisposition.name())
-            .setSourceFormat("NEWLINE_DELIMITED_JSON");
+            .setSourceFormat("NEWLINE_DELIMITED_JSON")
+            .setIgnoreUnknownValues(ignoreUnknownValues);
 
         String projectId = ref.getProjectId();
         for (int i = 0; i < Bound.MAX_RETRY_JOBS; ++i) {
@@ -2615,6 +2662,8 @@ public class BigQueryIO {
 
     private final BigQueryServices bqServices;
 
+    private final Boolean ignoreUnknownValues;
+
     /** JsonTableRows to accumulate BigQuery rows in order to batch writes. */
     private transient Map<String, List<TableRow>> tableRows;
 
@@ -2631,10 +2680,12 @@ public class BigQueryIO {
         createAggregator("ByteCount", Sum.ofLongs());
 
     /** Constructor. */
-    StreamingWriteFn(ValueProvider<TableSchema> schema, BigQueryServices bqServices) {
+    StreamingWriteFn(ValueProvider<TableSchema> schema, BigQueryServices bqServices,
+        Boolean ignoreUnknownValues) {
       this.jsonTableSchema =
           NestedValueProvider.of(schema, new TableSchemaToJsonSchema());
       this.bqServices = checkNotNull(bqServices, "bqServices");
+      this.ignoreUnknownValues = ignoreUnknownValues;
     }
 
     /**
@@ -2722,7 +2773,7 @@ public class BigQueryIO {
       if (!tableRows.isEmpty()) {
         try {
           long totalBytes = bqServices.getDatasetService(options).insertAll(
-              tableReference, tableRows, uniqueIds);
+              tableReference, tableRows, uniqueIds, ignoreUnknownValues);
           byteCountAggregator.addValue(totalBytes);
         } catch (IOException e) {
           throw new RuntimeException(e);
@@ -2949,16 +3000,19 @@ public class BigQueryIO {
     private final SerializableFunction<BoundedWindow, TableReference> tableRefFunction;
     private final transient ValueProvider<TableSchema> tableSchema;
     private final BigQueryServices bqServices;
+    private final Boolean ignoreUnknownValues;
 
     /** Constructor. */
     StreamWithDeDup(ValueProvider<TableReference> tableReference,
         SerializableFunction<BoundedWindow, TableReference> tableRefFunction,
         ValueProvider<TableSchema> tableSchema,
-        BigQueryServices bqServices) {
+        BigQueryServices bqServices,
+        Boolean ignoreUnknownValues) {
       this.tableReference = tableReference;
       this.tableRefFunction = tableRefFunction;
       this.tableSchema = tableSchema;
       this.bqServices = checkNotNull(bqServices, "bqServices");
+      this.ignoreUnknownValues = ignoreUnknownValues;
     }
 
     @Override
@@ -2989,7 +3043,7 @@ public class BigQueryIO {
       tagged
           .setCoder(KvCoder.of(ShardedKeyCoder.of(StringUtf8Coder.of()), TableRowInfoCoder.of()))
           .apply(Reshuffle.<ShardedKey<String>, TableRowInfo>of())
-          .apply(ParDo.of(new StreamingWriteFn(tableSchema, bqServices)));
+          .apply(ParDo.of(new StreamingWriteFn(tableSchema, bqServices, ignoreUnknownValues)));
 
       // Note that the implementation to return PDone here breaks the
       // implicit assumption about the job execution order. If a user
