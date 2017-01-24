@@ -24,7 +24,6 @@ import re
 import unittest
 
 import hamcrest as hc
-from nose.plugins.attrib import attr
 
 import apache_beam as beam
 from apache_beam.test_pipeline import TestPipeline
@@ -188,72 +187,6 @@ class PTransformTest(unittest.TestCase):
     r2 = pcoll | 'B' >> beam.FlatMap(lambda x: [x + 2]).with_outputs(main='m')
     assert_that(r1.m, equal_to([2, 3, 4]), label='r1')
     assert_that(r2.m, equal_to([3, 4, 5]), label='r2')
-    pipeline.run()
-
-  @attr('ValidatesRunner')
-  def test_par_do_with_multiple_outputs_and_using_yield(self):
-    class SomeDoFn(beam.DoFn):
-      """A custom DoFn using yield."""
-
-      def process(self, context):
-        yield context.element
-        if context.element % 2 == 0:
-          yield pvalue.SideOutputValue('even', context.element)
-        else:
-          yield pvalue.SideOutputValue('odd', context.element)
-
-    pipeline = TestPipeline()
-    nums = pipeline | 'Some Numbers' >> beam.Create([1, 2, 3, 4])
-    results = nums | beam.ParDo(
-        'ClassifyNumbers', SomeDoFn()).with_outputs('odd', 'even', main='main')
-    assert_that(results.main, equal_to([1, 2, 3, 4]))
-    assert_that(results.odd, equal_to([1, 3]), label='assert:odd')
-    assert_that(results.even, equal_to([2, 4]), label='assert:even')
-    pipeline.run()
-
-  @attr('ValidatesRunner')
-  def test_par_do_with_multiple_outputs_and_using_return(self):
-    def some_fn(v):
-      if v % 2 == 0:
-        return [v, pvalue.SideOutputValue('even', v)]
-      else:
-        return [v, pvalue.SideOutputValue('odd', v)]
-
-    pipeline = TestPipeline()
-    nums = pipeline | 'Some Numbers' >> beam.Create([1, 2, 3, 4])
-    results = nums | beam.FlatMap(
-        'ClassifyNumbers', some_fn).with_outputs('odd', 'even', main='main')
-    assert_that(results.main, equal_to([1, 2, 3, 4]))
-    assert_that(results.odd, equal_to([1, 3]), label='assert:odd')
-    assert_that(results.even, equal_to([2, 4]), label='assert:even')
-    pipeline.run()
-
-  @attr('ValidatesRunner')
-  def test_undeclared_side_outputs(self):
-    pipeline = TestPipeline()
-    nums = pipeline | 'Some Numbers' >> beam.Create([1, 2, 3, 4])
-    results = nums | beam.FlatMap(
-        'ClassifyNumbers',
-        lambda x: [x,
-                   pvalue.SideOutputValue('even' if x % 2 == 0 else 'odd', x)]
-    ).with_outputs()
-    assert_that(results[None], equal_to([1, 2, 3, 4]))
-    assert_that(results.odd, equal_to([1, 3]), label='assert:odd')
-    assert_that(results.even, equal_to([2, 4]), label='assert:even')
-    pipeline.run()
-
-  @attr('ValidatesRunner')
-  def test_empty_side_outputs(self):
-    pipeline = TestPipeline()
-    nums = pipeline | 'Some Numbers' >> beam.Create([1, 3, 5])
-    results = nums | beam.FlatMap(
-        'ClassifyNumbers',
-        lambda x: [x,
-                   pvalue.SideOutputValue('even' if x % 2 == 0 else 'odd', x)]
-    ).with_outputs()
-    assert_that(results[None], equal_to([1, 3, 5]))
-    assert_that(results.odd, equal_to([1, 3, 5]), label='assert:odd')
-    assert_that(results.even, equal_to([]), label='assert:even')
     pipeline.run()
 
   def test_do_requires_do_fn_returning_iterable(self):
