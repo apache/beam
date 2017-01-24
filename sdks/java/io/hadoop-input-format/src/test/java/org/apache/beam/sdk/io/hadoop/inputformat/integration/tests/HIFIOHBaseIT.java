@@ -19,6 +19,7 @@ import java.util.Arrays;
 import java.util.List;
 
 import org.apache.beam.sdk.io.hadoop.inputformat.HadoopInputFormatIO;
+import org.apache.beam.sdk.io.hadoop.inputformat.HadoopInputFormatIOContants;
 import org.apache.beam.sdk.io.hadoop.inputformat.custom.options.HIFTestOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
@@ -57,8 +58,9 @@ import org.slf4j.LoggerFactory;
 public class HIFIOHBaseIT implements Serializable {
 	private static final long serialVersionUID = 1L;
 	private static final Logger LOGGER = LoggerFactory
-			.getLogger(HIFIOCassandraIT.class);
+			.getLogger(HIFIOHBaseIT.class);
 	private static HIFTestOptions options;
+	 private static final String TABLE_NAME = "scientists";
 
 	@BeforeClass
 	public static void setUp() {
@@ -102,14 +104,14 @@ public class HIFIOHBaseIT implements Serializable {
 
 	public Configuration getHBaseConfiguration() {
 		Configuration conf = HBaseConfiguration.create();
-		conf.set("hbase.zookeeper.quorum", "104.154.230.7");
-		conf.set("hbase.zookeeper.property.clientPort", "2181");
-		conf.set("hbase.mapreduce.inputtable", "studentData");
-		conf.setClass("mapreduce.job.inputformat.class",
+		conf.set("hbase.zookeeper.quorum", options.getServerIp());
+		conf.set("hbase.zookeeper.property.clientPort", String.format("%d", options.getServerPort()));
+		conf.set("hbase.mapreduce.inputtable", TABLE_NAME);
+		conf.setClass(HadoopInputFormatIOContants.INPUTFORMAT_CLASSNAME,
 				org.apache.hadoop.hbase.mapreduce.TableInputFormat.class,
 				Object.class);
-		conf.setClass("key.class", ImmutableBytesWritable.class, Object.class);
-		conf.setClass("value.class",
+		conf.setClass(HadoopInputFormatIOContants.KEY_CLASS, ImmutableBytesWritable.class, Object.class);
+		conf.setClass(HadoopInputFormatIOContants.VALUE_CLASS,
 				org.apache.hadoop.hbase.client.Result.class, Object.class);
 		return conf;
 	}
