@@ -2363,6 +2363,7 @@ public class BigQueryIO {
             .setSourceFormat("NEWLINE_DELIMITED_JSON");
 
         String projectId = ref.getProjectId();
+        Job lastFailedLoadJob = null;
         for (int i = 0; i < Bound.MAX_RETRY_JOBS; ++i) {
           String jobId = jobIdPrefix + "-" + i;
           LOG.info("Starting BigQuery load job {}: try {}/{}", jobId, i, Bound.MAX_RETRY_JOBS);
@@ -2370,21 +2371,26 @@ public class BigQueryIO {
               .setProjectId(projectId)
               .setJobId(jobId);
           jobService.startLoadJob(jobRef, loadConfig);
-          Status jobStatus =
-              parseStatus(jobService.pollJob(jobRef, Bound.LOAD_JOB_POLL_MAX_RETRIES));
+          Job loadJob = jobService.pollJob(jobRef, Bound.LOAD_JOB_POLL_MAX_RETRIES);
+          Status jobStatus = parseStatus(loadJob);
           switch (jobStatus) {
             case SUCCEEDED:
               return;
             case UNKNOWN:
+              LOG.error("Unknown load job: " + jobToPrettyString(loadJob));
               throw new RuntimeException("Failed to poll the load job status of job " + jobId);
             case FAILED:
+              lastFailedLoadJob = loadJob;
               LOG.info("BigQuery load job failed: {}", jobId);
               continue;
             default:
+              LOG.error("Unexpected status of load job: " + jobToPrettyString(loadJob));
               throw new IllegalStateException(String.format("Unexpected job status: %s of job %s",
                   jobStatus, jobId));
           }
         }
+        checkNotNull(lastFailedLoadJob, "lastFailedLoadJob");
+        LOG.error("Last failed load job: " + jobToPrettyString(lastFailedLoadJob));
         throw new RuntimeException(String.format("Failed to create the load job %s, reached max "
             + "retries: %d", jobIdPrefix, Bound.MAX_RETRY_JOBS));
       }
@@ -2493,6 +2499,7 @@ public class BigQueryIO {
             .setCreateDisposition(createDisposition.name());
 
         String projectId = ref.getProjectId();
+        Job lastFailedCopyJob = null;
         for (int i = 0; i < Bound.MAX_RETRY_JOBS; ++i) {
           String jobId = jobIdPrefix + "-" + i;
           LOG.info("Starting BigQuery copy job {}: try {}/{}", jobId, i, Bound.MAX_RETRY_JOBS);
@@ -2500,21 +2507,26 @@ public class BigQueryIO {
               .setProjectId(projectId)
               .setJobId(jobId);
           jobService.startCopyJob(jobRef, copyConfig);
-          Status jobStatus =
-              parseStatus(jobService.pollJob(jobRef, Bound.LOAD_JOB_POLL_MAX_RETRIES));
+          Job copyJob = jobService.pollJob(jobRef, Bound.LOAD_JOB_POLL_MAX_RETRIES);
+          Status jobStatus = parseStatus(copyJob);
           switch (jobStatus) {
             case SUCCEEDED:
               return;
             case UNKNOWN:
+              LOG.error("Unknown copy job: " + jobToPrettyString(copyJob));
               throw new RuntimeException("Failed to poll the copy job status of job " + jobId);
             case FAILED:
+              lastFailedCopyJob = copyJob;
               LOG.info("BigQuery copy job failed: {}", jobId);
               continue;
             default:
+              LOG.error("Unexpected status of copy job: " + jobToPrettyString(copyJob));
               throw new IllegalStateException(String.format("Unexpected job status: %s of job %s",
                   jobStatus, jobId));
           }
         }
+        checkNotNull(lastFailedCopyJob, "lastFailedCopyJob");
+        LOG.error("Last failed copy job: " + jobToPrettyString(lastFailedCopyJob));
         throw new RuntimeException(String.format("Failed to create the copy job %s, reached max "
             + "retries: %d", jobIdPrefix, Bound.MAX_RETRY_JOBS));
       }
@@ -2552,6 +2564,10 @@ public class BigQueryIO {
 
     /** Disallow construction of utility class. */
     private Write() {}
+  }
+
+  private static String jobToPrettyString(@Nullable Job job) throws IOException {
+    return job == null ? "null" : job.toPrettyString();
   }
 
   private static void verifyDatasetPresence(DatasetService datasetService, TableReference table) {
