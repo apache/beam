@@ -36,6 +36,6 @@ func (p *Pipeline) Build() (*model.Pipeline, error) {
 
 // TODO(herohde): remove FakeBuild
 
-func (p *Pipeline) FakeBuild() ([]*graph.MultiEdge, []*graph.Node) {
+func (p *Pipeline) FakeBuild() map[int]*graph.MultiEdge {
 	return p.real.FakeBuild()
 }

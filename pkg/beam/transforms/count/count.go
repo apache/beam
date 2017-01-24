@@ -6,7 +6,7 @@ import "github.com/apache/beam/sdks/go/pkg/beam"
 
 type KV struct {
 	// Key   []byte `beam:"key"`
-	Key   string `beam:"key"`
+	Key   []byte `beam:"key"`
 	Count int    `beam:"value"`
 }
 
@@ -15,7 +15,7 @@ type KV struct {
 
 // TODO: a real implementation would be less naive ..
 
-func Map(elms <-chan string, out chan<- KV) {
+func Map(elms <-chan []byte, out chan<- KV) {
 	for elm := range elms {
 		out <- KV{elm, 1}
 	}
@@ -25,7 +25,7 @@ func Map(elms <-chan string, out chan<- KV) {
 // ensure that we can classify the signature correctly. For example, does the below match
 // a []byte collection with a side-input or a KV collection after GBK.
 
-func Reduce(key string, counts <-chan int, out chan<- KV) {
+func Reduce(key []byte, counts <-chan int, out chan<- KV) {
 	total := 0
 	for c := range counts {
 		total += c
@@ -48,7 +48,7 @@ func PerElement(p *beam.Pipeline, col beam.PCollection) (beam.PCollection, error
 	return beam.ParDo1(p, Reduce, post)
 }
 
-func Drop(kvs <-chan KV, out chan<- string) {
+func Drop(kvs <-chan KV, out chan<- []byte) {
 	for kv := range kvs {
 		out <- kv.Key
 	}

@@ -1,4 +1,4 @@
-package graph
+package reflectx
 
 import (
 	"reflect"
@@ -10,7 +10,9 @@ const (
 	ValueTag  string = "value"
 	ValuesTag string = "values"
 
+	// Context binding tags
 	DataTag string = "data"
+	TypeTag string = "type"
 )
 
 // FindTaggedField returns the field tagged with any of the given values, if

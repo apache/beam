@@ -42,7 +42,7 @@ func Source(p *Pipeline, dofn interface{}, opts ...Option) (PCollection, error) 
 	edge := p.real.NewEdge(p.parent)
 	edge.Op = graph.Source
 	edge.DoFn = fn
-	edge.Output = []*graph.Outbound{{To: n}}
+	edge.Output = []*graph.Outbound{{To: n, T: out[0]}}
 	applyOpts(opts, edge)
 
 	return PCollection{n}, nil
