@@ -4,11 +4,7 @@ target/
 assembly/
 debian/pkg/
 debian/build/
-/euphoria-rssbot/run/
 /doc/euphoria.png
-/rssbot.log
-/webclient.log
 .project
 .classpath
 .settings
-dependency-reduced-pom.xml

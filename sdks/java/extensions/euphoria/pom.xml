@@ -81,7 +81,6 @@
     <module>euphoria-inmem</module>
     <module>euphoria-kafka</module>
     <module>euphoria-hadoop</module>
-    <module>euphoria-testapps</module>
     <module>euphoria-operator-testkit</module>
     <module>euphoria-flink</module>
     <module>euphoria-spark</module>
