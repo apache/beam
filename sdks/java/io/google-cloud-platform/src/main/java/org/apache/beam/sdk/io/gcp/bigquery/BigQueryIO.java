@@ -1162,7 +1162,8 @@ public class BigQueryIO {
       jobService.startQueryJob(jobRef, queryConfig);
       Job job = jobService.pollJob(jobRef, JOB_POLL_MAX_RETRIES);
       if (parseStatus(job) != Status.SUCCEEDED) {
-        throw new IOException("Query job failed: " + jobId);
+        throw new IOException(String.format(
+            "Query job %s failed, status: %s.", jobId, statusToPrettyString(job.getStatus())));
       }
     }
 
@@ -1269,8 +1270,8 @@ public class BigQueryIO {
           jobService.pollJob(jobRef, JOB_POLL_MAX_RETRIES);
       if (parseStatus(extractJob) != Status.SUCCEEDED) {
         throw new IOException(String.format(
-            "Extract job %s failed, status: %s",
-            extractJob.getJobReference().getJobId(), extractJob.getStatus()));
+            "Extract job %s failed, status: %s.",
+            extractJob.getJobReference().getJobId(), statusToPrettyString(extractJob.getStatus())));
       }
 
       List<String> tempFiles = getExtractFilePaths(extractDestinationDir, extractJob);
@@ -2377,22 +2378,24 @@ public class BigQueryIO {
             case SUCCEEDED:
               return;
             case UNKNOWN:
-              LOG.error("Unknown load job: " + jobToPrettyString(loadJob));
-              throw new RuntimeException("Failed to poll the load job status of job " + jobId);
+              LOG.error("Unknown load job: {}.", jobToPrettyString(loadJob));
+              throw new RuntimeException(String.format(
+                  "Failed to poll the load job status of job id: %s.", jobId));
             case FAILED:
               lastFailedLoadJob = loadJob;
-              LOG.info("BigQuery load job failed: {}", jobId);
+              LOG.info("BigQuery load job failed: {}.", jobToPrettyString(loadJob));
               continue;
             default:
-              LOG.error("Unexpected status of load job: " + jobToPrettyString(loadJob));
-              throw new IllegalStateException(String.format("Unexpected job status: %s of job %s",
-                  jobStatus, jobId));
+              LOG.error("Unexpected status of load job: {}.", jobToPrettyString(loadJob));
+              throw new IllegalStateException(String.format(
+                  "Unexpected job status. Job id: %s, status: %s.",
+                  jobId, statusToPrettyString(loadJob.getStatus())));
           }
         }
-        checkNotNull(lastFailedLoadJob, "lastFailedLoadJob");
-        LOG.error("Last failed load job: " + jobToPrettyString(lastFailedLoadJob));
-        throw new RuntimeException(String.format("Failed to create the load job %s, reached max "
-            + "retries: %d", jobIdPrefix, Bound.MAX_RETRY_JOBS));
+        LOG.error("Last failed load job: {}.", jobToPrettyString(lastFailedLoadJob));
+        throw new RuntimeException(String.format(
+            "Failed to create load job %s, reached max retries: %d, last failed job status: %s.",
+            jobIdPrefix, Bound.MAX_RETRY_JOBS, statusToPrettyString(lastFailedLoadJob.getStatus())));
       }
 
       static void removeTemporaryFiles(
@@ -2513,22 +2516,24 @@ public class BigQueryIO {
             case SUCCEEDED:
               return;
             case UNKNOWN:
-              LOG.error("Unknown copy job: " + jobToPrettyString(copyJob));
-              throw new RuntimeException("Failed to poll the copy job status of job " + jobId);
+              LOG.error("Unknown copy job: {}.", jobToPrettyString(copyJob));
+              throw new RuntimeException(String.format(
+                  "Failed to poll the copy job status of job id: %s.", jobId));
             case FAILED:
               lastFailedCopyJob = copyJob;
-              LOG.info("BigQuery copy job failed: {}", jobId);
+              LOG.info("BigQuery copy job failed: {}.", jobId);
               continue;
             default:
-              LOG.error("Unexpected status of copy job: " + jobToPrettyString(copyJob));
-              throw new IllegalStateException(String.format("Unexpected job status: %s of job %s",
-                  jobStatus, jobId));
+              LOG.error("Unexpected status of copy job: {}.", jobToPrettyString(copyJob));
+              throw new IllegalStateException(String.format(
+                  "Unexpected job status. Job id: %s, status: %s.",
+                  jobId, statusToPrettyString(copyJob.getStatus())));
           }
         }
-        checkNotNull(lastFailedCopyJob, "lastFailedCopyJob");
-        LOG.error("Last failed copy job: " + jobToPrettyString(lastFailedCopyJob));
-        throw new RuntimeException(String.format("Failed to create the copy job %s, reached max "
-            + "retries: %d", jobIdPrefix, Bound.MAX_RETRY_JOBS));
+        LOG.error("Last failed copy job: {}.", jobToPrettyString(lastFailedCopyJob));
+        throw new RuntimeException(String.format(
+            "Failed to create copy job %s, reached max retries: %d, last failed job status: %s.",
+            jobIdPrefix, Bound.MAX_RETRY_JOBS, statusToPrettyString(lastFailedCopyJob.getStatus())));
       }
 
       static void removeTemporaryTables(DatasetService tableService,
@@ -2568,6 +2573,10 @@ public class BigQueryIO {
 
   private static String jobToPrettyString(@Nullable Job job) throws IOException {
     return job == null ? "null" : job.toPrettyString();
+  }
+
+  private static String statusToPrettyString(@Nullable JobStatus status) throws IOException {
+    return status == null ? "Unknown status: null." : status.toPrettyString();
   }
 
   private static void verifyDatasetPresence(DatasetService datasetService, TableReference table) {
