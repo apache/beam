@@ -25,9 +25,9 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map.Entry;
 
+import org.apache.beam.sdk.Pipeline.PipelineExecutionException;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.BoundedSource.BoundedReader;
 import org.apache.beam.sdk.io.hadoop.inputformat.HadoopInputFormatIO.HadoopInputFormatBoundedSource;
@@ -54,6 +54,7 @@ import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.LongWritable;
+import org.apache.hadoop.io.MapWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.InputFormat;
 import org.junit.BeforeClass;
@@ -261,7 +262,8 @@ public class HadoopInputFormatIOTest {
   }
 
   /**
-   * This test validates {@link HadoopInputFormatIO.Read Read} transform object creation with configuration and value translation.
+   * This test validates {@link HadoopInputFormatIO.Read Read} transform object creation with
+   * configuration and value translation.
    */
   @Test
   public void testReadObjectCreationWithConfigurationValueTranslation() {
@@ -279,8 +281,8 @@ public class HadoopInputFormatIOTest {
   }
 
   /**
-   * This test validates {@link HadoopInputFormatIO.Read Read} transform object creation with configuration, key translation and
-   * value translation.
+   * This test validates {@link HadoopInputFormatIO.Read Read} transform object creation with
+   * configuration, key translation and value translation.
    */
   @Test
   public void testReadObjectCreationWithConfigurationKeyTranslationValueTranslation() {
@@ -414,7 +416,50 @@ public class HadoopInputFormatIOTest {
     thrown.expectMessage(expectedMessage);
     read.validate(input);
   }
-
+  
+  /**
+   * This test validates reading from Hadoop InputFormat if wrong key class is set in
+   * configuration.
+   */
+  @Test
+  public void testReadFailsWithWrongKeyClass() {
+    SerializableConfiguration wrongConf = loadTestConfiguration(
+       NewObjectsEmployeeInputFormat.class,
+       MapWritable.class, // Actual key class is Text.class.
+       Employee.class);
+    HadoopInputFormatIO.Read<Text, String> read = HadoopInputFormatIO.<Text, String>read()
+        .withConfiguration(wrongConf.getHadoopConfiguration());
+    String expectedMessage = String.format(
+        "java.lang.IllegalArgumentException: "
+            + HadoopInputFormatIOContants.WRONG_INPUTFORMAT_KEY_CLASS_ERROR_MSG,
+        Text.class.getName(), MapWritable.class.getName());
+    thrown.expect(PipelineExecutionException.class);
+    thrown.expectMessage(expectedMessage);
+    p.apply("ReadTest", read);
+    p.run();
+  }
+  
+  /**
+   * This test validates reading from Hadoop InputFormat if wrong value class is set in
+   * configuration.
+   */
+  @Test
+  public void testReadFailsWithWrongValueClass() {
+    SerializableConfiguration wrongConf = loadTestConfiguration(
+       NewObjectsEmployeeInputFormat.class,
+       Text.class,
+       MapWritable.class);// Actual value class is Employee.class.
+    HadoopInputFormatIO.Read<Text, String> read = HadoopInputFormatIO.<Text, String>read()
+        .withConfiguration(wrongConf.getHadoopConfiguration());
+    String expectedMessage = String.format(
+        "java.lang.IllegalArgumentException: "
+            + HadoopInputFormatIOContants.WRONG_INPUTFORMAT_VALUE_CLASS_ERROR_MSG,
+        Employee.class.getName(), MapWritable.class.getName());
+    thrown.expect(PipelineExecutionException.class);
+    thrown.expectMessage(expectedMessage);
+    p.apply("ReadTest", read);
+    p.run();
+  }
   @Test
   public void testReadingData() throws Exception {
     HadoopInputFormatIO.Read<Text, Employee> read = HadoopInputFormatIO.<Text, Employee>read()
@@ -426,19 +471,19 @@ public class HadoopInputFormatIOTest {
   }
 
   /**
-   * This test validates behavior of {@link HadoopInputFormatBoundedSource} if RecordReader object creation fails
-   * in {@link HadoopInputFormatBoundedSource.HadoopInputFormatReader#start() start()} method.
+   * This test validates behavior of {@link HadoopInputFormatBoundedSource} if RecordReader object
+   * creation fails.
    */
   @Test
-  public void testReadersStartIfCreateRecordReaderFails() throws Exception {
-    List<BoundedSource<KV<Text, Employee>>> boundedSourceList =
-        getBoundedSourceList(BadCreateReaderInputFormat.class, Text.class, Employee.class,
-            WritableCoder.of(Text.class), AvroCoder.of(Employee.class));
-    BoundedReader<KV<Text, Employee>> reader =
-        boundedSourceList.get(0).createReader(p.getOptions());
+  public void testReadIfCreateRecordReaderFails() throws Exception {
     thrown.expect(Exception.class);
     thrown.expectMessage("Exception in creating RecordReader in BadCreateRecordReaderInputFormat");
-    reader.start();
+    getBoundedSourceList(
+        BadCreateReaderInputFormat.class,
+        Text.class,
+        Employee.class,
+        WritableCoder.of(Text.class),
+        AvroCoder.of(Employee.class));
   }
 
   /**
@@ -446,20 +491,17 @@ public class HadoopInputFormatIOTest {
    * {@link InputFormat#createRecordReader() createRecordReader()} of InputFormat returns null.
    */
   @Test
-  public void testReadersStartWithNullCreateRecordReader() throws Exception {
-    List<BoundedSource<KV<Text, Employee>>> boundedSourceList = getBoundedSourceList(
+  public void testReadWithNullCreateRecordReader() throws Exception {
+    thrown.expect(IOException.class);
+    thrown
+        .expectMessage(String.format(HadoopInputFormatIOContants.NULL_CREATE_RECORDREADER_ERROR_MSG,
+            new BadNullCreateReaderInputFormat().getClass()));
+    getBoundedSourceList(
         BadNullCreateReaderInputFormat.class,
         Text.class,
         Employee.class,
         WritableCoder.of(Text.class),
         AvroCoder.of(Employee.class));
-    BoundedReader<KV<Text, Employee>> reader = boundedSourceList.get(0)
-        .createReader(p.getOptions());
-    thrown.expect(IOException.class);
-    thrown
-        .expectMessage(String.format(HadoopInputFormatIOContants.NULL_CREATE_RECORDREADER_ERROR_MSG,
-            new BadNullCreateReaderInputFormat().getClass()));
-    reader.start();
   }
 
   /**
@@ -541,11 +583,11 @@ public class HadoopInputFormatIOTest {
   @Test
   public void testReaderAndParentSourceReadsSameData() throws Exception {
     List<BoundedSource<KV<Text, Employee>>> boundedSourceList = getBoundedSourceList(
-            NewObjectsEmployeeInputFormat.class,
-            Text.class,
-            Employee.class,
-            WritableCoder.of(Text.class),
-            AvroCoder.of(Employee.class)); 
+       NewObjectsEmployeeInputFormat.class,
+       Text.class,
+       Employee.class,
+       WritableCoder.of(Text.class),
+       AvroCoder.of(Employee.class)); 
     BoundedReader<KV<Text, Employee>> reader = boundedSourceList.get(0)
         .createReader(p.getOptions());
     SourceTestUtils.assertUnstartedReaderReadsSameAsItsSource(reader, p.getOptions());
@@ -640,22 +682,6 @@ public class HadoopInputFormatIOTest {
     thrown.expect(IOException.class);
     thrown.expectMessage(HadoopInputFormatIOContants.COMPUTESPLITS_NULL_SPLIT_ERROR_MSG);
     hifSource.computeSplits();
-  }
-
-  /**
-   * This test validates functionality of {@link HadoopInputFormatIO} if user sets wrong key class
-   * and value class.
-   */
-  @Test
-  public void testHIFSourceIfUserSetsWrongKeyOrValueClass() throws Exception {
-    List<BoundedSource<KV<String, String>>> boundedSourceList = getBoundedSourceList(
-       NewObjectsEmployeeInputFormat.class,
-       String.class,
-       String.class,
-       StringUtf8Coder.of(),
-       StringUtf8Coder.of());
-    thrown.expect(ClassCastException.class);
-    SourceTestUtils.readFromSource(boundedSourceList.get(0), p.getOptions());
   }
 
   /**

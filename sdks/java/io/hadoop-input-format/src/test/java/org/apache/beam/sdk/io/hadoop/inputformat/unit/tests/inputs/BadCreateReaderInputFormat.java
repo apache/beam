@@ -85,12 +85,12 @@ public class BadCreateReaderInputFormat extends InputFormat<Text, Employee> {
 
     @Override
     public Text getCurrentKey() throws IOException, InterruptedException {
-      return null;
+      return new Text();
     }
 
     @Override
     public Employee getCurrentValue() throws IOException, InterruptedException {
-      return null;
+      return new Employee();
     }
 
     @Override

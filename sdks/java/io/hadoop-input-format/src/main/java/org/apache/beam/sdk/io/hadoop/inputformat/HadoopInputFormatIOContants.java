@@ -31,7 +31,9 @@ public class HadoopInputFormatIOContants {
 			+ "\"mapreduce.job.inputformat.class\" is not set in configuration.";
 	public static final String MISSING_INPUTFORMAT_KEY_CLASS_ERROR_MSG = "Configuration property \"key.class\" is not set.";
 	public static final String MISSING_INPUTFORMAT_VALUE_CLASS_ERROR_MSG = "Configuration property \"value.class\" is not set.";
-	public static final String WRONG_KEY_TRANSLATIONFUNC_ERROR_MSG = "Key translation's input type is not same as hadoop InputFormat : %s key class : %s";
+	   public static final String WRONG_INPUTFORMAT_KEY_CLASS_ERROR_MSG = "Wrong InputFormat class in configuration : Expected key.class is %s but was %s.";
+	    public static final String WRONG_INPUTFORMAT_VALUE_CLASS_ERROR_MSG = "Wrong InputFormat class in configuration : Expected value.class is %s but was %s.";
+public static final String WRONG_KEY_TRANSLATIONFUNC_ERROR_MSG = "Key translation's input type is not same as hadoop InputFormat : %s key class : %s";
 	public static final String WRONG_VALUE_TRANSLATIONFUNC_ERROR_MSG = "Value translation's input type is not same as hadoop InputFormat :  %s value class : %s";
 	public static final String CANNOT_FIND_CODER_ERROR_MSG = "Cannot find coder for %s  : ";
 	public static final String COMPUTESPLITS_NULL_GETSPLITS_ERROR_MSG = "Error in computing splits, getSplits() returns null.";

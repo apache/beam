@@ -630,14 +630,14 @@ public class HadoopInputFormatIO {
         }
         boundedSourceEstimatedSize = boundedSourceEstimatedSize + inputSplit.getLength();
         inputSplits.add(new SerializableSplit(inputSplit));
-
       }
+      validateKeyValueClasses();
     }
 
     /**
      * Returns instance of InputFormat set in the configuration.
      */
-    private InputFormat<?, ?> createInputFormat() throws IOException {
+    private InputFormat<?, ?> createInputFormat() throws IOException, InterruptedException {
       InputFormat<?, ?> inputFormatObj;
       try {
         inputFormatObj = (InputFormat<?, ?>) conf.getHadoopConfiguration()
@@ -656,6 +656,32 @@ public class HadoopInputFormatIO {
       return inputFormatObj;
     }
     
+    /**
+     * Throws exception is InputFormat key/value class set by the user is diffrent than InputFormat's actual key/value class.
+     */
+    private void validateKeyValueClasses() throws IOException, InterruptedException {
+      RecordReader<?, ?> reader = inputFormatObj.createRecordReader(inputSplits.get(0).getSplit(),
+          new TaskAttemptContextImpl(conf.getHadoopConfiguration(), new TaskAttemptID()));
+      if (reader == null) {
+        throw new IOException(
+            String.format(HadoopInputFormatIOContants.NULL_CREATE_RECORDREADER_ERROR_MSG,
+                inputFormatObj.getClass()));
+      }
+      reader.initialize(inputSplits.get(0).getSplit(),
+          new TaskAttemptContextImpl(conf.getHadoopConfiguration(), new TaskAttemptID()));
+      reader.nextKeyValue();
+      validateClass(reader.getCurrentKey().getClass(),"key.class",HadoopInputFormatIOContants.WRONG_INPUTFORMAT_KEY_CLASS_ERROR_MSG);      
+      validateClass(reader.getCurrentValue().getClass(),"value.class",HadoopInputFormatIOContants.WRONG_INPUTFORMAT_VALUE_CLASS_ERROR_MSG);
+    }
+    
+   private void validateClass(Class<?> expectedClass, String property, String errorMessage){
+      Class<?> actualClass = conf.getHadoopConfiguration().getClass(property, Object.class);
+      if (actualClass != expectedClass) {
+        throw new IllegalArgumentException(
+            String.format(errorMessage,expectedClass.getName(),actualClass.getName()));
+      }
+    }
+
     /**
      * Returns InputFormat object.
      */
@@ -718,17 +744,11 @@ public class HadoopInputFormatIO {
               source.getConfiguration().getHadoopConfiguration(), new TaskAttemptID());
           currentReader =
               (RecordReader<T, T>) inputFormatObj.createRecordReader(split, attemptContext);
-          if (currentReader != null) {
-            currentReader.initialize(split, attemptContext);
+            currentReader.initialize(split, attemptContext);            
             if (currentReader.nextKeyValue()) {
               currentRecord = nextPair();
               return true;
             }
-          } else {
-            throw new IOException(
-                String.format(HadoopInputFormatIOContants.NULL_CREATE_RECORDREADER_ERROR_MSG,
-                    inputFormatObj.getClass()));
-          }
         } catch (InterruptedException e) {
           throw new IOException("Unable to read data : ", e);
         }
@@ -737,7 +757,7 @@ public class HadoopInputFormatIO {
         doneReading = true;
         return false;
       }
-
+      
       @Override
       public boolean advance() throws IOException {
         try {
