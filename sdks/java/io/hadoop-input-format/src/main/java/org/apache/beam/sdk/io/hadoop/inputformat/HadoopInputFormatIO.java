@@ -520,7 +520,7 @@ public class HadoopInputFormatIO {
     private transient List<SerializableSplit> inputSplits;
     private long boundedSourceEstimatedSize = 0;
     private InputFormat<?, ?> inputFormatObj;
-
+    
     public HadoopInputFormatBoundedSource(
         SerializableConfiguration conf, 
         Coder<K> keyCoder,
@@ -613,7 +613,7 @@ public class HadoopInputFormatIO {
      */
     @VisibleForTesting
     void computeSplits() throws IOException, InterruptedException{
-      inputFormatObj = getInputFormat();
+      inputFormatObj = createInputFormat();
       List<InputSplit> splits =
           inputFormatObj.getSplits(Job.getInstance(conf.getHadoopConfiguration()));
       if (splits == null) {
@@ -637,7 +637,7 @@ public class HadoopInputFormatIO {
     /**
      * Returns instance of InputFormat set in the configuration.
      */
-    private InputFormat<?, ?> getInputFormat() throws IOException {
+    private InputFormat<?, ?> createInputFormat() throws IOException {
       InputFormat<?, ?> inputFormatObj;
       try {
         inputFormatObj = (InputFormat<?, ?>) conf.getHadoopConfiguration()
@@ -655,7 +655,15 @@ public class HadoopInputFormatIO {
       }
       return inputFormatObj;
     }
-
+    
+    /**
+     * Returns InputFormat object.
+     */
+    @VisibleForTesting
+    InputFormat<?, ?> getInputFormat(){
+      return inputFormatObj;
+    }
+    
     @Override
     public Coder<KV<K, V>> getDefaultOutputCoder() {
       return KvCoder.of(keyCoder, valueCoder);
@@ -681,7 +689,7 @@ public class HadoopInputFormatIO {
       @Nullable private final SimpleFunction<T, V> valueTranslationFunction;
       private volatile boolean doneReading = false;
       private long recordsReturned = 0L;
-      InputFormat<?, ?> inputFormatObj;
+      private InputFormat<?, ?> inputFormatObj;
 
       public HadoopInputFormatReader(HadoopInputFormatBoundedSource<K, V> source,
           @Nullable SimpleFunction keyTranslationFunction,
@@ -780,7 +788,6 @@ public class HadoopInputFormatIO {
        * RecordReader as Beam needs immutable objects.
        */
       private <T1 extends Object> T1 clone(T1 input, Coder<T1> coder)
-
           throws IOException, InterruptedException, CoderException, ClassCastException {
         // If the input object is not of known immutable type, clone the object.
         if (!isKnownImmutable(input)) {

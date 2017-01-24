@@ -45,7 +45,7 @@ public class ConfigurableEmployeeInputFormat extends InputFormat<Text, Employee>
     implements Configurable {
   private long NUMBER_OF_SPLITS;
   private long NUMBER_OF_RECORDS_IN_EACH_SPLIT;
-  private boolean isConfSet = false;
+  public boolean isConfSet = false;
 
   public ConfigurableEmployeeInputFormat() {}
 
