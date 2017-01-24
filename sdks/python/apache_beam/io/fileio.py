@@ -762,6 +762,7 @@ class _CompressedFile(object):
     self._read_buffer.seek(self._read_position)
     result = read_fn()
     self._read_position += len(result)
+    self._uncompressed_position += len(result)
     self._read_buffer.seek(0, os.SEEK_END)  # Allow future writes.
     return result
 
@@ -810,6 +811,7 @@ class _CompressedFile(object):
       self._file.write(self._compressor.flush())
     self._file.flush()
 
+  @property
   def seekable(self):
     # TODO: Add support for seeking to a file position.
     return False

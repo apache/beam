@@ -689,7 +689,7 @@ class TextSinkTest(unittest.TestCase):
     self.assertEqual(read_result, self.lines)
 
   def test_write_dataflow_header(self):
-    pipeline = beam.Pipeline('DirectRunner')
+    pipeline = TestPipeline()
     pcoll = pipeline | beam.core.Create('Create', self.lines)
     header_text = 'foo'
     pcoll | 'Write' >> WriteToText(
