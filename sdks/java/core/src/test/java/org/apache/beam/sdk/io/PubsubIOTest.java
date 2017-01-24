@@ -88,13 +88,12 @@ public class PubsubIOTest {
   }
 
   @Test
-  public void testReadDisplayData() {
+  public void testReadTopicDisplayData() {
     String topic = "projects/project/topics/topic";
     String subscription = "projects/project/subscriptions/subscription";
     Duration maxReadTime = Duration.standardMinutes(5);
     PubsubIO.Read<String> read = PubsubIO.<String>read()
         .topic(StaticValueProvider.of(topic))
-        .subscription(StaticValueProvider.of(subscription))
         .timestampLabel("myTimestamp")
         .idLabel("myId")
         .maxNumRecords(1234)
@@ -103,6 +102,26 @@ public class PubsubIOTest {
     DisplayData displayData = DisplayData.from(read);
 
     assertThat(displayData, hasDisplayItem("topic", topic));
+    assertThat(displayData, hasDisplayItem("timestampLabel", "myTimestamp"));
+    assertThat(displayData, hasDisplayItem("idLabel", "myId"));
+    assertThat(displayData, hasDisplayItem("maxNumRecords", 1234));
+    assertThat(displayData, hasDisplayItem("maxReadTime", maxReadTime));
+  }
+
+  @Test
+  public void testReadSubscriptionDisplayData() {
+    String topic = "projects/project/topics/topic";
+    String subscription = "projects/project/subscriptions/subscription";
+    Duration maxReadTime = Duration.standardMinutes(5);
+    PubsubIO.Read<String> read = PubsubIO.<String>read()
+        .subscription(StaticValueProvider.of(subscription))
+        .timestampLabel("myTimestamp")
+        .idLabel("myId")
+        .maxNumRecords(1234)
+        .maxReadTime(maxReadTime);
+
+    DisplayData displayData = DisplayData.from(read);
+
     assertThat(displayData, hasDisplayItem("subscription", subscription));
     assertThat(displayData, hasDisplayItem("timestampLabel", "myTimestamp"));
     assertThat(displayData, hasDisplayItem("idLabel", "myId"));
@@ -134,14 +153,20 @@ public class PubsubIOTest {
   @Category(RunnableOnService.class)
   public void testPrimitiveReadDisplayData() {
     DisplayDataEvaluator evaluator = DisplayDataEvaluator.create();
-    PubsubIO.Read<String> read =
-        PubsubIO.<String>read().subscription("projects/project/subscriptions/subscription")
-            .maxNumRecords(1)
-            .withCoder(StringUtf8Coder.of());
+    Set<DisplayData> displayData;
+    PubsubIO.Read<String> read = PubsubIO.<String>read().withCoder(StringUtf8Coder.of());
 
-    Set<DisplayData> displayData = evaluator.displayDataForPrimitiveSourceTransforms(read);
+    // Reading from a subscription.
+    read = read.subscription("projects/project/subscriptions/subscription");
+    displayData = evaluator.displayDataForPrimitiveSourceTransforms(read);
     assertThat("PubsubIO.Read should include the subscription in its primitive display data",
         displayData, hasItem(hasDisplayItem("subscription")));
+
+    // Reading from a topic.
+    read = read.topic("projects/project/topics/topic");
+    displayData = evaluator.displayDataForPrimitiveSourceTransforms(read);
+    assertThat("PubsubIO.Read should include the topic in its primitive display data",
+        displayData, hasItem(hasDisplayItem("topic")));
   }
 
   @Test
