@@ -793,8 +793,13 @@ public class HadoopInputFormatIOTest {
    */
   @Test
   public void testDefaultCoderFromCodeRegistry() {
+    Configuration conf =
+        loadTestConfiguration(
+            org.elasticsearch.hadoop.mr.EsInputFormat.class,
+            Text.class,
+            MapWritable.class)
+        .getHadoopConfiguration();
     TypeDescriptor<Long> typedesc = new TypeDescriptor<Long>() {};
-    Configuration conf = loadCoderTestConfiguration();
     Pipeline pipeline = TestPipeline.create();
     Read<Text, String> read = HadoopInputFormatIO.<Text, String>read().withConfiguration(conf);
     Coder<Long> coder = read.getDefaultCoder(typedesc, pipeline.getCoderRegistry());
