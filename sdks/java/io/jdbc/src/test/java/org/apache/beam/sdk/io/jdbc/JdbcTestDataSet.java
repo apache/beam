@@ -68,8 +68,6 @@ public class JdbcTestDataSet {
             String.format("create table %s (id INT, name VARCHAR(500))", tableName));
       }
 
-      // We would want to move this into shared code with JdbcIOTest if
-      // it doesn't happen in perfkit code
       String[] scientists = {"Einstein", "Darwin", "Copernicus", "Pasteur", "Curie", "Faraday",
           "Newton", "Bohr", "Galilei", "Maxwell"};
       connection.setAutoCommit(false);
