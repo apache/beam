@@ -74,6 +74,11 @@
       <version>2.1.1</version>
     </dependency>
 
+    <dependency>
+      <groupId>joda-time</groupId>
+      <artifactId>joda-time</artifactId>
+    </dependency>
+
     <!-- compile dependencies -->
     <dependency>
       <groupId>com.google.auto.value</groupId>
@@ -119,6 +124,12 @@
     <dependency>
       <groupId>org.slf4j</groupId>
       <artifactId>slf4j-jdk14</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.postgresql</groupId>
+      <artifactId>postgresql</artifactId>
+      <version>9.4.1212.jre7</version>
       <scope>test</scope>
     </dependency>
   </dependencies>
