@@ -1,36 +1,29 @@
 # Euphoria
 
-Euphoria is an open source API for creating unified big-data processing flows. It provides an engine independent programming model that can express both batch and stream transformations.
+Euphoria is an open source Java API for creating unified big-data
+processing flows.  It provides an engine independent programming model
+that can express both batch and stream transformations.
+
+The main goal of the API is to ease the creation of programs with
+business logic independent of a specific runtime framework/engine and
+independent of the source or destination of the processed data.  Such
+programs are then transferable with little effort to new environments
+and new data sources or destinations - idealy just by configuration.
+
 
 ## Key features
 
- * Unified API that supports both batch and stream processing using the same code
- * Avoids vendor lock-in - migrating between different engines is matter of configuration
- * Fluent Java API using Java 8 Lamda expressions
- * Support for different notions of time (_event time, ingestion time_)
- * Flexible windowing (_Time, Session, TimeSliding, Count_)
+ * Unified API that supports both batch and stream processing using
+   the same code
+ * Avoids vendor lock-in - migrating between different engines is
+   matter of configuration
+ * Declarative Java API using Java 8 Lamda expressions
+ * Support for different notions of time (_event time, ingestion
+   time_)
+ * Flexible windowing (_Time, TimeSliding, Session, Count_)
 
-## Supported Engines
 
-Euphoria translates the flow you define into the specific API of supported big-data processing engines. Currently the following engines are supported:
-
- * [Apache Flink](https://flink.apache.org/)
- * [Apache Spark](http://spark.apache.org/)
-
-## Basic concepts
-
- * __Dataset__: Represents a logical view on distributed data. A data set can be _bounded_  or _unbounded_
- * __DataSource__: Creates a data set from a given input (local/remote file, cloud storage, network stream)
- * __DataSink__: Writes the content of a data set to a given output.
- * __Flow__: A chain of transformations applied on a data set. Typically forms a _direct acyclic graph (DAG)_ starting with one or more data sources while ending in one or more data sinks.
-
-## Getting started
-
-### Maven dependencies
-
-TODO
-
-### Running example
+## WordCount example
 
 ```java
 // Define data source and data sinks
@@ -64,19 +57,49 @@ MapElements.named("FORMAT")
     .output()
     .persist(dataSink);
 
-// Initialize an executor and run the flow
+// Initialize an executor and run the flow (using Apache Flink)
 Executor executor = new FlinkExecutor();
 executor.submit(flow).get();
 ```
 
-### Building from source
+## Supported Engines
 
-To build the latest development version use the following commands:
+Euphoria translates flows, also known as data transformation
+pipelines, into the specific API of a chosen, supported big-data
+processing engine.  Currently, the following are supported:
+
+ * [Apache Flink](https://flink.apache.org/)
+ * [Apache Spark](http://spark.apache.org/)
+ * A independent, standalone, in-memory engine which part of the
+   Euphoria project suitable for running flows in unit tests.
+
+In the WordCount example from above, to switch the execution engine
+from Apache Flink to Apache Spark, we'd merely need to replace
+`FlinkExecutor` with `SparkExecutor`.
+
+
+## Building
+
+To build the Euphoria artifacts, the following is required:
+
+* Git
+* Maven 3
+* Java 8
+
+Building the project itself is a matter of:
 
 ```
-git clone XXX
-
+git clone https://github.com/seznam/euphoria
 cd euphoria
 mvn clean install -DskipTests
 ```
 
+## Documentation
+
+* The API is self-documented through [Javadoc](XXX).
+* Conceptual, in-depth documentation is maintained in the [Wiki](XXX).
+
+
+## License
+
+Euphoria is licensed under the terms of the Apache License 2.0.
