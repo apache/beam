@@ -580,7 +580,7 @@ class FlinkBatchTransformTranslators {
       outputMap.put(transform.getMainOutputTag(), 0);
       int count = 1;
       for (TaggedPValue taggedValue : outputs) {
-        if (!outputMap.containsKey(taggedValue)) {
+        if (!outputMap.containsKey(taggedValue.getTag())) {
           outputMap.put(taggedValue.getTag(), count++);
         }
       }
