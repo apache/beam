@@ -57,7 +57,7 @@ public class GcsStager implements Stager {
     }
     int uploadSizeBytes = firstNonNull(options.getGcsUploadBufferSizeBytes(), 1024 * 1024);
     checkArgument(uploadSizeBytes > 0, "gcsUploadBufferSizeBytes must be > 0");
-    uploadSizeBytes = Math.min(options.getGcsUploadBufferSizeBytes(), 1024 * 1024);
+    uploadSizeBytes = Math.min(uploadSizeBytes, 1024 * 1024);
     Storage.Builder storageBuilder = Transport.newStorageClient(options);
     GcsUtil util = GcsUtilFactory.create(
         storageBuilder.build(),
