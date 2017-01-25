@@ -42,22 +42,18 @@ public class NameUtilsTest {
 
   @Test
   public void testDropsStandardSuffixes() {
-    assertEquals("Embedded", NameUtils.approximateSimpleName("EmbeddedOldDoFn", true));
     assertEquals("Embedded", NameUtils.approximateSimpleName("EmbeddedDoFn", true));
     assertEquals("Embedded", NameUtils.approximateSimpleName("EmbeddedFn", true));
 
-    assertEquals("Embedded", NameUtils.approximateSimpleName("EmbeddedOldDoFn", false));
     assertEquals("Embedded", NameUtils.approximateSimpleName("EmbeddedDoFn", false));
     assertEquals("Embedded", NameUtils.approximateSimpleName("EmbeddedFn", false));
   }
 
   @Test
   public void testDropsStandardSuffixesInAllComponents() {
-    assertEquals("Embedded", NameUtils.approximateSimpleName("SomeOldDoFn$EmbeddedFn", true));
     assertEquals("Embedded", NameUtils.approximateSimpleName("SomeDoFn$EmbeddedDoFn", true));
     assertEquals("Embedded", NameUtils.approximateSimpleName("SomeFn$EmbeddedFn", true));
 
-    assertEquals("Some.Embedded", NameUtils.approximateSimpleName("SomeOldDoFn$EmbeddedFn", false));
     assertEquals("Some.Embedded", NameUtils.approximateSimpleName("SomeDoFn$EmbeddedDoFn", false));
     assertEquals("Some.Embedded", NameUtils.approximateSimpleName("SomeFn$EmbeddedFn", false));
   }
@@ -79,12 +75,12 @@ public class NameUtilsTest {
   /**
    * Inner class for simple name test.
    */
-  private class EmbeddedOldDoFn {
+  private class EmbeddedDoFn {
 
-    private class DeeperEmbeddedOldDoFn extends EmbeddedOldDoFn {}
+    private class DeeperEmbeddedDoFn extends EmbeddedDoFn {}
 
-    private EmbeddedOldDoFn getEmbedded() {
-      return new DeeperEmbeddedOldDoFn();
+    private EmbeddedDoFn getEmbedded() {
+      return new DeeperEmbeddedDoFn();
     }
   }
 
@@ -112,18 +108,18 @@ public class NameUtilsTest {
 
   @Test
   public void testSimpleName() {
-    assertEquals("Embedded", NameUtils.approximateSimpleName(new EmbeddedOldDoFn()));
+    assertEquals("Embedded", NameUtils.approximateSimpleName(new EmbeddedDoFn()));
   }
 
   @Test
   public void testAnonSimpleName() throws Exception {
-    assertEquals("Anonymous", NameUtils.approximateSimpleName(new EmbeddedOldDoFn() {}));
+    assertEquals("Anonymous", NameUtils.approximateSimpleName(new EmbeddedDoFn() {}));
   }
 
   @Test
   public void testNestedSimpleName() {
-    EmbeddedOldDoFn fn = new EmbeddedOldDoFn();
-    EmbeddedOldDoFn inner = fn.getEmbedded();
+    EmbeddedDoFn fn = new EmbeddedDoFn();
+    EmbeddedDoFn inner = fn.getEmbedded();
 
     assertEquals("DeeperEmbedded", NameUtils.approximateSimpleName(inner));
   }

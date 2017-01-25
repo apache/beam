@@ -25,6 +25,7 @@ import com.google.api.client.googleapis.batch.json.JsonBatchCallback;
 import com.google.api.client.googleapis.json.GoogleJsonError;
 import com.google.api.client.googleapis.json.GoogleJsonResponseException;
 import com.google.api.client.http.HttpHeaders;
+import com.google.api.client.http.HttpRequestInitializer;
 import com.google.api.client.util.BackOff;
 import com.google.api.client.util.Sleeper;
 import com.google.api.services.storage.Storage;
@@ -93,8 +94,10 @@ public class GcsUtil {
     public GcsUtil create(PipelineOptions options) {
       LOG.debug("Creating new GcsUtil");
       GcsOptions gcsOptions = options.as(GcsOptions.class);
+      Storage.Builder storageBuilder = Transport.newStorageClient(gcsOptions);
       return new GcsUtil(
-          Transport.newStorageClient(gcsOptions).build(),
+          storageBuilder.build(),
+          storageBuilder.getHttpRequestInitializer(),
           gcsOptions.getExecutorService(),
           gcsOptions.getGcsUploadBufferSizeBytes());
     }
@@ -142,6 +145,7 @@ public class GcsUtil {
 
   /** Client for the GCS API. */
   private Storage storageClient;
+  private final HttpRequestInitializer httpRequestInitializer;
   /** Buffer size for GCS uploads (in bytes). */
   @Nullable private final Integer uploadBufferSizeBytes;
 
@@ -166,9 +170,11 @@ public class GcsUtil {
 
   private GcsUtil(
       Storage storageClient,
+      HttpRequestInitializer httpRequestInitializer,
       ExecutorService executorService,
       @Nullable Integer uploadBufferSizeBytes) {
     this.storageClient = storageClient;
+    this.httpRequestInitializer = httpRequestInitializer;
     this.uploadBufferSizeBytes = uploadBufferSizeBytes;
     this.executorService = executorService;
   }
@@ -455,7 +461,9 @@ public class GcsUtil {
   void createBucket(String projectId, Bucket bucket, BackOff backoff, Sleeper sleeper)
         throws IOException {
     Storage.Buckets.Insert insertBucket =
-      storageClient.buckets().insert(projectId, bucket);
+        storageClient.buckets().insert(projectId, bucket);
+    insertBucket.setPredefinedAcl("projectPrivate");
+    insertBucket.setPredefinedDefaultObjectAcl("projectPrivate");
 
     try {
       ResilientOperation.retry(
@@ -536,7 +544,7 @@ public class GcsUtil {
     List<BatchRequest> batches = new LinkedList<>();
     for (List<GcsPath> filesToGet :
         Lists.partition(Lists.newArrayList(paths), MAX_REQUESTS_PER_BATCH)) {
-      BatchRequest batch = storageClient.batch();
+      BatchRequest batch = createBatchRequest();
       for (GcsPath path : filesToGet) {
         results.add(enqueueGetFileSize(path, batch));
       }
@@ -558,14 +566,14 @@ public class GcsUtil {
         destFilenames.size());
 
     List<BatchRequest> batches = new LinkedList<>();
-    BatchRequest batch = storageClient.batch();
+    BatchRequest batch = createBatchRequest();
     for (int i = 0; i < srcFilenames.size(); i++) {
       final GcsPath sourcePath = GcsPath.fromUri(srcFilenames.get(i));
       final GcsPath destPath = GcsPath.fromUri(destFilenames.get(i));
       enqueueCopy(sourcePath, destPath, batch);
       if (batch.size() >= MAX_REQUESTS_PER_BATCH) {
         batches.add(batch);
-        batch = storageClient.batch();
+        batch = createBatchRequest();
       }
     }
     if (batch.size() > 0) {
@@ -578,7 +586,7 @@ public class GcsUtil {
     List<BatchRequest> batches = new LinkedList<>();
     for (List<String> filesToDelete :
         Lists.partition(Lists.newArrayList(filenames), MAX_REQUESTS_PER_BATCH)) {
-      BatchRequest batch = storageClient.batch();
+      BatchRequest batch = createBatchRequest();
       for (String file : filesToDelete) {
         enqueueDelete(GcsPath.fromUri(file), batch);
       }
@@ -656,6 +664,10 @@ public class GcsUtil {
         throw new IOException(String.format("Error trying to delete %s: %s", file, e));
       }
     });
+  }
+
+  private BatchRequest createBatchRequest() {
+    return storageClient.batch(httpRequestInitializer);
   }
 
   /**

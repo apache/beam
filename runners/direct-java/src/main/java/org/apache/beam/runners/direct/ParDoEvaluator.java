@@ -18,7 +18,6 @@
 package org.apache.beam.runners.direct;
 
 import com.google.common.collect.ImmutableList;
-import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -30,6 +29,7 @@ import org.apache.beam.runners.core.PushbackSideInputDoFnRunner;
 import org.apache.beam.runners.direct.DirectExecutionContext.DirectStepContext;
 import org.apache.beam.runners.direct.DirectRunner.UncommittedBundle;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.ReadyCheckingSideInputReader;
 import org.apache.beam.sdk.util.TimerInternals.TimerData;
@@ -47,7 +47,7 @@ class ParDoEvaluator<InputT, OutputT> implements TransformEvaluator<InputT> {
       DirectStepContext stepContext,
       AppliedPTransform<?, ?, ?> application,
       WindowingStrategy<?, ? extends BoundedWindow> windowingStrategy,
-      Serializable fn, // may be OldDoFn or DoFn
+      DoFn<InputT, OutputT> fn,
       StructuralKey<?> key,
       List<PCollectionView<?>> sideInputs,
       TupleTag<OutputT> mainOutputTag,
@@ -72,8 +72,9 @@ class ParDoEvaluator<InputT, OutputT> implements TransformEvaluator<InputT> {
 
     ReadyCheckingSideInputReader sideInputReader =
         evaluationContext.createSideInputReader(sideInputs);
+
     DoFnRunner<InputT, OutputT> underlying =
-        DoFnRunners.createDefault(
+        DoFnRunners.simpleRunner(
             evaluationContext.getPipelineOptions(),
             fn,
             sideInputReader,

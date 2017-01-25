@@ -15,31 +15,25 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.transforms;
+package org.apache.beam.sdk.util;
 
-import java.util.Collection;
-import java.util.Map;
+import java.io.IOException;
+import java.io.ObjectStreamException;
+import java.io.Serializable;
+import org.apache.beam.sdk.coders.Coder;
 
 /**
- * An internal class for extracting {@link Aggregator Aggregators} from {@link DoFn DoFns}.
+ * A {@link Serializable} {@link ThreadLocal} which discards any "stored" objects. This allows
+ * for Kryo to serialize a {@link Coder} as a final field.
  */
-public final class AggregatorRetriever {
-  private AggregatorRetriever() {
-    // do not instantiate
-  }
+public class EmptyOnDeserializationThreadLocal<T> extends ThreadLocal<T> implements Serializable {
+    private void writeObject(java.io.ObjectOutputStream out) throws IOException {
+    }
 
-  /**
-   * Returns the {@link Aggregator Aggregators} created by the provided {@link DoFn}.
-   */
-  public static Collection<Aggregator<?, ?>> getAggregators(DoFn<?, ?> fn) {
-    return fn.getAggregators();
-  }
+    private void readObject(java.io.ObjectInputStream in)
+            throws IOException, ClassNotFoundException {
+    }
 
-  /**
-   * Returns the {@link DelegatingAggregator delegating aggregators} created by the provided {@link
-   * DoFn}.
-   */
-  public static Map<String, DelegatingAggregator<?, ?>> getDelegatingAggregators(DoFn<?, ?> fn) {
-    return fn.aggregators;
-  }
+    private void readObjectNoData() throws ObjectStreamException {
+    }
 }

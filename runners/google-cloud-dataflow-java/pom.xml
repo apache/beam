@@ -78,9 +78,10 @@
             <id>runnable-on-service-tests</id>
             <configuration>
               <excludedGroups>
+                org.apache.beam.sdk.testing.UsesMetrics,
                 org.apache.beam.sdk.testing.UsesTimersInParDo,
                 org.apache.beam.sdk.testing.UsesSplittableParDo,
-                org.apache.beam.sdk.testing.UsesMetrics
+                org.apache.beam.sdk.testing.UsesUnboundedPCollections,
               </excludedGroups>
               <excludes>
                 <exclude>org.apache.beam.sdk.transforms.FlattenTest</exclude>

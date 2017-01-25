@@ -15,31 +15,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.transforms;
-
-import java.util.Collection;
-import java.util.Map;
+package org.apache.beam.sdk.testing;
 
 /**
- * An internal class for extracting {@link Aggregator Aggregators} from {@link DoFn DoFns}.
+ * Category tag for validation tests which utilize at least one unbounded {@code PCollection}.
  */
-public final class AggregatorRetriever {
-  private AggregatorRetriever() {
-    // do not instantiate
-  }
-
-  /**
-   * Returns the {@link Aggregator Aggregators} created by the provided {@link DoFn}.
-   */
-  public static Collection<Aggregator<?, ?>> getAggregators(DoFn<?, ?> fn) {
-    return fn.getAggregators();
-  }
-
-  /**
-   * Returns the {@link DelegatingAggregator delegating aggregators} created by the provided {@link
-   * DoFn}.
-   */
-  public static Map<String, DelegatingAggregator<?, ?>> getDelegatingAggregators(DoFn<?, ?> fn) {
-    return fn.aggregators;
-  }
-}
+public interface UsesUnboundedPCollections {}

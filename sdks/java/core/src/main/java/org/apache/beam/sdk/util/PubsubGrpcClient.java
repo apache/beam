@@ -223,6 +223,10 @@ public class PubsubGrpcClient extends PubsubClient {
           PubsubMessage.newBuilder()
                        .setData(ByteString.copyFrom(outgoingMessage.elementBytes));
 
+      if (outgoingMessage.attributes != null) {
+        message.putAllAttributes(outgoingMessage.attributes);
+      }
+
       if (timestampLabel != null) {
         message.getMutableAttributes()
                .put(timestampLabel, String.valueOf(outgoingMessage.timestampMsSinceEpoch));
@@ -286,7 +290,7 @@ public class PubsubGrpcClient extends PubsubClient {
         recordId = pubsubMessage.getMessageId();
       }
 
-      incomingMessages.add(new IncomingMessage(elementBytes, timestampMsSinceEpoch,
+      incomingMessages.add(new IncomingMessage(elementBytes, attributes, timestampMsSinceEpoch,
                                                requestTimeMsSinceEpoch, ackId, recordId));
     }
     return incomingMessages;

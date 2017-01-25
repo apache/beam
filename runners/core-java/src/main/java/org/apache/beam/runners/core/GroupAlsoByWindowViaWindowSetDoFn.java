@@ -17,11 +17,9 @@
  */
 package org.apache.beam.runners.core;
 
-import org.apache.beam.runners.core.DoFnRunner.ReduceFnExecutor;
 import org.apache.beam.runners.core.triggers.ExecutableTriggerStateMachine;
 import org.apache.beam.runners.core.triggers.TriggerStateMachines;
 import org.apache.beam.sdk.transforms.Aggregator;
-import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.SystemDoFnInternal;
@@ -38,7 +36,7 @@ import org.apache.beam.sdk.values.KV;
 @SystemDoFnInternal
 public class GroupAlsoByWindowViaWindowSetDoFn<
         K, InputT, OutputT, W extends BoundedWindow, RinT extends KeyedWorkItem<K, InputT>>
-    extends OldDoFn<RinT, KV<K, OutputT>> implements ReduceFnExecutor<K, InputT, OutputT, W> {
+    extends OldDoFn<RinT, KV<K, OutputT>> {
 
   public static <K, InputT, OutputT, W extends BoundedWindow>
       OldDoFn<KeyedWorkItem<K, InputT>, KV<K, OutputT>> create(
@@ -96,7 +94,6 @@ public class GroupAlsoByWindowViaWindowSetDoFn<
     reduceFnRunner.persist();
   }
 
-  @Override
   public OldDoFn<KeyedWorkItem<K, InputT>, KV<K, OutputT>> asDoFn() {
     // Safe contravariant cast
     @SuppressWarnings("unchecked")
@@ -105,7 +102,6 @@ public class GroupAlsoByWindowViaWindowSetDoFn<
     return asFn;
   }
 
-  @Override
   public Aggregator<Long, Long> getDroppedDueToLatenessAggregator() {
     return droppedDueToLateness;
   }

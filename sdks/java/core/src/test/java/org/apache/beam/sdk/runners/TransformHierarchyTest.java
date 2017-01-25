@@ -140,13 +140,37 @@ public class TransformHierarchyTest implements Serializable {
           }
         });
     thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage("produced by it as well as other Transforms");
-    thrown.expectMessage("primitive transform must produce all of its outputs");
-    thrown.expectMessage("composite transform must be produced by a component transform");
+    thrown.expectMessage("contains a primitive POutput produced by it");
     thrown.expectMessage("AddPc");
     thrown.expectMessage("Create");
     thrown.expectMessage(appended.expand().toString());
     hierarchy.setOutput(appended);
+  }
+
+  @Test
+  public void producingOwnOutputWithCompositeFails() {
+    final PCollection<Long> comp =
+        PCollection.createPrimitiveOutputInternal(
+            pipeline, WindowingStrategy.globalDefault(), IsBounded.BOUNDED);
+    PTransform<PBegin, PCollection<Long>> root =
+        new PTransform<PBegin, PCollection<Long>>() {
+          @Override
+          public PCollection<Long> expand(PBegin input) {
+            return comp;
+          }
+        };
+    hierarchy.pushNode("Composite", PBegin.in(pipeline), root);
+
+    Create.Values<Integer> create = Create.of(1);
+    hierarchy.pushNode("Create", PBegin.in(pipeline), create);
+    hierarchy.setOutput(pipeline.apply(create));
+    hierarchy.popNode();
+
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("contains a primitive POutput produced by it");
+    thrown.expectMessage("primitive transforms are permitted to produce");
+    thrown.expectMessage("Composite");
+    hierarchy.setOutput(comp);
   }
 
   @Test

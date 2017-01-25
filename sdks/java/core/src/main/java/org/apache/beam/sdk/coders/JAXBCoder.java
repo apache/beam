@@ -30,6 +30,7 @@ import javax.xml.bind.JAXBException;
 import javax.xml.bind.Marshaller;
 import javax.xml.bind.Unmarshaller;
 import org.apache.beam.sdk.util.CloudObject;
+import org.apache.beam.sdk.util.EmptyOnDeserializationThreadLocal;
 import org.apache.beam.sdk.util.Structs;
 import org.apache.beam.sdk.util.VarInt;
 import org.apache.beam.sdk.values.TypeDescriptor;
@@ -45,6 +46,8 @@ public class JAXBCoder<T> extends AtomicCoder<T> {
   private final Class<T> jaxbClass;
   private final TypeDescriptor<T> typeDescriptor;
   private transient volatile JAXBContext jaxbContext;
+  private final EmptyOnDeserializationThreadLocal<Marshaller> jaxbMarshaller;
+  private final EmptyOnDeserializationThreadLocal<Unmarshaller> jaxbUnmarshaller;
 
   public Class<T> getJAXBClass() {
     return jaxbClass;
@@ -53,6 +56,28 @@ public class JAXBCoder<T> extends AtomicCoder<T> {
   private JAXBCoder(Class<T> jaxbClass) {
     this.jaxbClass = jaxbClass;
     this.typeDescriptor = TypeDescriptor.of(jaxbClass);
+    this.jaxbMarshaller = new EmptyOnDeserializationThreadLocal<Marshaller>() {
+      @Override
+      protected Marshaller initialValue() {
+        try {
+          JAXBContext jaxbContext = getContext();
+          return jaxbContext.createMarshaller();
+        } catch (JAXBException e) {
+          throw new RuntimeException("Error when creating marshaller from JAXB Context.", e);
+        }
+      }
+    };
+    this.jaxbUnmarshaller = new EmptyOnDeserializationThreadLocal<Unmarshaller>() {
+      @Override
+      protected Unmarshaller initialValue() {
+        try {
+          JAXBContext jaxbContext = getContext();
+          return jaxbContext.createUnmarshaller();
+        } catch (Exception e) {
+          throw new RuntimeException("Error when creating unmarshaller from JAXB Context.", e);
+        }
+      }
+    };
   }
 
   /**
@@ -68,9 +93,6 @@ public class JAXBCoder<T> extends AtomicCoder<T> {
   public void encode(T value, OutputStream outStream, Context context)
       throws CoderException, IOException {
     try {
-      JAXBContext jaxbContext = getContext();
-      // TODO: Consider caching in a ThreadLocal if this impacts performance
-      Marshaller jaxbMarshaller = jaxbContext.createMarshaller();
       if (!context.isWholeStream) {
         try {
           long size = getEncodedElementByteSize(value, Context.OUTER);
@@ -83,7 +105,7 @@ public class JAXBCoder<T> extends AtomicCoder<T> {
         }
       }
 
-      jaxbMarshaller.marshal(value, new CloseIgnoringOutputStream(outStream));
+      jaxbMarshaller.get().marshal(value, new CloseIgnoringOutputStream(outStream));
     } catch (JAXBException e) {
       throw new CoderException(e);
     }
@@ -92,17 +114,13 @@ public class JAXBCoder<T> extends AtomicCoder<T> {
   @Override
   public T decode(InputStream inStream, Context context) throws CoderException, IOException {
     try {
-      JAXBContext jaxbContext = getContext();
-      // TODO: Consider caching in a ThreadLocal if this impacts performance
-      Unmarshaller jaxbUnmarshaller = jaxbContext.createUnmarshaller();
-
       InputStream stream = inStream;
       if (!context.isWholeStream) {
         long limit = VarInt.decodeLong(inStream);
         stream = ByteStreams.limit(inStream, limit);
       }
       @SuppressWarnings("unchecked")
-      T obj = (T) jaxbUnmarshaller.unmarshal(new CloseIgnoringInputStream(stream));
+      T obj = (T) jaxbUnmarshaller.get().unmarshal(new CloseIgnoringInputStream(stream));
       return obj;
     } catch (JAXBException e) {
       throw new CoderException(e);
