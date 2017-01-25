@@ -20,13 +20,10 @@ import java.io.Serializable;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.apache.beam.sdk.io.hadoop.inputformat.HadoopInputFormatIO;
-import org.apache.beam.sdk.io.hadoop.inputformat.HadoopInputFormatIOContants;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
@@ -79,11 +76,11 @@ public class HIFIOWithElasticTest implements Serializable {
   private static final String ELASTIC_IN_MEM_PORT = "9200";
   private static final String ELASTIC_INTERNAL_VERSION = "5.x";
   private static final String TRUE = "true";
-  private static final String ELASTIC_INDEX_NAME = "xyz";
-  private static final String ELASTIC_TYPE_NAME = "employee";
+  private static final String ELASTIC_INDEX_NAME = "beamdb";
+  private static final String ELASTIC_TYPE_NAME = "scientists";
   private static final String ELASTIC_RESOURCE = "/" + ELASTIC_INDEX_NAME + "/" + ELASTIC_TYPE_NAME;
   private static final int SIZE = 10;
-  private static final String ELASTIC_TYPE_ID_PREFIX = "xyz22600";
+  private static final String ELASTIC_TYPE_ID_PREFIX = "s";
 
   @ClassRule
   public static TemporaryFolder elasticTempFolder = new TemporaryFolder();
@@ -115,7 +112,7 @@ public class HIFIOWithElasticTest implements Serializable {
         MapElements.<LinkedMapWritable, String>via(new SimpleFunction<LinkedMapWritable, String>() {
           @Override
           public String apply(LinkedMapWritable mapw) {
-            Text text = (Text) mapw.get(new Text("empid"));
+            Text text = (Text) mapw.get(new Text("id"));
             return text != null ? text.toString() : "";
           }
         });
@@ -141,7 +138,7 @@ public class HIFIOWithElasticTest implements Serializable {
         "{\n"
             + "  \"query\": {\n"
             + "  \"match\" : {\n"
-            + "    \"empid\" : {\n"
+            + "    \"id\" : {\n"
             + "      \"query\" : \"" + fieldValue + "" + "\",\n"
             + "      \"type\" : \"boolean\"\n"
             + "    }\n"
@@ -157,14 +154,10 @@ public class HIFIOWithElasticTest implements Serializable {
     pipeline.run().waitUntilFinish();
   }
 
-  public static Map<String, Object> populateElasticData(String empid, String name,
-      Date joiningDate, String[] skills, String designation) {
-    Map<String, Object> data = new HashMap<String, Object>();
-    data.put("empid", empid);
-    data.put("name", name);
-    data.put("joiningDate", joiningDate);
-    data.put("skills", skills);
-    data.put("designation", designation);
+  public static Map<String, String> populateElasticData(String id, String name) {
+    Map<String, String> data = new HashMap<String, String>();
+    data.put("id", id);
+    data.put("scientist", name);
     return data;
   }
 
@@ -205,8 +198,7 @@ public class HIFIOWithElasticTest implements Serializable {
         node.client()
             .prepareIndex(ELASTIC_INDEX_NAME, ELASTIC_TYPE_NAME, String.valueOf(i))
             .setSource(
-                populateElasticData(ELASTIC_TYPE_ID_PREFIX + i, "John Foo", new Date(),
-                    new String[] {"java"}, "Software engineer")).execute();
+                populateElasticData(ELASTIC_TYPE_ID_PREFIX + i, "Faraday")).execute();
         Thread.sleep(100);
       }
       GetResponse response =

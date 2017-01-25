@@ -15,7 +15,7 @@
 package org.apache.beam.sdk.io.hadoop.inputformat.integration.tests;
 
 import java.io.Serializable;
-import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 import org.apache.beam.sdk.Pipeline;
@@ -53,7 +53,7 @@ import org.slf4j.LoggerFactory;
  * <p>
  * You can run just this test by doing the following: mvn test-compile compile
  * failsafe:integration-test -D beamTestPipelineOptions='[ "--serverIp=1.2.3.4",
- * "--serverPort=<port>" ]'
+ * "--serverPort=<port>" ]' -Dit.test=HIFIOElasticIT -DskipITs=false
  *
  */
 @RunWith(JUnit4.class)
@@ -63,11 +63,11 @@ public class HIFIOElasticIT implements Serializable {
   private static final Logger LOGGER = LoggerFactory.getLogger(HIFIOElasticIT.class);
   private static final String ELASTIC_INTERNAL_VERSION = "5.x";
   private static final String TRUE = "true";
-  private static final String ELASTIC_INDEX_NAME = "test_data";
-  private static final String ELASTIC_TYPE_NAME = "test_type";
+  private static final String ELASTIC_INDEX_NAME = "beamdb";
+  private static final String ELASTIC_TYPE_NAME = "scientists";
   private static final String ELASTIC_RESOURCE = "/" + ELASTIC_INDEX_NAME + "/" + ELASTIC_TYPE_NAME;
   private static HIFTestOptions options;
-  private static final int SIZE = 1000;
+  private static final int SIZE = 10;
 
   @BeforeClass
   public static void setUp() {
@@ -87,23 +87,22 @@ public class HIFIOElasticIT implements Serializable {
     PCollection<KV<Text, LinkedMapWritable>> esData =
         pipeline.apply(HadoopInputFormatIO.<Text, LinkedMapWritable>read().withConfiguration(conf));
     PCollection<Long> count = esData.apply(Count.<KV<Text, LinkedMapWritable>>globally());
-    PAssert.thatSingleton(count).isEqualTo((long) 1000);
+    PAssert.thatSingleton(count).isEqualTo((long) SIZE);
 
     PCollection<LinkedMapWritable> values = esData.apply(Values.<LinkedMapWritable>create());
     MapElements<LinkedMapWritable, String> transformFunc =
         MapElements.<LinkedMapWritable, String>via(new SimpleFunction<LinkedMapWritable, String>() {
           @Override
           public String apply(LinkedMapWritable mapw) {
-            Text text = (Text) mapw.get(new Text("City"));
+            Text text = (Text) mapw.get(new Text("scientist"));
             return text != null ? text.toString() : "";
           }
         });
 
     PCollection<String> textValues = values.apply(transformFunc);
-    List<String> expectedResults = new ArrayList<>();
-    for (int cnt = 0; cnt < SIZE; cnt++) {
-      expectedResults.add("text2");
-    }
+    List<String> expectedResults =
+        Arrays.asList("Faraday", "Newton", "Galilei", "Maxwell", "Pasteur", "Copernicus", "Curie",
+            "Bohr", "Darwin", "Einstein");
     PAssert.that(textValues).containsInAnyOrder(expectedResults);
     pipeline.run().waitUntilFinish();
   }
@@ -119,8 +118,8 @@ public class HIFIOElasticIT implements Serializable {
     String query =
         "{" + "  \"query\": {"
             + "  \"match\" : {"
-            + "    \"Item_Code\" : {"
-            + "      \"query\" : \"86345\","
+            + "    \"scientist\" : {"
+            + "      \"query\" : \"Newton\","
             + "      \"type\" : \"boolean\""
             + "    }"
             + "  }"
@@ -138,15 +137,17 @@ public class HIFIOElasticIT implements Serializable {
    * Set the Elasticsearch configuration parameters in the Hadoop configuration object.
    * Configuration object should have InputFormat class, key class and value class to be set
    * Mandatory fields for ESInputFormat to be set are es.resource, es.nodes, es.port,
-   * es.internal.es.version
+   * es.internal.es.version, es.nodes.wan.only. Please refer <a
+   * href="https://www.elastic.co/guide/en/elasticsearch/hadoop/current/configuration.html"
+   * >Elasticsearch Configuration</a> for more details.
    */
   public static Configuration getConfiguration(HIFTestOptions options) {
     Configuration conf = new Configuration();
     conf.set(ConfigurationOptions.ES_NODES, options.getServerIp());
     conf.set(ConfigurationOptions.ES_PORT, String.format("%d", options.getServerPort()));
+    conf.set(ConfigurationOptions.ES_NODES_WAN_ONLY, TRUE);
     conf.set(ConfigurationOptions.ES_RESOURCE, ELASTIC_RESOURCE);
     conf.set("es.internal.es.version", ELASTIC_INTERNAL_VERSION);
-    conf.set(ConfigurationOptions.ES_NODES_DISCOVERY, TRUE);
     conf.set(ConfigurationOptions.ES_INDEX_AUTO_CREATE, TRUE);
     conf.setClass(HadoopInputFormatIOContants.INPUTFORMAT_CLASSNAME,
         org.elasticsearch.hadoop.mr.EsInputFormat.class, InputFormat.class);
