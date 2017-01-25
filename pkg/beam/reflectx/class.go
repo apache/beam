@@ -64,6 +64,10 @@ func ClassOf(t reflect.Type) Class {
 // data must be fully serializable. Functions and channels are examples of invalid
 // types. Note the Encoded types are also concrete, if not in a top-level context.
 func isConcrete(t reflect.Type) bool {
+	if t == nil {
+		return false
+	}
+
 	switch t.Kind() {
 	case reflect.Invalid, reflect.UnsafePointer, reflect.Uintptr, reflect.Interface:
 		return false // no unmanageable types

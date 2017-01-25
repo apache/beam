@@ -19,7 +19,7 @@ import (
 // Options used purely at pipeline construction-time can just be flags.
 var (
 	input  = flag.String("input", os.ExpandEnv("$GOPATH/src/github.com/apache/beam/sdks/go/data/shakespeare/kinglear.txt"), "Files to read.")
-	output = flag.String("output", "/tmp/wordcount", "Prefix of output.")
+	output = flag.String("output", "/tmp/wordcount/out.", "Prefix of output.")
 )
 
 var wordRE = regexp.MustCompile(`[a-zA-Z]+('[a-z])?`)

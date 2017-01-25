@@ -9,6 +9,7 @@ import (
 	"log"
 	"reflect"
 	"sync"
+	"time"
 )
 
 // GOOD: Run doesn't have to be a method on the pipeline. Each runner could simply have
@@ -64,7 +65,7 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 		}
 
 		// Insert multiplexing. This output has multiple consumers, so we need to
-		// duplicate the data.
+		// duplicate and buffer the data.
 
 		var dup []reflect.Value
 		for i := 0; i < len(list); i++ {
@@ -74,8 +75,9 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 		go multiplex(write[id], dup)
 
 		for i, elm := range list {
+			ch := buffer(dup[i])
 			input := edges[elm.to].Input[elm.input]
-			read[elm] = shim(dup[i], beam.InternalCoder /* input.From.Coder */, input.From.T, input.T)
+			read[elm] = shim(ch, beam.InternalCoder /* input.From.Coder */, input.From.T, input.T)
 		}
 	}
 
@@ -134,6 +136,77 @@ func multiplex(ch reflect.Value, out []reflect.Value) {
 			out[i].Send(val)
 		}
 	}
+}
+
+type bufChan struct {
+	buf  []reflect.Value
+	done bool
+	mu   sync.Mutex
+}
+
+func (ch *bufChan) Write(val reflect.Value) {
+	ch.mu.Lock()
+	defer ch.mu.Unlock()
+
+	ch.buf = append(ch.buf, val)
+}
+
+func (ch *bufChan) Close() {
+	ch.mu.Lock()
+	defer ch.mu.Unlock()
+
+	ch.done = true
+}
+
+func (ch *bufChan) Read() ([]reflect.Value, bool) {
+	ch.mu.Lock()
+	defer ch.mu.Unlock()
+
+	tmp := ch.buf
+	ch.buf = nil
+
+	return tmp, len(tmp) == 0 && ch.done
+}
+
+func buffer(in reflect.Value) reflect.Value {
+	// NOTE(herohde): side input must be fully available and the different
+	// rates of consumption implies unbounded buffering, when split. In the
+	// service all this is handled for us.
+
+	ch := &bufChan{}
+	go func() {
+		defer ch.Close()
+
+		for {
+			val, ok := in.Recv()
+			if !ok {
+				break
+			}
+			ch.Write(val)
+		}
+	}()
+
+	ret := reflect.MakeChan(in.Type(), 100)
+	go func() {
+		defer ret.Close()
+
+		for {
+			buf, done := ch.Read()
+			if done {
+				break
+			}
+
+			if len(buf) == 0 {
+				time.Sleep(100 * time.Millisecond) // Lame
+			} else {
+				for _, elm := range buf {
+					ret.Send(elm)
+				}
+			}
+		}
+	}()
+
+	return ret
 }
 
 func call(ctx context.Context, userfn *graph.UserFn, data interface{}, in, out []reflect.Value) {
