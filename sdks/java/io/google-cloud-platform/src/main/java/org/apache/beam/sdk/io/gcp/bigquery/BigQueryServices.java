@@ -119,8 +119,7 @@ interface BigQueryServices extends Serializable {
      * <p>Returns null if the table is not found.
      */
     @Nullable
-    Table getTable(String projectId, String datasetId, String tableId)
-        throws InterruptedException, IOException;
+    Table getTable(TableReference tableRef) throws InterruptedException, IOException;
 
     /**
      * Creates the specified table if it does not exist.
@@ -131,14 +130,14 @@ interface BigQueryServices extends Serializable {
      * Deletes the table specified by tableId from the dataset.
      * If the table contains data, all the data will be deleted.
      */
-    void deleteTable(String projectId, String datasetId, String tableId)
-        throws IOException, InterruptedException;
+    void deleteTable(TableReference tableRef) throws IOException, InterruptedException;
 
     /**
      * Returns true if the table is empty.
+     *
+     * @throws IOException if the table is not found.
      */
-    boolean isTableEmpty(String projectId, String datasetId, String tableId)
-        throws IOException, InterruptedException;
+    boolean isTableEmpty(TableReference tableRef) throws IOException, InterruptedException;
 
     /**
      * Gets the specified {@link Dataset} resource by dataset ID.

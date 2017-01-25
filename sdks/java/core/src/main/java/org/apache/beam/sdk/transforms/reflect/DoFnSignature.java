@@ -105,11 +105,20 @@ public abstract class DoFnSignature {
   @Nullable
   public abstract Map<String, OnTimerMethod> onTimerMethods();
 
-  /**
-   * Whether the {@link DoFn} described by this signature uses state.
-   */
+  /** @deprecated use {@link #usesState()}, it's cleaner */
+  @Deprecated
   public boolean isStateful() {
     return stateDeclarations().size() > 0;
+  }
+
+  /** Whether the {@link DoFn} described by this signature uses state. */
+  public boolean usesState() {
+    return stateDeclarations().size() > 0;
+  }
+
+  /** Whether the {@link DoFn} described by this signature uses timers. */
+  public boolean usesTimers() {
+    return timerDeclarations().size() > 0;
   }
 
   static Builder builder() {

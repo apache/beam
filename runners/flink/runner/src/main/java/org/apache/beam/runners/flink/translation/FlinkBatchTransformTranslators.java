@@ -17,6 +17,9 @@
  */
 package org.apache.beam.runners.flink.translation;
 
+import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkState;
+
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import java.util.ArrayList;
@@ -69,6 +72,7 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PValue;
+import org.apache.beam.sdk.values.TaggedPValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.api.common.functions.FlatMapFunction;
@@ -190,7 +194,8 @@ class FlinkBatchTransformTranslators {
       Combine.KeyedCombineFn<K, InputT, List<InputT>, List<InputT>> combineFn =
           new Concatenate<InputT>().asKeyedFn();
 
-      KvCoder<K, InputT> inputCoder = (KvCoder<K, InputT>) context.getInput(transform).getCoder();
+      KvCoder<K, InputT> inputCoder =
+          (KvCoder<K, InputT>) context.getInput(transform).getCoder();
 
       Coder<List<InputT>> accumulatorCoder;
 
@@ -365,7 +370,8 @@ class FlinkBatchTransformTranslators {
       CombineFnBase.PerKeyCombineFn<K, InputT, AccumT, OutputT> combineFn =
           (CombineFnBase.PerKeyCombineFn<K, InputT, AccumT, OutputT>) transform.getFn();
 
-      KvCoder<K, InputT> inputCoder = (KvCoder<K, InputT>) context.getInput(transform).getCoder();
+      KvCoder<K, InputT> inputCoder =
+          (KvCoder<K, InputT>) context.getInput(transform).getCoder();
 
       Coder<AccumT> accumulatorCoder;
 
@@ -567,15 +573,15 @@ class FlinkBatchTransformTranslators {
       DataSet<WindowedValue<InputT>> inputDataSet =
           context.getInputDataSet(context.getInput(transform));
 
-      Map<TupleTag<?>, PCollection<?>> outputs = context.getOutput(transform).getAll();
+      List<TaggedPValue> outputs = context.getOutputs(transform);
 
       Map<TupleTag<?>, Integer> outputMap = Maps.newHashMap();
       // put the main output at index 0, FlinkMultiOutputDoFnFunction  expects this
       outputMap.put(transform.getMainOutputTag(), 0);
       int count = 1;
-      for (TupleTag<?> tag: outputs.keySet()) {
-        if (!outputMap.containsKey(tag)) {
-          outputMap.put(tag, count++);
+      for (TaggedPValue taggedValue : outputs) {
+        if (!outputMap.containsKey(taggedValue)) {
+          outputMap.put(taggedValue.getTag(), count++);
         }
       }
 
@@ -584,7 +590,13 @@ class FlinkBatchTransformTranslators {
 
       // collect all output Coders and create a UnionCoder for our tagged outputs
       List<Coder<?>> outputCoders = Lists.newArrayList();
-      for (PCollection<?> coll: outputs.values()) {
+      for (TaggedPValue taggedValue : outputs) {
+        checkState(
+            taggedValue.getValue() instanceof PCollection,
+            "Within ParDo, got a non-PCollection output %s of type %s",
+            taggedValue.getValue(),
+            taggedValue.getValue().getClass().getSimpleName());
+        PCollection<?> coll = (PCollection<?>) taggedValue.getValue();
         outputCoders.add(coll.getCoder());
         windowingStrategy = coll.getWindowingStrategy();
       }
@@ -628,11 +640,11 @@ class FlinkBatchTransformTranslators {
 
       transformSideInputs(sideInputs, taggedDataSet, context);
 
-      for (Map.Entry<TupleTag<?>, PCollection<?>> output: outputs.entrySet()) {
+      for (TaggedPValue output : outputs) {
         pruneOutput(
             taggedDataSet,
             context,
-            outputMap.get(output.getKey()),
+            outputMap.get(output.getTag()),
             (PCollection) output.getValue());
       }
     }
@@ -668,7 +680,7 @@ class FlinkBatchTransformTranslators {
         Flatten.FlattenPCollectionList<T> transform,
         FlinkBatchTranslationContext context) {
 
-      List<PCollection<T>> allInputs = context.getInput(transform).getAll();
+      List<TaggedPValue> allInputs = context.getInputs(transform);
       DataSet<WindowedValue<T>> result = null;
 
       if (allInputs.isEmpty()) {
@@ -689,7 +701,13 @@ class FlinkBatchTransformTranslators {
                     (Coder<T>) VoidCoder.of(),
                     GlobalWindow.Coder.INSTANCE)));
       } else {
-        for (PCollection<T> collection : allInputs) {
+        for (TaggedPValue taggedPc : allInputs) {
+          checkArgument(
+              taggedPc.getValue() instanceof PCollection,
+              "Got non-PCollection input to flatten: %s of type %s",
+              taggedPc.getValue(),
+              taggedPc.getValue().getClass().getSimpleName());
+          PCollection<T> collection = (PCollection<T>) taggedPc.getValue();
           DataSet<WindowedValue<T>> current = context.getInputDataSet(collection);
           if (result == null) {
             result = current;
