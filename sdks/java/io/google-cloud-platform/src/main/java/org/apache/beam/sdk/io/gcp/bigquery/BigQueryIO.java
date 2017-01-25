@@ -2395,7 +2395,9 @@ public class BigQueryIO {
         LOG.error("Last failed load job: {}.", jobToPrettyString(lastFailedLoadJob));
         throw new RuntimeException(String.format(
             "Failed to create load job %s, reached max retries: %d, last failed job status: %s.",
-            jobIdPrefix, Bound.MAX_RETRY_JOBS, statusToPrettyString(lastFailedLoadJob.getStatus())));
+            jobIdPrefix,
+            Bound.MAX_RETRY_JOBS,
+            statusToPrettyString(lastFailedLoadJob.getStatus())));
       }
 
       static void removeTemporaryFiles(
@@ -2533,7 +2535,9 @@ public class BigQueryIO {
         LOG.error("Last failed copy job: {}.", jobToPrettyString(lastFailedCopyJob));
         throw new RuntimeException(String.format(
             "Failed to create copy job %s, reached max retries: %d, last failed job status: %s.",
-            jobIdPrefix, Bound.MAX_RETRY_JOBS, statusToPrettyString(lastFailedCopyJob.getStatus())));
+            jobIdPrefix,
+            Bound.MAX_RETRY_JOBS,
+            statusToPrettyString(lastFailedCopyJob.getStatus())));
       }
 
       static void removeTemporaryTables(DatasetService tableService,
