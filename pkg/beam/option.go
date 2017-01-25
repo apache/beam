@@ -26,7 +26,13 @@ type SideInput struct {
 }
 
 func (s SideInput) apply(edge *graph.MultiEdge) error {
-	edge.Input = append(edge.Input, &graph.Inbound{From: s.Input.n})
+	_, side := edge.DoFn.Input()
+	index := len(edge.Input) - 1
+	if index < 0 || index >= len(side) {
+		return fmt.Errorf("No type for side input: %v", s.Input)
+	}
+
+	edge.Input = append(edge.Input, &graph.Inbound{From: s.Input.n, T: side[index]})
 	return nil
 }
 

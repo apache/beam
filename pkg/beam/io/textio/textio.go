@@ -41,6 +41,9 @@ func Write(p *beam.Pipeline, filename string, col beam.PCollection) error {
 }
 
 func writeFn(ctx Context, lines <-chan string) error {
+	if err := os.MkdirAll(filepath.Dir(ctx.Filename), 0755); err != nil {
+		return err
+	}
 	fd, err := ioutil.TempFile(filepath.Dir(ctx.Filename), filepath.Base(ctx.Filename))
 	if err != nil {
 		return err

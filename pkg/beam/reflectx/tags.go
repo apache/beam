@@ -18,7 +18,7 @@ const (
 // FindTaggedField returns the field tagged with any of the given values, if
 // any. The tags are all under the "beam" StructTag key.
 func FindTaggedField(t reflect.Type, values ...string) (reflect.StructField, bool) {
-	if t.Kind() != reflect.Struct {
+	if t == nil || t.Kind() != reflect.Struct {
 		return reflect.StructField{}, false
 	}
 
