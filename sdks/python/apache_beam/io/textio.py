@@ -309,7 +309,7 @@ class WriteToText(PTransform):
                coder=coders.ToStringCoder(),
                compression_type=fileio.CompressionTypes.AUTO,
                header=None):
-    r"""Initialize a WriteToText PTransform.
+    """Initialize a WriteToText PTransform.
 
     Args:
       file_path_prefix: The file path to write to. The files written will begin

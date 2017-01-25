@@ -653,7 +653,8 @@ class _CompressedFile(object):
                compression_type=CompressionTypes.GZIP,
                read_size=gcsio.DEFAULT_READ_BUFFER_SIZE):
     if not fileobj:
-      raise ValueError('fileobj must be opened file but was %s' % fileobj)
+      raise ValueError('File object must be opened file but was at %s' %
+                       fileobj)
 
     if not CompressionTypes.is_valid_compression_type(compression_type):
       raise TypeError('compression_type must be CompressionType object but '
@@ -667,7 +668,7 @@ class _CompressedFile(object):
     self._compression_type = compression_type
 
     if self._file.tell() != 0:
-      raise ValueError('fileobj must be at position 0 but was %d' %
+      raise ValueError('File object must be at position 0 but was %d' %
                        self._file.tell())
     self._uncompressed_position = 0
 
@@ -817,6 +818,7 @@ class _CompressedFile(object):
     return False
 
   def tell(self):
+    """Returns current position in uncompressed file."""
     return self._uncompressed_position
 
   def __enter__(self):
@@ -1072,7 +1074,7 @@ class TextFileSink(FileSink):
                coder=coders.ToStringCoder(),
                compression_type=CompressionTypes.AUTO,
                header=None):
-    r"""Initialize a TextFileSink.
+    """Initialize a TextFileSink.
 
     Args:
       file_path_prefix: The file path to write to. The files written will begin
