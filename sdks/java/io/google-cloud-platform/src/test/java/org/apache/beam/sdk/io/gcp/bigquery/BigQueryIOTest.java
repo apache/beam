@@ -32,6 +32,7 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyString;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.doNothing;
@@ -526,18 +527,18 @@ public class BigQueryIOTest implements Serializable {
   private static class FakeDatasetService implements DatasetService, Serializable {
 
     @Override
-    public Table getTable(String projectId, String datasetId, String tableId)
+    public Table getTable(TableReference tableRef)
         throws InterruptedException, IOException {
       synchronized (tables) {
         Map<String, TableContainer> dataset =
             checkNotNull(
-                tables.get(projectId, datasetId),
+                tables.get(tableRef.getProjectId(), tableRef.getDatasetId()),
                 "Tried to get a dataset %s:%s from %s, but no such dataset was set",
-                projectId,
-                datasetId,
-                tableId,
+                tableRef.getProjectId(),
+                tableRef.getDatasetId(),
+                tableRef.getTableId(),
                 FakeDatasetService.class.getSimpleName());
-        TableContainer tableContainer = dataset.get(tableId);
+        TableContainer tableContainer = dataset.get(tableRef.getTableId());
         return tableContainer == null ? null : tableContainer.getTable();
       }
     }
@@ -569,8 +570,7 @@ public class BigQueryIOTest implements Serializable {
     }
 
     @Override
-    public void deleteTable(String projectId, String datasetId, String tableId)
-        throws IOException, InterruptedException {
+    public void deleteTable(TableReference tableRef) throws IOException, InterruptedException {
       throw new UnsupportedOperationException("Unsupported");
     }
 
@@ -595,9 +595,9 @@ public class BigQueryIOTest implements Serializable {
     }
 
     @Override
-    public boolean isTableEmpty(String projectId, String datasetId, String tableId)
+    public boolean isTableEmpty(TableReference tableRef)
         throws IOException, InterruptedException {
-      Long numBytes = getTable(projectId, datasetId, tableId).getNumBytes();
+      Long numBytes = getTable(tableRef).getNumBytes();
       return numBytes == null || numBytes == 0L;
     }
 
@@ -1738,7 +1738,7 @@ public class BigQueryIOTest implements Serializable {
     IOChannelUtils.setIOFactoryInternal("mock", mockIOChannelFactory, true /* override */);
     when(mockIOChannelFactory.resolve(anyString(), anyString()))
         .thenReturn("mock://tempLocation/output");
-    when(mockDatasetService.getTable(anyString(), anyString(), anyString()))
+    when(mockDatasetService.getTable(any(TableReference.class)))
         .thenReturn(new Table().setSchema(new TableSchema()));
 
     Assert.assertThat(
@@ -1810,13 +1810,9 @@ public class BigQueryIOTest implements Serializable {
             new JobStatistics2()
                 .setTotalBytesProcessed(100L)
                 .setReferencedTables(ImmutableList.of(queryTable))));
-    when(mockDatasetService.getTable(
-        eq(queryTable.getProjectId()), eq(queryTable.getDatasetId()), eq(queryTable.getTableId())))
+    when(mockDatasetService.getTable(eq(queryTable)))
         .thenReturn(new Table().setSchema(new TableSchema()));
-    when(mockDatasetService.getTable(
-        eq(destinationTable.getProjectId()),
-        eq(destinationTable.getDatasetId()),
-        eq(destinationTable.getTableId())))
+    when(mockDatasetService.getTable(eq(destinationTable)))
         .thenReturn(new Table().setSchema(new TableSchema()));
     IOChannelUtils.setIOFactoryInternal("mock", mockIOChannelFactory, true /* override */);
     when(mockIOChannelFactory.resolve(anyString(), anyString()))
@@ -1898,10 +1894,7 @@ public class BigQueryIOTest implements Serializable {
         .thenReturn(new JobStatistics().setQuery(
             new JobStatistics2()
                 .setTotalBytesProcessed(100L)));
-    when(mockDatasetService.getTable(
-        eq(destinationTable.getProjectId()),
-        eq(destinationTable.getDatasetId()),
-        eq(destinationTable.getTableId())))
+    when(mockDatasetService.getTable(eq(destinationTable)))
         .thenReturn(new Table().setSchema(new TableSchema()));
     IOChannelUtils.setIOFactoryInternal("mock", mockIOChannelFactory, true /* override */);
     when(mockIOChannelFactory.resolve(anyString(), anyString()))
@@ -2263,9 +2256,9 @@ public class BigQueryIOTest implements Serializable {
         BigQueryIO.parseTableSpec(String.format("%s:%s.%s", projectId, datasetId, tables.get(2))));
 
     doThrow(new IOException("Unable to delete table"))
-        .when(mockDatasetService).deleteTable(projectId, datasetId, tables.get(0));
-    doNothing().when(mockDatasetService).deleteTable(projectId, datasetId, tables.get(1));
-    doNothing().when(mockDatasetService).deleteTable(projectId, datasetId, tables.get(2));
+        .when(mockDatasetService).deleteTable(tableRefs.get(0));
+    doNothing().when(mockDatasetService).deleteTable(tableRefs.get(1));
+    doNothing().when(mockDatasetService).deleteTable(tableRefs.get(2));
 
     WriteRename.removeTemporaryTables(mockDatasetService, tableRefs);
 
