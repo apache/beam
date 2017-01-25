@@ -394,15 +394,12 @@ class BigQueryServicesImpl implements BigQueryServices {
      */
     @Override
     @Nullable
-    public Table getTable(String projectId, String datasetId, String tableId)
+    public Table getTable(TableReference tableRef)
         throws IOException, InterruptedException {
       BackOff backoff =
           FluentBackoff.DEFAULT
               .withMaxRetries(MAX_RPC_RETRIES).withInitialBackoff(INITIAL_RPC_BACKOFF).backoff();
-      return getTable(
-          new TableReference().setProjectId(projectId).setDatasetId(datasetId).setTableId(tableId),
-          backoff,
-          Sleeper.DEFAULT);
+      return getTable(tableRef, backoff, Sleeper.DEFAULT);
     }
 
     @VisibleForTesting
@@ -506,31 +503,27 @@ class BigQueryServicesImpl implements BigQueryServices {
      * @throws IOException if it exceeds {@code MAX_RPC_RETRIES} attempts.
      */
     @Override
-    public void deleteTable(String projectId, String datasetId, String tableId)
-        throws IOException, InterruptedException {
+    public void deleteTable(TableReference tableRef) throws IOException, InterruptedException {
       BackOff backoff =
           FluentBackoff.DEFAULT
               .withMaxRetries(MAX_RPC_RETRIES).withInitialBackoff(INITIAL_RPC_BACKOFF).backoff();
       executeWithRetries(
-          client.tables().delete(projectId, datasetId, tableId),
+          client.tables().delete(
+              tableRef.getProjectId(), tableRef.getDatasetId(), tableRef.getTableId()),
           String.format(
               "Unable to delete table: %s, aborting after %d retries.",
-              tableId, MAX_RPC_RETRIES),
+              tableRef.getTableId(), MAX_RPC_RETRIES),
           Sleeper.DEFAULT,
           backoff,
           ALWAYS_RETRY);
     }
 
     @Override
-    public boolean isTableEmpty(String projectId, String datasetId, String tableId)
-        throws IOException, InterruptedException {
+    public boolean isTableEmpty(TableReference tableRef) throws IOException, InterruptedException {
       BackOff backoff =
           FluentBackoff.DEFAULT
               .withMaxRetries(MAX_RPC_RETRIES).withInitialBackoff(INITIAL_RPC_BACKOFF).backoff();
-      return isTableEmpty(
-          new TableReference().setProjectId(projectId).setDatasetId(datasetId).setTableId(tableId),
-          backoff,
-          Sleeper.DEFAULT);
+      return isTableEmpty(tableRef, backoff, Sleeper.DEFAULT);
     }
 
     @VisibleForTesting

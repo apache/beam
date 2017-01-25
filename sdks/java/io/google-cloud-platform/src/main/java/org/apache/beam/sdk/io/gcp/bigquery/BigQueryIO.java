@@ -997,8 +997,7 @@ public class BigQueryIO {
         TableReference table = JSON_FACTORY.fromString(jsonTable.get(), TableReference.class);
 
         Long numBytes = bqServices.getDatasetService(options.as(BigQueryOptions.class))
-            .getTable(table.getProjectId(), table.getDatasetId(), table.getTableId())
-            .getNumBytes();
+            .getTable(table).getNumBytes();
         tableSizeBytes.compareAndSet(null, numBytes);
       }
       return tableSizeBytes.get();
@@ -1088,10 +1087,7 @@ public class BigQueryIO {
       DatasetService tableService = bqServices.getDatasetService(bqOptions);
       if (referencedTables != null && !referencedTables.isEmpty()) {
         TableReference queryTable = referencedTables.get(0);
-        location = tableService.getTable(
-            queryTable.getProjectId(),
-            queryTable.getDatasetId(),
-            queryTable.getTableId()).getLocation();
+        location = tableService.getTable(queryTable).getLocation();
       }
 
       // 2. Create the temporary dataset in the query location.
@@ -1120,10 +1116,7 @@ public class BigQueryIO {
           JSON_FACTORY.fromString(jsonQueryTempTable.get(), TableReference.class);
 
       DatasetService tableService = bqServices.getDatasetService(bqOptions);
-      tableService.deleteTable(
-          tableToRemove.getProjectId(),
-          tableToRemove.getDatasetId(),
-          tableToRemove.getTableId());
+      tableService.deleteTable(tableToRemove);
       tableService.deleteDataset(tableToRemove.getProjectId(), tableToRemove.getDatasetId());
     }
 
@@ -1227,10 +1220,8 @@ public class BigQueryIO {
       String extractJobId = getExtractJobId(jobIdToken);
       List<String> tempFiles = executeExtract(extractJobId, tableToExtract, jobService);
 
-      TableSchema tableSchema = bqServices.getDatasetService(bqOptions).getTable(
-          tableToExtract.getProjectId(),
-          tableToExtract.getDatasetId(),
-          tableToExtract.getTableId()).getSchema();
+      TableSchema tableSchema = bqServices.getDatasetService(bqOptions)
+          .getTable(tableToExtract).getSchema();
 
       cleanupTempResource(bqOptions);
       return createSources(tempFiles, tableSchema);
@@ -1867,13 +1858,9 @@ public class BigQueryIO {
           DatasetService datasetService,
           TableReference tableRef) {
         try {
-          if (datasetService.getTable(
-              tableRef.getProjectId(),
-              tableRef.getDatasetId(),
-              tableRef.getTableId()) != null) {
+          if (datasetService.getTable(tableRef) != null) {
             checkState(
-                datasetService.isTableEmpty(
-                    tableRef.getProjectId(), tableRef.getDatasetId(), tableRef.getTableId()),
+                datasetService.isTableEmpty(tableRef),
                 "BigQuery table is not empty: %s.",
                 BigQueryIO.toTableSpec(tableRef));
           }
@@ -2535,10 +2522,7 @@ public class BigQueryIO {
         for (TableReference tableRef : tempTables) {
           try {
             LOG.debug("Deleting table {}", toJsonString(tableRef));
-            tableService.deleteTable(
-                tableRef.getProjectId(),
-                tableRef.getDatasetId(),
-                tableRef.getTableId());
+            tableService.deleteTable(tableRef);
           } catch (Exception e) {
             LOG.warn("Failed to delete the table {}", toJsonString(tableRef), e);
           }
@@ -2587,7 +2571,7 @@ public class BigQueryIO {
 
   private static void verifyTablePresence(DatasetService datasetService, TableReference table) {
     try {
-      datasetService.getTable(table.getProjectId(), table.getDatasetId(), table.getTableId());
+      datasetService.getTable(table);
     } catch (Exception e) {
       ApiErrorExtractor errorExtractor = new ApiErrorExtractor();
       if ((e instanceof IOException) && errorExtractor.itemNotFound((IOException) e)) {
@@ -2712,11 +2696,7 @@ public class BigQueryIO {
           // every thread from attempting a create and overwhelming our BigQuery quota.
           DatasetService datasetService = bqServices.getDatasetService(options);
           if (!createdTables.contains(tableSpec)) {
-            Table table = datasetService.getTable(
-                tableReference.getProjectId(),
-                tableReference.getDatasetId(),
-                tableReference.getTableId());
-            if (table == null) {
+            if (datasetService.getTable(tableReference) == null) {
               TableSchema tableSchema = JSON_FACTORY.fromString(
                   jsonTableSchema.get(), TableSchema.class);
               datasetService.createTable(
