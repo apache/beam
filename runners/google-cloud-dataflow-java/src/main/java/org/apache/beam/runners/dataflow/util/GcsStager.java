@@ -17,9 +17,12 @@
  */
 package org.apache.beam.runners.dataflow.util;
 
+import static com.google.common.base.MoreObjects.firstNonNull;
+import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.api.services.dataflow.model.DataflowPackage;
+import com.google.common.base.MoreObjects;
 import java.util.List;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineDebugOptions;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
@@ -52,9 +55,9 @@ public class GcsStager implements Stager {
     if (windmillBinary != null) {
       filesToStage.add("windmill_main=" + windmillBinary);
     }
-    int uploadSizeBytes = options.getGcsUploadBufferSizeBytes() == null
-        ? 1024 * 1024
-        : Math.min(options.getGcsUploadBufferSizeBytes(), 1024 * 1024);
+    int uploadSizeBytes = firstNonNull(options.getGcsUploadBufferSizeBytes(), 1024 * 1024);
+    checkArgument(uploadSizeBytes > 0, "gcsUploadBufferSizeBytes must be > 0");
+    uploadSizeBytes = Math.min(options.getGcsUploadBufferSizeBytes(), 1024 * 1024);
     GcsUtil util = GcsUtilFactory.create(
         Transport.newStorageClient(options).build(),
         options.getExecutorService(),

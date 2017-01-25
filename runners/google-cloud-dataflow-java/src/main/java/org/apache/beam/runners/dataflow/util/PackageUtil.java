@@ -292,7 +292,7 @@ class PackageUtil {
 
     checkArgument(
         stagingPath != null,
-        "Can't stage classpath elements on because no staging location has been provided");
+        "Can't stage classpath elements because no staging location has been provided");
 
     // Inline a copy here because the inner code returns an immutable list and we want to mutate it.
     List<PackageAttributes> packageAttributes =
