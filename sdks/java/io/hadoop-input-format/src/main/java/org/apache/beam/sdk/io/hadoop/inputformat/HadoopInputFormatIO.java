@@ -70,198 +70,197 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 
 /**
- * A read transform for any data source which implements Hadoop InputFormat. For example- Cassandra,
- * Elasticsearch, HBase, Redis, Postgres etc.
+ * A {@link HadoopInputFormatIO} is a {@link Transform} for reading data from any source which
+ * implements Hadoop InputFormat. For example- Cassandra, Elasticsearch, HBase, Redis, Postgres etc.
+ * HadoopInputFormatIO has to make several performance trade-offs in connecting to InputFormat, so
+ * if there is another Beam IO Transform specifically for connecting to your data source of choice,
+ * we would recommend using that one, but this IO Transform allows you to connect to many data
+ * sources that do not yet have a Beam IO Transform.
  * <p>
- * The Hadoop InputFormat source returns a set of {@link org.apache.beam.sdk.values.KV} key-value
- * pairs returning a {@code PCollection<KV>}.
- * <p>
- * Hadoop Configuration is mandatory for reading data using Hadoop InputFormat source.
- * <p>
- * Hadoop {@link org.apache.hadoop.conf.Configuration Configuration} object will have to be set with
- * following properties without fail:
+ * You will need to pass a Hadoop {@link Configuration} with parameters specifying how the read will
+ * occur. Many properties of the Configuration are optional, and some are required for certain
+ * InputFormat classes, but the following properties must be set for all InputFormats:
  * <ul>
- * <li>mapreduce.job.inputformat.class : Signifies InputFormat class required to read data from
- * source. For example, if user wants to read data from Cassandra using CqlInputFormat, then
- * 'mapreduce.job.inputformat.class' property must be set to CqlInputFormat.class.</li>
- * <li>key.class : Signifies output key class of InputFormat specified in
- * 'mapreduce.job.inputformat.class'. For example, if class CqlInputFormat is specified in
- * 'mapreduce.job.inputformat.class', then 'key.class' property must be set to Long.class.</li>
- * <li>value.class : Signifies output value class of InputFormat specified in
- * 'mapreduce.job.inputformat.class'. For example, if class CqlInputFormat is specified in
- * 'mapreduce.job.inputformat.class', then 'key.class' property must be set to Row.class.</li>
+ * <li>mapreduce.job.inputformat.class : The InputFormat class used to connect to your data source
+ * of choice.</li>
+ * <li>key.class : The key class returned by the InputFormat in
+ * 'mapreduce.job.inputformat.class'.</li>
+ * <li>value.class : The value class returned by the InputFormat in
+ * 'mapreduce.job.inputformat.class'.</li>
  * </ul>
  * For example:
- *
- * <pre>
- * <tt>
- *   Configuration myHadoopConfiguration = new Configuration(false);
- *   // Set Hadoop InputFormat, key and value class in configuration
- *   myHadoopConfiguration.setClass("mapreduce.job.inputformat.class", InputFormatClass, InputFormat.class);
- *   myHadoopConfiguration.setClass("key.class", InputFormatKeyClass, Object.class);
- *   myHadoopConfiguration.setClass("value.class", InputFormatValueClass, Object.class);
- * </tt>
- * </pre>
- * <p>
- * Key/value translation is a mechanism provided to user for translating InputFormat's key/value
- * type to any other class type for which a coder should be available.
- * <p>
- * For example:
- *
- * <pre>
- * SimpleFunction<InputFormatKeyClass, MyKeyType> myOutputKeyType =
- *     new SimpleFunction<InputFormatKeyClass, MyKeyType>() {
- *       public MyKeyType apply(InputFormatKeyClass input) {
- *         // ...logic to transform InputFormatKeyClass to MyKeyType
- *       }
- *     };
- *
- * SimpleFunction<InputFormatValueClass, MyValueType> myOutputValueType =
- *     new SimpleFunction<InputFormatValueClass, MyValueType>() {
- *       public MyValueType apply(InputFormatValueClass input) {
- *         // ...logic to transform InputFormatValueClass to MyValueType
- *       }
- *     };
- * </pre>
- *
- * <h3>Read configuration options supported for HadoopInputFormatIO</h3>
- * <p>
- * HadoopConfiguration is set using {@link #withConfiguration}. Key/value translation function is
- * optional and can be set using {@link #withKeyTranslation}/{@link #withValueTranslation}.
- * <p>
- * For example:
- *
- * <pre>
- *
- * HadoopInputFormatIO.Read<MyKeyType, MyValueType> read =
- *     HadoopInputFormatIO.<MyKeyType, MyValueType>read().withConfiguration(myHadoopConfiguration)
- *         .withKeyTranslation(myOutputKeyType).withValueTranslation(myOutputValueType);
- * </pre>
- *
- * <h3>ReadadoopInputFormatIO</h3> Pipeline p = ...; //Create pipeline
- * <P>
- * //Read data only with Hadoop configuration.
- *
+ * 
  * <pre>
  * {@code
+ *   Configuration myHadoopConfiguration = new Configuration(false);
+ *   // Set Hadoop InputFormat, key and value class in configuration
+ *   myHadoopConfiguration.setClass("mapreduce.job.inputformat.class", InputFormatClass,
+ *       InputFormat.class);
+ *   myHadoopConfiguration.setClass("key.class", InputFormatKeyClass, Object.class);
+ *   myHadoopConfiguration.setClass("value.class", InputFormatValueClass, Object.class);
+ * }
+ * </pre>
+ * <p>
+ * You will need to check to see if the key and value classes output by the InputFormat have a Beam
+ * {@link Coder} available. If not, You can use withKeyTranslation/withValueTranslation to specify a
+ * method transforming instances of those classes into another class that is supported by a Beam
+ * {@link Coder}. These settings are optional and you don't need to specify translation for both key
+ * and value.
+ * <p>
+ * For example:
+ * 
+ * <pre> 
+ * {@code
+ *   SimpleFunction<InputFormatKeyClass, MyKeyClass> myOutputKeyType =
+ *       new SimpleFunction<InputFormatKeyClass, MyKeyClass>() {
+ *         public MyKeyClass apply(InputFormatKeyClass input) {
+ *           // ...logic to transform InputFormatKeyClass to MyKeyClass
+ *         }
+ *       };
+ * 
+ *   SimpleFunction<InputFormatValueClass, MyValueClass> myOutputValueType =
+ *       new SimpleFunction<InputFormatValueClass, MyValueClass>() {
+ *         public MyValueClass apply(InputFormatValueClass input) {
+ *           // ...logic to transform InputFormatValueClass to MyValueClass
+ *         }
+ *       };
+ * }
+ * </pre>
+ * 
+ * <h3>Reading using HadoopInputFormatIO</h3> 
+ * Pipeline p = ...; // Create pipeline.
+ * <P>
+ * // Read data only with Hadoop configuration.
+ * 
+ * <pre>
+ * {@code 
  * p.apply("read",
- *     HadoopInputFormatIO.<InputFormatKeyClass, InputFormatKeyClass>read()
- *              .withConfiguration(myHadoopConfiguration);
+ *     HadoopInputFormatIO.<InputFormatKeyClass, InputFormatKeyClass>read() 
+ *              .withConfiguration(myHadoopConfiguration); 
  * }
  * </pre>
  * <P>
- * // Read data with configuration and key translation (Example scenario: Coder is not available for
- * key type hence key translation is required.).
- *
+ * // Read data with configuration and key translation (Example scenario: Beam Coder is not
+ * available for key class hence key translation is required.).
+ * 
  * <pre>
- * {@code
+ * {@code 
  * p.apply("read",
- *     HadoopInputFormatIO.<MyKeyType, InputFormatKeyClass>read()
- *              .withConfiguration(myHadoopConfiguration)
+ *     HadoopInputFormatIO.<MyKeyClass, InputFormatKeyClass>read() 
+ *              .withConfiguration(myHadoopConfiguration) 
  *              .withKeyTranslation(myOutputKeyType);
  * }
  * </pre>
  * <P>
- * // Read data with configuration and value translation (Example scenario: Coder is not available
- * for value type hence value translation is required.).
- *
+ * // Read data with configuration and value translation (Example scenario: Beam Coder is not
+ * available for value class hence value translation is required.).
+ * 
  * <pre>
- * {@code
+ * {@code 
  * p.apply("read",
- *     HadoopInputFormatIO.<InputFormatKeyClass, MyValueType>read()
- *              .withConfiguration(myHadoopConfiguration)
+ *     HadoopInputFormatIO.<InputFormatKeyClass, MyValueClass>read() 
+ *              .withConfiguration(myHadoopConfiguration) 
  *              .withValueTranslation(myOutputValueType);
  * }
  * </pre>
- *
+ * 
  * <P>
- * // Read data with configuration, value translation and key translation (Example scenario: Coders
- * are not available for both key type and value type of InputFormat hence key and value translation
- * is required.).
- *
+ * // Read data with configuration, value translation and key translation (Example scenario: Beam
+ * Coders are not available for both key class and value class of InputFormat hence key and value
+ * translation is required.).
+ * 
  * <pre>
- * {@code
+ * {@code 
  * p.apply("read",
- *     HadoopInputFormatIO.<MyKeyType, MyValueType>read()
- *              .withConfiguration(myHadoopConfiguration)
+ *     HadoopInputFormatIO.<MyKeyClass, MyValueClass>read() 
+ *              .withConfiguration(myHadoopConfiguration) 
  *              .withKeyTranslation(myOutputKeyType)
  *              .withValueTranslation(myOutputValueType);
  * }
  * </pre>
- *
+ * 
  * <h3>Read data from Cassandra using HadoopInputFormatIO transform</h3>
  * <p>
- * To read data from Cassandra, CqlInputFormat can be used which needs following properties to be
- * set.
+ * To read data from Cassandra, {@link org.apache.cassandra.hadoop.cql3.CqlInputFormat
+ * CqlInputFormat} can be used which needs following properties to be set.
  * <p>
  * Create Cassandra Hadoop configuration as follows:
- *
+ * 
  * <pre>
- * {@code
+ * {@code 
  * Configuration cassandraConf = new Configuration();
  *   cassandraConf.set("cassandra.input.thrift.port" , "9160");
  *   cassandraConf.set("cassandra.input.thrift.address" , CassandraHostIp);
  *   cassandraConf.set("cassandra.input.partitioner.class" , "Murmur3Partitioner");
  *   cassandraConf.set("cassandra.input.keyspace" , "myKeySpace");
  *   cassandraConf.set("cassandra.input.columnfamily" , "myColumnFamily");
- *   cassandraConf.setClass("key.class" ,{@link java.lang.Long.class} , Object.class);
- *   cassandraConf.setClass("value.class" ,{@link com.datastax.driver.core.Row.class} , Object.class);
- *   cassandraConf.setClass("mapreduce.job.inputformat.class" ,{@link org.apache.cassandra.hadoop.cql3.CqlInputFormat.class} , InputFormat.class); }
+ *   cassandraConf.setClass("key.class" ,{@link java.lang.Long Long.class} , Object.class);
+ *   cassandraConf.setClass("value.class" ,{@link com.datastax.driver.core.Row Row.class} , Object.class);
+ *   cassandraConf.setClass("mapreduce.job.inputformat.class" ,{@link org.apache.cassandra.hadoop.cql3.CqlInputFormat CqlInputFormat.class} , InputFormat.class);
+ *   }
  * </pre>
  * <p>
  * Call Read transform as follows:
- *
+ * 
  * <pre>
  * {@code
  * PCollection<KV<Long,String>> cassandraData =
  *          p.apply("read",
- *                  HadoopInputFormatIO.<Long, String>read()
- *                      .withConfiguration( cassandraConf )
+ *                  HadoopInputFormatIO.<Long, String>read() 
+ *                      .withConfiguration( cassandraConf ) 
  *                      .withValueTranslation( cassandraOutputValueType );
- *   }
+ * }
  * </pre>
  * <p>
- * As default coder is available for CqlInputFormat key class i.e. {@link java.lang.Long} , key
- * translation is not required. For CqlInputFormat value class i.e.
- * {@link com.datastax.driver.core.Row}, default coder is not available in Beam, user will need to
- * provide his/her own translation mechanism like following:
- *
+ * The CqlInputFormat key class is {@link java.lang.Long Long}, which has a Beam Coder. The
+ * CqlInputFormat value class is {@link com.datastax.driver.core.Row Row}, which does not have a
+ * Beam Coder. Rather than write a coder, we will provide our own translation method as follows:
+ * 
  * <pre>
- * SimpleFunction<Row, String> cassandraOutputValueType = SimpleFunction<Row, String>()
+ *  
+ * {@code
+ * SimpleFunction<Row, String> cassandraOutputValueType = SimpleFunction<Row, String>() 
  * {
- *    <code>@override
  *    public String apply(Row row) {
- *      return row.getString('myColName');
+ *      return row.getString('myColName'); 
  *    }
  * };
+ * }
  * </pre>
- *
+ * 
  * <h3>Read data from Elasticsearch using HadoopInputFormatIO transform</h3>
  * <p>
  * To read data from Elasticsearch, EsInputFormat can be used which needs following properties to be
  * set.
  * <p>
  * Create ElasticSearch Hadoop configuration as follows:
- *
+ * 
  * <pre>
+ * {@code
  * Configuration elasticSearchConf = new Configuration();
  *   elasticSearchConf.set("es.nodes", ElasticsearchHostIp);
  *   elasticSearchConf.set("es.port", "9200");
- *   elasticSearchConf.set("es.resource","ElasticIndexName/ElasticTypeName");
- *   elasticSearchConf.setClass("key.class" ,{@link org.apache.hadoop.io.Text.class}, Object.class);
- *   elasticSearchConf.setClass("value.class" ,{@link org.apache.hadoop.io.LinkedMapWritable.class} , Object.class);
- *   elasticSearchConf.setClass("mapreduce.job.inputformat.class",{@link org.elasticsearch.hadoop.mr.EsInputFormat.class}, InputFormat.class);
+ *   elasticSearchConf.set("es.resource", "ElasticIndexName/ElasticTypeName");
+ *   elasticSearchConf.setClass("key.class", {@link org.apache.hadoop.io.Text Text.class}, Object.class);
+ *   elasticSearchConf.setClass("value.class", {@link org.elasticsearch.hadoop.mr.LinkedMapWritable LinkedMapWritable.class} , Object.class); 
+ *   elasticSearchConf.setClass("mapreduce.job.inputformat.class", {@link org.elasticsearch.hadoop.mr.EsInputFormat EsInputFormat.class}, InputFormat.class);
+ * }
  * </pre>
- *
+ * 
  * Call Read transform as follows:
- *
+ * 
  * <pre>
- * PCollection<KV<Text, LinkedMapWritable>> elasticData = p.apply("read",
- *     HadoopInputFormatIO.<Text, LinkedMapWritable>read().withConfiguration(elasticSearchConf));
+ * {@code
+ *   PCollection<KV<Text, LinkedMapWritable>> elasticData = p.apply("read",
+ *       HadoopInputFormatIO.<Text, LinkedMapWritable>read().withConfiguration(elasticSearchConf));
+ * }
  * </pre>
- *
- * Here no translation mechanism is required as key and value class both have default coders
- * available.
+ * 
+ * <p>
+ * The {@link org.elasticsearch.hadoop.mr.EsInputFormat EsInputFormat} key class is
+ * {@link org.apache.hadoop.io.Text Text} and value class is
+ * {@link org.elasticsearch.hadoop.mr.LinkedMapWritable LinkedMapWritable}. Both key and value
+ * classes have Beam Coders.
  */
 
 public class HadoopInputFormatIO {
