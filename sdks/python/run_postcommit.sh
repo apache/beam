@@ -70,6 +70,10 @@ python setup.py sdist
 
 SDK_LOCATION=$(find dist/apache-beam-sdk-*.tar.gz)
 
+# Install test dependencies for ValidatesRunner tests.
+echo "pyhamcrest" > postcommit_requirements.txt
+echo "mock" >> postcommit_requirements.txt
+
 # Run ValidatesRunner tests on Google Cloud Dataflow service
 echo ">>> RUNNING DATAFLOW RUNNER VALIDATESRUNNER TESTS"
 python setup.py nosetests \
@@ -80,6 +84,7 @@ python setup.py nosetests \
     --temp_location=$GCS_LOCATION/temp-validatesrunner-test \
     --sdk_location=$SDK_LOCATION \
     --job_name=$JOBNAME_VR_TEST \
+    --requirements_file=postcommit_requirements.txt \
     --num_workers=1"
 
 # Run wordcount on the Google Cloud Dataflow service
