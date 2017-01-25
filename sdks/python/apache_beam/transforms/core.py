@@ -314,7 +314,7 @@ def _fn_takes_side_inputs(fn):
   return len(argspec.args) > 1 + is_bound or argspec.varargs or argspec.keywords
 
 
-class CallableWrapperDoFn(DoFn):
+class CallableWrapperDoFn(NewDoFn):
   """A DoFn (function) object wrapping a callable object.
 
   The purpose of this class is to conveniently wrap simple functions and use
@@ -334,11 +334,12 @@ class CallableWrapperDoFn(DoFn):
       raise TypeError('Expected a callable object instead of: %r' % fn)
 
     self._fn = fn
-    if _fn_takes_side_inputs(fn):
-      self.process = lambda context, *args, **kwargs: fn(
-          context.element, *args, **kwargs)
+    if isinstance(fn, (
+        types.BuiltinFunctionType, types.MethodType, types.FunctionType)):
+      self.process = fn
     else:
-      self.process = lambda context: fn(context.element)
+      # For cases such as set / list where fn is callable but not a function
+      self.process = lambda e: fn(e)
 
     super(CallableWrapperDoFn, self).__init__()
 
