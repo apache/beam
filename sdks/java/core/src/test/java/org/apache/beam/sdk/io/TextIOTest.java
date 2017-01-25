@@ -227,13 +227,13 @@ public class TextIOTest {
       }
     }
 
-    TextIO.Read.Bound<T> read;
+    TextIO.Read<T> read;
     if (coder.equals(StringUtf8Coder.of())) {
-      TextIO.Read.Bound<String> readStrings = TextIO.Read.from(filename);
+      TextIO.Read<String> readStrings = TextIO.readStrings().from(filename);
       // T==String
-      read = (TextIO.Read.Bound<T>) readStrings;
+      read = (TextIO.Read<T>) readStrings;
     } else {
-      read = TextIO.Read.from(filename).withCoder(coder);
+      read = TextIO.<T>read().from(filename).withCoder(coder);
     }
 
     PCollection<T> output = p.apply(read);
@@ -278,15 +278,16 @@ public class TextIOTest {
 
     assertEquals(
         "TextIO.Read/Read.out",
-        p.apply(TextIO.Read.withoutValidation().from("somefile")).getName());
+        p.apply(TextIO.readStrings().withoutValidation().from("somefile")).getName());
     assertEquals(
         "MyRead/Read.out",
-        p.apply("MyRead", TextIO.Read.withoutValidation().from(emptyTxt.getPath())).getName());
+        p.apply("MyRead",
+            TextIO.readStrings().withoutValidation().from(emptyTxt.getPath())).getName());
   }
 
   @Test
   public void testReadDisplayData() {
-    TextIO.Read.Bound<?> read = TextIO.Read
+    TextIO.Read<?> read = TextIO.readStrings()
         .from("foo.*")
         .withCompressionType(BZIP2)
         .withoutValidation();
@@ -303,7 +304,7 @@ public class TextIOTest {
   public void testPrimitiveReadDisplayData() {
     DisplayDataEvaluator evaluator = DisplayDataEvaluator.create();
 
-    TextIO.Read.Bound<String> read = TextIO.Read
+    TextIO.Read<String> read = TextIO.readStrings()
         .from("foobar")
         .withoutValidation();
 
@@ -333,13 +334,13 @@ public class TextIOTest {
 
     PCollection<T> input = p.apply(Create.of(Arrays.asList(elems)).withCoder(coder));
 
-    TextIO.Write.Bound<T> write;
+    TextIO.Write<T> write;
     if (coder.equals(StringUtf8Coder.of())) {
-      TextIO.Write.Bound<String> writeStrings = TextIO.Write.to(baseFilename);
+      TextIO.Write<String> writeStrings = TextIO.writeStrings().to(baseFilename);
       // T==String
-      write = (TextIO.Write.Bound<T>) writeStrings;
+      write = (TextIO.Write<T>) writeStrings;
     } else {
-      write = TextIO.Write.to(baseFilename).withCoder(coder);
+      write = TextIO.<T>write().to(baseFilename).withCoder(coder);
     }
     write = write.withHeader(header).withFooter(footer);
 
@@ -515,7 +516,7 @@ public class TextIOTest {
 
     final WritableByteChannelFactory writableByteChannelFactory =
         new DrunkWritableByteChannelFactory();
-    TextIO.Write.Bound<String> write = TextIO.Write.to(baseDir.resolve(outputName).toString())
+    TextIO.Write<String> write = TextIO.writeStrings().to(baseDir.resolve(outputName).toString())
         .withoutSharding().withWritableByteChannelFactory(writableByteChannelFactory);
     DisplayData displayData = DisplayData.from(write);
     assertThat(displayData, hasDisplayItem("writableByteChannelFactory", "DRUNK"));
@@ -535,7 +536,7 @@ public class TextIOTest {
 
   @Test
   public void testWriteDisplayData() {
-    TextIO.Write.Bound<?> write = TextIO.Write
+    TextIO.Write<?> write = TextIO.writeStrings()
         .to("foo")
         .withSuffix("bar")
         .withShardNameTemplate("-SS-of-NN-")
@@ -558,7 +559,7 @@ public class TextIOTest {
 
   @Test
   public void testWriteDisplayDataValidateThenHeader() {
-    TextIO.Write.Bound<?> write = TextIO.Write
+    TextIO.Write<?> write = TextIO.writeStrings()
         .to("foo")
         .withHeader("myHeader");
 
@@ -570,7 +571,7 @@ public class TextIOTest {
 
   @Test
   public void testWriteDisplayDataValidateThenFooter() {
-    TextIO.Write.Bound<?> write = TextIO.Write
+    TextIO.Write<?> write = TextIO.writeStrings()
         .to("foo")
         .withFooter("myFooter");
 
@@ -590,7 +591,7 @@ public class TextIOTest {
 
     DisplayDataEvaluator evaluator = DisplayDataEvaluator.create();
 
-    TextIO.Write.Bound<?> write = TextIO.Write.to(outputPath);
+    TextIO.Write<?> write = TextIO.writeStrings().to(outputPath);
 
     Set<DisplayData> displayData = evaluator.displayDataForPrimitiveTransforms(write);
     assertThat("TextIO.Write should include the file prefix in its primitive display data",
@@ -609,7 +610,7 @@ public class TextIOTest {
 
     expectedException.expect(IllegalArgumentException.class);
     expectedException.expectMessage("Output name components are not allowed to contain");
-    input.apply(TextIO.Write.to(filename));
+    input.apply(TextIO.writeStrings().to(filename));
   }
 
   /**
@@ -624,7 +625,7 @@ public class TextIOTest {
     expectedException.expect(IllegalArgumentException.class);
     expectedException.expectMessage("wildcard");
 
-    p.apply(TextIO.Read.from("gs://bucket/foo**/baz"));
+    p.apply(TextIO.readStrings().from("gs://bucket/foo**/baz"));
   }
 
   /** Options for testing. */
@@ -643,29 +644,29 @@ public class TextIOTest {
     RuntimeTestOptions options = PipelineOptionsFactory.as(RuntimeTestOptions.class);
 
     p
-        .apply(TextIO.Read.from(options.getInput()).withoutValidation())
-        .apply(TextIO.Write.to(options.getOutput()).withoutValidation());
+        .apply(TextIO.readStrings().from(options.getInput()).withoutValidation())
+        .apply(TextIO.writeStrings().to(options.getOutput()).withoutValidation());
   }
 
   @Test
   public void testReadWithoutValidationFlag() throws Exception {
-    TextIO.Read.Bound<String> read = TextIO.Read.from("gs://bucket/foo*/baz");
+    TextIO.Read read = TextIO.readStrings().from("gs://bucket/foo*/baz");
     assertTrue(read.needsValidation());
     assertFalse(read.withoutValidation().needsValidation());
   }
 
   @Test
   public void testWriteWithoutValidationFlag() throws Exception {
-    TextIO.Write.Bound<String> write = TextIO.Write.to("gs://bucket/foo/baz");
+    TextIO.Write<String> write = TextIO.writeStrings().to("gs://bucket/foo/baz");
     assertTrue(write.needsValidation());
     assertFalse(write.withoutValidation().needsValidation());
   }
 
   @Test
   public void testCompressionTypeIsSet() throws Exception {
-    TextIO.Read.Bound<String> read = TextIO.Read.from("gs://bucket/test");
+    TextIO.Read<String> read = TextIO.readStrings().from("gs://bucket/test");
     assertEquals(AUTO, read.getCompressionType());
-    read = TextIO.Read.from("gs://bucket/test").withCompressionType(GZIP);
+    read = TextIO.readStrings().from("gs://bucket/test").withCompressionType(GZIP);
     assertEquals(GZIP, read.getCompressionType());
   }
 
@@ -688,8 +689,8 @@ public class TextIOTest {
   private void assertReadingCompressedFileMatchesExpected(
       File file, CompressionType compressionType, String[] expected) {
 
-    TextIO.Read.Bound<String> read =
-        TextIO.Read.from(file.getPath()).withCompressionType(compressionType);
+    TextIO.Read<String> read =
+        TextIO.readStrings().from(file.getPath()).withCompressionType(compressionType);
     PCollection<String> output = p.apply("Read_" + file + "_" + compressionType.toString(), read);
 
     PAssert.that(output).containsInAnyOrder(expected);
@@ -892,9 +893,9 @@ public class TextIOTest {
 
   @Test
   public void testTextIOGetName() {
-    assertEquals("TextIO.Read", TextIO.Read.from("somefile").getName());
-    assertEquals("TextIO.Write", TextIO.Write.to("somefile").getName());
-    assertEquals("TextIO.Read", TextIO.Read.from("somefile").toString());
+    assertEquals("TextIO.Read", TextIO.readStrings().from("somefile").getName());
+    assertEquals("TextIO.Write", TextIO.writeStrings().to("somefile").getName());
+    assertEquals("TextIO.Read", TextIO.readStrings().from("somefile").toString());
   }
 
   @Test
@@ -1142,7 +1143,7 @@ public class TextIOTest {
     // Sanity check: file is at least 2 bundles long.
     assertThat(largeTxt.length(), greaterThan(2 * desiredBundleSize));
 
-    FileBasedSource<String> source = TextIO.Read.from(largeTxt.getPath()).getSource();
+    FileBasedSource<String> source = TextIO.readStrings().from(largeTxt.getPath()).getSource();
     List<? extends FileBasedSource<String>> splits =
         source.splitIntoBundles(desiredBundleSize, options);
 
@@ -1159,7 +1160,7 @@ public class TextIOTest {
     // Sanity check: file is at least 2 bundles long.
     assertThat(largeGz.length(), greaterThan(2 * desiredBundleSize));
 
-    FileBasedSource<String> source = TextIO.Read.from(largeGz.getPath()).getSource();
+    FileBasedSource<String> source = TextIO.readStrings().from(largeGz.getPath()).getSource();
     List<? extends FileBasedSource<String>> splits =
         source.splitIntoBundles(desiredBundleSize, options);
 
@@ -1177,7 +1178,7 @@ public class TextIOTest {
     assertThat(largeTxt.length(), greaterThan(2 * desiredBundleSize));
 
     FileBasedSource<String> source =
-        TextIO.Read.from(largeTxt.getPath()).withCompressionType(GZIP).getSource();
+        TextIO.readStrings().from(largeTxt.getPath()).withCompressionType(GZIP).getSource();
     List<? extends FileBasedSource<String>> splits =
         source.splitIntoBundles(desiredBundleSize, options);
 
@@ -1195,7 +1196,7 @@ public class TextIOTest {
     assertThat(largeGz.length(), greaterThan(2 * desiredBundleSize));
 
     FileBasedSource<String> source =
-        TextIO.Read.from(largeGz.getPath()).withCompressionType(GZIP).getSource();
+        TextIO.readStrings().from(largeGz.getPath()).withCompressionType(GZIP).getSource();
     List<? extends FileBasedSource<String>> splits =
         source.splitIntoBundles(desiredBundleSize, options);
 
@@ -1267,6 +1268,6 @@ public class TextIOTest {
   }
 
   private void applyRead(Pipeline pipeline, String path) {
-    pipeline.apply("Read(" + path + ")", TextIO.Read.from(path));
+    pipeline.apply("Read(" + path + ")", TextIO.readStrings().from(path));
   }
 }
