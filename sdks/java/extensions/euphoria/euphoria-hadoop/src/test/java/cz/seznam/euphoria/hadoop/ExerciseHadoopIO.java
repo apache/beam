@@ -10,32 +10,45 @@ import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.core.client.util.Sums;
 import cz.seznam.euphoria.core.executor.Executor;
 import cz.seznam.euphoria.core.util.Settings;
-import cz.seznam.euphoria.hadoop.input.HadoopTextFileSource;
+import cz.seznam.euphoria.hadoop.input.SimpleHadoopTextFileSource;
 import cz.seznam.euphoria.inmem.InMemExecutor;
-import org.apache.hadoop.io.LongWritable;
-import org.apache.hadoop.io.Text;
 
 import java.net.URI;
+import java.util.regex.Pattern;
 
+/** Implements a very simplistic WordCount over text files using hadoop data sinks. */
 public class ExerciseHadoopIO {
 
+  private static final Pattern SPLIT_RE = Pattern.compile("\\s+");
+
   public static void main(String[] args) throws Exception {
+    if (args.length != 1) {
+      System.err.println("Usage: " + ExerciseHadoopIO.class + " <input-uri>");
+      System.exit(1);
+    }
+
+    final URI inputUri = URI.create(args[0]);
+
     Settings settings = new Settings();
     settings.setClass("euphoria.io.datasource.factory.webhdfs",
-        HadoopTextFileSource.Factory.class);
+        SimpleHadoopTextFileSource.Factory.class);
+    settings.setClass("euphoria.io.datasource.factory.hdfs",
+        SimpleHadoopTextFileSource.Factory.class);
+    settings.setClass("euphoria.io.datasource.factory.file",
+        SimpleHadoopTextFileSource.Factory.class);
 
-    Flow flow = Flow.create("Test", settings);
+    Flow flow = Flow.create("WordCount", settings);
 
     // set-up our input source (a stream)
-    Dataset<Pair<LongWritable, Text>> lines = flow.createInput(
-            URI.create("webhdfs://gin.dev/user/fulltext/shakespeare.txt"));
+    Dataset<String> lines = flow.createInput(inputUri);
 
     Dataset<Pair<String, Long>> tuples = FlatMap.of(lines)
-            .using((Pair<LongWritable, Text> line, Context<Pair<String, Long>> out) -> {
-              for (String w : line.getSecond().toString().split(" ")) {
-                out.collect(Pair.of(w, 1L));
-              }
-            }).output();
+        .using((String line, Context<Pair<String, Long>> out) ->
+            SPLIT_RE.splitAsStream(line)
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .forEachOrdered(s -> out.collect(Pair.of(s, 1L))))
+        .output();
 
     // reduce it to counts, use windowing
     Dataset<Pair<String, Long>> wordCount = ReduceByKey
@@ -46,7 +59,7 @@ public class ExerciseHadoopIO {
             .output();
 
     // produce the output
-    wordCount.persist(new StdoutSink<>(false, "\n"));
+    wordCount.persist(new StdoutSink<>());
 
     Executor executor = new InMemExecutor();
     executor.submit(flow).get();
