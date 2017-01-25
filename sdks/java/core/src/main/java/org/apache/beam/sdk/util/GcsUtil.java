@@ -107,9 +107,11 @@ public class GcsUtil {
      */
     public static GcsUtil create(
         Storage storageClient,
+        HttpRequestInitializer httpRequestInitializer,
         ExecutorService executorService,
         @Nullable Integer uploadBufferSizeBytes) {
-      return new GcsUtil(storageClient, executorService, uploadBufferSizeBytes);
+      return new GcsUtil(
+          storageClient, httpRequestInitializer, executorService, uploadBufferSizeBytes);
     }
   }
 

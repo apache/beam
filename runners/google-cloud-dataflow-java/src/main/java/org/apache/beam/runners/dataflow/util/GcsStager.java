@@ -22,7 +22,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.api.services.dataflow.model.DataflowPackage;
-import com.google.common.base.MoreObjects;
+import com.google.api.services.storage.Storage;
 import java.util.List;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineDebugOptions;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
@@ -58,8 +58,10 @@ public class GcsStager implements Stager {
     int uploadSizeBytes = firstNonNull(options.getGcsUploadBufferSizeBytes(), 1024 * 1024);
     checkArgument(uploadSizeBytes > 0, "gcsUploadBufferSizeBytes must be > 0");
     uploadSizeBytes = Math.min(options.getGcsUploadBufferSizeBytes(), 1024 * 1024);
+    Storage.Builder storageBuilder = Transport.newStorageClient(options);
     GcsUtil util = GcsUtilFactory.create(
-        Transport.newStorageClient(options).build(),
+        storageBuilder.build(),
+        storageBuilder.getHttpRequestInitializer(),
         options.getExecutorService(),
         uploadSizeBytes);
     return PackageUtil.stageClasspathElements(
