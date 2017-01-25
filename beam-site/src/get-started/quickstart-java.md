@@ -1,8 +1,9 @@
 ---
 layout: default
-title: "Beam Quickstart"
-permalink: /get-started/quickstart/
+title: "Beam Quickstart for Java"
+permalink: /get-started/quickstart-java/
 redirect_from:
+  - /get-started/quickstart/
   - /use/quickstart/
   - /getting-started/
 ---

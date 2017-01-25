@@ -71,4 +71,8 @@ Beam currently supports Runners that work with the following distributed process
 
 ## Getting Started with Apache Beam
 
-Get started using Beam for your data processing tasks by following the [Quickstart]({{ site.baseurl }}/get-started/quickstart) and the [WordCount Examples Walkthrough]({{ site.baseurl }}/get-started/wordcount-example).
+Get started using Beam for your data processing tasks. 
+
+1. Follow the Quickstart for the [Java SDK]({{ site.baseurl }}/get-started/quickstart-java) or the [Python SDK]({{ site.baseurl }}/get-started/quickstart-py).
+
+2. See the [WordCount Examples Walkthrough]({{ site.baseurl }}/get-started/wordcount-example) for examples that introduce various features of the SDKs.
