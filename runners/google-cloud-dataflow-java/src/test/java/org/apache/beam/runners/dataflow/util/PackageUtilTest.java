@@ -18,12 +18,12 @@
 package org.apache.beam.runners.dataflow.util;
 
 import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.collection.IsIterableContainingInAnyOrder.containsInAnyOrder;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyString;
@@ -53,7 +53,6 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.io.Files;
 import com.google.common.io.LineReader;
-import com.google.common.util.concurrent.MoreExecutors;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -236,7 +235,7 @@ public class PackageUtilTest {
       classpathElements.add(eltName + '=' + tmpFile.getAbsolutePath());
     }
 
-    PackageUtil.stageClasspathElements(classpathElements, STAGING_PATH, mockGcsUtil);
+    PackageUtil.stageClasspathElements(classpathElements, STAGING_PATH);
 
     logged.verifyWarn("Your classpath contains 1005 elements, which Google Cloud Dataflow");
   }
@@ -251,7 +250,7 @@ public class PackageUtilTest {
     when(mockGcsUtil.create(any(GcsPath.class), anyString())).thenReturn(pipe.sink());
 
     List<DataflowPackage> targets = PackageUtil.stageClasspathElements(
-        ImmutableList.of(tmpFile.getAbsolutePath()), STAGING_PATH, mockGcsUtil);
+        ImmutableList.of(tmpFile.getAbsolutePath()), STAGING_PATH);
     DataflowPackage target = Iterables.getOnlyElement(targets);
 
     verify(mockGcsUtil).fileSize(any(GcsPath.class));
@@ -278,7 +277,7 @@ public class PackageUtilTest {
     when(mockGcsUtil.create(any(GcsPath.class), anyString())).thenReturn(pipe.sink());
 
     PackageUtil.stageClasspathElements(
-        ImmutableList.of(tmpDirectory.getAbsolutePath()), STAGING_PATH, mockGcsUtil);
+        ImmutableList.of(tmpDirectory.getAbsolutePath()), STAGING_PATH);
 
     verify(mockGcsUtil).fileSize(any(GcsPath.class));
     verify(mockGcsUtil).create(any(GcsPath.class), anyString());
@@ -305,7 +304,7 @@ public class PackageUtilTest {
     when(mockGcsUtil.create(any(GcsPath.class), anyString())).thenReturn(pipe.sink());
 
     List<DataflowPackage> targets = PackageUtil.stageClasspathElements(
-        ImmutableList.of(tmpDirectory.getAbsolutePath()), STAGING_PATH, mockGcsUtil);
+        ImmutableList.of(tmpDirectory.getAbsolutePath()), STAGING_PATH);
     DataflowPackage target = Iterables.getOnlyElement(targets);
 
     verify(mockGcsUtil).fileSize(any(GcsPath.class));
@@ -328,8 +327,7 @@ public class PackageUtilTest {
     try {
       PackageUtil.stageClasspathElements(
           ImmutableList.of(tmpFile.getAbsolutePath()),
-          STAGING_PATH, fastNanoClockAndSleeper, MoreExecutors.newDirectExecutorService(),
-          mockGcsUtil);
+          STAGING_PATH, fastNanoClockAndSleeper);
     } finally {
       verify(mockGcsUtil).fileSize(any(GcsPath.class));
       verify(mockGcsUtil, times(5)).create(any(GcsPath.class), anyString());
@@ -350,20 +348,16 @@ public class PackageUtilTest {
     try {
       PackageUtil.stageClasspathElements(
           ImmutableList.of(tmpFile.getAbsolutePath()),
-          STAGING_PATH, fastNanoClockAndSleeper, MoreExecutors.newDirectExecutorService(),
-          mockGcsUtil);
+          STAGING_PATH, fastNanoClockAndSleeper);
       fail("Expected RuntimeException");
     } catch (RuntimeException e) {
-      assertThat("Expected RuntimeException wrapping IOException.",
-          e.getCause(), instanceOf(RuntimeException.class));
-      assertThat("Expected IOException containing detailed message.",
-          e.getCause().getCause(), instanceOf(IOException.class));
-      assertThat(e.getCause().getCause().getMessage(),
+      assertTrue("Expected IOException containing detailed message.",
+          e.getCause() instanceof IOException);
+      assertThat(e.getCause().getMessage(),
           Matchers.allOf(
               Matchers.containsString("Uploaded failed due to permissions error"),
               Matchers.containsString(
-                  "Stale credentials can be resolved by executing 'gcloud auth application-default "
-                      + "login'")));
+                  "Stale credentials can be resolved by executing 'gcloud auth login'")));
     } finally {
       verify(mockGcsUtil).fileSize(any(GcsPath.class));
       verify(mockGcsUtil).create(any(GcsPath.class), anyString());
@@ -383,8 +377,9 @@ public class PackageUtilTest {
 
     try {
       PackageUtil.stageClasspathElements(
-          ImmutableList.of(tmpFile.getAbsolutePath()), STAGING_PATH, fastNanoClockAndSleeper,
-          MoreExecutors.newDirectExecutorService(), mockGcsUtil);
+                                              ImmutableList.of(tmpFile.getAbsolutePath()),
+                                              STAGING_PATH,
+                                              fastNanoClockAndSleeper);
     } finally {
       verify(mockGcsUtil).fileSize(any(GcsPath.class));
       verify(mockGcsUtil, times(2)).create(any(GcsPath.class), anyString());
@@ -398,7 +393,7 @@ public class PackageUtilTest {
     when(mockGcsUtil.fileSize(any(GcsPath.class))).thenReturn(tmpFile.length());
 
     PackageUtil.stageClasspathElements(
-        ImmutableList.of(tmpFile.getAbsolutePath()), STAGING_PATH, mockGcsUtil);
+        ImmutableList.of(tmpFile.getAbsolutePath()), STAGING_PATH);
 
     verify(mockGcsUtil).fileSize(any(GcsPath.class));
     verifyNoMoreInteractions(mockGcsUtil);
@@ -416,7 +411,7 @@ public class PackageUtilTest {
     when(mockGcsUtil.create(any(GcsPath.class), anyString())).thenReturn(pipe.sink());
 
     PackageUtil.stageClasspathElements(
-        ImmutableList.of(tmpDirectory.getAbsolutePath()), STAGING_PATH, mockGcsUtil);
+        ImmutableList.of(tmpDirectory.getAbsolutePath()), STAGING_PATH);
 
     verify(mockGcsUtil).fileSize(any(GcsPath.class));
     verify(mockGcsUtil).create(any(GcsPath.class), anyString());
@@ -434,8 +429,7 @@ public class PackageUtilTest {
     when(mockGcsUtil.create(any(GcsPath.class), anyString())).thenReturn(pipe.sink());
 
     List<DataflowPackage> targets = PackageUtil.stageClasspathElements(
-        ImmutableList.of(overriddenName + "=" + tmpFile.getAbsolutePath()), STAGING_PATH,
-        mockGcsUtil);
+        ImmutableList.of(overriddenName + "=" + tmpFile.getAbsolutePath()), STAGING_PATH);
     DataflowPackage target = Iterables.getOnlyElement(targets);
 
     verify(mockGcsUtil).fileSize(any(GcsPath.class));
@@ -452,7 +446,7 @@ public class PackageUtilTest {
     String nonExistentFile =
         IOChannelUtils.resolve(tmpFolder.getRoot().getPath(), "non-existent-file");
     assertEquals(Collections.EMPTY_LIST, PackageUtil.stageClasspathElements(
-        ImmutableList.of(nonExistentFile), STAGING_PATH, mockGcsUtil));
+        ImmutableList.of(nonExistentFile), STAGING_PATH));
   }
 
   /**
