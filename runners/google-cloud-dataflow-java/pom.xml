@@ -33,8 +33,8 @@
   <packaging>jar</packaging>
 
   <properties>
-    <timestamp>${maven.build.timestamp}</timestamp>
-    <maven.build.timestamp.format>yyyy-MM-dd HH:mm</maven.build.timestamp.format>
+    <dataflow.container_version>beam-master-20170120</dataflow.container_version>
+    <dataflow.environment_major_version>6</dataflow.environment_major_version>
   </properties>
 
   <build>
