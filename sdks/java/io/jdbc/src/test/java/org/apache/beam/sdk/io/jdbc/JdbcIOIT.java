@@ -166,17 +166,14 @@ public class JdbcIOIT {
 
       pipeline.run().waitUntilFinish();
 
-      PAssert.that(output
-          .apply("Count Scientist", Count.<String, Integer>perKey())
-      ).satisfies(new ValidateCountFn());
-      pipeline.run().waitUntilFinish();
+      try (Connection connection = dataSource.getConnection()) {
+        try (Statement statement = connection.createStatement()) {
+          try (ResultSet resultSet = statement.executeQuery("select count(*) from " +
+              tableName)) {
+            resultSet.next();
+            int count = resultSet.getInt(1);
 
-    } finally {
-      // cleanup!
-      if (tableName != null) {
-        try (Connection connection = dataSource.getConnection()) {
-          try (Statement statement = connection.createStatement()) {
-            statement.executeUpdate(String.format("drop table if exists %s", tableName));
+            Assert.assertEquals(2000, count);
           }
         }
       }
