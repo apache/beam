@@ -16,28 +16,15 @@
 #    limitations under the License.
 #
 
-# This script will run pylint and pep8 on files that changed compared to the
-# current HEAD of the branch.
+# This script will run pylint and pep8 on all module files.
 #
 # Use "pylint apache_beam" to run pylint all files.
 # Use "pep8 apache_beam" to run pep8 all files.
 #
 # The exit-code of the script indicates success or a failure.
 
-BASE_BRANCH=python-sdk
-
 set -e
 set -o pipefail
-
-# This script runs pylint on changed files only and uses git for that purpose.
-# Skip this step if git is not available or this is not a valid git repository.
-(command -v git && git remote) || {
-  echo "Not running pylint. Not in a git repository."; exit 0; 
-}
-
-# Retrieve base branch for comparison. Travis does not fetch it by default.
-git remote set-branches --add origin $BASE_BRANCH
-git fetch
 
 # Following generated files are excluded from lint checks.
 EXCLUDED_GENERATED_FILES=(
@@ -51,29 +38,16 @@ EXCLUDED_GENERATED_FILES=(
 "apache_beam/internal/clients/storage/storage_v1_messages.py"
 "apache_beam/coders/proto2_coder_test_messages_pb2.py")
 
-# Get the name of the files that changed compared to the HEAD of the branch.
-# Use diff-filter to exclude deleted files. (i.e. Do not try to lint files that
-# does not exist any more.) Filter the output to .py files only. Rewrite the
-# paths relative to the sdks/python folder.
-CHANGED_FILES=$(git diff --name-only --diff-filter=ACMRTUXB origin/$BASE_BRANCH . \
-                | { grep ".py$" || true; }  \
-                | sed 's/sdks\/python\///g')
-
-FILES_TO_CHECK=""
-for file in $CHANGED_FILES;
-do
-if [[ " ${EXCLUDED_GENERATED_FILES[@]} " =~ " ${file} " ]]; then
-  echo "Excluded file " $file " from lint checks"
-else
-  FILES_TO_CHECK="$FILES_TO_CHECK $file"
-fi
+FILES_TO_IGNORE=""
+for file in "${EXCLUDED_GENERATED_FILES[@]}"; do
+  if [[ $FILES_TO_IGNORE ]]; then
+    FILES_TO_IGNORE="$FILES_TO_IGNORE, "
+  fi
+  FILES_TO_IGNORE="$FILES_TO_IGNORE$(basename $file)" 
 done
+echo "Skipping lint for generated files: $FILES_TO_IGNORE"
 
-if test "$FILES_TO_CHECK"; then
-  echo "Running pylint on changed files:"
-  pylint $FILES_TO_CHECK
-  echo "Running pep8 on changed files:"
-  pep8 $FILES_TO_CHECK
-else
-  echo "Not running pylint. No eligible files."
-fi
+echo "Running pylint:"
+pylint apache_beam --ignore-patterns="$FILES_TO_IGNORE"
+echo "Running pep8:"
+pep8 apache_beam --exclude="$FILES_TO_IGNORE"
