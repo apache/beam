@@ -297,16 +297,21 @@ class PackageUtil {
     // Inline a copy here because the inner code returns an immutable list and we want to mutate it.
     List<PackageAttributes> packageAttributes =
         new LinkedList<>(computePackageAttributes(classpathElements, stagingPath, executorService));
+
+    // Compute the returned list of DataflowPackage objects here so that they are returned in the
+    // same order as on the classpath.
+    List<DataflowPackage> packages = Lists.newArrayListWithExpectedSize(packageAttributes.size());
+    for (final PackageAttributes attributes : packageAttributes) {
+      packages.add(attributes.getDataflowPackage());
+    }
+
     // Order package attributes in descending size order so that we upload the largest files first.
     Collections.sort(packageAttributes, new PackageUploadOrder());
-
-    List<DataflowPackage> packages = Lists.newArrayListWithExpectedSize(packageAttributes.size());
     final AtomicInteger numUploaded = new AtomicInteger(0);
     final AtomicInteger numCached = new AtomicInteger(0);
 
     List<ListenableFuture<?>> futures = new LinkedList<>();
     for (final PackageAttributes attributes : packageAttributes) {
-      packages.add(attributes.getDataflowPackage());
       futures.add(executorService.submit(new Runnable() {
         @Override
         public void run() {

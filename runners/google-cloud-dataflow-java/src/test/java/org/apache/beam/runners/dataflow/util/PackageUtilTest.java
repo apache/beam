@@ -19,6 +19,7 @@ package org.apache.beam.runners.dataflow.util;
 
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.instanceOf;
+import static org.hamcrest.Matchers.startsWith;
 import static org.hamcrest.collection.IsIterableContainingInAnyOrder.containsInAnyOrder;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
@@ -59,6 +60,7 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.channels.Channels;
 import java.nio.channels.Pipe;
+import java.nio.channels.Pipe.SinkChannel;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -86,6 +88,8 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
+import org.mockito.invocation.InvocationOnMock;
+import org.mockito.stubbing.Answer;
 
 /** Tests for PackageUtil. */
 @RunWith(JUnit4.class)
@@ -262,6 +266,29 @@ public class PackageUtilTest {
     assertThat(target.getLocation(), equalTo(STAGING_PATH + '/' + target.getName()));
     assertThat(new LineReader(Channels.newReader(pipe.source(), "UTF-8")).readLine(),
         equalTo(contents));
+  }
+
+  @Test
+  public void testStagingPreservesClasspath() throws Exception {
+    File smallFile = makeFileWithContents("small.txt", "small");
+    File largeFile = makeFileWithContents("large.txt", "large contents");
+    when(mockGcsUtil.fileSize(any(GcsPath.class)))
+        .thenThrow(new FileNotFoundException("some/path"));
+    when(mockGcsUtil.create(any(GcsPath.class), anyString()))
+        .thenAnswer(new Answer<SinkChannel>() {
+          @Override
+          public SinkChannel answer(InvocationOnMock invocation) throws Throwable {
+            return Pipe.open().sink();
+          }
+        });
+
+    List<DataflowPackage> targets = PackageUtil.stageClasspathElements(
+        ImmutableList.of(smallFile.getAbsolutePath(), largeFile.getAbsolutePath()),
+        STAGING_PATH, mockGcsUtil);
+    // Verify that the packages are returned small, then large, matching input order even though
+    // the large file would be uploaded first.
+    assertThat(targets.get(0).getName(), startsWith("small"));
+    assertThat(targets.get(1).getName(), startsWith("large"));
   }
 
   @Test
