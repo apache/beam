@@ -2381,7 +2381,6 @@ public class BigQueryIO {
                   "UNKNOWN status of load job [%s]: %s.", jobId, jobToPrettyString(loadJob)));
             case FAILED:
               lastFailedLoadJob = loadJob;
-              LOG.info("BigQuery load job failed: {}.", jobToPrettyString(loadJob));
               continue;
             default:
               throw new IllegalStateException(String.format(
@@ -2518,7 +2517,6 @@ public class BigQueryIO {
                   "UNKNOWN status of copy job [%s]: %s.", jobId, jobToPrettyString(copyJob)));
             case FAILED:
               lastFailedCopyJob = copyJob;
-              LOG.info("BigQuery copy job failed: {}.", jobId);
               continue;
             default:
               throw new IllegalStateException(String.format(
