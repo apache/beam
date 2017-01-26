@@ -2367,7 +2367,6 @@ public class BigQueryIO {
         Job lastFailedLoadJob = null;
         for (int i = 0; i < Bound.MAX_RETRY_JOBS; ++i) {
           String jobId = jobIdPrefix + "-" + i;
-          LOG.info("Starting BigQuery load job {}: try {}/{}", jobId, i, Bound.MAX_RETRY_JOBS);
           JobReference jobRef = new JobReference()
               .setProjectId(projectId)
               .setJobId(jobId);
@@ -2378,26 +2377,24 @@ public class BigQueryIO {
             case SUCCEEDED:
               return;
             case UNKNOWN:
-              LOG.error("Unknown load job: {}.", jobToPrettyString(loadJob));
               throw new RuntimeException(String.format(
-                  "Failed to poll the load job status of job id: %s.", jobId));
+                  "UNKNOWN status of load job [%s]: %s.", jobId, jobToPrettyString(loadJob)));
             case FAILED:
               lastFailedLoadJob = loadJob;
               LOG.info("BigQuery load job failed: {}.", jobToPrettyString(loadJob));
               continue;
             default:
-              LOG.error("Unexpected status of load job: {}.", jobToPrettyString(loadJob));
               throw new IllegalStateException(String.format(
-                  "Unexpected job status. Job id: %s, status: %s.",
-                  jobId, statusToPrettyString(loadJob.getStatus())));
+                  "Unexpected status [%s] of load job: %s.",
+                  jobStatus, jobToPrettyString(loadJob)));
           }
         }
-        LOG.error("Last failed load job: {}.", jobToPrettyString(lastFailedLoadJob));
         throw new RuntimeException(String.format(
-            "Failed to create load job %s, reached max retries: %d, last failed job status: %s.",
+            "Failed to create load job with id prefix %s, "
+                + "reached max retries: %d, last failed load job: %s.",
             jobIdPrefix,
             Bound.MAX_RETRY_JOBS,
-            statusToPrettyString(lastFailedLoadJob.getStatus())));
+            jobToPrettyString(lastFailedLoadJob)));
       }
 
       static void removeTemporaryFiles(
@@ -2507,7 +2504,6 @@ public class BigQueryIO {
         Job lastFailedCopyJob = null;
         for (int i = 0; i < Bound.MAX_RETRY_JOBS; ++i) {
           String jobId = jobIdPrefix + "-" + i;
-          LOG.info("Starting BigQuery copy job {}: try {}/{}", jobId, i, Bound.MAX_RETRY_JOBS);
           JobReference jobRef = new JobReference()
               .setProjectId(projectId)
               .setJobId(jobId);
@@ -2518,26 +2514,24 @@ public class BigQueryIO {
             case SUCCEEDED:
               return;
             case UNKNOWN:
-              LOG.error("Unknown copy job: {}.", jobToPrettyString(copyJob));
               throw new RuntimeException(String.format(
-                  "Failed to poll the copy job status of job id: %s.", jobId));
+                  "UNKNOWN status of copy job [%s]: %s.", jobId, jobToPrettyString(copyJob)));
             case FAILED:
               lastFailedCopyJob = copyJob;
               LOG.info("BigQuery copy job failed: {}.", jobId);
               continue;
             default:
-              LOG.error("Unexpected status of copy job: {}.", jobToPrettyString(copyJob));
               throw new IllegalStateException(String.format(
-                  "Unexpected job status. Job id: %s, status: %s.",
-                  jobId, statusToPrettyString(copyJob.getStatus())));
+                  "Unexpected status [%s] of load job: %s.",
+                  jobStatus, jobToPrettyString(copyJob)));
           }
         }
-        LOG.error("Last failed copy job: {}.", jobToPrettyString(lastFailedCopyJob));
         throw new RuntimeException(String.format(
-            "Failed to create copy job %s, reached max retries: %d, last failed job status: %s.",
+            "Failed to create copy job with id prefix %s, "
+                + "reached max retries: %d, last failed copy job: %s.",
             jobIdPrefix,
             Bound.MAX_RETRY_JOBS,
-            statusToPrettyString(lastFailedCopyJob.getStatus())));
+            jobToPrettyString(lastFailedCopyJob)));
       }
 
       static void removeTemporaryTables(DatasetService tableService,
