@@ -22,6 +22,7 @@
 import sys
 
 from apache_beam.internal import util
+from apache_beam.metrics.execution import ScopedMetricsContainer
 from apache_beam.pvalue import SideOutputValue
 from apache_beam.transforms import core
 from apache_beam.transforms import window
@@ -90,7 +91,8 @@ class DoFnRunner(Receiver):
     self.step_name = step_name
     self.window_fn = windowing.windowfn
     self.tagged_receivers = tagged_receivers
-    self.scoped_metrics_container = scoped_metrics_container
+    self.scoped_metrics_container = (scoped_metrics_container
+                                     or ScopedMetricsContainer())
 
     global_window = window.GlobalWindow()
 

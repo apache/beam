@@ -193,7 +193,7 @@ class MetricsContainer(object):
 
 
 class ScopedMetricsContainer(object):
-  def __init__(self, container):
+  def __init__(self, container=None):
     self._stack = MetricsEnvironment.container_stack()
     self._container = container
 
