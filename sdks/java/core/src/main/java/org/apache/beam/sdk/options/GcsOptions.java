@@ -25,7 +25,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.util.AppEngineEnvironment;
 import org.apache.beam.sdk.util.GcsPathValidator;
 import org.apache.beam.sdk.util.GcsUtil;
@@ -82,9 +81,8 @@ public interface GcsOptions extends
       + "information on the restrictions and performance implications of this value.\n\n"
       + "https://github.com/GoogleCloudPlatform/bigdata-interop/blob/master/util/src/main/java/"
       + "com/google/cloud/hadoop/util/AbstractGoogleAsyncWriteChannel.java")
-  @Nullable
   Integer getGcsUploadBufferSizeBytes();
-  void setGcsUploadBufferSizeBytes(@Nullable Integer bytes);
+  void setGcsUploadBufferSizeBytes(Integer bytes);
 
   /**
    * The class of the validator that should be created and used to validate paths.
