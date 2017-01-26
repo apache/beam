@@ -78,6 +78,7 @@ class TestChannelFactory(unittest.TestCase):
     gcsio_mock.size_of_files_in_glob.assert_called_once_with('gs://bucket/*')
     gcsio_mock.size.assert_called_once_with('gs://bucket/file2')
 
+
 class TestCompressedFile(unittest.TestCase):
 
   def create_temp_file(self, mode):
