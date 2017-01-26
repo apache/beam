@@ -35,58 +35,11 @@
   </licenses>
 
   <scm>
-    <connection>scm:git:git@gitlab.kancelar.seznam.cz:euphoria/euphoria.git</connection>
-    <url>scm:git:git@gitlab.kancelar.seznam.cz:euphoria/euphoria.git</url>
-    <developerConnection>scm:git:git@gitlab.kancelar.seznam.cz:euphoria/euphoria.git</developerConnection>
+    <connection>scm:git:git@github.com:seznam/euphoria.git</connection>
+    <url>scm:git:git@github.com:seznam/euphoria.git</url>
+    <developerConnection>scm:git:git@github.com:seznam/euphoria.git</developerConnection>
     <tag>HEAD</tag>
   </scm>
-
-  <repositories>
-    <repository>
-      <id>central</id>
-      <url>https://maven.dev/content/groups/repo</url>
-      <snapshots>
-        <enabled>false</enabled>
-      </snapshots>
-    </repository>
-    <repository>
-      <id>snapshots</id>
-      <url>https://maven.dev/content/groups/repo</url>
-      <releases>
-        <enabled>false</enabled>
-      </releases>
-    </repository>
-  </repositories>
-
-  <pluginRepositories>
-    <pluginRepository>
-      <id>central</id>
-      <url>https://maven.dev/content/groups/repo</url>
-      <snapshots>
-        <enabled>false</enabled>
-      </snapshots>
-    </pluginRepository>
-    <pluginRepository>
-      <id>snapshots</id>
-      <url>https://maven.dev/content/groups/repo</url>
-      <releases>
-        <enabled>false</enabled>
-      </releases>
-    </pluginRepository>
-  </pluginRepositories>
-
-  <distributionManagement>
-    <repository>
-      <id>maven-seznam</id>
-      <name>szn-releases</name>
-      <url>https://maven.dev/content/repositories/releases-local</url>
-    </repository>
-    <snapshotRepository>
-      <id>maven-seznam</id>
-      <name>szn-snapshots</name>
-      <url>https://maven.dev/content/repositories/snapshots-local</url>
-    </snapshotRepository>
-  </distributionManagement>
 
   <organization>
     <name>Seznam.cz, a.s.</name>
@@ -125,29 +78,6 @@
             </plugin>
           </plugins>
         </pluginManagement>
-      </build>
-    </profile>
-
-    <profile>
-      <id>hudson</id>
-      <activation>
-        <property>
-          <name>env.BUILD_NUMBER</name>
-        </property>
-      </activation>
-      <build>
-        <plugins>
-          <plugin>
-            <artifactId>maven-javadoc-plugin</artifactId>
-          </plugin>
-          <plugin>
-            <artifactId>maven-project-info-reports-plugin</artifactId>
-          </plugin>
-          <plugin>
-            <groupId>org.apache.maven.plugins</groupId>
-            <artifactId>maven-pmd-plugin</artifactId>
-          </plugin>
-        </plugins>
       </build>
     </profile>
 
