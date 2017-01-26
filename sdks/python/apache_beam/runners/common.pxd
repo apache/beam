@@ -41,6 +41,9 @@ cdef class DoFnRunner(Receiver):
   cdef dict kwargs
   cdef object side_inputs
   cdef bint has_windowed_side_inputs
+  cdef object default_args
+  cdef bint include_element
+  cdef int args_to_pick
 
   cdef Receiver main_receivers
 
