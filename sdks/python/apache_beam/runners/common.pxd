@@ -18,6 +18,7 @@
 cimport cython
 
 from apache_beam.utils.windowed_value cimport WindowedValue
+from apache_beam.metrics.execution cimport ScopedMetricsContainer
 
 
 cdef type SideOutputValue, TimestampedValue
@@ -40,6 +41,7 @@ cdef class DoFnRunner(Receiver):
   cdef object args
   cdef dict kwargs
   cdef object side_inputs
+  cdef ScopedMetricsContainer scoped_metrics_container
   cdef bint has_windowed_side_inputs
 
   cdef Receiver main_receivers
