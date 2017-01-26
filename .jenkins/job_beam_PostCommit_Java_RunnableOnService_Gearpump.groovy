@@ -37,5 +37,5 @@ mavenJob('beam_PostCommit_Java_RunnableOnService_Gearpump') {
   common_job_properties.setPostCommit(delegate, '0 5 31 2 *')
 
   // Maven goals for this job.
-  goals('-B -e clean verify -am -pl runners/gearpump -DforkCount=0 -DrunnableOnServicePipelineOptions=\'[ "--runner=TestGearpumpRunner", "--streaming=false" ]\'')
+  goals('-B -e clean verify -am -pl runners/gearpump  -Plocal-runnable-on-service-tests -Prunnable-on-service-tests')
 }
