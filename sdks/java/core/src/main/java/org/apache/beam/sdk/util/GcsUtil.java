@@ -101,6 +101,18 @@ public class GcsUtil {
           gcsOptions.getExecutorService(),
           gcsOptions.getGcsUploadBufferSizeBytes());
     }
+
+    /**
+     * Returns an instance of {@link GcsUtil} based on the given parameters.
+     */
+    public static GcsUtil create(
+        Storage storageClient,
+        HttpRequestInitializer httpRequestInitializer,
+        ExecutorService executorService,
+        @Nullable Integer uploadBufferSizeBytes) {
+      return new GcsUtil(
+          storageClient, httpRequestInitializer, executorService, uploadBufferSizeBytes);
+    }
   }
 
   private static final Logger LOG = LoggerFactory.getLogger(GcsUtil.class);
