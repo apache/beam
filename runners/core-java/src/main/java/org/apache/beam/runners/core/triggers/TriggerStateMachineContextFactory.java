@@ -26,6 +26,8 @@ import java.util.Map;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.core.ActiveWindowSet;
 import org.apache.beam.runners.core.StateInternals;
+import org.apache.beam.runners.core.StateNamespace;
+import org.apache.beam.runners.core.StateNamespaces;
 import org.apache.beam.runners.core.triggers.TriggerStateMachine.MergingTriggerInfo;
 import org.apache.beam.runners.core.triggers.TriggerStateMachine.TriggerInfo;
 import org.apache.beam.sdk.coders.Coder;
@@ -36,8 +38,6 @@ import org.apache.beam.sdk.util.Timers;
 import org.apache.beam.sdk.util.state.MergingStateAccessor;
 import org.apache.beam.sdk.util.state.State;
 import org.apache.beam.sdk.util.state.StateAccessor;
-import org.apache.beam.sdk.util.state.StateNamespace;
-import org.apache.beam.sdk.util.state.StateNamespaces;
 import org.apache.beam.sdk.util.state.StateTag;
 import org.joda.time.Instant;
 
