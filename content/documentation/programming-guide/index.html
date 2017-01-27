@@ -146,12 +146,12 @@
       <div class="row">
         <h1 id="apache-beam-programming-guide">Apache Beam Programming Guide</h1>
 
-<p>The <strong>Beam Programming Guide</strong> is intended for Beam users who want to use the Beam SDKs to create data processing pipelines. It provides guidance for using the Beam SDK classes to build and test your pipeline. It is not intended as an exhaustive reference, but as a language-agnostic, high-level guide to programmatically building your Beam pipeline. As the programming guide is filled out, the text will include code samples in multiple languages to help illustrate how to implement Beam concepts in your programs.</p>
+<p>The <strong>Beam Programming Guide</strong> is intended for Beam users who want to use the Beam SDKs to create data processing pipelines. It provides guidance for using the Beam SDK classes to build and test your pipeline. It is not intended as an exhaustive reference, but as a language-agnostic, high-level guide to programmatically building your Beam pipeline. As the programming guide is filled out, the text will include code samples in multiple languages to help illustrate how to implement Beam concepts in your pipelines.</p>
 
 <nav class="language-switcher">
   <strong>Adapt for:</strong> 
   <ul>
-    <li data-type="language-java">Java SDK</li>
+    <li data-type="language-java" class="active">Java SDK</li>
     <li data-type="language-py">Python SDK</li>
   </ul>
 </nav>
@@ -185,7 +185,7 @@
       <li><a href="#transforms-sideio">Side Inputs and Side Outputs</a></li>
     </ul>
   </li>
-  <li><a href="#io">I/O</a></li>
+  <li><a href="#io">Pipeline I/O</a></li>
   <li><a href="#running">Running the Pipeline</a></li>
   <li><a href="#coders">Data Encoding and Type Safety</a></li>
   <li><a href="#windowing">Working with Windowing</a></li>
@@ -225,7 +225,7 @@
 
 <p>When you run your Beam driver program, the Pipeline Runner that you designate constructs a <strong>workflow graph</strong> of your pipeline based on the <code class="highlighter-rouge">PCollection</code> objects you’ve created and transforms that you’ve applied. That graph is then executed using the appropriate distributed processing back-end, becoming an asynchronous “job” (or equivalent) on that back-end.</p>
 
-<h2 id="a-namepipelineacreating-the-pipeline"><a name="pipeline"></a>Creating the Pipeline</h2>
+<h2 id="a-namepipelineacreating-the-pipeline"><a name="pipeline"></a>Creating the pipeline</h2>
 
 <p>The <code class="highlighter-rouge">Pipeline</code> abstraction encapsulates all the data and steps in your data processing task. Your Beam driver program typically starts by constructing a <span class="language-java"><a href="/documentation/sdks/javadoc/0.4.0/index.html?org/apache/beam/sdk/Pipeline.html">Pipeline</a></span><span class="language-py"><a href="https://github.com/apache/beam/blob/python-sdk/sdks/python/apache_beam/pipeline.py">Pipeline</a></span> object, and then using that object as the basis for creating the pipeline’s data sets as <code class="highlighter-rouge">PCollection</code>s and its operations as <code class="highlighter-rouge">Transform</code>s.</p>
 
@@ -266,7 +266,7 @@
 
 <p>You create a <code class="highlighter-rouge">PCollection</code> by either reading data from an external source using Beam’s <a href="#io">Source API</a>, or you can create a <code class="highlighter-rouge">PCollection</code> of data stored in an in-memory collection class in your driver program. The former is typically how a production pipeline would ingest data; Beam’s Source APIs contain adapters to help you read from external sources like large cloud-based files, databases, or subscription services. The latter is primarily useful for testing and debugging purposes.</p>
 
-<h4 id="reading-from-an-external-source">Reading from an External Source</h4>
+<h4 id="reading-from-an-external-source">Reading from an external source</h4>
 
 <p>To read from an external source, you use one of the <a href="#io">Beam-provided I/O adapters</a>. The adapters vary in their exact usage, but all of them from some external data source and return a <code class="highlighter-rouge">PCollection</code> whose elements represent the data records in that source.</p>
 
@@ -279,7 +279,7 @@
     <span class="n">Pipeline</span> <span class="n">p</span> <span class="o">=</span> <span class="n">Pipeline</span><span class="o">.</span><span class="na">create</span><span class="o">(</span><span class="n">options</span><span class="o">);</span>
 
     <span class="n">PCollection</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">lines</span> <span class="o">=</span> <span class="n">p</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span>
-      <span class="n">TextIO</span><span class="o">.</span><span class="na">Read</span><span class="o">.</span><span class="na">named</span><span class="o">(</span><span class="s">"ReadMyFile"</span><span class="o">).</span><span class="na">from</span><span class="o">(</span><span class="s">"protocol://path/to/some/inputData.txt"</span><span class="o">));</span>
+      <span class="s">"ReadMyFile"</span><span class="o">,</span> <span class="n">TextIO</span><span class="o">.</span><span class="na">Read</span><span class="o">.</span><span class="na">from</span><span class="o">(</span><span class="s">"protocol://path/to/some/inputData.txt"</span><span class="o">));</span>
 <span class="o">}</span>
 </code></pre>
 </div>
@@ -296,7 +296,7 @@
 
 <p>See the <a href="#io">section on I/O</a> to learn more about how to read from the various data sources supported by the Beam SDK.</p>
 
-<h4 id="creating-a-pcollection-from-in-memory-data">Creating a PCollection from In-Memory Data</h4>
+<h4 id="creating-a-pcollection-from-in-memory-data">Creating a PCollection from in-memory data</h4>
 
 <p class="language-java">To create a <code class="highlighter-rouge">PCollection</code> from an in-memory Java <code class="highlighter-rouge">Collection</code>, you use the Beam-provided <code class="highlighter-rouge">Create</code> transform. Much like a data adapter’s <code class="highlighter-rouge">Read</code>, you apply <code class="highlighter-rouge">Create</code> directly to your <code class="highlighter-rouge">Pipeline</code> object itself.</p>
 
@@ -342,11 +342,11 @@
 </code></pre>
 </div>
 
-<h3 id="a-namepccharacteristicsapcollection-characteristics"><a name="pccharacteristics"></a>PCollection Characteristics</h3>
+<h3 id="a-namepccharacteristicsapcollection-characteristics"><a name="pccharacteristics"></a>PCollection characteristics</h3>
 
 <p>A <code class="highlighter-rouge">PCollection</code> is owned by the specific <code class="highlighter-rouge">Pipeline</code> object for which it is created; multiple pipelines cannot share a <code class="highlighter-rouge">PCollection</code>. In some respects, a <code class="highlighter-rouge">PCollection</code> functions like a collection class. However, a <code class="highlighter-rouge">PCollection</code> can differ in a few key ways:</p>
 
-<h4 id="a-namepcelementtypeaelement-type"><a name="pcelementtype"></a>Element Type</h4>
+<h4 id="a-namepcelementtypeaelement-type"><a name="pcelementtype"></a>Element type</h4>
 
 <p>The elements of a <code class="highlighter-rouge">PCollection</code> may be of any type, but must all be of the same type. However, to support distributed processing, Beam needs to be able to encode each individual element as a byte string (so elements can be passed around to distributed workers). The Beam SDKs provide a data encoding mechanism that includes built-in encoding for commonly-used types as well as support for specifying custom encodings as needed.</p>
 
@@ -354,11 +354,11 @@
 
 <p>A <code class="highlighter-rouge">PCollection</code> is immutable. Once created, you cannot add, remove, or change individual elements. A Beam Transform might process each element of a <code class="highlighter-rouge">PCollection</code> and generate new pipeline data (as a new <code class="highlighter-rouge">PCollection</code>), <em>but it does not consume or modify the original input collection</em>.</p>
 
-<h4 id="a-namepcrandomaccessarandom-access"><a name="pcrandomaccess"></a>Random Access</h4>
+<h4 id="a-namepcrandomaccessarandom-access"><a name="pcrandomaccess"></a>Random access</h4>
 
 <p>A <code class="highlighter-rouge">PCollection</code> does not support random access to individual elements. Instead, Beam Transforms consider every element in a <code class="highlighter-rouge">PCollection</code> individually.</p>
 
-<h4 id="a-namepcsizeboundasize-and-boundedness"><a name="pcsizebound"></a>Size and Boundedness</h4>
+<h4 id="a-namepcsizeboundasize-and-boundedness"><a name="pcsizebound"></a>Size and boundedness</h4>
 
 <p>A <code class="highlighter-rouge">PCollection</code> is a large, immutable “bag” of elements. There is no upper limit on how many elements a <code class="highlighter-rouge">PCollection</code> can contain; any given <code class="highlighter-rouge">PCollection</code> might fit in memory on a single machine, or it might represent a very large distributed data set backed by a persistent data store.</p>
 
@@ -368,7 +368,7 @@
 
 <p>When performing an operation that groups elements in an unbounded <code class="highlighter-rouge">PCollection</code>, Beam requires a concept called <strong>Windowing</strong> to divide a continuously updating data set into logical windows of finite size.  Beam processes each window as a bundle, and processing continues as the data set is generated. These logical windows are determined by some characteristic associated with a data element, such as a <strong>timestamp</strong>.</p>
 
-<h4 id="a-namepctimestampsaelement-timestamps"><a name="pctimestamps"></a>Element Timestamps</h4>
+<h4 id="a-namepctimestampsaelement-timestamps"><a name="pctimestamps"></a>Element timestamps</h4>
 
 <p>Each element in a <code class="highlighter-rouge">PCollection</code> has an associated intrinsic <strong>timestamp</strong>. The timestamp for each element is initially assigned by the <a href="#io">Source</a> that creates the <code class="highlighter-rouge">PCollection</code>. Sources that create an unbounded <code class="highlighter-rouge">PCollection</code> often assign each new element a timestamp that corresponds to when the element was read or added.</p>
 
@@ -380,7 +380,7 @@
 
 <p>You can manually assign timestamps to the elements of a <code class="highlighter-rouge">PCollection</code> if the source doesn’t do it for you. You’ll want to do this if the elements have an inherent timestamp, but the timestamp is somewhere in the structure of the element itself (such as a “time” field in a server log entry). Beam has <a href="#transforms">Transforms</a> that take a <code class="highlighter-rouge">PCollection</code> as input and output an identical <code class="highlighter-rouge">PCollection</code> with timestamps attached; see <a href="#windowing">Assigning Timestamps</a> for more information on how to do so.</p>
 
-<h2 id="a-nametransformsaapplying-transforms"><a name="transforms"></a>Applying Transforms</h2>
+<h2 id="a-nametransformsaapplying-transforms"><a name="transforms"></a>Applying transforms</h2>
 
 <p>In the Beam SDKs, <strong>transforms</strong> are the operations in your pipeline. A transform takes a <code class="highlighter-rouge">PCollection</code> (or more than one <code class="highlighter-rouge">PCollection</code>) as input, performs an operation that you specify on each element in that collection, and produces a new output <code class="highlighter-rouge">PCollection</code>. To invoke a transform, you must <strong>apply</strong> it to the input <code class="highlighter-rouge">PCollection</code>.</p>
 
@@ -431,7 +431,7 @@
 
 <p>The transforms in the Beam SDKs provide a generic <strong>processing framework</strong>, where you provide processing logic in the form of a function object (colloquially referred to as “user code”). The user code gets applied to the elements of the input <code class="highlighter-rouge">PCollection</code>. Instances of your user code might then be executed in parallel by many different workers across a cluster, depending on the pipeline runner and back-end that you choose to execute your Beam pipeline. The user code running on each worker generates the output elements that are ultimately added to the final output <code class="highlighter-rouge">PCollection</code> that the transform produces.</p>
 
-<h3 id="core-beam-transforms">Core Beam Transforms</h3>
+<h3 id="core-beam-transforms">Core Beam transforms</h3>
 
 <p>Beam provides the following transforms, each of which represents a different processing paradigm:</p>
 
@@ -551,7 +551,7 @@
   <li>Once you output a value using <code class="highlighter-rouge">ProcessContext.output()</code> or <code class="highlighter-rouge">ProcessContext.sideOutput()</code>, you should not modify that value in any way.</li>
 </ul>
 
-<h5 id="lightweight-dofns-and-other-abstractions">Lightweight DoFns and Other Abstractions</h5>
+<h5 id="lightweight-dofns-and-other-abstractions">Lightweight DoFns and other abstractions</h5>
 
 <p>If your function is relatively straightforward, you can simplify your use of <code class="highlighter-rouge">ParDo</code> by providing a lightweight <code class="highlighter-rouge">DoFn</code> in-line, as <span class="language-java">an anonymous inner class instance</span><span class="language-py">a lambda function</span>.</p>
 
@@ -563,9 +563,8 @@
 <span class="c1">// Apply a ParDo with an anonymous DoFn to the PCollection words.</span>
 <span class="c1">// Save the result as the PCollection wordLengths.</span>
 <span class="n">PCollection</span><span class="o">&lt;</span><span class="n">Integer</span><span class="o">&gt;</span> <span class="n">wordLengths</span> <span class="o">=</span> <span class="n">words</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span>
-  <span class="n">ParDo</span>
-    <span class="o">.</span><span class="na">named</span><span class="o">(</span><span class="s">"ComputeWordLengths"</span><span class="o">)</span>            <span class="c1">// the transform name</span>
-    <span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="k">new</span> <span class="n">DoFn</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">Integer</span><span class="o">&gt;()</span> <span class="o">{</span>       <span class="c1">// a DoFn as an anonymous inner class instance</span>
+  <span class="s">"ComputeWordLengths"</span><span class="o">,</span>                     <span class="c1">// the transform name</span>
+  <span class="n">ParDo</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="k">new</span> <span class="n">DoFn</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">Integer</span><span class="o">&gt;()</span> <span class="o">{</span>    <span class="c1">// a DoFn as an anonymous inner class instance</span>
       <span class="nd">@ProcessElement</span>
       <span class="kd">public</span> <span class="kt">void</span> <span class="nf">processElement</span><span class="o">(</span><span class="n">ProcessContext</span> <span class="n">c</span><span class="o">)</span> <span class="o">{</span>
         <span class="n">c</span><span class="o">.</span><span class="na">output</span><span class="o">(</span><span class="n">c</span><span class="o">.</span><span class="na">element</span><span class="o">().</span><span class="na">length</span><span class="o">());</span>
@@ -660,7 +659,7 @@ tree, [2]
 
 <p>Simple combine operations, such as sums, can usually be implemented as a simple function. More complex combination operations might require you to create a subclass of <code class="highlighter-rouge">CombineFn</code> that has an accumulation type distinct from the input/output type.</p>
 
-<h5 id="simple-combinations-using-simple-functions"><strong>Simple Combinations Using Simple Functions</strong></h5>
+<h5 id="simple-combinations-using-simple-functions"><strong>Simple combinations using simple functions</strong></h5>
 
 <p>The following example code shows a simple combine function.</p>
 
@@ -687,7 +686,7 @@ tree, [2]
 </code></pre>
 </div>
 
-<h5 id="advanced-combinations-using-combinefn"><strong>Advanced Combinations using CombineFn</strong></h5>
+<h5 id="advanced-combinations-using-combinefn"><strong>Advanced combinations using CombineFn</strong></h5>
 
 <p>For more complex combine functions, you can define a subclass of <code class="highlighter-rouge">CombineFn</code>. You should use <code class="highlighter-rouge">CombineFn</code> if the combine function requires a more sophisticated accumulator, must perform additional pre- or post-processing, might change the output type, or takes the key into account.</p>
 
@@ -764,7 +763,7 @@ tree, [2]
 
 <p>If you are combining a <code class="highlighter-rouge">PCollection</code> of key-value pairs, <a href="#transforms-combine-per-key">per-key combining</a> is often enough. If you need the combining strategy to change based on the key (for example, MIN for some users and MAX for other users), you can define a <code class="highlighter-rouge">KeyedCombineFn</code> to access the key within the combining strategy.</p>
 
-<h5 id="combining-a-pcollection-into-a-single-value"><strong>Combining a PCollection into a Single Value</strong></h5>
+<h5 id="combining-a-pcollection-into-a-single-value"><strong>Combining a PCollection into a single value</strong></h5>
 
 <p>Use the global combine to transform all of the elements in a given <code class="highlighter-rouge">PCollection</code> into a single value, represented in your pipeline as a new <code class="highlighter-rouge">PCollection</code> containing one element. The following example code shows how to apply the Beam provided sum combine function to produce a single sum value for a <code class="highlighter-rouge">PCollection</code> of integers.</p>
 
@@ -783,7 +782,7 @@ tree, [2]
 </code></pre>
 </div>
 
-<h5 id="global-windowing">Global Windowing:</h5>
+<h5 id="global-windowing">Global windowing:</h5>
 
 <p>If your input <code class="highlighter-rouge">PCollection</code> uses the default global windowing, the default behavior is to return a <code class="highlighter-rouge">PCollection</code> containing one item. That item’s value comes from the accumulator in the combine function that you specified when applying <code class="highlighter-rouge">Combine</code>. For example, the Beam provided sum combine function returns a zero value (the sum of an empty input), while the min combine function returns a maximal or infinite value.</p>
 
@@ -801,7 +800,7 @@ tree, [2]
 </code></pre>
 </div>
 
-<h5 id="non-global-windowing">Non-Global Windowing:</h5>
+<h5 id="non-global-windowing">Non-global windowing:</h5>
 
 <p>If your <code class="highlighter-rouge">PCollection</code> uses any non-global windowing function, Beam does not provide the default behavior. You must specify one of the following options when applying <code class="highlighter-rouge">Combine</code>:</p>
 
@@ -810,7 +809,7 @@ tree, [2]
   <li>Specify <code class="highlighter-rouge">.asSingletonView</code>, in which the output is immediately converted to a <code class="highlighter-rouge">PCollectionView</code>, which will provide a default value for each empty window when used as a side input. You’ll generally only need to use this option if the result of your pipeline’s <code class="highlighter-rouge">Combine</code> is to be used as a side input later in the pipeline.</li>
 </ul>
 
-<h5 id="a-nametransforms-combine-per-keyacombining-values-in-a-key-grouped-collection"><a name="transforms-combine-per-key"></a><strong>Combining Values in a Key-Grouped Collection</strong></h5>
+<h5 id="a-nametransforms-combine-per-keyacombining-values-in-a-key-grouped-collection"><a name="transforms-combine-per-key"></a><strong>Combining values in a key-grouped collection</strong></h5>
 
 <p>After creating a key-grouped collection (for example, by using a <code class="highlighter-rouge">GroupByKey</code> transform) a common pattern is to combine the collection of values associated with each key into a single, merged value. Drawing on the previous example from <code class="highlighter-rouge">GroupByKey</code>, a key-grouped <code class="highlighter-rouge">PCollection</code> called <code class="highlighter-rouge">groupedWords</code> looks like this:</p>
 
@@ -877,11 +876,11 @@ tree, [2]
 </code></pre>
 </div>
 
-<h5 id="data-encoding-in-merged-collections">Data Encoding in Merged Collections:</h5>
+<h5 id="data-encoding-in-merged-collections">Data encoding in merged collections:</h5>
 
 <p>By default, the coder for the output <code class="highlighter-rouge">PCollection</code> is the same as the coder for the first <code class="highlighter-rouge">PCollection</code> in the input <code class="highlighter-rouge">PCollectionList</code>. However, the input <code class="highlighter-rouge">PCollection</code> objects can each use different coders, as long as they all contain the same data type in your chosen language.</p>
 
-<h5 id="merging-windowed-collections">Merging Windowed Collections:</h5>
+<h5 id="merging-windowed-collections">Merging windowed collections:</h5>
 
 <p>When using <code class="highlighter-rouge">Flatten</code> to merge <code class="highlighter-rouge">PCollection</code> objects that have a windowing strategy applied, all of the <code class="highlighter-rouge">PCollection</code> objects you want to merge must use a compatible windowing strategy and window sizing. For example, all the collections you’re merging must all use (hypothetically) identical 5-minute fixed windows or 4-minute sliding windows starting every 30 seconds.</p>
 
@@ -922,7 +921,7 @@ tree, [2]
 </code></pre>
 </div>
 
-<h4 id="a-nametransforms-usercodereqsageneral-requirements-for-writing-user-code-for-beam-transforms"><a name="transforms-usercodereqs"></a>General Requirements for Writing User Code for Beam Transforms</h4>
+<h4 id="a-nametransforms-usercodereqsageneral-requirements-for-writing-user-code-for-beam-transforms"><a name="transforms-usercodereqs"></a>General Requirements for writing user code for Beam transforms</h4>
 
 <p>When you build user code for a Beam transform, you should keep in mind the distributed nature of execution. For example, there might be many copies of your function running on a lot of different machines in parallel, and those copies function independently, without communicating or sharing state with any of the other copies. Depending on the Pipeline Runner and processing back-end you choose for your pipeline, each copy of your user code function may be retried or run multiple times. As such, you should be cautious about including things like state dependency in your user code.</p>
 
@@ -953,7 +952,7 @@ tree, [2]
   <li>Take care when declaring your function object inline by using an anonymous inner class instance. In a non-static context, your inner class instance will implicitly contain a pointer to the enclosing class and that class’ state. That enclosing class will also be serialized, and thus the same considerations that apply to the function object itself also apply to this outer class.</li>
 </ul>
 
-<h5 id="thread-compatibility">Thread-Compatibility</h5>
+<h5 id="thread-compatibility">Thread-compatibility</h5>
 
 <p>Your function object should be thread-compatible. Each instance of your function object is accessed by a single thread on a worker instance, unless you explicitly create your own threads. Note, however, that <strong>the Beam SDKs are not thread-safe</strong>. If you create your own threads in your user code, you must provide your own synchronization. Note that static members in your function object are not passed to worker instances and that multiple instances of your function may be accessed from different threads.</p>
 
@@ -963,13 +962,13 @@ tree, [2]
 
 <h4 id="a-nametransforms-sideioaside-inputs-and-side-outputs"><a name="transforms-sideio"></a>Side Inputs and Side Outputs</h4>
 
-<h5 id="side-inputs"><strong>Side Inputs</strong></h5>
+<h5 id="side-inputs"><strong>Side inputs</strong></h5>
 
 <p>In addition to the main input <code class="highlighter-rouge">PCollection</code>, you can provide additional inputs to a <code class="highlighter-rouge">ParDo</code> transform in the form of side inputs. A side input is an additional input that your <code class="highlighter-rouge">DoFn</code> can access each time it processes an element in the input <code class="highlighter-rouge">PCollection</code>. When you specify a side input, you create a view of some other data that can be read from within the <code class="highlighter-rouge">ParDo</code> transform’s <code class="highlighter-rouge">DoFn</code> while procesing each element.</p>
 
 <p>Side inputs are useful if your <code class="highlighter-rouge">ParDo</code> needs to inject additional data when processing each element in the input <code class="highlighter-rouge">PCollection</code>, but the additional data needs to be determined at runtime (and not hard-coded). Such values might be determined by the input data, or depend on a different branch of your pipeline.</p>
 
-<h5 id="passing-side-inputs-to-pardo">Passing Side Inputs to ParDo:</h5>
+<h5 id="passing-side-inputs-to-pardo">Passing side inputs to ParDo:</h5>
 
 <div class="language-java highlighter-rouge"><pre class="highlight"><code>  <span class="c1">// Pass side inputs to your ParDo transform by invoking .withSideInputs.</span>
   <span class="c1">// Inside your DoFn, access the side input by using the method DoFn.ProcessContext.sideInput.</span>
@@ -1045,7 +1044,7 @@ tree, [2]
 </code></pre>
 </div>
 
-<h5 id="side-inputs-and-windowing">Side Inputs and Windowing:</h5>
+<h5 id="side-inputs-and-windowing">Side inputs and windowing:</h5>
 
 <p>A windowed <code class="highlighter-rouge">PCollection</code> may be infinite and thus cannot be compressed into a single value (or single collection class). When you create a <code class="highlighter-rouge">PCollectionView</code> of a windowed <code class="highlighter-rouge">PCollection</code>, the <code class="highlighter-rouge">PCollectionView</code> represents a single entity per window (one singleton per window, one list per window, etc.).</p>
 
@@ -1057,11 +1056,11 @@ tree, [2]
 
 <p>If the side input has multiple trigger firings, Beam uses the value from the latest trigger firing. This is particularly useful if you use a side input with a single global window and specify a trigger.</p>
 
-<h5 id="side-outputs"><strong>Side Outputs</strong></h5>
+<h5 id="side-outputs"><strong>Side outputs</strong></h5>
 
 <p>While <code class="highlighter-rouge">ParDo</code> always produces a main output <code class="highlighter-rouge">PCollection</code> (as the return value from apply), you can also have your <code class="highlighter-rouge">ParDo</code> produce any number of additional output <code class="highlighter-rouge">PCollection</code>s. If you choose to have multiple outputs, your <code class="highlighter-rouge">ParDo</code> returns all of the output <code class="highlighter-rouge">PCollection</code>s (including the main output) bundled together.</p>
 
-<h5 id="tags-for-side-outputs">Tags for Side Outputs:</h5>
+<h5 id="tags-for-side-outputs">Tags for side outputs:</h5>
 
 <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="c1">// To emit elements to a side output PCollection, create a TupleTag object to identify each collection that your ParDo produces.</span>
 <span class="c1">// For example, if your ParDo produces three output PCollections (the main output and two side outputs), you must create three TupleTags.</span>
@@ -1133,7 +1132,7 @@ tree, [2]
 </code></pre>
 </div>
 
-<h5 id="emitting-to-side-outputs-in-your-dofn">Emitting to Side Outputs in your DoFn:</h5>
+<h5 id="emitting-to-side-outputs-in-your-dofn">Emitting to side outputs in your DoFn:</h5>
 
 <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="c1">// Inside your ParDo's DoFn, you can emit an element to a side output by using the method ProcessContext.sideOutput.</span>
 <span class="c1">// Pass the appropriate TupleTag for the target side output collection when you call ProcessContext.sideOutput.</span>
@@ -1194,9 +1193,150 @@ tree, [2]
 </code></pre>
 </div>
 
-<p><a name="io"></a>
-<a name="running"></a>
-<a name="transforms-composite"></a>
+<h2 id="a-nameioapipeline-io"><a name="io"></a>Pipeline I/O</h2>
+
+<p>When you create a pipeline, you often need to read data from some external source, such as a file in external data sink or a database. Likewise, you may want your pipeline to output its result data to a similar external data sink. Beam provides read and write transforms for a number of common data storage types. If you want your pipeline to read from or write to a data storage format that isn’t supported by the built-in transforms, you can implement your own read and write transforms.</p>
+
+<blockquote>
+  <p>A guide that covers how to implement your own Beam IO transforms is in progress (<a href="https://issues.apache.org/jira/browse/BEAM-1025">BEAM-1025</a>).</p>
+</blockquote>
+
+<h3 id="reading-input-data">Reading input data</h3>
+
+<p>Read transforms read data from an external source and return a <code class="highlighter-rouge">PCollection</code> representation of the data for use by your pipeline. You can use a read transform at any point while constructing your pipeline to create a new <code class="highlighter-rouge">PCollection</code>, though it will be most common at the start of your pipeline.</p>
+
+<h4 id="using-a-read-transform">Using a read transform:</h4>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">lines</span> <span class="o">=</span> <span class="n">p</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">TextIO</span><span class="o">.</span><span class="na">Read</span><span class="o">.</span><span class="na">from</span><span class="o">(</span><span class="s">"gs://some/inputData.txt"</span><span class="o">));</span>   
+</code></pre>
+</div>
+
+<div class="language-python highlighter-rouge"><pre class="highlight"><code><span class="n">lines</span> <span class="o">=</span> <span class="n">pipeline</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">ReadFromText</span><span class="p">(</span><span class="s">'gs://some/inputData.txt'</span><span class="p">)</span>
+</code></pre>
+</div>
+
+<h3 id="writing-output-data">Writing output data</h3>
+
+<p>Write transforms write the data in a <code class="highlighter-rouge">PCollection</code> to an external data source. You will most often use write transforms at the end of your pipeline to output your pipeline’s final results. However, you can use a write transform to output a <code class="highlighter-rouge">PCollection</code>’s data at any point in your pipeline.</p>
+
+<h4 id="using-a-write-transform">Using a Write transform:</h4>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">output</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">TextIO</span><span class="o">.</span><span class="na">Write</span><span class="o">.</span><span class="na">to</span><span class="o">(</span><span class="s">"gs://some/outputData"</span><span class="o">));</span>
+</code></pre>
+</div>
+
+<div class="language-python highlighter-rouge"><pre class="highlight"><code><span class="n">output</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">WriteToText</span><span class="p">(</span><span class="s">'gs://some/outputData'</span><span class="p">)</span>
+</code></pre>
+</div>
+
+<h3 id="file-based-input-and-output-data">File-based input and output data</h3>
+
+<h4 id="reading-from-multiple-locations">Reading from multiple locations:</h4>
+
+<p>Many read transforms support reading from multiple input files matching a glob operator you provide. Note that glob operators are filesystem-specific and obey filesystem-specific consistency models. The following TextIO example uses a glob operator (*) to read all matching input files that have prefix “input-“ and the suffix “.csv” in the given location:</p>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">p</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="err">“</span><span class="n">ReadFromText</span><span class="err">”</span><span class="o">,</span>
+    <span class="n">TextIO</span><span class="o">.</span><span class="na">Read</span><span class="o">.</span><span class="na">from</span><span class="o">(</span><span class="s">"protocol://my_bucket/path/to/input-*.csv"</span><span class="o">);</span>
+</code></pre>
+</div>
+
+<div class="language-python highlighter-rouge"><pre class="highlight"><code><span class="n">lines</span> <span class="o">=</span> <span class="n">p</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">Read</span><span class="p">(</span>
+    <span class="s">'ReadFromText'</span><span class="p">,</span>
+    <span class="n">beam</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">TextFileSource</span><span class="p">(</span><span class="s">'protocol://my_bucket/path/to/input-*.csv'</span><span class="p">))</span>
+</code></pre>
+</div>
+
+<p>To read data from disparate sources into a single <code class="highlighter-rouge">PCollection</code>, read each one independently and then use the <a href="#transforms-flatten-partition">Flatten</a> transform to create a single <code class="highlighter-rouge">PCollection</code>.</p>
+
+<h4 id="writing-to-multiple-output-files">Writing to multiple output files:</h4>
+
+<p>For file-based output data, write transforms write to multiple output files by default. When you pass an output file name to a write transform, the file name is used as the prefix for all output files that the write transform produces. You can append a suffix to each output file by specifying a suffix.</p>
+
+<p>The following write transform example writes multiple output files to a location. Each file has the prefix “numbers”, a numeric tag, and the suffix “.csv”.</p>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">records</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="s">"WriteToText"</span><span class="o">,</span>
+    <span class="n">TextIO</span><span class="o">.</span><span class="na">Write</span><span class="o">.</span><span class="na">to</span><span class="o">(</span><span class="s">"protocol://my_bucket/path/to/numbers"</span><span class="o">)</span>
+                <span class="o">.</span><span class="na">withSuffix</span><span class="o">(</span><span class="s">".csv"</span><span class="o">));</span>
+</code></pre>
+</div>
+
+<div class="language-python highlighter-rouge"><pre class="highlight"><code><span class="n">filtered_words</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">WriteToText</span><span class="p">(</span>
+<span class="s">'protocol://my_bucket/path/to/numbers'</span><span class="p">,</span> <span class="n">file_name_suffix</span><span class="o">=</span><span class="s">'.csv'</span><span class="p">)</span>
+</code></pre>
+</div>
+
+<h3 id="beam-provided-io-apis">Beam-provided I/O APIs</h3>
+
+<p>See the language specific source code directories for the Beam supported I/O APIs. Specific documentation for each of these I/O sources will be added in the future. (<a href="https://issues.apache.org/jira/browse/BEAM-1054">BEAM-1054</a>)</p>
+
+<table class="table table-bordered">
+<tr>
+  <th>Language</th>
+  <th>File-based</th>
+  <th>Messaging</th>
+  <th>Database</th>
+</tr>
+<tr>
+  <td>Java</td>
+  <td>
+    <p><a href="https://github.com/apache/beam/blob/master/sdks/java/core/src/main/java/org/apache/beam/sdk/io/AvroIO.java">AvroIO</a></p>
+    <p><a href="https://github.com/apache/beam/tree/master/sdks/java/io/hdfs">HDFS</a></p>
+    <p><a href="https://github.com/apache/beam/blob/master/sdks/java/core/src/main/java/org/apache/beam/sdk/io/TextIO.java">TextIO</a></p>
+    <p><a href="https://github.com/apache/beam/blob/master/sdks/java/core/src/main/java/org/apache/beam/sdk/io/">XML</a></p>
+  </td>
+  <td>
+    <p><a href="https://github.com/apache/beam/tree/master/sdks/java/io/jms">JMS</a></p>
+    <p><a href="https://github.com/apache/beam/tree/master/sdks/java/io/kafka">Kafka</a></p>
+    <p><a href="https://github.com/apache/beam/tree/master/sdks/java/io/kinesis">Kinesis</a></p>
+    <p><a href="https://github.com/apache/beam/blob/master/sdks/java/core/src/main/java/org/apache/beam/sdk/io">Google Cloud PubSub</a></p>
+  </td>
+  <td>
+    <p><a href="https://github.com/apache/beam/tree/master/sdks/java/io/mongodb">MongoDB</a></p>
+    <p><a href="https://github.com/apache/beam/tree/master/sdks/java/io/jdbc">JDBC</a></p>
+    <p><a href="https://github.com/apache/beam/tree/master/sdks/java/io/google-cloud-platform/src/main/java/org/apache/beam/sdk/io/gcp/bigquery">Google BigQuery</a></p>
+    <p><a href="https://github.com/apache/beam/tree/master/sdks/java/io/google-cloud-platform/src/main/java/org/apache/beam/sdk/io/gcp/bigtable">Google Cloud Bigtable</a></p>
+    <p><a href="https://github.com/apache/beam/tree/master/sdks/java/io/google-cloud-platform/src/main/java/org/apache/beam/sdk/io/gcp/datastore">Google Cloud Datastore</a></p>
+  </td>
+</tr>
+<tr>
+  <td>Python</td>
+  <td>
+    <p><a href="https://github.com/apache/beam/blob/python-sdk/sdks/python/apache_beam/io/avroio.py">avroio</a></p>
+    <p><a href="https://github.com/apache/beam/blob/python-sdk/sdks/python/apache_beam/io/textio.py">textio</a></p>
+  </td>
+  <td>
+  </td>
+  <td>
+    <p><a href="https://github.com/apache/beam/blob/python-sdk/sdks/python/apache_beam/io/bigquery.py">Google BigQuery</a></p>
+    <p><a href="https://github.com/apache/beam/tree/python-sdk/sdks/python/apache_beam/io/datastore">Google Cloud Datastore</a></p>
+  </td>
+
+</tr>
+</table>
+
+<h2 id="a-namerunningarunning-the-pipeline"><a name="running"></a>Running the pipeline</h2>
+
+<p>To run your pipeline, use the <code class="highlighter-rouge">run</code> method. The program you create sends a specification for your pipeline to a pipeline runner, which then constructs and runs the actual series of pipeline operations. Pipelines are executed asynchronously by default.</p>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">pipeline</span><span class="o">.</span><span class="na">run</span><span class="o">();</span>
+</code></pre>
+</div>
+
+<div class="language-python highlighter-rouge"><pre class="highlight"><code><span class="n">pipeline</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
+</code></pre>
+</div>
+
+<p>For blocking execution, append the <code class="highlighter-rouge">waitUntilFinish</code> method:</p>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">pipeline</span><span class="o">.</span><span class="na">run</span><span class="o">().</span><span class="na">waitUntilFinish</span><span class="o">();</span>
+</code></pre>
+</div>
+
+<div class="language-python highlighter-rouge"><pre class="highlight"><code><span class="n">pipeline</span><span class="o">.</span><span class="n">run</span><span class="p">()</span><span class="o">.</span><span class="n">wait_until_finish</span><span class="p">()</span>
+</code></pre>
+</div>
+
+<p><a name="transforms-composite"></a>
 <a name="coders"></a>
 <a name="windowing"></a>
 <a name="triggers"></a></p>
