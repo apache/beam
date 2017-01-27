@@ -27,7 +27,7 @@
   <packaging>jar</packaging>
 
   <properties>
-    <beam.version>0.5.0-SNAPSHOT</beam.version>
+    <beam.version>0.6.0-SNAPSHOT</beam.version>
   </properties>
 
   <repositories>
