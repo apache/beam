@@ -40,7 +40,7 @@ Beam currently supports the following language-specific SDKs:
 
 ## Apache Beam Pipeline Runners
 
-The Beam Pipeline Runners translate the data processing pipeline you define with your Beam program into the API compatible with the distributed processing back-end of your choice. When you run your Beam program, you'll need to specify the appropriate runner for the back-end where you want to execute your pipeline.
+The Beam Pipeline Runners translate the data processing pipeline you define with your Beam program into the API compatible with the distributed processing back-end of your choice. When you run your Beam program, you'll need to specify an [appropriate runner]({{ site.baseurl }}/documentation/runners/capability-matrix) for the back-end where you want to execute your pipeline.
 
 Beam currently supports Runners that work with the following distributed processing back-ends:
 
@@ -51,19 +51,19 @@ Beam currently supports Runners that work with the following distributed process
 </tr>
 <tr>
   <td>Apache Apex</td>
-  <td>In Development</td>
+  <td>Active Development</td>
 </tr>
 <tr>
   <td>Apache Flink</td>
-  <td>In Development</td>
+  <td>Active Development</td>
 </tr>
 <tr>
   <td>Apache Spark</td>
-  <td>In Development</td>
+  <td>Active Development</td>
 </tr>
 <tr>
   <td>Google Cloud Dataflow</td>
-  <td>In Development</td>
+  <td>Active Development</td>
 </tr>
 </table>
 
