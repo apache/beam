@@ -297,7 +297,7 @@ public class WriteTest {
   @Test
   public void testWriteUnbounded() {
     PCollection<String> unbounded = p.apply(CountingInput.unbounded())
-        .apply(ToString.element());
+        .apply(ToString.of());
 
     TestSink sink = new TestSink();
     thrown.expect(IllegalArgumentException.class);
