@@ -58,6 +58,8 @@ We suggest using [Google Docs](https://docs.google.com/) for sharing designs tha
 ## Code
 To contribute code to Apache Beam, you’ll have to do a few administrative steps once, and then follow a few guidelines for each contribution.
 
+When developing a new `PTransform`, consult the [PTransform Style Guide]({{ site.baseurl }}/contribute/ptransform-style-guide).
+
 ### One-time Setup
 
 #### [Potentially] Submit Contributor License Agreement
