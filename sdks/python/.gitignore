@@ -1,0 +1,10 @@
+*~
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+distribute-*
+
+# Test files
+.tox/
