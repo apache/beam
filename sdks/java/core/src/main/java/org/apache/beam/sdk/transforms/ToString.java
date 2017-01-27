@@ -47,18 +47,20 @@ public final class ToString {
   }
 
   /**
-   * Returns a {@code PTransform<PCollection, PCollection<String>>} which transforms each
-   * element of the input {@link PCollection} to a {@link String} using the
-   * {@link Object#toString} method.
+   * Returns a {@code PTransform<PCollection<KV<?,?>, PCollection<String>>} which transforms each
+   * element of the input {@link PCollection} to a {@link String} by using the
+   * {@link Object#toString} on the key followed by a "," followed by the {@link Object#toString}
+   * of the value.
    */
   public static PTransform<PCollection<? extends KV<?, ?>>, PCollection<String>> kv() {
     return kv(",");
   }
 
   /**
-   * Returns a {@code PTransform<PCollection, PCollection<String>>} which transforms each
-   * element of the input {@link PCollection} to a {@link String} using the
-   * {@link Object#toString} method.
+   * Returns a {@code PTransform<PCollection<KV<?,?>, PCollection<String>>} which transforms each
+   * element of the input {@link PCollection} to a {@link String} by using the
+   * {@link Object#toString} on the key followed by the specified delimeter followed by the
+   * {@link Object#toString} of the value.
    * @param delimiter The delimiter to put between the key and value
    */
   public static PTransform<PCollection<? extends KV<?, ?>>,
@@ -67,19 +69,21 @@ public final class ToString {
   }
 
   /**
-   * Returns a {@code PTransform<PCollection, PCollection<String>>} which transforms each
-   * element of the input {@link PCollection} to a {@link String} using the
-   * {@link Object#toString} method.
+   * Returns a {@code PTransform<PCollection<Iterable<?>, PCollection<String>>} which
+   * transforms each item in the iterable of the input {@link PCollection} to a {@link String}
+   * using the {@link Object#toString} method followed by a "," until
+   * the last element in the iterable. There is no trailing delimiter.
    */
   public static PTransform<PCollection<? extends Iterable<?>>, PCollection<String>> iterable() {
     return iterable(",");
   }
 
   /**
-   * Returns a {@code PTransform<PCollection, PCollection<String>>} which transforms each
-   * element of the input {@link PCollection} to a {@link String} using the
-   * {@link Object#toString} method.
-   * @param delimiter The delimiter to put between the key and value
+   * Returns a {@code PTransform<PCollection<Iterable<?>, PCollection<String>>} which
+   * transforms each item in the iterable of the input {@link PCollection} to a {@link String}
+   * using the {@link Object#toString} method followed by the specified delimiter until
+   * the last element in the iterable. There is no trailing delimiter.
+   * @param delimiter The delimiter to put between the items in the iterable.
    */
   public static PTransform<PCollection<? extends Iterable<?>>,
           PCollection<String>> iterable(String delimiter) {
@@ -91,16 +95,17 @@ public final class ToString {
    * using the {@link  Object#toString} method.
    *
    * <p>Example of use:
-   * <pre> {@code
+   * <pre>{@code
    * PCollection<Long> longs = ...;
    * PCollection<String> strings = longs.apply(ToString.of());
-   * } </pre>
+   * }</pre>
    *
    *
    * <p><b>Note</b>: For any custom string conversion and formatting, we recommend applying your own
    * {@link SerializableFunction} using {@link MapElements#via(SerializableFunction)}
    */
-  public static final class SimpleToString extends PTransform<PCollection<?>, PCollection<String>> {
+  private static final class SimpleToString extends
+          PTransform<PCollection<?>, PCollection<String>> {
     @Override
     public PCollection<String> expand(PCollection<?> input) {
       return input.apply(MapElements.via(new SimpleFunction<Object, String>() {
@@ -118,16 +123,16 @@ public final class ToString {
    * the key and value and an optional delimiter.
    *
    * <p>Example of use:
-   * <pre> {@code
+   * <pre>{@code
    * PCollection<KV<String, Long>> nameToLong = ...;
    * PCollection<String> strings = nameToLong.apply(ToString.kv());
-   * } </pre>
+   * }</pre>
    *
    *
    * <p><b>Note</b>: For any custom string conversion and formatting, we recommend applying your
    * own {@link SerializableFunction} using {@link MapElements#via(SerializableFunction)}
    */
-  public static final class KVToString extends
+  private static final class KVToString extends
           PTransform<PCollection<? extends KV<?, ?>>, PCollection<String>> {
     private final String delimiter;
 
@@ -152,16 +157,16 @@ public final class ToString {
    * an optional delimiter.
    *
    * <p>Example of use:
-   * <pre> {@code
+   * <pre>{@code
    * PCollection<Iterable<Long>> longs = ...;
    * PCollection<String> strings = nameToLong.apply(ToString.iterable());
-   * } </pre>
+   * }</pre>
    *
    *
    * <p><b>Note</b>: For any custom string conversion and formatting, we recommend applying your
    * own {@link SerializableFunction} using {@link MapElements#via(SerializableFunction)}
    */
-  public static final class IterablesToString extends
+  private static final class IterablesToString extends
           PTransform<PCollection<? extends Iterable<?>>, PCollection<String>> {
     private final String delimiter;
 

@@ -20,8 +20,6 @@ package org.apache.beam.sdk.transforms;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Iterator;
-import java.util.List;
 
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -48,9 +46,10 @@ public class ToStringTest {
   @Category(RunnableOnService.class)
   public void testToStringOf() {
     Integer[] ints = {1, 2, 3, 4, 5};
+    String[] strings = {"1", "2", "3", "4", "5"};
     PCollection<Integer> input = p.apply(Create.of(Arrays.asList(ints)));
     PCollection<String> output = input.apply(ToString.of());
-    PAssert.that(output).containsInAnyOrder(objectToString(ints));
+    PAssert.that(output).containsInAnyOrder(strings);
     p.run();
   }
 
@@ -61,9 +60,13 @@ public class ToStringTest {
     kvs.add(KV.of("one", 1));
     kvs.add(KV.of("two", 2));
 
+    ArrayList<String> expected = new ArrayList<>();
+    expected.add("one,1");
+    expected.add("two,2");
+
     PCollection<KV<String, Integer>> input = p.apply(Create.of(kvs));
     PCollection<String> output = input.apply(ToString.kv());
-    PAssert.that(output).containsInAnyOrder(kvToString(kvs, ","));
+    PAssert.that(output).containsInAnyOrder(expected);
     p.run();
   }
 
@@ -74,11 +77,13 @@ public class ToStringTest {
     kvs.add(KV.of("one", 1));
     kvs.add(KV.of("two", 2));
 
-    String delimiter = "\t";
+    ArrayList<String> expected = new ArrayList<>();
+    expected.add("one\t1");
+    expected.add("two\t2");
 
     PCollection<KV<String, Integer>> input = p.apply(Create.of(kvs));
-    PCollection<String> output = input.apply(ToString.kv(delimiter));
-    PAssert.that(output).containsInAnyOrder(kvToString(kvs, delimiter));
+    PCollection<String> output = input.apply(ToString.kv("\t"));
+    PAssert.that(output).containsInAnyOrder(expected);
     p.run();
   }
 
@@ -89,10 +94,14 @@ public class ToStringTest {
     iterables.add(Arrays.asList(new String[]{"one", "two", "three"}));
     iterables.add(Arrays.asList(new String[]{"four", "five", "six"}));
 
+    ArrayList<String> expected = new ArrayList<>();
+    expected.add("one,two,three");
+    expected.add("four,five,six");
+
     PCollection<Iterable<String>> input = p.apply(Create.of(iterables)
             .withCoder(IterableCoder.of(StringUtf8Coder.of())));
     PCollection<String> output = input.apply(ToString.iterable());
-    PAssert.that(output).containsInAnyOrder(iterableToString(iterables, ","));
+    PAssert.that(output).containsInAnyOrder(expected);
     p.run();
   }
 
@@ -103,54 +112,14 @@ public class ToStringTest {
     iterables.add(Arrays.asList(new String[]{"one", "two", "three"}));
     iterables.add(Arrays.asList(new String[]{"four", "five", "six"}));
 
-    String delimiter = "\t";
+    ArrayList<String> expected = new ArrayList<>();
+    expected.add("one\ttwo\tthree");
+    expected.add("four\tfive\tsix");
 
     PCollection<Iterable<String>> input = p.apply(Create.of(iterables)
             .withCoder(IterableCoder.of(StringUtf8Coder.of())));
-    PCollection<String> output = input.apply(ToString.iterable(delimiter));
-    PAssert.that(output).containsInAnyOrder(iterableToString(iterables, delimiter));
+    PCollection<String> output = input.apply(ToString.iterable("\t"));
+    PAssert.that(output).containsInAnyOrder(expected);
     p.run();
-  }
-
-  private List<String> objectToString(Object[] objects) {
-    List<String> list = new ArrayList<>(objects.length);
-
-    for (Object i : objects) {
-      list.add(i.toString());
-    }
-
-    return list;
-  }
-
-  private List<String> kvToString(ArrayList<? extends  KV<?, ?>> arrayList, String delimiter) {
-    List<String> list = new ArrayList(arrayList.size());
-
-    for (KV kv : arrayList) {
-      list.add(kv.getKey().toString() + delimiter + kv.getValue().toString());
-    }
-
-    return list;
-  }
-
-  private List<String> iterableToString(ArrayList<? extends Iterable<?>> iterableList,
-                                        String delimiter) {
-    List<String> list = new ArrayList();
-
-    for (Iterable iterable : iterableList) {
-      StringBuilder builder = new StringBuilder();
-      Iterator iterator = iterable.iterator();
-
-      while (iterator.hasNext()) {
-        builder.append(iterator.next().toString());
-
-        if (iterator.hasNext()) {
-          builder.append(delimiter);
-        }
-      }
-
-      list.add(builder.toString());
-    }
-
-    return list;
   }
 }
