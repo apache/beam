@@ -26,6 +26,7 @@ import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 
+import java.io.IOException;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Deque;
@@ -69,22 +70,10 @@ public class DataSourceWrapper<T>
     }
 
     if (openReaders.size() == 1) {
-      // ~ execute the reader in a separate thread, such that
-      // we can safely quit without being blocked by the reader
-      // ~ here we specialize on the single reader scenario to
-      // avoid needlessly synchronizing on the ctx as a lock
-      Reader<T> reader = openReaders.get(0);
-      executor = createThreadPool();
-      Future<?> task = executor.submit(() -> {
+      try (Reader<T> reader = openReaders.get(0)) {
         while (isRunning && reader.hasNext()) {
           ctx.collect(toWindowedElement(reader.next()));
         }
-      });
-      // ~ wait for the reader to finish or quit if request
-      try {
-        task.get();
-      } catch (InterruptedException e) {
-        Thread.currentThread().interrupt();
       }
     } else {
       // start a new thread for each reader
@@ -92,10 +81,15 @@ public class DataSourceWrapper<T>
       Deque<Future> tasks = new ArrayDeque<>();
       for (Reader<T> reader : openReaders) {
         tasks.add(executor.submit(() -> {
-          while (reader.hasNext()) {
-            synchronized (ctx) {
-              ctx.collect(toWindowedElement(reader.next()));
+          try {
+            while (reader.hasNext()) {
+              synchronized (ctx) {
+                ctx.collect(toWindowedElement(reader.next()));
+              }
             }
+            return null;
+          } finally {
+            reader.close();
           }
         }));
       }
