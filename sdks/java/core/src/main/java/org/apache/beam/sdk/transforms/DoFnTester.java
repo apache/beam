@@ -315,18 +315,6 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
             }
 
             @Override
-            public DoFn.InputProvider<InputT> inputProvider() {
-              throw new UnsupportedOperationException(
-                  "Not expected to access InputProvider from DoFnTester");
-            }
-
-            @Override
-            public DoFn.OutputReceiver<OutputT> outputReceiver() {
-              throw new UnsupportedOperationException(
-                  "Not expected to access OutputReceiver from DoFnTester");
-            }
-
-            @Override
             public <RestrictionT> RestrictionTracker<RestrictionT> restrictionTracker() {
               throw new UnsupportedOperationException(
                   "Not expected to access RestrictionTracker from a regular DoFn in DoFnTester");

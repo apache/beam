@@ -672,18 +672,6 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
       }
 
       @Override
-      public DoFn.InputProvider<InputT> inputProvider() {
-        // DoFnSignatures should have verified that this DoFn doesn't access extra context.
-        throw new IllegalStateException("Unexpected extra context access on a splittable DoFn");
-      }
-
-      @Override
-      public DoFn.OutputReceiver<OutputT> outputReceiver() {
-        // DoFnSignatures should have verified that this DoFn doesn't access extra context.
-        throw new IllegalStateException("Unexpected extra context access on a splittable DoFn");
-      }
-
-      @Override
       public TrackerT restrictionTracker() {
         return tracker;
       }

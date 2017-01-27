@@ -372,12 +372,6 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
   public interface OutputReceiver<T> {
     void output(T output);
   }
-
-  /** Provides a single value of the given type. */
-  public interface InputProvider<T> {
-    T get();
-  }
-
   /////////////////////////////////////////////////////////////////////////////
 
   /**
