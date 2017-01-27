@@ -988,12 +988,6 @@ public class BigQueryIOTest implements Serializable {
         .withoutValidation());
     p.run();
 
-    logged.verifyInfo("Starting BigQuery load job");
-    logged.verifyInfo("BigQuery load job failed");
-    logged.verifyInfo("try 0/" + BigQueryIO.Write.Bound.MAX_RETRY_JOBS);
-    logged.verifyInfo("try 1/" + BigQueryIO.Write.Bound.MAX_RETRY_JOBS);
-    logged.verifyInfo("try 2/" + BigQueryIO.Write.Bound.MAX_RETRY_JOBS);
-    logged.verifyNotLogged("try 3/" + BigQueryIO.Write.Bound.MAX_RETRY_JOBS);
     File tempDir = new File(bqOptions.getTempLocation());
     testNumFiles(tempDir, 0);
   }
@@ -1232,11 +1226,49 @@ public class BigQueryIOTest implements Serializable {
         .withoutValidation());
 
     thrown.expect(RuntimeException.class);
-    thrown.expectMessage("Failed to poll the load job status");
-    p.run();
+    thrown.expectMessage("UNKNOWN status of load job");
+    try {
+      p.run();
+    } finally {
+      File tempDir = new File(bqOptions.getTempLocation());
+      testNumFiles(tempDir, 0);
+    }
+  }
 
-    File tempDir = new File(bqOptions.getTempLocation());
-    testNumFiles(tempDir, 0);
+  @Test
+  @Category(NeedsRunner.class)
+  public void testWriteFailedJobs() throws Exception {
+    BigQueryOptions bqOptions = TestPipeline.testingPipelineOptions().as(BigQueryOptions.class);
+    bqOptions.setProject("defaultProject");
+    bqOptions.setTempLocation(testFolder.newFolder("BigQueryIOTest").getAbsolutePath());
+
+    FakeBigQueryServices fakeBqServices = new FakeBigQueryServices()
+        .withJobService(new FakeJobService()
+            .startJobReturns("done", "done", "done")
+            .pollJobReturns(Status.FAILED, Status.FAILED, Status.FAILED));
+
+    Pipeline p = TestPipeline.create(bqOptions);
+    p.apply(Create.of(
+        new TableRow().set("name", "a").set("number", 1),
+        new TableRow().set("name", "b").set("number", 2),
+        new TableRow().set("name", "c").set("number", 3))
+        .withCoder(TableRowJsonCoder.of()))
+        .apply(BigQueryIO.Write.to("dataset-id.table-id")
+            .withCreateDisposition(CreateDisposition.CREATE_NEVER)
+            .withTestServices(fakeBqServices)
+            .withoutValidation());
+
+    thrown.expect(RuntimeException.class);
+    thrown.expectMessage("Failed to create load job with id prefix");
+    thrown.expectMessage("reached max retries");
+    thrown.expectMessage("last failed load job");
+
+    try {
+      p.run();
+    } finally {
+      File tempDir = new File(bqOptions.getTempLocation());
+      testNumFiles(tempDir, 0);
+    }
   }
 
   @Test
@@ -2164,12 +2196,6 @@ public class BigQueryIOTest implements Serializable {
 
     List<String> tempTables = tester.takeOutputElements();
 
-    logged.verifyInfo("Starting BigQuery load job");
-    logged.verifyInfo("BigQuery load job failed");
-    logged.verifyInfo("try 0/" + BigQueryIO.Write.Bound.MAX_RETRY_JOBS);
-    logged.verifyInfo("try 1/" + BigQueryIO.Write.Bound.MAX_RETRY_JOBS);
-    logged.verifyNotLogged("try 2/" + BigQueryIO.Write.Bound.MAX_RETRY_JOBS);
-
     assertEquals(expectedTempTables, tempTables);
   }
 
@@ -2237,12 +2263,6 @@ public class BigQueryIOTest implements Serializable {
     DoFnTester<String, Void> tester = DoFnTester.of(writeRename);
     tester.setSideInput(tempTablesView, GlobalWindow.INSTANCE, tempTables);
     tester.processElement(null);
-
-    logged.verifyInfo("Starting BigQuery copy job");
-    logged.verifyInfo("BigQuery copy job failed");
-    logged.verifyInfo("try 0/" + BigQueryIO.Write.Bound.MAX_RETRY_JOBS);
-    logged.verifyInfo("try 1/" + BigQueryIO.Write.Bound.MAX_RETRY_JOBS);
-    logged.verifyNotLogged("try 2/" + BigQueryIO.Write.Bound.MAX_RETRY_JOBS);
   }
 
   @Test
