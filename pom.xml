@@ -141,9 +141,6 @@
   <packaging>pom</packaging>
 
   <modules>
-    <!-- sdks/java/build-tools has project-wide configuration. To make these available
-      in all modules, link it directly to the parent pom.xml. -->
-    <module>sdks/java/build-tools</module>
     <module>sdks</module>
     <module>runners</module>
     <module>examples</module>
@@ -835,15 +832,11 @@
               <artifactId>checkstyle</artifactId>
               <version>6.19</version>
             </dependency>
-            <dependency>
-              <groupId>org.apache.beam</groupId>
-              <artifactId>beam-sdks-java-build-tools</artifactId>
-              <version>${project.version}</version>
-            </dependency>
           </dependencies>
           <configuration>
-            <configLocation>beam/checkstyle.xml</configLocation>
-            <suppressionsLocation>beam/suppressions.xml</suppressionsLocation>
+            <!-- beam.rootdir set by scjijava:set-rootdir -->
+            <configLocation>${beam.rootdir}/build-tools/checkstyle/checkstyle.xml</configLocation>
+            <suppressionsLocation>${beam.rootdir}/build-tools/checkstyle/suppressions.xml</suppressionsLocation>
             <consoleOutput>true</consoleOutput>
             <failOnViolation>true</failOnViolation>
             <includeResources>false</includeResources>
@@ -1173,12 +1166,6 @@
           <artifactId>findbugs-maven-plugin</artifactId>
           <version>${findbugs.version}</version>
           <dependencies>
-            <dependency>
-              <groupId>org.apache.beam</groupId>
-              <artifactId>beam-sdks-java-build-tools</artifactId>
-              <version>${project.version}</version>
-            </dependency>
-
             <!-- Explicitly exclude deps which we do not really need. -->
             <dependency>
               <groupId>com.google.code.findbugs</groupId>
@@ -1194,7 +1181,7 @@
           </dependencies>
 
           <configuration>
-            <excludeFilterFile>beam/findbugs-filter.xml</excludeFilterFile>
+            <excludeFilterFile>${beam.rootdir}/findbugs-filter.xml</excludeFilterFile>
           </configuration>
 
           <executions>
@@ -1210,6 +1197,28 @@
     </pluginManagement>
 
     <plugins>
+      <plugin>
+        <groupId>org.scijava</groupId>
+        <artifactId>scijava-maven-plugin</artifactId>
+        <version>0.1.0</version>
+        <executions>
+          <execution>
+            <id>set-rootdir</id>
+            <phase>validate</phase>
+            <goals>
+              <goal>set-rootdir</goal>
+            </goals>
+            <configuration>
+              <rootdirPropertyName>beam.rootdir</rootdirPropertyName>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <!-- Configuration all sitting in pluginManagement. -->
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-checkstyle-plugin</artifactId>
+      </plugin>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-dependency-plugin</artifactId>
