@@ -27,8 +27,8 @@ and new data sources or destinations - idealy just by configuration.
 
 ```java
 // Define data source and data sinks
-DataSource<String> dataSource = new SimpleHadoopTextFileDataSource(inputPath);
-DataSink<String> dataSink = new SimpleHadoopTextFileDataSink<>(outputPath);
+DataSource<String> dataSource = new SimpleHadoopTextFileSource(inputPath);
+DataSink<String> dataSink = new SimpleHadoopTextFileSink<>(outputPath);
 
 // Define a flow, i.e. a chain of transformations
 Flow flow = Flow.create("WordCount");
@@ -70,7 +70,7 @@ processing engine.  Currently, the following are supported:
 
  * [Apache Flink](https://flink.apache.org/)
  * [Apache Spark](http://spark.apache.org/)
- * A independent, standalone, in-memory engine which part of the
+ * An independent, standalone, in-memory engine which is part of the
    Euphoria project suitable for running flows in unit tests.
 
 In the WordCount example from above, to switch the execution engine
