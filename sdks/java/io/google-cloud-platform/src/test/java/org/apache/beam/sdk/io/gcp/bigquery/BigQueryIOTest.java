@@ -1260,6 +1260,8 @@ public class BigQueryIOTest implements Serializable {
 
     thrown.expect(RuntimeException.class);
     thrown.expectMessage("Failed to create load job with id prefix");
+    thrown.expectMessage("reached max retries");
+    thrown.expectMessage("last failed load job");
 
     try {
       p.run();
