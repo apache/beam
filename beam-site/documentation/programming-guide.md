@@ -15,7 +15,7 @@ The **Beam Programming Guide** is intended for Beam users who want to use the Be
 <nav class="language-switcher">
   <strong>Adapt for:</strong> 
   <ul>
-    <li data-type="language-java">Java SDK</li>
+    <li data-type="language-java" class="active">Java SDK</li>
     <li data-type="language-py">Python SDK</li>
   </ul>
 </nav>
@@ -1080,7 +1080,7 @@ pipeline.run().waitUntilFinish();
 ```
 
 ```python
-pipeline.run().wait_until_finish();
+pipeline.run().wait_until_finish()
 ```
 
 <a name="transforms-composite"></a>
