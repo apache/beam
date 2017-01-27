@@ -20,7 +20,6 @@ package org.apache.beam.runners.core;
 import java.io.Serializable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
-import org.apache.beam.sdk.util.TimerInternals;
 
 /**
  * A factory for providing {@link TimerInternals} for a particular key.
