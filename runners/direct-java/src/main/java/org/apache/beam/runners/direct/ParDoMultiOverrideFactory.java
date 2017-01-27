@@ -40,8 +40,8 @@ import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.transforms.windowing.AfterPane;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.transforms.windowing.OutputTimeFns;
 import org.apache.beam.sdk.transforms.windowing.Repeatedly;
+import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowingStrategy;
@@ -135,14 +135,14 @@ class ParDoMultiOverrideFactory<InputT, OutputT>
               // to alter the flow of data. This entails:
               //  - trigger as fast as possible
               //  - maintain the full timestamps of elements
-              //  - ensure this GBK holds to the minimum of those timestamps (via OutputTimeFn)
+              //  - ensure this GBK holds to the minimum of those timestamps (via TimestampCombiner)
               //  - discard past panes as it is "just a stream" of elements
               .apply(
                   Window.<KV<K, WindowedValue<KV<K, InputT>>>>configure()
                       .triggering(Repeatedly.forever(AfterPane.elementCountAtLeast(1)))
                       .discardingFiredPanes()
                       .withAllowedLateness(inputWindowingStrategy.getAllowedLateness())
-                      .withOutputTimeFn(OutputTimeFns.outputAtEarliestInputTimestamp()))
+                      .withTimestampCombiner(TimestampCombiner.EARLIEST))
 
               // A full GBK to group by key _and_ window
               .apply("Group by key", GroupByKey.<K, WindowedValue<KV<K, InputT>>>create())

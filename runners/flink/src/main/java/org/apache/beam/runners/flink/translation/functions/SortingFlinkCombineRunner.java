@@ -26,8 +26,9 @@ import java.util.List;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
-import org.apache.beam.sdk.transforms.windowing.OutputTimeFn;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
+import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
+import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.SideInputReader;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowingStrategy;
@@ -53,8 +54,9 @@ public class SortingFlinkCombineRunner<K, InputT, AccumT, OutputT, W extends Bou
       Collector<WindowedValue<KV<K, OutputT>>> out) throws Exception {
 
     @SuppressWarnings("unchecked")
-    OutputTimeFn<? super BoundedWindow> outputTimeFn =
-        (OutputTimeFn<? super BoundedWindow>) windowingStrategy.getOutputTimeFn();
+    TimestampCombiner timestampCombiner =
+        (TimestampCombiner) windowingStrategy.getTimestampCombiner();
+    WindowFn<Object, W> windowFn = windowingStrategy.getWindowFn();
 
     // get all elements so that we can sort them, has to fit into
     // memory
@@ -88,18 +90,19 @@ public class SortingFlinkCombineRunner<K, InputT, AccumT, OutputT, W extends Bou
     // create accumulator using the first elements key
     WindowedValue<KV<K, InputT>> currentValue = iterator.next();
     K key = currentValue.getValue().getKey();
-    BoundedWindow currentWindow = Iterables.getOnlyElement(currentValue.getWindows());
+    W currentWindow = (W) Iterables.getOnlyElement(currentValue.getWindows());
     InputT firstValue = currentValue.getValue().getValue();
     AccumT accumulator = flinkCombiner.firstInput(
         key, firstValue, options, sideInputReader, currentValue.getWindows());
 
-    // we use this to keep track of the timestamps assigned by the OutputTimeFn
+    // we use this to keep track of the timestamps assigned by the TimestampCombiner
     Instant windowTimestamp =
-        outputTimeFn.assignOutputTime(currentValue.getTimestamp(), currentWindow);
+        timestampCombiner.assign(
+            currentWindow, windowFn.getOutputTime(currentValue.getTimestamp(), currentWindow));
 
     while (iterator.hasNext()) {
       WindowedValue<KV<K, InputT>> nextValue = iterator.next();
-      BoundedWindow nextWindow = Iterables.getOnlyElement(nextValue.getWindows());
+      W nextWindow = (W) Iterables.getOnlyElement(nextValue.getWindows());
 
       if (currentWindow.equals(nextWindow)) {
         // continue accumulating and merge windows
@@ -108,9 +111,12 @@ public class SortingFlinkCombineRunner<K, InputT, AccumT, OutputT, W extends Bou
         accumulator = flinkCombiner.addInput(key, accumulator, value,
             options, sideInputReader, currentValue.getWindows());
 
-        windowTimestamp = outputTimeFn.combine(
-            windowTimestamp,
-            outputTimeFn.assignOutputTime(nextValue.getTimestamp(), currentWindow));
+        windowTimestamp =
+            timestampCombiner.combine(
+                windowTimestamp,
+                timestampCombiner.assign(
+                    currentWindow,
+                    windowFn.getOutputTime(nextValue.getTimestamp(), currentWindow)));
 
       } else {
         // emit the value that we currently have
@@ -127,7 +133,9 @@ public class SortingFlinkCombineRunner<K, InputT, AccumT, OutputT, W extends Bou
         InputT value = nextValue.getValue().getValue();
         accumulator = flinkCombiner.firstInput(key, value,
             options, sideInputReader, currentValue.getWindows());
-        windowTimestamp = outputTimeFn.assignOutputTime(nextValue.getTimestamp(), currentWindow);
+        windowTimestamp =
+            timestampCombiner.assign(
+                currentWindow, windowFn.getOutputTime(nextValue.getTimestamp(), currentWindow));
       }
 
     }
