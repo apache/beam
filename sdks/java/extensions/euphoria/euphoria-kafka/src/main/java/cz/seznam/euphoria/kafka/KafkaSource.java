@@ -74,6 +74,12 @@ public class KafkaSource implements DataSource<Pair<byte[], byte[]>> {
     @Override
     protected Pair<byte[], byte[]> computeNext() {
       while (next == null || !next.hasNext()) {
+        if (Thread.currentThread().isInterrupted()) {
+          LOG.info("Terminating polling on topic due to thread interruption");
+          endOfData();
+          return null;
+        }
+
         commitIfNeeded();
         ConsumerRecords<byte[], byte[]> polled = c.poll(500);
         next = polled.iterator();
