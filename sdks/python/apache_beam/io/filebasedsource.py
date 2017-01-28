@@ -26,11 +26,9 @@ For an example implementation of ``FileBasedSource`` see ``avroio.AvroSource``.
 """
 
 import random
-import threading
-import weakref
-from multiprocessing.pool import ThreadPool
 
 from apache_beam.internal import pickler
+from apache_beam.internal import util
 from apache_beam.io import concat_source
 from apache_beam.io import fileio
 from apache_beam.io import iobase
@@ -158,16 +156,9 @@ class FileBasedSource(iobase.BoundedSource):
       return [fileio.ChannelFactory.size_in_bytes(file_names[0])]
     else:
       if pattern is None:
-        # ThreadPool crashes in old versions of Python (< 2.7.5) if created
-        # from a child thread. (http://bugs.python.org/issue10015)
-        if not hasattr(threading.current_thread(), '_children'):
-          threading.current_thread()._children = weakref.WeakKeyDictionary()
-        pool = ThreadPool(
-            min(MAX_NUM_THREADS_FOR_SIZE_ESTIMATION, len(file_names)))
-        try:
-          return pool.map(fileio.ChannelFactory.size_in_bytes, file_names)
-        finally:
-          pool.terminate()
+        return util.run_using_threadpool(
+            fileio.ChannelFactory.size_in_bytes, file_names,
+            MAX_NUM_THREADS_FOR_SIZE_ESTIMATION)
       else:
         file_sizes = fileio.ChannelFactory.size_of_files_in_glob(pattern,
                                                                  file_names)
