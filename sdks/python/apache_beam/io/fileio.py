@@ -22,16 +22,14 @@ import bz2
 import cStringIO
 import glob
 import logging
-from multiprocessing.pool import ThreadPool
 import os
 import re
 import shutil
-import threading
 import time
 import zlib
-import weakref
 
 from apache_beam import coders
+from apache_beam.internal import util
 from apache_beam.io import gcsio
 from apache_beam.io import iobase
 from apache_beam.transforms.display import DisplayDataItem
@@ -663,11 +661,8 @@ class FileSink(iobase.Sink):
           logging.debug('Rename successful: %s -> %s', src, dest)
       return exceptions
 
-    # ThreadPool crashes in old versions of Python (< 2.7.5) if created from a
-    # child thread. (http://bugs.python.org/issue10015)
-    if not hasattr(threading.current_thread(), '_children'):
-      threading.current_thread()._children = weakref.WeakKeyDictionary()
-    exception_batches = ThreadPool(num_threads).map(_rename_batch, batches)
+    exception_batches = util.run_using_threadpool(
+        _rename_batch, batches, num_threads)
 
     all_exceptions = []
     for exceptions in exception_batches:
