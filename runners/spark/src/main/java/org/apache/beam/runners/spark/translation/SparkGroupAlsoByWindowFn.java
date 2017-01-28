@@ -78,7 +78,7 @@ public class SparkGroupAlsoByWindowFn<K, InputT, W extends BoundedWindow>
     droppedDueToClosedWindow = runtimeContext.createAggregator(
         accumulator,
         GroupAlsoByWindowsDoFn.DROPPED_DUE_TO_CLOSED_WINDOW_COUNTER,
-        new Sum.SumLongFn());
+        Sum.ofLongs());
   }
 
   @Override

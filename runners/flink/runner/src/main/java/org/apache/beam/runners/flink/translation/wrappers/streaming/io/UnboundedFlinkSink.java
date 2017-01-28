@@ -30,6 +30,7 @@ import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.CloudObject;
 import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
+import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 
 /**
@@ -127,6 +128,11 @@ public class UnboundedFlinkSink<T> extends Sink<T> {
           @Override
           public Collection<String> getAllowedEncodings() {
             return null;
+          }
+
+          @Override
+          public TypeDescriptor<Object> getEncodedTypeDescriptor() {
+            return TypeDescriptor.of(Object.class);
           }
         };
       }

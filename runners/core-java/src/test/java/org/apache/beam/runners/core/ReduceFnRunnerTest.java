@@ -217,7 +217,7 @@ public class ReduceFnRunnerTest {
         ReduceFnTester.combining(
             strategy,
             mockTriggerStateMachine,
-            new Sum.SumIntegerFn().<String>asKeyedFn(),
+            Sum.ofIntegers().<String>asKeyedFn(),
             VarIntCoder.of());
 
     injectElement(tester, 2);
@@ -290,7 +290,7 @@ public class ReduceFnRunnerTest {
 
     ReduceFnTester<Integer, Integer, IntervalWindow> tester =
         ReduceFnTester
-            .combining(strategy, new Sum.SumIntegerFn().<String>asKeyedFn(), VarIntCoder.of());
+            .combining(strategy, Sum.ofIntegers().<String>asKeyedFn(), VarIntCoder.of());
 
     tester.injectElements(TimestampedValue.of(13, elementTimestamp));
 
@@ -322,7 +322,7 @@ public class ReduceFnRunnerTest {
         ReduceFnTester.combining(
             strategy,
             mockTriggerStateMachine,
-            new Sum.SumIntegerFn().<String>asKeyedFn(),
+            Sum.ofIntegers().<String>asKeyedFn(),
             VarIntCoder.of());
 
     injectElement(tester, 1);
@@ -1069,7 +1069,7 @@ public class ReduceFnRunnerTest {
             SlidingWindows.of(Duration.millis(100)).every(Duration.millis(30)))
         .withTrigger(AfterWatermark.pastEndOfWindow())
         .withAllowedLateness(Duration.millis(1000)),
-        new Sum.SumIntegerFn().<String>asKeyedFn(), VarIntCoder.of());
+        Sum.ofIntegers().<String>asKeyedFn(), VarIntCoder.of());
 
     tester.injectElements(
         // assigned to [-60, 40), [-30, 70), [0, 100)
@@ -1212,7 +1212,7 @@ public class ReduceFnRunnerTest {
 
     ReduceFnTester<Integer, Integer, IntervalWindow> tester =
         ReduceFnTester
-            .combining(strategy, new Sum.SumIntegerFn().<String>asKeyedFn(), VarIntCoder.of());
+            .combining(strategy, Sum.ofIntegers().<String>asKeyedFn(), VarIntCoder.of());
 
     tester.advanceInputWatermark(new Instant(0));
     tester.advanceProcessingTime(new Instant(0));
@@ -1268,7 +1268,7 @@ public class ReduceFnRunnerTest {
 
     ReduceFnTester<Integer, Integer, IntervalWindow> tester =
         ReduceFnTester
-            .combining(strategy, new Sum.SumIntegerFn().<String>asKeyedFn(), VarIntCoder.of());
+            .combining(strategy, Sum.ofIntegers().<String>asKeyedFn(), VarIntCoder.of());
 
     tester.advanceInputWatermark(new Instant(0));
     tester.advanceProcessingTime(new Instant(0));

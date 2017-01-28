@@ -27,7 +27,7 @@ import org.apache.beam.runners.core.DoFnRunner;
 import org.apache.beam.runners.core.DoFnRunners;
 import org.apache.beam.runners.spark.aggregators.NamedAggregators;
 import org.apache.beam.runners.spark.aggregators.SparkAggregators;
-import org.apache.beam.runners.spark.util.BroadcastHelper;
+import org.apache.beam.runners.spark.util.SideInputBroadcast;
 import org.apache.beam.runners.spark.util.SparkSideInputReader;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -50,7 +50,7 @@ public class DoFnFunction<InputT, OutputT>
   private final Accumulator<NamedAggregators> accumulator;
   private final DoFn<InputT, OutputT> doFn;
   private final SparkRuntimeContext runtimeContext;
-  private final Map<TupleTag<?>, KV<WindowingStrategy<?, ?>, BroadcastHelper<?>>> sideInputs;
+  private final Map<TupleTag<?>, KV<WindowingStrategy<?, ?>, SideInputBroadcast<?>>> sideInputs;
   private final WindowingStrategy<?, ?> windowingStrategy;
 
   /**
@@ -64,7 +64,7 @@ public class DoFnFunction<InputT, OutputT>
       Accumulator<NamedAggregators> accumulator,
       DoFn<InputT, OutputT> doFn,
       SparkRuntimeContext runtimeContext,
-      Map<TupleTag<?>, KV<WindowingStrategy<?, ?>, BroadcastHelper<?>>> sideInputs,
+      Map<TupleTag<?>, KV<WindowingStrategy<?, ?>, SideInputBroadcast<?>>> sideInputs,
       WindowingStrategy<?, ?> windowingStrategy) {
 
     this.accumulator = accumulator;
@@ -80,18 +80,19 @@ public class DoFnFunction<InputT, OutputT>
       Iterator<WindowedValue<InputT>> iter) throws Exception {
 
     DoFnOutputManager outputManager = new DoFnOutputManager();
+
     DoFnRunner<InputT, OutputT> doFnRunner =
-        DoFnRunners.createDefault(
+        DoFnRunners.simpleRunner(
             runtimeContext.getPipelineOptions(),
             doFn,
             new SparkSideInputReader(sideInputs),
             outputManager,
-            new TupleTag<OutputT>() {},
+            new TupleTag<OutputT>() {
+            },
             Collections.<TupleTag<?>>emptyList(),
             new SparkProcessContext.NoOpStepContext(),
             new SparkAggregators.Factory(runtimeContext, accumulator),
-            windowingStrategy
-        );
+            windowingStrategy);
 
     return new SparkProcessContext<>(doFn, doFnRunner, outputManager).processPartition(iter);
   }

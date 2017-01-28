@@ -18,26 +18,30 @@
 
 package org.apache.beam.runners.direct;
 
-import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.nullValue;
-import static org.hamcrest.core.Is.is;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
+import static org.mockito.Matchers.any;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 
-import java.util.ArrayList;
-import java.util.List;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
+import org.apache.beam.sdk.util.TimeDomain;
+import org.apache.beam.sdk.util.TimerInternals.TimerData;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.util.state.StateNamespaces;
 import org.hamcrest.Matchers;
+import org.joda.time.Instant;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for {@link DoFnLifecycleManagerRemovingTransformEvaluator}.
- */
+/** Tests for {@link DoFnLifecycleManagerRemovingTransformEvaluator}. */
 @RunWith(JUnit4.class)
 public class DoFnLifecycleManagerRemovingTransformEvaluatorTest {
   private DoFnLifecycleManager lifecycleManager;
@@ -49,24 +53,28 @@ public class DoFnLifecycleManagerRemovingTransformEvaluatorTest {
 
   @Test
   public void delegatesToUnderlying() throws Exception {
-    RecordingTransformEvaluator underlying = new RecordingTransformEvaluator();
+    ParDoEvaluator<Object, Object> underlying = mock(ParDoEvaluator.class);
     DoFn<?, ?> original = lifecycleManager.get();
     TransformEvaluator<Object> evaluator =
         DoFnLifecycleManagerRemovingTransformEvaluator.wrapping(underlying, lifecycleManager);
     WindowedValue<Object> first = WindowedValue.valueInGlobalWindow(new Object());
     WindowedValue<Object> second = WindowedValue.valueInGlobalWindow(new Object());
-    evaluator.processElement(first);
-    assertThat(underlying.objects, containsInAnyOrder(first));
-    evaluator.processElement(second);
-    evaluator.finishBundle();
 
-    assertThat(underlying.finishBundleCalled, is(true));
-    assertThat(underlying.objects, containsInAnyOrder(second, first));
+    evaluator.processElement(first);
+    verify(underlying).processElement(first);
+
+    evaluator.processElement(second);
+    verify(underlying).processElement(second);
+
+    evaluator.finishBundle();
+    verify(underlying).finishBundle();
   }
 
   @Test
   public void removesOnExceptionInProcessElement() throws Exception {
-    ThrowingTransformEvaluator underlying = new ThrowingTransformEvaluator();
+    ParDoEvaluator<Object, Object> underlying = mock(ParDoEvaluator.class);
+    doThrow(Exception.class).when(underlying).processElement(any(WindowedValue.class));
+
     DoFn<?, ?> original = lifecycleManager.get();
     assertThat(original, not(nullValue()));
     TransformEvaluator<Object> evaluator =
@@ -78,12 +86,37 @@ public class DoFnLifecycleManagerRemovingTransformEvaluatorTest {
       assertThat(lifecycleManager.get(), not(Matchers.<DoFn<?, ?>>theInstance(original)));
       return;
     }
-    fail("Expected ThrowingTransformEvaluator to throw on method call");
+    fail("Expected underlying evaluator to throw on method call");
+  }
+
+  @Test
+  public void removesOnExceptionInOnTimer() throws Exception {
+    ParDoEvaluator<Object, Object> underlying = mock(ParDoEvaluator.class);
+    doThrow(Exception.class)
+        .when(underlying)
+        .onTimer(any(TimerData.class), any(BoundedWindow.class));
+
+    DoFn<?, ?> original = lifecycleManager.get();
+    assertThat(original, not(nullValue()));
+    DoFnLifecycleManagerRemovingTransformEvaluator<Object> evaluator =
+        DoFnLifecycleManagerRemovingTransformEvaluator.wrapping(underlying, lifecycleManager);
+
+    try {
+      evaluator.onTimer(
+          TimerData.of("foo", StateNamespaces.global(), new Instant(0), TimeDomain.EVENT_TIME),
+          GlobalWindow.INSTANCE);
+    } catch (Exception e) {
+      assertThat(lifecycleManager.get(), not(Matchers.<DoFn<?, ?>>theInstance(original)));
+      return;
+    }
+    fail("Expected underlying evaluator to throw on method call");
   }
 
   @Test
   public void removesOnExceptionInFinishBundle() throws Exception {
-    ThrowingTransformEvaluator underlying = new ThrowingTransformEvaluator();
+    ParDoEvaluator<Object, Object> underlying = mock(ParDoEvaluator.class);
+    doThrow(Exception.class).when(underlying).finishBundle();
+
     DoFn<?, ?> original = lifecycleManager.get();
     // the LifecycleManager is set when the evaluator starts
     assertThat(original, not(nullValue()));
@@ -93,50 +126,14 @@ public class DoFnLifecycleManagerRemovingTransformEvaluatorTest {
     try {
       evaluator.finishBundle();
     } catch (Exception e) {
-      assertThat(lifecycleManager.get(),
-          Matchers.not(Matchers.<DoFn<?, ?>>theInstance(original)));
+      assertThat(lifecycleManager.get(), Matchers.not(Matchers.<DoFn<?, ?>>theInstance(original)));
       return;
     }
-    fail("Expected ThrowingTransformEvaluator to throw on method call");
+    fail("Expected underlying evaluator to throw on method call");
   }
-
-  private class RecordingTransformEvaluator implements TransformEvaluator<Object> {
-    private boolean finishBundleCalled;
-    private List<WindowedValue<Object>> objects;
-
-    public RecordingTransformEvaluator() {
-      this.finishBundleCalled = true;
-      this.objects = new ArrayList<>();
-    }
-
-    @Override
-    public void processElement(WindowedValue<Object> element) throws Exception {
-      objects.add(element);
-    }
-
-    @Override
-    public TransformResult<Object> finishBundle() throws Exception {
-      finishBundleCalled = true;
-      return null;
-    }
-  }
-
-  private class ThrowingTransformEvaluator implements TransformEvaluator<Object> {
-    @Override
-    public void processElement(WindowedValue<Object> element) throws Exception {
-      throw new Exception();
-    }
-
-    @Override
-    public TransformResult<Object> finishBundle() throws Exception {
-      throw new Exception();
-    }
-  }
-
 
   private static class TestFn extends DoFn<Object, Object> {
     @ProcessElement
-    public void processElement(ProcessContext c) throws Exception {
-    }
+    public void processElement(ProcessContext c) throws Exception {}
   }
 }

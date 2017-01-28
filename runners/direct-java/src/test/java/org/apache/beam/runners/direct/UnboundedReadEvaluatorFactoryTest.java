@@ -21,6 +21,7 @@ import static org.apache.beam.runners.direct.DirectGraphs.getProducer;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasSize;
+import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.nullValue;
 import static org.junit.Assert.assertThat;
@@ -414,6 +415,9 @@ public class UnboundedReadEvaluatorFactoryTest {
     @Override
     public UnboundedSource.UnboundedReader<T> createReader(
         PipelineOptions options, @Nullable TestCheckpointMark checkpointMark) {
+      if (checkpointMark != null) {
+        assertThat(checkpointMark.isFinalized(), is(true));
+      }
       return new TestUnboundedReader(elems, checkpointMark == null ? -1 : checkpointMark.index);
     }
 
@@ -505,13 +509,20 @@ public class UnboundedReadEvaluatorFactoryTest {
 
   private static class TestCheckpointMark implements CheckpointMark {
     final int index;
+    private boolean finalized = false;
 
     private TestCheckpointMark(int index) {
       this.index = index;
     }
 
     @Override
-    public void finalizeCheckpoint() throws IOException {}
+    public void finalizeCheckpoint() throws IOException {
+      finalized = true;
+    }
+
+    boolean isFinalized() {
+      return finalized;
+    }
 
     public static class Coder extends AtomicCoder<TestCheckpointMark> {
       @Override

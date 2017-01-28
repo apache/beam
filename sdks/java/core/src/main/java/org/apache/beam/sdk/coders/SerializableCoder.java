@@ -55,7 +55,7 @@ public class SerializableCoder<T extends Serializable> extends AtomicCoder<T> {
   public static <T extends Serializable> SerializableCoder<T> of(TypeDescriptor<T> type) {
     @SuppressWarnings("unchecked")
     Class<T> clazz = (Class<T>) type.getRawType();
-    return of(clazz);
+    return new SerializableCoder<>(clazz, type);
   }
 
   /**
@@ -63,7 +63,7 @@ public class SerializableCoder<T extends Serializable> extends AtomicCoder<T> {
    * @param <T> the element type
    */
   public static <T extends Serializable> SerializableCoder<T> of(Class<T> clazz) {
-    return new SerializableCoder<>(clazz);
+    return new SerializableCoder<>(clazz, TypeDescriptor.of(clazz));
   }
 
   @JsonCreator
@@ -104,9 +104,11 @@ public class SerializableCoder<T extends Serializable> extends AtomicCoder<T> {
 
 
   private final Class<T> type;
+  private final TypeDescriptor<T> typeDescriptor;
 
-  protected SerializableCoder(Class<T> type) {
+  protected SerializableCoder(Class<T> type, TypeDescriptor<T> typeDescriptor) {
     this.type = type;
+    this.typeDescriptor = typeDescriptor;
   }
 
   public Class<T> getRecordType() {
@@ -144,8 +146,8 @@ public class SerializableCoder<T extends Serializable> extends AtomicCoder<T> {
   }
 
   @Override
-  public CloudObject asCloudObject() {
-    CloudObject result = super.asCloudObject();
+  public CloudObject initializeCloudObject() {
+    CloudObject result = CloudObject.forClass(getClass());
     result.put("type", type.getName());
     return result;
   }
@@ -171,6 +173,11 @@ public class SerializableCoder<T extends Serializable> extends AtomicCoder<T> {
   @Override
   public int hashCode() {
     return type.hashCode();
+  }
+
+  @Override
+  public TypeDescriptor<T> getEncodedTypeDescriptor() {
+    return typeDescriptor;
   }
 
   // This coder inherits isRegisterByteSizeObserverCheap,

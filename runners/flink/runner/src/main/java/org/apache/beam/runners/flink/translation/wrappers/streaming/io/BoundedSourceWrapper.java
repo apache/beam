@@ -35,7 +35,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Wrapper for executing {@link BoundedSource UnboundedSources} as a Flink Source.
+ * Wrapper for executing {@link BoundedSource BoundedSources} as a Flink Source.
  */
 public class BoundedSourceWrapper<OutputT>
     extends RichParallelSourceFunction<WindowedValue<OutputT>>

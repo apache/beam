@@ -59,6 +59,11 @@ public class TimerInternalsTest {
   }
 
   @Test
+  public void testCoderIsSerializableWithWellKnownCoderType() {
+    CoderProperties.coderSerializable(TimerDataCoder.of(GlobalWindow.Coder.INSTANCE));
+  }
+
+  @Test
   public void testCompareTo() {
     Instant firstTimestamp = new Instant(100);
     Instant secondTimestamp = new Instant(200);

@@ -32,10 +32,6 @@ import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.transforms.Combine;
-import org.apache.beam.sdk.transforms.Max;
-import org.apache.beam.sdk.transforms.Min;
-import org.apache.beam.sdk.transforms.Sum;
-import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.spark.Accumulator;
 
 /**
@@ -92,18 +88,26 @@ public class SparkRuntimeContext implements Serializable {
       Combine.CombineFn<? super InputT, InterT, OutputT> combineFn) {
     @SuppressWarnings("unchecked")
     Aggregator<InputT, OutputT> aggregator = (Aggregator<InputT, OutputT>) aggregators.get(named);
-    if (aggregator == null) {
-      @SuppressWarnings("unchecked")
-      NamedAggregators.CombineFunctionState<InputT, InterT, OutputT> state =
-          new NamedAggregators.CombineFunctionState<>(
-              (Combine.CombineFn<InputT, InterT, OutputT>) combineFn,
-              (Coder<InputT>) getCoder(combineFn),
-              this);
-      accum.add(new NamedAggregators(named, state));
-      aggregator = new SparkAggregator<>(named, state);
-      aggregators.put(named, aggregator);
+    try {
+      if (aggregator == null) {
+        @SuppressWarnings("unchecked")
+        final
+        NamedAggregators.CombineFunctionState<InputT, InterT, OutputT> state =
+            new NamedAggregators.CombineFunctionState<>(
+                (Combine.CombineFn<InputT, InterT, OutputT>) combineFn,
+                // hidden assumption: InputT == OutputT
+                (Coder<InputT>) getCoderRegistry().getCoder(combineFn.getOutputType()),
+                this);
+
+        accum.add(new NamedAggregators(named, state));
+        aggregator = new SparkAggregator<>(named, state);
+        aggregators.put(named, aggregator);
+      }
+      return aggregator;
+    } catch (CannotProvideCoderException e) {
+      throw new RuntimeException(String.format("Unable to create an aggregator named: [%s]", named),
+                                 e);
     }
-    return aggregator;
   }
 
   public CoderRegistry getCoderRegistry() {
@@ -112,35 +116,6 @@ public class SparkRuntimeContext implements Serializable {
       coderRegistry.registerStandardCoders();
     }
     return coderRegistry;
-  }
-
-  private Coder<?> getCoder(Combine.CombineFn<?, ?, ?> combiner) {
-    try {
-      if (combiner.getClass() == Sum.SumIntegerFn.class) {
-        return getCoderRegistry().getDefaultCoder(TypeDescriptor.of(Integer.class));
-      } else if (combiner.getClass() == Sum.SumLongFn.class) {
-        return getCoderRegistry().getDefaultCoder(TypeDescriptor.of(Long.class));
-      } else if (combiner.getClass() == Sum.SumDoubleFn.class) {
-        return getCoderRegistry().getDefaultCoder(TypeDescriptor.of(Double.class));
-      } else if (combiner.getClass() == Min.MinIntegerFn.class) {
-        return getCoderRegistry().getDefaultCoder(TypeDescriptor.of(Integer.class));
-      } else if (combiner.getClass() == Min.MinLongFn.class) {
-        return getCoderRegistry().getDefaultCoder(TypeDescriptor.of(Long.class));
-      } else if (combiner.getClass() == Min.MinDoubleFn.class) {
-        return getCoderRegistry().getDefaultCoder(TypeDescriptor.of(Double.class));
-      } else if (combiner.getClass() == Max.MaxIntegerFn.class) {
-        return getCoderRegistry().getDefaultCoder(TypeDescriptor.of(Integer.class));
-      } else if (combiner.getClass() == Max.MaxLongFn.class) {
-        return getCoderRegistry().getDefaultCoder(TypeDescriptor.of(Long.class));
-      } else if (combiner.getClass() == Max.MaxDoubleFn.class) {
-        return getCoderRegistry().getDefaultCoder(TypeDescriptor.of(Double.class));
-      } else {
-        throw new IllegalArgumentException("unsupported combiner in Aggregator: "
-            + combiner.getClass().getName());
-      }
-    } catch (CannotProvideCoderException e) {
-      throw new IllegalStateException("Could not determine default coder for combiner", e);
-    }
   }
 
   /**

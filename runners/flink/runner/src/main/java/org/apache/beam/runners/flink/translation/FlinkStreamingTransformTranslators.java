@@ -18,6 +18,8 @@
 
 package org.apache.beam.runners.flink.translation;
 
+import static com.google.common.base.Preconditions.checkArgument;
+
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import java.nio.ByteBuffer;
@@ -27,7 +29,6 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import org.apache.beam.runners.core.SystemReduceFn;
 import org.apache.beam.runners.flink.FlinkRunner;
 import org.apache.beam.runners.flink.translation.functions.FlinkAssignWindows;
@@ -72,6 +73,7 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PValue;
+import org.apache.beam.sdk.values.TaggedPValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.MapFunction;
@@ -497,10 +499,10 @@ public class FlinkStreamingTransformTranslators {
       WindowingStrategy<?, ?> windowingStrategy =
           context.getInput(transform).getWindowingStrategy();
 
-      Map<TupleTag<?>, PCollection<?>> outputs = context.getOutput(transform).getAll();
+      List<TaggedPValue> outputs = context.getOutputs(transform);
 
       Map<TupleTag<?>, Integer> tagsToLabels =
-          transformTupleTagsToLabels(transform.getMainOutputTag(), outputs.keySet());
+          transformTupleTagsToLabels(transform.getMainOutputTag(), outputs);
 
       List<PCollectionView<?>> sideInputs = transform.getSideInputs();
 
@@ -525,7 +527,7 @@ public class FlinkStreamingTransformTranslators {
                 Collections.<PCollectionView<?>>emptyList(), /* side inputs */
                 context.getPipelineOptions());
 
-        UnionCoder outputUnionCoder = createUnionCoder(outputs.values());
+        UnionCoder outputUnionCoder = createUnionCoder(outputs);
 
         CoderTypeInformation<RawUnionValue> outputUnionTypeInformation =
             new CoderTypeInformation<>(outputUnionCoder);
@@ -552,7 +554,7 @@ public class FlinkStreamingTransformTranslators {
                 sideInputs,
                 context.getPipelineOptions());
 
-        UnionCoder outputUnionCoder = createUnionCoder(outputs.values());
+        UnionCoder outputUnionCoder = createUnionCoder(outputs);
 
         CoderTypeInformation<RawUnionValue> outputUnionTypeInformation =
             new CoderTypeInformation<>(outputUnionCoder);
@@ -573,11 +575,10 @@ public class FlinkStreamingTransformTranslators {
                 }
               });
 
-      for (Map.Entry<TupleTag<?>, PCollection<?>> output : outputs.entrySet()) {
-        final int outputTag = tagsToLabels.get(output.getKey());
+      for (TaggedPValue output : outputs) {
+        final int outputTag = tagsToLabels.get(output.getTag());
 
-        TypeInformation outputTypeInfo =
-            context.getTypeInfo(output.getValue());
+        TypeInformation outputTypeInfo = context.getTypeInfo((PCollection<?>) output.getValue());
 
         @SuppressWarnings("unchecked")
         DataStream unwrapped = splitStream.select(String.valueOf(outputTag))
@@ -594,22 +595,28 @@ public class FlinkStreamingTransformTranslators {
 
     private Map<TupleTag<?>, Integer> transformTupleTagsToLabels(
         TupleTag<?> mainTag,
-        Set<TupleTag<?>> secondaryTags) {
+        List<TaggedPValue> allTaggedValues) {
 
       Map<TupleTag<?>, Integer> tagToLabelMap = Maps.newHashMap();
       int count = 0;
       tagToLabelMap.put(mainTag, count++);
-      for (TupleTag<?> tag : secondaryTags) {
-        if (!tagToLabelMap.containsKey(tag)) {
-          tagToLabelMap.put(tag, count++);
+      for (TaggedPValue taggedPValue : allTaggedValues) {
+        if (!tagToLabelMap.containsKey(taggedPValue.getTag())) {
+          tagToLabelMap.put(taggedPValue.getTag(), count++);
         }
       }
       return tagToLabelMap;
     }
 
-    private UnionCoder createUnionCoder(Collection<PCollection<?>> taggedCollections) {
+    private UnionCoder createUnionCoder(Collection<TaggedPValue> taggedCollections) {
       List<Coder<?>> outputCoders = Lists.newArrayList();
-      for (PCollection<?> coll : taggedCollections) {
+      for (TaggedPValue taggedColl : taggedCollections) {
+        checkArgument(
+            taggedColl.getValue() instanceof PCollection,
+            "A Union Coder can only be created for a Collection of Tagged %s. Got %s",
+            PCollection.class.getSimpleName(),
+            taggedColl.getValue().getClass().getSimpleName());
+        PCollection<?> coll = (PCollection<?>) taggedColl.getValue();
         WindowedValue.FullWindowedValueCoder<?> windowedValueCoder =
             WindowedValue.getFullCoder(
                 coll.getCoder(),
@@ -648,7 +655,8 @@ public class FlinkStreamingTransformTranslators {
 
       @SuppressWarnings("unchecked")
       WindowingStrategy<T, BoundedWindow> windowingStrategy =
-          (WindowingStrategy<T, BoundedWindow>) context.getOutput(transform).getWindowingStrategy();
+          (WindowingStrategy<T, BoundedWindow>)
+              context.getOutput(transform).getWindowingStrategy();
 
       TypeInformation<WindowedValue<T>> typeInfo =
           context.getTypeInfo(context.getOutput(transform));
@@ -940,7 +948,7 @@ public class FlinkStreamingTransformTranslators {
     public void translateNode(
         Flatten.FlattenPCollectionList<T> transform,
         FlinkStreamingTranslationContext context) {
-      List<PCollection<T>> allInputs = context.getInput(transform).getAll();
+      List<TaggedPValue> allInputs = context.getInputs(transform);
 
       if (allInputs.isEmpty()) {
 
@@ -967,8 +975,8 @@ public class FlinkStreamingTransformTranslators {
 
       } else {
         DataStream<T> result = null;
-        for (PCollection<T> collection : allInputs) {
-          DataStream<T> current = context.getInputDataStream(collection);
+        for (TaggedPValue input : allInputs) {
+          DataStream<T> current = context.getInputDataStream(input.getValue());
           result = (result == null) ? current : result.union(current);
         }
         context.setOutputDataStream(context.getOutput(transform), result);

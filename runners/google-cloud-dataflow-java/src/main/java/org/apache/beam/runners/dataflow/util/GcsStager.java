@@ -17,13 +17,19 @@
  */
 package org.apache.beam.runners.dataflow.util;
 
+import static com.google.common.base.MoreObjects.firstNonNull;
+import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.api.services.dataflow.model.DataflowPackage;
+import com.google.api.services.storage.Storage;
 import java.util.List;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineDebugOptions;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.util.GcsUtil;
+import org.apache.beam.sdk.util.GcsUtil.GcsUtilFactory;
+import org.apache.beam.sdk.util.Transport;
 
 /**
  * Utility class for staging files to GCS.
@@ -35,6 +41,7 @@ public class GcsStager implements Stager {
     this.options = options;
   }
 
+  @SuppressWarnings("unused")  // used via reflection
   public static GcsStager fromOptions(PipelineOptions options) {
     return new GcsStager(options.as(DataflowPipelineOptions.class));
   }
@@ -48,7 +55,16 @@ public class GcsStager implements Stager {
     if (windmillBinary != null) {
       filesToStage.add("windmill_main=" + windmillBinary);
     }
+    int uploadSizeBytes = firstNonNull(options.getGcsUploadBufferSizeBytes(), 1024 * 1024);
+    checkArgument(uploadSizeBytes > 0, "gcsUploadBufferSizeBytes must be > 0");
+    uploadSizeBytes = Math.min(uploadSizeBytes, 1024 * 1024);
+    Storage.Builder storageBuilder = Transport.newStorageClient(options);
+    GcsUtil util = GcsUtilFactory.create(
+        storageBuilder.build(),
+        storageBuilder.getHttpRequestInitializer(),
+        options.getExecutorService(),
+        uploadSizeBytes);
     return PackageUtil.stageClasspathElements(
-        options.getFilesToStage(), options.getStagingLocation());
+        options.getFilesToStage(), options.getStagingLocation(), util);
   }
 }

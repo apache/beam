@@ -23,7 +23,9 @@ import static org.junit.Assert.assertThat;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.util.concurrent.Uninterruptibles;
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.TimeUnit;
@@ -37,19 +39,23 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.kafka.KafkaIO;
 import org.apache.beam.sdk.transforms.Aggregator;
+import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Sum;
+import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.serialization.Serializer;
 import org.apache.kafka.common.serialization.StringSerializer;
 import org.joda.time.Duration;
 import org.junit.AfterClass;
+import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
@@ -163,8 +169,20 @@ public class ResumeFromCheckpointStreamingTest {
     Duration windowDuration = new Duration(options.getBatchIntervalMillis());
 
     Pipeline p = Pipeline.create(options);
+
+    PCollection<String> expectedCol = p.apply(Create.of(EXPECTED).withCoder(StringUtf8Coder.of()));
+    final PCollectionView<List<String>> expectedView = expectedCol.apply(View.<String>asList());
+
     PCollection<String> formattedKV =
         p.apply(read.withoutMetadata())
+          .apply(ParDo.of(new DoFn<KV<String, String>, KV<String, String>>() {
+               @ProcessElement
+               public void process(ProcessContext c) {
+                  // Check side input is passed correctly also after resuming from checkpoint
+                  Assert.assertEquals(c.sideInput(expectedView), Arrays.asList(EXPECTED));
+                  c.output(c.element());
+                }
+          }).withSideInputs(expectedView))
         .apply(Window.<KV<String, String>>into(FixedWindows.of(windowDuration)))
         .apply(ParDo.of(new FormatAsText()));
 
@@ -182,7 +200,7 @@ public class ResumeFromCheckpointStreamingTest {
   private static class FormatAsText extends DoFn<KV<String, String>, String> {
 
     private final Aggregator<Long, Long> aggregator =
-        createAggregator("processedMessages", new Sum.SumLongFn());
+        createAggregator("processedMessages", Sum.ofLongs());
 
     @ProcessElement
     public void process(ProcessContext c) {

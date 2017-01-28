@@ -17,8 +17,13 @@
  */
 package org.apache.beam.runners.spark.translation.streaming;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
 import com.google.common.collect.ImmutableMap;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.ObjectStreamException;
+import java.io.OutputStream;
+import java.io.Serializable;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Map;
@@ -30,6 +35,9 @@ import org.apache.beam.runners.spark.translation.streaming.utils.KafkaWriteOnBat
 import org.apache.beam.runners.spark.translation.streaming.utils.PAssertStreaming;
 import org.apache.beam.runners.spark.translation.streaming.utils.SparkTestPipelineOptionsForStreaming;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.CoderException;
+import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.kafka.KafkaIO;
@@ -51,6 +59,7 @@ import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
+
 
 /**
  * Test Kafka as input.
@@ -163,7 +172,7 @@ public class KafkaStreamingTest {
         .withBootstrapServers(EMBEDDED_KAFKA_CLUSTER.getBrokerList())
         .withTopics(Collections.singletonList(topic))
         .withKeyCoder(StringUtf8Coder.of())
-        .withValueCoder(StringUtf8Coder.of())
+        .withValueCoder(NonKryoSerializableStringCoder.of())
         .updateConsumerProperties(consumerProps);
 
     PCollection<String> formatted =
@@ -212,4 +221,50 @@ public class KafkaStreamingTest {
     }
   }
 
+  /**
+   * This coder is not Kryo serializable, used to make sure
+   * {@link org.apache.beam.runners.spark.coders.BeamSparkRunnerRegistrator} registers needed
+   * classes to ensure Java serialization is used instead.
+   */
+  private static class NonKryoSerializableStringCoder extends CustomCoder<String>
+      implements Serializable {
+    private Coder<String> stringCoder;
+    private Boolean isSerialized = false;
+
+    private NonKryoSerializableStringCoder() {
+    }
+
+    @JsonCreator
+    public static NonKryoSerializableStringCoder of() {
+      return new NonKryoSerializableStringCoder();
+    }
+
+    private Object readResolve() throws ObjectStreamException {
+      NonKryoSerializableStringCoder deserialized = new NonKryoSerializableStringCoder();
+      deserialized.stringCoder = StringUtf8Coder.of();
+      deserialized.isSerialized = true;
+      return deserialized;
+    }
+
+    private Object writeReplace() throws ObjectStreamException {
+      return new NonKryoSerializableStringCoder();
+    }
+
+    @Override
+    public void encode(String value, OutputStream outStream, Context context)
+        throws CoderException, IOException {
+      if (!isSerialized) {
+        this.stringCoder = StringUtf8Coder.of();
+      }
+      stringCoder.encode(value, outStream, context);
+    }
+
+    @Override
+    public String decode(InputStream inStream, Context context) throws CoderException, IOException {
+      if (!isSerialized) {
+        this.stringCoder = StringUtf8Coder.of();
+      }
+      return stringCoder.decode(inStream, context);
+    }
+  }
 }

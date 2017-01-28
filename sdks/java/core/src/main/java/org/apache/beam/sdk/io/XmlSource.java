@@ -201,11 +201,6 @@ public class XmlSource<T> extends FileBasedSource<T> {
   }
 
   @Override
-  public boolean producesSortedKeys(PipelineOptions options) throws Exception {
-    return false;
-  }
-
-  @Override
   public void validate() {
     super.validate();
     checkNotNull(

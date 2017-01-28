@@ -376,14 +376,6 @@ public class CompressedSource<T> extends FileBasedSource<T> {
         this, sourceDelegate.createSingleFileReader(options));
   }
 
-  /**
-   * Returns whether the delegate source produces sorted keys.
-   */
-  @Override
-  public final boolean producesSortedKeys(PipelineOptions options) throws Exception {
-    return sourceDelegate.producesSortedKeys(options);
-  }
-
   @Override
   public void populateDisplayData(DisplayData.Builder builder) {
     // We explicitly do not register base-class data, instead we use the delegate inner source.

@@ -114,7 +114,7 @@ public class LateDataDroppingDoFnRunnerTest {
 
     @Override
     public CombineFn<Long, ?, Long> getCombineFn() {
-      return new Sum.SumLongFn();
+      return Sum.ofLongs();
     }
   }
 }

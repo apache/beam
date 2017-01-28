@@ -129,8 +129,8 @@ public class SerializableUtilsTest {
     }
 
     @Override
-    public CloudObject asCloudObject() {
-      CloudObject result = super.asCloudObject();
+    public CloudObject initializeCloudObject() {
+      CloudObject result = CloudObject.forClass(getClass());
       result.put("unserializableField", unserializableField);
       return result;
     }

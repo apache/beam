@@ -404,11 +404,11 @@ public class DoFnTesterTest {
    * {@link DoFn.ProcessElement @ProcessElement}.
    */
   private static class CounterDoFn extends DoFn<Long, String> {
-    Aggregator<Long, Long> agg = createAggregator("ctr", new Sum.SumLongFn());
+    Aggregator<Long, Long> agg = createAggregator("ctr", Sum.ofLongs());
     Aggregator<Long, Long> startBundleCalls =
-        createAggregator("startBundleCalls", new Sum.SumLongFn());
+        createAggregator("startBundleCalls", Sum.ofLongs());
     Aggregator<Long, Long> finishBundleCalls =
-        createAggregator("finishBundleCalls", new Sum.SumLongFn());
+        createAggregator("finishBundleCalls", Sum.ofLongs());
 
     private enum LifecycleState {
       UNINITIALIZED,
