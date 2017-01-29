@@ -23,6 +23,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 import com.google.common.collect.Iterables;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import org.apache.beam.runners.spark.SparkPipelineOptions;
@@ -34,9 +35,8 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
-import org.apache.beam.sdk.values.PInput;
-import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.PValue;
+import org.apache.beam.sdk.values.TaggedPValue;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.streaming.api.java.JavaStreamingContext;
@@ -55,8 +55,8 @@ public class EvaluationContext {
   private final Set<Dataset> leaves = new LinkedHashSet<>();
   private final Set<PValue> multiReads = new LinkedHashSet<>();
   private final Map<PValue, Object> pobjects = new LinkedHashMap<>();
-  private final Map<PValue, Iterable<? extends WindowedValue<?>>> pview = new LinkedHashMap<>();
   private AppliedPTransform<?, ?, ?> currentTransform;
+  private final SparkPCollectionView pviews = new SparkPCollectionView();
 
   public EvaluationContext(JavaSparkContext jsc, Pipeline pipeline) {
     this.jsc = jsc;
@@ -89,24 +89,32 @@ public class EvaluationContext {
     this.currentTransform = transform;
   }
 
-  public <T extends PInput> T getInput(PTransform<T, ?> transform) {
-    checkArgument(currentTransform != null && currentTransform.getTransform() == transform,
-        "can only be called with current transform");
+  public <T extends PValue> T getInput(PTransform<T, ?> transform) {
     @SuppressWarnings("unchecked")
-    T input = (T) currentTransform.getInput();
+    T input = (T) Iterables.getOnlyElement(getInputs(transform)).getValue();
     return input;
   }
 
-  public <T extends POutput> T getOutput(PTransform<?, T> transform) {
+  public <T> List<TaggedPValue> getInputs(PTransform<?, ?> transform) {
     checkArgument(currentTransform != null && currentTransform.getTransform() == transform,
         "can only be called with current transform");
+    return currentTransform.getInputs();
+  }
+
+  public <T extends PValue> T getOutput(PTransform<?, T> transform) {
     @SuppressWarnings("unchecked")
-    T output = (T) currentTransform.getOutput();
+    T output = (T) Iterables.getOnlyElement(getOutputs(transform)).getValue();
     return output;
   }
 
-  public void putDataset(PTransform<?, ?> transform, Dataset dataset) {
-    putDataset((PValue) getOutput(transform), dataset);
+  public List<TaggedPValue> getOutputs(PTransform<?, ?> transform) {
+    checkArgument(currentTransform != null && currentTransform.getTransform() == transform,
+        "can only be called with current transform");
+    return currentTransform.getOutputs();
+  }
+
+  public void putDataset(PTransform<?, ? extends PValue> transform, Dataset dataset) {
+    putDataset(getOutput(transform), dataset);
   }
 
   public void putDataset(PValue pvalue, Dataset dataset) {
@@ -119,22 +127,18 @@ public class EvaluationContext {
     leaves.add(dataset);
   }
 
-  <T> void putBoundedDatasetFromValues(PTransform<?, ?> transform, Iterable<T> values,
-                                       Coder<T> coder) {
-    datasets.put((PValue) getOutput(transform), new BoundedDataset<>(values, jsc, coder));
+  <T> void putBoundedDatasetFromValues(
+      PTransform<?, ? extends PValue> transform, Iterable<T> values, Coder<T> coder) {
+    datasets.put(getOutput(transform), new BoundedDataset<>(values, jsc, coder));
   }
 
   public <T> void putUnboundedDatasetFromQueue(
-      PTransform<?, ?> transform, Iterable<Iterable<T>> values, Coder<T> coder) {
-    datasets.put((PValue) getOutput(transform), new UnboundedDataset<>(values, jssc, coder));
+      PTransform<?, ? extends PValue> transform, Iterable<Iterable<T>> values, Coder<T> coder) {
+    datasets.put(getOutput(transform), new UnboundedDataset<>(values, jssc, coder));
   }
 
-  void putPView(PValue view, Iterable<? extends WindowedValue<?>> value) {
-    pview.put(view, value);
-  }
-
-  public Dataset borrowDataset(PTransform<?, ?> transform) {
-    return borrowDataset((PValue) getInput(transform));
+  public Dataset borrowDataset(PTransform<? extends PValue, ?> transform) {
+    return borrowDataset(getInput(transform));
   }
 
   public Dataset borrowDataset(PValue pvalue) {
@@ -147,10 +151,6 @@ public class EvaluationContext {
       multiReads.add(pvalue);
     }
     return dataset;
-  }
-
-  <T> Iterable<? extends WindowedValue<?>> getPCollectionView(PCollectionView<T> view) {
-    return pview.get(view);
   }
 
   /**
@@ -194,20 +194,43 @@ public class EvaluationContext {
    * @param <T>         Type of elements contained in collection.
    * @return Natively types result associated with collection.
    */
-  public <T> Iterable<T> get(PCollection<T> pcollection) {
-    @SuppressWarnings("unchecked")
-    BoundedDataset<T> boundedDataset = (BoundedDataset<T>) datasets.get(pcollection);
-    Iterable<WindowedValue<T>> windowedValues = boundedDataset.getValues(pcollection);
+  <T> Iterable<T> get(PCollection<T> pcollection) {
+    Iterable<WindowedValue<T>> windowedValues = getWindowedValues(pcollection);
     return Iterables.transform(windowedValues, WindowingHelpers.<T>unwindowValueFunction());
+  }
+
+  /**
+   * Retrun the current views creates in the pipepline.
+   *
+   * @return SparkPCollectionView
+   */
+  public SparkPCollectionView getPViews() {
+    return pviews;
+  }
+
+  /**
+   * Adds/Replaces a view to the current views creates in the pipepline.
+   *
+   * @param view - Identifier of the view
+   * @param value - Actual value of the view
+   * @param coder - Coder of the value
+   */
+  public void putPView(
+      PCollectionView<?> view,
+      Iterable<WindowedValue<?>> value,
+      Coder<Iterable<WindowedValue<?>>> coder) {
+    pviews.putPView(view, value, coder);
   }
 
   <T> Iterable<WindowedValue<T>> getWindowedValues(PCollection<T> pcollection) {
     @SuppressWarnings("unchecked")
     BoundedDataset<T> boundedDataset = (BoundedDataset<T>) datasets.get(pcollection);
+    leaves.remove(boundedDataset);
     return boundedDataset.getValues(pcollection);
   }
 
   private String storageLevel() {
     return runtime.getPipelineOptions().as(SparkPipelineOptions.class).getStorageLevel();
   }
+
 }

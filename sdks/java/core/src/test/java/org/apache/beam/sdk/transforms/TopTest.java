@@ -234,12 +234,13 @@ public class TopTest {
 
   @Test
   public void testTopGetNames() {
-    assertEquals("Top.Globally", Top.of(1, new OrderByLength()).getName());
-    assertEquals("Smallest.Globally", Top.smallest(1).getName());
-    assertEquals("Largest.Globally", Top.largest(2).getName());
-    assertEquals("Top.PerKey", Top.perKey(1, new IntegerComparator()).getName());
-    assertEquals("Smallest.PerKey", Top.<String, Integer>smallestPerKey(1).getName());
-    assertEquals("Largest.PerKey", Top.<String, Integer>largestPerKey(2).getName());
+    assertEquals("Combine.globally(Top(OrderByLength))", Top.of(1, new OrderByLength()).getName());
+    assertEquals("Combine.globally(Top(Smallest))", Top.smallest(1).getName());
+    assertEquals("Combine.globally(Top(Largest))", Top.largest(2).getName());
+    assertEquals("Combine.perKey(Top(IntegerComparator))",
+        Top.perKey(1, new IntegerComparator()).getName());
+    assertEquals("Combine.perKey(Top(Smallest))", Top.<String, Integer>smallestPerKey(1).getName());
+    assertEquals("Combine.perKey(Top(Largest))", Top.<String, Integer>largestPerKey(2).getName());
   }
 
   @Test

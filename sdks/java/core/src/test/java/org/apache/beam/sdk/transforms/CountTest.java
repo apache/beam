@@ -110,6 +110,6 @@ public class CountTest {
   @Test
   public void testCountGetName() {
     assertEquals("Count.PerElement", Count.perElement().getName());
-    assertEquals("Count.Globally", Count.globally().getName());
+    assertEquals("Combine.globally(Count)", Count.globally().getName());
   }
 }

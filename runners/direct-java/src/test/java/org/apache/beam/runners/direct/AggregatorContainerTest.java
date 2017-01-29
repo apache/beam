@@ -26,7 +26,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import org.apache.beam.runners.core.ExecutionContext.StepContext;
 import org.apache.beam.sdk.transforms.Aggregator;
-import org.apache.beam.sdk.transforms.Sum.SumIntegerFn;
+import org.apache.beam.sdk.transforms.Sum;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -61,13 +61,13 @@ public class AggregatorContainerTest {
   @Test
   public void addsAggregatorsOnCommit() {
     AggregatorContainer.Mutator mutator = container.createMutator();
-    mutator.createAggregatorForDoFn(fn, stepContext, "sum_int", new SumIntegerFn()).addValue(5);
+    mutator.createAggregatorForDoFn(fn, stepContext, "sum_int", Sum.ofIntegers()).addValue(5);
     mutator.commit();
 
     assertThat((Integer) container.getAggregate(STEP_NAME, "sum_int"), equalTo(5));
 
     mutator = container.createMutator();
-    mutator.createAggregatorForDoFn(fn, stepContext, "sum_int", new SumIntegerFn()).addValue(8);
+    mutator.createAggregatorForDoFn(fn, stepContext, "sum_int", Sum.ofIntegers()).addValue(8);
 
     assertThat("Shouldn't update value until commit",
         (Integer) container.getAggregate(STEP_NAME, "sum_int"), equalTo(5));
@@ -81,14 +81,14 @@ public class AggregatorContainerTest {
     mutator.commit();
 
     thrown.expect(IllegalStateException.class);
-    mutator.createAggregatorForDoFn(fn, stepContext, "sum_int", new SumIntegerFn()).addValue(5);
+    mutator.createAggregatorForDoFn(fn, stepContext, "sum_int", Sum.ofIntegers()).addValue(5);
   }
 
   @Test
   public void failToAddValueAfterCommit() {
     AggregatorContainer.Mutator mutator = container.createMutator();
     Aggregator<Integer, ?> aggregator =
-        mutator.createAggregatorForDoFn(fn, stepContext, "sum_int", new SumIntegerFn());
+        mutator.createAggregatorForDoFn(fn, stepContext, "sum_int", Sum.ofIntegers());
     mutator.commit();
 
     thrown.expect(IllegalStateException.class);
@@ -99,12 +99,12 @@ public class AggregatorContainerTest {
   public void failToAddValueAfterCommitWithPrevious() {
     AggregatorContainer.Mutator mutator = container.createMutator();
     mutator.createAggregatorForDoFn(
-        fn, stepContext, "sum_int", new SumIntegerFn()).addValue(5);
+        fn, stepContext, "sum_int", Sum.ofIntegers()).addValue(5);
     mutator.commit();
 
     mutator = container.createMutator();
     Aggregator<Integer, ?> aggregator = mutator.createAggregatorForDoFn(
-        fn, stepContext, "sum_int", new SumIntegerFn());
+        fn, stepContext, "sum_int", Sum.ofIntegers());
     mutator.commit();
 
     thrown.expect(IllegalStateException.class);
@@ -123,7 +123,7 @@ public class AggregatorContainerTest {
         @Override
         public void run() {
           mutator.createAggregatorForDoFn(
-              fn, stepContext, "sum_int", new SumIntegerFn()).addValue(value);
+              fn, stepContext, "sum_int", Sum.ofIntegers()).addValue(value);
           mutator.commit();
         }
       });

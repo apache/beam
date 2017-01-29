@@ -54,15 +54,16 @@ import java.math.BigDecimal;
 import java.net.SocketTimeoutException;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
-import org.apache.beam.runners.dataflow.internal.DataflowAggregatorTransforms;
 import org.apache.beam.runners.dataflow.testing.TestDataflowPipelineOptions;
 import org.apache.beam.runners.dataflow.util.MonitoringUtil;
 import org.apache.beam.sdk.AggregatorRetrievalException;
 import org.apache.beam.sdk.AggregatorValues;
+import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult.State;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.ExpectedLogs;
 import org.apache.beam.sdk.testing.FastNanoClockAndSleeper;
+import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
@@ -355,7 +356,8 @@ public class DataflowPipelineJobTest {
     PTransform<PInput, POutput> pTransform = mock(PTransform.class);
     String stepName = "s1";
     String fullName = "Foo/Bar/Baz";
-    AppliedPTransform<?, ?, ?> appliedTransform = appliedPTransform(fullName, pTransform);
+    AppliedPTransform<?, ?, ?> appliedTransform =
+        appliedPTransform(fullName, pTransform, TestPipeline.create());
 
     DataflowAggregatorTransforms aggregatorTransforms = new DataflowAggregatorTransforms(
         ImmutableSetMultimap.<Aggregator<?, ?>, PTransform<?, ?>>of(aggregator, pTransform).asMap(),
@@ -390,7 +392,8 @@ public class DataflowPipelineJobTest {
     PTransform<PInput, POutput> pTransform = mock(PTransform.class);
     String stepName = "s1";
     String fullName = "Foo/Bar/Baz";
-    AppliedPTransform<?, ?, ?> appliedTransform = appliedPTransform(fullName, pTransform);
+    AppliedPTransform<?, ?, ?> appliedTransform =
+        appliedPTransform(fullName, pTransform, TestPipeline.create());
 
     DataflowAggregatorTransforms aggregatorTransforms = new DataflowAggregatorTransforms(
         ImmutableSetMultimap.<Aggregator<?, ?>, PTransform<?, ?>>of(aggregator, pTransform).asMap(),
@@ -420,14 +423,15 @@ public class DataflowPipelineJobTest {
   @Test
   public void testGetAggregatorValuesWithSingleMetricUpdateReturnsSingletonCollection()
       throws IOException, AggregatorRetrievalException {
-    CombineFn<Long, long[], Long> combineFn = new Sum.SumLongFn();
+    CombineFn<Long, long[], Long> combineFn = Sum.ofLongs();
     String aggregatorName = "agg";
     Aggregator<Long, Long> aggregator = new TestAggregator<>(combineFn, aggregatorName);
     @SuppressWarnings("unchecked")
     PTransform<PInput, POutput> pTransform = mock(PTransform.class);
     String stepName = "s1";
     String fullName = "Foo/Bar/Baz";
-    AppliedPTransform<?, ?, ?> appliedTransform = appliedPTransform(fullName, pTransform);
+    AppliedPTransform<?, ?, ?> appliedTransform =
+        appliedPTransform(fullName, pTransform, TestPipeline.create());
 
     DataflowAggregatorTransforms aggregatorTransforms = new DataflowAggregatorTransforms(
         ImmutableSetMultimap.<Aggregator<?, ?>, PTransform<?, ?>>of(aggregator, pTransform).asMap(),
@@ -468,22 +472,24 @@ public class DataflowPipelineJobTest {
   @Test
   public void testGetAggregatorValuesWithMultipleMetricUpdatesReturnsCollection()
       throws IOException, AggregatorRetrievalException {
-    CombineFn<Long, long[], Long> combineFn = new Sum.SumLongFn();
+    CombineFn<Long, long[], Long> combineFn = Sum.ofLongs();
     String aggregatorName = "agg";
     Aggregator<Long, Long> aggregator = new TestAggregator<>(combineFn, aggregatorName);
+
+    Pipeline p = TestPipeline.create();
 
     @SuppressWarnings("unchecked")
     PTransform<PInput, POutput> pTransform = mock(PTransform.class);
     String stepName = "s1";
     String fullName = "Foo/Bar/Baz";
-    AppliedPTransform<?, ?, ?> appliedTransform = appliedPTransform(fullName, pTransform);
+    AppliedPTransform<?, ?, ?> appliedTransform = appliedPTransform(fullName, pTransform, p);
 
     @SuppressWarnings("unchecked")
     PTransform<PInput, POutput> otherTransform = mock(PTransform.class);
     String otherStepName = "s88";
     String otherFullName = "Spam/Ham/Eggs";
     AppliedPTransform<?, ?, ?> otherAppliedTransform =
-        appliedPTransform(otherFullName, otherTransform);
+        appliedPTransform(otherFullName, otherTransform, p);
 
     DataflowAggregatorTransforms aggregatorTransforms = new DataflowAggregatorTransforms(
         ImmutableSetMultimap.<Aggregator<?, ?>, PTransform<?, ?>>of(
@@ -536,14 +542,15 @@ public class DataflowPipelineJobTest {
   @Test
   public void testGetAggregatorValuesWithUnrelatedMetricUpdateIgnoresUpdate()
       throws IOException, AggregatorRetrievalException {
-    CombineFn<Long, long[], Long> combineFn = new Sum.SumLongFn();
+    CombineFn<Long, long[], Long> combineFn = Sum.ofLongs();
     String aggregatorName = "agg";
     Aggregator<Long, Long> aggregator = new TestAggregator<>(combineFn, aggregatorName);
     @SuppressWarnings("unchecked")
     PTransform<PInput, POutput> pTransform = mock(PTransform.class);
     String stepName = "s1";
     String fullName = "Foo/Bar/Baz";
-    AppliedPTransform<?, ?, ?> appliedTransform = appliedPTransform(fullName, pTransform);
+    AppliedPTransform<?, ?, ?> appliedTransform =
+        appliedPTransform(fullName, pTransform, TestPipeline.create());
 
     DataflowAggregatorTransforms aggregatorTransforms = new DataflowAggregatorTransforms(
         ImmutableSetMultimap.<Aggregator<?, ?>, PTransform<?, ?>>of(aggregator, pTransform).asMap(),
@@ -600,14 +607,15 @@ public class DataflowPipelineJobTest {
   @Test
   public void testGetAggregatorValuesWhenClientThrowsExceptionThrowsAggregatorRetrievalException()
       throws IOException, AggregatorRetrievalException {
-    CombineFn<Long, long[], Long> combineFn = new Sum.SumLongFn();
+    CombineFn<Long, long[], Long> combineFn = Sum.ofLongs();
     String aggregatorName = "agg";
     Aggregator<Long, Long> aggregator = new TestAggregator<>(combineFn, aggregatorName);
     @SuppressWarnings("unchecked")
     PTransform<PInput, POutput> pTransform = mock(PTransform.class);
     String stepName = "s1";
     String fullName = "Foo/Bar/Baz";
-    AppliedPTransform<?, ?, ?> appliedTransform = appliedPTransform(fullName, pTransform);
+    AppliedPTransform<?, ?, ?> appliedTransform =
+        appliedPTransform(fullName, pTransform, TestPipeline.create());
 
     DataflowAggregatorTransforms aggregatorTransforms = new DataflowAggregatorTransforms(
         ImmutableSetMultimap.<Aggregator<?, ?>, PTransform<?, ?>>of(aggregator, pTransform).asMap(),
@@ -660,8 +668,10 @@ public class DataflowPipelineJobTest {
   }
 
   private AppliedPTransform<?, ?, ?> appliedPTransform(
-      String fullName, PTransform<PInput, POutput> transform) {
-    return AppliedPTransform.of(fullName, mock(PInput.class), mock(POutput.class), transform);
+      String fullName, PTransform<PInput, POutput> transform, Pipeline p) {
+    PInput input = mock(PInput.class);
+    when(input.getPipeline()).thenReturn(p);
+    return AppliedPTransform.of(fullName, input, mock(POutput.class), transform);
   }
 
 

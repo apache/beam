@@ -114,6 +114,7 @@ public class ParDoBoundTranslatorTest {
   }
 
   private static class Add extends DoFn<Integer, Integer> {
+    private static final long serialVersionUID = 1L;
     private Integer number;
     private PCollectionView<Integer> sideInputView;
 
@@ -135,6 +136,7 @@ public class ParDoBoundTranslatorTest {
   }
 
   private static class EmbeddedCollector extends DoFn<Object, Void> {
+    private static final long serialVersionUID = 1L;
     private static final Set<Object> RESULTS = Collections.synchronizedSet(new HashSet<>());
 
     public EmbeddedCollector() {
@@ -243,7 +245,7 @@ public class ParDoBoundTranslatorTest {
     operator.sideInput1.process(ApexStreamTuple.DataTuple.of(sideInput));
     Assert.assertEquals("number outputs", 1, results.size());
     Assert.assertEquals("result", WindowedValue.valueInGlobalWindow(23),
-        ((ApexStreamTuple.DataTuple) results.get(0)).getValue());
+        ((ApexStreamTuple.DataTuple<?>) results.get(0)).getValue());
 
     // verify side input checkpointing
     results.clear();
@@ -254,7 +256,7 @@ public class ParDoBoundTranslatorTest {
     operator.input.process(ApexStreamTuple.DataTuple.of(wv2));
     Assert.assertEquals("number outputs", 1, results.size());
     Assert.assertEquals("result", WindowedValue.valueInGlobalWindow(24),
-        ((ApexStreamTuple.DataTuple) results.get(0)).getValue());
+        ((ApexStreamTuple.DataTuple<?>) results.get(0)).getValue());
   }
 
   @Test

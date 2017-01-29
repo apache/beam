@@ -484,11 +484,6 @@ public class DirectRunnerTest implements Serializable {
     }
 
     @Override
-    public boolean producesSortedKeys(PipelineOptions options) throws Exception {
-      return underlying.producesSortedKeys(options);
-    }
-
-    @Override
     public BoundedReader<T> createReader(PipelineOptions options) throws IOException {
       throw new IllegalStateException(
           "The MustSplitSource cannot create a reader without being split first");

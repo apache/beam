@@ -19,7 +19,9 @@ package org.apache.beam.runners.flink.translation;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
+import com.google.common.collect.Iterables;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import org.apache.beam.runners.flink.translation.types.CoderTypeInformation;
 import org.apache.beam.sdk.coders.Coder;
@@ -31,6 +33,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.PValue;
+import org.apache.beam.sdk.values.TaggedPValue;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -99,12 +102,21 @@ public class FlinkStreamingTranslationContext {
 
 
   @SuppressWarnings("unchecked")
-  public <T extends PInput> T getInput(PTransform<T, ?> transform) {
-    return (T) currentTransform.getInput();
+  public <T extends PValue> T getInput(PTransform<T, ?> transform) {
+    return (T) Iterables.getOnlyElement(currentTransform.getInputs()).getValue();
+  }
+
+  public <T extends PInput> List<TaggedPValue> getInputs(PTransform<T, ?> transform) {
+    return currentTransform.getInputs();
   }
 
   @SuppressWarnings("unchecked")
-  public <T extends POutput> T getOutput(PTransform<?, T> transform) {
-    return (T) currentTransform.getOutput();
+  public <T extends PValue> T getOutput(PTransform<?, T> transform) {
+    return (T) Iterables.getOnlyElement(currentTransform.getOutputs()).getValue();
   }
+
+  public <OutputT extends POutput> List<TaggedPValue> getOutputs(PTransform<?, OutputT> transform) {
+    return currentTransform.getOutputs();
+  }
+
 }

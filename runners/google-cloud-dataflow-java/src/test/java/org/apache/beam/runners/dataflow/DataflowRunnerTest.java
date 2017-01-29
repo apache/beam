@@ -988,18 +988,18 @@ public class DataflowRunnerTest {
 
     DataflowPipelineTranslator.registerTransformTranslator(
         TestTransform.class,
-        new DataflowPipelineTranslator.TransformTranslator<TestTransform>() {
+        new TransformTranslator<TestTransform>() {
           @SuppressWarnings("unchecked")
           @Override
           public void translate(
               TestTransform transform,
-              DataflowPipelineTranslator.TranslationContext context) {
+              TranslationContext context) {
             transform.translated = true;
 
             // Note: This is about the minimum needed to fake out a
             // translation. This obviously isn't a real translation.
-            context.addStep(transform, "TestTranslate");
-            context.addOutput(context.getOutput(transform));
+            StepTranslationContext stepContext = context.addStep(transform, "TestTranslate");
+            stepContext.addOutput(context.getOutput(transform));
           }
         });
 

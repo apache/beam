@@ -56,7 +56,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import org.apache.beam.runners.dataflow.DataflowPipelineTranslator.JobSpecification;
-import org.apache.beam.runners.dataflow.DataflowPipelineTranslator.TranslationContext;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineWorkerPoolOptions;
 import org.apache.beam.runners.dataflow.util.OutputReference;
@@ -566,7 +565,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
    * {@link TranslationContext#addStep} and remaps the input port reference.
    */
   private static class EmbeddedTranslator
-      implements DataflowPipelineTranslator.TransformTranslator<EmbeddedTransform> {
+      implements TransformTranslator<EmbeddedTransform> {
     @Override public void translate(EmbeddedTransform transform, TranslationContext context) {
       addObject(transform.step.getProperties(), PropertyNames.PARALLEL_INPUT,
           context.asOutputReference(context.getInput(transform)));

@@ -21,7 +21,6 @@ import static org.hamcrest.Matchers.emptyIterable;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasSize;
 import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
 
 import com.google.common.collect.Iterables;
 import java.io.Serializable;
@@ -40,13 +39,13 @@ import org.apache.beam.sdk.transforms.Flatten.FlattenPCollectionList;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.View;
-import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
+import org.apache.beam.sdk.values.TaggedPValue;
 import org.hamcrest.Matchers;
 import org.junit.Rule;
 import org.junit.Test;
@@ -88,7 +87,7 @@ public class DirectGraphVisitorTest implements Serializable {
   }
 
   @Test
-  public void getRootTransformsContainsPBegins() {
+  public void getRootTransformsContainsRootTransforms() {
     PCollection<String> created = p.apply(Create.of("foo", "bar"));
     PCollection<Long> counted = p.apply(Read.from(CountingSource.upTo(1234L)));
     PCollection<Long> unCounted = p.apply(CountingInput.unbounded());
@@ -101,8 +100,11 @@ public class DirectGraphVisitorTest implements Serializable {
         Matchers.<AppliedPTransform<?, ?, ?>>containsInAnyOrder(
             graph.getProducer(created), graph.getProducer(counted), graph.getProducer(unCounted)));
     for (AppliedPTransform<?, ?, ?> root : graph.getRootTransforms())  {
-      assertTrue(root.getInput() instanceof PBegin);
-      assertThat(root.getOutput(), Matchers.<POutput>isOneOf(created, counted, unCounted));
+      // Root transforms will have no inputs
+      assertThat(root.getInputs(), emptyIterable());
+      assertThat(
+          Iterables.getOnlyElement(root.getOutputs()).getValue(),
+          Matchers.<POutput>isOneOf(created, counted, unCounted));
     }
   }
 
@@ -119,8 +121,8 @@ public class DirectGraphVisitorTest implements Serializable {
         Matchers.<AppliedPTransform<?, ?, ?>>containsInAnyOrder(graph.getProducer(empty)));
     AppliedPTransform<?, ?, ?> onlyRoot = Iterables.getOnlyElement(graph.getRootTransforms());
     assertThat(onlyRoot.getTransform(), Matchers.<PTransform<?, ?>>equalTo(flatten));
-    assertThat(onlyRoot.getInput(), Matchers.<PInput>equalTo(emptyList));
-    assertThat(onlyRoot.getOutput(), Matchers.<POutput>equalTo(empty));
+    assertThat(onlyRoot.getInputs(), Matchers.<TaggedPValue>emptyIterable());
+    assertThat(onlyRoot.getOutputs(), equalTo(empty.expand()));
   }
 
   @Test

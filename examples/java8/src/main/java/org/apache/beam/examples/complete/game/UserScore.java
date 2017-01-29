@@ -126,7 +126,7 @@ public class UserScore {
     // Log and count parse errors.
     private static final Logger LOG = LoggerFactory.getLogger(ParseEventFn.class);
     private final Aggregator<Long, Long> numParseErrors =
-        createAggregator("ParseErrors", new Sum.SumLongFn());
+        createAggregator("ParseErrors", Sum.ofLongs());
 
     @ProcessElement
     public void processElement(ProcessContext c) {

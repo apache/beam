@@ -290,22 +290,27 @@ public class TransformHierarchy {
       for (TaggedPValue outputValue : output.expand()) {
         outputProducers.add(getProducer(outputValue.getValue()));
       }
-      if (outputProducers.contains(this) && outputProducers.size() != 1) {
-        Set<String> otherProducerNames = new HashSet<>();
-        for (Node outputProducer : outputProducers) {
-          if (outputProducer != this) {
-            otherProducerNames.add(outputProducer.getFullName());
+      if (outputProducers.contains(this)) {
+        if (!parts.isEmpty() || outputProducers.size() > 1) {
+          Set<String> otherProducerNames = new HashSet<>();
+          for (Node outputProducer : outputProducers) {
+            if (outputProducer != this) {
+              otherProducerNames.add(outputProducer.getFullName());
+            }
           }
+          throw new IllegalArgumentException(
+              String.format(
+                  "Output of composite transform [%s] contains a primitive %s produced by it. "
+                      + "Only primitive transforms are permitted to produce primitive outputs."
+                      + "%n    Outputs: %s"
+                      + "%n    Other Producers: %s"
+                      + "%n    Components: %s",
+                  getFullName(),
+                  POutput.class.getSimpleName(),
+                  output.expand(),
+                  otherProducerNames,
+                  parts));
         }
-        throw new IllegalArgumentException(
-            String.format(
-                "Output of transform [%s] contains a %s produced by it as well as other "
-                    + "Transforms. A primitive transform must produce all of its outputs, and "
-                    + "outputs of a composite transform must be produced by a component transform "
-                    + "or be part of the input."
-                    + "%n    Other Outputs: %s"
-                    + "%n    Other Producers: %s",
-                getFullName(), POutput.class.getSimpleName(), output.expand(), otherProducerNames));
       }
     }
 

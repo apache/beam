@@ -513,11 +513,6 @@ public class CompressedSourceTest {
     }
 
     @Override
-    public boolean producesSortedKeys(PipelineOptions options) throws Exception {
-      return false;
-    }
-
-    @Override
     public Coder<Byte> getDefaultOutputCoder() {
       return SerializableCoder.of(Byte.class);
     }

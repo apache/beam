@@ -21,8 +21,11 @@ import com.google.auto.value.AutoValue;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 import org.apache.beam.runners.core.KeyedWorkItem;
 import org.apache.beam.runners.core.KeyedWorkItems;
 import org.apache.beam.runners.direct.DirectExecutionContext.DirectStepContext;
@@ -36,6 +39,7 @@ import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.StateDeclaration;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.util.TimerInternals.TimerData;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.util.state.StateNamespace;
@@ -46,6 +50,8 @@ import org.apache.beam.sdk.util.state.StateTags;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
+import org.apache.beam.sdk.values.TaggedPValue;
+import org.apache.beam.sdk.values.TupleTag;
 
 /** A {@link TransformEvaluatorFactory} for stateful {@link ParDo}. */
 final class StatefulParDoEvaluatorFactory<K, InputT, OutputT> implements TransformEvaluatorFactory {
@@ -104,7 +110,7 @@ final class StatefulParDoEvaluatorFactory<K, InputT, OutputT> implements Transfo
       }
     }
 
-    TransformEvaluator<KV<K, InputT>> delegateEvaluator =
+    DoFnLifecycleManagerRemovingTransformEvaluator<KV<K, InputT>> delegateEvaluator =
         delegateFactory.createEvaluator(
             (AppliedPTransform) application,
             inputBundle.getKey(),
@@ -130,10 +136,12 @@ final class StatefulParDoEvaluatorFactory<K, InputT, OutputT> implements Transfo
         final AppliedPTransformOutputKeyAndWindow<K, InputT, OutputT> transformOutputWindow) {
       String stepName = evaluationContext.getStepName(transformOutputWindow.getTransform());
 
+      Map<TupleTag<?>, PCollection<?>> taggedValues = new HashMap<>();
+      for (TaggedPValue pv : transformOutputWindow.getTransform().getOutputs()) {
+        taggedValues.put(pv.getTag(), (PCollection<?>) pv.getValue());
+      }
       PCollection<?> pc =
-          transformOutputWindow
-              .getTransform()
-              .getOutput()
+          taggedValues
               .get(
                   transformOutputWindow
                       .getTransform()
@@ -210,9 +218,10 @@ final class StatefulParDoEvaluatorFactory<K, InputT, OutputT> implements Transfo
   private static class StatefulParDoEvaluator<K, InputT>
       implements TransformEvaluator<KeyedWorkItem<K, KV<K, InputT>>> {
 
-    private final TransformEvaluator<KV<K, InputT>> delegateEvaluator;
+    private final DoFnLifecycleManagerRemovingTransformEvaluator<KV<K, InputT>> delegateEvaluator;
 
-    public StatefulParDoEvaluator(TransformEvaluator<KV<K, InputT>> delegateEvaluator) {
+    public StatefulParDoEvaluator(
+        DoFnLifecycleManagerRemovingTransformEvaluator<KV<K, InputT>> delegateEvaluator) {
       this.delegateEvaluator = delegateEvaluator;
     }
 
@@ -220,8 +229,14 @@ final class StatefulParDoEvaluatorFactory<K, InputT, OutputT> implements Transfo
     public void processElement(WindowedValue<KeyedWorkItem<K, KV<K, InputT>>> gbkResult)
         throws Exception {
 
+      BoundedWindow window = Iterables.getOnlyElement(gbkResult.getWindows());
+
       for (WindowedValue<KV<K, InputT>> windowedValue : gbkResult.getValue().elementsIterable()) {
         delegateEvaluator.processElement(windowedValue);
+      }
+
+      for (TimerData timer : gbkResult.getValue().timersIterable()) {
+        delegateEvaluator.onTimer(timer, window);
       }
     }
 

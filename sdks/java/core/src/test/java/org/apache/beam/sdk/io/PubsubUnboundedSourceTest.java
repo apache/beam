@@ -98,13 +98,13 @@ public class PubsubUnboundedSourceTest {
     PubsubUnboundedSource<String> source =
         new PubsubUnboundedSource<>(
             clock, factory, null, null, StaticValueProvider.of(SUBSCRIPTION),
-            StringUtf8Coder.of(), TIMESTAMP_LABEL, ID_LABEL);
+            StringUtf8Coder.of(), TIMESTAMP_LABEL, ID_LABEL, null);
     primSource = new PubsubSource<>(source);
   }
 
   private void setupOneMessage() {
     setupOneMessage(ImmutableList.of(
-        new IncomingMessage(DATA.getBytes(), TIMESTAMP, 0, ACK_ID, RECORD_ID)));
+        new IncomingMessage(DATA.getBytes(), null, TIMESTAMP, 0, ACK_ID, RECORD_ID)));
   }
 
   @After
@@ -217,7 +217,7 @@ public class PubsubUnboundedSourceTest {
     for (int i = 0; i < 2; i++) {
       String data = String.format("data_%d", i);
       String ackid = String.format("ackid_%d", i);
-      incoming.add(new IncomingMessage(data.getBytes(), TIMESTAMP, 0, ackid, RECORD_ID));
+      incoming.add(new IncomingMessage(data.getBytes(), null, TIMESTAMP, 0, ackid, RECORD_ID));
     }
     setupOneMessage(incoming);
     PubsubReader<String> reader = primSource.createReader(p.getOptions(), null);
@@ -275,7 +275,7 @@ public class PubsubUnboundedSourceTest {
       dataToMessageNum.put(data, messageNum);
       String recid = String.format("recordid_%d", messageNum);
       String ackId = String.format("ackid_%d", messageNum);
-      incoming.add(new IncomingMessage(data.getBytes(), messageNumToTimestamp(messageNum), 0,
+      incoming.add(new IncomingMessage(data.getBytes(), null, messageNumToTimestamp(messageNum), 0,
                                        ackId, recid));
     }
     setupOneMessage(incoming);
@@ -337,6 +337,7 @@ public class PubsubUnboundedSourceTest {
             null,
             StringUtf8Coder.of(),
             null,
+            null,
             null);
     assertThat(source.getSubscription(), nullValue());
 
@@ -366,6 +367,7 @@ public class PubsubUnboundedSourceTest {
             StaticValueProvider.of(topicPath),
             null,
             StringUtf8Coder.of(),
+            null,
             null,
             null);
     assertThat(source.getSubscription(), nullValue());

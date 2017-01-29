@@ -31,14 +31,19 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Set;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.coders.BigEndianLongCoder;
+import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CollectionCoder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.ListCoder;
+import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.coders.SetCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.io.CountingInput;
+import org.apache.beam.sdk.testing.FlattenWithHeterogeneousCoders;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.RunnableOnService;
@@ -143,6 +148,28 @@ public class FlattenTest implements Serializable {
     }
     PAssert.that(flattened).containsInAnyOrder(expectedLongs);
 
+    p.run();
+  }
+
+  @Test
+  @Category({RunnableOnService.class, FlattenWithHeterogeneousCoders.class})
+  public void testFlattenMultipleCoders() throws CannotProvideCoderException {
+    PCollection<Long> bigEndianLongs =
+        p.apply(
+            "BigEndianLongs",
+            Create.of(0L, 1L, 2L, 3L, null, 4L, 5L, null, 6L, 7L, 8L, null, 9L)
+                .withCoder(NullableCoder.of(BigEndianLongCoder.of())));
+    PCollection<Long> varLongs =
+        p.apply("VarLengthLongs", CountingInput.upTo(5L)).setCoder(VarLongCoder.of());
+
+    PCollection<Long> flattened =
+        PCollectionList.of(bigEndianLongs)
+            .and(varLongs)
+            .apply(Flatten.<Long>pCollections())
+            .setCoder(NullableCoder.of(VarLongCoder.of()));
+    PAssert.that(flattened)
+        .containsInAnyOrder(
+            0L, 0L, 1L, 1L, 2L, 3L, 2L, 4L, 5L, 3L, 6L, 7L, 4L, 8L, 9L, null, null, null);
     p.run();
   }
 

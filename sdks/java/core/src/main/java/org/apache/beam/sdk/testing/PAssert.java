@@ -1019,9 +1019,9 @@ public class PAssert {
   private static class SideInputCheckerDoFn<ActualT> extends DoFn<Integer, Void> {
     private final SerializableFunction<ActualT, Void> checkerFn;
     private final Aggregator<Integer, Integer> success =
-        createAggregator(SUCCESS_COUNTER, new Sum.SumIntegerFn());
+        createAggregator(SUCCESS_COUNTER, Sum.ofIntegers());
     private final Aggregator<Integer, Integer> failure =
-        createAggregator(FAILURE_COUNTER, new Sum.SumIntegerFn());
+        createAggregator(FAILURE_COUNTER, Sum.ofIntegers());
     private final PCollectionView<ActualT> actual;
 
     private SideInputCheckerDoFn(
@@ -1054,9 +1054,9 @@ public class PAssert {
   private static class GroupedValuesCheckerDoFn<ActualT> extends DoFn<ActualT, Void> {
     private final SerializableFunction<ActualT, Void> checkerFn;
     private final Aggregator<Integer, Integer> success =
-        createAggregator(SUCCESS_COUNTER, new Sum.SumIntegerFn());
+        createAggregator(SUCCESS_COUNTER, Sum.ofIntegers());
     private final Aggregator<Integer, Integer> failure =
-        createAggregator(FAILURE_COUNTER, new Sum.SumIntegerFn());
+        createAggregator(FAILURE_COUNTER, Sum.ofIntegers());
 
     private GroupedValuesCheckerDoFn(SerializableFunction<ActualT, Void> checkerFn) {
       this.checkerFn = checkerFn;
@@ -1079,9 +1079,9 @@ public class PAssert {
   private static class SingletonCheckerDoFn<ActualT> extends DoFn<Iterable<ActualT>, Void> {
     private final SerializableFunction<ActualT, Void> checkerFn;
     private final Aggregator<Integer, Integer> success =
-        createAggregator(SUCCESS_COUNTER, new Sum.SumIntegerFn());
+        createAggregator(SUCCESS_COUNTER, Sum.ofIntegers());
     private final Aggregator<Integer, Integer> failure =
-        createAggregator(FAILURE_COUNTER, new Sum.SumIntegerFn());
+        createAggregator(FAILURE_COUNTER, Sum.ofIntegers());
 
     private SingletonCheckerDoFn(SerializableFunction<ActualT, Void> checkerFn) {
       this.checkerFn = checkerFn;

@@ -29,7 +29,7 @@ import org.apache.beam.runners.core.DoFnRunner;
 import org.apache.beam.runners.core.DoFnRunners;
 import org.apache.beam.runners.spark.aggregators.NamedAggregators;
 import org.apache.beam.runners.spark.aggregators.SparkAggregators;
-import org.apache.beam.runners.spark.util.BroadcastHelper;
+import org.apache.beam.runners.spark.util.SideInputBroadcast;
 import org.apache.beam.runners.spark.util.SparkSideInputReader;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -38,7 +38,6 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.spark.Accumulator;
 import org.apache.spark.api.java.function.PairFlatMapFunction;
-
 import scala.Tuple2;
 
 
@@ -56,7 +55,7 @@ public class MultiDoFnFunction<InputT, OutputT>
   private final DoFn<InputT, OutputT> doFn;
   private final SparkRuntimeContext runtimeContext;
   private final TupleTag<OutputT> mainOutputTag;
-  private final Map<TupleTag<?>, KV<WindowingStrategy<?, ?>, BroadcastHelper<?>>> sideInputs;
+  private final Map<TupleTag<?>, KV<WindowingStrategy<?, ?>, SideInputBroadcast<?>>> sideInputs;
   private final WindowingStrategy<?, ?> windowingStrategy;
 
   /**
@@ -72,8 +71,7 @@ public class MultiDoFnFunction<InputT, OutputT>
       DoFn<InputT, OutputT> doFn,
       SparkRuntimeContext runtimeContext,
       TupleTag<OutputT> mainOutputTag,
-      Map<TupleTag<?>, KV<WindowingStrategy<?, ?>,
-      BroadcastHelper<?>>> sideInputs,
+      Map<TupleTag<?>, KV<WindowingStrategy<?, ?>, SideInputBroadcast<?>>> sideInputs,
       WindowingStrategy<?, ?> windowingStrategy) {
 
     this.accumulator = accumulator;
@@ -89,8 +87,9 @@ public class MultiDoFnFunction<InputT, OutputT>
       Iterator<WindowedValue<InputT>> iter) throws Exception {
 
     DoFnOutputManager outputManager = new DoFnOutputManager();
+
     DoFnRunner<InputT, OutputT> doFnRunner =
-        DoFnRunners.createDefault(
+        DoFnRunners.simpleRunner(
             runtimeContext.getPipelineOptions(),
             doFn,
             new SparkSideInputReader(sideInputs),
@@ -99,8 +98,7 @@ public class MultiDoFnFunction<InputT, OutputT>
             Collections.<TupleTag<?>>emptyList(),
             new SparkProcessContext.NoOpStepContext(),
             new SparkAggregators.Factory(runtimeContext, accumulator),
-            windowingStrategy
-        );
+            windowingStrategy);
 
     return new SparkProcessContext<>(doFn, doFnRunner, outputManager).processPartition(iter);
   }
