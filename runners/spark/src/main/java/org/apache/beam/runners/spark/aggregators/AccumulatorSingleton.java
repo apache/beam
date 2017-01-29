@@ -19,6 +19,7 @@
 package org.apache.beam.runners.spark.aggregators;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Optional;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
@@ -41,7 +42,8 @@ import org.slf4j.LoggerFactory;
 public class AccumulatorSingleton {
   private static final Logger LOG = LoggerFactory.getLogger(AccumulatorSingleton.class);
 
-  private static final String ACCUMULATOR_CHECKPOINT_FILE = "beam_aggregators";
+  private static final String BEAM_CHECKPOINT_DIR = "beam-checkpoint";
+  private static final String ACCUMULATOR_CHECKPOINT_FILENAME = "beam_aggregators";
 
   private static volatile Accumulator<NamedAggregators> instance;
   private static volatile FileSystem fileSystem;
@@ -49,16 +51,16 @@ public class AccumulatorSingleton {
   private static volatile Path tempCheckpointPath;
   private static volatile Path backupCheckpointPath;
 
+  @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
   static Accumulator<NamedAggregators> getInstance(
       JavaSparkContext jsc,
-      boolean isStreaming,
-      String checkpointDir) {
+      Optional<String> checkpointDir) {
     if (instance == null) {
       synchronized (AccumulatorSingleton.class) {
         if (instance == null) {
           instance = jsc.sc().accumulator(new NamedAggregators(), new AggAccumParam());
-          if (isStreaming) {
-            recoverValueFromCheckpoint(jsc, checkpointDir);
+          if (checkpointDir.isPresent()) {
+            recoverValueFromCheckpoint(jsc, checkpointDir.get());
           }
         }
       }
@@ -69,10 +71,14 @@ public class AccumulatorSingleton {
   private static void recoverValueFromCheckpoint(JavaSparkContext jsc, String checkpointDir) {
     FSDataInputStream is = null;
     try {
-      checkpointPath = new Path(checkpointDir, ACCUMULATOR_CHECKPOINT_FILE);
+      Path beamCheckpointPath = new Path(checkpointDir, BEAM_CHECKPOINT_DIR);
+      checkpointPath = new Path(beamCheckpointPath, ACCUMULATOR_CHECKPOINT_FILENAME);
       tempCheckpointPath = checkpointPath.suffix(".tmp");
       backupCheckpointPath = checkpointPath.suffix(".bak");
       fileSystem = checkpointPath.getFileSystem(jsc.hadoopConfiguration());
+      if (!fileSystem.exists(beamCheckpointPath)) {
+        fileSystem.mkdirs(beamCheckpointPath);
+      }
       if (fileSystem.exists(checkpointPath)) {
         is = fileSystem.open(checkpointPath);
       } else if (fileSystem.exists(backupCheckpointPath)) {

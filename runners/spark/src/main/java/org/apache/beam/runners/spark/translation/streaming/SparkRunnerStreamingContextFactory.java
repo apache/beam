@@ -20,6 +20,7 @@ package org.apache.beam.runners.spark.translation.streaming;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
+import java.io.IOException;
 import org.apache.beam.runners.spark.SparkContextOptions;
 import org.apache.beam.runners.spark.SparkPipelineOptions;
 import org.apache.beam.runners.spark.SparkRunner;
@@ -28,6 +29,8 @@ import org.apache.beam.runners.spark.translation.SparkContextFactory;
 import org.apache.beam.runners.spark.translation.SparkPipelineTranslator;
 import org.apache.beam.runners.spark.translation.TransformTranslator;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.streaming.Duration;
 import org.apache.spark.streaming.api.java.JavaStreamingContext;
@@ -45,14 +48,18 @@ import org.slf4j.LoggerFactory;
 public class SparkRunnerStreamingContextFactory implements JavaStreamingContextFactory {
   private static final Logger LOG =
       LoggerFactory.getLogger(SparkRunnerStreamingContextFactory.class);
-  private static final String KNOWN_RELIABLE_FS_PATTERN = "^(hdfs|s3|gs)";
 
   private final Pipeline pipeline;
   private final SparkPipelineOptions options;
+  private final CheckpointDir checkpointDir;
 
-  public SparkRunnerStreamingContextFactory(Pipeline pipeline, SparkPipelineOptions options) {
+  public SparkRunnerStreamingContextFactory(
+      Pipeline pipeline,
+      SparkPipelineOptions options,
+      CheckpointDir checkpointDir) {
     this.pipeline = pipeline;
     this.options = options;
+    this.checkpointDir = checkpointDir;
   }
 
   private EvaluationContext ctxt;
@@ -73,18 +80,12 @@ public class SparkRunnerStreamingContextFactory implements JavaStreamingContextF
 
     JavaSparkContext jsc = SparkContextFactory.getSparkContext(options);
     JavaStreamingContext jssc = new JavaStreamingContext(jsc, batchDuration);
+
     ctxt = new EvaluationContext(jsc, pipeline, jssc);
     pipeline.traverseTopologically(new SparkRunner.Evaluator(translator, ctxt));
     ctxt.computeOutputs();
 
-    // set checkpoint dir.
-    String checkpointDir = options.getCheckpointDir();
-    if (!checkpointDir.matches(KNOWN_RELIABLE_FS_PATTERN)) {
-      LOG.warn("The specified checkpoint dir {} does not match a reliable filesystem so in case "
-          + "of failures this job may not recover properly or even at all.", checkpointDir);
-    }
-    LOG.info("Checkpoint dir set to: {}", checkpointDir);
-    jssc.checkpoint(checkpointDir);
+    checkpoint(jssc);
 
     // register listeners.
     for (JavaStreamingListener listener: options.as(SparkContextOptions.class).getListeners()) {
@@ -93,6 +94,25 @@ public class SparkRunnerStreamingContextFactory implements JavaStreamingContextF
     }
 
     return jssc;
+  }
+
+  private void checkpoint(JavaStreamingContext jssc) {
+    Path rootCheckpointPath = checkpointDir.getRootCheckpointDir();
+    Path sparkCheckpointPath = checkpointDir.getSparkCheckpointDir();
+
+    try {
+      FileSystem fileSystem = rootCheckpointPath.getFileSystem(jssc.sc().hadoopConfiguration());
+      if (!fileSystem.exists(rootCheckpointPath)) {
+        fileSystem.mkdirs(rootCheckpointPath);
+      }
+      if (!fileSystem.exists(sparkCheckpointPath)) {
+        fileSystem.mkdirs(sparkCheckpointPath);
+      }
+    } catch (IOException e) {
+      throw new RuntimeException("Failure while writing to checkpoint dir", e);
+    }
+
+    jssc.checkpoint(sparkCheckpointPath.toString());
   }
 
   public EvaluationContext getCtxt() {
