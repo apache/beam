@@ -433,14 +433,18 @@ final class StreamingTransformTranslator {
           @Override
           public JavaPairRDD<TupleTag<?>, WindowedValue<?>> call(
               JavaRDD<WindowedValue<InputT>> rdd) throws Exception {
-            final Accumulator<NamedAggregators> accum =
-                SparkAggregators.getNamedAggregators(new JavaSparkContext(rdd.context()));
-
+            String stepName = context.getCurrentTransform().getFullName();
+            JavaSparkContext jsc = new JavaSparkContext(rdd.context());
+            final Accumulator<NamedAggregators> aggAccum =
+                SparkAggregators.getNamedAggregators(jsc);
+            final Accumulator<SparkMetricsContainer> metricsAccum =
+                MetricsAccumulator.getOrCreateInstance(jsc);
             final Map<TupleTag<?>, KV<WindowingStrategy<?, ?>, SideInputBroadcast<?>>> sideInputs =
                 TranslationUtils.getSideInputs(transform.getSideInputs(),
                     JavaSparkContext.fromSparkContext(rdd.context()), pviews);
-              return rdd.mapPartitionsToPair(new MultiDoFnFunction<>(accum, doFn,
-                  runtimeContext, transform.getMainOutputTag(), sideInputs, windowingStrategy));
+              return rdd.mapPartitionsToPair(new MultiDoFnFunction<>(aggAccum, metricsAccum,
+                  stepName, doFn, runtimeContext, transform.getMainOutputTag(), sideInputs,
+                  windowingStrategy));
           }
         }).cache();
         List<TaggedPValue> pct = context.getOutputs(transform);

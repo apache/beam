@@ -37,6 +37,8 @@ import org.apache.beam.sdk.testing.UsesCommittedMetrics;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.TupleTagList;
 import org.hamcrest.CoreMatchers;
 import org.junit.After;
 import org.junit.Test;
@@ -167,6 +169,8 @@ public class MetricsTest implements Serializable {
   private PipelineResult runPipelineWithMetrics() {
     final Counter count = Metrics.counter(MetricsTest.class, "count");
     Pipeline pipeline = TestPipeline.create();
+    final TupleTag<Integer> output1 = new TupleTag<Integer>(){};
+    final TupleTag<Integer> output2 = new TupleTag<Integer>(){};
     pipeline
         .apply(Create.of(5, 8, 13))
         .apply("MyStep1", ParDo.of(new DoFn<Integer, Integer>() {
@@ -193,15 +197,18 @@ public class MetricsTest implements Serializable {
             bundleDist.update(40L);
           }
         }))
-        .apply("MyStep2", ParDo.of(new DoFn<Integer, Integer>() {
-          @SuppressWarnings("unused")
-          @ProcessElement
-          public void processElement(ProcessContext c) {
-            Distribution values = Metrics.distribution(MetricsTest.class, "input");
-            count.inc();
-            values.update(c.element());
-          }
-        }));
+        .apply("MyStep2", ParDo.withOutputTags(output1, TupleTagList.of(output2))
+            .of(new DoFn<Integer, Integer>() {
+              @SuppressWarnings("unused")
+              @ProcessElement
+              public void processElement(ProcessContext c) {
+                Distribution values = Metrics.distribution(MetricsTest.class, "input");
+                count.inc();
+                values.update(c.element());
+                c.output(c.element());
+                c.sideOutput(output2, c.element());
+              }
+            }));
     PipelineResult result = pipeline.run();
 
     result.waitUntilFinish();

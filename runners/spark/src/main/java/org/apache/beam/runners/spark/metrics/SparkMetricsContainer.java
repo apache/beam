@@ -18,6 +18,7 @@
 
 package org.apache.beam.runners.spark.metrics;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
@@ -52,8 +53,7 @@ public class SparkMetricsContainer implements Serializable {
     if (metricsContainers == null) {
       synchronized (this) {
         if (metricsContainers == null) {
-          metricsContainers = CacheBuilder.<String, SparkMetricsContainer>newBuilder()
-              .build(new MetricsContainerCacheLoader());
+          initializeMetricsContainers();
         }
       }
     }
@@ -128,6 +128,11 @@ public class SparkMetricsContainer implements Serializable {
     }
   }
 
+  private void initializeMetricsContainers() {
+    metricsContainers = CacheBuilder.<String, SparkMetricsContainer>newBuilder()
+        .build(new MetricsContainerCacheLoader());
+  }
+
   @Override
   public String toString() {
     StringBuilder sb = new StringBuilder();
@@ -135,5 +140,16 @@ public class SparkMetricsContainer implements Serializable {
       sb.append(metric.getKey()).append(": ").append(metric.getValue()).append(" ");
     }
     return sb.toString();
+  }
+
+  @VisibleForTesting
+  public static void clear() {
+    try {
+      SparkMetricsContainer instance = getInstance();
+      instance.initializeMetricsContainers();
+      instance.counters.clear();
+      instance.distributions.clear();
+    } catch (IllegalStateException ignored) {
+    }
   }
 }

@@ -41,10 +41,10 @@ class SparkBeamMetric implements Metric {
     MetricQueryResults metricQueryResults =
         metricResults.queryMetrics(MetricsFilter.builder().build());
     for (MetricResult<Long> metricResult : metricQueryResults.counters()) {
-      metrics.put(renderName(metricResult), metricResult.committed());
+      metrics.put(renderName(metricResult), metricResult.attempted());
     }
     for (MetricResult<DistributionResult> metricResult : metricQueryResults.distributions()) {
-      DistributionResult result = metricResult.committed();
+      DistributionResult result = metricResult.attempted();
       metrics.put(renderName(metricResult) + ".count", result.count());
       metrics.put(renderName(metricResult) + ".sum", result.sum());
       metrics.put(renderName(metricResult) + ".min", result.min());

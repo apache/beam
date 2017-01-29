@@ -169,7 +169,8 @@ public class SparkMetricResults extends MetricResults {
 
     @Override
     public T committed() {
-      return result;
+      throw new UnsupportedOperationException("Spark runner does not currently support committed"
+          + " metrics results. Please use 'attempted' instead.");
     }
 
     @Override

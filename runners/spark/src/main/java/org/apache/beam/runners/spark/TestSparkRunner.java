@@ -22,6 +22,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
 
 import org.apache.beam.runners.core.UnboundedReadFromBoundedSource;
+import org.apache.beam.runners.spark.metrics.SparkMetricsContainer;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult.State;
 import org.apache.beam.sdk.io.BoundedReadFromUnboundedSource;
@@ -106,6 +107,10 @@ public final class TestSparkRunner extends PipelineRunner<SparkPipelineResult> {
   @Override
   public SparkPipelineResult run(Pipeline pipeline) {
     TestPipelineOptions testPipelineOptions = pipeline.getOptions().as(TestPipelineOptions.class);
+
+    // clear metrics singleton
+    SparkMetricsContainer.clear();
+
     SparkPipelineResult result = delegate.run(pipeline);
     result.waitUntilFinish();
 
