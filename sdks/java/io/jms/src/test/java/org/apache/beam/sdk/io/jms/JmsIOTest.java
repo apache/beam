@@ -18,6 +18,8 @@
 package org.apache.beam.sdk.io.jms;
 
 import java.util.ArrayList;
+import java.util.List;
+
 import javax.jms.Connection;
 import javax.jms.ConnectionFactory;
 import javax.jms.Message;
@@ -26,7 +28,10 @@ import javax.jms.MessageProducer;
 import javax.jms.Session;
 import javax.jms.TextMessage;
 import org.apache.activemq.ActiveMQConnectionFactory;
+import org.apache.activemq.broker.BrokerPlugin;
 import org.apache.activemq.broker.BrokerService;
+import org.apache.activemq.security.AuthenticationUser;
+import org.apache.activemq.security.SimpleAuthenticationPlugin;
 import org.apache.activemq.store.memory.MemoryPersistenceAdapter;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
@@ -40,6 +45,7 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
+import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
@@ -49,7 +55,6 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class JmsIOTest {
 
-
   private static final String BROKER_URL = "vm://localhost";
 
   private BrokerService broker;
@@ -58,6 +63,9 @@ public class JmsIOTest {
   @Rule
   public final transient TestPipeline pipeline = TestPipeline.create();
 
+  @Rule
+  public ExpectedException expectedException = ExpectedException.none();
+
   @Before
   public void startBroker() throws Exception {
     broker = new BrokerService();
@@ -65,6 +73,16 @@ public class JmsIOTest {
     broker.setPersistenceAdapter(new MemoryPersistenceAdapter());
     broker.addConnector(BROKER_URL);
     broker.setBrokerName("localhost");
+    broker.setPopulateJMSXUserID(true);
+    broker.setUseAuthenticatedPrincipalForJMSXUserID(true);
+
+    // enable authentication
+    List<AuthenticationUser> users = new ArrayList<>();
+    users.add(new AuthenticationUser("test", "test", "users,admins"));
+    SimpleAuthenticationPlugin plugin = new SimpleAuthenticationPlugin(users);
+    BrokerPlugin[] plugins = new BrokerPlugin[]{ plugin };
+    broker.setPlugins(plugins);
+
     broker.start();
 
     // create JMS connection factory
@@ -78,10 +96,24 @@ public class JmsIOTest {
 
   @Test
   @Category(NeedsRunner.class)
+  public void testAuthenticationRequired() {
+    expectedException.expect(Exception.class);
+    expectedException.expectMessage("JMSSecurityException");
+
+    pipeline.apply(
+        JmsIO.read()
+            .withConnectionFactory(connectionFactory)
+            .withQueue("test"));
+
+    pipeline.run();
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
   public void testReadMessages() throws Exception {
 
     // produce message
-    Connection connection = connectionFactory.createConnection();
+    Connection connection = connectionFactory.createConnection("test", "test");
     Session session = connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
     MessageProducer producer = session.createProducer(session.createQueue("test"));
     TextMessage message = session.createTextMessage("This Is A Test");
@@ -100,6 +132,8 @@ public class JmsIOTest {
         JmsIO.read()
             .withConnectionFactory(connectionFactory)
             .withQueue("test")
+            .withUsername("test")
+            .withPassword("test")
             .withMaxNumRecords(5));
 
     PAssert
@@ -107,7 +141,7 @@ public class JmsIOTest {
         .isEqualTo(new Long(5));
     pipeline.run();
 
-    connection = connectionFactory.createConnection();
+    connection = connectionFactory.createConnection("test", "test");
     session = connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
     MessageConsumer consumer = session.createConsumer(session.createQueue("test"));
     Message msg = consumer.receiveNoWait();
@@ -123,11 +157,15 @@ public class JmsIOTest {
       data.add("Message " + i);
     }
     pipeline.apply(Create.of(data))
-        .apply(JmsIO.write().withConnectionFactory(connectionFactory).withQueue("test"));
+        .apply(JmsIO.write()
+            .withConnectionFactory(connectionFactory)
+            .withQueue("test")
+            .withUsername("test")
+            .withPassword("test"));
 
     pipeline.run();
 
-    Connection connection = connectionFactory.createConnection();
+    Connection connection = connectionFactory.createConnection("test", "test");
     connection.start();
     Session session = connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
     MessageConsumer consumer = session.createConsumer(session.createQueue("test"));
