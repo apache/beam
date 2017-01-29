@@ -114,8 +114,4 @@ public class SparkRunnerStreamingContextFactory implements JavaStreamingContextF
 
     jssc.checkpoint(sparkCheckpointPath.toString());
   }
-
-  public EvaluationContext getCtxt() {
-    return ctxt;
-  }
 }
