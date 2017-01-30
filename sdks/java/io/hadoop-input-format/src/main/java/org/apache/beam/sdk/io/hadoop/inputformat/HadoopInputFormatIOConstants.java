@@ -41,6 +41,7 @@ public class HadoopInputFormatIOConstants {
 	public static final String COMPUTESPLITS_EMPTY_SPLITS_ERROR_MSG = "Error in computing splits, getSplits() returns a empty list";
 	public static final String CREATEREADER_UNSPLIT_SOURCE_ERROR_MSG = "Cannot create reader as source is not split yet.";
 	public static final String NULL_CREATE_RECORDREADER_ERROR_MSG = "null RecordReader object returned by %s";
+	public static final String GET_CURRENT_ERROR_MSG = "Unable to read data: ";
 	public static final String GETFRACTIONSCONSUMED_ERROR_MSG = "Error in computing the fractions consumed as RecordReader.getProgress() throws an exception : ";
 	public static final String SERIALIZABLE_SPLIT_WRITABLE_ERROR_MSG = "Split is not of type Writable: %s";
 	public static final String INPUTFORMAT_CLASSNAME = "mapreduce.job.inputformat.class";

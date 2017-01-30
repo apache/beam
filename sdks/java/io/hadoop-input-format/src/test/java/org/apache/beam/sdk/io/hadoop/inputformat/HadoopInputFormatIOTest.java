@@ -166,7 +166,7 @@ public class HadoopInputFormatIOTest {
     assertEquals(null, read.getValueTranslationFunction());
     assertEquals(myKeyTranslate.getOutputTypeDescriptor(), read.getKeyClass());
     assertEquals(diffConf.getHadoopConfiguration()
-        .getClass(HadoopInputFormatIOContants.VALUE_CLASS, Object.class), read.getValueClass().getRawType());
+        .getClass(HadoopInputFormatIOConstants.VALUE_CLASS, Object.class), read.getValueClass().getRawType());
   }
 
   /**
@@ -185,10 +185,6 @@ public class HadoopInputFormatIOTest {
       Entry<String, String> element = propertyElement.next();
       assertThat(displayData, hasDisplayItem(element.getKey(), element.getValue()));
     }
-    assertThat(displayData,
-        hasDisplayItem("KeyTranslation", myKeyTranslate.toString()));
-    assertThat(displayData,
-        hasDisplayItem("ValueTranslation", myValueTranslate.toString()));
   }
 
   /**
@@ -199,7 +195,7 @@ public class HadoopInputFormatIOTest {
   @Test
   public void testReadObjectCreationFailsIfConfigurationIsNull() {
     thrown.expect(NullPointerException.class);
-    thrown.expectMessage(HadoopInputFormatIOContants.NULL_CONFIGURATION_ERROR_MSG);
+    thrown.expectMessage(HadoopInputFormatIOConstants.NULL_CONFIGURATION_ERROR_MSG);
     HadoopInputFormatIO.<Text, Employee>read()
           .withConfiguration(null);
   }
@@ -216,9 +212,9 @@ public class HadoopInputFormatIOTest {
         read.getConfiguration().getHadoopConfiguration());
     assertEquals(null, read.getKeyTranslationFunction());
     assertEquals(null, read.getValueTranslationFunction());
-    assertEquals(serConf.getHadoopConfiguration().getClass(HadoopInputFormatIOContants.KEY_CLASS,
+    assertEquals(serConf.getHadoopConfiguration().getClass(HadoopInputFormatIOConstants.KEY_CLASS,
         Object.class), read.getKeyClass().getRawType());
-    assertEquals(serConf.getHadoopConfiguration().getClass(HadoopInputFormatIOContants.VALUE_CLASS,
+    assertEquals(serConf.getHadoopConfiguration().getClass(HadoopInputFormatIOConstants.VALUE_CLASS,
         Object.class), read.getValueClass().getRawType());
 
   }
@@ -232,7 +228,7 @@ public class HadoopInputFormatIOTest {
   @Test
   public void testReadObjectCreationFailsIfKeyTranslationFunctionIsNull() {
     thrown.expect(NullPointerException.class);
-    thrown.expectMessage(HadoopInputFormatIOContants.NULL_KEY_TRANSLATIONFUNC_ERROR_MSG);
+    thrown.expectMessage(HadoopInputFormatIOConstants.NULL_KEY_TRANSLATIONFUNC_ERROR_MSG);
     HadoopInputFormatIO.<String, Employee>read()
         .withConfiguration(serConf.getHadoopConfiguration())
         .withKeyTranslation(null);
@@ -266,7 +262,7 @@ public class HadoopInputFormatIOTest {
   @Test
   public void testReadObjectCreationFailsIfValueTranslationFunctionIsNull() {
     thrown.expect(NullPointerException.class);
-    thrown.expectMessage(HadoopInputFormatIOContants.NULL_VALUE_TRANSLATIONFUNC_ERROR_MSG);
+    thrown.expectMessage(HadoopInputFormatIOConstants.NULL_VALUE_TRANSLATIONFUNC_ERROR_MSG);
     HadoopInputFormatIO.<Text, String>read()
         .withConfiguration(serConf.getHadoopConfiguration())
         .withValueTranslation(null);
@@ -320,7 +316,7 @@ public class HadoopInputFormatIOTest {
   public void testReadValidationFailsMissingConfiguration() {
     HadoopInputFormatIO.Read<String, String> read = HadoopInputFormatIO.<String, String>read();
     thrown.expect(NullPointerException.class);
-    thrown.expectMessage(HadoopInputFormatIOContants.MISSING_CONFIGURATION_ERROR_MSG);
+    thrown.expectMessage(HadoopInputFormatIOConstants.MISSING_CONFIGURATION_ERROR_MSG);
     read.validate(input);
   }
 
@@ -332,10 +328,10 @@ public class HadoopInputFormatIOTest {
   @Test
   public void testReadValidationFailsMissingInputFormatInConf() {
     Configuration configuration = new Configuration();
-    configuration.setClass(HadoopInputFormatIOContants.KEY_CLASS, Text.class, Object.class);
-    configuration.setClass(HadoopInputFormatIOContants.VALUE_CLASS, Employee.class, Object.class);
+    configuration.setClass(HadoopInputFormatIOConstants.KEY_CLASS, Text.class, Object.class);
+    configuration.setClass(HadoopInputFormatIOConstants.VALUE_CLASS, Employee.class, Object.class);
     thrown.expect(NullPointerException.class);
-    thrown.expectMessage(HadoopInputFormatIOContants.MISSING_INPUTFORMAT_ERROR_MSG);
+    thrown.expectMessage(HadoopInputFormatIOConstants.MISSING_INPUTFORMAT_ERROR_MSG);
     HadoopInputFormatIO.<Text, Employee>read()
         .withConfiguration(configuration);
   }
@@ -347,11 +343,11 @@ public class HadoopInputFormatIOTest {
   @Test
   public void testReadValidationFailsMissingKeyClassInConf() {
     Configuration configuration = new Configuration();
-    configuration.setClass(HadoopInputFormatIOContants.INPUTFORMAT_CLASSNAME,
+    configuration.setClass(HadoopInputFormatIOConstants.INPUTFORMAT_CLASSNAME,
         NewObjectsEmployeeInputFormat.class, InputFormat.class);
-    configuration.setClass(HadoopInputFormatIOContants.VALUE_CLASS, Employee.class, Object.class);
+    configuration.setClass(HadoopInputFormatIOConstants.VALUE_CLASS, Employee.class, Object.class);
     thrown.expect(NullPointerException.class);
-    thrown.expectMessage(HadoopInputFormatIOContants.MISSING_INPUTFORMAT_KEY_CLASS_ERROR_MSG);
+    thrown.expectMessage(HadoopInputFormatIOConstants.MISSING_INPUTFORMAT_KEY_CLASS_ERROR_MSG);
     HadoopInputFormatIO.<Text, Employee>read()
         .withConfiguration(configuration);
   }
@@ -363,11 +359,11 @@ public class HadoopInputFormatIOTest {
   @Test
   public void testReadValidationFailsMissingValueClassInConf() {
     Configuration configuration = new Configuration();
-    configuration.setClass(HadoopInputFormatIOContants.INPUTFORMAT_CLASSNAME,
+    configuration.setClass(HadoopInputFormatIOConstants.INPUTFORMAT_CLASSNAME,
         NewObjectsEmployeeInputFormat.class, InputFormat.class);
-    configuration.setClass(HadoopInputFormatIOContants.KEY_CLASS, Text.class, Object.class);
+    configuration.setClass(HadoopInputFormatIOConstants.KEY_CLASS, Text.class, Object.class);
     thrown.expect(NullPointerException.class);
-    thrown.expectMessage(HadoopInputFormatIOContants.MISSING_INPUTFORMAT_VALUE_CLASS_ERROR_MSG);
+    thrown.expectMessage(HadoopInputFormatIOConstants.MISSING_INPUTFORMAT_VALUE_CLASS_ERROR_MSG);
     HadoopInputFormatIO.<Text, Employee>read()
         .withConfiguration(configuration);
   }
@@ -392,10 +388,10 @@ public class HadoopInputFormatIOTest {
         .withKeyTranslation(myKeyTranslateWithWrongInputType);
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage(
-        String.format(HadoopInputFormatIOContants.WRONG_KEY_TRANSLATIONFUNC_ERROR_MSG,
+        String.format(HadoopInputFormatIOConstants.WRONG_KEY_TRANSLATIONFUNC_ERROR_MSG,
             serConf.getHadoopConfiguration()
-                .getClass(HadoopInputFormatIOContants.INPUTFORMAT_CLASSNAME, InputFormat.class),
-            serConf.getHadoopConfiguration().getClass(HadoopInputFormatIOContants.KEY_CLASS,
+                .getClass(HadoopInputFormatIOConstants.INPUTFORMAT_CLASSNAME, InputFormat.class),
+            serConf.getHadoopConfiguration().getClass(HadoopInputFormatIOConstants.KEY_CLASS,
                 Object.class)));
     read.validate(input);
   }
@@ -418,11 +414,11 @@ public class HadoopInputFormatIOTest {
             .withConfiguration(serConf.getHadoopConfiguration())
             .withValueTranslation(myValueTranslateWithWrongInputType);
     String expectedMessage =
-        String.format(HadoopInputFormatIOContants.WRONG_VALUE_TRANSLATIONFUNC_ERROR_MSG,
+        String.format(HadoopInputFormatIOConstants.WRONG_VALUE_TRANSLATIONFUNC_ERROR_MSG,
             serConf.getHadoopConfiguration()
-                .getClass(HadoopInputFormatIOContants.INPUTFORMAT_CLASSNAME, InputFormat.class),
+                .getClass(HadoopInputFormatIOConstants.INPUTFORMAT_CLASSNAME, InputFormat.class),
             serConf.getHadoopConfiguration()
-                .getClass(HadoopInputFormatIOContants.VALUE_CLASS, Object.class));
+                .getClass(HadoopInputFormatIOConstants.VALUE_CLASS, Object.class));
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage(expectedMessage);
     read.validate(input);
@@ -442,7 +438,7 @@ public class HadoopInputFormatIOTest {
         .withConfiguration(wrongConf.getHadoopConfiguration());
     String expectedMessage = String.format(
         "java.lang.IllegalArgumentException: "
-            + HadoopInputFormatIOContants.WRONG_INPUTFORMAT_KEY_CLASS_ERROR_MSG,
+            + HadoopInputFormatIOConstants.WRONG_INPUTFORMAT_KEY_CLASS_ERROR_MSG,
         Text.class.getName(), MapWritable.class.getName());
     thrown.expect(PipelineExecutionException.class);
     thrown.expectMessage(expectedMessage);
@@ -464,7 +460,7 @@ public class HadoopInputFormatIOTest {
         .withConfiguration(wrongConf.getHadoopConfiguration());
     String expectedMessage = String.format(
         "java.lang.IllegalArgumentException: "
-            + HadoopInputFormatIOContants.WRONG_INPUTFORMAT_VALUE_CLASS_ERROR_MSG,
+            + HadoopInputFormatIOConstants.WRONG_INPUTFORMAT_VALUE_CLASS_ERROR_MSG,
         Employee.class.getName(), MapWritable.class.getName());
     thrown.expect(PipelineExecutionException.class);
     thrown.expectMessage(expectedMessage);
@@ -506,7 +502,7 @@ public class HadoopInputFormatIOTest {
   public void testReadWithNullCreateRecordReader() throws Exception {
     thrown.expect(IOException.class);
     thrown
-        .expectMessage(String.format(HadoopInputFormatIOContants.NULL_CREATE_RECORDREADER_ERROR_MSG,
+        .expectMessage(String.format(HadoopInputFormatIOConstants.NULL_CREATE_RECORDREADER_ERROR_MSG,
             new BadNullCreateReaderInputFormat().getClass()));
     getBoundedSourceList(
         BadNullCreateReaderInputFormat.class,
@@ -638,12 +634,12 @@ public class HadoopInputFormatIOTest {
         WritableCoder.of(Text.class),
         AvroCoder.of(Employee.class)); 
     thrown.expect(IOException.class);
-    thrown.expectMessage(HadoopInputFormatIOContants.CREATEREADER_UNSPLIT_SOURCE_ERROR_MSG);
+    thrown.expectMessage(HadoopInputFormatIOConstants.CREATEREADER_UNSPLIT_SOURCE_ERROR_MSG);
     hifSource.createReader(p.getOptions());
   }
 
   /**
-   * This test validates behavior of {@link HadoopInputFormatBoundedSource#computeSplits()
+   * This test validates behavior of {@link HadoopInputFormatBoundedSource#computeSplitsIfNecessary()
    * computeSplits()} when Hadoop InputFormat's {@link InputFormat#getSplits() getSplits()}
    * returns empty list.
    */
@@ -656,12 +652,12 @@ public class HadoopInputFormatIOTest {
         WritableCoder.of(Text.class),
         AvroCoder.of(Employee.class));
     thrown.expect(IOException.class);
-    thrown.expectMessage(HadoopInputFormatIOContants.COMPUTESPLITS_EMPTY_SPLITS_ERROR_MSG);
-    hifSource.computeSplits();
+    thrown.expectMessage(HadoopInputFormatIOConstants.COMPUTESPLITS_EMPTY_SPLITS_ERROR_MSG);
+    hifSource.computeSplitsIfNecessary();
   }
 
   /**
-   * This test validates behavior of {@link HadoopInputFormatBoundedSource#computeSplits()
+   * This test validates behavior of {@link HadoopInputFormatBoundedSource#computeSplitsIfNecessary()
    * computeSplits()} when Hadoop InputFormat's {@link InputFormat#getSplits() getSplits()}
    * returns NULL value.
    */
@@ -674,12 +670,12 @@ public class HadoopInputFormatIOTest {
         WritableCoder.of(Text.class),
         AvroCoder.of(Employee.class));
     thrown.expect(IOException.class);
-    thrown.expectMessage(HadoopInputFormatIOContants.COMPUTESPLITS_NULL_GETSPLITS_ERROR_MSG);
-    hifSource.computeSplits();
+    thrown.expectMessage(HadoopInputFormatIOConstants.COMPUTESPLITS_NULL_GETSPLITS_ERROR_MSG);
+    hifSource.computeSplitsIfNecessary();
   }
 
   /**
-   * This test validates behavior of {@link HadoopInputFormatBoundedSource#computeSplits()
+   * This test validates behavior of {@link HadoopInputFormatBoundedSource#computeSplitsIfNecessary()
    * computeSplits()} if Hadoop InputFormat's {@link InputFormat#getSplits() getSplits()} returns
    * InputSplit list having some null values.
    */
@@ -692,8 +688,8 @@ public class HadoopInputFormatIOTest {
         WritableCoder.of(Text.class),
         AvroCoder.of(Employee.class));
     thrown.expect(IOException.class);
-    thrown.expectMessage(HadoopInputFormatIOContants.COMPUTESPLITS_NULL_SPLIT_ERROR_MSG);
-    hifSource.computeSplits();
+    thrown.expectMessage(HadoopInputFormatIOConstants.COMPUTESPLITS_NULL_SPLIT_ERROR_MSG);
+    hifSource.computeSplitsIfNecessary();
   }
 
   /**
@@ -850,11 +846,11 @@ public class HadoopInputFormatIOTest {
       Class<?> keyClass,
       Class<?> valueClass) {
     Configuration conf = new Configuration();
-    conf.setClass(HadoopInputFormatIOContants.INPUTFORMAT_CLASSNAME,
+    conf.setClass(HadoopInputFormatIOConstants.INPUTFORMAT_CLASSNAME,
         inputFormatClassName,
         InputFormat.class);
-    conf.setClass(HadoopInputFormatIOContants.KEY_CLASS, keyClass, Object.class);
-    conf.setClass(HadoopInputFormatIOContants.VALUE_CLASS, valueClass, Object.class);
+    conf.setClass(HadoopInputFormatIOConstants.KEY_CLASS, keyClass, Object.class);
+    conf.setClass(HadoopInputFormatIOConstants.VALUE_CLASS, valueClass, Object.class);
     return new SerializableConfiguration(conf);
   }
 
@@ -872,7 +868,9 @@ public class HadoopInputFormatIOTest {
     return new HadoopInputFormatBoundedSource<K, V>(
             serConf,
             keyCoder,
-            valueCoder);
+            valueCoder,
+            null, // No key translation required.
+            null);// No value translation required.
   }
   
   private <K, V> List<BoundedSource<KV<K, V>>> getBoundedSourceList(
