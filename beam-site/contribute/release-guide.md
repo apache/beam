@@ -319,7 +319,7 @@ Start the review-and-vote thread on the dev@ mailing list. Here’s an email tem
     * source code tag "v1.2.3-RC3" [5],
     * website pull request listing the release and publishing the API reference manual [6].
 
-    The vote will be open for at least 72 hours. It is adopted by majority approval, with at least 3 PPMC affirmative votes.
+    The vote will be open for at least 72 hours. It is adopted by majority approval, with at least 3 PMC affirmative votes.
 
     Thanks,
     Release Manager
