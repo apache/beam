@@ -66,7 +66,7 @@ public class DirectMetricsTest {
 
   @SuppressWarnings("unchecked")
   @Test
-  public void testApplyLogicalQueryNoFilter() {
+  public void testApplyCommittedNoFilter() {
     metrics.commitLogical(bundle1, MetricUpdates.create(
         ImmutableList.of(
             MetricUpdate.create(MetricKey.create("step1", NAME1), 5L),
@@ -99,7 +99,7 @@ public class DirectMetricsTest {
 
   @SuppressWarnings("unchecked")
   @Test
-  public void testApplyPhysicalCountersQueryOneNamespace() {
+  public void testApplyAttemptedCountersQueryOneNamespace() {
     metrics.updatePhysical(bundle1, MetricUpdates.create(
         ImmutableList.of(
             MetricUpdate.create(MetricKey.create("step1", NAME1), 5L),
@@ -127,7 +127,7 @@ public class DirectMetricsTest {
 
   @SuppressWarnings("unchecked")
   @Test
-  public void testApplyPhysicalQueryCompositeScope() {
+  public void testApplyAttemptedQueryCompositeScope() {
     metrics.updatePhysical(bundle1, MetricUpdates.create(
         ImmutableList.of(
             MetricUpdate.create(MetricKey.create("Outer1/Inner1", NAME1), 5L),
