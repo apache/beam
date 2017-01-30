@@ -37,10 +37,10 @@ def get_version():
 PACKAGE_NAME = 'apache-beam-sdk'
 PACKAGE_VERSION = get_version()
 PACKAGE_DESCRIPTION = 'Apache Beam SDK for Python'
-PACKAGE_URL = 'https://beam.incubator.apache.org'
+PACKAGE_URL = 'https://beam.apache.org'
 PACKAGE_DOWNLOAD_URL = 'TBD'
 PACKAGE_AUTHOR = 'Apache Software Foundation'
-PACKAGE_EMAIL = 'dev@beam.incubator.apache.org'
+PACKAGE_EMAIL = 'dev@beam.apache.org'
 PACKAGE_KEYWORDS = 'apache beam'
 PACKAGE_LONG_DESCRIPTION = '''
 TBD
