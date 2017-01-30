@@ -35,6 +35,7 @@
   <modules>
     <module>common</module>
     <module>java</module>
+    <module>python</module>
   </modules>
 
   <profiles>
@@ -67,6 +68,7 @@
             </execution>
           </executions>
         </plugin>
+
       </plugins>
     </pluginManagement>
 

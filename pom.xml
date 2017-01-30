@@ -1001,6 +1001,8 @@
               <exclude>**/test/resources/**/*.txt</exclude>
               <exclude>**/test/**/.placeholder</exclude>
               <exclude>.repository/**/*</exclude>
+              <exclude>**/nose-*.egg/**/*</exclude>
+              <exclude>**/.tox/**/*</exclude>
 
               <!-- Default eclipse excludes neglect subprojects -->
               <exclude>**/.checkstyle</exclude>
@@ -1238,6 +1240,24 @@
               </goals>
             </execution>
           </executions>
+        </plugin>
+
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-clean-plugin</artifactId>
+          <version>3.0.0</version>
+          <configuration>
+            <filesets>
+              <fileset>
+                <directory>.</directory>
+                <includes>
+                  <include>**/*.pyc</include>
+                  <include>**/*.egg-info/</include>
+                </includes>
+                <followSymlinks>false</followSymlinks>
+              </fileset>
+            </filesets>
+          </configuration>
         </plugin>
       </plugins>
     </pluginManagement>
