@@ -44,7 +44,7 @@ import org.slf4j.LoggerFactory;
  * <p>The default buffer threshold can be overridden by specifying the experiment
  * {@code beam_fn_api_data_buffer_limit=<bytes>}
  *
- * <p>TODO: Handle outputting large elements (> 2GiBs). Note that this also applies to the
+ * <p>TODO: Handle outputting large elements (&gt; 2GiBs). Note that this also applies to the
  * input side as well.
  *
  * <p>TODO: Handle outputting elements that are zero bytes by outputting a single byte as
