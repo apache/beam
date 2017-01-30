@@ -23,7 +23,7 @@ Cloud Datastore operations.
 
 See https://developers.google.com/datastore/ for more details on Google Cloud
 Datastore.
-See http://beam.incubator.apache.org/get-started/quickstart on
+See http://beam.apache.org/get-started/quickstart on
 how to run a Beam pipeline.
 
 Read-only Mode: In this mode, this example reads Cloud Datastore entities using

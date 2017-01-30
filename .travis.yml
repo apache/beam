@@ -39,6 +39,20 @@ env:
 
 matrix:
   include:
+    # On OSX, run with default JDK only.
+    - os: osx
+
+    # On Linux, run with specific JDKs only.
+    - os: linux
+      env: CUSTOM_JDK="oraclejdk8" MAVEN_OVERRIDE="$MAVEN_OVERRIDE $MAVEN_CONTAINER_OVERRIDE"
+    - os: linux
+      env: CUSTOM_JDK="oraclejdk7" MAVEN_OVERRIDE="$MAVEN_OVERRIDE $MAVEN_CONTAINER_OVERRIDE"
+    - os: linux
+      env: CUSTOM_JDK="openjdk7" MAVEN_OVERRIDE="$MAVEN_OVERRIDE $MAVEN_CONTAINER_OVERRIDE"
+    - os: linux
+      env: MAVEN_OVERRIDE="-Peclipse-jdt -DskipTests $MAVEN_OVERRIDE $MAVEN_CONTAINER_OVERRIDE" CUSTOM_JDK="oraclejdk8"
+
+    # Python SDK tests.
     - os: osx
       env: TEST_PYTHON="1"
     - os: linux
@@ -51,6 +65,7 @@ before_install:
   - cat ~/.mavenrc
   - if [ "$TRAVIS_OS_NAME" == "osx" ]; then export JAVA_HOME=$(/usr/libexec/java_home); fi
   - if [ "$TRAVIS_OS_NAME" == "linux" ]; then jdk_switcher use "$CUSTOM_JDK"; fi
+  - export BEAM_SUREFIRE_ARGLINE="-Xmx512m"
   # Python SDK environment settings.
   - export TOX_ENV=py27
   - if [ "$TRAVIS_OS_NAME" == "osx" ]; then export TOX_HOME=$HOME/Library/Python/2.7/bin; fi
