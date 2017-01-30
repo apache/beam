@@ -539,7 +539,8 @@ class TestBigQueryReader(unittest.TestCase):
 
 class TestBigQueryWriter(unittest.TestCase):
 
-  def test_no_table_and_create_never(self):
+  @mock.patch('time.sleep', return_value=None)
+  def test_no_table_and_create_never(self, patched_time_sleep):
     client = mock.Mock()
     client.tables.Get.side_effect = HttpError(
         response={'status': '404'}, url='', content='')
@@ -572,7 +573,9 @@ class TestBigQueryWriter(unittest.TestCase):
     self.assertTrue(client.tables.Get.called)
     self.assertTrue(client.tables.Insert.called)
 
-  def test_no_table_and_create_if_needed_and_no_schema(self):
+  @mock.patch('time.sleep', return_value=None)
+  def test_no_table_and_create_if_needed_and_no_schema(
+      self, patched_time_sleep):
     client = mock.Mock()
     client.tables.Get.side_effect = HttpError(
         response={'status': '404'}, url='', content='')
@@ -587,7 +590,9 @@ class TestBigQueryWriter(unittest.TestCase):
         'Table project:dataset.table requires a schema. None can be inferred '
         'because the table does not exist.')
 
-  def test_table_not_empty_and_write_disposition_empty(self):
+  @mock.patch('time.sleep', return_value=None)
+  def test_table_not_empty_and_write_disposition_empty(
+      self, patched_time_sleep):
     client = mock.Mock()
     client.tables.Get.return_value = bigquery.Table(
         tableReference=bigquery.TableReference(
@@ -712,7 +717,8 @@ class TestBigQueryWrapper(unittest.TestCase):
     wrapper._delete_dataset('', '')
     self.assertTrue(client.datasets.Delete.called)
 
-  def test_delete_dataset_retries_fail(self):
+  @mock.patch('time.sleep', return_value=None)
+  def test_delete_dataset_retries_fail(self, patched_time_sleep):
     client = mock.Mock()
     client.datasets.Delete.side_effect = ValueError("Cannot delete")
     wrapper = beam.io.bigquery.BigQueryWrapper(client)
@@ -730,7 +736,8 @@ class TestBigQueryWrapper(unittest.TestCase):
     wrapper._delete_table('', '', '')
     self.assertTrue(client.tables.Delete.called)
 
-  def test_delete_table_retries_fail(self):
+  @mock.patch('time.sleep', return_value=None)
+  def test_delete_table_retries_fail(self, patched_time_sleep):
     client = mock.Mock()
     client.tables.Delete.side_effect = ValueError("Cannot delete")
     wrapper = beam.io.bigquery.BigQueryWrapper(client)
@@ -738,7 +745,8 @@ class TestBigQueryWrapper(unittest.TestCase):
       wrapper._delete_table('', '', '')
     self.assertTrue(client.tables.Delete.called)
 
-  def test_delete_dataset_retries_for_timeouts(self):
+  @mock.patch('time.sleep', return_value=None)
+  def test_delete_dataset_retries_for_timeouts(self, patched_time_sleep):
     client = mock.Mock()
     client.datasets.Delete.side_effect = [
         HttpError(
@@ -749,7 +757,8 @@ class TestBigQueryWrapper(unittest.TestCase):
     wrapper._delete_dataset('', '')
     self.assertTrue(client.datasets.Delete.called)
 
-  def test_delete_table_retries_for_timeouts(self):
+  @mock.patch('time.sleep', return_value=None)
+  def test_delete_table_retries_for_timeouts(self, patched_time_sleep):
     client = mock.Mock()
     client.tables.Delete.side_effect = [
         HttpError(
@@ -760,7 +769,8 @@ class TestBigQueryWrapper(unittest.TestCase):
     wrapper._delete_table('', '', '')
     self.assertTrue(client.tables.Delete.called)
 
-  def test_temporary_dataset_is_unique(self):
+  @mock.patch('time.sleep', return_value=None)
+  def test_temporary_dataset_is_unique(self, patched_time_sleep):
     client = mock.Mock()
     client.datasets.Get.return_value = bigquery.Dataset(
         datasetReference=bigquery.DatasetReference(
