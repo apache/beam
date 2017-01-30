@@ -25,8 +25,6 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyString;
-import static org.mockito.Matchers.eq;
-import static org.mockito.Matchers.matches;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
@@ -177,14 +175,16 @@ public class BigQueryTableRowIteratorTest {
 
     // Mock job polling.
     JobStatus status = new JobStatus().setState("DONE");
-    TableReference tableRef =
-        new TableReference().setProjectId("project").setDatasetId("dataset").setTableId("table");
-    JobConfigurationQuery queryConfig = new JobConfigurationQuery().setDestinationTable(tableRef);
+    JobConfigurationQuery resultQueryConfig = new JobConfigurationQuery()
+        .setDestinationTable(new TableReference()
+            .setProjectId("project")
+            .setDatasetId("tempdataset")
+            .setTableId("temptable"));
     Job getJob =
         new Job()
             .setJobReference(new JobReference())
             .setStatus(status)
-            .setConfiguration(new JobConfiguration().setQuery(queryConfig));
+            .setConfiguration(new JobConfiguration().setQuery(resultQueryConfig));
     when(mockJobsGet.execute()).thenReturn(getJob);
 
     // Mock table schema fetch.
@@ -200,6 +200,7 @@ public class BigQueryTableRowIteratorTest {
     // Run query and verify
     String query = "SELECT name, count, photo, anniversary_date, "
         + "anniversary_datetime, anniversary_time from table";
+    JobConfigurationQuery queryConfig = new JobConfigurationQuery().setQuery(query);
     try (BigQueryTableRowIterator iterator =
             BigQueryTableRowIterator.fromQuery(queryConfig, "project", mockClient)) {
       iterator.open();
@@ -242,10 +243,7 @@ public class BigQueryTableRowIteratorTest {
     verify(mockTablesDelete).execute();
     // Table data read.
     verify(mockClient).tabledata();
-    verify(mockTabledata).list(
-        eq("project"),
-        matches("_beam_temporary_dataset_.*"),
-        matches("beam_temporary_table_.*"));
+    verify(mockTabledata).list("project", "tempdataset", "temptable");
     verify(mockTabledataList).execute();
   }
 
@@ -262,14 +260,16 @@ public class BigQueryTableRowIteratorTest {
 
     // Mock job polling.
     JobStatus status = new JobStatus().setState("DONE");
-    TableReference tableRef =
-        new TableReference().setProjectId("project").setDatasetId("dataset").setTableId("table");
-    JobConfigurationQuery queryConfig = new JobConfigurationQuery().setDestinationTable(tableRef);
+    JobConfigurationQuery resultQueryConfig = new JobConfigurationQuery()
+        .setDestinationTable(new TableReference()
+            .setProjectId("project")
+            .setDatasetId("tempdataset")
+            .setTableId("temptable"));
     Job getJob =
         new Job()
             .setJobReference(new JobReference())
             .setStatus(status)
-            .setConfiguration(new JobConfiguration().setQuery(queryConfig));
+            .setConfiguration(new JobConfiguration().setQuery(resultQueryConfig));
     when(mockJobsGet.execute()).thenReturn(getJob);
 
     // Mock table schema fetch.
@@ -285,6 +285,7 @@ public class BigQueryTableRowIteratorTest {
     String query = String.format(
         "SELECT \"Arthur\" as name, 42 as count, \"%s\" as photo",
         photoBytesEncoded);
+    JobConfigurationQuery queryConfig = new JobConfigurationQuery().setQuery(query);
     try (BigQueryTableRowIterator iterator =
         BigQueryTableRowIterator.fromQuery(queryConfig, "project", mockClient)) {
       iterator.open();
@@ -321,10 +322,7 @@ public class BigQueryTableRowIteratorTest {
     verify(mockTablesDelete).execute();
     // Table data read.
     verify(mockClient).tabledata();
-    verify(mockTabledata).list(
-        eq("project"),
-        matches("_beam_temporary_dataset_.*"),
-        matches("beam_temporary_table_.*"));
+    verify(mockTabledata).list("project", "tempdataset", "temptable");
     verify(mockTabledataList).execute();
   }
 
@@ -343,16 +341,13 @@ public class BigQueryTableRowIteratorTest {
     JobConfigurationQuery queryConfig = new JobConfigurationQuery().setQuery("NOT A QUERY");
     try (BigQueryTableRowIterator iterator =
         BigQueryTableRowIterator.fromQuery(queryConfig, "project", mockClient)) {
-
-      try {
-        iterator.open();
-        fail();
-      } catch (Exception expected) {
-        // Verify message explains cause and reports the query.
-        assertThat(expected.getMessage(), containsString("Error"));
-        assertThat(expected.getMessage(), containsString("NOT A QUERY"));
-        assertThat(expected.getCause().getMessage(), containsString(errorReason));
-      }
+      iterator.open();
+      fail();
+    } catch (Exception expected) {
+      // Verify message explains cause and reports the query.
+      assertThat(expected.getMessage(), containsString("Error"));
+      assertThat(expected.getMessage(), containsString("NOT A QUERY"));
+      assertThat(expected.getCause().getMessage(), containsString(errorReason));
     }
 
     // Job inserted to run the query, then polled once.
