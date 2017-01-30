@@ -94,11 +94,6 @@ cd euphoria
 mvn clean install -DskipTests
 ```
 
-## Documentation
-
-* The API is self-documented through [Javadoc](XXX).
-* Conceptual, in-depth documentation is maintained in the [Wiki](XXX).
-
 
 ## License
 
