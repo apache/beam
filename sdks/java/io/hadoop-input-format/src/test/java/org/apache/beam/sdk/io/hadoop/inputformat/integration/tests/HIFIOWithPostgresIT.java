@@ -9,7 +9,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 
 import org.apache.beam.sdk.io.hadoop.inputformat.HadoopInputFormatIO;
-import org.apache.beam.sdk.io.hadoop.inputformat.HadoopInputFormatIOContants;
+import org.apache.beam.sdk.io.hadoop.inputformat.HadoopInputFormatIOConstants;
 import org.apache.beam.sdk.io.hadoop.inputformat.custom.options.HIFTestOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
@@ -99,12 +99,12 @@ public class HIFIOWithPostgresIT implements Serializable {
 		conf.set("mapreduce.jdbc.input.table.name", INPUT_TABLE_NAME_PROPERTY);
 		conf.set("mapreduce.jdbc.input.query", "SELECT * FROM "
 				+ INPUT_TABLE_NAME_PROPERTY);
-		conf.setClass(HadoopInputFormatIOContants.INPUTFORMAT_CLASSNAME,
+		conf.setClass(HadoopInputFormatIOConstants.INPUTFORMAT_CLASSNAME,
 				org.apache.hadoop.mapreduce.lib.db.DBInputFormat.class,
 				InputFormat.class);
-		conf.setClass(HadoopInputFormatIOContants.KEY_CLASS, org.apache.hadoop.io.LongWritable.class,
+		conf.setClass(HadoopInputFormatIOConstants.KEY_CLASS, org.apache.hadoop.io.LongWritable.class,
 				Object.class);
-		conf.setClass(HadoopInputFormatIOContants.VALUE_CLASS, NullDBWritable.class, Object.class);
+		conf.setClass(HadoopInputFormatIOConstants.VALUE_CLASS, DBInputWritable.class, Object.class);
 		return conf;
 	}
 

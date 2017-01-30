@@ -19,7 +19,7 @@ import java.util.Arrays;
 import java.util.List;
 
 import org.apache.beam.sdk.io.hadoop.inputformat.HadoopInputFormatIO;
-import org.apache.beam.sdk.io.hadoop.inputformat.HadoopInputFormatIOContants;
+import org.apache.beam.sdk.io.hadoop.inputformat.HadoopInputFormatIOConstants;
 import org.apache.beam.sdk.io.hadoop.inputformat.custom.options.HIFTestOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
@@ -107,11 +107,11 @@ public class HIFIOHBaseIT implements Serializable {
 		conf.set("hbase.zookeeper.quorum", options.getServerIp());
 		conf.set("hbase.zookeeper.property.clientPort", String.format("%d", options.getServerPort()));
 		conf.set("hbase.mapreduce.inputtable", TABLE_NAME);
-		conf.setClass(HadoopInputFormatIOContants.INPUTFORMAT_CLASSNAME,
+		conf.setClass(HadoopInputFormatIOConstants.INPUTFORMAT_CLASSNAME,
 				org.apache.hadoop.hbase.mapreduce.TableInputFormat.class,
 				Object.class);
-		conf.setClass(HadoopInputFormatIOContants.KEY_CLASS, ImmutableBytesWritable.class, Object.class);
-		conf.setClass(HadoopInputFormatIOContants.VALUE_CLASS,
+		conf.setClass(HadoopInputFormatIOConstants.KEY_CLASS, ImmutableBytesWritable.class, Object.class);
+		conf.setClass(HadoopInputFormatIOConstants.VALUE_CLASS,
 				org.apache.hadoop.hbase.client.Result.class, Object.class);
 		return conf;
 	}
