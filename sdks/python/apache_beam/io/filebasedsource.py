@@ -115,6 +115,12 @@ class FileBasedSource(iobase.BoundedSource):
       # we clone it here.
       file_based_source_ref = pickler.loads(pickler.dumps(self))
 
+      # We create a reference for FileBasedSource that will be serialized along
+      # with each _SingleFileSource. To prevent this FileBasedSource from having
+      # a reference to ConcatSource (resulting in quadratic space complexity)
+      # we clone it here.
+      file_based_source_ref = pickler.loads(pickler.dumps(self))
+
       for index, file_name in enumerate(file_names):
         if sizes[index] == 0:
           continue  # Ignoring empty file.
