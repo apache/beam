@@ -40,6 +40,7 @@ func Multi(words, sample <-chan string, small, big chan<- string) error {
 	if count == 0 {
 		return fmt.Errorf("Empty sample")
 	}
+
 	avg := size / count
 	log.Printf("Sample size: %v, avg: %v", count, avg)
 
