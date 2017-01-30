@@ -28,6 +28,10 @@
 
 syntax = "proto3";
 
+/* TODO: Consider consolidating common components in another package
+ * and lanaguage namespaces for re-use with Runner Api.
+ */
+
 package org.apache.beam.fn.v1;
 
 option java_package = "org.apache.beam.fn.v1";
@@ -38,9 +42,16 @@ import "google/protobuf/timestamp.proto";
 
 /*
  * Constructs that define the pipeline shape.
+ *
+ * These are mostly unstable due to the missing pieces to be shared with
+ * the Runner Api like windowing strategy, display data, .... There are still
+ * some modelling questions related to whether a side input is modelled
+ * as another field on a PrimitiveTransform or as part of inputs and we
+ * still are missing things like the CompositeTransform.
  */
 
 // A representation of an input or output definition on a primitive transform.
+// Stable
 message Target {
   // A repeated list of target definitions.
   message List {
@@ -96,10 +107,13 @@ message PrimitiveTransform {
 
 /*
  * User Definable Functions
+ *
+ * This is still unstable mainly due to how we model the side input.
  */
 
 // Defines the common elements of user-definable functions, to allow the SDK to
 // express the information the runner needs to execute work.
+// Stable
 message FunctionSpec {
   // (Required) A pipeline level unique id which can be used as a reference to
   // refer to this.
@@ -125,7 +139,7 @@ message FunctionSpec {
 }
 
 message SideInput {
-  // TODO(robertwb): Coder?
+  // TODO: Coder?
 
   // For RunnerAPI.
   Target input = 1;
@@ -145,8 +159,9 @@ message SideInput {
 // For example:
 //    urn:org.apache.beam:coder:kv:1.0
 //    urn:org.apache.beam:coder:iterable:1.0
+// Stable
 message Coder {
-  // TODO(lcwik): This looks weird when compared to the other function specs
+  // TODO: This looks weird when compared to the other function specs
   // which use URN to differentiate themselves. Should "Coder" be embedded
   // inside the FunctionSpec data block.
 
@@ -170,6 +185,7 @@ message Coder {
 // A descriptor for connecting to a remote port using the Beam Fn Data API.
 // Allows for communication between two environments (for example between the
 // runner and the SDK).
+// Stable
 message RemoteGrpcPort {
   // (Required) An API descriptor which describes where to
   // connect to including any authentication that is required.
@@ -178,9 +194,13 @@ message RemoteGrpcPort {
 
 /*
  * Control Plane API
+ *
+ * Progress reporting and splitting still need further vetting. Also, this may change
+ * with the addition of new types of instructions/responses related to metrics.
  */
 
 // An API that describes the work that a SDK Fn Harness is meant to do.
+// Stable
 service BeamFnControl {
   // Instructions sent by the runner to the SDK requesting different types
   // of work.
@@ -194,6 +214,7 @@ service BeamFnControl {
 }
 
 // A request sent by a runner which it the SDK is asked to fulfill.
+// Stable
 message InstructionRequest {
   // (Required) An unique identifier provided by the runner which represents
   // this requests execution. The InstructionResponse MUST have the matching id.
@@ -209,6 +230,7 @@ message InstructionRequest {
 }
 
 // The response for an associated request the SDK had been asked to fulfill.
+// Stable
 message InstructionResponse {
   // (Required) A reference provided by the runner which represents a requests
   // execution. The InstructionResponse MUST have the matching id when
@@ -232,15 +254,18 @@ message InstructionResponse {
 
 // A list of objects which can be referred to by the runner in
 // future requests.
+// Stable
 message RegisterRequest {
   // (Optional) The set of descriptors used to process bundles.
   repeated ProcessBundleDescriptor process_bundle_descriptor = 1;
 }
 
+// Stable
 message RegisterResponse {
 }
 
 // A descriptor of references used when processing a bundle.
+// Stable
 message ProcessBundleDescriptor {
   // (Required) A pipeline level unique id which can be used as a reference to
   // refer to this.
@@ -255,10 +280,12 @@ message ProcessBundleDescriptor {
 }
 
 // A request to process a given bundle.
+// Stable
 message ProcessBundleRequest {
   int64 process_bundle_descriptor_reference = 1;
 }
 
+// Stable
 message ProcessBundleResponse {
 }
 
@@ -391,6 +418,7 @@ message ProcessBundleSplitResponse {
  */
 
 // Messages used to represent logical byte streams.
+// Stable
 message Elements {
   // Represents multiple encoded elements in nested context for a given named
   // instruction and target.
@@ -423,6 +451,7 @@ message Elements {
   repeated Data data = 1;
 }
 
+// Stable
 service BeamFnData {
   // Used to send data between harnesses.
   rpc Data(
@@ -436,6 +465,11 @@ service BeamFnData {
 
 /*
  * State API
+ *
+ * This is just a high level sketch of how this could work. There is still
+ * a lot of work with respect to how the key spaces for the different types
+ * of access required (side inputs, user state, ...) and how state caching
+ * works across bundles.
  */
 
 message StateRequest {
@@ -507,7 +541,7 @@ service BeamFnState {
 }
 
 
-// TODO(robertwb): Resolve with the other State API.
+// TODO: Resolve with the other State API.
 service SimpleBeamFnState {
   // Gets the elements associated with the given key.
   rpc Get(StateKey) returns (Elements.Data) {}
@@ -596,6 +630,10 @@ message StateClearResponse {
 
 /*
  * Logging API
+ *
+ * This is very stable. There can be some changes to how we define a LogEntry,
+ * to increase/decrease the severity types, the way we format an exception/stack
+ * trace, or the log site.
  */
 
 // A log entry
@@ -677,6 +715,7 @@ message LogEntry {
 message LogControl {
 }
 
+// Stable
 service BeamFnLogging {
   // Allows for the SDK to emit log entries which the runner can
   // associate with the active job.
