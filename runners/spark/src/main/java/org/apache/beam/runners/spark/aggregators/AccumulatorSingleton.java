@@ -23,6 +23,7 @@ import com.google.common.base.Optional;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
+import org.apache.beam.runners.spark.translation.streaming.CheckpointDir;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileSystem;
@@ -42,7 +43,6 @@ import org.slf4j.LoggerFactory;
 public class AccumulatorSingleton {
   private static final Logger LOG = LoggerFactory.getLogger(AccumulatorSingleton.class);
 
-  private static final String BEAM_CHECKPOINT_DIR = "beam-checkpoint";
   private static final String ACCUMULATOR_CHECKPOINT_FILENAME = "beam_aggregators";
 
   private static volatile Accumulator<NamedAggregators> instance;
@@ -54,7 +54,7 @@ public class AccumulatorSingleton {
   @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
   static Accumulator<NamedAggregators> getInstance(
       JavaSparkContext jsc,
-      Optional<String> checkpointDir) {
+      Optional<CheckpointDir> checkpointDir) {
     if (instance == null) {
       synchronized (AccumulatorSingleton.class) {
         if (instance == null) {
@@ -68,10 +68,12 @@ public class AccumulatorSingleton {
     return instance;
   }
 
-  private static void recoverValueFromCheckpoint(JavaSparkContext jsc, String checkpointDir) {
+  private static void recoverValueFromCheckpoint(
+      JavaSparkContext jsc,
+      CheckpointDir checkpointDir) {
     FSDataInputStream is = null;
     try {
-      Path beamCheckpointPath = new Path(checkpointDir, BEAM_CHECKPOINT_DIR);
+      Path beamCheckpointPath = checkpointDir.getBeamCheckpointDir();
       checkpointPath = new Path(beamCheckpointPath, ACCUMULATOR_CHECKPOINT_FILENAME);
       tempCheckpointPath = checkpointPath.suffix(".tmp");
       backupCheckpointPath = checkpointPath.suffix(".bak");

@@ -109,7 +109,7 @@ public class SparkRunnerStreamingContextFactory implements JavaStreamingContextF
         fileSystem.mkdirs(sparkCheckpointPath);
       }
     } catch (IOException e) {
-      throw new RuntimeException("Failure while writing to checkpoint dir", e);
+      throw new RuntimeException("Failed to create checkpoint dir", e);
     }
 
     jssc.checkpoint(sparkCheckpointPath.toString());

@@ -134,8 +134,9 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
   }
 
   private void registerMetrics(final SparkPipelineOptions opts, final JavaSparkContext jsc) {
-    Optional<String> maybeCheckpointDir =
-        opts.isStreaming() ? Optional.of(opts.getCheckpointDir()) : Optional.<String>absent();
+    Optional<CheckpointDir> maybeCheckpointDir =
+        opts.isStreaming() ? Optional.of(new CheckpointDir(opts.getCheckpointDir()))
+            : Optional.<CheckpointDir>absent();
     final Accumulator<NamedAggregators> accum =
         SparkAggregators.getOrCreateNamedAggregators(jsc, maybeCheckpointDir);
     final NamedAggregators initialValue = accum.value();
