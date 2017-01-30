@@ -32,20 +32,7 @@
   <name>Apache Beam :: SDKs :: Common :: Fn API</name>
   <description>This artifact generates the stub bindings.</description>
 
-  <properties>
-    <!-- Override version from parent pom.xml -->
-    <protobuf.version>3.1.0</protobuf.version>
-  </properties>
-
   <build>
-    <extensions>
-      <extension>
-        <groupId>kr.motd.maven</groupId>
-        <artifactId>os-maven-plugin</artifactId>
-        <version>${os-maven-plugin.version}</version>
-      </extension>
-    </extensions>
-
     <resources>
       <resource>
         <directory>src/main/resources</directory>
@@ -78,7 +65,6 @@
       <plugin>
         <groupId>org.xolstice.maven.plugins</groupId>
         <artifactId>protobuf-maven-plugin</artifactId>
-        <version>0.5.0</version>
         <configuration>
           <protocArtifact>com.google.protobuf:protoc:${protobuf.version}:exe:${os.detected.classifier}</protocArtifact>
           <pluginId>grpc-java</pluginId>
@@ -95,17 +81,6 @@
       </plugin>
     </plugins>
   </build>
-
-  <dependencyManagement>
-    <dependencies>
-      <dependency>
-        <groupId>com.google.protobuf</groupId>
-        <artifactId>protobuf-java</artifactId>
-        <version>${protobuf.version}</version>
-      </dependency>
-    </dependencies>
-  </dependencyManagement>
-
 
   <dependencies>
     <dependency>
