@@ -99,6 +99,7 @@ public class SparkRunnerStreamingContextFactory implements JavaStreamingContextF
   private void checkpoint(JavaStreamingContext jssc) {
     Path rootCheckpointPath = checkpointDir.getRootCheckpointDir();
     Path sparkCheckpointPath = checkpointDir.getSparkCheckpointDir();
+    Path beamCheckpointPath = checkpointDir.getBeamCheckpointDir();
 
     try {
       FileSystem fileSystem = rootCheckpointPath.getFileSystem(jssc.sc().hadoopConfiguration());
@@ -107,6 +108,9 @@ public class SparkRunnerStreamingContextFactory implements JavaStreamingContextF
       }
       if (!fileSystem.exists(sparkCheckpointPath)) {
         fileSystem.mkdirs(sparkCheckpointPath);
+      }
+      if (!fileSystem.exists(beamCheckpointPath)) {
+        fileSystem.mkdirs(beamCheckpointPath);
       }
     } catch (IOException e) {
       throw new RuntimeException("Failed to create checkpoint dir", e);

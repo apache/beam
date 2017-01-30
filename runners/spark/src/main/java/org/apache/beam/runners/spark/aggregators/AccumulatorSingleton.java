@@ -78,9 +78,6 @@ public class AccumulatorSingleton {
       tempCheckpointPath = checkpointPath.suffix(".tmp");
       backupCheckpointPath = checkpointPath.suffix(".bak");
       fileSystem = checkpointPath.getFileSystem(jsc.hadoopConfiguration());
-      if (!fileSystem.exists(beamCheckpointPath)) {
-        fileSystem.mkdirs(beamCheckpointPath);
-      }
       if (fileSystem.exists(checkpointPath)) {
         is = fileSystem.open(checkpointPath);
       } else if (fileSystem.exists(backupCheckpointPath)) {
