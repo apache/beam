@@ -25,6 +25,8 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyString;
+import static org.mockito.Matchers.eq;
+import static org.mockito.Matchers.matches;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
@@ -199,7 +201,7 @@ public class BigQueryTableRowIteratorTest {
     String query = "SELECT name, count, photo, anniversary_date, "
         + "anniversary_datetime, anniversary_time from table";
     try (BigQueryTableRowIterator iterator =
-            BigQueryTableRowIterator.fromQuery(query, "project", mockClient, null, null)) {
+            BigQueryTableRowIterator.fromQuery(queryConfig, "project", mockClient)) {
       iterator.open();
       assertTrue(iterator.advance());
       TableRow row = iterator.getCurrent();
@@ -240,7 +242,10 @@ public class BigQueryTableRowIteratorTest {
     verify(mockTablesDelete).execute();
     // Table data read.
     verify(mockClient).tabledata();
-    verify(mockTabledata).list("project", "dataset", "table");
+    verify(mockTabledata).list(
+        eq("project"),
+        matches("_beam_temporary_dataset_.*"),
+        matches("beam_temporary_table_.*"));
     verify(mockTabledataList).execute();
   }
 
@@ -281,7 +286,7 @@ public class BigQueryTableRowIteratorTest {
         "SELECT \"Arthur\" as name, 42 as count, \"%s\" as photo",
         photoBytesEncoded);
     try (BigQueryTableRowIterator iterator =
-        BigQueryTableRowIterator.fromQuery(query, "project", mockClient, null, null)) {
+        BigQueryTableRowIterator.fromQuery(queryConfig, "project", mockClient)) {
       iterator.open();
       assertTrue(iterator.advance());
       TableRow row = iterator.getCurrent();
@@ -316,7 +321,10 @@ public class BigQueryTableRowIteratorTest {
     verify(mockTablesDelete).execute();
     // Table data read.
     verify(mockClient).tabledata();
-    verify(mockTabledata).list("project", "dataset", "table");
+    verify(mockTabledata).list(
+        eq("project"),
+        matches("_beam_temporary_dataset_.*"),
+        matches("beam_temporary_table_.*"));
     verify(mockTabledataList).execute();
   }
 
@@ -332,9 +340,9 @@ public class BigQueryTableRowIteratorTest {
     Exception exception = new IOException(errorReason);
     when(mockJobsInsert.execute()).thenThrow(exception, exception, exception, exception);
 
-    String query = "NOT A QUERY";
+    JobConfigurationQuery queryConfig = new JobConfigurationQuery().setQuery("NOT A QUERY");
     try (BigQueryTableRowIterator iterator =
-        BigQueryTableRowIterator.fromQuery(query, "project", mockClient, null, null)) {
+        BigQueryTableRowIterator.fromQuery(queryConfig, "project", mockClient)) {
 
       try {
         iterator.open();
@@ -342,7 +350,7 @@ public class BigQueryTableRowIteratorTest {
       } catch (Exception expected) {
         // Verify message explains cause and reports the query.
         assertThat(expected.getMessage(), containsString("Error"));
-        assertThat(expected.getMessage(), containsString(query));
+        assertThat(expected.getMessage(), containsString("NOT A QUERY"));
         assertThat(expected.getCause().getMessage(), containsString(errorReason));
       }
     }

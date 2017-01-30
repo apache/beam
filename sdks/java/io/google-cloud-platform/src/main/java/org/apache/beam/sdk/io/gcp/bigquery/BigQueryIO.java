@@ -1074,7 +1074,7 @@ public class BigQueryIO {
     public BoundedReader<TableRow> createReader(PipelineOptions options) throws IOException {
       BigQueryOptions bqOptions = options.as(BigQueryOptions.class);
       return new BigQueryReader(this, bqServices.getReaderFromQuery(
-          bqOptions, query.get(), executingProject.get(), flattenResults, useLegacySql));
+          bqOptions, createBasicQueryConfig(), executingProject.get()));
     }
 
     @Override
@@ -1149,7 +1149,6 @@ public class BigQueryIO {
           .setAllowLargeResults(true)
           .setCreateDisposition("CREATE_IF_NEEDED")
           .setDestinationTable(destinationTable)
-          .setPriority("BATCH")
           .setWriteDisposition("WRITE_EMPTY");
 
       jobService.startQueryJob(jobRef, queryConfig);
@@ -1162,8 +1161,9 @@ public class BigQueryIO {
 
     private JobConfigurationQuery createBasicQueryConfig() {
       return new JobConfigurationQuery()
-          .setQuery(query.get())
           .setFlattenResults(flattenResults)
+          .setPriority("BATCH")
+          .setQuery(query.get())
           .setUseLegacySql(useLegacySql);
     }
 
