@@ -18,6 +18,7 @@
 
 package org.apache.beam.fn.harness.control;
 
+import static com.google.common.base.Throwables.getStackTraceAsString;
 import static org.junit.Assert.assertEquals;
 
 import com.google.common.util.concurrent.Uninterruptibles;
@@ -38,7 +39,6 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
 import org.apache.beam.fn.harness.fn.ThrowingFunction;
-import org.apache.beam.fn.harness.logging.BeamFnLoggingClient;
 import org.apache.beam.fn.harness.test.TestStreams;
 import org.apache.beam.fn.v1.BeamFnApi;
 import org.apache.beam.fn.v1.BeamFnControlGrpc;
@@ -78,7 +78,7 @@ public class BeamFnControlClientTest {
   private static final BeamFnApi.InstructionResponse FAILURE_RESPONSE =
       BeamFnApi.InstructionResponse.newBuilder()
       .setInstructionId(3L)
-      .setError(BeamFnLoggingClient.formatException(FAILURE))
+      .setError(getStackTraceAsString(FAILURE))
       .build();
 
   @Test

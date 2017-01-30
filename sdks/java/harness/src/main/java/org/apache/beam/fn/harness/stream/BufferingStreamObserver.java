@@ -18,6 +18,8 @@
 
 package org.apache.beam.fn.harness.stream;
 
+import com.google.common.base.Preconditions.checkState;
+
 import com.google.common.annotations.VisibleForTesting;
 import io.grpc.stub.CallStreamObserver;
 import io.grpc.stub.StreamObserver;
@@ -83,12 +85,10 @@ public final class BufferingStreamObserver<T> implements StreamObserver<T> {
   @Override
   public void onNext(T value) {
     try {
-      // Attempt to add an element to the bounded queue occassionally checking to see
+      // Attempt to add an element to the bounded queue occasionally checking to see
       // if the queue drainer is still alive.
       while (!queue.offer(value, 60, TimeUnit.SECONDS)) {
-        if (queueDrainer.isDone()) {
-          throw new IllegalStateException("Stream observer has finished.");
-        }
+        checkState(!queueDrainer.isDone(), "Stream observer has finished.");
       }
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();

@@ -18,6 +18,7 @@
 
 package org.apache.beam.fn.harness.logging;
 
+import static com.google.common.base.Throwables.getStackTraceAsString;
 import static org.hamcrest.Matchers.contains;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
@@ -83,7 +84,7 @@ public class BeamFnLoggingClientTest {
       BeamFnApi.LogEntry.newBuilder()
           .setSeverity(BeamFnApi.LogEntry.Severity.WARN)
           .setMessage("MessageWithException")
-          .setTrace(BeamFnLoggingClient.formatException(TEST_RECORD_WITH_EXCEPTION.getThrown()))
+          .setTrace(getStackTraceAsString(TEST_RECORD_WITH_EXCEPTION.getThrown()))
           .setThread("12345")
           .setTimestamp(Timestamp.newBuilder().setSeconds(1234567).setNanos(890000000).build())
           .setLogLocation("LoggerName")

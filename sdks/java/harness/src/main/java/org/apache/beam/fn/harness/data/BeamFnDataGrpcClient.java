@@ -92,8 +92,7 @@ public class BeamFnDataGrpcClient implements BeamFnDataClient {
   /**
    * Creates a closeable consumer using the provided instruction id and target.
    *
-   * <p>The provided coder is used to encode elements on the outbound stream. The encoded elements
-   * are buffered upto the provided buffer limit before being emit on the outbound stream.
+   * <p>The provided coder is used to encode elements on the outbound stream.
    *
    * <p>On closing the returned consumer, an empty data block is sent as a signal of the
    * logical data stream finishing.

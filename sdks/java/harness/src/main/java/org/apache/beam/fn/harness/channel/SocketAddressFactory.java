@@ -18,6 +18,9 @@
 
 package org.apache.beam.fn.harness.channel;
 
+import static com.google.common.base.Preconditions.checkArgument;
+
+import com.google.common.net.HostAndPort;
 import io.netty.channel.unix.DomainSocketAddress;
 import java.io.File;
 import java.io.IOException;
@@ -52,14 +55,10 @@ public class SocketAddressFactory {
       return new DomainSocketAddress(file);
     } else {
       // Standard TCP/IP address.
-      String[] parts = value.split(":", 2);
-      if (parts.length < 2) {
-        throw new IllegalArgumentException(
-            "Address must be a unix:// path or be in the form host:port. Got: " + value);
-      }
-      String host = parts[0];
-      int port = Integer.parseInt(parts[1]);
-      return new InetSocketAddress(host, port);
+      HostAndPort hostAndPort = HostAndPort.fromString(value);
+      checkArgument(hostAndPort.hasPort(),
+          "Address must be a unix:// path or be in the form host:port. Got: %s", value);
+      return new InetSocketAddress(hostAndPort.getHostText(), hostAndPort.getPort());
     }
   }
 }

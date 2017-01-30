@@ -37,6 +37,10 @@ import org.slf4j.LoggerFactory;
  * <p>Multiplexes data for inbound consumers based upon their individual
  * {@link org.apache.beam.fn.v1.BeamFnApi.Target}s.
  *
+ * <p>Multiplexing inbound and outbound streams is as thread safe as the consumers of those
+ * streams. For inbound streams, this is as thread safe as the inbound observers. For outbound
+ * streams, this is as thread safe as the underlying stream observer.
+ *
  * <p>TODO: Add support for multiplexing over multiple outbound observers by stickying
  * the output location with a specific outbound observer.
  */
@@ -101,6 +105,10 @@ public class BeamFnDataGrpcMultiplexer {
           if (data.getData().isEmpty()) {
             consumers.remove(key);
           }
+        /*
+         * TODO: On failure we should fail any bundles that were impacted eagerly
+         * instead of relying on the Runner harness to do all the failure handling.
+         */
         } catch (ExecutionException | InterruptedException e) {
           LOGGER.error(
               "Client interrupted during handling of data for instruction {} and target {}",

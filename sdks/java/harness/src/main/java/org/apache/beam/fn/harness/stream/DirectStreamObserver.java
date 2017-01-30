@@ -28,9 +28,9 @@ import javax.annotation.concurrent.ThreadSafe;
  * {@link CallStreamObserver} to provide thread safety.
  *
  * <p>Flow control with the underlying {@link CallStreamObserver} is handled with a {@link Phaser}
- * which waits for advancement of the phase if the {@link CallStreamObserver} is not ready. Callers
- * are expected to advance the {@link Phaser} whenever the underlying {@link CallStreamObserver}
- * becomes ready.
+ * which waits for advancement of the phase if the {@link CallStreamObserver} is not ready.
+ * Creator is expected to advance the {@link Phaser} whenever the underlying
+ * {@link CallStreamObserver} becomes ready.
  */
 @ThreadSafe
 public final class DirectStreamObserver<T> implements StreamObserver<T> {

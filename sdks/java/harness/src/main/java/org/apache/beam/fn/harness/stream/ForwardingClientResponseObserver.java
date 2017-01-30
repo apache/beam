@@ -21,15 +21,15 @@ package org.apache.beam.fn.harness.stream;
 import io.grpc.stub.ClientCallStreamObserver;
 import io.grpc.stub.ClientResponseObserver;
 import io.grpc.stub.StreamObserver;
-import javax.annotation.concurrent.NotThreadSafe;
 
 /**
  * A {@link ClientResponseObserver} which delegates all {@link StreamObserver} calls.
  *
  * <p>Used to wrap existing {@link StreamObserver}s to be able to install an
  * {@link ClientCallStreamObserver#setOnReadyHandler(Runnable) onReadyHandler}.
+ *
+ * <p>This is as thread-safe as the undering stream observer that is being wrapped.
  */
-@NotThreadSafe
 final class ForwardingClientResponseObserver<ReqT, RespT>
     implements ClientResponseObserver<RespT, ReqT> {
   private final Runnable onReadyHandler;

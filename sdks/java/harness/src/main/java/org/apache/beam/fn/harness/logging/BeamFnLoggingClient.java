@@ -18,6 +18,8 @@
 
 package org.apache.beam.fn.harness.logging;
 
+import static com.google.common.base.Throwables.getStackTraceAsString;
+
 import com.google.common.base.MoreObjects;
 import com.google.common.collect.ImmutableMap;
 import com.google.protobuf.Timestamp;
@@ -88,11 +90,11 @@ public class BeamFnLoggingClient implements AutoCloseable {
    * The number of log messages that will be buffered. Assuming log messages are at most 1 KiB,
    * this represents a buffer of about 10 MiBs.
    */
-  private static final int MAX_BUFFER_SIZE = 10_000;
+  private static final int MAX_BUFFERED_LOG_ENTRY_COUNT = 10_000;
 
   /* We need to store a reference to the configured loggers so that they are not
    * garbage collected. java.util.logging only has weak references to the loggers
-   * so if they are garbage collection, our hierarchical configuration will be lost. */
+   * so if they are garbage collected, our hierarchical configuration will be lost. */
   private final Collection<Logger> configuredLoggers;
   private final BeamFnApi.ApiServiceDescriptor apiServiceDescriptor;
   private final ManagedChannel channel;
@@ -176,7 +178,7 @@ public class BeamFnLoggingClient implements AutoCloseable {
 
   private class LogRecordHandler extends Handler implements Runnable {
     private final BlockingDeque<BeamFnApi.LogEntry> bufferedLogEntries =
-        new LinkedBlockingDeque<>(MAX_BUFFER_SIZE);
+        new LinkedBlockingDeque<>(MAX_BUFFERED_LOG_ENTRY_COUNT);
     private final Future<?> bufferedLogWriter;
     private final ThreadLocal<Consumer<BeamFnApi.LogEntry>> logEntryHandler;
 
@@ -200,7 +202,7 @@ public class BeamFnLoggingClient implements AutoCloseable {
               .setSeconds(record.getMillis() / 1000)
               .setNanos((int) (record.getMillis() % 1000) * 1_000_000));
       if (record.getThrown() != null) {
-        builder.setTrace(formatException(record.getThrown()));
+        builder.setTrace(getStackTraceAsString(record.getThrown()));
       }
       // The thread that sends log records should never perform a blocking publish and
       // only insert log records best effort. We detect which thread is logging
@@ -225,7 +227,8 @@ public class BeamFnLoggingClient implements AutoCloseable {
       // above handler which should never block if the queue is full otherwise
       // this thread will get stuck.
       logEntryHandler.set(bufferedLogEntries::offer);
-      List<BeamFnApi.LogEntry> additionalLogEntries = new ArrayList<>(MAX_BUFFER_SIZE);
+      List<BeamFnApi.LogEntry> additionalLogEntries =
+          new ArrayList<>(MAX_BUFFERED_LOG_ENTRY_COUNT);
       try {
         BeamFnApi.LogEntry logEntry;
         while ((logEntry = bufferedLogEntries.take()) != POISON_PILL) {
@@ -304,19 +307,5 @@ public class BeamFnLoggingClient implements AutoCloseable {
     public void onCompleted() {
       inboundObserverCompletion.complete(null);
     }
-  }
-
-  /**
-   * Formats the throwable as per {@link Throwable#printStackTrace()}.
-   *
-   * @param thrown The throwable to format.
-   * @return A string containing the contents of {@link Throwable#printStackTrace()}.
-   */
-  public static String formatException(@Nonnull Throwable thrown) {
-    StringWriter sw = new StringWriter();
-    try (PrintWriter pw = new PrintWriter(sw)) {
-      thrown.printStackTrace(pw);
-    }
-    return sw.toString();
   }
 }

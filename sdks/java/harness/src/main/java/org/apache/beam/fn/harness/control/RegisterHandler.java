@@ -47,6 +47,14 @@ public class RegisterHandler {
     try {
       @SuppressWarnings("unchecked")
       CompletableFuture<T> returnValue = (CompletableFuture<T>) computeIfAbsent(id);
+      /*
+       * TODO: Even though the register request instruction occurs before the process bundle
+       * instruction in the control stream, the instructions are being processed in parallel
+       * in the Java harness causing a data race which is why we use a future. This will block
+       * forever in the case of a runner having a bug sending the wrong ids. Instead of blocking
+       * forever, we could do a timed wait or come up with another way of ordering the instruction
+       * processing to remove the data race.
+       */
       return returnValue.get();
     } catch (ExecutionException e) {
       throw new RuntimeException(String.format("Failed to load %s", id), e);

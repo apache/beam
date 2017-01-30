@@ -18,6 +18,8 @@
 
 package org.apache.beam.fn.harness.control;
 
+import static com.google.common.base.Throwables.getStackTraceAsString;
+
 import com.google.common.util.concurrent.Uninterruptibles;
 import io.grpc.ManagedChannel;
 import io.grpc.stub.StreamObserver;
@@ -30,7 +32,6 @@ import java.util.concurrent.LinkedBlockingDeque;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import org.apache.beam.fn.harness.fn.ThrowingFunction;
-import org.apache.beam.fn.harness.logging.BeamFnLoggingClient;
 import org.apache.beam.fn.v1.BeamFnApi;
 import org.apache.beam.fn.v1.BeamFnControlGrpc;
 import org.slf4j.Logger;
@@ -147,7 +148,7 @@ public class BeamFnControlClient {
     } catch (Exception e) {
       return BeamFnApi.InstructionResponse.newBuilder()
           .setInstructionId(value.getInstructionId())
-          .setError(BeamFnLoggingClient.formatException(e))
+          .setError(getStackTraceAsString(e))
           .build();
     }
   }

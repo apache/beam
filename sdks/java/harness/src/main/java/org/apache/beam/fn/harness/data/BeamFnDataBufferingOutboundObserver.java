@@ -43,11 +43,17 @@ import org.slf4j.LoggerFactory;
  *
  * <p>The default buffer threshold can be overridden by specifying the experiment
  * {@code beam_fn_api_data_buffer_limit=<bytes>}
+ *
+ * <p>TODO: Handle outputting large elements (> 2GiBs). Note that this also applies to the
+ * input side as well.
+ *
+ * <p>TODO: Handle outputting elements that are zero bytes by outputting a single byte as
+ * a marker, detect on the input side that no bytes were read and force reading a single byte.
  */
 public class BeamFnDataBufferingOutboundObserver<T>
     implements CloseableThrowingConsumer<WindowedValue<T>> {
   private static final String BEAM_FN_API_DATA_BUFFER_LIMIT = "beam_fn_api_data_buffer_limit=";
-  private static final int DEFAULT_BUFFER_LIMIT = 1_000_000;
+  private static final int DEFAULT_BUFFER_LIMIT_BYTES = 1_000_000;
   private static final Logger LOGGER =
       LoggerFactory.getLogger(BeamFnDataBufferingOutboundObserver.class);
 
@@ -82,7 +88,7 @@ public class BeamFnDataBufferingOutboundObserver<T>
         return Integer.parseInt(experiment.substring(BEAM_FN_API_DATA_BUFFER_LIMIT.length()));
       }
     }
-    return DEFAULT_BUFFER_LIMIT;
+    return DEFAULT_BUFFER_LIMIT_BYTES;
   }
 
   @Override

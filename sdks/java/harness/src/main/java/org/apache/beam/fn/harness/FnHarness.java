@@ -103,7 +103,7 @@ public class FnHarness {
       EnumMap<BeamFnApi.InstructionRequest.RequestCase,
               ThrowingFunction<BeamFnApi.InstructionRequest,
                                BeamFnApi.InstructionResponse.Builder>> handlers =
-                               new EnumMap<>(BeamFnApi.InstructionRequest.RequestCase.class);
+          new EnumMap<>(BeamFnApi.InstructionRequest.RequestCase.class);
 
       RegisterHandler fnApiRegistry = new RegisterHandler();
       BeamFnDataGrpcClient beamFnDataMultiplexer = new BeamFnDataGrpcClient(

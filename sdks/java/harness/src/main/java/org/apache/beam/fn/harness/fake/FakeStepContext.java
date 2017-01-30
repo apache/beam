@@ -60,11 +60,11 @@ public class FakeStepContext implements StepContext {
 
   @Override
   public StateInternals<?> stateInternals() {
-    return null;
+    throw new UnsupportedOperationException();
   }
 
   @Override
   public TimerInternals timerInternals() {
-    return null;
+    throw new UnsupportedOperationException();
   }
 }
