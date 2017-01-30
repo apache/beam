@@ -128,6 +128,29 @@ class DoFnRunner(Receiver):
       self.kwargs = kwargs if kwargs else {}
       self.dofn = fn
 
+      arguments, _, _, defaults = self.dofn.get_function_arguments('process')
+      defaults = defaults if defaults else []
+      self_in_args = int(self.dofn.is_process_bounded())
+      # TODO(Sourabhbajaj) Rename this variable
+      self.has_windowed_side_inputs = (
+          self.has_windowed_side_inputs or
+          core.NewDoFn.WindowParam in defaults)
+
+      # If there are more arguments than the default then the first argument
+      # should be the element and the rest should be picked from the side
+      # inputs as window and timestamp should always be tagged
+      if len(arguments) > len(defaults) + self_in_args:
+        if core.NewDoFn.ElementParam not in defaults:
+          self.args_to_pick = len(arguments) - len(defaults) - 1 - self_in_args
+          self.include_element = True
+        else:
+          self.args_to_pick = len(arguments) - len(defaults) - self_in_args
+          self.include_element = False
+      else:
+        self.args_to_pick = 0
+        self.include_element = False
+      self.default_args = zip(arguments[-len(defaults):], defaults)
+
     else:
       self.is_new_dofn = False
       self.has_windowed_side_inputs = False  # Set to True in one case below.
@@ -179,40 +202,24 @@ class DoFnRunner(Receiver):
 
   def new_dofn_process(self, element):
     self.context.set_element(element)
-    arguments, _, _, defaults = self.dofn.get_function_arguments('process')
-    defaults = defaults if defaults else []
-
-    self_in_args = int(self.dofn.is_process_bounded())
 
     # Call for the process function for each window if has windowed side inputs
     # or if the process accesses the window parameter. We can just call it once
     # otherwise as none of the arguments are changing
-    if self.has_windowed_side_inputs or core.NewDoFn.WindowParam in defaults:
+    if self.has_windowed_side_inputs:
       windows = element.windows
     else:
       windows = [window.GlobalWindow()]
 
     for w in windows:
       args, kwargs = util.insert_values_in_args(
-          self.args, self.kwargs,
-          [s[w] for s in self.side_inputs])
+          self.args, self.kwargs, [si[w] for si in self.side_inputs])
 
-      # If there are more arguments than the default then the first argument
-      # should be the element and the rest should be picked from the side
-      # inputs as window and timestamp should always be tagged
-      if len(arguments) > len(defaults) + self_in_args:
-        if core.NewDoFn.ElementParam not in defaults:
-          args_to_pick = len(arguments) - len(defaults) - 1 - self_in_args
-          final_args = [element.value] + args[:args_to_pick]
-        else:
-          args_to_pick = len(arguments) - len(defaults) - self_in_args
-          final_args = args[:args_to_pick]
-      else:
-        args_to_pick = 0
-        final_args = []
-      args = iter(args[args_to_pick:])
+      init_args = [element.value] if self.include_element else []
+      final_args = init_args + args[:self.args_to_pick]
+      args = iter(args[self.args_to_pick:])
 
-      for a, d in zip(arguments[-len(defaults):], defaults):
+      for a, d in self.default_args:
         if d == core.NewDoFn.ElementParam:
           final_args.append(element.value)
         elif d == core.NewDoFn.ContextParam:
@@ -227,7 +234,7 @@ class DoFnRunner(Receiver):
             final_args.append(args.next())
           except StopIteration:
             if a not in kwargs:
-              raise
+              raise ValueError("Value for sideinput %s not provided" % a)
         else:
           # If no more args are present then the value must be passed via kwarg
           try:
