@@ -1074,7 +1074,7 @@ public class BigQueryIO {
     public BoundedReader<TableRow> createReader(PipelineOptions options) throws IOException {
       BigQueryOptions bqOptions = options.as(BigQueryOptions.class);
       return new BigQueryReader(this, bqServices.getReaderFromQuery(
-          bqOptions, createBasicQueryConfig(), executingProject.get()));
+          bqOptions, executingProject.get(), createBasicQueryConfig()));
     }
 
     @Override

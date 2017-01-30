@@ -226,7 +226,7 @@ public class BigQueryIOTest implements Serializable {
 
     @Override
     public BigQueryJsonReader getReaderFromQuery(
-        BigQueryOptions bqOptions, JobConfigurationQuery queryConfig, String projectId) {
+        BigQueryOptions bqOptions, String projectId, JobConfigurationQuery queryConfig) {
       return new FakeBigQueryReader(jsonTableRowReturns);
     }
 

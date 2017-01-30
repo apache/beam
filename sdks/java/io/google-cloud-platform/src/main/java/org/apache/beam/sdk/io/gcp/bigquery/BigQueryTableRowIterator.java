@@ -108,7 +108,7 @@ class BigQueryTableRowIterator implements AutoCloseable {
   static BigQueryTableRowIterator fromTable(TableReference ref, Bigquery client) {
     checkNotNull(ref, "ref");
     checkNotNull(client, "client");
-    return new BigQueryTableRowIterator(ref, null, ref.getProjectId(), client);
+    return new BigQueryTableRowIterator(ref, /* queryConfig */null, ref.getProjectId(), client);
   }
 
   /**
@@ -120,7 +120,7 @@ class BigQueryTableRowIterator implements AutoCloseable {
     checkNotNull(queryConfig, "queryConfig");
     checkNotNull(projectId, "projectId");
     checkNotNull(client, "client");
-    return new BigQueryTableRowIterator(null, queryConfig, projectId, client);
+    return new BigQueryTableRowIterator(/* ref */null, queryConfig, projectId, client);
   }
 
   /**
