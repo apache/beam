@@ -18,7 +18,7 @@
 
 package org.apache.beam.fn.harness.stream;
 
-import com.google.common.base.Preconditions.checkState;
+import static com.google.common.base.Preconditions.checkState;
 
 import com.google.common.annotations.VisibleForTesting;
 import io.grpc.stub.CallStreamObserver;
