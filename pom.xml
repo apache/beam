@@ -996,6 +996,7 @@
               <exclude>.github/**/*</exclude>
               <exclude>**/*.iml</exclude>
               <exclude>**/.idea/**/*</exclude>
+              <exclude>**/*.egg-info/**/*</exclude>
               <exclude>**/package-list</exclude>
               <exclude>**/user.avsc</exclude>
               <exclude>**/test/resources/**/*.txt</exclude>
