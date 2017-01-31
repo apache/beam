@@ -41,6 +41,9 @@ class DirectRunner(PipelineRunner):
     self._cache = None
 
   def apply_CombinePerKey(self, transform, pcoll):
+    # TODO: Move imports to top. Pipeline <-> Runner dependency cause problems
+    # with resolving imports when they are at top.
+    # pylint: disable=wrong-import-position
     from apache_beam.runners.direct.helper_transforms import LiftedCombinePerKey
     try:
       return pcoll | LiftedCombinePerKey(
