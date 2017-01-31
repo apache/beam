@@ -14,6 +14,8 @@ Learn how to contribute to the Beam project.
 #### [Technical Vision](https://goo.gl/nk5OM0)
 Learn about the technical vision for Beam, including the designs for SDKs and runners, and the development process.
 
+#### [PTransform Style Guide]({{ site.baseurl }}/contribute/ptransform-style-guide)
+Learn about the best practices for developing new PTransforms.
 
 #### Resources
 Resources for contributing to Beam, including mailing lists, the main GitHub repo, and the issues tracker.
