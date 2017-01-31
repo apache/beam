@@ -228,9 +228,9 @@ class CombineTest(unittest.TestCase):
       pcoll = pipeline | 'start' >> Create([1, 1, 2, 2])
       for ix in xrange(30):
         assert_that(
-          pcoll | combine.Sample.FixedSizeGlobally('sample-%d' % ix, 3),
-          is_good_sample,
-          label='check-%d' % ix)
+            pcoll | combine.Sample.FixedSizeGlobally('sample-%d' % ix, 3),
+            is_good_sample,
+            label='check-%d' % ix)
 
   def test_per_key_sample(self):
     pipeline = TestPipeline()
