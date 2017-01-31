@@ -150,6 +150,31 @@ You should verify that the issues listed automatically by JIRA are appropriate t
 
 Adjust any of the above properties to the improve clarity and presentation of the Release Notes.
 
+### Verify that a Release Build Works
+
+Run `mvn -Prelease` to ensure that the build processes that are specific to that
+profile are in good shape.
+
+### Update and Verify Javadoc
+
+The build with `-Prelease` creates the combined javadoc for the release in `sdks/java/javadoc`.
+
+In that directory, the file `sdks/java/javadoc/ant.xml` file contains a list of
+modules to include in and exclude, plus a list of offline URLs that populate
+links to Javadoc for other modules that Beam depends on.
+
+You should both examine the generated javadoc and look over the contents of that
+file to ensure that the javadoc is correct.
+
+Confirm that new modules added since the last release have been added to the
+inclusion list as appropriate.
+
+Confirm that the excluded package list is up to date.
+
+Verify the version numbers for offline links match the versions used by Beam. If
+the version number has changed, download a new version of the corresponding
+XX-docs/package-list file.
+
 ### Create a release branch
 
 Release candidates are built from a release branch. As a final step in preparation for the release, you should create the release branch, push it to the code repository, and update version information on the original branch.
@@ -197,6 +222,7 @@ The rest of this guide assumes that commands are run in the root of a repository
 1. JIRA release item for the subsequent release has been created
 1. There are no release blocking JIRA issues
 1. Release Notes in JIRA have been audited and adjusted
+1. Combined javadoc has the appropriate contents.
 1. Release branch has been created
 1. Originating branch has the version information updated to the new version
 
@@ -255,35 +281,23 @@ Copy the source release to the dev repository of `dist.apache.org`.
 
 1. Verify that files are [present](https://dist.apache.org/repos/dist/dev/beam).
 
-### Build the API reference
-
-Beam publishes API reference manual for each release on the website. For Java SDK, that’s Javadoc.
-
-Check out release candidate, as follows:
-
-    git checkout ${TAG}
-
-Use Maven Javadoc plugin to generate the new Java reference manual, as follows:
-
-    mvn -DskipTests clean package javadoc:aggregate \
-        -Ddoctitle="Apache Beam SDK for Java, version ${VERSION}" \
-        -Dwindowtitle="Apache Beam SDK for Java, version ${VERSION}" \
-        -Dmaven.javadoc.failOnError=false \
-        -DexcludePackageNames="org.apache.beam.examples,org.apache.beam.runners.dataflow.internal,org.apache.beam.runners.flink.examples,org.apache.beam.runners.flink.translation,org.apache.beam.runners.spark.examples,org.apache.beam.runners.spark.translation,org.apache.beam.runners.apex.translation,org.apache.beam.sdk.microbenchmarks.coders.generated,org.apache.beam.sdk.microbenchmarks.transforms.generated,org.openjdk.jmh.infra.generated"
-
-By default, the Javadoc will be generated in `target/site/apidocs/`. Let `${JAVADOC_ROOT}` be the absolute path to `apidocs`. ([Pull request #1015](https://github.com/apache/beam/pull/1015) will hopefully simplify this process.)
-
-Please carefully review the generated Javadoc. Check for completeness and presence of all relevant packages and `package-info.java`; consider adding less relevant packages to the `excludePackageNames` configuration. The index page is generated at `${JAVADOC_ROOT}/index.html`.
-
 ### Propose a pull request for website updates
 
 The final step of building the candidate is to propose a website pull request.
 
 Start by updating `release_latest` version flag in the top-level `_config.yml`, and list the new release in the [Apache Beam Downloads]({{ site.baseurl }}/get-started/downloads/), linking to the source code download and the Release Notes in JIRA.
 
+Beam publishes API reference manual for each release on the website. For Java SDK, that’s Javadoc.
+
+One of the artifacts created in the release contains the Javadoc for the website: 
+. To update the website, you must unpack
+this jar file from the release candidate into the source tree of the website.
+
 Add the new Javadoc to [SDK API Reference page]({{ site.baseurl }}/documentation/sdks/javadoc/) page, as follows:
 
-* Copy the generated Javadoc into the website repository: `cp -r ${JAVADOC_ROOT} documentation/sdks/javadoc/${VERSION}`.
+* Unpack the Maven artifact `org.apache.beam:beam-sdks-java-javadoc` into some temporary location. Call this `${JAVADOC_TMP}`.
+* Copy the generated Javadoc into the website repository: `cp -r ${JAVADOC_TMP} documentation/sdks/javadoc/${VERSION}`.
+* Set up the necessary git commands to account for the new and deleted files from the javadoc.
 * Update the Javadoc link on this page to point to the new version (in `src/documentation/sdks/javadoc/current.md`).
 
 Finally, propose a pull request with these changes. (Don’t merge before finalizing the release.)
