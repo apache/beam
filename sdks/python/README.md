@@ -107,7 +107,7 @@ directory you created.
 #### Download and install
 
 1. Clone the Apache Beam repo from GitHub: 
-  `git clone https://github.com/apache/beam.git --branch python-sdk`
+  `git clone https://github.com/apache/beam.git`
 
 2. Navigate to the `python` directory: 
   `cd beam/sdks/python/`
