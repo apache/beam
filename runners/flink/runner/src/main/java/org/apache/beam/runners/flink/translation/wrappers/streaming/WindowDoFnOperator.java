@@ -80,7 +80,6 @@ public class WindowDoFnOperator<K, InputT, OutputT>
     extends DoFnOperator<KeyedWorkItem<K, InputT>, KV<K, OutputT>, WindowedValue<KV<K, OutputT>>>
     implements Triggerable {
 
-  private final Coder<K> keyCoder;
   private final TimerInternals.TimerDataCoder timerCoder;
 
   private transient Set<Tuple2<ByteBuffer, TimerInternals.TimerData>> watermarkTimers;
@@ -91,7 +90,6 @@ public class WindowDoFnOperator<K, InputT, OutputT>
   private transient Multiset<Long> processingTimeTimerTimestamps;
   private transient Map<Long, ScheduledFuture<?>> processingTimeTimerFutures;
 
-  private transient FlinkStateInternals<K> stateInternals;
   private transient FlinkTimerInternals timerInternals;
 
   private final SystemReduceFn<K, InputT, ?, OutputT, BoundedWindow> systemReduceFn;
@@ -116,11 +114,11 @@ public class WindowDoFnOperator<K, InputT, OutputT>
         windowingStrategy,
         sideInputTagMapping,
         sideInputs,
-        options);
+        options,
+        keyCoder);
 
     this.systemReduceFn = systemReduceFn;
 
-    this.keyCoder = keyCoder;
     this.timerCoder =
         TimerInternals.TimerDataCoder.of(windowingStrategy.getWindowFn().windowCoder());
   }
@@ -132,7 +130,7 @@ public class WindowDoFnOperator<K, InputT, OutputT>
       public StateInternals<K> stateInternalsForKey(K key) {
         //this will implicitly be keyed by the key of the incoming
         // element or by the key of a firing timer
-        return stateInternals;
+        return (StateInternals<K>) stateInternals;
       }
     };
     TimerInternalsFactory<K> timerInternalsFactory = new TimerInternalsFactory<K>() {
@@ -192,7 +190,6 @@ public class WindowDoFnOperator<K, InputT, OutputT>
     // ScheduledFutures are not checkpointed
     processingTimeTimerFutures = new HashMap<>();
 
-    stateInternals = new FlinkStateInternals<>(getStateBackend(), keyCoder);
     timerInternals = new FlinkTimerInternals();
 
     // call super at the end because this will call getDoFn() which requires stateInternals
@@ -275,7 +272,7 @@ public class WindowDoFnOperator<K, InputT, OutputT>
 
         pushbackDoFnRunner.processElement(WindowedValue.valueInGlobalWindow(
             KeyedWorkItems.<K, InputT>timersWorkItem(
-                stateInternals.getKey(),
+                (K) stateInternals.getKey(),
                 Collections.singletonList(timer.f1))));
 
       } else {
@@ -313,7 +310,7 @@ public class WindowDoFnOperator<K, InputT, OutputT>
 
         pushbackDoFnRunner.processElement(WindowedValue.valueInGlobalWindow(
                 KeyedWorkItems.<K, InputT>timersWorkItem(
-                    stateInternals.getKey(),
+                    (K) stateInternals.getKey(),
                     Collections.singletonList(timer.f1))));
 
       } else {
