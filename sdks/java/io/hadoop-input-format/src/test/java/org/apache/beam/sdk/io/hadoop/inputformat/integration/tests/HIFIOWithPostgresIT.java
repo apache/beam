@@ -1,15 +1,10 @@
 package org.apache.beam.sdk.io.hadoop.inputformat.integration.tests;
 
-import java.io.DataInput;
-import java.io.DataOutput;
 import java.io.IOException;
 import java.io.Serializable;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
 
 import org.apache.beam.sdk.io.hadoop.inputformat.HadoopInputFormatIO;
-import org.apache.beam.sdk.io.hadoop.inputformat.HadoopInputFormatIOContants;
+import org.apache.beam.sdk.io.hadoop.inputformat.HadoopInputFormatIOConstants;
 import org.apache.beam.sdk.io.hadoop.inputformat.custom.options.HIFTestOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
@@ -20,10 +15,8 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.Text;
-import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.mapred.lib.db.DBInputFormat.NullDBWritable;
 import org.apache.hadoop.mapreduce.InputFormat;
-import org.apache.hadoop.mapreduce.lib.db.DBWritable;
 import org.junit.BeforeClass;
 import org.junit.FixMethodOrder;
 import org.junit.Rule;
@@ -99,12 +92,12 @@ public class HIFIOWithPostgresIT implements Serializable {
 		conf.set("mapreduce.jdbc.input.table.name", INPUT_TABLE_NAME_PROPERTY);
 		conf.set("mapreduce.jdbc.input.query", "SELECT * FROM "
 				+ INPUT_TABLE_NAME_PROPERTY);
-		conf.setClass(HadoopInputFormatIOContants.INPUTFORMAT_CLASSNAME,
+		conf.setClass(HadoopInputFormatIOConstants.INPUTFORMAT_CLASSNAME,
 				org.apache.hadoop.mapreduce.lib.db.DBInputFormat.class,
 				InputFormat.class);
-		conf.setClass(HadoopInputFormatIOContants.KEY_CLASS, org.apache.hadoop.io.LongWritable.class,
+		conf.setClass(HadoopInputFormatIOConstants.KEY_CLASS, org.apache.hadoop.io.LongWritable.class,
 				Object.class);
-		conf.setClass(HadoopInputFormatIOContants.VALUE_CLASS, NullDBWritable.class, Object.class);
+		conf.setClass(HadoopInputFormatIOConstants.VALUE_CLASS, NullDBWritable.class, Object.class);
 		return conf;
 	}
 

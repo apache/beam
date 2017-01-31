@@ -20,7 +20,7 @@ import java.util.List;
 
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.hadoop.inputformat.HadoopInputFormatIO;
-import org.apache.beam.sdk.io.hadoop.inputformat.HadoopInputFormatIOContants;
+import org.apache.beam.sdk.io.hadoop.inputformat.HadoopInputFormatIOConstants;
 import org.apache.beam.sdk.io.hadoop.inputformat.custom.options.HIFTestOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
@@ -149,10 +149,10 @@ public class HIFIOElasticIT implements Serializable {
     conf.set(ConfigurationOptions.ES_RESOURCE, ELASTIC_RESOURCE);
     conf.set("es.internal.es.version", ELASTIC_INTERNAL_VERSION);
     conf.set(ConfigurationOptions.ES_INDEX_AUTO_CREATE, TRUE);
-    conf.setClass(HadoopInputFormatIOContants.INPUTFORMAT_CLASSNAME,
+    conf.setClass(HadoopInputFormatIOConstants.INPUTFORMAT_CLASSNAME,
         org.elasticsearch.hadoop.mr.EsInputFormat.class, InputFormat.class);
-    conf.setClass(HadoopInputFormatIOContants.KEY_CLASS, Text.class, Object.class);
-    conf.setClass(HadoopInputFormatIOContants.VALUE_CLASS, LinkedMapWritable.class, Object.class);
+    conf.setClass(HadoopInputFormatIOConstants.KEY_CLASS, Text.class, Object.class);
+    conf.setClass(HadoopInputFormatIOConstants.VALUE_CLASS, LinkedMapWritable.class, Object.class);
     return conf;
   }
 }
