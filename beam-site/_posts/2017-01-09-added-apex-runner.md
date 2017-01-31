@@ -8,11 +8,11 @@ authors:
   - thw
 ---
 
-The latest release 0.4.0 of [Apache Beam](https://beam.apache.org) adds a new runner for [Apache Apex](http://apex.apache.org/). We are excited to reach this initial milestone and are looking forward to continued collaboration between the Beam and Apex communities to advance the runner.
+The latest release 0.4.0 of [Apache Beam]({{ site.baseurl }}/) adds a new runner for [Apache Apex](http://apex.apache.org/). We are excited to reach this initial milestone and are looking forward to continued collaboration between the Beam and Apex communities to advance the runner.
 
 <!--more-->
 
-Beam evolved from the Google Dataflow SDK and as incubator project has quickly adapted the Apache way, grown the community and attracts increasing interest from users that hope to benefit from a conceptual strong unified programming model that is portable between different big data processing frameworks (see [Streaming-101](https://www.oreilly.com/ideas/the-world-beyond-batch-streaming-101) and [Streaming-102](https://www.oreilly.com/ideas/the-world-beyond-batch-streaming-102)). Multiple Apache projects already provide runners for Beam (see [runners and capabilities matrix](http://beam.apache.org/documentation/runners/capability-matrix/)).
+Beam evolved from the Google Dataflow SDK and as incubator project has quickly adapted the Apache way, grown the community and attracts increasing interest from users that hope to benefit from a conceptual strong unified programming model that is portable between different big data processing frameworks (see [Streaming-101](https://www.oreilly.com/ideas/the-world-beyond-batch-streaming-101) and [Streaming-102](https://www.oreilly.com/ideas/the-world-beyond-batch-streaming-102)). Multiple Apache projects already provide runners for Beam (see [runners and capabilities matrix]({{ site.baseurl }}/documentation/runners/capability-matrix/)).
 
 Apex is a stream processing framework for low-latency, high-throughput, stateful and reliable processing of complex analytics pipelines on clusters. Apex was developed since 2012 and is used in production by large companies for real-time and batch processing at scale.
 
@@ -28,7 +28,7 @@ A Beam runner needs to implement the translation from the Beam model to the unde
 
 ## Execution and Testing
 
-In this release, the Apex runner executes the pipelines in embedded mode, where, similar to the direct runner, everything is executed in a single JVM. See [quickstart](https://beam.apache.org/get-started/quickstart/) on how to run the Beam examples with the Apex runner.
+In this release, the Apex runner executes the pipelines in embedded mode, where, similar to the direct runner, everything is executed in a single JVM. See [quickstart]({{ site.baseurl }}/get-started/quickstart/) on how to run the Beam examples with the Apex runner.
 
 Embedded mode is useful for development and debugging. Apex in production runs distributed on Apache Hadoop YARN clusters. An example how a Beam pipeline can be embedded into an Apex application package to run on YARN can be found [here](https://github.com/tweise/apex-samples/tree/master/beam-apex-wordcount) and support for direct launch in the runner is currently being worked on. 
 
