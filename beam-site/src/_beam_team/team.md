@@ -8,6 +8,12 @@ members:
     organization: Google
     roles: committer, PMC
     time_zone: "-8"
+  - name: Ahmet Altay
+    apache_id: altay
+    email: altay [at] apache [dot] org
+    organization: Google
+    roles: committer
+    time_zone: "-8"
   - name: Jesse Anderson
     apache_id: jesseanderson
     email: jesseanderson [at] apache [dot] org
@@ -56,6 +62,12 @@ members:
     organization: Google
     roles: committer, PMC
     time_zone: "-8"
+  - name: Pei He
+    apache_id: pei
+    email: pei [at] apache [dot] org
+    organization: Google
+    roles: committer
+    time_zone: "-8"
   - name: Kenneth Knowles
     apache_id: kenn
     email: kenn [at] apache [dot] org
@@ -68,6 +80,12 @@ members:
     organization: data Artisans
     roles: committer, PMC
     time_zone: "+1"
+  - name: Stas Levin
+    apache_id: staslevin
+    email: staslevin [at] apache [dot] org
+    organization: PayPal
+    roles: committer
+    time_zone: "+2"
   - name: Maximilian Michels
     apache_id: mxm
     email: mxm [at] apache [dot] org
