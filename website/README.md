@@ -1,6 +1,8 @@
 # Apache Beam website
 
-This is the website for [Apache Beam](http://beam.apache.org/).
+This is the website for [Apache Beam](https://beam.apache.org/), hosted at:
+
+    https://beam.apache.org/
 
 ## About this site
 
@@ -8,18 +10,12 @@ The Beam website is built using [Jekyll](http://jekyllrb.com/). Additionally,
 for additional formatting capabilities, this website uses
 [Twitter Bootstrap](http://getbootstrap.com/).
 
-This website is hosted at:
-
-    http://beam.apache.org
-
-
 ### Repository Structure
     
 This repository contains:
 
 1. `src/`: the source of the site, including markdown files containing the bulk of the content
 1. `content/`: html generated from the markdown (which is what is actually hosted on the website)
-
 
 ## Development Workflow
 
@@ -38,7 +34,6 @@ including [Jekyll](https://jekyllrb.com/):
 	$ bundle install --deployment
 	
 This will install a number of gems in a local `./vendor` directory.
-
 
 ### Active development
 
@@ -61,7 +56,6 @@ get tricky, so please leave this directory out of your commits and pull request 
 
 The committer doing the final merge will generate the `content/` directory at that time.
 
-
 ## Additional Information
 
 ### Writing blog posts
@@ -80,7 +74,6 @@ If you modify the site to use additional Jekyll plugins, add them in `Gemfile`
 and then run `bundle update`, which will regenerate the complete `Gemfile.lock`.
 Make sure that the updated `Gemfile.lock` is included in your pull request. For more information,
 see the Bundler [documentation](http://bundler.io/v1.3/rationale.html).
-
 
 ## Apache License
 
