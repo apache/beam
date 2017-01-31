@@ -14,8 +14,8 @@
   <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.2.0/jquery.min.js"></script>
   <script src="/js/bootstrap.min.js"></script>
   <script src="/js/language-switch.js"></script>
-  <link rel="canonical" href="http://beam.apache.org/blog/2017/01/09/added-apex-runner.html" data-proofer-ignore>
-  <link rel="alternate" type="application/rss+xml" title="Apache Beam" href="http://beam.apache.org/feed.xml">
+  <link rel="canonical" href="https://beam.apache.org/blog/2017/01/09/added-apex-runner.html" data-proofer-ignore>
+  <link rel="alternate" type="application/rss+xml" title="Apache Beam" href="https://beam.apache.org/feed.xml">
   <script>
     (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
     (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
@@ -156,11 +156,11 @@
   </header>
 
   <div class="post-content" itemprop="articleBody">
-    <p>The latest release 0.4.0 of <a href="https://beam.apache.org">Apache Beam</a> adds a new runner for <a href="http://apex.apache.org/">Apache Apex</a>. We are excited to reach this initial milestone and are looking forward to continued collaboration between the Beam and Apex communities to advance the runner.</p>
+    <p>The latest release 0.4.0 of <a href="/">Apache Beam</a> adds a new runner for <a href="http://apex.apache.org/">Apache Apex</a>. We are excited to reach this initial milestone and are looking forward to continued collaboration between the Beam and Apex communities to advance the runner.</p>
 
 <!--more-->
 
-<p>Beam evolved from the Google Dataflow SDK and as incubator project has quickly adapted the Apache way, grown the community and attracts increasing interest from users that hope to benefit from a conceptual strong unified programming model that is portable between different big data processing frameworks (see <a href="https://www.oreilly.com/ideas/the-world-beyond-batch-streaming-101">Streaming-101</a> and <a href="https://www.oreilly.com/ideas/the-world-beyond-batch-streaming-102">Streaming-102</a>). Multiple Apache projects already provide runners for Beam (see <a href="http://beam.apache.org/documentation/runners/capability-matrix/">runners and capabilities matrix</a>).</p>
+<p>Beam evolved from the Google Dataflow SDK and as incubator project has quickly adapted the Apache way, grown the community and attracts increasing interest from users that hope to benefit from a conceptual strong unified programming model that is portable between different big data processing frameworks (see <a href="https://www.oreilly.com/ideas/the-world-beyond-batch-streaming-101">Streaming-101</a> and <a href="https://www.oreilly.com/ideas/the-world-beyond-batch-streaming-102">Streaming-102</a>). Multiple Apache projects already provide runners for Beam (see <a href="/documentation/runners/capability-matrix/">runners and capabilities matrix</a>).</p>
 
 <p>Apex is a stream processing framework for low-latency, high-throughput, stateful and reliable processing of complex analytics pipelines on clusters. Apex was developed since 2012 and is used in production by large companies for real-time and batch processing at scale.</p>
 
@@ -176,7 +176,7 @@
 
 <h2 id="execution-and-testing">Execution and Testing</h2>
 
-<p>In this release, the Apex runner executes the pipelines in embedded mode, where, similar to the direct runner, everything is executed in a single JVM. See <a href="https://beam.apache.org/get-started/quickstart/">quickstart</a> on how to run the Beam examples with the Apex runner.</p>
+<p>In this release, the Apex runner executes the pipelines in embedded mode, where, similar to the direct runner, everything is executed in a single JVM. See <a href="/get-started/quickstart/">quickstart</a> on how to run the Beam examples with the Apex runner.</p>
 
 <p>Embedded mode is useful for development and debugging. Apex in production runs distributed on Apache Hadoop YARN clusters. An example how a Beam pipeline can be embedded into an Apex application package to run on YARN can be found <a href="https://github.com/tweise/apex-samples/tree/master/beam-apex-wordcount">here</a> and support for direct launch in the runner is currently being worked on.</p>
 
