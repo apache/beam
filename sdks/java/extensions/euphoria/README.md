@@ -97,9 +97,12 @@ mvn clean install -DskipTests
 
 ## Documentation
 
-Documentation is currently maintained in the form of a
-[Wiki on Github](https://github.com/seznam/euphoria/wiki). A lot of work
-in this area is still to be done.
+* Documentation is currently maintained in the form of a
+  [Wiki on Github](https://github.com/seznam/euphoria/wiki). A lot of work
+  in this area is still to be done.
+
+* Another source of documentation are deliberately simple examples
+  maintained in the [euphoria-examples module](https://github.com/seznam/euphoria/tree/master/euphoria-examples).
 
 
 ## License
