@@ -21,17 +21,17 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 -->
-  <Project rdf:about="http://beam.apache.org">
+  <Project rdf:about="https://beam.apache.org">
     <created>2016-12-21</created>
     <license rdf:resource="http://www.apache.org/licenses/LICENSE-2.0" />
     <name>Apache Beam</name>
-    <homepage rdf:resource="http://beam.apache.org" />
-    <asfext:pmc rdf:resource="http://beam.apache.org" />
+    <homepage rdf:resource="https://beam.apache.org" />
+    <asfext:pmc rdf:resource="https://beam.apache.org" />
     <shortdesc>Apache Beam is a programming model, SDKs, and runners for defining and executing data processing pipelines.</shortdesc>
     <description>Apache Beam is a unified programming model for both batch and streaming data processing, enabling efficient execution across diverse distributed execution engines and providing extensibility points for connecting to different technologies and user communities.</description>
     <bug-database rdf:resource="https://issues.apache.org/jira/browse/BEAM" />
-    <mailing-list rdf:resource="http://beam.apache.org/get-started/support/" />
-    <download-page rdf:resource="http://beam.apache.org/get-started/downloads/" />
+    <mailing-list rdf:resource="https://beam.apache.org/get-started/support/" />
+    <download-page rdf:resource="https://beam.apache.org/get-started/downloads/" />
     <programming-language>Java</programming-language>
     <programming-language>Python</programming-language>
     <category rdf:resource="http://projects.apache.org/category/big-data" />
