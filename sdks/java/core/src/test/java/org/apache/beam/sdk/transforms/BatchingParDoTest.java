@@ -23,12 +23,20 @@ import static org.junit.Assert.assertTrue;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
+import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.RunnableOnService;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.testing.TestStream;
+import org.apache.beam.sdk.testing.UsesTestStream;
+import org.apache.beam.sdk.testing.UsesTimersInParDo;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.TimestampedValue;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.BeforeClass;
@@ -41,21 +49,23 @@ import org.junit.runners.JUnit4;
 
 @RunWith(JUnit4.class)
 public class BatchingParDoTest implements Serializable {
-  private static final int BATCH_SIZE = 100;
-  private static final long NUM_ELEMENTS = 1000;
+  private static final int BATCH_SIZE = 2;
+  private static final long NUM_ELEMENTS = 10;
+  private static final int ALLOWED_LATENESS = 0;
   private static final int TIMESTAMP_INTERVAL = 1;
-  private static final int WINDOW_DURATION = 60;
-  private static final long NUM_ELMENTS_PER_WINDOW = WINDOW_DURATION / TIMESTAMP_INTERVAL;
-  private static final long NUM_WINDOWS = NUM_ELEMENTS / NUM_ELMENTS_PER_WINDOW;
-  private static ArrayList<String> data;
+  private static final int WINDOW_DURATION = 5;
+  private static ArrayList<TimestampedValue<KV<String, String>>> data;
   private static SimpleFunction<Iterable<String>, Iterable<String>> perBatchFn;
-  private static BatchingParDo<String, String> batchingParDo;
-  private static ArrayList<Long> expectedCollection = new ArrayList<>();
-  @Rule
-  public TestPipeline pipeline = TestPipeline.create();
+  private static BatchingParDo<String, String, String> batchingParDo;
+  private static Instant startInstant;
+  @Rule public transient TestPipeline pipeline = TestPipeline.create();
 
   @BeforeClass
   public static void initialize() {
+
+    // give time for the pipeline to start so that first element timestamp is in pipeline
+    // (relative time to now() because of timer
+    startInstant = Instant.now().plus(Duration.standardSeconds(10));
     data = createTestData();
     perBatchFn =
         new SimpleFunction<Iterable<String>, Iterable<String>>() {
@@ -69,12 +79,9 @@ public class BatchingParDoTest implements Serializable {
           }
         };
     batchingParDo = BatchingParDo.via(BATCH_SIZE, perBatchFn);
-    for (int i = 0; i < NUM_WINDOWS; i++) {
-      expectedCollection.add(NUM_ELMENTS_PER_WINDOW);
-    }
   }
 
-  private static ArrayList<String> createTestData() {
+  private static ArrayList<TimestampedValue<KV<String, String>>> createTestData() {
     String[] scientists = {
       "Einstein",
       "Darwin",
@@ -87,21 +94,29 @@ public class BatchingParDoTest implements Serializable {
       "Galilei",
       "Maxwell"
     };
-    ArrayList<String> data = new ArrayList<>();
+    ArrayList<TimestampedValue<KV<String, String>>> data = new ArrayList<>();
+    long offset = 1;
     for (int i = 0; i < NUM_ELEMENTS; i++) {
       int index = i % scientists.length;
-      data.add(scientists[index]);
+      data.add(
+          TimestampedValue.of(
+              KV.of("key", scientists[index]), startInstant.plus(Duration.standardSeconds(offset * TIMESTAMP_INTERVAL))));
+      offset++;
     }
     return data;
   }
 
+  // timer is not supported by DoFnTester
+  @Ignore
   @Test
   public void testUnderlyingDoFn() throws Exception {
-    DoFnTester<String, String> fnTester =
-        DoFnTester.of(new BatchingParDo.BatchingDoFn<>(BATCH_SIZE, perBatchFn));
+    DoFnTester<KV<String, String>, String> fnTester =
+        DoFnTester.of(
+            new BatchingParDo.BatchingDoFn<String, String, String>(
+                BATCH_SIZE, perBatchFn, new Duration(ALLOWED_LATENESS), StringUtf8Coder.of()));
     int nbElementsProcessed = 0;
-    for (String element : data) {
-      fnTester.processElement(element);
+    for (TimestampedValue<KV<String, String>> element : data) {
+      fnTester.processElement(element.getValue());
       nbElementsProcessed++;
       List<String> output = fnTester.takeOutputElements();
       // end of batch
@@ -124,47 +139,57 @@ public class BatchingParDoTest implements Serializable {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category({RunnableOnService.class, UsesTimersInParDo.class})
   public void testInBatchMode() {
-    PCollection<String> collection = pipeline.apply(Create.of(data)).apply(batchingParDo);
+    // TODO deal with infinite loop
+    PCollection<String> collection =
+        pipeline
+            .apply("Input data", Create.of(data))
+          // remove timestamps from dataset to be closer to users usecase
+          .apply(
+                "remove timestamps",
+                ParDo.of(
+                    new DoFn<TimestampedValue<KV<String, String>>, KV<String, String>>() {
+                      @ProcessElement
+                      public void processElement(ProcessContext c) {
+                        c.output(c.element().getValue());
+                      }
+                    }))
+            .apply(batchingParDo)
+            .setCoder(StringUtf8Coder.of());
     PAssert.thatSingleton(collection.apply("Count", Count.<String>globally()))
         .isEqualTo(NUM_ELEMENTS);
     pipeline.run();
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category({RunnableOnService.class, UsesTimersInParDo.class, UsesTestStream.class})
   public void testInStreamingMode() {
+    // TODO deal with infinite loop
+    TestStream.Builder<KV<String, String>> streamBuilder =
+        TestStream.create(KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()))
+            .advanceWatermarkTo(startInstant);
+    for (TimestampedValue<KV<String, String>> element : data) {
+      streamBuilder = streamBuilder.addElements(element);
+    }
+    TestStream<KV<String, String>> stream =
+        streamBuilder
+            //          .advanceProcessingTime(Duration.standardSeconds(10))
+            .advanceWatermarkTo(startInstant.plus(Duration.standardSeconds(5)))
+            .advanceWatermarkTo(startInstant.plus(Duration.standardSeconds(10)))
+            //          .advanceProcessingTime(Duration.standardSeconds(20))
+            .advanceWatermarkToInfinity();
 
-    PCollection<Long> collection = pipeline
-      .apply("Input data", Create.of(data))
-      .apply("Timestamp elements", ParDo.of(new AddTimestampFn()))
-      // create windows to simulate unbounded source
-      .apply(
-        "Window elements in windows of 1 min",
-        Window.<String>into(FixedWindows.of(Duration.standardSeconds(WINDOW_DURATION))))
-      .apply("Batch process them", batchingParDo)
-      .apply("Count per window", Count.<String>globally().withoutDefaults());
-/*
-    PAssert.that(collection)
-        .satisfies(
-            new SerializableFunction<Iterable<Long>, Void>() {
-              @Override
-              public Void apply(Iterable<Long> input) {
-                ArrayList<Long> actualCollection = new ArrayList<Long>();
-                for (Long element : input){
-                  actualCollection.add(element);
-                }
-                assertEquals(
-                    String.format(
-                        "final collection must contain %s elements which value is %",
-                        NUM_WINDOWS, NUM_ELMENTS_PER_WINDOW),
-                    expectedCollection, actualCollection);
-                return null;
-              }
-            });
-*/
-    pipeline.run();
+    PCollection<String> output =
+        pipeline
+            .apply(stream)
+            .apply(
+                Window.<KV<String, String>>into(
+                    FixedWindows.of(Duration.standardSeconds(WINDOW_DURATION))))
+            .apply(batchingParDo)
+            .setCoder(StringUtf8Coder.of());
+    PAssert.that(output).containsInAnyOrder("Einstein2", "Darwin2");
+    pipeline.run().waitUntilFinish();
   }
 
   private boolean checkAllElementsProcessing(List<String> output, Processing processing) {
@@ -185,16 +210,5 @@ public class BatchingParDoTest implements Serializable {
   private enum Processing {
     PROCESSED,
     UNPROCESSED
-  }
-
-  /** timestamp elements at 1 sec interval */
-  static class AddTimestampFn extends DoFn<String, String> {
-    private long millis = 0;
-
-    @ProcessElement
-    public void processElement(ProcessContext c) {
-      millis += (TIMESTAMP_INTERVAL * 1000);
-      c.outputWithTimestamp(c.element(), new Instant(millis));
-    }
   }
 }
