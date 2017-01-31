@@ -123,7 +123,7 @@ directory you created.
 
 ### Execute a pipeline locally
 
-The Apache Beam [examples](https://github.com/apache/beam/tree/blob/master/sdks/sdks/python/apache_beam/examples) directory has many examples. All examples can be run locally by passing the arguments required by the example script.
+The Apache Beam [examples](https://github.com/apache/beam/tree/master/sdks/python/apache_beam/examples) directory has many examples. All examples can be run locally by passing the arguments required by the example script.
 
 For example, to run `wordcount.py`, run:
 
