@@ -25,7 +25,7 @@ job('beam_PostCommit_Python_Verify') {
   previousNames('beam_PostCommit_PythonVerify')
 
   // Set common parameters.
-  common_job_properties.setTopLevelJobProperties(delegate, 'python-sdk')
+  common_job_properties.setTopLevelJobProperties(delegate)
 
   // Sets that this is a PostCommit job.
   common_job_properties.setPostCommit(delegate, '0 3-22/6 * * *')

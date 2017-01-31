@@ -35,6 +35,7 @@ import java.nio.file.Files;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 import java.util.jar.JarFile;
 
 import org.apache.apex.api.EmbeddedAppLauncher;
@@ -78,15 +79,17 @@ public class ApexYarnLauncherTest {
     Configuration conf = new Configuration(false);
     DAG dag = embeddedLauncher.prepareDAG(app, conf);
     Attribute.AttributeMap launchAttributes = new Attribute.AttributeMap.DefaultAttributeMap();
+    Properties configProperties = new Properties();
     ApexYarnLauncher launcher = new ApexYarnLauncher();
-    launcher.launchApp(new MockApexYarnLauncherParams(dag, launchAttributes));
+    launcher.launchApp(new MockApexYarnLauncherParams(dag, launchAttributes, configProperties));
   }
 
   private static class MockApexYarnLauncherParams extends  ApexYarnLauncher.LaunchParams {
     private static final long serialVersionUID = 1L;
 
-    public MockApexYarnLauncherParams(DAG dag, AttributeMap launchAttributes) {
-      super(dag, launchAttributes);
+    public MockApexYarnLauncherParams(DAG dag, AttributeMap launchAttributes,
+        Properties properties) {
+      super(dag, launchAttributes, properties);
     }
 
     @Override

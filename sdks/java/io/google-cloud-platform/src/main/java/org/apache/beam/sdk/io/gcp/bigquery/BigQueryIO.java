@@ -997,8 +997,7 @@ public class BigQueryIO {
         TableReference table = JSON_FACTORY.fromString(jsonTable.get(), TableReference.class);
 
         Long numBytes = bqServices.getDatasetService(options.as(BigQueryOptions.class))
-            .getTable(table.getProjectId(), table.getDatasetId(), table.getTableId())
-            .getNumBytes();
+            .getTable(table).getNumBytes();
         tableSizeBytes.compareAndSet(null, numBytes);
       }
       return tableSizeBytes.get();
@@ -1088,10 +1087,7 @@ public class BigQueryIO {
       DatasetService tableService = bqServices.getDatasetService(bqOptions);
       if (referencedTables != null && !referencedTables.isEmpty()) {
         TableReference queryTable = referencedTables.get(0);
-        location = tableService.getTable(
-            queryTable.getProjectId(),
-            queryTable.getDatasetId(),
-            queryTable.getTableId()).getLocation();
+        location = tableService.getTable(queryTable).getLocation();
       }
 
       // 2. Create the temporary dataset in the query location.
@@ -1120,10 +1116,7 @@ public class BigQueryIO {
           JSON_FACTORY.fromString(jsonQueryTempTable.get(), TableReference.class);
 
       DatasetService tableService = bqServices.getDatasetService(bqOptions);
-      tableService.deleteTable(
-          tableToRemove.getProjectId(),
-          tableToRemove.getDatasetId(),
-          tableToRemove.getTableId());
+      tableService.deleteTable(tableToRemove);
       tableService.deleteDataset(tableToRemove.getProjectId(), tableToRemove.getDatasetId());
     }
 
@@ -1162,7 +1155,8 @@ public class BigQueryIO {
       jobService.startQueryJob(jobRef, queryConfig);
       Job job = jobService.pollJob(jobRef, JOB_POLL_MAX_RETRIES);
       if (parseStatus(job) != Status.SUCCEEDED) {
-        throw new IOException("Query job failed: " + jobId);
+        throw new IOException(String.format(
+            "Query job %s failed, status: %s.", jobId, statusToPrettyString(job.getStatus())));
       }
     }
 
@@ -1227,10 +1221,8 @@ public class BigQueryIO {
       String extractJobId = getExtractJobId(jobIdToken);
       List<String> tempFiles = executeExtract(extractJobId, tableToExtract, jobService);
 
-      TableSchema tableSchema = bqServices.getDatasetService(bqOptions).getTable(
-          tableToExtract.getProjectId(),
-          tableToExtract.getDatasetId(),
-          tableToExtract.getTableId()).getSchema();
+      TableSchema tableSchema = bqServices.getDatasetService(bqOptions)
+          .getTable(tableToExtract).getSchema();
 
       cleanupTempResource(bqOptions);
       return createSources(tempFiles, tableSchema);
@@ -1269,8 +1261,8 @@ public class BigQueryIO {
           jobService.pollJob(jobRef, JOB_POLL_MAX_RETRIES);
       if (parseStatus(extractJob) != Status.SUCCEEDED) {
         throw new IOException(String.format(
-            "Extract job %s failed, status: %s",
-            extractJob.getJobReference().getJobId(), extractJob.getStatus()));
+            "Extract job %s failed, status: %s.",
+            extractJob.getJobReference().getJobId(), statusToPrettyString(extractJob.getStatus())));
       }
 
       List<String> tempFiles = getExtractFilePaths(extractDestinationDir, extractJob);
@@ -1863,25 +1855,23 @@ public class BigQueryIO {
             writeDisposition, validate, testServices);
       }
 
-      private static void verifyTableEmpty(
+      private static void verifyTableNotExistOrEmpty(
           DatasetService datasetService,
-          TableReference table) {
+          TableReference tableRef) {
         try {
-          boolean isEmpty = datasetService.isTableEmpty(
-              table.getProjectId(), table.getDatasetId(), table.getTableId());
-          if (!isEmpty) {
-            throw new IllegalArgumentException(
-                "BigQuery table is not empty: " + BigQueryIO.toTableSpec(table));
+          if (datasetService.getTable(tableRef) != null) {
+            checkState(
+                datasetService.isTableEmpty(tableRef),
+                "BigQuery table is not empty: %s.",
+                BigQueryIO.toTableSpec(tableRef));
           }
         } catch (IOException | InterruptedException e) {
-          ApiErrorExtractor errorExtractor = new ApiErrorExtractor();
-          if (e instanceof IOException && errorExtractor.itemNotFound((IOException) e)) {
-            // Nothing to do. If the table does not exist, it is considered empty.
-          } else {
-            throw new RuntimeException(
-                "unable to confirm BigQuery table emptiness for table "
-                    + BigQueryIO.toTableSpec(table), e);
+          if (e instanceof InterruptedException) {
+            Thread.currentThread().interrupt();
           }
+          throw new RuntimeException(
+              "unable to confirm BigQuery table emptiness for table "
+                  + BigQueryIO.toTableSpec(tableRef), e);
         }
       }
 
@@ -1917,16 +1907,23 @@ public class BigQueryIO {
             verifyTablePresence(datasetService, table);
           }
           if (getWriteDisposition() == BigQueryIO.Write.WriteDisposition.WRITE_EMPTY) {
-            verifyTableEmpty(datasetService, table);
+            verifyTableNotExistOrEmpty(datasetService, table);
           }
         }
 
         if (input.isBounded() == PCollection.IsBounded.UNBOUNDED || tableRefFunction != null) {
           // We will use BigQuery's streaming write API -- validate supported dispositions.
-          checkArgument(
-              createDisposition != CreateDisposition.CREATE_NEVER,
-              "CreateDisposition.CREATE_NEVER is not supported for an unbounded PCollection or when"
-                  + " using a tablespec function.");
+          if (tableRefFunction != null) {
+            checkArgument(
+                createDisposition != CreateDisposition.CREATE_NEVER,
+                "CreateDisposition.CREATE_NEVER is not supported when using a tablespec"
+                + " function.");
+          }
+          if (jsonSchema == null) {
+            checkArgument(
+                createDisposition == CreateDisposition.CREATE_NEVER,
+                "CreateDisposition.CREATE_NEVER must be used if jsonSchema is null.");
+          }
 
           checkArgument(
               writeDisposition != WriteDisposition.WRITE_TRUNCATE,
@@ -1963,7 +1960,9 @@ public class BigQueryIO {
         if (input.isBounded() == IsBounded.UNBOUNDED || tableRefFunction != null) {
           return input.apply(
               new StreamWithDeDup(getTable(), tableRefFunction,
-                  NestedValueProvider.of(jsonSchema, new JsonSchemaToTableSchema()), bqServices));
+                  jsonSchema == null ? null : NestedValueProvider.of(
+                      jsonSchema, new JsonSchemaToTableSchema()),
+                  createDisposition, bqServices));
         }
 
         ValueProvider<TableReference> table = getTableWithDefaultProject(options);
@@ -2363,30 +2362,36 @@ public class BigQueryIO {
             .setSourceFormat("NEWLINE_DELIMITED_JSON");
 
         String projectId = ref.getProjectId();
+        Job lastFailedLoadJob = null;
         for (int i = 0; i < Bound.MAX_RETRY_JOBS; ++i) {
           String jobId = jobIdPrefix + "-" + i;
-          LOG.info("Starting BigQuery load job {}: try {}/{}", jobId, i, Bound.MAX_RETRY_JOBS);
           JobReference jobRef = new JobReference()
               .setProjectId(projectId)
               .setJobId(jobId);
           jobService.startLoadJob(jobRef, loadConfig);
-          Status jobStatus =
-              parseStatus(jobService.pollJob(jobRef, Bound.LOAD_JOB_POLL_MAX_RETRIES));
+          Job loadJob = jobService.pollJob(jobRef, Bound.LOAD_JOB_POLL_MAX_RETRIES);
+          Status jobStatus = parseStatus(loadJob);
           switch (jobStatus) {
             case SUCCEEDED:
               return;
             case UNKNOWN:
-              throw new RuntimeException("Failed to poll the load job status of job " + jobId);
+              throw new RuntimeException(String.format(
+                  "UNKNOWN status of load job [%s]: %s.", jobId, jobToPrettyString(loadJob)));
             case FAILED:
-              LOG.info("BigQuery load job failed: {}", jobId);
+              lastFailedLoadJob = loadJob;
               continue;
             default:
-              throw new IllegalStateException(String.format("Unexpected job status: %s of job %s",
-                  jobStatus, jobId));
+              throw new IllegalStateException(String.format(
+                  "Unexpected status [%s] of load job: %s.",
+                  jobStatus, jobToPrettyString(loadJob)));
           }
         }
-        throw new RuntimeException(String.format("Failed to create the load job %s, reached max "
-            + "retries: %d", jobIdPrefix, Bound.MAX_RETRY_JOBS));
+        throw new RuntimeException(String.format(
+            "Failed to create load job with id prefix %s, "
+                + "reached max retries: %d, last failed load job: %s.",
+            jobIdPrefix,
+            Bound.MAX_RETRY_JOBS,
+            jobToPrettyString(lastFailedLoadJob)));
       }
 
       static void removeTemporaryFiles(
@@ -2493,30 +2498,36 @@ public class BigQueryIO {
             .setCreateDisposition(createDisposition.name());
 
         String projectId = ref.getProjectId();
+        Job lastFailedCopyJob = null;
         for (int i = 0; i < Bound.MAX_RETRY_JOBS; ++i) {
           String jobId = jobIdPrefix + "-" + i;
-          LOG.info("Starting BigQuery copy job {}: try {}/{}", jobId, i, Bound.MAX_RETRY_JOBS);
           JobReference jobRef = new JobReference()
               .setProjectId(projectId)
               .setJobId(jobId);
           jobService.startCopyJob(jobRef, copyConfig);
-          Status jobStatus =
-              parseStatus(jobService.pollJob(jobRef, Bound.LOAD_JOB_POLL_MAX_RETRIES));
+          Job copyJob = jobService.pollJob(jobRef, Bound.LOAD_JOB_POLL_MAX_RETRIES);
+          Status jobStatus = parseStatus(copyJob);
           switch (jobStatus) {
             case SUCCEEDED:
               return;
             case UNKNOWN:
-              throw new RuntimeException("Failed to poll the copy job status of job " + jobId);
+              throw new RuntimeException(String.format(
+                  "UNKNOWN status of copy job [%s]: %s.", jobId, jobToPrettyString(copyJob)));
             case FAILED:
-              LOG.info("BigQuery copy job failed: {}", jobId);
+              lastFailedCopyJob = copyJob;
               continue;
             default:
-              throw new IllegalStateException(String.format("Unexpected job status: %s of job %s",
-                  jobStatus, jobId));
+              throw new IllegalStateException(String.format(
+                  "Unexpected status [%s] of load job: %s.",
+                  jobStatus, jobToPrettyString(copyJob)));
           }
         }
-        throw new RuntimeException(String.format("Failed to create the copy job %s, reached max "
-            + "retries: %d", jobIdPrefix, Bound.MAX_RETRY_JOBS));
+        throw new RuntimeException(String.format(
+            "Failed to create copy job with id prefix %s, "
+                + "reached max retries: %d, last failed copy job: %s.",
+            jobIdPrefix,
+            Bound.MAX_RETRY_JOBS,
+            jobToPrettyString(lastFailedCopyJob)));
       }
 
       static void removeTemporaryTables(DatasetService tableService,
@@ -2524,10 +2535,7 @@ public class BigQueryIO {
         for (TableReference tableRef : tempTables) {
           try {
             LOG.debug("Deleting table {}", toJsonString(tableRef));
-            tableService.deleteTable(
-                tableRef.getProjectId(),
-                tableRef.getDatasetId(),
-                tableRef.getTableId());
+            tableService.deleteTable(tableRef);
           } catch (Exception e) {
             LOG.warn("Failed to delete the table {}", toJsonString(tableRef), e);
           }
@@ -2554,6 +2562,14 @@ public class BigQueryIO {
     private Write() {}
   }
 
+  private static String jobToPrettyString(@Nullable Job job) throws IOException {
+    return job == null ? "null" : job.toPrettyString();
+  }
+
+  private static String statusToPrettyString(@Nullable JobStatus status) throws IOException {
+    return status == null ? "Unknown status: null." : status.toPrettyString();
+  }
+
   private static void verifyDatasetPresence(DatasetService datasetService, TableReference table) {
     try {
       datasetService.getDataset(table.getProjectId(), table.getDatasetId());
@@ -2576,7 +2592,7 @@ public class BigQueryIO {
 
   private static void verifyTablePresence(DatasetService datasetService, TableReference table) {
     try {
-      datasetService.getTable(table.getProjectId(), table.getDatasetId(), table.getTableId());
+      datasetService.getTable(table);
     } catch (Exception e) {
       ApiErrorExtractor errorExtractor = new ApiErrorExtractor();
       if ((e instanceof IOException) && errorExtractor.itemNotFound((IOException) e)) {
@@ -2606,15 +2622,18 @@ public class BigQueryIO {
    * Implementation of DoFn to perform streaming BigQuery write.
    */
   @SystemDoFnInternal
-  private static class StreamingWriteFn
+  @VisibleForTesting
+  static class StreamingWriteFn
       extends DoFn<KV<ShardedKey<String>, TableRowInfo>, Void> {
     /** TableSchema in JSON. Use String to make the class Serializable. */
-    private final ValueProvider<String> jsonTableSchema;
+    @Nullable private final ValueProvider<String> jsonTableSchema;
 
     private final BigQueryServices bqServices;
 
     /** JsonTableRows to accumulate BigQuery rows in order to batch writes. */
     private transient Map<String, List<TableRow>> tableRows;
+
+    private final Write.CreateDisposition createDisposition;
 
     /** The list of unique ids for each BigQuery table row. */
     private transient Map<String, List<String>> uniqueIdsForTableRows;
@@ -2629,9 +2648,12 @@ public class BigQueryIO {
         createAggregator("ByteCount", Sum.ofLongs());
 
     /** Constructor. */
-    StreamingWriteFn(ValueProvider<TableSchema> schema, BigQueryServices bqServices) {
-      this.jsonTableSchema =
+    StreamingWriteFn(@Nullable ValueProvider<TableSchema> schema,
+        Write.CreateDisposition createDisposition,
+        BigQueryServices bqServices) {
+      this.jsonTableSchema = schema == null ? null :
           NestedValueProvider.of(schema, new TableSchemaToJsonSchema());
+      this.createDisposition = createDisposition;
       this.bqServices = checkNotNull(bqServices, "bqServices");
     }
 
@@ -2687,18 +2709,15 @@ public class BigQueryIO {
     public TableReference getOrCreateTable(BigQueryOptions options, String tableSpec)
         throws InterruptedException, IOException {
       TableReference tableReference = parseTableSpec(tableSpec);
-      if (!createdTables.contains(tableSpec)) {
+      if (createDisposition != createDisposition.CREATE_NEVER
+          && !createdTables.contains(tableSpec)) {
         synchronized (createdTables) {
           // Another thread may have succeeded in creating the table in the meanwhile, so
           // check again. This check isn't needed for correctness, but we add it to prevent
           // every thread from attempting a create and overwhelming our BigQuery quota.
           DatasetService datasetService = bqServices.getDatasetService(options);
           if (!createdTables.contains(tableSpec)) {
-            Table table = datasetService.getTable(
-                tableReference.getProjectId(),
-                tableReference.getDatasetId(),
-                tableReference.getTableId());
-            if (table == null) {
+            if (datasetService.getTable(tableReference) == null) {
               TableSchema tableSchema = JSON_FACTORY.fromString(
                   jsonTableSchema.get(), TableSchema.class);
               datasetService.createTable(
@@ -2943,19 +2962,22 @@ public class BigQueryIO {
   * it leverages BigQuery best effort de-dup mechanism.
    */
   private static class StreamWithDeDup extends PTransform<PCollection<TableRow>, PDone> {
-    private final transient ValueProvider<TableReference> tableReference;
-    private final SerializableFunction<BoundedWindow, TableReference> tableRefFunction;
-    private final transient ValueProvider<TableSchema> tableSchema;
+    @Nullable private final transient ValueProvider<TableReference> tableReference;
+    @Nullable private final SerializableFunction<BoundedWindow, TableReference> tableRefFunction;
+    @Nullable private final transient ValueProvider<TableSchema> tableSchema;
+    private final Write.CreateDisposition createDisposition;
     private final BigQueryServices bqServices;
 
     /** Constructor. */
     StreamWithDeDup(ValueProvider<TableReference> tableReference,
-        SerializableFunction<BoundedWindow, TableReference> tableRefFunction,
-        ValueProvider<TableSchema> tableSchema,
+        @Nullable SerializableFunction<BoundedWindow, TableReference> tableRefFunction,
+        @Nullable ValueProvider<TableSchema> tableSchema,
+        Write.CreateDisposition createDisposition,
         BigQueryServices bqServices) {
       this.tableReference = tableReference;
       this.tableRefFunction = tableRefFunction;
       this.tableSchema = tableSchema;
+      this.createDisposition = createDisposition;
       this.bqServices = checkNotNull(bqServices, "bqServices");
     }
 
@@ -2987,7 +3009,7 @@ public class BigQueryIO {
       tagged
           .setCoder(KvCoder.of(ShardedKeyCoder.of(StringUtf8Coder.of()), TableRowInfoCoder.of()))
           .apply(Reshuffle.<ShardedKey<String>, TableRowInfo>of())
-          .apply(ParDo.of(new StreamingWriteFn(tableSchema, bqServices)));
+          .apply(ParDo.of(new StreamingWriteFn(tableSchema, createDisposition, bqServices)));
 
       // Note that the implementation to return PDone here breaks the
       // implicit assumption about the job execution order. If a user

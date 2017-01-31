@@ -159,7 +159,10 @@ class GroupAlsoByWindowEvaluatorFactory implements TransformEvaluatorFactory {
       K key = workItem.key();
 
       UncommittedBundle<KV<K, Iterable<V>>> bundle =
-          evaluationContext.createKeyedBundle(structuralKey, application.getOutput());
+          evaluationContext.createKeyedBundle(
+              structuralKey,
+              (PCollection<KV<K, Iterable<V>>>)
+                  Iterables.getOnlyElement(application.getOutputs()).getValue());
       outputBundles.add(bundle);
       CopyOnAccessInMemoryStateInternals<K> stateInternals =
           (CopyOnAccessInMemoryStateInternals<K>) stepContext.stateInternals();

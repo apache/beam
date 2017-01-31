@@ -20,7 +20,10 @@ package org.apache.beam.runners.direct;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
+import com.google.common.collect.Iterables;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import org.apache.beam.runners.direct.DirectExecutionContext.DirectStepContext;
 import org.apache.beam.runners.direct.DirectRunner.CommittedBundle;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
@@ -29,6 +32,7 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.sdk.values.TaggedPValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -137,13 +141,14 @@ final class ParDoEvaluatorFactory<InputT, OutputT> implements TransformEvaluator
           evaluationContext,
           stepContext,
           application,
-          application.getInput().getWindowingStrategy(),
+          ((PCollection<InputT>) Iterables.getOnlyElement(application.getInputs()).getValue())
+              .getWindowingStrategy(),
           fn,
           key,
           sideInputs,
           mainOutputTag,
           sideOutputTags,
-          application.getOutput().getAll());
+          pcollections(application.getOutputs()));
     } catch (Exception e) {
       try {
         fnManager.remove();
@@ -155,6 +160,14 @@ final class ParDoEvaluatorFactory<InputT, OutputT> implements TransformEvaluator
       }
       throw e;
     }
+  }
+
+  private Map<TupleTag<?>, PCollection<?>> pcollections(List<TaggedPValue> outputs) {
+    Map<TupleTag<?>, PCollection<?>> pcs = new HashMap<>();
+    for (TaggedPValue output : outputs) {
+      pcs.put(output.getTag(), (PCollection<?>) output.getValue());
+    }
+    return pcs;
   }
 
   public DoFnLifecycleManager getManagerForCloneOf(DoFn<?, ?> fn) {
