@@ -89,6 +89,7 @@
     <module>euphoria-operator-testkit</module>
     <module>euphoria-flink</module>
     <module>euphoria-spark</module>
+    <module>euphoria-examples</module>
   </modules>
 
   <!-- make a few things differently when building under jdk8 -->
