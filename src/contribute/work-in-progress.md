@@ -25,7 +25,6 @@ Current branches include:
 | Feature | Branch | JIRA Component | More Info |
 | ---- | ---- | ---- | ---- |
 | Apache Gearpump Runner | [gearpump-runner](https://github.com/apache/beam/tree/gearpump-runner) | [runner-gearpump](https://issues.apache.org/jira/browse/BEAM/component/12330829) | [README](https://github.com/apache/beam/blob/gearpump-runner/runners/gearpump/README.md) |
-| Python SDK | [python-sdk](https://github.com/apache/beam/tree/python-sdk) | [sdk-py](https://issues.apache.org/jira/browse/BEAM/component/12328910) | [README](https://github.com/apache/beam/blob/python-sdk/sdks/python/README.md) |
 | Apache Spark 2.0 Runner | [runners-spark2](https://github.com/apache/beam/tree/runners-spark2) | - | [thread](https://lists.apache.org/thread.html/e38ac4e4914a6cb1b865b1f32a6ca06c2be28ea4aa0f6b18393de66f@%3Cdev.beam.apache.org%3E) |
 {:.table}
 

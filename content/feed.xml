@@ -441,7 +441,7 @@ Java SDK. If you have questions or comments, we’d love to hear them on the
 
 &lt;p&gt;The Data Engineers are looking to Beam as a way to &lt;a href=&quot;https://www.oreilly.com/ideas/future-proof-and-scale-proof-your-code&quot;&gt;future-proof&lt;/a&gt;, meaning that code is portable between the various Big Data frameworks. In fact, many of the attendees were still on Hadoop MapReduce and looking to transition to a new framework. They’re realizing that continually rewriting code isn’t the most productive approach.&lt;/p&gt;
 
-&lt;p&gt;Data Scientists are really interested in using Beam. They interested in having a single API for doing analysis instead of several different APIs. We talked about Beam’s progress on the Python API. If you want to take a peek, it’s being actively developed on a &lt;a href=&quot;https://github.com/apache/beam/tree/python-sdk&quot;&gt;feature branch&lt;/a&gt;. As Beam matures, we’re looking to add other supported languages.&lt;/p&gt;
+&lt;p&gt;Data Scientists are really interested in using Beam. They interested in having a single API for doing analysis instead of several different APIs. We talked about Beam’s progress on the Python API. If you want to take a peek, it’s being actively developed on a &lt;a href=&quot;https://github.com/apache/beam/tree/master/sdks/python&quot;&gt;feature branch&lt;/a&gt;. As Beam matures, we’re looking to add other supported languages.&lt;/p&gt;
 
 &lt;p&gt;We heard &lt;a href=&quot;https://twitter.com/jessetanderson/status/781124173108305920&quot;&gt;loud and clear&lt;/a&gt; from Beam users that great runner support is crucial to adoption. We have great Apache Flink support. During the conference we had some more volunteers offer their help on the Spark runner.&lt;/p&gt;
 
