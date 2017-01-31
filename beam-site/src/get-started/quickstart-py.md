@@ -63,7 +63,7 @@ For instructions using other shells, see the [virtualenv documentation](https://
 ### Download and install
 
 1. Clone the Apache Beam repo from GitHub: 
-  `git clone https://github.com/apache/beam.git --branch python-sdk`
+  `git clone https://github.com/apache/beam.git`
 
 2. Navigate to the `python` directory: 
   `cd beam/sdks/python/`
@@ -79,7 +79,7 @@ For instructions using other shells, see the [virtualenv documentation](https://
 
 ## Execute a pipeline locally
 
-The Apache Beam [examples](https://github.com/apache/beam/tree/python-sdk/sdks/python/apache_beam/examples) directory has many examples. All examples can be run locally by passing the required arguments described in the example script.
+The Apache Beam [examples](https://github.com/apache/beam/tree/master/sdks/python/apache_beam/examples) directory has many examples. All examples can be run locally by passing the required arguments described in the example script.
 
 For example, to run `wordcount.py`, run:
 
