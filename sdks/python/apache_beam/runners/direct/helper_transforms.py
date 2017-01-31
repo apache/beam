@@ -36,10 +36,11 @@ class LiftedCombinePerKey(beam.PTransform):
         combine_fn, args, kwargs)
 
   def expand(self, pcoll):
-    return (pcoll
-      | beam.ParDo(PartialGroupByKeyCombiningValues(self._combine_fn))
-      | beam.GroupByKey()
-      | beam.ParDo(FinishCombine(self._combine_fn)))
+    return (
+        pcoll
+        | beam.ParDo(PartialGroupByKeyCombiningValues(self._combine_fn))
+        | beam.GroupByKey()
+        | beam.ParDo(FinishCombine(self._combine_fn)))
 
 
 class PartialGroupByKeyCombiningValues(beam.DoFn):
@@ -84,8 +85,9 @@ class FinishCombine(beam.DoFn):
   def process(self, context):
     k, vs = context.element
     return [(
-      k,
-      self._combine_fn.extract_output(self._combine_fn.merge_accumulators(vs)))]
+        k,
+        self._combine_fn.extract_output(
+            self._combine_fn.merge_accumulators(vs)))]
 
   def default_type_hints(self):
     hints = self._combine_fn.get_type_hints().copy()

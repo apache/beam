@@ -44,7 +44,7 @@ class DirectRunner(PipelineRunner):
     from apache_beam.runners.direct.helper_transforms import LiftedCombinePerKey
     try:
       return pcoll | LiftedCombinePerKey(
-        transform.fn, transform.args, transform.kwargs)
+          transform.fn, transform.args, transform.kwargs)
     except NotImplementedError:
       return transform.expand(pcoll)
 
