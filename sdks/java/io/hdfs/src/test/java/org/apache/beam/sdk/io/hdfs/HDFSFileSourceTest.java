@@ -151,6 +151,29 @@ public class HDFSFileSourceTest {
     assertTrue(nonEmptySplits > 2);
   }
 
+  @Test
+  public void testSplitEstimatedSize() throws Exception {
+    PipelineOptions options = PipelineOptionsFactory.create();
+
+    List<KV<IntWritable, Text>> expectedResults = createRandomRecords(3, 10000, 0);
+    File file = createFileWithData("tmp.avro", expectedResults);
+
+    HDFSFileSource<IntWritable, Text> source =
+        HDFSFileSource.from(file.toString(), SequenceFileInputFormat.class,
+            IntWritable.class, Text.class);
+
+    long originalSize = source.getEstimatedSizeBytes(options);
+    long splitTotalSize = 0;
+    List<? extends BoundedSource<KV<IntWritable, Text>>> splits = source.splitIntoBundles(
+        SequenceFile.SYNC_INTERVAL, options
+    );
+    for (BoundedSource<KV<IntWritable, Text>> splitSource : splits) {
+      splitTotalSize += splitSource.getEstimatedSizeBytes(options);
+    }
+    // Assert that the estimated size of the whole is the sum of its parts
+    assertEquals(originalSize, splitTotalSize);
+  }
+
   private File createFileWithData(String filename, List<KV<IntWritable, Text>> records)
       throws IOException {
     File tmpFile = tmpFolder.newFile(filename);
