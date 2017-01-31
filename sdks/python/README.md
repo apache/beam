@@ -123,7 +123,7 @@ directory you created.
 
 ### Execute a pipeline locally
 
-The Apache Beam [examples](https://github.com/apache/beam/tree/python-sdk/sdks/python/apache_beam/examples) directory has many examples. All examples can be run locally by passing the arguments required by the example script.
+The Apache Beam [examples](https://github.com/apache/beam/tree/blob/master/sdks/sdks/python/apache_beam/examples) directory has many examples. All examples can be run locally by passing the arguments required by the example script.
 
 For example, to run `wordcount.py`, run:
 
@@ -157,7 +157,7 @@ Make sure you installed the package first. If not, run `python setup.py install`
 
 ## Simple Examples
 
-The following examples demonstrate some basic, fundamental concepts for using Apache Beam's Python SDK. For more detailed examples, Beam provides a [directory of examples](https://github.com/apache/beam/tree/python-sdk/sdks/python/apache_beam/examples) for Python.
+The following examples demonstrate some basic, fundamental concepts for using Apache Beam's Python SDK. For more detailed examples, Beam provides a [directory of examples](https://github.com/apache/beam/tree/master/sdks/python/apache_beam/examples) for Python.
 
 ### Basic pipeline
 
@@ -357,13 +357,13 @@ SAMPLE_DATA = [('a', 1), ('b', 10), ('a', 2), ('a', 3), ('b', 20)]
 p.run()
 ```
 
-The [combiners_test.py](https://github.com/apache/beam/blob/python-sdk/sdks/python/apache_beam/examples/cookbook/combiners_test.py) file contains more combiner examples.
+The [combiners_test.py](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/cookbook/combiners_test.py) file contains more combiner examples.
 
 ## Organizing Your Code
 
 Many projects will grow to multiple source code files. It is recommended that you organize your project so that all code involved in running your pipeline can be built as a Python package. This way, the package can easily be installed in the VM workers executing the job.
 
-Follow the [Juliaset example](https://github.com/apache/beam/tree/python-sdk/sdks/python/apache_beam/examples/complete/juliaset). If the code is organized in this fashion, you can use the `--setup_file` command line option to create a source distribution out of the project files, stage the resulting tarball, and later install it in the workers executing the job.
+Follow the [Juliaset example](https://github.com/apache/beam/tree/master/sdks/python/apache_beam/examples/complete/juliaset). If the code is organized in this fashion, you can use the `--setup_file` command line option to create a source distribution out of the project files, stage the resulting tarball, and later install it in the workers executing the job.
 
 ## More Information
 
