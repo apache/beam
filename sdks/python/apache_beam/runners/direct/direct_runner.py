@@ -40,6 +40,17 @@ class DirectRunner(PipelineRunner):
   def __init__(self):
     self._cache = None
 
+  def apply_CombinePerKey(self, transform, pcoll):
+    # TODO: Move imports to top. Pipeline <-> Runner dependency cause problems
+    # with resolving imports when they are at top.
+    # pylint: disable=wrong-import-position
+    from apache_beam.runners.direct.helper_transforms import LiftedCombinePerKey
+    try:
+      return pcoll | LiftedCombinePerKey(
+        transform.fn, transform.args, transform.kwargs)
+    except NotImplementedError:
+      return transform.expand(pcoll)
+
   def run(self, pipeline):
     """Execute the entire pipeline and returns an DirectPipelineResult."""
 
@@ -89,10 +100,6 @@ class DirectRunner(PipelineRunner):
     if not self._cache:
       self._cache = BufferingInMemoryCache()
     return self._cache.pvalue_cache
-
-  def apply(self, transform, input):  # pylint: disable=redefined-builtin
-    """Runner callback for a pipeline.apply call."""
-    return transform.expand(input)
 
 
 class BufferingInMemoryCache(object):
