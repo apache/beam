@@ -18,7 +18,7 @@ I want to share some of takeaways I had about Beam during the conference.
 
 The Data Engineers are looking to Beam as a way to [future-proof](https://www.oreilly.com/ideas/future-proof-and-scale-proof-your-code), meaning that code is portable between the various Big Data frameworks. In fact, many of the attendees were still on Hadoop MapReduce and looking to transition to a new framework. They’re realizing that continually rewriting code isn’t the most productive approach.
 
-Data Scientists are really interested in using Beam. They interested in having a single API for doing analysis instead of several different APIs. We talked about Beam’s progress on the Python API. If you want to take a peek, it’s being actively developed on a [feature branch](https://github.com/apache/beam/tree/python-sdk). As Beam matures, we’re looking to add other supported languages.
+Data Scientists are really interested in using Beam. They interested in having a single API for doing analysis instead of several different APIs. We talked about Beam’s progress on the Python API. If you want to take a peek, it’s being actively developed on a [feature branch](https://github.com/apache/beam/tree/master/sdks/python). As Beam matures, we’re looking to add other supported languages.
 
 We heard [loud and clear](https://twitter.com/jessetanderson/status/781124173108305920) from Beam users that great runner support is crucial to adoption. We have great Apache Flink support. During the conference we had some more volunteers offer their help on the Spark runner.
 
