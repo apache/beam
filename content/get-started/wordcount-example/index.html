@@ -52,7 +52,8 @@
 		  <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">Get Started <span class="caret"></span></a>
 		  <ul class="dropdown-menu">
 			  <li><a href="/get-started/beam-overview/">Beam Overview</a></li>
-              <li><a href="/get-started/quickstart/">Quickstart</a></li>
+        <li><a href="/get-started/quickstart-java/">Quickstart - Java</a></li>
+        <li><a href="/get-started/quickstart-py/">Quickstart - Python</a></li>
 			  <li role="separator" class="divider"></li>
 			  <li class="dropdown-header">Example Walkthroughs</li>
 			  <li><a href="/get-started/wordcount-example/">WordCount</a></li>
@@ -181,6 +182,14 @@
   </li>
 </ul>
 
+<nav class="language-switcher">
+  <strong>Adapt for:</strong> 
+  <ul>
+    <li data-type="language-java">Java SDK</li>
+    <li data-type="language-py">Python SDK</li>
+  </ul>
+</nav>
+
 <p>The WordCount examples demonstrate how to set up a processing pipeline that can read text, tokenize the text lines into individual words, and perform a frequency count on each of those words. The Beam SDKs contain a series of these four successively more detailed WordCount examples that build on each other. The input text for all the examples is a set of Shakespeare’s texts.</p>
 
 <p>Each WordCount example introduces different concepts in the Beam programming model. Begin by understanding Minimal WordCount, the simplest of the examples. Once you feel comfortable with the basic principles in building a pipeline, continue on to learn more concepts in the other examples.</p>
@@ -235,9 +244,23 @@
 </code></pre>
 </div>
 
+<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="n">options</span> <span class="o">=</span> <span class="n">PipelineOptions</span><span class="p">()</span>
+<span class="n">google_cloud_options</span> <span class="o">=</span> <span class="n">options</span><span class="o">.</span><span class="n">view_as</span><span class="p">(</span><span class="n">GoogleCloudOptions</span><span class="p">)</span>
+<span class="n">google_cloud_options</span><span class="o">.</span><span class="n">project</span> <span class="o">=</span> <span class="s">'my-project-id'</span>
+<span class="n">google_cloud_options</span><span class="o">.</span><span class="n">job_name</span> <span class="o">=</span> <span class="s">'myjob'</span>
+<span class="n">google_cloud_options</span><span class="o">.</span><span class="n">staging_location</span> <span class="o">=</span> <span class="s">'gs://your-bucket-name-here/staging'</span>
+<span class="n">google_cloud_options</span><span class="o">.</span><span class="n">temp_location</span> <span class="o">=</span> <span class="s">'gs://your-bucket-name-here/temp'</span>
+<span class="n">options</span><span class="o">.</span><span class="n">view_as</span><span class="p">(</span><span class="n">StandardOptions</span><span class="p">)</span><span class="o">.</span><span class="n">runner</span> <span class="o">=</span> <span class="s">'DataflowRunner'</span>
+</code></pre>
+</div>
+
 <p>The next step is to create a Pipeline object with the options we’ve just constructed. The Pipeline object builds up the graph of transformations to be executed, associated with that particular pipeline.</p>
 
 <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">Pipeline</span> <span class="n">p</span> <span class="o">=</span> <span class="n">Pipeline</span><span class="o">.</span><span class="na">create</span><span class="o">(</span><span class="n">options</span><span class="o">);</span>
+</code></pre>
+</div>
+
+<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="n">p</span> <span class="o">=</span> <span class="n">beam</span><span class="o">.</span><span class="n">Pipeline</span><span class="p">(</span><span class="n">options</span><span class="o">=</span><span class="n">options</span><span class="p">)</span>
 </code></pre>
 </div>
 
@@ -256,23 +279,33 @@ Figure 1: The pipeline data flow.</p>
   <li>
     <p>A text file <code class="highlighter-rouge">Read</code> transform is applied to the Pipeline object itself, and produces a <code class="highlighter-rouge">PCollection</code> as output. Each element in the output PCollection represents one line of text from the input file. This example happens to use input data stored in a publicly accessible Google Cloud Storage bucket (“gs://”).</p>
 
-    <div class="language-java highlighter-rouge"><pre class="highlight"><code>        <span class="n">p</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">TextIO</span><span class="o">.</span><span class="na">Read</span><span class="o">.</span><span class="na">from</span><span class="o">(</span><span class="s">"gs://apache-beam-samples/shakespeare/*"</span><span class="o">))</span>
+    <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">p</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">TextIO</span><span class="o">.</span><span class="na">Read</span><span class="o">.</span><span class="na">from</span><span class="o">(</span><span class="s">"gs://apache-beam-samples/shakespeare/*"</span><span class="o">))</span>
+</code></pre>
+    </div>
+
+    <div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="n">p</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">ReadFromText</span><span class="p">(</span>
+<span class="s">'gs://dataflow-samples/shakespeare/kinglear.txt'</span><span class="p">)</span>
 </code></pre>
     </div>
   </li>
   <li>
     <p>A <a href="/documentation/programming-guide/#transforms-pardo">ParDo</a> transform that invokes a <code class="highlighter-rouge">DoFn</code> (defined in-line as an anonymous class) on each element that tokenizes the text lines into individual words. The input for this transform is the <code class="highlighter-rouge">PCollection</code> of text lines generated by the previous <code class="highlighter-rouge">TextIO.Read</code> transform. The <code class="highlighter-rouge">ParDo</code> transform outputs a new <code class="highlighter-rouge">PCollection</code>, where each element represents an individual word in the text.</p>
 
-    <div class="language-java highlighter-rouge"><pre class="highlight"><code>        <span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="s">"ExtractWords"</span><span class="o">,</span> <span class="n">ParDo</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="k">new</span> <span class="n">DoFn</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">String</span><span class="o">&gt;()</span> <span class="o">{</span>
-            <span class="nd">@ProcessElement</span>
-            <span class="kd">public</span> <span class="kt">void</span> <span class="nf">processElement</span><span class="o">(</span><span class="n">ProcessContext</span> <span class="n">c</span><span class="o">)</span> <span class="o">{</span>
-                <span class="k">for</span> <span class="o">(</span><span class="n">String</span> <span class="n">word</span> <span class="o">:</span> <span class="n">c</span><span class="o">.</span><span class="na">element</span><span class="o">().</span><span class="na">split</span><span class="o">(</span><span class="s">"[^a-zA-Z']+"</span><span class="o">))</span> <span class="o">{</span>
-                    <span class="k">if</span> <span class="o">(!</span><span class="n">word</span><span class="o">.</span><span class="na">isEmpty</span><span class="o">())</span> <span class="o">{</span>
-                        <span class="n">c</span><span class="o">.</span><span class="na">output</span><span class="o">(</span><span class="n">word</span><span class="o">);</span>
-                    <span class="o">}</span>
-                <span class="o">}</span>
+    <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="s">"ExtractWords"</span><span class="o">,</span> <span class="n">ParDo</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="k">new</span> <span class="n">DoFn</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">String</span><span class="o">&gt;()</span> <span class="o">{</span>
+    <span class="nd">@ProcessElement</span>
+    <span class="kd">public</span> <span class="kt">void</span> <span class="nf">processElement</span><span class="o">(</span><span class="n">ProcessContext</span> <span class="n">c</span><span class="o">)</span> <span class="o">{</span>
+        <span class="k">for</span> <span class="o">(</span><span class="n">String</span> <span class="n">word</span> <span class="o">:</span> <span class="n">c</span><span class="o">.</span><span class="na">element</span><span class="o">().</span><span class="na">split</span><span class="o">(</span><span class="s">"[^a-zA-Z']+"</span><span class="o">))</span> <span class="o">{</span>
+            <span class="k">if</span> <span class="o">(!</span><span class="n">word</span><span class="o">.</span><span class="na">isEmpty</span><span class="o">())</span> <span class="o">{</span>
+                <span class="n">c</span><span class="o">.</span><span class="na">output</span><span class="o">(</span><span class="n">word</span><span class="o">);</span>
             <span class="o">}</span>
-        <span class="o">}))</span>
+        <span class="o">}</span>
+    <span class="o">}</span>
+<span class="o">}))</span>
+</code></pre>
+    </div>
+
+    <div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="c"># The Flatmap transform is a simplified version of ParDo.</span>
+<span class="o">|</span> <span class="s">'ExtractWords'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">FlatMap</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">re</span><span class="o">.</span><span class="n">findall</span><span class="p">(</span><span class="s">r'[A-Za-z</span><span class="se">\'</span><span class="s">]+'</span><span class="p">,</span> <span class="n">x</span><span class="p">))</span>
 </code></pre>
     </div>
   </li>
@@ -281,28 +314,40 @@ Figure 1: The pipeline data flow.</p>
 
     <p>In this pipeline, the input for <code class="highlighter-rouge">Count</code> is the <code class="highlighter-rouge">PCollection</code> of individual words generated by the previous <code class="highlighter-rouge">ParDo</code>, and the output is a <code class="highlighter-rouge">PCollection</code> of key/value pairs where each key represents a unique word in the text and the associated value is the occurrence count for each.</p>
 
-    <div class="language-java highlighter-rouge"><pre class="highlight"><code>        <span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">Count</span><span class="o">.&lt;</span><span class="n">String</span><span class="o">&gt;</span><span class="n">perElement</span><span class="o">())</span>
+    <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">Count</span><span class="o">.&lt;</span><span class="n">String</span><span class="o">&gt;</span><span class="n">perElement</span><span class="o">())</span>
+</code></pre>
+    </div>
+
+    <div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">combiners</span><span class="o">.</span><span class="n">Count</span><span class="o">.</span><span class="n">PerElement</span><span class="p">()</span>
 </code></pre>
     </div>
   </li>
   <li>
     <p>The next transform formats each of the key/value pairs of unique words and occurrence counts into a printable string suitable for writing to an output file.</p>
 
-    <p><code class="highlighter-rouge">MapElements</code> is a higher-level composite transform that encapsulates a simple <code class="highlighter-rouge">ParDo</code>; for each element in the input <code class="highlighter-rouge">PCollection</code>, <code class="highlighter-rouge">MapElements</code> applies a function that produces exactly one output element. In this example, <code class="highlighter-rouge">MapElements</code> invokes a <code class="highlighter-rouge">SimpleFunction</code> (defined in-line as an anonymous class) that does the formatting. As input, <code class="highlighter-rouge">MapElements</code> takes a <code class="highlighter-rouge">PCollection</code> of key/value pairs generated by <code class="highlighter-rouge">Count</code>, and produces a new <code class="highlighter-rouge">PCollection</code> of printable strings.</p>
+    <p>The map transform is a higher-level composite transform that encapsulates a simple <code class="highlighter-rouge">ParDo</code>; for each element in the input <code class="highlighter-rouge">PCollection</code>, the map transform applies a function that produces exactly one output element.</p>
 
-    <div class="language-java highlighter-rouge"><pre class="highlight"><code>        <span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="s">"FormatResults"</span><span class="o">,</span> <span class="n">MapElements</span><span class="o">.</span><span class="na">via</span><span class="o">(</span><span class="k">new</span> <span class="n">SimpleFunction</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">Long</span><span class="o">&gt;,</span> <span class="n">String</span><span class="o">&gt;()</span> <span class="o">{</span>
-            <span class="nd">@Override</span>
-            <span class="kd">public</span> <span class="n">String</span> <span class="nf">apply</span><span class="o">(</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">Long</span><span class="o">&gt;</span> <span class="n">input</span><span class="o">)</span> <span class="o">{</span>
-                <span class="k">return</span> <span class="n">input</span><span class="o">.</span><span class="na">getKey</span><span class="o">()</span> <span class="o">+</span> <span class="s">": "</span> <span class="o">+</span> <span class="n">input</span><span class="o">.</span><span class="na">getValue</span><span class="o">();</span>
-            <span class="o">}</span>
-        <span class="o">}))</span>
+    <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="s">"FormatResults"</span><span class="o">,</span> <span class="n">MapElements</span><span class="o">.</span><span class="na">via</span><span class="o">(</span><span class="k">new</span> <span class="n">SimpleFunction</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">Long</span><span class="o">&gt;,</span> <span class="n">String</span><span class="o">&gt;()</span> <span class="o">{</span>
+    <span class="nd">@Override</span>
+    <span class="kd">public</span> <span class="n">String</span> <span class="nf">apply</span><span class="o">(</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">Long</span><span class="o">&gt;</span> <span class="n">input</span><span class="o">)</span> <span class="o">{</span>
+        <span class="k">return</span> <span class="n">input</span><span class="o">.</span><span class="na">getKey</span><span class="o">()</span> <span class="o">+</span> <span class="s">": "</span> <span class="o">+</span> <span class="n">input</span><span class="o">.</span><span class="na">getValue</span><span class="o">();</span>
+    <span class="o">}</span>
+<span class="o">}))</span>
+</code></pre>
+    </div>
+
+    <div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">lambda</span> <span class="p">(</span><span class="n">word</span><span class="p">,</span> <span class="n">count</span><span class="p">):</span> <span class="s">'</span><span class="si">%</span><span class="s">s: </span><span class="si">%</span><span class="s">s'</span> <span class="o">%</span> <span class="p">(</span><span class="n">word</span><span class="p">,</span> <span class="n">count</span><span class="p">))</span>
 </code></pre>
     </div>
   </li>
   <li>
-    <p>A text file <code class="highlighter-rouge">Write</code>. This transform takes the final <code class="highlighter-rouge">PCollection</code> of formatted Strings as input and writes each element to an output text file. Each element in the input <code class="highlighter-rouge">PCollection</code> represents one line of text in the resulting output file.</p>
+    <p>A text file write transform. This transform takes the final <code class="highlighter-rouge">PCollection</code> of formatted Strings as input and writes each element to an output text file. Each element in the input <code class="highlighter-rouge">PCollection</code> represents one line of text in the resulting output file.</p>
 
-    <div class="language-java highlighter-rouge"><pre class="highlight"><code>        <span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">TextIO</span><span class="o">.</span><span class="na">Write</span><span class="o">.</span><span class="na">to</span><span class="o">(</span><span class="s">"wordcounts"</span><span class="o">));</span>
+    <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">TextIO</span><span class="o">.</span><span class="na">Write</span><span class="o">.</span><span class="na">to</span><span class="o">(</span><span class="s">"wordcounts"</span><span class="o">));</span>
+</code></pre>
+    </div>
+
+    <div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">WriteToText</span><span class="p">(</span><span class="s">'gs://my-bucket/counts.txt'</span><span class="p">)</span>
 </code></pre>
     </div>
   </li>
@@ -315,6 +360,10 @@ Figure 1: The pipeline data flow.</p>
 <p>Run the pipeline by calling the <code class="highlighter-rouge">run</code> method, which sends your pipeline to be executed by the pipeline runner that you specified when you created your pipeline.</p>
 
 <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">p</span><span class="o">.</span><span class="na">run</span><span class="o">().</span><span class="na">waitUntilFinish</span><span class="o">();</span>
+</code></pre>
+</div>
+
+<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="n">result</span> <span class="o">=</span> <span class="n">p</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
 </code></pre>
 </div>
 
@@ -342,9 +391,9 @@ Figure 1: The pipeline data flow.</p>
 
 <p>When using <code class="highlighter-rouge">ParDo</code> transforms, you need to specify the processing operation that gets applied to each element in the input <code class="highlighter-rouge">PCollection</code>. This processing operation is a subclass of the SDK class <code class="highlighter-rouge">DoFn</code>. You can create the <code class="highlighter-rouge">DoFn</code> subclasses for each <code class="highlighter-rouge">ParDo</code> inline, as an anonymous inner class instance, as is done in the previous example (Minimal WordCount). However, it’s often a good idea to define the <code class="highlighter-rouge">DoFn</code> at the global level, which makes it easier to unit test and can make the <code class="highlighter-rouge">ParDo</code> code more readable.</p>
 
-<p>In this example, <code class="highlighter-rouge">ExtractWordsFn</code> is a <code class="highlighter-rouge">DoFn</code> that is defined as a static class:</p>
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="c1">// In this example, ExtractWordsFn is a DoFn that is defined as a static class:</span>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="kd">static</span> <span class="kd">class</span> <span class="nc">ExtractWordsFn</span> <span class="kd">extends</span> <span class="n">DoFn</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">String</span><span class="o">&gt;</span> <span class="o">{</span>
+<span class="kd">static</span> <span class="kd">class</span> <span class="nc">ExtractWordsFn</span> <span class="kd">extends</span> <span class="n">DoFn</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">String</span><span class="o">&gt;</span> <span class="o">{</span>
     <span class="o">...</span>
 
     <span class="nd">@ProcessElement</span>
@@ -355,9 +404,15 @@ Figure 1: The pipeline data flow.</p>
 </code></pre>
 </div>
 
-<p>This <code class="highlighter-rouge">DoFn</code> (<code class="highlighter-rouge">ExtractWordsFn</code>) is the processing operation that <code class="highlighter-rouge">ParDo</code> applies to the <code class="highlighter-rouge">PCollection</code> of words:</p>
+<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="c"># In this example, the DoFns are defined as classes:</span>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">words</span> <span class="o">=</span> <span class="n">lines</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">ParDo</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="k">new</span> <span class="n">ExtractWordsFn</span><span class="o">()));</span>
+<span class="k">class</span> <span class="nc">FormatAsTextFn</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">DoFn</span><span class="p">):</span>
+
+  <span class="k">def</span> <span class="nf">process</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">context</span><span class="p">):</span>
+    <span class="n">word</span><span class="p">,</span> <span class="n">count</span> <span class="o">=</span> <span class="n">context</span><span class="o">.</span><span class="n">element</span>
+    <span class="k">yield</span> <span class="s">'</span><span class="si">%</span><span class="s">s: </span><span class="si">%</span><span class="s">s'</span> <span class="o">%</span> <span class="p">(</span><span class="n">word</span><span class="p">,</span> <span class="n">count</span><span class="p">)</span>
+
+<span class="n">formatted</span> <span class="o">=</span> <span class="n">counts</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">ParDo</span><span class="p">(</span><span class="n">FormatAsTextFn</span><span class="p">())</span>
 </code></pre>
 </div>
 
@@ -396,6 +451,21 @@ Figure 1: The pipeline data flow.</p>
 </code></pre>
 </div>
 
+<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="k">class</span> <span class="nc">CountWords</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">PTransform</span><span class="p">):</span>
+
+  <span class="k">def</span> <span class="nf">expand</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pcoll</span><span class="p">):</span>
+    <span class="k">return</span> <span class="p">(</span><span class="n">pcoll</span>
+            <span class="c"># Convert lines of text into individual words.</span>
+            <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">FlatMap</span><span class="p">(</span>
+                <span class="s">'ExtractWords'</span><span class="p">,</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">re</span><span class="o">.</span><span class="n">findall</span><span class="p">(</span><span class="s">r'[A-Za-z</span><span class="se">\'</span><span class="s">]+'</span><span class="p">,</span> <span class="n">x</span><span class="p">))</span>
+
+            <span class="c"># Count the number of times each word occurs.</span>
+            <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">combiners</span><span class="o">.</span><span class="n">Count</span><span class="o">.</span><span class="n">PerElement</span><span class="p">())</span>
+
+<span class="n">counts</span> <span class="o">=</span> <span class="n">lines</span> <span class="o">|</span> <span class="n">CountWords</span><span class="p">()</span>
+</code></pre>
+</div>
+
 <h3 id="using-parameterizable-pipelineoptions">Using Parameterizable PipelineOptions</h3>
 
 <p>You can hard-code various execution options when you run your pipeline. However, the more common way is to define your own configuration options via command-line argument parsing. Defining your configuration options via the command-line makes the code more easily portable across different runners.</p>
@@ -416,6 +486,19 @@ Figure 1: The pipeline data flow.</p>
   <span class="n">Pipeline</span> <span class="n">p</span> <span class="o">=</span> <span class="n">Pipeline</span><span class="o">.</span><span class="na">create</span><span class="o">(</span><span class="n">options</span><span class="o">);</span>
   <span class="o">...</span>
 <span class="o">}</span>
+</code></pre>
+</div>
+
+<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="k">class</span> <span class="nc">WordCountOptions</span><span class="p">(</span><span class="n">PipelineOptions</span><span class="p">):</span>
+
+  <span class="nd">@classmethod</span>
+  <span class="k">def</span> <span class="nf">_add_argparse_args</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">parser</span><span class="p">):</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s">'--input'</span><span class="p">,</span>
+                        <span class="n">help</span><span class="o">=</span><span class="s">'Input for the pipeline'</span><span class="p">,</span>
+                        <span class="n">default</span><span class="o">=</span><span class="s">'gs://my-bucket/input'</span><span class="p">)</span>
+
+<span class="n">options</span> <span class="o">=</span> <span class="n">PipelineOptions</span><span class="p">(</span><span class="n">argv</span><span class="p">)</span>
+<span class="n">p</span> <span class="o">=</span> <span class="n">beam</span><span class="o">.</span><span class="n">Pipeline</span><span class="p">(</span><span class="n">options</span><span class="o">=</span><span class="n">options</span><span class="p">)</span>
 </code></pre>
 </div>
 
@@ -446,9 +529,9 @@ Figure 1: The pipeline data flow.</p>
 
 <p>If you execute your pipeline using <code class="highlighter-rouge">DataflowRunner</code>, you can use Google Cloud Logging. Google Cloud Logging (currently in beta) aggregates the logs from all of your Dataflow job’s workers to a single location in the Google Cloud Platform Console. You can use Cloud Logging to search and access the logs from all of the Compute Engine instances that Dataflow has spun up to complete your Dataflow job. You can add logging statements into your pipeline’s <code class="highlighter-rouge">DoFn</code> instances that will appear in Cloud Logging as your pipeline runs.</p>
 
-<p>In this example, we use <code class="highlighter-rouge">.trace</code> and <code class="highlighter-rouge">.debug</code>:</p>
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="c1">// This example uses .trace and .debug:</span>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="kd">public</span> <span class="kd">class</span> <span class="nc">DebuggingWordCount</span> <span class="o">{</span>
+<span class="kd">public</span> <span class="kd">class</span> <span class="nc">DebuggingWordCount</span> <span class="o">{</span>
 
   <span class="kd">public</span> <span class="kd">static</span> <span class="kd">class</span> <span class="nc">FilterTextFn</span> <span class="kd">extends</span> <span class="n">DoFn</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">Long</span><span class="o">&gt;,</span> <span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">Long</span><span class="o">&gt;&gt;</span> <span class="o">{</span>
     <span class="o">...</span>
@@ -464,6 +547,44 @@ Figure 1: The pipeline data flow.</p>
     <span class="o">}</span>
   <span class="o">}</span>
 <span class="o">}</span>
+</code></pre>
+</div>
+
+<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="c"># [START example_wordcount_debugging_aggregators]</span>
+<span class="kn">import</span> <span class="nn">logging</span>
+
+<span class="k">class</span> <span class="nc">FilterTextFn</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">DoFn</span><span class="p">):</span>
+  <span class="s">"""A DoFn that filters for a specific key based on a regular expression."""</span>
+
+  <span class="c"># A custom aggregator can track values in your pipeline as it runs. Create</span>
+  <span class="c"># custom aggregators matched_word and unmatched_words.</span>
+  <span class="n">matched_words</span> <span class="o">=</span> <span class="n">beam</span><span class="o">.</span><span class="n">Aggregator</span><span class="p">(</span><span class="s">'matched_words'</span><span class="p">)</span>
+  <span class="n">umatched_words</span> <span class="o">=</span> <span class="n">beam</span><span class="o">.</span><span class="n">Aggregator</span><span class="p">(</span><span class="s">'umatched_words'</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pattern</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">pattern</span> <span class="o">=</span> <span class="n">pattern</span>
+
+  <span class="k">def</span> <span class="nf">process</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">context</span><span class="p">):</span>
+    <span class="n">word</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">context</span><span class="o">.</span><span class="n">element</span>
+    <span class="k">if</span> <span class="n">re</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">pattern</span><span class="p">,</span> <span class="n">word</span><span class="p">):</span>
+      <span class="c"># Log at INFO level each element we match. When executing this pipeline</span>
+      <span class="c"># using the Dataflow service, these log lines will appear in the Cloud</span>
+      <span class="c"># Logging UI.</span>
+      <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">'Matched </span><span class="si">%</span><span class="s">s'</span><span class="p">,</span> <span class="n">word</span><span class="p">)</span>
+
+      <span class="c"># Add 1 to the custom aggregator matched_words</span>
+      <span class="n">context</span><span class="o">.</span><span class="n">aggregate_to</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">matched_words</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+      <span class="k">yield</span> <span class="n">context</span><span class="o">.</span><span class="n">element</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="c"># Log at the "DEBUG" level each element that is not matched. Different</span>
+      <span class="c"># log levels can be used to control the verbosity of logging providing</span>
+      <span class="c"># an effective mechanism to filter less important information. Note</span>
+      <span class="c"># currently only "INFO" and higher level logs are emitted to the Cloud</span>
+      <span class="c"># Logger. This log message will not be visible in the Cloud Logger.</span>
+      <span class="n">logging</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">'Did not match </span><span class="si">%</span><span class="s">s'</span><span class="p">,</span> <span class="n">word</span><span class="p">)</span>
+
+      <span class="c"># Add 1 to the custom aggregator umatched_words</span>
+      <span class="n">context</span><span class="o">.</span><span class="n">aggregate_to</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">umatched_words</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
 </code></pre>
 </div>
 
@@ -500,6 +621,10 @@ Figure 1: The pipeline data flow.</p>
 </code></pre>
 </div>
 
+<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="n">This</span> <span class="n">feature</span> <span class="ow">is</span> <span class="ow">not</span> <span class="n">yet</span> <span class="n">available</span> <span class="ow">in</span> <span class="n">the</span> <span class="n">Beam</span> <span class="n">SDK</span> <span class="k">for</span> <span class="n">Python</span><span class="o">.</span>
+</code></pre>
+</div>
+
 <h2 id="windowedwordcount">WindowedWordCount</h2>
 
 <p>This example, <code class="highlighter-rouge">WindowedWordCount</code>, counts words in text just as the previous examples did, but introduces several advanced concepts.</p>
@@ -531,11 +656,19 @@ Figure 1: The pipeline data flow.</p>
 </code></pre>
 </div>
 
+<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="n">This</span> <span class="n">feature</span> <span class="ow">is</span> <span class="ow">not</span> <span class="n">yet</span> <span class="n">available</span> <span class="ow">in</span> <span class="n">the</span> <span class="n">Beam</span> <span class="n">SDK</span> <span class="k">for</span> <span class="n">Python</span><span class="o">.</span>
+</code></pre>
+</div>
+
 <h3 id="adding-timestamps-to-data">Adding Timestamps to Data</h3>
 
 <p>Each element in a <code class="highlighter-rouge">PCollection</code> has an associated <strong>timestamp</strong>. The timestamp for each element is initially assigned by the source that creates the <code class="highlighter-rouge">PCollection</code> and can be adjusted by a <code class="highlighter-rouge">DoFn</code>. In this example the input is bounded. For the purpose of the example, the <code class="highlighter-rouge">DoFn</code> method named <code class="highlighter-rouge">AddTimestampsFn</code> (invoked by <code class="highlighter-rouge">ParDo</code>) will set a timestamp for each element in the <code class="highlighter-rouge">PCollection</code>.</p>
 
 <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">ParDo</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="k">new</span> <span class="n">AddTimestampFn</span><span class="o">()));</span>
+</code></pre>
+</div>
+
+<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="n">This</span> <span class="n">feature</span> <span class="ow">is</span> <span class="ow">not</span> <span class="n">yet</span> <span class="n">available</span> <span class="ow">in</span> <span class="n">the</span> <span class="n">Beam</span> <span class="n">SDK</span> <span class="k">for</span> <span class="n">Python</span><span class="o">.</span>
 </code></pre>
 </div>
 
@@ -562,6 +695,10 @@ Figure 1: The pipeline data flow.</p>
 </code></pre>
 </div>
 
+<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="n">This</span> <span class="n">feature</span> <span class="ow">is</span> <span class="ow">not</span> <span class="n">yet</span> <span class="n">available</span> <span class="ow">in</span> <span class="n">the</span> <span class="n">Beam</span> <span class="n">SDK</span> <span class="k">for</span> <span class="n">Python</span><span class="o">.</span>
+</code></pre>
+</div>
+
 <h3 id="windowing">Windowing</h3>
 
 <p>Beam uses a concept called <strong>Windowing</strong> to subdivide a <code class="highlighter-rouge">PCollection</code> according to the timestamps of its individual elements. <code class="highlighter-rouge">PTransforms</code> that aggregate multiple elements, process each <code class="highlighter-rouge">PCollection</code> as a succession of multiple, finite windows, even though the entire collection itself may be of infinite size (unbounded).</p>
@@ -574,11 +711,19 @@ Figure 1: The pipeline data flow.</p>
 </code></pre>
 </div>
 
+<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="n">This</span> <span class="n">feature</span> <span class="ow">is</span> <span class="ow">not</span> <span class="n">yet</span> <span class="n">available</span> <span class="ow">in</span> <span class="n">the</span> <span class="n">Beam</span> <span class="n">SDK</span> <span class="k">for</span> <span class="n">Python</span><span class="o">.</span>
+</code></pre>
+</div>
+
 <h3 id="reusing-ptransforms-over-windowed-pcollections">Reusing PTransforms over windowed PCollections</h3>
 
 <p>You can reuse existing <code class="highlighter-rouge">PTransform</code>s, that were created for manipulating simple <code class="highlighter-rouge">PCollection</code>s, over windowed <code class="highlighter-rouge">PCollection</code>s as well.</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>PCollection&lt;KV&lt;String, Long&gt;&gt; wordCounts = windowedWords.apply(new WordCount.CountWords());
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">Long</span><span class="o">&gt;&gt;</span> <span class="n">wordCounts</span> <span class="o">=</span> <span class="n">windowedWords</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="k">new</span> <span class="n">WordCount</span><span class="o">.</span><span class="na">CountWords</span><span class="o">());</span>
+</code></pre>
+</div>
+
+<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="n">This</span> <span class="n">feature</span> <span class="ow">is</span> <span class="ow">not</span> <span class="n">yet</span> <span class="n">available</span> <span class="ow">in</span> <span class="n">the</span> <span class="n">Beam</span> <span class="n">SDK</span> <span class="k">for</span> <span class="n">Python</span><span class="o">.</span>
 </code></pre>
 </div>
 
@@ -594,6 +739,10 @@ Figure 1: The pipeline data flow.</p>
       <span class="o">.</span><span class="na">withSchema</span><span class="o">(</span><span class="n">getSchema</span><span class="o">())</span>
       <span class="o">.</span><span class="na">withCreateDisposition</span><span class="o">(</span><span class="n">BigQueryIO</span><span class="o">.</span><span class="na">Write</span><span class="o">.</span><span class="na">CreateDisposition</span><span class="o">.</span><span class="na">CREATE_IF_NEEDED</span><span class="o">)</span>
       <span class="o">.</span><span class="na">withWriteDisposition</span><span class="o">(</span><span class="n">BigQueryIO</span><span class="o">.</span><span class="na">Write</span><span class="o">.</span><span class="na">WriteDisposition</span><span class="o">.</span><span class="na">WRITE_APPEND</span><span class="o">));</span>
+</code></pre>
+</div>
+
+<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="n">This</span> <span class="n">feature</span> <span class="ow">is</span> <span class="ow">not</span> <span class="n">yet</span> <span class="n">available</span> <span class="ow">in</span> <span class="n">the</span> <span class="n">Beam</span> <span class="n">SDK</span> <span class="k">for</span> <span class="n">Python</span><span class="o">.</span>
 </code></pre>
 </div>
 
