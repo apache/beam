@@ -73,6 +73,8 @@ class ParDoEvaluator<InputT, OutputT> implements TransformEvaluator<InputT> {
     ReadyCheckingSideInputReader sideInputReader =
         evaluationContext.createSideInputReader(sideInputs);
 
+    // Unlike for OldDoFn, there is no ReduceFnExecutor that is a new DoFn,
+    // and window-exploded processing is achieved within the simple runner
     DoFnRunner<InputT, OutputT> underlying =
         DoFnRunners.simpleRunner(
             evaluationContext.getPipelineOptions(),
