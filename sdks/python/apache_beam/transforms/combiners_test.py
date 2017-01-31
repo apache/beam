@@ -219,24 +219,18 @@ class CombineTest(unittest.TestCase):
     pipeline.run()
 
   def test_global_sample(self):
-    for ix in xrange(30):
-      pipeline = TestPipeline()
-      pcoll = pipeline | 'start' >> Create([1, 1, 2, 2])
-      result = pcoll | combine.Sample.FixedSizeGlobally('sample-%d' % ix, 3)
 
-      def matcher():
-        def match(actual):
-          # There is always exactly one result.
-          equal_to([1])([len(actual)])
-          # There are always exactly three samples in the result.
-          equal_to([3])([len(actual[0])])
-          # Sampling is without replacement.
-          num_ones = sum(1 for x in actual[0] if x == 1)
-          num_twos = sum(1 for x in actual[0] if x == 2)
-          equal_to([1, 2])([num_ones, num_twos])
-        return match
-      assert_that(result, matcher())
-      pipeline.run()
+    def is_good_sample(actual):
+      assert len(actual) == 1
+      assert sorted(actual[0]) in [[1, 1, 2], [1, 2, 2]], actual
+
+    with TestPipeline() as pipeline:
+      pcoll = pipeline | 'start' >> Create([1, 1, 2, 2])
+      for ix in xrange(30):
+        assert_that(
+          pcoll | combine.Sample.FixedSizeGlobally('sample-%d' % ix, 3),
+          is_good_sample,
+          label='check-%d' % ix)
 
   def test_per_key_sample(self):
     pipeline = TestPipeline()
