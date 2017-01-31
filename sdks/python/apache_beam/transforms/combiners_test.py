@@ -218,29 +218,21 @@ class CombineTest(unittest.TestCase):
     assert_that(result_kbot, equal_to([('a', [0, 1, 1, 1])]), label='k:bot')
     pipeline.run()
 
-  def test_sample(self):
+  def test_global_sample(self):
 
-    # First test global samples (lots of them).
-    for ix in xrange(300):
-      pipeline = TestPipeline()
+    def is_good_sample(actual):
+      assert len(actual) == 1
+      assert sorted(actual[0]) in [[1, 1, 2], [1, 2, 2]], actual
+
+    with TestPipeline() as pipeline:
       pcoll = pipeline | 'start' >> Create([1, 1, 2, 2])
-      result = pcoll | combine.Sample.FixedSizeGlobally('sample-%d' % ix, 3)
+      for ix in xrange(30):
+        assert_that(
+            pcoll | combine.Sample.FixedSizeGlobally('sample-%d' % ix, 3),
+            is_good_sample,
+            label='check-%d' % ix)
 
-      def matcher():
-        def match(actual):
-          # There is always exactly one result.
-          equal_to([1])([len(actual)])
-          # There are always exactly three samples in the result.
-          equal_to([3])([len(actual[0])])
-          # Sampling is without replacement.
-          num_ones = sum(1 for x in actual[0] if x == 1)
-          num_twos = sum(1 for x in actual[0] if x == 2)
-          equal_to([1, 2])([num_ones, num_twos])
-        return match
-      assert_that(result, matcher())
-      pipeline.run()
-
-    # Now test per-key samples.
+  def test_per_key_sample(self):
     pipeline = TestPipeline()
     pcoll = pipeline | 'start-perkey' >> Create(
         sum(([(i, 1), (i, 1), (i, 2), (i, 2)] for i in xrange(300)), []))
