@@ -302,7 +302,7 @@ def _parse_table_reference(table, dataset=None, project=None):
   # table name.
   if dataset is None:
     match = re.match(
-        r'^((?P<project>.+):)?(?P<dataset>\w+)\.(?P<table>[\w\$]+)$', table)
+        r'^((?P<project>.+):)?(?P<dataset>[\w\.]+)\.(?P<table>[\w\$]+)$', table)
     if not match:
       raise ValueError(
           'Expected a table reference (PROJECT:DATASET.TABLE or '
