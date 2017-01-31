@@ -25,6 +25,14 @@
   <packaging>pom</packaging>
   <inceptionYear>2016</inceptionYear>
 
+  <name>${project.groupId}:${project.artifactId}</name>
+  <description>
+    A Java API for creating unified big-data processing flows providing an
+    engine independent programming model which can express both batch and
+    stream transformations.
+  </description>
+  <url>https://github.com/seznam/euphoria</url>
+
   <licenses>
     <license>
       <name>The Apache Software License, Version 2.0</name>
@@ -35,15 +43,42 @@
 
   <scm>
     <connection>scm:git:git@github.com:seznam/euphoria.git</connection>
-    <url>scm:git:git@github.com:seznam/euphoria.git</url>
     <developerConnection>scm:git:git@github.com:seznam/euphoria.git</developerConnection>
+    <url>https://github.com/seznam/euphoria/tree/master</url>
     <tag>HEAD</tag>
   </scm>
 
   <organization>
     <name>Seznam.cz, a.s.</name>
-    <url>http://www.seznam.cz</url>
+    <url>https://www.seznam.cz</url>
   </organization>
+
+  <developers>
+    <developer>
+      <name>Jaromir Vanek</name>
+      <email>jaromir.vanek2@firma.seznam.cz</email>
+      <organization>Seznam a.s.</organization>
+      <organizationUrl>https://www.seznam.cz</organizationUrl>
+    </developer>
+    <developer>
+      <name>Jan Lukavsky</name>
+      <email>jan.lukavsky@firma.seznam.cz</email>
+      <organization>Seznam a.s.</organization>
+      <organizationUrl>https://www.seznam.cz</organizationUrl>
+    </developer>
+    <developer>
+      <name>Adam Horky</name>
+      <email>adam.horky@firma.seznam.cz</email>
+      <organization>Seznam a.s.</organization>
+      <organizationUrl>https://www.seznam.cz</organizationUrl>
+    </developer>
+    <developer>
+      <name>Petr Novotnik</name>
+      <email>petr.novotnik@firma.seznam.cz</email>
+      <organization>Seznam a.s.</organization>
+      <organizationUrl>https://www.seznam.cz</organizationUrl>
+    </developer>
+  </developers>
 
   <modules>
     <module>euphoria-core</module>
@@ -70,7 +105,6 @@
               <artifactId>maven-javadoc-plugin</artifactId>
               <version>2.10.3</version>
               <configuration>
-                <skip>true</skip>
                 <additionalparam>-Xdoclint:none</additionalparam>
                 <encoding>UTF-8</encoding>
               </configuration>
