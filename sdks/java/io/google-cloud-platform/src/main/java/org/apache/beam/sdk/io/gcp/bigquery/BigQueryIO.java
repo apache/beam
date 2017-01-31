@@ -1149,6 +1149,7 @@ public class BigQueryIO {
           .setAllowLargeResults(true)
           .setCreateDisposition("CREATE_IF_NEEDED")
           .setDestinationTable(destinationTable)
+          .setPriority("BATCH")
           .setWriteDisposition("WRITE_EMPTY");
 
       jobService.startQueryJob(jobRef, queryConfig);
@@ -1162,7 +1163,6 @@ public class BigQueryIO {
     private JobConfigurationQuery createBasicQueryConfig() {
       return new JobConfigurationQuery()
           .setFlattenResults(flattenResults)
-          .setPriority("BATCH")
           .setQuery(query.get())
           .setUseLegacySql(useLegacySql);
     }
