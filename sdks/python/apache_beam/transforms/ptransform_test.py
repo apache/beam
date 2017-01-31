@@ -1418,7 +1418,7 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
     self.assertStartswith(
         e.exception.message,
         "Runtime type violation detected within "
-        "ParDo(Mul/CombinePerKey/Combine/ParDo(CombineValuesDoFn)): "
+        "ParDo(Mul/CombinePerKey/LiftedCombinePerKey/ParDo(FinishCombine)): "
         "Tuple[TypeVariable[K], int] hint type-constraint violated. "
         "The type of element #1 in the passed tuple is incorrect. "
         "Expected an instance of type int, "
@@ -1491,7 +1491,8 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
     self.assertEqual(
         'Pipeline type checking is enabled, '
         'however no output type-hint was found for the PTransform '
-        'ParDo(SortJoin/CombinePerKey/Combine/ParDo(CombineValuesDoFn))',
+        'ParDo('
+        'SortJoin/CombinePerKey/LiftedCombinePerKey/ParDo(FinishCombine))',
         e.exception.message)
 
   def test_mean_globally_pipeline_checking_satisfied(self):
@@ -1509,11 +1510,11 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
        | 'C' >> beam.Create(['test']).with_output_types(str)
        | 'Mean' >> combine.Mean.Globally())
 
-    self.assertEqual("Type hint violation for 'ParDo(CombineValuesDoFn)': "
-                     "requires Tuple[TypeVariable[K], "
-                     "Iterable[Union[float, int, long]]] "
-                     "but got Tuple[None, Iterable[str]] for p_context",
-                     e.exception.message)
+    self.assertEqual(
+        "Type hint violation for 'ParDo(PartialGroupByKeyCombiningValues)': "
+        "requires Tuple[TypeVariable[K], Union[float, int, long]] "
+        "but got Tuple[None, str] for context",
+        e.exception.message)
 
   def test_mean_globally_runtime_checking_satisfied(self):
     self.p.options.view_as(TypeOptions).runtime_type_check = True
@@ -1566,11 +1567,11 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
        | 'EvenMean' >> combine.Mean.PerKey())
       self.p.run()
 
-    self.assertEqual("Type hint violation for 'ParDo(CombineValuesDoFn)': "
-                     "requires Tuple[TypeVariable[K], "
-                     "Iterable[Union[float, int, long]]] "
-                     "but got Tuple[str, Iterable[str]] for p_context",
-                     e.exception.message)
+    self.assertEqual(
+        "Type hint violation for 'ParDo(PartialGroupByKeyCombiningValues)': "
+        "requires Tuple[TypeVariable[K], Union[float, int, long]] "
+        "but got Tuple[str, str] for context",
+        e.exception.message)
 
   def test_mean_per_key_runtime_checking_satisfied(self):
     self.p.options.view_as(TypeOptions).runtime_type_check = True
@@ -1600,18 +1601,15 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
     self.assertStartswith(
         e.exception.message,
         "Runtime type violation detected within "
-        "ParDo(OddMean/CombinePerKey(MeanCombineFn)/"
-        "Combine/ParDo(CombineValuesDoFn)): "
-        "Type-hint for argument: 'p_context' violated: "
-        "Tuple[TypeVariable[K], Iterable[Union[float, int, long]]]"
+        "ParDo(OddMean/CombinePerKey(MeanCombineFn)/LiftedCombinePerKey/"
+        "ParDo(PartialGroupByKeyCombiningValues)): "
+        "Type-hint for argument: 'context.element' violated: "
+        "Tuple[TypeVariable[K], Union[float, int, long]]"
         " hint type-constraint violated. "
         "The type of element #1 in the passed tuple is incorrect. "
-        "Iterable[Union[float, int, long]] "
-        "hint type-constraint violated. The type of element #0 "
-        "in the passed Iterable is incorrect: "
         "Union[float, int, long] type-constraint violated. "
-        "Expected an instance of one of: "
-        "('float', 'int', 'long'), received str instead.")
+        "Expected an instance of one of: ('float', 'int', 'long'), "
+        "received str instead.")
 
   def test_count_globally_pipeline_type_checking_satisfied(self):
     d = (self.p
@@ -1650,10 +1648,11 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
        | beam.Create(range(5)).with_output_types(int)
        | 'CountInt' >> combine.Count.PerKey())
 
-    self.assertEqual("Input type hint violation at GroupByKey: "
-                     "expected Tuple[TypeVariable[K], TypeVariable[V]], "
-                     "got <type 'int'>",
-                     e.exception.message)
+    self.assertEqual(
+        "Type hint violation for 'ParDo(PartialGroupByKeyCombiningValues)': "
+        "requires Tuple[TypeVariable[K], Any] "
+        "but got <type 'int'> for context",
+        e.exception.message)
 
   def test_count_perkey_runtime_type_checking_satisfied(self):
     self.p.options.view_as(TypeOptions).runtime_type_check = True
@@ -1730,10 +1729,11 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
        | 'Num + 1' >> beam.Map(lambda x: x + 1).with_output_types(int)
        | 'TopMod' >> combine.Top.PerKey(1, lambda a, b: a < b))
 
-    self.assertEqual("Input type hint violation at GroupByKey: "
-                     "expected Tuple[TypeVariable[K], TypeVariable[V]], "
-                     "got <type 'int'>",
-                     e.exception.message)
+    self.assertEqual(
+        "Type hint violation for 'ParDo(PartialGroupByKeyCombiningValues)': "
+        "requires Tuple[TypeVariable[K], TypeVariable[T]] "
+        "but got <type 'int'> for context",
+        e.exception.message)
 
   def test_per_key_pipeline_checking_satisfied(self):
     d = (self.p
@@ -1863,11 +1863,12 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
        | beam.Create([1, 2, 3, 4]).with_output_types(int)
        | combine.ToDict())
 
-    self.assertEqual("Type hint violation for 'ParDo(CombineValuesDoFn)': "
-                     "requires Tuple[TypeVariable[K], "
-                     "Iterable[Tuple[TypeVariable[K], TypeVariable[V]]]] "
-                     "but got Tuple[None, Iterable[int]] for p_context",
-                     e.exception.message)
+    self.assertEqual(
+        "Type hint violation for 'ParDo(PartialGroupByKeyCombiningValues)': "
+        "requires "
+        "Tuple[TypeVariable[K], Tuple[TypeVariable[K], TypeVariable[V]]] "
+        "but got Tuple[None, int] for context",
+        e.exception.message)
 
   def test_to_dict_pipeline_check_satisfied(self):
     d = (self.p

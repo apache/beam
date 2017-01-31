@@ -19,6 +19,7 @@ import collections
 import itertools
 
 import apache_beam as beam
+from apache_beam import typehints
 from apache_beam.utils.windowed_value import WindowedValue
 from apache_beam.internal.util import ArgumentPlaceholder
 
@@ -35,10 +36,11 @@ class LiftedCombinePerKey(beam.PTransform):
         combine_fn, args, kwargs)
 
   def expand(self, pcoll):
-    return (pcoll
-      | beam.ParDo(PartialGroupByKeyCombiningValues(self._combine_fn))
-      | beam.GroupByKey()
-      | beam.ParDo(FinishCombine(self._combine_fn)))
+    return (
+        pcoll
+        | beam.ParDo(PartialGroupByKeyCombiningValues(self._combine_fn))
+        | beam.GroupByKey()
+        | beam.ParDo(FinishCombine(self._combine_fn)))
 
 
 class PartialGroupByKeyCombiningValues(beam.DoFn):
@@ -58,10 +60,20 @@ class PartialGroupByKeyCombiningValues(beam.DoFn):
       self._cache[k, w] = self._combine_fn.add_input(self._cache[k, w], vi)
 
   def finish_bundle(self, context):
-    import pprint
-    pprint.pprint(dict(self._cache))
     for (k, w), va in self._cache.items():
       yield WindowedValue((k, va), w.end, (w,))
+
+  def default_type_hints(self):
+    hints = self._combine_fn.get_type_hints().copy()
+    K = typehints.TypeVariable('K')
+    if hints.input_types:
+      args, kwargs = hints.input_types
+      args = (typehints.Tuple[K, args[0]],) + args[1:]
+      hints.set_input_types(*args, **kwargs)
+    else:
+      hints.set_input_types(typehints.Tuple[K, typehints.Any])
+    hints.set_output_types(typehints.Tuple[K, typehints.Any])
+    return hints
 
 
 class FinishCombine(beam.DoFn):
@@ -73,5 +85,15 @@ class FinishCombine(beam.DoFn):
   def process(self, context):
     k, vs = context.element
     return [(
-      k,
-      self._combine_fn.extract_output(self._combine_fn.merge_accumulators(vs)))]
+        k,
+        self._combine_fn.extract_output(
+            self._combine_fn.merge_accumulators(vs)))]
+
+  def default_type_hints(self):
+    hints = self._combine_fn.get_type_hints().copy()
+    K = typehints.TypeVariable('K')
+    hints.set_input_types(typehints.Tuple[K, typehints.Any])
+    if hints.output_types:
+      main_output_type = hints.simple_output_type('')
+      hints.set_output_types(typehints.Tuple[K, main_output_type])
+    return hints
