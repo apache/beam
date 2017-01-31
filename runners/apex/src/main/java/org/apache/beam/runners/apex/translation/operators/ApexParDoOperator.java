@@ -305,7 +305,7 @@ public class ApexParDoOperator<InputT, OutputT> extends BaseOperator implements 
       sideOutputPortMapping.put(sideOutputTags.get(i), port);
     }
 
-    DoFnRunner<InputT, OutputT> doFnRunner = DoFnRunners.simpleRunner(
+    DoFnRunner<InputT, OutputT> doFnRunner = DoFnRunners.createDefault(
         pipelineOptions.get(),
         doFn,
         sideInputReader,

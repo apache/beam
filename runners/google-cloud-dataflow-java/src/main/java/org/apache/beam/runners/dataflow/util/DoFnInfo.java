@@ -17,6 +17,8 @@
  */
 package org.apache.beam.runners.dataflow.util;
 
+import static com.google.common.base.Preconditions.checkState;
+
 import java.io.Serializable;
 import java.util.Map;
 import org.apache.beam.sdk.coders.Coder;
@@ -26,13 +28,14 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 
 /**
- * Wrapper class holding the necessary information to serialize a {@link DoFn}.
+ * Wrapper class holding the necessary information to serialize a {@link OldDoFn}
+ * or {@link DoFn}.
  *
- * @param <InputT> the type of the (main) input elements of the {@link DoFn}
- * @param <OutputT> the type of the (main) output elements of the {@link DoFn}
+ * @param <InputT> the type of the (main) input elements of the {@link OldDoFn}
+ * @param <OutputT> the type of the (main) output elements of the {@link OldDoFn}
  */
 public class DoFnInfo<InputT, OutputT> implements Serializable {
-  private final DoFn<InputT, OutputT> doFn;
+  private final Serializable doFn;
   private final WindowingStrategy<?, ?> windowingStrategy;
   private final Iterable<PCollectionView<?>> sideInputViews;
   private final Coder<InputT> inputCoder;
@@ -43,37 +46,17 @@ public class DoFnInfo<InputT, OutputT> implements Serializable {
    * Creates a {@link DoFnInfo} for the given {@link DoFn}.
    */
   public static <InputT, OutputT> DoFnInfo<InputT, OutputT> forFn(
-      DoFn<InputT, OutputT> doFn,
-      WindowingStrategy<?, ?> windowingStrategy,
-      Iterable<PCollectionView<?>> sideInputViews,
-      Coder<InputT> inputCoder,
-      long mainOutput,
-      Map<Long, TupleTag<?>> outputMap) {
-    return new DoFnInfo<>(
-        doFn, windowingStrategy, sideInputViews, inputCoder, mainOutput, outputMap);
-  }
-
-  /** TODO: remove this when Dataflow worker uses the DoFn overload. */
-  @Deprecated
-  @SuppressWarnings("unchecked")
-  public static <InputT, OutputT> DoFnInfo<InputT, OutputT> forFn(
       Serializable doFn,
       WindowingStrategy<?, ?> windowingStrategy,
       Iterable<PCollectionView<?>> sideInputViews,
       Coder<InputT> inputCoder,
       long mainOutput,
       Map<Long, TupleTag<?>> outputMap) {
-    return forFn(
-        (DoFn<InputT, OutputT>) doFn,
-        windowingStrategy,
-        sideInputViews,
-        inputCoder,
-        mainOutput,
-        outputMap);
+    return new DoFnInfo(doFn, windowingStrategy, sideInputViews, inputCoder, mainOutput, outputMap);
   }
 
   private DoFnInfo(
-      DoFn<InputT, OutputT> doFn,
+      Serializable doFn,
       WindowingStrategy<?, ?> windowingStrategy,
       Iterable<PCollectionView<?>> sideInputViews,
       Coder<InputT> inputCoder,
@@ -87,15 +70,34 @@ public class DoFnInfo<InputT, OutputT> implements Serializable {
     this.outputMap = outputMap;
   }
 
-  /** TODO: remove this when Dataflow worker uses {@link #getDoFn}. */
+  /**
+   * @deprecated use {@link #forFn}.
+   */
   @Deprecated
+  public DoFnInfo(
+      OldDoFn doFn,
+      WindowingStrategy<?, ?> windowingStrategy,
+      Iterable<PCollectionView<?>> sideInputViews,
+      Coder<InputT> inputCoder,
+      long mainOutput,
+      Map<Long, TupleTag<?>> outputMap) {
+    this((Serializable) doFn, windowingStrategy, sideInputViews, inputCoder, mainOutput, outputMap);
+  }
+
+  /** Returns the embedded serialized function. It may be a {@code DoFn} or {@code OldDoFn}. */
   public Serializable getFn() {
     return doFn;
   }
 
-  /** Returns the embedded function. */
-  public DoFn<InputT, OutputT> getDoFn() {
-    return doFn;
+  /** @deprecated use {@link #getFn()} */
+  @Deprecated
+  public OldDoFn getDoFn() {
+    checkState(
+        doFn instanceof OldDoFn,
+        "Deprecated %s.getDoFn() called when the payload was actually a new %s",
+        DoFnInfo.class.getSimpleName(),
+        DoFn.class.getSimpleName());
+    return (OldDoFn) doFn;
   }
 
   public WindowingStrategy<?, ?> getWindowingStrategy() {

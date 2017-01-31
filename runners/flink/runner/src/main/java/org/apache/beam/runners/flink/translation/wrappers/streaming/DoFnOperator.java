@@ -244,7 +244,7 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
       sideInputReader = sideInputHandler;
     }
 
-    DoFnRunner<InputT, FnOutputT> doFnRunner = DoFnRunners.simpleRunner(
+    DoFnRunner<InputT, FnOutputT> doFnRunner = DoFnRunners.createDefault(
         serializedOptions.getPipelineOptions(),
         oldDoFn,
         sideInputReader,
