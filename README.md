@@ -52,7 +52,7 @@ The key concepts in the Beam programming model are:
 
 Beam supports multiple language specific SDKs for writing pipelines against the Beam Model.
 
-Currently, this repository contains the Java and Python SDKs.
+Currently, this repository contains SDKs for both Java and Python.
 
 Have ideas for new SDKs or DSLs? See the [JIRA](https://issues.apache.org/jira/browse/BEAM/component/12328909/).
 
@@ -71,7 +71,19 @@ Have ideas for new Runners? See the [JIRA](https://issues.apache.org/jira/browse
 
 Please refer to the [Quickstart](http://beam.apache.org/get-started/quickstart/) available on our website.
 
-If you'd like to build and install the whole project from the source distribution, please use the standard `mvn clean install` command.
+If you'd like to build and install the whole project from the source distribution, you may need some additional tools installed 
+in your system. In a Debian-based distribution: 
+
+```
+sudo apt-get install \
+    openjdk-8-jdk \
+    maven \
+    python-setuptools \
+    python-pip
+```
+
+Then please use the standard `mvn clean install` command.
+
 
 ### Flink Runner
 
