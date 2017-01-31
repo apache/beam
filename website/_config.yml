@@ -25,7 +25,7 @@ source: src
 destination: content
 
 # the base hostname & protocol for your site
-url: "http://beam.apache.org"
+url: "https://beam.apache.org"
 
 twitter_username: apachebeam
 
