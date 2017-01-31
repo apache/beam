@@ -52,7 +52,7 @@ The key concepts in the Beam programming model are:
 
 Beam supports multiple language specific SDKs for writing pipelines against the Beam Model.
 
-Currently, this repository contains the Java SDK, as well as the Python SDK in a [feature branch](https://github.com/apache/beam/tree/python-sdk).
+Currently, this repository contains the Java and Python SDKs.
 
 Have ideas for new SDKs or DSLs? See the [JIRA](https://issues.apache.org/jira/browse/BEAM/component/12328909/).
 
