@@ -4,8 +4,8 @@
     <title>Apache Beam</title>
     <description>Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.
 </description>
-    <link>http://beam.apache.org/</link>
-    <atom:link href="http://beam.apache.org/feed.xml" rel="self" type="application/rss+xml"/>
+    <link>https://beam.apache.org/</link>
+    <atom:link href="https://beam.apache.org/feed.xml" rel="self" type="application/rss+xml"/>
     <generator>Jekyll v3.2.0</generator>
     
       <item>
@@ -67,8 +67,8 @@ contribution and participation from anyone through our mailing lists, issue
 tracker, pull requests, and events.&lt;/p&gt;
 </description>
         <pubDate>Tue, 10 Jan 2017 00:00:01 -0800</pubDate>
-        <link>http://beam.apache.org/blog/2017/01/10/beam-graduates.html</link>
-        <guid isPermaLink="true">http://beam.apache.org/blog/2017/01/10/beam-graduates.html</guid>
+        <link>https://beam.apache.org/blog/2017/01/10/beam-graduates.html</link>
+        <guid isPermaLink="true">https://beam.apache.org/blog/2017/01/10/beam-graduates.html</guid>
         
         
         <category>blog</category>
@@ -77,11 +77,11 @@ tracker, pull requests, and events.&lt;/p&gt;
     
       <item>
         <title>Release 0.4.0 adds a runner for Apache Apex</title>
-        <description>&lt;p&gt;The latest release 0.4.0 of &lt;a href=&quot;https://beam.apache.org&quot;&gt;Apache Beam&lt;/a&gt; adds a new runner for &lt;a href=&quot;http://apex.apache.org/&quot;&gt;Apache Apex&lt;/a&gt;. We are excited to reach this initial milestone and are looking forward to continued collaboration between the Beam and Apex communities to advance the runner.&lt;/p&gt;
+        <description>&lt;p&gt;The latest release 0.4.0 of &lt;a href=&quot;/&quot;&gt;Apache Beam&lt;/a&gt; adds a new runner for &lt;a href=&quot;http://apex.apache.org/&quot;&gt;Apache Apex&lt;/a&gt;. We are excited to reach this initial milestone and are looking forward to continued collaboration between the Beam and Apex communities to advance the runner.&lt;/p&gt;
 
 &lt;!--more--&gt;
 
-&lt;p&gt;Beam evolved from the Google Dataflow SDK and as incubator project has quickly adapted the Apache way, grown the community and attracts increasing interest from users that hope to benefit from a conceptual strong unified programming model that is portable between different big data processing frameworks (see &lt;a href=&quot;https://www.oreilly.com/ideas/the-world-beyond-batch-streaming-101&quot;&gt;Streaming-101&lt;/a&gt; and &lt;a href=&quot;https://www.oreilly.com/ideas/the-world-beyond-batch-streaming-102&quot;&gt;Streaming-102&lt;/a&gt;). Multiple Apache projects already provide runners for Beam (see &lt;a href=&quot;http://beam.apache.org/documentation/runners/capability-matrix/&quot;&gt;runners and capabilities matrix&lt;/a&gt;).&lt;/p&gt;
+&lt;p&gt;Beam evolved from the Google Dataflow SDK and as incubator project has quickly adapted the Apache way, grown the community and attracts increasing interest from users that hope to benefit from a conceptual strong unified programming model that is portable between different big data processing frameworks (see &lt;a href=&quot;https://www.oreilly.com/ideas/the-world-beyond-batch-streaming-101&quot;&gt;Streaming-101&lt;/a&gt; and &lt;a href=&quot;https://www.oreilly.com/ideas/the-world-beyond-batch-streaming-102&quot;&gt;Streaming-102&lt;/a&gt;). Multiple Apache projects already provide runners for Beam (see &lt;a href=&quot;/documentation/runners/capability-matrix/&quot;&gt;runners and capabilities matrix&lt;/a&gt;).&lt;/p&gt;
 
 &lt;p&gt;Apex is a stream processing framework for low-latency, high-throughput, stateful and reliable processing of complex analytics pipelines on clusters. Apex was developed since 2012 and is used in production by large companies for real-time and batch processing at scale.&lt;/p&gt;
 
@@ -97,7 +97,7 @@ tracker, pull requests, and events.&lt;/p&gt;
 
 &lt;h2 id=&quot;execution-and-testing&quot;&gt;Execution and Testing&lt;/h2&gt;
 
-&lt;p&gt;In this release, the Apex runner executes the pipelines in embedded mode, where, similar to the direct runner, everything is executed in a single JVM. See &lt;a href=&quot;https://beam.apache.org/get-started/quickstart/&quot;&gt;quickstart&lt;/a&gt; on how to run the Beam examples with the Apex runner.&lt;/p&gt;
+&lt;p&gt;In this release, the Apex runner executes the pipelines in embedded mode, where, similar to the direct runner, everything is executed in a single JVM. See &lt;a href=&quot;/get-started/quickstart/&quot;&gt;quickstart&lt;/a&gt; on how to run the Beam examples with the Apex runner.&lt;/p&gt;
 
 &lt;p&gt;Embedded mode is useful for development and debugging. Apex in production runs distributed on Apache Hadoop YARN clusters. An example how a Beam pipeline can be embedded into an Apex application package to run on YARN can be found &lt;a href=&quot;https://github.com/tweise/apex-samples/tree/master/beam-apex-wordcount&quot;&gt;here&lt;/a&gt; and support for direct launch in the runner is currently being worked on.&lt;/p&gt;
 
@@ -108,8 +108,8 @@ tracker, pull requests, and events.&lt;/p&gt;
 &lt;p&gt;The next step is to take the Apex runner from functional to ready for real applications that run distributed, leveraging the scalability and performance features of Apex, similar to its native API. This includes chaining of ParDos, partitioning, optimizing combine operations etc. To get involved, please see &lt;a href=&quot;https://issues.apache.org/jira/issues/?jql=project%20%3D%20BEAM%20and%20component%20%3D%20runner-apex%20and%20resolution%20%3D%20unresolved&quot;&gt;JIRA&lt;/a&gt; and join the Beam community.&lt;/p&gt;
 </description>
         <pubDate>Mon, 09 Jan 2017 09:00:01 -0800</pubDate>
-        <link>http://beam.apache.org/blog/2017/01/09/added-apex-runner.html</link>
-        <guid isPermaLink="true">http://beam.apache.org/blog/2017/01/09/added-apex-runner.html</guid>
+        <link>https://beam.apache.org/blog/2017/01/09/added-apex-runner.html</link>
+        <guid isPermaLink="true">https://beam.apache.org/blog/2017/01/09/added-apex-runner.html</guid>
         
         
         <category>blog</category>
@@ -421,8 +421,8 @@ Java SDK. If you have questions or comments, we’d love to hear them on the
 &lt;a href=&quot;/use/mailing-lists/&quot;&gt;mailing lists&lt;/a&gt;.&lt;/p&gt;
 </description>
         <pubDate>Thu, 20 Oct 2016 11:00:00 -0700</pubDate>
-        <link>http://beam.apache.org/blog/2016/10/20/test-stream.html</link>
-        <guid isPermaLink="true">http://beam.apache.org/blog/2016/10/20/test-stream.html</guid>
+        <link>https://beam.apache.org/blog/2016/10/20/test-stream.html</link>
+        <guid isPermaLink="true">https://beam.apache.org/blog/2016/10/20/test-stream.html</guid>
         
         
         <category>blog</category>
@@ -455,8 +455,8 @@ Java SDK. If you have questions or comments, we’d love to hear them on the
 
 </description>
         <pubDate>Tue, 11 Oct 2016 10:00:00 -0700</pubDate>
-        <link>http://beam.apache.org/beam/update/2016/10/11/strata-hadoop-world-and-beam.html</link>
-        <guid isPermaLink="true">http://beam.apache.org/beam/update/2016/10/11/strata-hadoop-world-and-beam.html</guid>
+        <link>https://beam.apache.org/beam/update/2016/10/11/strata-hadoop-world-and-beam.html</link>
+        <guid isPermaLink="true">https://beam.apache.org/beam/update/2016/10/11/strata-hadoop-world-and-beam.html</guid>
         
         
         <category>beam</category>
@@ -508,8 +508,8 @@ Java SDK. If you have questions or comments, we’d love to hear them on the
 
 </description>
         <pubDate>Wed, 03 Aug 2016 00:00:01 -0700</pubDate>
-        <link>http://beam.apache.org/blog/2016/08/03/six-months.html</link>
-        <guid isPermaLink="true">http://beam.apache.org/blog/2016/08/03/six-months.html</guid>
+        <link>https://beam.apache.org/blog/2016/08/03/six-months.html</link>
+        <guid isPermaLink="true">https://beam.apache.org/blog/2016/08/03/six-months.html</guid>
         
         
         <category>blog</category>
@@ -549,8 +549,8 @@ to us via &lt;a href=&quot;/use/mailing-lists/&quot;&gt;user’s mailing list&lt
 &lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM/&quot;&gt;Apache JIRA issue tracker&lt;/a&gt;.&lt;/p&gt;
 </description>
         <pubDate>Wed, 15 Jun 2016 00:00:01 -0700</pubDate>
-        <link>http://beam.apache.org/beam/release/2016/06/15/first-release.html</link>
-        <guid isPermaLink="true">http://beam.apache.org/beam/release/2016/06/15/first-release.html</guid>
+        <link>https://beam.apache.org/beam/release/2016/06/15/first-release.html</link>
+        <guid isPermaLink="true">https://beam.apache.org/beam/release/2016/06/15/first-release.html</guid>
         
         
         <category>beam</category>
@@ -586,8 +586,8 @@ to us via &lt;a href=&quot;/use/mailing-lists/&quot;&gt;user’s mailing list&lt
 &lt;p&gt;We reached a major milestone in adding windowing support to the Flink Batch runner, thereby making it compatible with the Beam model. Because of the large suite of tests that can now be executed on the runner we are also confident about the correctness of the implementation and about it staying that way in the future.&lt;/p&gt;
 </description>
         <pubDate>Mon, 13 Jun 2016 09:00:00 -0700</pubDate>
-        <link>http://beam.apache.org/blog/2016/06/13/flink-batch-runner-milestone.html</link>
-        <guid isPermaLink="true">http://beam.apache.org/blog/2016/06/13/flink-batch-runner-milestone.html</guid>
+        <link>https://beam.apache.org/blog/2016/06/13/flink-batch-runner-milestone.html</link>
+        <guid isPermaLink="true">https://beam.apache.org/blog/2016/06/13/flink-batch-runner-milestone.html</guid>
         
         
         <category>blog</category>
@@ -678,8 +678,8 @@ PCollection&amp;lt;O&amp;gt; output = input
 &lt;p&gt;Although it’s tempting to add methods to PCollections, such an approach is not scalable, extensible, or sufficiently expressive. Putting a single apply method on PCollection and all the logic into the operation itself lets us have the best of both worlds, and avoids hard cliffs of complexity by having a single consistent style across simple and complex pipelines, and between predefined and user-defined operations.&lt;/p&gt;
 </description>
         <pubDate>Fri, 27 May 2016 09:00:00 -0700</pubDate>
-        <link>http://beam.apache.org/blog/2016/05/27/where-is-my-pcollection-dot-map.html</link>
-        <guid isPermaLink="true">http://beam.apache.org/blog/2016/05/27/where-is-my-pcollection-dot-map.html</guid>
+        <link>https://beam.apache.org/blog/2016/05/27/where-is-my-pcollection-dot-map.html</link>
+        <guid isPermaLink="true">https://beam.apache.org/blog/2016/05/27/where-is-my-pcollection-dot-map.html</guid>
         
         
         <category>blog</category>
@@ -697,8 +697,8 @@ PCollection&amp;lt;O&amp;gt; output = input
 &lt;p&gt;What I’d like to highlight for the Apache Beam (incubating) community is that Cloud Dataflow’s dynamic work rebalancing is implemented using &lt;em&gt;runner-specific&lt;/em&gt; control logic on top of Beam’s &lt;em&gt;runner-independent&lt;/em&gt; &lt;a href=&quot;https://github.com/apache/beam/blob/9fa97fb2491bc784df53fb0f044409dbbc2af3d7/sdks/java/core/src/main/java/org/apache/beam/sdk/io/BoundedSource.java&quot;&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;BoundedSource API&lt;/code&gt;&lt;/a&gt;. Specifically, to steal work from a straggler, a runner need only call the reader’s &lt;a href=&quot;https://github.com/apache/beam/blob/3edae9b8b4d7afefb5c803c19bb0a1c21ebba89d/sdks/java/core/src/main/java/org/apache/beam/sdk/io/BoundedSource.java#L266&quot;&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;splitAtFraction method&lt;/code&gt;&lt;/a&gt;. This will generate a new source containing leftover work, and then the runner can pass that source off to another idle worker. As Beam matures, I hope that other runners are interested in figuring out whether these APIs can help them improve performance, implementing dynamic work rebalancing, and collaborating on API changes that will help solve other pain points.&lt;/p&gt;
 </description>
         <pubDate>Wed, 18 May 2016 11:00:00 -0700</pubDate>
-        <link>http://beam.apache.org/blog/2016/05/18/splitAtFraction-method.html</link>
-        <guid isPermaLink="true">http://beam.apache.org/blog/2016/05/18/splitAtFraction-method.html</guid>
+        <link>https://beam.apache.org/blog/2016/05/18/splitAtFraction-method.html</link>
+        <guid isPermaLink="true">https://beam.apache.org/blog/2016/05/18/splitAtFraction-method.html</guid>
         
         
         <category>blog</category>
@@ -730,8 +730,8 @@ PCollection&amp;lt;O&amp;gt; output = input
 &lt;p&gt;As Apache Beam grows, so will this repository of presentation materials. We are excited to add new materials as the Apache Beam ecosystem grows with new runners, SDKs, and so on. If you are interested in contributing content or have a request, please see the &lt;a href=&quot;/learn/presentation-materials/&quot;&gt;Apache Beam presentation materials&lt;/a&gt; page or email the &lt;a href=&quot;mailto:user@beam.apache.org&quot;&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;user@beam.apache.org&lt;/code&gt;&lt;/a&gt; mailing list with your ideas or questions.&lt;/p&gt;
 </description>
         <pubDate>Sun, 03 Apr 2016 11:00:00 -0700</pubDate>
-        <link>http://beam.apache.org/beam/capability/2016/04/03/presentation-materials.html</link>
-        <guid isPermaLink="true">http://beam.apache.org/beam/capability/2016/04/03/presentation-materials.html</guid>
+        <link>https://beam.apache.org/beam/capability/2016/04/03/presentation-materials.html</link>
+        <guid isPermaLink="true">https://beam.apache.org/beam/capability/2016/04/03/presentation-materials.html</guid>
         
         
         <category>beam</category>
