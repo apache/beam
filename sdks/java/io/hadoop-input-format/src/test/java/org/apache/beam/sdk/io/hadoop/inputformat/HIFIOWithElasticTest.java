@@ -251,9 +251,11 @@ public class HIFIOWithElasticTest implements Serializable {
 
   /**
    * Set the Elasticsearch configuration parameters in the Hadoop configuration object.
-   * Configuration object should have InputFormat class, key class and value class to be set
+   * Configuration object should have InputFormat class, key class and value class to be set.
    * Mandatory fields for ESInputFormat to be set are es.resource, es.nodes, es.port,
-   * es.internal.es.version
+   * es.internal.es.version. Please refer <a
+   * href="https://www.elastic.co/guide/en/elasticsearch/hadoop/current/configuration.html"
+   * >Elasticsearch Configuration</a> for more details.
    */
   public Configuration getConfiguration() {
     Configuration conf = new Configuration();

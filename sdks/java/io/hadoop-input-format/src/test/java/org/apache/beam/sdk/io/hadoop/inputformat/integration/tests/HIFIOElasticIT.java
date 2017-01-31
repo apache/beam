@@ -135,7 +135,7 @@ public class HIFIOElasticIT implements Serializable {
 
   /**
    * Set the Elasticsearch configuration parameters in the Hadoop configuration object.
-   * Configuration object should have InputFormat class, key class and value class to be set
+   * Configuration object should have InputFormat class, key class and value class to be set.
    * Mandatory fields for ESInputFormat to be set are es.resource, es.nodes, es.port,
    * es.internal.es.version, es.nodes.wan.only. Please refer <a
    * href="https://www.elastic.co/guide/en/elasticsearch/hadoop/current/configuration.html"
