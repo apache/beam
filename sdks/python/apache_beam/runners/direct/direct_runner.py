@@ -48,7 +48,6 @@ class DirectRunner(PipelineRunner):
     except NotImplementedError:
       return transform.expand(pcoll)
 
-
   def run(self, pipeline):
     """Execute the entire pipeline and returns an DirectPipelineResult."""
 
