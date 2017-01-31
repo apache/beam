@@ -130,6 +130,7 @@
     <protobuf.version>3.1.0</protobuf.version>
     <pubsub.version>v1-rev10-1.22.0</pubsub.version>
     <slf4j.version>1.7.14</slf4j.version>
+    <spark.version>1.6.2</spark.version>
     <stax2.version>3.1.4</stax2.version>
     <storage.version>v1-rev71-1.22.0</storage.version>
     <woodstox.version>4.4.1</woodstox.version>
@@ -148,7 +149,7 @@
     <module>sdks</module>
     <module>runners</module>
     <module>examples</module>
-    <module>javadoc-aggregate</module>
+    <module>sdks/java/javadoc</module>
   </modules>
 
   <profiles>
@@ -328,6 +329,24 @@
       <dependency>
         <groupId>org.apache.beam</groupId>
         <artifactId>beam-sdks-java-core</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+
+      <dependency>
+	<groupId>org.apache.beam</groupId>
+	<artifactId>beam-sdks-java-extensions-join-library</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+
+      <dependency>
+	<groupId>org.apache.beam</groupId>
+	<artifactId>beam-sdks-java-extensions-sorter</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+
+      <dependency>
+	<groupId>org.apache.beam</groupId>
+	<artifactId>beam-sdks-java-harness</artifactId>
         <version>${project.version}</version>
       </dependency>
 
@@ -1049,6 +1068,7 @@
             <quiet>true</quiet>
           </configuration>
         </plugin>
+
         <plugin>
           <groupId>org.apache.rat</groupId>
           <artifactId>apache-rat-plugin</artifactId>
@@ -1090,11 +1110,13 @@
           <artifactId>versions-maven-plugin</artifactId>
           <version>2.1</version>
         </plugin>
+	
         <plugin>
           <groupId>org.codehaus.mojo</groupId>
           <artifactId>build-helper-maven-plugin</artifactId>
           <version>1.12</version>
         </plugin>
+	
         <plugin>
           <groupId>org.codehaus.mojo</groupId>
           <artifactId>exec-maven-plugin</artifactId>

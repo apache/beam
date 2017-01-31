@@ -22,16 +22,16 @@
   <parent>
     <groupId>org.apache.beam</groupId>
     <artifactId>beam-parent</artifactId>
-    <version>0.5.0-SNAPSHOT</version>
+    <version>0.6.0-SNAPSHOT</version>
+    <relativePath>../../../pom.xml</relativePath>
   </parent>
 
-  <artifactId>beam-javadoc-aggregate</artifactId>
+  <artifactId>beam-sdks-java-javadoc</artifactId>
 
-  <name>Apache Beam :: Aggregated Javadoc</name>
+  <name>Apache Beam :: SDKs :: Java :: Aggregated Javadoc</name>
   <packaging>pom</packaging>
 
   <properties>
-    <spark.version>1.6.2</spark.version>
     <output.jar>target/javadoc.jar</output.jar>
   </properties>
   <!--
@@ -41,27 +41,32 @@
   -->
   <dependencies>
     <!-- First list the project modules. -->
-    <dependency>
-      <groupId>org.apache.beam</groupId>
-      <artifactId>beam-examples-java8</artifactId>
-    </dependency>
 
     <dependency>
       <groupId>org.apache.beam</groupId>
       <artifactId>beam-runners-apex</artifactId>
     </dependency>
+
+    <dependency>
+      <groupId>org.apache.beam</groupId>
+      <artifactId>beam-runners-core-java</artifactId>
+    </dependency>
+
     <dependency>
       <groupId>org.apache.beam</groupId>
       <artifactId>beam-runners-direct-java</artifactId>
     </dependency>
+
     <dependency>
       <groupId>org.apache.beam</groupId>
       <artifactId>beam-runners-flink_2.10</artifactId>
     </dependency>
+
     <dependency>
       <groupId>org.apache.beam</groupId>
       <artifactId>beam-runners-flink_2.10-examples</artifactId>
     </dependency>
+
     <dependency>
       <groupId>org.apache.beam</groupId>
       <artifactId>beam-runners-google-cloud-dataflow-java</artifactId>
@@ -69,61 +74,105 @@
 
     <dependency>
       <groupId>org.apache.beam</groupId>
+      <artifactId>beam-runners-spark</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.beam</groupId>
       <artifactId>beam-sdks-java-core</artifactId>
     </dependency>
+
     <dependency>
       <groupId>org.apache.beam</groupId>
       <artifactId>beam-sdks-java-io-google-cloud-platform</artifactId>
     </dependency>
+
+    <dependency>
+      <groupId>org.apache.beam</groupId>
+      <artifactId>beam-sdks-java-core</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.beam</groupId>
+      <artifactId>beam-sdks-java-extensions-join-library</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.beam</groupId>
+      <artifactId>beam-sdks-java-extensions-sorter</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.beam</groupId>
+      <artifactId>beam-sdks-java-harness</artifactId>
+    </dependency>
+
     <dependency>
       <groupId>org.apache.beam</groupId>
       <artifactId>beam-sdks-java-io-elasticsearch</artifactId>
     </dependency>
+
+    <dependency>
+      <groupId>org.apache.beam</groupId>
+      <artifactId>beam-sdks-java-io-google-cloud-platform</artifactId>
+    </dependency>
+
     <dependency>
       <groupId>org.apache.beam</groupId>
       <artifactId>beam-sdks-java-io-hdfs</artifactId>
     </dependency>
+
     <dependency>
       <groupId>org.apache.beam</groupId>
       <artifactId>beam-sdks-java-io-jdbc</artifactId>
     </dependency>
+
     <dependency>
       <groupId>org.apache.beam</groupId>
       <artifactId>beam-sdks-java-io-jms</artifactId>
     </dependency>
+
     <dependency>
       <groupId>org.apache.beam</groupId>
       <artifactId>beam-sdks-java-io-kafka</artifactId>
     </dependency>
+
     <dependency>
       <groupId>org.apache.beam</groupId>
       <artifactId>beam-sdks-java-io-kinesis</artifactId>
     </dependency>
+
     <dependency>
       <groupId>org.apache.beam</groupId>
       <artifactId>beam-sdks-java-io-mongodb</artifactId>
     </dependency>
+
     <dependency>
       <groupId>org.apache.beam</groupId>
       <artifactId>beam-sdks-java-io-mqtt</artifactId>
     </dependency>
+
     <!-- provided and optional dependencies.-->
     <dependency>
       <groupId>com.google.auto.service</groupId>
       <artifactId>auto-service</artifactId>
     </dependency>
+
     <dependency>
       <groupId>com.google.auto.value</groupId>
       <artifactId>auto-value</artifactId>
     </dependency>
+
     <dependency>
       <groupId>com.google.cloud.datastore</groupId>
       <artifactId>datastore-v1-protos</artifactId>
     </dependency>
+
     <dependency>
       <groupId>com.google.cloud.datastore</groupId>
       <artifactId>datastore-v1-proto-client</artifactId>
     </dependency>
+
     <dependency>
       <groupId>org.codehaus.woodstox</groupId>
       <artifactId>stax2-api</artifactId>
@@ -136,6 +185,7 @@
       <artifactId>hamcrest-all</artifactId>
       <scope>compile</scope>
     </dependency>
+
     <dependency>
       <groupId>junit</groupId>
       <artifactId>junit</artifactId>
@@ -148,12 +198,14 @@
       <artifactId>spark-core_2.10</artifactId>
       <version>${spark.version}</version>
     </dependency>
+
     <dependency>
       <groupId>org.apache.spark</groupId>
       <artifactId>spark-streaming_2.10</artifactId>
       <version>${spark.version}</version>
     </dependency>
   </dependencies>
+
   <build>
     <plugins>
       <!-- Turn off the usual dependency analysis; it gets very unhappy when then entire
@@ -171,13 +223,31 @@
         </executions>
       </plugin>
 
+      <!-- Turn off the enforcer: it dislikes 'harness'. -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-enforcer-plugin</artifactId>
+        <version>1.3.1</version>
+        <executions>
+          <execution>
+            <id>enforce</id>
+            <goals>
+              <goal>enforce</goal>
+            </goals>
+            <configuration>
+	      <skip>true</skip>
+	    </configuration>
+	  </execution>
+	</executions>
+      </plugin>
+
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-antrun-plugin</artifactId>
         <executions>
           <execution>
             <id>document</id>
-            <phase>prepare-package</phase>
+            <phase>package</phase>
             <configuration>
               <target>
                 <property name="compile_classpath" refid="maven.compile.classpath"/>
@@ -195,6 +265,7 @@
           </execution>
         </executions>
       </plugin>
+
       <!-- Attach the jar of javadoc to be org.apache.beam:beam-javadoc-aggregate.
            The alternative would perhaps be org.apache.beam:beam-parent:javadoc.-->
       <plugin>

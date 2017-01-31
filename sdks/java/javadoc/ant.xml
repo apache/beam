@@ -39,36 +39,37 @@
     <javadoc sourcepath="${collect.dir}"
       destdir="${output.dir}"
       classpath="${compile_classpath}"
-      Overview="../sdks/java/javadoc/overview.html"
+      Overview="overview.html"
     >
       <!-- Get some Java8 options set up by Maven. -->
       <arg line="${beam.javadoc_opts}"/>
       <!-- Setup offline links for some packages. -->
       <link href="http://avro.apache.org/docs/1.7.7/api/java/"
-        offline="true" packageListLoc="../sdks/java/javadoc/avro-docs"/>
+        offline="true" packageListLoc="avro-docs"/>
       <link
-        href="https://developers.google.com/api-client-library/java/google-api-java-client/reference/1.20.0/"
-        offline="true" packageListLoc="../sdks/java/javadoc/apiclient-docs"/>
+        href="https://developers.google.com/api-client-library/java/google-api-java-client/reference/1.22.0/"
+        offline="true" packageListLoc="apiclient-docs"/>
       <link
-        href="https://developers.google.com/api-client-library/java/google-oauth-java-client/reference/1.20.0/"
-        offline="true" packageListLoc="../sdks/java/javadoc/oauth-docs"/>
+        href="https://developers.google.com/api-client-library/java/google-oauth-java-client/reference/1.22.0/"
+        offline="true" packageListLoc="oauth-docs"/>
       <link
         href="https://developers.google.com/resources/api-libraries/documentation/bigquery/v2/java/latest/"
-        offline="true" packageListLoc="../sdks/java/javadoc/bq-docs"/>
-      <link href="https://cloud.google.com/datastore/docs/apis/javadoc/"
-        offline="true" packageListLoc="../sdks/java/javadoc/datastore-docs"/>
-      <link href="http://docs.guava-libraries.googlecode.com/git-history/release19/javadoc/"
-        offline="true" packageListLoc="../sdks/java/javadoc/guava-docs"/>
+        offline="true" packageListLoc="bq-docs"/>
+      <link href="http://googlecloudplatform.github.io/google-cloud-java/0.8.0/apidocs/index.html"
+        offline="true" packageListLoc="datastore-docs"/>
+      <link href="http://google.github.io/guava/releases/20.0/api/docs/"
+        offline="true" packageListLoc="guava-docs"/>
       <link href="http://fasterxml.github.io/jackson-annotations/javadoc/2.7/"
-        offline="true" packageListLoc="../sdks/java/javadoc/jackson-annotations-docs"/>
+        offline="true" packageListLoc="jackson-annotations-docs"/>
       <link href="http://fasterxml.github.io/jackson-databind/javadoc/2.7/"
-        offline="true" packageListLoc="../sdks/java/javadoc/jackson-databind-docs"/>
+        offline="true" packageListLoc="jackson-databind-docs"/>
       <link href="http://hamcrest.org/JavaHamcrest/javadoc/1.3/"
-        offline="true" packageListLoc="../sdks/java/javadoc/hamcrest-docs"/>
+        offline="true" packageListLoc="hamcrest-docs"/>
       <link href="http://www.joda.org/joda-time/apidocs"
-        offline="true" packageListLoc="../sdks/java/javadoc/joda-docs"/>
+        offline="true" packageListLoc="joda-docs"/>
       <link href="http://junit.sourceforge.net/javadoc/"
-        offline="true" packageListLoc="../sdks/java/javadoc/junit-docs"/>
+            offline="true" packageListLoc="junit-docs"/>
+      
       <excludepackage name="org.apache.beam.examples"/>
       <excludepackage name="org.apache.beam.examples.common"/>
       <excludepackage name="org.apache.beam.examples.cookbook"/>
