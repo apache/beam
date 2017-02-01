@@ -44,12 +44,14 @@ cdef class DoFnRunner(Receiver):
   cdef list side_inputs
   cdef bint has_windowed_side_inputs
   cdef list placeholders
+  cdef bint simple_process
 
   cdef Receiver main_receivers
 
   cpdef process(self, WindowedValue element)
   cdef old_dofn_process(self, WindowedValue element)
   cdef new_dofn_process(self, WindowedValue element)
+  cdef new_dofn_simple_process(self, WindowedValue element)
 
   @cython.locals(windowed_value=WindowedValue)
   cpdef _process_outputs(self, WindowedValue element, results)

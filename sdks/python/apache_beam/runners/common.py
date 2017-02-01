@@ -137,6 +137,11 @@ class DoFnRunner(Receiver):
       defaults = defaults if defaults else []
       self_in_args = int(self.dofn.is_process_bounded())
 
+      self.simple_process = (
+          not side_inputs and not args and not kwargs and not defaults)
+      if self.simple_process:
+        return
+
       # TODO(Sourabhbajaj) Rename this variable once oldDoFn is deprecated
       self.has_windowed_side_inputs = (
           self.has_windowed_side_inputs or
@@ -241,6 +246,9 @@ class DoFnRunner(Receiver):
       self.context.set_element(element)
       self._process_outputs(element, self.dofn_process(self.context))
 
+  def new_dofn_simple_process(self, element):
+    self._process_outputs(element, self.dofn.process(element.value))
+
   def new_dofn_process(self, element):
     self.context.set_element(element)
 
@@ -303,7 +311,10 @@ class DoFnRunner(Receiver):
       self.logging_context.enter()
       self.scoped_metrics_container.enter()
       if self.is_new_dofn:
-        self.new_dofn_process(element)
+        if self.simple_process:
+          self.new_dofn_simple_process(element)
+        else:
+          self.new_dofn_process(element)
       else:
         self.old_dofn_process(element)
     except BaseException as exn:
