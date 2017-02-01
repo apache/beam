@@ -617,7 +617,7 @@ public class JmsIO {
      * Define the password to connect to the JMS broker (authenticated).
      */
     public Write withPassword(String password) {
-      checkArgument(password != null, "JmsIO.write().withPasswprd(password) called with null "
+      checkArgument(password != null, "JmsIO.write().withPassword(password) called with null "
           + "password");
       return builder().setPassword(password).build();
     }
