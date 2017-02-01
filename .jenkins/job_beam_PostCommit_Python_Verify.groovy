@@ -28,7 +28,7 @@ job('beam_PostCommit_Python_Verify') {
   common_job_properties.setTopLevelMainJobProperties(delegate)
 
   // Sets that this is a PostCommit job.
-  common_job_properties.setPostCommit(delegate, '0 3-22/6 * * *')
+  common_job_properties.setPostCommit(delegate, 'Run Python PostCommit', '0 3-22/6 * * *')
 
   // Execute shell command to test Python SDK.
   steps {

@@ -100,7 +100,8 @@ class common_job_properties {
   // below to insulate callers from internal parameter defaults.
   private static def setPullRequestBuildTrigger(def context,
                                                 def commitStatusContext,
-                                                def successComment = '--none--') {
+                                                def successComment = '--none--',
+                                                def postCommitPhrase = '') {
     context.triggers {
       githubPullRequest {
         admins(['asfbot'])
@@ -108,6 +109,10 @@ class common_job_properties {
         orgWhitelist(['apache'])
         allowMembersOfWhitelistedOrgsAsAdmin()
         permitAll()
+	if (postCommitPhrase != '') {
+          triggerPhrase(postcommitPhrase)
+	  onlyTriggerPhrase()
+	}
 
         extensions {
           commitStatus {
@@ -173,6 +178,7 @@ class common_job_properties {
 
   // Sets common config for PostCommit jobs.
   static def setPostCommit(def context,
+                           def trigger_phrase,
                            def build_schedule = '0 */6 * * *',
                            def trigger_every_push = true,
                            def notify_address = 'commits@beam.apache.org') {
@@ -184,6 +190,9 @@ class common_job_properties {
         githubPush()
       }
     }
+
+    // Enable triggering oneshots of pull requests
+    setPullRequestBuildTrigger(context, 'Jenkins PostCommit', '--none--', trigger_phrase)
 
     context.publishers {
       // Notify an email address for each failed build (defaults to commits@).

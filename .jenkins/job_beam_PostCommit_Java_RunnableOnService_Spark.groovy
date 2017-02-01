@@ -31,7 +31,7 @@ mavenJob('beam_PostCommit_Java_RunnableOnService_Spark') {
   common_job_properties.setMavenConfig(delegate)
 
   // Sets that this is a PostCommit job.
-  common_job_properties.setPostCommit(delegate)
+  common_job_properties.setPostCommit(delegate, 'Run Spark RunnableOnService')
 
   // Maven goals for this job.
   goals('-B -e clean verify -am -pl runners/spark -Prunnable-on-service-tests -Plocal-runnable-on-service-tests -Dspark.port.maxRetries=64 -Dspark.ui.enabled=false')

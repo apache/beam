@@ -29,7 +29,7 @@ mavenJob('beam_PostCommit_Java_RunnableOnService_Apex') {
   common_job_properties.setMavenConfig(delegate)
 
   // Sets that this is a PostCommit job.
-  common_job_properties.setPostCommit(delegate)
+  common_job_properties.setPostCommit(delegate, 'Run Apex RunableOnService')
 
   // Maven goals for this job.
   goals('''clean verify --projects runners/apex \

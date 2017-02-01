@@ -35,8 +35,8 @@ mavenJob('beam_PostCommit_Java_RunnableOnService_Gearpump') {
 
   // Sets that this is a PostCommit job.
   // 0 5 31 2 * will run on Feb 31 (i.e. never) according to job properties.
-  // This job triggers only on SCM.
-  common_job_properties.setPostCommit(delegate, '0 5 31 2 *')
+  // This job triggers only on SCM, precommit is disabled as well.
+  common_job_properties.setPostCommit(delegate, '', '0 5 31 2 *')
 
   // Maven goals for this job.
   goals('-B -e clean verify -am -pl runners/gearpump -DforkCount=0 -DrunnableOnServicePipelineOptions=\'[ "--runner=TestGearpumpRunner", "--streaming=false" ]\'')

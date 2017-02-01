@@ -31,7 +31,7 @@ mavenJob('beam_PostCommit_Java_RunnableOnService_Flink') {
   common_job_properties.setMavenConfig(delegate)
 
   // Sets that this is a PostCommit job.
-  common_job_properties.setPostCommit(delegate)
+  common_job_properties.setPostCommit(delegate, 'Run Flink RunnableOnService')
 
   // Maven goals for this job.
   goals('-B -e clean verify -am -pl runners/flink/runner -Plocal-runnable-on-service-tests -Prunnable-on-service-tests')

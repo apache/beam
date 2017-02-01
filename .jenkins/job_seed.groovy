@@ -31,6 +31,7 @@ job('beam_SeedJob') {
   // This is a post-commit job that runs once per day, not for every push.
   common_job_properties.setPostCommit(
       delegate,
+      'Run Seed Job',
       '0 6 * * *',
       false,
       'dev@beam.apache.org')

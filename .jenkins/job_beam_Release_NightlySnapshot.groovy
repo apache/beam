@@ -36,6 +36,7 @@ mavenJob('beam_Release_NightlySnapshot') {
   // This is a post-commit job that runs once per day, not for every push.
   common_job_properties.setPostCommit(
       delegate,
+      '',
       '0 7 * * *',
       false,
       'dev@beam.apache.org')
