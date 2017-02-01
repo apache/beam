@@ -1,5 +1,7 @@
 # Euphoria
 
+[![Build Status](https://travis-ci.org/seznam/euphoria.svg?branch=master)](https://travis-ci.org/seznam/euphoria)
+
 Euphoria is an open source Java API for creating unified big-data
 processing flows.  It provides an engine independent programming model
 that can express both batch and stream transformations.
