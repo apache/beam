@@ -31,8 +31,7 @@ from pkg_resources import get_distribution, DistributionNotFound
 
 def get_version():
   global_names = {}
-  execfile(os.path.normpath('./apache_beam/version.py'),
-           global_names)
+  exec(open(os.path.normpath('./apache_beam/version.py')).read(), global_names)
   return global_names['__version__']
 
 PACKAGE_NAME = 'apache-beam-sdk'
