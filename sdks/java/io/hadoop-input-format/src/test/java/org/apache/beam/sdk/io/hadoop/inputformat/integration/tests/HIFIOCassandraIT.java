@@ -32,18 +32,16 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.mapreduce.InputFormat;
 import org.junit.BeforeClass;
-import org.junit.FixMethodOrder;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-import org.junit.runners.MethodSorters;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.datastax.driver.core.Row;
 
 /**
- * Runs integration test to validate HadoopInputFromatIO for a Cassandra instance on GCP.
+ * Runs integration test to validate HadoopInputFromatIO for a Cassandra instance
  *
  * You need to pass Cassandra server IP and port in beamTestPipelineOptions
  *
@@ -51,10 +49,8 @@ import com.datastax.driver.core.Row;
  * You can run just this test by doing the following: mvn test-compile compile
  * failsafe:integration-test -D beamTestPipelineOptions='[ "--serverIp=1.2.3.4",
  * "--serverPort=<port>" ]' -Dit.test=HIFIOCassandraIT -DskipITs=false
- *
  */
 @RunWith(JUnit4.class)
-@FixMethodOrder(MethodSorters.JVM)
 public class HIFIOCassandraIT implements Serializable {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(HIFIOCassandraIT.class);
@@ -66,12 +62,10 @@ public class HIFIOCassandraIT implements Serializable {
   public static void setUp() {
     PipelineOptionsFactory.register(HIFTestOptions.class);
     options = TestPipeline.testingPipelineOptions().as(HIFTestOptions.class);
-    LOGGER.info("Pipeline created successfully with the options.");
   }
 
   /**
    * This test reads data from the Cassandra instance and verifies if data is read successfully.
-   *
    */
   @Test
   public void testHIFReadForCassandra() {
@@ -94,13 +88,12 @@ public class HIFIOCassandraIT implements Serializable {
             KV.of(4L, "Maxwell"), KV.of(5L, "Pasteur"), KV.of(6L, "Copernicus"),
             KV.of(7L, "Curie"), KV.of(8L, "Bohr"), KV.of(9L, "Darwin"), KV.of(10L, "Einstein"));
     PAssert.that(cassandraData).containsInAnyOrder(expectedResults);
-    pipeline.run();
+    pipeline.run().waitUntilFinish();
   }
 
   /**
    * This test reads data from the Cassandra instance based on query and verifies if data is read
    * successfully.
-   *
    */
   @Test
   public void testHIFReadForCassandraQuery() {
@@ -120,18 +113,17 @@ public class HIFIOCassandraIT implements Serializable {
     PAssert.thatSingleton(cassandraData.apply("Count", Count.<KV<Long, String>>globally()))
         .isEqualTo(1L);
 
-    pipeline.run();
+    pipeline.run().waitUntilFinish();
   }
 
   /**
    * Returns configuration of CqlInutFormat. Mandatory parameters required apart from inputformat
    * class name, key class, value class are thrift port, thrift address, partitioner class, keyspace
    * and columnfamily name.
-   *
    */
   public static Configuration getConfiguration(HIFTestOptions options) {
     Configuration conf = new Configuration();
-    conf.set("cassandra.input.thrift.port", String.format("%d", options.getServerPort()));
+    conf.set("cassandra.input.thrift.port", options.getServerPort().toString());
     conf.set("cassandra.input.thrift.address", options.getServerIp());
     conf.set("cassandra.input.partitioner.class", "Murmur3Partitioner");
     conf.set("cassandra.input.keyspace", CASSANDRA_KEYSPACE);
