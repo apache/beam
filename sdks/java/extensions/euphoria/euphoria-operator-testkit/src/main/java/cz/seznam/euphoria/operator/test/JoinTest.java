@@ -61,7 +61,7 @@ public class JoinTest extends AbstractOperatorTest {
 
   @Processing(Processing.Type.BOUNDED)
   @Test
-  public void batchJoinOuter() throws Exception {
+  public void batchJoinOuter() {
     execute(new JoinTestCase<Integer, Long, Pair<Integer, String>>() {
 
       @Override
@@ -113,7 +113,7 @@ public class JoinTest extends AbstractOperatorTest {
 
   @Processing(Processing.Type.BOUNDED)
   @Test
-  public void batchJoinInner() throws Exception {
+  public void batchJoinInner() {
     execute(new JoinTestCase<Integer, Long, Pair<Integer, String>>() {
 
       @Override
@@ -189,7 +189,7 @@ public class JoinTest extends AbstractOperatorTest {
   }
 
   @Test
-  public void windowJoin() throws Exception {
+  public void windowJoin() {
     execute(new JoinTestCase<Integer, Long, Pair<Integer, String>>() {
 
       @Override

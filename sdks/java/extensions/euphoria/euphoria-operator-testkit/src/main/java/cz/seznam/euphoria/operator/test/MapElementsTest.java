@@ -33,7 +33,7 @@ import static org.junit.Assert.assertEquals;
 public class MapElementsTest extends AbstractOperatorTest {
 
   @Test
-  public void testOnTwoPartitions() throws Exception {
+  public void testOnTwoPartitions() {
     execute(new AbstractTestCase<Integer, String>() {
 
       @Override

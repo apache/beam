@@ -37,7 +37,7 @@ import static org.junit.Assert.assertEquals;
 public class CountByKeyTest extends AbstractOperatorTest {
 
   @Test
-  public void testCount() throws Exception {
+  public void testCount() {
     execute(new AbstractTestCase<Integer, Pair<Integer, Long>>() {
       @Override
       protected Dataset<Pair<Integer, Long>> getOutput(
@@ -88,7 +88,7 @@ public class CountByKeyTest extends AbstractOperatorTest {
   }
 
   @Test
-  public void testWithEventTimeWindow() throws Exception {
+  public void testWithEventTimeWindow() {
     execute(new AbstractTestCase<Pair<Integer, Long>, Pair<Integer, Long>>() {
       @Override
       protected Dataset<Pair<Integer, Long>> getOutput(

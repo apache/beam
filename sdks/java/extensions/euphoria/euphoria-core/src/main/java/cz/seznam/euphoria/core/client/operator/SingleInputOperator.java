@@ -33,12 +33,12 @@ public abstract class SingleInputOperator<IN, OUT> extends Operator<IN, OUT> {
     this.input = input;
   }
 
-  /** Retrieve input of this operator. */
+  /** @return the (only) input dataset of this operator */
   public Dataset<IN> input() {
     return input;
   }
 
-  /** List all inputs (single input). */
+  /** @return all of this operator's input as single element collection */
   @Override
   public Collection<Dataset<IN>> listInputs() {
     return Arrays.asList(input);

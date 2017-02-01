@@ -51,6 +51,8 @@ public class SequenceFileSource<K extends Writable, V extends Writable>
    * {@link #SequenceFileSource(String, Configuration)} with a newly created
    * hadoop configuration.
    *
+   * @param path the path to read data from
+   *
    * @throws NullPointerException if the given path is {@code null}
    */
   public SequenceFileSource(String path) {

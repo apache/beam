@@ -25,7 +25,18 @@ import cz.seznam.euphoria.core.client.operator.PartitioningAware;
  */
 public class Datasets {
 
-  /** Create output dataset for given operator. */
+  /**
+   * Create output dataset for given operator.
+   *
+   * @param <IN> the type of elements of the input dataset
+   * @param <OUT> the type of elements in the output dataset
+   *
+   * @param flow the flow to associate the output dataset with
+   * @param input the input dataset the output dataset is indirectly derived from
+   * @param op the operator producing the output dataset
+   *
+   * @return a dataset representing the output of the given operator
+   */
   @SuppressWarnings("unchecked")
   public static <IN, OUT> Dataset<OUT> createOutputFor(
       Flow flow, Dataset<IN> input, Operator<IN, OUT> op) {
@@ -44,7 +55,16 @@ public class Datasets {
     };
   }
 
-  /** Create dataset from {@code DataSource}. */
+  /**
+   * Create dataset from {@code DataSource}.
+   *
+   * @param <T> the type of elements in the dataset
+   *
+   * @param flow the flow to associate the dataset with
+   * @param source the source producing the returned dataset
+   *
+   * @return a dataset representing the given source
+   */
   public static <T> Dataset<T> createInputFromSource(
       Flow flow, DataSource<T> source) {
     

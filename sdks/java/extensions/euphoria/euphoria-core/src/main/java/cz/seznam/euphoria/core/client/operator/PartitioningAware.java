@@ -25,7 +25,7 @@ import java.util.Objects;
  */
 public interface PartitioningAware<KEY> {
 
-  /** Retrieve output partitioning. */
+  /** @return the output partitioning definition */
   Partitioning<KEY> getPartitioning();
 
   abstract class PartitioningBuilder<KEY, BUILDER> implements OptionalMethodBuilder<BUILDER> {

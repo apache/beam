@@ -102,7 +102,11 @@ public class ExecutionEnvironment {
   }
 
   /**
-   * Determines {@link Mode} from given flow
+   * Determines {@link Mode} of the given flow.
+   *
+   * @param flow the flow to inspect
+   *
+   * @return the given flow's mode; never {@code null}
    */
   public static Mode determineMode(Flow flow) {
     // check if sources are bounded or not

@@ -21,13 +21,16 @@ import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 
 /**
  * Operator aware of windows.
+ *
+ * @param <IN> the type of elements processed
+ * @param <W> the type of windows handled
  */
 public interface WindowAware<IN, W extends Window> {
 
   Windowing<IN, W> getWindowing();
 
   /**
-   * Window time assigner extracts timestamp from given element.
+   * @return the window time assigner extracts timestamp from given element
    */
   UnaryFunction<IN, Long> getEventTimeAssigner();
 

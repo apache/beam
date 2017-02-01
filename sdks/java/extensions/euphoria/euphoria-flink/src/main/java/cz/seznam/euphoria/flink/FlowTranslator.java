@@ -66,7 +66,10 @@ public abstract class FlowTranslator {
   }
 
   /**
-   * Translates given flow to Flink execution environment
+   * Translates the given flow to Flink execution environment
+   *
+   * @param flow the user defined flow to be translated
+   *
    * @return List of {@link DataSink} processed in given flow (leaf nodes)
    */
   @SuppressWarnings("unchecked")
@@ -74,10 +77,14 @@ public abstract class FlowTranslator {
 
   /**
    * Converts {@link Flow} to {@link DAG} of Flink specific {@link FlinkOperator}.
-   *
-   * <p>Invokes {@link #getAcceptors()} to determine which user provided
+   * <p>
+   * Invokes {@link #getAcceptors()} to determine which user provided
    * operators to accept for direct translation, i.e. which to leave in
    * the resulting DAG without expanding them to their {@link Operator#getBasicOps()}.
+   *
+   * @param flow the flow to be converted
+   *
+   * @return the converted flow as a DAG of flink specific operator nodes
    */
   protected DAG<FlinkOperator<?>> flowToDag(Flow flow) {
     // ~ get acceptors for translation

@@ -48,6 +48,8 @@ public interface WatermarkEmitStrategy {
 
   /**
    * Schedule for periodic emitting.
+   *
+   * @param action function to be invoked periodically; must not be {@code null}
    */
   void schedule(Runnable action);
 

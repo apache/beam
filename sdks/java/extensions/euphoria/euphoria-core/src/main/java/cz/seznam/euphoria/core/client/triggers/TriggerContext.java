@@ -29,17 +29,26 @@ public interface TriggerContext extends StorageProvider {
    * Fire specific trigger on given time.
    * Schedule the given trigger at the given stamp.
    * The trigger will be fired as close to the time as possible.
+   *
+   * @param stamp the timestamp to register a timer for
+   * @param window the window to register the timer for
+   *
    * @return {@code true} when trigger was successfully scheduled
    */
   boolean registerTimer(long stamp, Window window);
 
   /**
    * Delete previously registered timer
+   *
+   * @param stamp the stamp of a previously registered timer
+   * @param window the window of the previously registered timer
+   *
+   * @see #registerTimer(long, Window)
    */
   void deleteTimer(long stamp, Window window);
 
   /**
-   * Return current timestamp from runtime (may be different from real
+   * @return the current timestamp from runtime (may be different from real
    * clock time).
    */
   long getCurrentTimestamp();

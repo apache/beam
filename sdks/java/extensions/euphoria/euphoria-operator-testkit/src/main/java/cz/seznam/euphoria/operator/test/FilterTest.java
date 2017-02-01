@@ -33,7 +33,7 @@ import static org.junit.Assert.assertEquals;
 public class FilterTest extends AbstractOperatorTest {
 
   @Test
-  public void testTwoPartitions() throws Exception {
+  public void testTwoPartitions() {
     execute(new AbstractTestCase<Integer, Integer>() {
 
       @Override

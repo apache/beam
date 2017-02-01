@@ -71,7 +71,11 @@ public final class Node<T> {
     return value;
   }
 
-  /** Make a copy of this node. */
+  /**
+   * Make a copy of this node.
+   *
+   * @return a copy of this node sharing the value though
+   */
   Node<T> copy() {
     Node<T> clone = new Node<>(value, parents);
     clone.children.addAll(this.children);
@@ -103,7 +107,11 @@ public final class Node<T> {
     return "Node(" + String.valueOf(value) + ")";
   }
 
-  /** A {@b null} node - node with null value, no children and no parents. */
+  /**
+   * @param <T> the type of value of the {@code null} node - can safely be any
+   *
+   * @return the {@code null} node - node with null value, no children and no parents.
+   */
   @SuppressWarnings("unchecked")
   public static <T> Node<T> nullNode() {
     return NULL_NODE;

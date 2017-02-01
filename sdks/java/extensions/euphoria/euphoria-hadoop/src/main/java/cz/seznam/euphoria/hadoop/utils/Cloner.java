@@ -27,14 +27,33 @@ import org.apache.hadoop.io.serializer.Serializer;
 
 /**
  * External cloner for type.
+ *
+ * @param <T> the type of object this cloner is able to clone.
  */
 public interface Cloner<T> {
 
-  /** Clone given instance. */
-  T clone(T what);
+  /**
+   * Clone given instance.
+   *
+   * @param obj the object to clone
+   *
+   * @return a deep clone of the given object
+   */
+  T clone(T obj);
 
-  /** Get cloner for given class type. */
-  public static <T> Cloner<T> get(Class<T> what, Configuration conf) {
+  /**
+   * Help method retrieving a cloner for given class type from the
+   * given configuration.
+   *
+   * @param <T> the type of objects the resulting cloner will be able to handle
+   *
+   * @param what the class for which to retrieve a cloner
+   * @param conf the hadoop configuration defining the serializer/deserializer
+   *         to utilize for cloning
+   *
+   * @return a cloner instance able to clone objects of the specified type
+   */
+  static <T> Cloner<T> get(Class<T> what, Configuration conf) {
     SerializationFactory factory = new SerializationFactory(conf);
     Serialization<T> serialization = factory.getSerialization(what);
     if (serialization == null) {

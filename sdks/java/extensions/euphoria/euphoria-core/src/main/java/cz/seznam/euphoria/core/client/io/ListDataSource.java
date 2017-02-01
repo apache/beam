@@ -29,6 +29,8 @@ import java.util.WeakHashMap;
 
 /**
  * A {@code DataSource} that is backed up by simple list.
+ *
+ * @param <T> the type of elements this source provides
  */
 public class ListDataSource<T> implements DataSource<T> {
 
@@ -167,6 +169,10 @@ public class ListDataSource<T> implements DataSource<T> {
 
   /**
    * Set sleep time between emitting of elements.
+   *
+   * @param timeout the duration to sleep between delivering individual elements
+   *
+   * @return this instance (for method chaining purposes)
    */
   public ListDataSource<T> withReadDelay(Duration timeout) {
     this.sleepMs = timeout.toMillis();
@@ -175,6 +181,10 @@ public class ListDataSource<T> implements DataSource<T> {
 
   /**
    * Sets the sleep time to wait after having served the last element.
+   *
+   * @param timeout the time to sleep before signaling end-of-stream
+   *
+   * @return this instance (for method chaining purposes)
    */
   public ListDataSource<T> withFinalDelay(Duration timeout) {
     this.finalSleepMs = timeout.toMillis();

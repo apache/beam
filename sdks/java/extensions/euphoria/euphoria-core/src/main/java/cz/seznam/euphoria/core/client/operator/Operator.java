@@ -49,17 +49,23 @@ public abstract class Operator<IN, OUT> implements Serializable {
   /**
    * Retrieve basic operators that constitute this operator.
    * Override this method for all non basic operators.
+   *
+   * @return a DAG of basic operators this operator can be translated to
    */
   public DAG<Operator<?, ?>> getBasicOps() {
     return DAG.of(this);
   }
 
-  /** List all input datasets. */
+  /** @return a collection of all input datasets */
   public abstract Collection<Dataset<IN>> listInputs();
 
   /**
    * Create a new dataset that will be output of this operator.
    * This is used when creating operator outputs.
+   *
+   * @param input an input associated with this operator
+   *
+   * @return a newly created dataset associated with this operator as its output
    */
   protected final Dataset<OUT> createOutput(final Dataset<IN> input) {
     Flow flow = input.getFlow();
@@ -67,7 +73,7 @@ public abstract class Operator<IN, OUT> implements Serializable {
   }
 
   /**
-   * Retrieve output dataset.
+   * @return the output dataset
    */
   public abstract Dataset<OUT> output();
 

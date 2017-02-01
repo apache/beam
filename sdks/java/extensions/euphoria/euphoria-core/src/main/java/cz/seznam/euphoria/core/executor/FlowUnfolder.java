@@ -67,8 +67,12 @@ public class FlowUnfolder {
 
   /**
    * Unfolds the flow so that it contains only allowed operators.
+   *
    * @param flow original flow
    * @param operatorClasses allowed operators
+   *
+   * @return a dag representing the given flow in an "unfolded" form
+   *
    * @throws IllegalArgumentException when the transformation is not possible.
    */
   @SuppressWarnings("unchecked")
@@ -107,6 +111,8 @@ public class FlowUnfolder {
    *         operator instance will be translated separately and, thus,
    *         should be left in the resulting DAG or whether it is to
    *         be expanded into its basic ops.
+   *
+   * @return the translated DAG consisting of basic operators only
    */
   @SuppressWarnings("unchecked")
   private static DAG<Operator<?, ?>> translate(
@@ -176,7 +182,7 @@ public class FlowUnfolder {
     return FlowValidator.postTranslateValidate(ret);
   }
 
-  /**
+  /*
    * Retrieve parent operators in so far constructed transformed DAG.
    */
   private static List<Operator<?, ?>> getParents(
@@ -212,7 +218,7 @@ public class FlowUnfolder {
   }
 
 
-  /**
+  /*
    * Convert a given {@code Flow} to DAG (unconditionally).
    */
   @SuppressWarnings("unchecked")

@@ -42,9 +42,13 @@ class ExecUnit {
   /** All dag consisting this exec unit. */
   final DAG<Operator<?, ?>> operators;
 
-  /** Split Flow into series of execution units. */
+  /**
+   * Split Flow into series of execution units.
+   *
+   * @return the given flow wrapped by a execution unit
+   */
   public static List<ExecUnit> split(DAG<Operator<?, ?>> unfoldedFlow) {
-    // FIXME: what exactly and for is unit?
+    // FIXME: what exactly for is unit?
     return Arrays.asList(new ExecUnit(unfoldedFlow));
   }
 
@@ -54,31 +58,31 @@ class ExecUnit {
   }
 
 
-  /** Retrieve leaf operators. */
+  /** @return leaf operators */
   public Collection<Node<Operator<?, ?>>> getLeafs() {
     return operators.getLeafs();
   }
 
 
-  /** Retrieve the DAG of operators. */
+  /** @return the DAG of operators */
   public DAG<Operator<?, ?>> getDAG() {
     return operators;
   }
 
 
-  /** Retrieve all inputs of this unit. */
+  /** @return all inputs of this unit */
   public Collection<Dataset<?>> getInputs() {
     return inputs;
   }
 
 
-  /** Retrieve all outputs of this unit. */
+  /** @return all outputs of this unit */
   public Collection<Dataset<?>> getOutputs() {
     return outputs;
   }
   
 
-  /** Retrieve exec paths for this unit. */
+  /** @return exec paths for this unit */
   public Collection<ExecPath> getPaths() {
     Collection<Node<Operator<?, ?>>> leafs = operators.getLeafs();
     return leafs.stream()

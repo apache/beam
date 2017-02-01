@@ -32,7 +32,7 @@ import static org.junit.Assert.assertEquals;
 public class RepartitionTest extends AbstractOperatorTest {
 
   @Test
-  public void testTwoToOne() throws Exception {
+  public void testTwoToOne() {
     execute(new AbstractTestCase<Integer, Integer>() {
 
       @Override
@@ -64,7 +64,7 @@ public class RepartitionTest extends AbstractOperatorTest {
   }
 
   @Test
-  public void testOneToTwo() throws Exception {
+  public void testOneToTwo() {
     execute(new AbstractTestCase<Integer, Integer>() {
 
       @Override
@@ -95,7 +95,7 @@ public class RepartitionTest extends AbstractOperatorTest {
   }
 
   @Test
-  public void testThreeToTwo() throws Exception {
+  public void testThreeToTwo() {
     execute(new AbstractTestCase<Integer, Integer>() {
       
       @Override

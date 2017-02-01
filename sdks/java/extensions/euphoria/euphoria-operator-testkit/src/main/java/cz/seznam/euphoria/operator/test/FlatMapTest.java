@@ -34,7 +34,7 @@ import static org.junit.Assert.assertEquals;
 public class FlatMapTest extends AbstractOperatorTest {
 
   @Test
-  public void testExplodeOnTwoPartitions() throws Exception {
+  public void testExplodeOnTwoPartitions() {
     execute(new AbstractTestCase<Integer, Integer>() {
 
       @Override

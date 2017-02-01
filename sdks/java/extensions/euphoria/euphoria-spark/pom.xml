@@ -29,6 +29,11 @@
   <artifactId>euphoria-spark</artifactId>
   <packaging>jar</packaging>
 
+  <name>${project.groupId}:${project.artifactId}</name>
+  <description>
+    An euphoria executor based on Apache Spark.
+  </description>
+
   <dependencies>
     <dependency>
       <groupId>cz.seznam.euphoria</groupId>

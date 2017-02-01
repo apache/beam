@@ -20,11 +20,16 @@ import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 /**
  * Interface marking operator as state aware.
  * State aware operators are global operators that work on some type of key.
+ *
+ * @param <IN> the type of (input) elements being processed
+ * @param <KEY> the type of the elements' keys
  */
 public interface StateAware<IN, KEY> extends PartitioningAware<KEY> {
 
-  /** Retrieve the extractor of key from given element. */
+  /**
+   * @return the key extractor function on whose base this operator
+   *          carries out partitioning
+   */
   UnaryFunction<IN, KEY> getKeyExtractor();
-
 
 }

@@ -20,6 +20,8 @@ import java.io.Serializable;
 
 /**
  * Sink for a dataset.
+ *
+ * @param <T> the type of the element consumed by this sink
  */
 public interface DataSink<T> extends Serializable {
 
@@ -31,12 +33,26 @@ public interface DataSink<T> extends Serializable {
    */
   default void initialize() {}
 
-  /** Open {@link Writer} for given partition id (zero based). */
+  /**
+   * Open {@link Writer} for given partition id (zero based).
+   *
+   * @param partitionId the id of the partition to open for write access
+   *
+   * @return a writer to the specified partition
+   */
   Writer<T> openWriter(int partitionId);
 
-  /** Commit all partitions. */
+  /**
+   * Commit all partitions.
+   *
+   * @throws IOException if commit written out data fails for some reason
+   */
   void commit() throws IOException;
 
-  /** Rollback all partitions. */
+  /**
+   * Rollback all partitions.
+   *
+   * @throws IOException if rolling back written out data fails for some reason
+   */
   void rollback() throws IOException;
 }

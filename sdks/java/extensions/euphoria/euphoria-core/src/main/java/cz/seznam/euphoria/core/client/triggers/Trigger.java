@@ -24,14 +24,16 @@ import java.io.Serializable;
 
 /**
  * Trigger determines when a window result should be flushed.
+ *
+ * @param <W> the type of windows supported
  */
 public interface Trigger<W extends Window> extends Serializable {
 
   /**
    * Determines whether this trigger implementation uses the trigger-context
    * to persist temporary state for windows.
-   *
-   * <p>Processing with stateless triggers can be optimized in certain situations.
+   * <p>
+   * Processing with stateless triggers can be optimized in certain situations.
    * Note that if this method returns {@code false} invocations to
    * {@link TriggerContext#getListStorage(ListStorageDescriptor)},
    * {@link TriggerContext#getValueStorage(ValueStorageDescriptor)},
@@ -39,6 +41,8 @@ public interface Trigger<W extends Window> extends Serializable {
    * may fail with an exception.
    *
    * <p>The default implementation always return {@code true}.
+   *
+   * @return {@code false} if this trigger is considered stateless, otherwise {@code true}
    */
   default boolean isStateful() {
     return true;
@@ -50,6 +54,8 @@ public interface Trigger<W extends Window> extends Serializable {
    * @param time    Timestamp of the incoming element.
    * @param window  Window into which the element is being added.
    * @param ctx     Context instance that can be used to register timers.
+   *
+   * @return instruction to the caller of how to continue processing the window
    */
   TriggerResult onElement(long time, W window, TriggerContext ctx);
 
@@ -65,6 +71,8 @@ public interface Trigger<W extends Window> extends Serializable {
    * @param time   The timestamp for which the timer was registered.
    * @param window Window that for which the time expired.
    * @param ctx    Context instance that can be used to register timers.
+   *
+   * @return instruction to the caller of how to continue processing the window
    */
   TriggerResult onTimer(long time, W window, TriggerContext ctx);
 
@@ -82,6 +90,8 @@ public interface Trigger<W extends Window> extends Serializable {
    *
    * @param window Resulting window from the merge operation.
    * @param ctx    Context instance
+   *
+   * @return instruction to the caller of how to continue processing the window
    */
   TriggerResult onMerge(W window, TriggerContext.TriggerMergeContext ctx);
 
@@ -137,6 +147,11 @@ public interface Trigger<W extends Window> extends Serializable {
      * <p>
      * For example, if one result says {@code NOOP} while the other says {@code FLUSH}
      * then {@code FLUSH} is the combined result;
+     *
+     * @param a left item of the merge
+     * @param b right item of the merge
+     *
+     * @return the two item merged into one
      */
     public static TriggerResult merge(TriggerResult a, TriggerResult b) {
       if (a.purge || b.purge) {

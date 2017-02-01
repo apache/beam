@@ -189,11 +189,18 @@ public class SparkFlowTranslator {
   }
 
   /**
-   * Converts {@link Flow} to {@link DAG} of Flink specific {@link Operator}.
-   *
-   * <p>Invokes {@link #getAcceptors()} to determine which user provided
+   * Converts a {@link Flow} into a {@link DAG} of Flink specific {@link Operator}s.
+   * <p>
+   * Invokes {@link #getAcceptors()} to determine which user provided
    * operators to accept for direct translation, i.e. which to leave in
    * the resulting DAG without expanding them to their {@link Operator#getBasicOps()}.
+   *
+     * @param flow the user defined flow to translate
+   *
+   * @return a DAG representing the specified flow; never {@code null}
+   *
+   * @throws IllegalStateException if validation of the specified flow failed
+   *          for some reason
    */
   protected DAG<Operator<?, ?>> flowToDag(Flow flow) {
     // ~ get acceptors for translation

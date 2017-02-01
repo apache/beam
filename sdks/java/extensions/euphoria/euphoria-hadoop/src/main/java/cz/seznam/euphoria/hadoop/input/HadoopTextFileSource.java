@@ -50,6 +50,8 @@ public class HadoopTextFileSource extends HadoopSource<LongWritable, Text> {
    * {@link #HadoopTextFileSource(String, Configuration)} with a newly created
    * hadoop configuration.
    *
+   * @param path the path to read data from
+   *
    * @throws NullPointerException if the given path is {@code null}
    */
   public HadoopTextFileSource(String path) {

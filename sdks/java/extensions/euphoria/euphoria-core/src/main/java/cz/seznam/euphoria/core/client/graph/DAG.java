@@ -34,6 +34,8 @@ import java.util.stream.Stream;
 
 /**
  * A directed acyclic graph of nodes of type T.
+ *
+ * @param <T> the type of values in the graph
  */
 public class DAG<T> {
 
@@ -46,15 +48,28 @@ public class DAG<T> {
 
   /**
    * Construct a new DAG with given nodes as root nodes.
+   *
+   * @param <T> the type of the nodes
+   *
+   * @param rootElements the set of root elements to traverse
+   *         and build up the DAG from
+   *
+   * @return the dag of the given root elements
    */
   @SuppressWarnings("unchecked")
   public static <T> DAG<T> of(T ...rootElements) {
     return of(Arrays.asList(rootElements));
   }
-  
 
   /**
    * Construct a new DAG with given nodes as root nodes.
+   *
+   * @param <T> the type of the elements/values in the new DAG
+   *
+   * @param rootElements the set of root elements to traverse
+   *         and build up the DAG from
+   *
+   * @return the dag of the given root elements
    */
   public static <T> DAG<T> of(Iterable<T> rootElements) {
     DAG<T> ret = new DAG<>();
@@ -66,8 +81,12 @@ public class DAG<T> {
 
 
   /**
-   * Add new element.
-   * If no parents, add this as a root element.
+   * Add new element. If no parents, add this as a root element.
+   *
+   * @param elem the element to be added to this DAG
+   * @param parents the parent elements of <tt>elem</tt>
+   *
+   * @return this instance (for method chaining purposes)
    */
   @SafeVarargs
   public final DAG<T> add(T elem, T... parents) {
@@ -77,8 +96,12 @@ public class DAG<T> {
 
 
   /**
-   * Add new element.
-   * If no parents, add this as a root element.
+   * Add new element. If no parents, add this as a root element.
+   *
+   * @param elem the element to be added to this DAG
+   * @param parents the parent elements of <tt>elem</tt>
+   *
+   * @return this instance (for method chaining purposes)
    */
   public DAG<T> add(T elem, List<T> parents) {
     final Node<T> node;
@@ -100,7 +123,13 @@ public class DAG<T> {
 
 
   /**
-   * Retrieve node for the given value.
+   * Retrieves the node for the given value.
+   *
+   * @param elem the element to find in this DAG
+   *
+   * @return the node within this DAG hosting the given element
+   *
+   * @throws IllegalStateException if there is no such node
    */
   public Node<T> getNode(T elem) {
     Node<T> ret = nodeMap.get(elem);
@@ -112,7 +141,7 @@ public class DAG<T> {
 
 
   /**
-   * Retrieve list of root nodes.
+   * @return the list of root nodes of this DAG
    */
   public Collection<Node<T>> getRoots() {
     return roots;
@@ -120,7 +149,7 @@ public class DAG<T> {
 
 
   /**
-   * Retrieve leaf nodes (that is nodes with no children).
+   * @return a collection of leaf nodes of this DAG, i.e. nodes with no children
    */
   public Collection<Node<T>> getLeafs() {
     return nodeMap.values().stream().filter(n -> n.children.isEmpty())
@@ -131,6 +160,10 @@ public class DAG<T> {
   /**
    * Retrieve a subgraph containing the given node as a single leaf node and
    * a transitive closure of parents.
+   *
+   * @param elem the element whose sub-graph to identify
+   *
+   * @return the identified sub-graph
    */
   public DAG<T> parentSubGraph(T elem) {
     DAG<T> ret = new DAG<>();
@@ -161,25 +194,27 @@ public class DAG<T> {
   }
   
 
-  /** Retrieve number of nodes in the DAG. */
+  /** @return the number of nodes in this DAG */
   public int size() {
     return nodeMap.size();
   }
 
 
-  /** Retrieve read-only collection of nodes of this DAG. */
+  /** @return all nodes of this DAG in no particular order */
   public Stream<T> nodes() {
     return nodeMap.values().stream().map(n -> n.value);
   }
 
   /**
    * Retrieves a stream of nodes in traversal order (i.e. from non-dependent nodes
-   * to those depending on the already served ones.)<p />
-   *
+   * to those depending on the already served ones.)
+   * <p>
    * In the returned stream, a node at a certain position is likely to be a
    * dependency of a node at a later position; reversely, a node at a certain
    * position is guaranteed <i>not to be</i> a dependency of all nodes at earlier
    * positions.
+   *
+   * @return a stream of all nodes in traversal order
    */
   public Stream<Node<T>> traverse() {
     List<Node<T>> ret = new LinkedList<>();
@@ -205,7 +240,6 @@ public class DAG<T> {
 
     return ret.stream();
   }
-
 
   @Override
   public String toString() {

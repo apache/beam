@@ -19,11 +19,13 @@ import cz.seznam.euphoria.core.client.functional.BinaryFunction;
 
 /**
  * Optional interface for descriptor to implement in order to enable state merging.
+ *
+ * @param <T> the type of elements referred to through this descriptor
  */
 public interface MergingStorageDescriptor<T> {
 
   /**
-   * Retrieve the merging function for state storages.
+   * @return the merging function for state storages.
    */
   BinaryFunction<? extends Storage<T>, ? extends Storage<T>, Void> getMerger();
 

@@ -21,6 +21,9 @@ public interface Scheduler {
 
   /**
    * Submit the given runnable for repeated execution.
+   *
+   * @param period the period at which to repeatedly invoke the given action
+   * @param r the action to invoke
    */
   void schedulePeriodically(Duration period, Runnable r);
 

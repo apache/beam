@@ -49,6 +49,10 @@ public class SparkExecutorContext {
 
   /**
    * Retrieve list of Spark {@link JavaRDD} inputs of given operator
+   *
+   * @param operator the operator whose input RDDs to return
+   *
+   * @return a list of input RDDs of the given operator; never {@code null}
    */
   public List<JavaRDD<?>> getInputs(Operator<?, ?> operator) {
     List<Node<Operator<?, ?>>> parents = dag.getNode(operator).getParents();
@@ -65,15 +69,29 @@ public class SparkExecutorContext {
   }
 
   /**
-   * Retrieves single Spark {@link JavaRDD} in case given operator has no more
+   * Retrieves a single Spark {@link JavaRDD} in case given operator has no more
    * than one input (single-input operator).
+   *
+   * @param operator the operator to inspect
+   *
+   * @return a single RDD represeting the operator only input
+   *
+   * @throws RuntimeException if the given operator has no or more than one inputs
    */
   public JavaRDD<?> getSingleInput(Operator<?, ?> operator) {
     return Iterables.getOnlyElement(getInputs(operator));
   }
 
   /**
-   * Retrieves Spark {@link JavaRDD} representing output of given operator
+   * Retrieves a Spark {@link JavaRDD} representing output of given operator
+   *
+   * @param operator the operator to inspect
+   *
+   * @return the given operator's output RDD
+   *
+   * @throws RuntimeException if the operator has no output RDD registered yet
+   *
+   * @see #setOutput(Operator, JavaRDD)
    */
   public JavaRDD<?> getOutput(Operator<?, ?> operator) {
     JavaRDD<?> out = outputs.get(operator);

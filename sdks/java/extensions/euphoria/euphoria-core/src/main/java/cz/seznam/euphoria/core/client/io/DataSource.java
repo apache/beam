@@ -23,10 +23,13 @@ import java.util.List;
  */
 public interface DataSource<T> extends Serializable {
 
-  /** Retrieve list of all partitions of this source. */
+  /** @return a list of all partitions of this source */
   List<Partition<T>> getPartitions();
 
-  /** Is this datasource bounded? */
+  /**
+   * @return {@code true} if this source is bounded,
+   *         {@code false} if it is unbounded.
+   */
   boolean isBounded();
 
 }
