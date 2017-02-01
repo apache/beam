@@ -21,3 +21,16 @@ func Seq(p *Pipeline, col PCollection, dofns ...interface{}) (PCollection, error
 	}
 	return col, nil
 }
+
+// Composite is a helper to scope a composite transform.
+func Composite(p *Pipeline, name string, fn func(pipeline *Pipeline) ([]PCollection, error)) ([]PCollection, error) {
+	return fn(p.Composite(name))
+}
+
+func Composite0(p *Pipeline, name string, fn func(pipeline *Pipeline) error) error {
+	return fn(p.Composite(name))
+}
+
+func Composite1(p *Pipeline, name string, fn func(pipeline *Pipeline) (PCollection, error)) (PCollection, error) {
+	return fn(p.Composite(name))
+}
