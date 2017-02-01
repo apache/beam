@@ -57,6 +57,10 @@ public class JmsIOTest {
 
   private static final String BROKER_URL = "vm://localhost";
 
+  private static final String USERNAME = "test_user";
+  private static final String PASSWORD = "test_password";
+  private static final String QUEUE = "test_queue";
+
   private BrokerService broker;
   private ConnectionFactory connectionFactory;
 
@@ -78,7 +82,9 @@ public class JmsIOTest {
 
     // enable authentication
     List<AuthenticationUser> users = new ArrayList<>();
-    users.add(new AuthenticationUser("test", "test", "users,admins"));
+    // username and password to use to connect to the broker.
+    // This user has users privilege (able to browse, consume, produce, list destinations)
+    users.add(new AuthenticationUser(USERNAME, PASSWORD, "users"));
     SimpleAuthenticationPlugin plugin = new SimpleAuthenticationPlugin(users);
     BrokerPlugin[] plugins = new BrokerPlugin[]{ plugin };
     broker.setPlugins(plugins);
@@ -98,12 +104,28 @@ public class JmsIOTest {
   @Category(NeedsRunner.class)
   public void testAuthenticationRequired() {
     expectedException.expect(Exception.class);
-    expectedException.expectMessage("JMSSecurityException");
+    expectedException.expectMessage("User name [null] or password is invalid.");
 
     pipeline.apply(
         JmsIO.read()
             .withConnectionFactory(connectionFactory)
-            .withQueue("test"));
+            .withQueue(QUEUE));
+
+    pipeline.run();
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testAuthenticationWithBadPassword() {
+    expectedException.expect(Exception.class);
+    expectedException.expectMessage("User name [" + USERNAME + "] or password is invalid.");
+
+    pipeline.apply(
+        JmsIO.read()
+            .withConnectionFactory(connectionFactory)
+            .withQueue(QUEUE)
+            .withUsername(USERNAME)
+            .withPassword("BAD"));
 
     pipeline.run();
   }
@@ -113,9 +135,9 @@ public class JmsIOTest {
   public void testReadMessages() throws Exception {
 
     // produce message
-    Connection connection = connectionFactory.createConnection("test", "test");
+    Connection connection = connectionFactory.createConnection(USERNAME, PASSWORD);
     Session session = connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
-    MessageProducer producer = session.createProducer(session.createQueue("test"));
+    MessageProducer producer = session.createProducer(session.createQueue(QUEUE));
     TextMessage message = session.createTextMessage("This Is A Test");
     producer.send(message);
     producer.send(message);
@@ -131,9 +153,9 @@ public class JmsIOTest {
     PCollection<JmsRecord> output = pipeline.apply(
         JmsIO.read()
             .withConnectionFactory(connectionFactory)
-            .withQueue("test")
-            .withUsername("test")
-            .withPassword("test")
+            .withQueue(QUEUE)
+            .withUsername(USERNAME)
+            .withPassword(PASSWORD)
             .withMaxNumRecords(5));
 
     PAssert
@@ -141,9 +163,9 @@ public class JmsIOTest {
         .isEqualTo(new Long(5));
     pipeline.run();
 
-    connection = connectionFactory.createConnection("test", "test");
+    connection = connectionFactory.createConnection(USERNAME, PASSWORD);
     session = connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
-    MessageConsumer consumer = session.createConsumer(session.createQueue("test"));
+    MessageConsumer consumer = session.createConsumer(session.createQueue(QUEUE));
     Message msg = consumer.receiveNoWait();
     Assert.assertNull(msg);
   }
@@ -159,16 +181,16 @@ public class JmsIOTest {
     pipeline.apply(Create.of(data))
         .apply(JmsIO.write()
             .withConnectionFactory(connectionFactory)
-            .withQueue("test")
-            .withUsername("test")
-            .withPassword("test"));
+            .withQueue(QUEUE)
+            .withUsername(USERNAME)
+            .withPassword(PASSWORD));
 
     pipeline.run();
 
-    Connection connection = connectionFactory.createConnection("test", "test");
+    Connection connection = connectionFactory.createConnection(USERNAME, PASSWORD);
     connection.start();
     Session session = connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
-    MessageConsumer consumer = session.createConsumer(session.createQueue("test"));
+    MessageConsumer consumer = session.createConsumer(session.createQueue(QUEUE));
     int count = 0;
     while (consumer.receive(1000) != null) {
       count++;

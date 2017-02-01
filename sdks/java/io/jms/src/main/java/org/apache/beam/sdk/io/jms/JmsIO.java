@@ -227,7 +227,8 @@ public class JmsIO {
      * Define the password to connect to the JMS broker (authenticated).
      */
     public Read withPassword(String password) {
-      // password can be null
+      checkArgument(password != null, "JmsIO.read().withPassword(password) called with null "
+          + "password");
       return builder().setPassword(password).build();
     }
 
@@ -616,7 +617,8 @@ public class JmsIO {
      * Define the password to connect to the JMS broker (authenticated).
      */
     public Write withPassword(String password) {
-      // password can be null
+      checkArgument(password != null, "JmsIO.write().withPasswprd(password) called with null "
+          + "password");
       return builder().setPassword(password).build();
     }
 
