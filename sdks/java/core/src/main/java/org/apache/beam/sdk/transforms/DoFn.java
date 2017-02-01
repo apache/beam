@@ -534,8 +534,8 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
    *     {@link DoFn}.
    * <li>If one of its arguments is a subtype of {@link BoundedWindow} then it will
    *     be passed the window of the current element. When applied by {@link ParDo} the subtype
-   *     of {@link BoundedWindow} must match the type of windows produced by the {@link WindowFn}
-   *     of the input {@link PCollection}. If absent, a runner may perform additional optimizations.
+   *     of {@link BoundedWindow} must match the type of windows on the input {@link PCollection}.
+   *     If the window is not accessed a runner may perform additional optimizations.
    * <li>It must return {@code void}.
    * </ul>
    *
