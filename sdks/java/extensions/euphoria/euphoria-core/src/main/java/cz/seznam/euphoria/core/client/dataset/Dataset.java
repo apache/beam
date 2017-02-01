@@ -19,7 +19,6 @@ import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.io.DataSink;
 import cz.seznam.euphoria.core.client.io.DataSource;
 import cz.seznam.euphoria.core.client.operator.Operator;
-import cz.seznam.euphoria.core.client.operator.PartitioningAware;
 
 import java.io.Serializable;
 import java.net.URI;
@@ -27,11 +26,13 @@ import java.util.Collection;
 
 /**
  * A dataset abstraction.
+ *
+ * @param <T> type of elements of this data set
  */
 public interface Dataset<T> extends Serializable {
 
   /**
-   * Retrieve Flow associated with this dataset.
+   * @return the flow associated with this data set
    */
   Flow getFlow();
 
@@ -40,15 +41,20 @@ public interface Dataset<T> extends Serializable {
    * This might be null, if this dataset has no explicit source,
    * it is calculated. If this method returns null, getProducer returns non null
    * and vice versa.
+   *
+   * @return this dataset's explicit source - if any
    */
   DataSource<T> getSource();
 
-  /** Retrieve operator that produced this dataset (if any). */
+  /**
+   * @return the operator that produced this dataset - if any
+   */
   Operator<?, T> getProducer();
 
   /**
    * Retrieve collection of consumers of this dataset.
-   * This returns the list of currently known consumers (this can chnage
+   *
+   * @return the list of currently known consumers (this can change
    * if another consumer is added to the flow).
    */
   Collection<Operator<?, ?>> getConsumers();
@@ -61,34 +67,52 @@ public interface Dataset<T> extends Serializable {
   <X> Partitioning<X> getPartitioning();
 
 
-  /** Is this a bounded dataset? */
+  /**
+   * @return {@code true} if this is a bounded data set,
+   *         {@code false} if it is unbounded.
+   */
   boolean isBounded();
-
 
   default void persist(URI uri) throws Exception {
     persist(getFlow().createOutput(uri));
   }
 
-  /** Persist this dataset. */
+  /**
+   * Persist this dataset.
+   *
+   * @param sink the sink to use to persist this data set's data to
+   */
   void persist(DataSink<T> sink);
-
 
   default void checkpoint(URI uri) throws Exception {
     checkpoint(getFlow().createOutput(uri));
   }
 
-  /** Checkpoint this dataset. */
+  /**
+   * Checkpoint this dataset.
+   *
+   * @param sink the sink to use to checkpoint this data set's data to
+   */
   void checkpoint(DataSink<T> sink);
 
-
-  /** Retrieve output sink for this dataset. */
+  /**
+   * Retrieve output sink for this dataset.
+   *
+   * @return {@code null} if there is no explicitly set sink this
+   *          data set is supposed to be persisted to, otherwise the
+   *          sink provided through {@link #persist(DataSink)}.
+   */
   default DataSink<T> getOutputSink() {
     return null;
   }
 
-  /** Retrieve checkpoint sink for this dataset. */
+  /**
+   * Retrieve checkpoint sink for this dataset.
+   *
+   * @return {@code null} if no checkpoint sink has been defined,
+   *          otherwise the sink provided through {@link #checkpoint(DataSink)}
+   */
   default DataSink<T> getCheckpointSink() {
     return null;
   }
-  
 }

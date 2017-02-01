@@ -49,10 +49,23 @@ public class StreamingExecutorContext
 
   /**
    * Creates a windowed stream based on euphoria windowing and key assigner.
-   *
+   * <p>
    * The returned windowed stream must be post processed using
-   * {@link MultiWindowedElementWindowFunction}.
-   * Attached windowing is relying on its effects.
+   * {@link MultiWindowedElementWindowFunction}. Attached windowing is relying
+   * on its effects.
+   *
+   * @param <T> the type of input elements
+   * @param <WID> the type of windows produced
+   * @param <KEY> the type of the elements' keys
+   * @param <VALUE> the type of the elements' values
+   *
+   * @param input the input stream to be windowed
+   * @param keyFn the key extraction function
+   * @param valFn the value extraction function
+   * @param windowing the windowing strategy to apply
+   * @param eventTimeAssigner the event time extraction function
+   *
+   * @return a windowed stream prepared for consumption by {@link MultiWindowedElementWindowFunction}
    */
   public <T, WID extends Window, KEY, VALUE>
   WindowedStream<MultiWindowedElement<WID, Pair<KEY, VALUE>>,
@@ -69,6 +82,17 @@ public class StreamingExecutorContext
    * Creates an attached window stream, presuming a preceding non-attached
    * windowing on the input data stream forwarding
    * {@link StreamingWindowedElement#getTimestamp} of the windows to attach to.
+   *
+   * @param <T> the type of input elements
+   * @param <WID> the type of windows produced
+   * @param <KEY> the type of the elements' keys
+   * @param <VALUE> the type of the elements' values
+   *
+   * @param input the input stream to be windowed
+   * @param keyFn the key extraction function
+   * @param valFn the value extraction function
+   *
+   * @return a windowed stream attached to the windowing of the original input stream
    */
   <T, WID extends Window, KEY, VALUE>
   WindowedStream<StreamingWindowedElement<WID, Pair<KEY, VALUE>>,

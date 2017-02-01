@@ -25,6 +25,10 @@ public interface Partitioner<T> extends Serializable {
   /**
    * Retrieve ID of partition. The ID of partition is then taken modulo
    * the number of partitions.
+   *
+   * @param element the element to assign a partition to
+   *
+   * @return a partition of the element
    */
   int getPartition(T element);
 

@@ -72,7 +72,7 @@ public class ReduceByKeyTest extends AbstractOperatorTest {
 
   /** Validates the output type upon a `.reduceBy` operation on windows of size one. */
   @Test
-  public void testReductionType0() throws Exception {
+  public void testReductionType0() {
     execute(new AbstractTestCase<Integer, Pair<Integer, HashSet<Integer>>>() {
       @Override
       protected Partitions<Integer> getInput() {
@@ -123,7 +123,7 @@ public class ReduceByKeyTest extends AbstractOperatorTest {
   }
 
   @Test
-  public void testEventTime() throws Exception {
+  public void testEventTime() {
     execute(new AbstractTestCase<Pair<Integer, Long>, Pair<Integer, Long>>() {
 
       @Override
@@ -190,7 +190,7 @@ public class ReduceByKeyTest extends AbstractOperatorTest {
   }
 
   @Test
-  public void testReduceWithWindowing() throws Exception {
+  public void testReduceWithWindowing() {
     execute(new AbstractTestCase<Integer, Pair<Integer, Long>>() {
       @Override
       protected Dataset<Pair<Integer, Long>> getOutput(Dataset<Integer> input) {
@@ -243,7 +243,7 @@ public class ReduceByKeyTest extends AbstractOperatorTest {
   // It would run infinitely without providing any result.
   @Processing(Processing.Type.BOUNDED)
   @Test
-  public void testReduceWithoutWindowing() throws Exception {
+  public void testReduceWithoutWindowing() {
     execute(new AbstractTestCase<String, Pair<String, Long>>() {
       @Override
       protected Partitions<String> getInput() {
@@ -400,7 +400,7 @@ public class ReduceByKeyTest extends AbstractOperatorTest {
   }
 
   @Test
-  public void testMergingAndTriggering() throws Exception {
+  public void testMergingAndTriggering() {
     execute(new AbstractTestCase<Pair<String, Long>, Pair<String, Long>>() {
 
       @Override
@@ -459,7 +459,7 @@ public class ReduceByKeyTest extends AbstractOperatorTest {
   }
 
   @Test
-  public void testSessionWindowing() throws Exception {
+  public void testSessionWindowing() {
     execute(new AbstractTestCase<
         Pair<String, Integer>,
         Triple<TimeInterval, Integer, HashSet<String>>>() {
@@ -572,7 +572,7 @@ public class ReduceByKeyTest extends AbstractOperatorTest {
   }
 
   @Test
-  public void testElementTimestamp() throws Exception {
+  public void testElementTimestamp() {
     class AssertingWindowing<T> implements Windowing<T, TimeInterval> {
       @Override
       public Set<TimeInterval> assignWindowsToElement(WindowedElement<?, T> el) {
@@ -660,7 +660,7 @@ public class ReduceByKeyTest extends AbstractOperatorTest {
 
   @Processing(Processing.Type.UNBOUNDED)
   @Test
-  public void testElementTimestampEarlyTriggeredStreaming() throws Exception {
+  public void testElementTimestampEarlyTriggeredStreaming() {
     class TimeCollectingWindowing<T> implements Windowing<T, TimeInterval> {
       @Override
       public Set<TimeInterval> assignWindowsToElement(WindowedElement<?, T> el) {

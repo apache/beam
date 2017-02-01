@@ -39,7 +39,11 @@ public class Settings implements Serializable {
     this(null, new ConcurrentHashMap<>());
   }
 
-  /** Clone other settings to this one. */
+  /**
+   * Copy constructor.
+   *
+   * @param other the other settings instance to make a new copy of
+   */
   public Settings(Settings other) {
     this();
     other.getAll().entrySet().stream().forEach(p -> {

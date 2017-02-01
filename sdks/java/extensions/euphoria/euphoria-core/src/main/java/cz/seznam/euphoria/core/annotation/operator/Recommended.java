@@ -28,13 +28,16 @@ import java.lang.annotation.Target;
 @Target(ElementType.TYPE)
 public @interface Recommended {
 
-  /** Textual documentation of the reason of the recommendation. */
+  /**
+   * @return a human readable explanation why the annotated operator is recommendation
+   *          for native implementation by an executor
+   */
   String reason();
 
-  /** State complexity, use {@code StateComplexity.<value>}. */
-  int state();
+  /** @return the state complexity */
+  StateComplexity state();
 
-  /** Number of global repartition operations. */
+  /** @return the number of global repartition operations */
   int repartitions();
   
 }

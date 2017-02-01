@@ -88,6 +88,9 @@ public class SparkExecutor implements Executor {
 
   /**
    * Checks if the given {@link Flow} reads bounded inputs
+   *
+   * @param flow the flow to inspect
+   *
    * @return {@code true} if all sources are bounded
    */
   protected boolean isBoundedInput(Flow flow) {

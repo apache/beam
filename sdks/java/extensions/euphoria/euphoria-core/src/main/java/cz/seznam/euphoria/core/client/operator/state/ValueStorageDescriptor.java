@@ -19,6 +19,8 @@ import cz.seznam.euphoria.core.client.functional.BinaryFunction;
 
 /**
  * Descriptor of {@code ValueStorage}.
+ *
+ * @param <T> the type of value referred to through this descriptor
  */
 public class ValueStorageDescriptor<T> extends StorageDescriptorBase {
 
@@ -48,7 +50,17 @@ public class ValueStorageDescriptor<T> extends StorageDescriptorBase {
     }
   }
 
-  /** Get descriptor of value storage without merging. */
+  /**
+   * Get descriptor of value storage without merging.
+   *
+   * @param <T> the type of value referred to through the new descriptor
+   *
+   * @param name a name of the storage
+   * @param cls the type of the value stored in the storage
+   * @param defVal the default value to be provided in case no such is yet stored
+   *
+   * @return a new descriptor for a value storage
+   */
   public static <T> ValueStorageDescriptor<T> of(String name, Class<T> cls, T defVal) {
     return new ValueStorageDescriptor<>(name, cls, defVal);
   }
@@ -57,6 +69,15 @@ public class ValueStorageDescriptor<T> extends StorageDescriptorBase {
    * Get mergeable value storage descriptor.
    * This is needed in conjunction with all merging windowings
    * and for all state storages.
+   *
+   * @param <T> the type of value referred to through the new descriptor
+   *
+   * @param name a name of the storage
+   * @param cls the type of the value stored in the storage
+   * @param defVal the default value to be provided in case no such is yet stored
+   * @param merger the merge function to utilize upon state value updates
+   *
+   * @return a new descriptor for a value storage
    */
   public static <T> ValueStorageDescriptor<T> of(
       String name, Class<T> cls, T defVal, BinaryFunction<T, T, T> merger) {

@@ -33,7 +33,7 @@ import java.util.List;
 import static org.junit.Assert.assertEquals;
 
 /**
- * Test operator {@code Distinct}.
+ * Test for the {@link Distinct} operator.
  */
 @Processing(Type.ALL)
 public class DistinctTest extends AbstractOperatorTest {
@@ -42,7 +42,7 @@ public class DistinctTest extends AbstractOperatorTest {
    * Test simple duplicates with single output partition.
    */
   @Test
-  public void testSimpleDuplicatesWithSinglePartitionNoWindowing() throws Exception {
+  public void testSimpleDuplicatesWithSinglePartitionNoWindowing() {
     execute(new AbstractTestCase<Integer, Integer>() {
 
       @Override
@@ -76,7 +76,7 @@ public class DistinctTest extends AbstractOperatorTest {
    * with count window.
    */
   @Test
-  public void testSimpleDuplicatesWithSinglePartitionTimeWindowing() throws Exception {
+  public void testSimpleDuplicatesWithSinglePartitionTimeWindowing() {
     execute(new AbstractTestCase<Pair<Integer, Long>, Integer>() {
 
       @Override
@@ -113,7 +113,7 @@ public class DistinctTest extends AbstractOperatorTest {
    * with two partitions with count window.
    */
   @Test
-  public void testSimpleDuplicatesWithSinglePartitionStreamTwoPartitions() throws Exception {
+  public void testSimpleDuplicatesWithSinglePartitionStreamTwoPartitions() {
     execute(new AbstractTestCase<Pair<Integer, Long>, Integer>() {
 
       @Override

@@ -32,7 +32,14 @@ public class Descriptors {
         descriptor.getValueClass());
   }
 
-  /** Converts the given euphoria descriptor into its flink equivalent. */
+  /**
+   * Converts the given euphoria descriptor into its flink equivalent.
+   *
+   * @param <T> the type of the value described
+   * @param descriptor the euphoria descriptor
+   *
+   * @return the flink equivalent of the the given euphoria descriptor
+   */
   public static <T> ValueStateDescriptor<T> from(ValueStorageDescriptor<T> descriptor) {
     return new ValueStateDescriptor<>(
         descriptor.getName(),
@@ -40,7 +47,14 @@ public class Descriptors {
         descriptor.getDefaultValue());
   }
 
-  /** Converts the given euphoria descriptor into its flink equivalent. */
+  /**
+   * Converts the given euphoria descriptor into its flink equivalent.
+   *
+   * @param <T> the type of the value described
+   * @param descriptor the euphoria descriptor
+   *
+   * @return the flink equivalent of the given euphoria descriptor
+   */
   public static <T> ListStateDescriptor<T> from(ListStorageDescriptor<T> descriptor) {
     return new ListStateDescriptor<>(
         descriptor.getName(),

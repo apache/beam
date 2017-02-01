@@ -28,10 +28,10 @@ import java.util.NoSuchElementException;
  * URI with {{@link #buildURI()}}. The string, int, long and boolean types of query
  * parameters are supported. The parameters are internally stored in a {@link Map}, so
  * duplicated parameters with the same name are not supported. The parameter keys are 
- * treated as case insensitive - i.e. there is no difference between a=2 and A=3 
- * and so you cannot parse uri like http://my-site.org?a=2&A=2 otherwise 
- * IllegalStateException for duplicated parameter is thrown. Null values are also not
- * supported.
+ * treated as case insensitive - i.e. there is no difference between {@code a=2} and
+ * {@code A=3} and so you cannot parse uri like {@code http://my-site.org?a=2&A=2}
+ * otherwise {@link java.lang.IllegalStateException} for duplicated parameter is thrown.
+ * {@code null} values are also not supported.
  */
 public class URIParams {
 

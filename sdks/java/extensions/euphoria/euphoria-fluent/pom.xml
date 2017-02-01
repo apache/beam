@@ -29,6 +29,11 @@
   <artifactId>euphoria-fluent</artifactId>
   <packaging>jar</packaging>
 
+  <name>${project.groupId}:${project.artifactId}</name>
+  <description>
+    A fluent API wrapper around Euphoria's client API.
+  </description>
+
   <dependencies>
     <dependency>
       <groupId>cz.seznam.euphoria</groupId>

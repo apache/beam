@@ -29,7 +29,11 @@ public abstract class State<IN, OUT> implements Closeable {
   /** Provider of state storage. */
   private final StorageProvider storageProvider;
 
-  /** Add element to this state. */
+  /**
+   * Add element to this state.
+   *
+   * @param element the element to add/accumulate to this state
+   */
   public abstract void add(IN element);
 
   /**
