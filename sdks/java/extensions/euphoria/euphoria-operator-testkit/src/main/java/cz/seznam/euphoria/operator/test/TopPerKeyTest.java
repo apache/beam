@@ -57,7 +57,7 @@ public class TopPerKeyTest extends AbstractOperatorTest {
   }
 
   @Test
-  public void testOnBatch() throws Exception {
+  public void testOnBatch() {
     execute(new AbstractTestCase<Item, Triple<String, String, Integer>>() {
       @Override
       protected Dataset<Triple<String, String, Integer>>

@@ -41,6 +41,11 @@ public class HadoopUtils {
   /**
    * Initialize Hadoop {@link Configuration} from Euphoria specific
    * {@link Settings} instance.
+   *
+   * @param settings euphoria's settings structure to create a hadoop
+   *         configuration from
+   *
+   * @return a hadoop configuration reflecting the specified euphoria settings
    */
   public static Configuration createConfiguration(Settings settings) {
     Configuration conf = new Configuration();
@@ -90,6 +95,10 @@ public class HadoopUtils {
   /**
    * Serialization helper to try serializing the given object into a byte array.
    * Deserialization is supposed to by handled via {@link #deserializeFromBytes(byte[])}.
+   *
+   * @param obj the object to be serialized
+   *
+   * @return the serialized object as a byte array; never {@code null}
    */
   public static byte[] serializeToBytes(Object obj) {
     Output baos = new Output(new ByteArrayOutputStream());
@@ -98,8 +107,14 @@ public class HadoopUtils {
   }
 
   /**
-   * Serialization helper to try deserializaing the given byte array into an object
+   * Serialization helper to deserialize the given byte array into an object
    * assuming that was serialized using {@link #serializeToBytes(Object)}.
+   *
+   * @param data the serialized form of a object
+   *
+   * @return the object deserialized from the given data bytes
+   *
+   * @throws RuntimeException if deserialization fails for some reason
    */
   public static Object deserializeFromBytes(byte [] data) {
     return newKryo().readClassAndObject(new Input(data));

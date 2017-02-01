@@ -35,7 +35,7 @@ import static org.junit.Assert.assertEquals;
 public class UnionTest extends AbstractOperatorTest {
 
   @Test
-  public void testUnionAndMap() throws Exception {
+  public void testUnionAndMap() {
     execute(new TestCase<Integer>() {
 
       @Override

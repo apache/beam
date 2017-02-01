@@ -19,12 +19,23 @@ import java.io.Serializable;
 
 /**
  * Function of two arguments.
+ *
+ * @param <LEFT> the type of the left operand
+ * @param <RIGHT> the type of the right operand
+ * @param <OUT> the type of the result of the function application
  */
 @FunctionalInterface
 public interface BinaryFunction<LEFT, RIGHT, OUT> extends Serializable {
 
 
-  /** Return the result of this function. */
+  /**
+   * Applies this function to the given arguments.
+   *
+   * @param left the "left" parameter of the operation
+   * @param right the "right" parameter of the operation
+   *
+   * @return the result of applying "left" and "right" to an operation
+   */
   OUT apply(LEFT left, RIGHT right);
 
 }

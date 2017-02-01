@@ -92,31 +92,6 @@
     <module>euphoria-examples</module>
   </modules>
 
-  <!-- make a few things differently when building under jdk8 -->
-  <profiles>
-    <profile>
-      <id>java8</id>
-      <activation>
-        <jdk>1.8</jdk>
-      </activation>
-      <build>
-        <pluginManagement>
-          <plugins>
-            <plugin>
-              <artifactId>maven-javadoc-plugin</artifactId>
-              <version>2.10.3</version>
-              <configuration>
-                <additionalparam>-Xdoclint:none</additionalparam>
-                <encoding>UTF-8</encoding>
-              </configuration>
-            </plugin>
-          </plugins>
-        </pluginManagement>
-      </build>
-    </profile>
-
-  </profiles>
-
   <build>
     <pluginManagement>
       <plugins>
@@ -144,6 +119,7 @@
           <version>2.10.3</version>
           <configuration>
             <encoding>UTF-8</encoding>
+            <quiet>true</quiet>
           </configuration>
         </plugin>
 
@@ -269,16 +245,37 @@
     </pluginManagement>
 
     <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-enforcer-plugin</artifactId>
+        <version>1.4.1</version>
+        <executions>
+          <execution>
+            <id>enforce-versions</id>
+            <goals>
+              <goal>enforce</goal>
+            </goals>
+            <configuration>
+              <rules>
+                <requireJavaVersion>
+                  <version>1.8</version>
+                </requireJavaVersion>
+              </rules>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+
       <!--  generate and attach sources jar -->
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-source-plugin</artifactId>
-        <version>2.4</version>
+        <version>3.0.1</version>
         <executions>
           <execution>
-            <phase>verify</phase>
+            <id>attach-sources</id>
             <goals>
-              <goal>jar</goal>
+              <goal>jar-no-fork</goal>
             </goals>
           </execution>
         </executions>
@@ -290,7 +287,7 @@
         <artifactId>maven-javadoc-plugin</artifactId>
         <executions>
           <execution>
-            <phase>verify</phase>
+            <id>attach-javadocs</id>
             <goals>
               <goal>jar</goal>
             </goals>

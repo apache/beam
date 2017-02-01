@@ -27,7 +27,8 @@ public interface Triggerable<W extends Window, K> {
    * to a garbage collection), the timestamp supplied to this function will still be the original
    * timestamp for which the trigger was scheduled.
    *
-   * @param timestamp The timestamp for which the trigger event was scheduled.
+   * @param timestamp the timestamp for which the trigger event was scheduled.
+   * @param window the window this action is invoked for; i.e. the context of the invocation
    */
   void fire(long timestamp, KeyedWindow<W, K> window);
 }

@@ -19,6 +19,9 @@ import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 
 /**
  * Schedules and fires registered triggers according to internal time.
+ *
+ * @param <W> the type of windows this scheduler is able to handle
+ * @param <K> the type of keys this scheduler is able to handle
  */
 public interface TriggerScheduler<W extends Window, K> {
 
@@ -26,6 +29,10 @@ public interface TriggerScheduler<W extends Window, K> {
    * Fire specific trigger on given time.
    * Schedule the given trigger at the given stamp.
    * The trigger will be fired as close to the time as possible.
+   *
+   * @param stamp the time stamp to schedule the action for
+   * @param window the window to be supplied when triggering the action
+   * @param trigger the function to be triggered when <tt>stamp</tt> has been reached
    *
    * @return true if the triggerable has been scheduled,
    *          false if the time already passed
@@ -36,6 +43,8 @@ public interface TriggerScheduler<W extends Window, K> {
    * Retrieve current timestamp this triggering is on.
    * This can be either a real system timestamp or the last
    * timestamp updated by call to `updateStamp'.
+   *
+   * @return the current timestamp as seen by this scheduler
    */
   long getCurrentTimestamp();
 
@@ -46,11 +55,16 @@ public interface TriggerScheduler<W extends Window, K> {
 
   /**
    * Cancel previously registered timer
+   *
+   * @param stamp the time stamp of a previously registered schedule
+   * @param window the window for this to cancel the timer
    */
   void cancel(long stamp, KeyedWindow<W, K> window);
 
   /**
    * Update the internal timestamp (optional operation).
+   *
+   * @param stamp the new, advanced time stamp
    */
   default void updateStamp(long stamp) {
     // nop

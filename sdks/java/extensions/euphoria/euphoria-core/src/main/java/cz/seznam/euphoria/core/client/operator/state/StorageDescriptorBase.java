@@ -29,7 +29,7 @@ public abstract class StorageDescriptorBase implements Serializable {
     this.name = name;
   }
 
-  /** Retrieve name of the storage with scope of operator and key. */
+  /** @return the name of the storage with scope of operator and key */
   public String getName() { return name; }
 
 }
