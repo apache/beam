@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package cz.seznam.euphoria.core.executor;
+package cz.seznam.euphoria.inmem;
 
 import cz.seznam.euphoria.core.client.graph.DAG;
 import cz.seznam.euphoria.core.client.operator.Operator;
@@ -21,7 +21,7 @@ import cz.seznam.euphoria.core.client.operator.Operator;
 /**
  * A series of transformations with single output operator.
  */
-public class ExecPath {
+class ExecPath {
 
   /** A DAG of operators. */
   private final DAG<Operator<?, ?>> dag;
