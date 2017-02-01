@@ -28,11 +28,11 @@ job('beam_SeedJob_Main') {
   common_job_properties.setTopLevelJobProperties(delegate)
 
   // Set that this is a PostCommit job.
-  // Polls SCM on Feb 31st, i.e. never.
+  // Does not poll SCM.
   common_job_properties.setPostCommit(
       delegate,
       '0 6 * * *',
-      '0 5 31 2 *',
+      false,
       'dev@beam.apache.org')
 
   steps {
