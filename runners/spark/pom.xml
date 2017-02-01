@@ -95,6 +95,7 @@
                     </beamTestPipelineOptions>
                     <beam.spark.test.reuseSparkContext>true</beam.spark.test.reuseSparkContext>
                     <spark.ui.enabled>false</spark.ui.enabled>
+                    <spark.port.maxRetries>64</spark.port.maxRetries>
                   </systemPropertyVariables>
                 </configuration>
               </execution>
