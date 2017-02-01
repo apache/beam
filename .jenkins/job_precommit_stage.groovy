@@ -53,7 +53,7 @@ job('beam_PreCommit_Website_Stage') {
         pip install --user beautifulsoup4
 
         # Fix links on staged website.
-        python tools/append_index_html_to_internal_links.py
+        python .jenkins/append_index_html_to_internal_links.py
 
         # Upload the new site.
         gsutil -m cp -R ./content/* ${GCS_PATH}
