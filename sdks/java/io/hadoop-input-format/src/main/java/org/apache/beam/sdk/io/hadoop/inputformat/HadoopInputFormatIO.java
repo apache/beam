@@ -440,7 +440,7 @@ public class HadoopInputFormatIO {
      * coder.
      */
     @VisibleForTesting
-    <T> Coder<T> getDefaultCoder(TypeDescriptor<?> typeDesc, CoderRegistry coderRegistry) {
+    public <T> Coder<T> getDefaultCoder(TypeDescriptor<?> typeDesc, CoderRegistry coderRegistry) {
       Class classType = typeDesc.getRawType();
       try {
         return (Coder<T>) coderRegistry.getCoder(typeDesc);
@@ -638,9 +638,9 @@ public class HadoopInputFormatIO {
      * "unexpected extra bytes after decoding" while the decoding process happens. Hence this
      * validation is required.
      */
-    private void validateKeyValueClasses() throws IOException, InterruptedException {     
-      RecordReader<?, ?> reader = inputFormatObj.createRecordReader(inputSplits.get(0).getSplit(),
-          taskAttemptContext);
+    private void validateKeyValueClasses() throws IOException, InterruptedException {
+      RecordReader<?, ?> reader =
+          inputFormatObj.createRecordReader(inputSplits.get(0).getSplit(), taskAttemptContext);
       if (reader == null) {
         throw new IOException(
             String.format(HadoopInputFormatIOConstants.NULL_CREATE_RECORDREADER_ERROR_MSG,
@@ -791,7 +791,7 @@ public class HadoopInputFormatIO {
        * @throws ClassCastException 
        * @throws CoderException 
        */
-      private <T extends Object,T1 extends Object> T1 transformKeyOrValue(T input,
+      private <T, T1> T1 transformKeyOrValue(T input,
           @Nullable SimpleFunction<T, T1> simpleFunction, Coder<T1> coder) throws CoderException, ClassCastException{
         T1 output;
         if (null != simpleFunction) {
@@ -806,7 +806,7 @@ public class HadoopInputFormatIO {
        * Many objects used by beam are mutable, but the Hadoop InputFormats tend to re-use the same
        * object when returning them. Hence mutable objects are cloned.
        */
-      private <T extends Object> T cloneIfPossiblyMutable(T input, Coder<T> coder)
+      private <T> T cloneIfPossiblyMutable(T input, Coder<T> coder)
           throws CoderException, ClassCastException {
         // If the input object is not of known immutable type, clone the object.
         if (!isKnownImmutable(input)) {
