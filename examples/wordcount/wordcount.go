@@ -54,13 +54,13 @@ func Format2(in <-chan KV, out chan<- string) {
 
 // CountWords is a composite transform.
 func CountWords(p *beam.Pipeline, lines beam.PCollection) (beam.PCollection, error) {
-	p = p.Composite("CountWords")
-
-	col, err := beam.ParDo1(p, Extract, lines)
-	if err != nil {
-		return beam.PCollection{}, err
-	}
-	return count.PerElement(p, col)
+	return beam.Composite1(p, "CountWords", func(p *beam.Pipeline) (beam.PCollection, error) {
+		col, err := beam.ParDo1(p, Extract, lines)
+		if err != nil {
+			return beam.PCollection{}, err
+		}
+		return count.PerElement(p, col)
+	})
 }
 
 func Wordcount(p *beam.Pipeline) error {
