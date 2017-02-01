@@ -33,6 +33,12 @@ mavenJob('beam_PostCommit_Java_RunnableOnService_Flink') {
   // Sets that this is a PostCommit job.
   common_job_properties.setPostCommit(delegate)
 
+  // Allows triggering this build against pull requests.
+  common_job_properties.enablePhraseTriggeringFromPullRequest(
+    delegate,
+    'Apache Flink Runner RunnableOnService Tests',
+    'Run Flink RunableOnService')
+
   // Maven goals for this job.
   goals('-B -e clean verify -am -pl runners/flink/runner -Plocal-runnable-on-service-tests -Prunnable-on-service-tests')
 }
