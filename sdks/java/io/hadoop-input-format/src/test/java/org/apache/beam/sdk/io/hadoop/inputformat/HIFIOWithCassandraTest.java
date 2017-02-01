@@ -28,9 +28,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.mapreduce.InputFormat;
 import org.cassandraunit.utils.EmbeddedCassandraServerHelper;
-import org.junit.After;
 import org.junit.AfterClass;
-import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.FixMethodOrder;
 import org.junit.Rule;
@@ -53,155 +51,152 @@ import com.datastax.driver.mapping.annotations.Table;
 @RunWith(JUnit4.class)
 @FixMethodOrder(MethodSorters.JVM)
 public class HIFIOWithCassandraTest implements Serializable {
-	private static final long serialVersionUID = 1L;
-	private static final String CASSANDRA_KEYSPACE = "hif_keyspace";
-	private static final String CASSANDRA_HOST = "127.0.0.1";
-	private static final String CASSANDRA_TABLE = "person";
-	private static transient Cluster cluster;
-	private static transient Session session;
-	@Rule
-	public final transient TestPipeline p = TestPipeline.create();
+  private static final long serialVersionUID = 1L;
+  private static final String CASSANDRA_KEYSPACE = "beamdb";
+  private static final String CASSANDRA_HOST = "127.0.0.1";
+  private static final String CASSANDRA_TABLE = "scientists";
+  private static transient Cluster cluster;
+  private static transient Session session;
 
-	@BeforeClass
-	public static void startEmbeddedCassandra() throws Exception {
-		EmbeddedCassandraServerHelper.startEmbeddedCassandra("/cassandra.yaml",
-				"target/cassandra", Long.MAX_VALUE);
-		cluster = Cluster.builder().addContactPoint(CASSANDRA_HOST)
-				.withClusterName("beam").build();
-		session = cluster.connect();
-	}
+  // Setting Cassandra embedded server startup timeout to 2 min
+  private static final long CASSANDRA_SERVER_STARTUP_TIMEOUT = 120000L;
 
-	@Before
-	public void createTable() throws Exception {
-		session.execute("CREATE KEYSPACE "
-				+ CASSANDRA_KEYSPACE
-				+ " WITH REPLICATION = {'class':'SimpleStrategy', 'replication_factor':1};");
-		session.execute("USE " + CASSANDRA_KEYSPACE);
-		session.execute("CREATE TABLE person(person_id int, person_name text, PRIMARY KEY(person_id));");
-		session.execute("INSERT INTO person(person_id, person_name) values(0, 'John Foo');");
-		session.execute("INSERT INTO person(person_id, person_name) values(1, 'David Bar');");
-	}
+  @Rule
+  public final transient TestPipeline p = TestPipeline.create();
 
-	/**
-	 * Test to read data from embedded Cassandra instance and verify whether
-	 * data is read successfully.
-	 *
-	 * @throws Exception
-	 */
-	@Test
-	public void testHIFReadForCassandra() throws Exception {
-		Pipeline p = TestPipeline.create();
-		Configuration conf = getConfiguration();
-		SimpleFunction<Row, String> myValueTranslate = new SimpleFunction<Row, String>() {
-			@Override
-			public String apply(Row input) {
-				return input.getString("person_name");
-			}
-		};
-		PCollection<KV<Long, String>> cassandraData = p
-				.apply(HadoopInputFormatIO.<Long, String> read()
-						.withConfiguration(conf)
-						.withValueTranslation(myValueTranslate));
-		PAssert.thatSingleton(
-				cassandraData.apply("Count",
-						Count.<KV<Long, String>> globally())).isEqualTo(2L);
-		List<KV<Long, String>> expectedResults = Arrays.asList(
-				KV.of(2L, "John Foo"), KV.of(1L, "David Bar"));
-		PAssert.that(cassandraData).containsInAnyOrder(expectedResults);
-		p.run();
-	}
+  @BeforeClass
+  public static void startEmbeddedCassandra() throws Exception {
+    EmbeddedCassandraServerHelper.startEmbeddedCassandra("/cassandra.yaml", "target/cassandra",
+        CASSANDRA_SERVER_STARTUP_TIMEOUT);
+    cluster = Cluster.builder().addContactPoint(CASSANDRA_HOST).withClusterName("beam").build();
+    session = cluster.connect();
+    createTable();
+  }
 
-	/**
-	 * Test to read data from embedded Cassandra instance based on query and
-	 * verify whether data is read successfully.
-	 *
-	 * @throws Exception
-	 */
-	@Test
-	public void testHIFReadForCassandraQuery() throws Exception {
-		Pipeline p = TestPipeline.create();
-		Configuration conf = getConfiguration();
-		conf.set(
-				"cassandra.input.cql",
-				"select * from hif_keyspace.person where token(person_id) > ? and token(person_id) <= ? and person_name='David Bar' allow filtering");
-		SimpleFunction<Row, String> myValueTranslate = new SimpleFunction<Row, String>() {
-			@Override
-			public String apply(Row input) {
-				return input.getString("person_name");
-			}
-		};
-		PCollection<KV<Long, String>> cassandraData = p
-				.apply(HadoopInputFormatIO.<Long, String> read()
-						.withConfiguration(conf)
-						.withValueTranslation(myValueTranslate));
-		PAssert.thatSingleton(
-				cassandraData.apply("Count",
-						Count.<KV<Long, String>> globally())).isEqualTo(1L);
+  public static void createTable() throws Exception {
+    session.execute("CREATE KEYSPACE " + CASSANDRA_KEYSPACE
+        + " WITH REPLICATION = {'class':'SimpleStrategy', 'replication_factor':1};");
+    session.execute("USE " + CASSANDRA_KEYSPACE);
+    session.execute("CREATE TABLE " + CASSANDRA_TABLE
+        + "(id int, scientist text, PRIMARY KEY(id));");
+    session.execute("INSERT INTO " + CASSANDRA_TABLE + "(id, scientist) values(0, 'Faraday');");
+    session.execute("INSERT INTO " + CASSANDRA_TABLE + "(id, scientist) values(1, 'Newton');");
+  }
 
-		p.run();
-	}
+  /**
+   * Test to read data from embedded Cassandra instance and verify whether data is read
+   * successfully.
+   *
+   * @throws Exception
+   */
+  @Test
+  public void testHIFReadForCassandra() throws Exception {
+    Pipeline p = TestPipeline.create();
+    Configuration conf = getConfiguration();
+    SimpleFunction<Row, String> myValueTranslate = new SimpleFunction<Row, String>() {
+      @Override
+      public String apply(Row input) {
+        return input.getString("scientist");
+      }
+    };
+    PCollection<KV<Long, String>> cassandraData = p
+                  .apply(HadoopInputFormatIO.<Long, String> read()
+                      .withConfiguration(conf)
+                      .withValueTranslation(myValueTranslate));
+    PAssert.thatSingleton(cassandraData.apply("Count", Count.<KV<Long, String>>globally()))
+        .isEqualTo(2L);
+    List<KV<Long, String>> expectedResults =
+        Arrays.asList(KV.of(2L, "Faraday"), KV.of(1L, "Newton"));
+    PAssert.that(cassandraData).containsInAnyOrder(expectedResults);
+    p.run().waitUntilFinish();
+  }
 
-	@After
-	public void dropTable() throws Exception {
-		session.execute("Drop TABLE " + CASSANDRA_TABLE);
-		session.execute("Drop KEYSPACE " + CASSANDRA_KEYSPACE);
-	}
+  /**
+   * Test to read data from embedded Cassandra instance based on query and verify whether data is
+   * read successfully.
+   *
+   * @throws Exception
+   */
+  @Test
+  public void testHIFReadForCassandraQuery() throws Exception {
+    Pipeline p = TestPipeline.create();
+    Configuration conf = getConfiguration();
+    conf.set("cassandra.input.cql", "select * from " + CASSANDRA_KEYSPACE + "." + CASSANDRA_TABLE
+        + " where token(id) > ? and token(id) <= ? and scientist='Newton' allow filtering");
+    SimpleFunction<Row, String> myValueTranslate = new SimpleFunction<Row, String>() {
+      @Override
+      public String apply(Row input) {
+        return input.getString("scientist");
+      }
+    };
+    PCollection<KV<Long, String>> cassandraData = p
+                  .apply(HadoopInputFormatIO.<Long, String>read()
+                      .withConfiguration(conf)
+                      .withValueTranslation(myValueTranslate));
+    PAssert.thatSingleton(cassandraData.apply("Count", Count.<KV<Long, String>>globally()))
+        .isEqualTo(1L);
 
-	@AfterClass
-	public static void stopEmbeddedCassandra() throws Exception {
-		EmbeddedCassandraServerHelper.cleanEmbeddedCassandra();
-	}
+    p.run().waitUntilFinish();
+  }
 
-	@Table(name = "person", keyspace = CASSANDRA_KEYSPACE)
-	public static class Person implements Serializable {
-		private static final long serialVersionUID = 1L;
-		@Column(name = "person_name")
-		private String name;
-		@Column(name = "person_id")
-		private int id;
+  public static void dropTable() throws Exception {
+    session.execute("Drop TABLE " + CASSANDRA_TABLE);
+    session.execute("Drop KEYSPACE " + CASSANDRA_KEYSPACE);
+  }
 
-		public String getName() {
-			return name;
-		}
+  @AfterClass
+  public static void stopEmbeddedCassandra() throws Exception {
+    dropTable();
+    EmbeddedCassandraServerHelper.cleanEmbeddedCassandra();
+  }
 
-		public void setName(String name) {
-			this.name = name;
-		}
+  @Table(name = CASSANDRA_TABLE, keyspace = CASSANDRA_KEYSPACE)
+  public static class Scientist implements Serializable {
+    private static final long serialVersionUID = 1L;
+    @Column(name = "scientist")
+    private String name;
+    @Column(name = "id")
+    private int id;
 
-		public int getId() {
-			return id;
-		}
+    public String getName() {
+      return name;
+    }
 
-		public void setId(int id) {
-			this.id = id;
-		}
+    public void setName(String name) {
+      this.name = name;
+    }
 
-		public String toString() {
-			return id + ":" + name;
-		}
-	}
+    public int getId() {
+      return id;
+    }
 
-	/**
-	 * Returns configuration of CqlInutFormat. Mandatory parameters required
-	 * apart from inputformat class name, key class, value class are thrift
-	 * port, thrift address, partitioner class, keyspace and columnfamily name
-	 *
-	 */
-	public Configuration getConfiguration() {
-		Configuration conf = new Configuration();
-		conf.set("cassandra.input.thrift.port", "9061");
-		conf.set("cassandra.input.thrift.address", CASSANDRA_HOST);
-		conf.set("cassandra.input.partitioner.class", "Murmur3Partitioner");
-		conf.set("cassandra.input.keyspace", CASSANDRA_KEYSPACE);
-		conf.set("cassandra.input.columnfamily", CASSANDRA_TABLE);
-		conf.setClass(HadoopInputFormatIOConstants.INPUTFORMAT_CLASSNAME,
-				org.apache.cassandra.hadoop.cql3.CqlInputFormat.class,
-				InputFormat.class);
-		conf.setClass(HadoopInputFormatIOConstants.KEY_CLASS,
-				java.lang.Long.class, Object.class);
-		conf.setClass(HadoopInputFormatIOConstants.VALUE_CLASS,
-				com.datastax.driver.core.Row.class, Object.class);
-		return conf;
-	}
+    public void setId(int id) {
+      this.id = id;
+    }
+
+    public String toString() {
+      return id + ":" + name;
+    }
+  }
+
+  /**
+   * Returns configuration of CqlInutFormat. Mandatory parameters required apart from inputformat
+   * class name, key class, value class are thrift port, thrift address, partitioner class, keyspace
+   * and columnfamily name
+   */
+  public Configuration getConfiguration() {
+    Configuration conf = new Configuration();
+    conf.set("cassandra.input.thrift.port", "9061");
+    conf.set("cassandra.input.thrift.address", CASSANDRA_HOST);
+    conf.set("cassandra.input.partitioner.class", "Murmur3Partitioner");
+    conf.set("cassandra.input.keyspace", CASSANDRA_KEYSPACE);
+    conf.set("cassandra.input.columnfamily", CASSANDRA_TABLE);
+    conf.setClass(HadoopInputFormatIOConstants.INPUTFORMAT_CLASSNAME,
+        org.apache.cassandra.hadoop.cql3.CqlInputFormat.class, InputFormat.class);
+    conf.setClass(HadoopInputFormatIOConstants.KEY_CLASS, java.lang.Long.class, Object.class);
+    conf.setClass(HadoopInputFormatIOConstants.VALUE_CLASS, com.datastax.driver.core.Row.class,
+        Object.class);
+    return conf;
+  }
 
 }

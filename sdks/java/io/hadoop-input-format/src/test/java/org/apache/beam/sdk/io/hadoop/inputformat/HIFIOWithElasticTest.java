@@ -168,7 +168,6 @@ public class HIFIOWithElasticTest implements Serializable {
 
   /**
    * Class for in memory Elasticsearch server
-   *
    */
   static class ElasticEmbeddedServer implements Serializable {
 

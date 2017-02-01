@@ -77,9 +77,9 @@ public class HIFIOCassandraIT implements Serializable {
         return input.getString("scientist");
       }
     };
-    PCollection<KV<Long, String>> cassandraData =
-        pipeline.apply(HadoopInputFormatIO.<Long, String>read().withConfiguration(conf)
-            .withValueTranslation(myValueTranslate));
+    PCollection<KV<Long, String>> cassandraData = pipeline
+                    .apply(HadoopInputFormatIO.<Long, String>read().withConfiguration(conf)
+                        .withValueTranslation(myValueTranslate));
     PAssert.thatSingleton(cassandraData.apply("Count", Count.<KV<Long, String>>globally()))
         .isEqualTo(10L);
 
@@ -107,9 +107,10 @@ public class HIFIOCassandraIT implements Serializable {
         return input.getString("id");
       }
     };
-    PCollection<KV<Long, String>> cassandraData =
-        pipeline.apply(HadoopInputFormatIO.<Long, String>read().withConfiguration(conf)
-            .withValueTranslation(myValueTranslate));
+    PCollection<KV<Long, String>> cassandraData = pipeline
+                    .apply(HadoopInputFormatIO.<Long, String>read()
+                        .withConfiguration(conf)
+                        .withValueTranslation(myValueTranslate));
     PAssert.thatSingleton(cassandraData.apply("Count", Count.<KV<Long, String>>globally()))
         .isEqualTo(1L);
 
