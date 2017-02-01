@@ -51,6 +51,8 @@ public class SequenceFileSink<K, V> extends HadoopSink<K, V> {
    * The specified path is automatically set/overridden in the given hadoop
    * configuration as well as the key and value types.
    *
+   * @param keyType the class representing the type of the keys emitted
+   * @param valueType the class representing the type of the values emitted
    * @param path the path to read data from
    * @param hadoopConfig the hadoop configuration to build on top of
    *

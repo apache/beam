@@ -20,10 +20,18 @@ import java.io.IOException;
 
 /**
  * Writer for data to a particular partition.
+ *
+ * @param <T> the type of elements being writting by this writer
  */
 public interface Writer<T> extends Closeable {
 
-  /** Write element to the output. */
+  /**
+   * Write element to the output.
+   *
+   * @param elem the element to write
+   *
+   * @throws IOException if performing the write fails for some reason
+   */
   void write(T elem) throws IOException;
 
 
@@ -31,22 +39,32 @@ public interface Writer<T> extends Closeable {
    * Flush all pending writes to output.
    * This method might be called multiple times, but is always called
    * just before {@code commit} or {@code rollback}.
-   **/
-  default void flush() throws IOException {
+   *
+   * @throws IOException failure upon writing pending data
+   */
+  default void flush() throws IOException {}
 
-  }
-
-  /** Commit the write process. */
+  /**
+   * Commit the write process.
+   *
+   * @throws IOException failure to perform the commit
+   */
   void commit() throws IOException;
 
-  /** Rollback the write process. Optional operation. */
+  /**
+   * Rollback the write process. Optional operation.
+   *
+   * @throws IOException failure to perform the corresponding clean up
+   */
   default void rollback() throws IOException {}
 
   /**
    * Close the writer and release all its resources.
    * This method will be called as the last method on this object.
-   **/
+   *
+   * @throws IOException failure to perform the corresponding clean up
+   */
   @Override
   void close() throws IOException;
-  
+
 }

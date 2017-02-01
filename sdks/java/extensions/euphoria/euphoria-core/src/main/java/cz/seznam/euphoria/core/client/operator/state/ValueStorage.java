@@ -17,13 +17,19 @@ package cz.seznam.euphoria.core.client.operator.state;
 
 /**
  * State storage for single value.
+ *
+ * @param <T> the type of value stored
  */
 public interface ValueStorage<T> extends Storage<T> {
 
-  /** Set the value in this state. */
+  /**
+   * Set the value in this state.
+   *
+   * @param value the value to store
+   */
   void set(T value);
 
-  /** Retrieve the value. */
+  /** @return the currently stored value */
   T get();
 
 }

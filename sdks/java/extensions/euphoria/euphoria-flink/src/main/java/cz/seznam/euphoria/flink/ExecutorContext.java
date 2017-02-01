@@ -31,6 +31,7 @@ import java.util.Map;
  * Keeps track of mapping between Euphoria {@link Dataset} and
  * Flink output {@link DataStream} or {@link org.apache.flink.api.java.DataSet}.
  *
+ * @param <E> type of the underlying environment, i.e. streaming or batched
  * @param <D> the type of the datasets handled in this context,
  *            either {@code Dataset} (for batch mode) or {@code DataStream} (for
  *            stream mode.)
@@ -53,6 +54,14 @@ public abstract class ExecutorContext<E, D> {
 
   /**
    * Retrieve list of Flink {@link DataStream} inputs of given operator
+   *
+   * @param operator the operator to inspect
+   *
+   * @return a list of all the specified operator's input streams; never {@code null}
+   *
+   * @throws IllegalArgumentException if the given operator has no inputs registered yet
+   *
+   * @see #setOutput(FlinkOperator, Object)
    */
   public List<D> getInputStreams(FlinkOperator<?> operator) {
     List<Node<FlinkOperator<?>>> parents = dag.getNode(operator).getParents();
@@ -68,7 +77,18 @@ public abstract class ExecutorContext<E, D> {
     return inputs;
   }
 
-  /** Assumes the specified operator is a single-input-operator. */
+  /**
+   * Assumes the specified operator is a single-input-operator.
+   *
+   * @param operator the operator to inspect
+   *
+   * @return the given operator's single input data set/stream
+   *
+   * @throws RuntimeException if the operator has no or more than one input
+   *
+   * @see #getInputStreams(FlinkOperator)
+   * @see #setOutput(FlinkOperator, Object)
+   */
   public D getSingleInputStream(FlinkOperator<? extends SingleInputOperator> operator) {
     return Iterables.getOnlyElement(getInputStreams(operator));
   }

@@ -51,6 +51,12 @@ public final class Session<T> implements MergingWindowing<T, TimeInterval> {
 
   /**
    * Early results will be triggered periodically until the window is finally closed.
+   *
+   * @param <T> the type of elements dealt with
+   *
+   * @param timeout the period after which to periodically trigger windows
+   *
+   * @return this instance (for method chaining purposes)
    */
   public <T> Session<T> earlyTriggering(Duration timeout) {
     this.earlyTriggeringPeriod = Objects.requireNonNull(timeout);

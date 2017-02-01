@@ -127,7 +127,7 @@ public class ReduceStateByKeyTest extends AbstractOperatorTest {
   }
 
   @Test
-  public void testSortNoWindow() throws Exception {
+  public void testSortNoWindow() {
     execute(new AbstractTestCase<Integer, Pair<String, Integer>>() {
       @Override
       protected Dataset<Pair<String, Integer>> getOutput(Dataset<Integer> input) {
@@ -165,7 +165,7 @@ public class ReduceStateByKeyTest extends AbstractOperatorTest {
   }
 
   @Test
-  public void testSortWindowed() throws Exception {
+  public void testSortWindowed() {
     execute(new AbstractTestCase<Integer, WPair<Integer, Integer, Integer>>() {
       @Override
       protected Dataset<WPair<Integer, Integer, Integer>> getOutput(Dataset<Integer> input) {
@@ -285,7 +285,7 @@ public class ReduceStateByKeyTest extends AbstractOperatorTest {
   }
 
   @Test
-  public void testCountWindowing() throws Exception {
+  public void testCountWindowing() {
     execute(new AbstractTestCase<Pair<String, Integer>, Pair<Integer, Long>>() {
       @Override
       protected Partitions<Pair<String, Integer>> getInput() {
@@ -388,7 +388,7 @@ public class ReduceStateByKeyTest extends AbstractOperatorTest {
   }
 
   @Test
-  public void testTimeWindowing() throws Exception {
+  public void testTimeWindowing() {
     execute(new AbstractTestCase<Pair<String, Integer>, Triple<TimeInterval, Integer, String>>() {
 
       @Override
@@ -451,7 +451,7 @@ public class ReduceStateByKeyTest extends AbstractOperatorTest {
   }
 
   @Test
-  public void testTimeSlidingWindowing() throws Exception {
+  public void testTimeSlidingWindowing() {
     execute(new AbstractTestCase<Pair<String, Integer>, Triple<TimeInterval, Integer, String>>() {
 
       @Override
@@ -528,7 +528,7 @@ public class ReduceStateByKeyTest extends AbstractOperatorTest {
   }
 
   @Test
-  public void testSessionWindowing0() throws Exception {
+  public void testSessionWindowing0() {
     execute(new AbstractTestCase<Pair<String, Integer>, Triple<TimeInterval, Integer, String>>() {
 
       @Override
@@ -635,7 +635,7 @@ public class ReduceStateByKeyTest extends AbstractOperatorTest {
   }
 
   @Test
-  public void testElementTimestamp() throws Exception {
+  public void testElementTimestamp() {
     execute(new AbstractTestCase<Pair<Integer, Long>, Integer>() {
       @Override
       protected Partitions<Pair<Integer, Long>> getInput() {

@@ -36,6 +36,9 @@ public class TimeProviders {
 
   /**
    * Retrieves a time provider based on the default timezone
+   *
+   * @return a default time provider based on the jvm's "current" time zone and
+   *          the machines local datetime
    */
   public static TimeProvider getInstance() {
     return new DefaultTimeProvider();
@@ -45,6 +48,8 @@ public class TimeProviders {
    * Retrieves a time provider parametrized by the specified timezone
    *
    * @param tz timezone
+   *
+   * @return a time provider based on the specified time zone
    */
   public static TimeProvider getInstance(TimeZone tz) {
     return new TimezoneTimeProvider(tz);
@@ -52,6 +57,10 @@ public class TimeProviders {
 
   /**
    * Retrieves a time provider with fixed datetime
+   *
+   * @param d the fixed point in time
+   *
+   * @return a time provider based on the a fixed point in time
    */
   public static FixedTimeProvider getFixedTimeInstance(Date d) {
     return new FixedTimeProvider(d);

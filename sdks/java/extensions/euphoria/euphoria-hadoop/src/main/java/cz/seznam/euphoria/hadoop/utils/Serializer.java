@@ -28,7 +28,13 @@ import java.io.Serializable;
 public class Serializer {
 
   /**
-   * Convert {@code Serializable} to bytes using java serialization.
+   * Convert a {@code Serializable} to bytes using java serialization.
+   *
+   * @param object the object to serialize
+   *
+   * @return the serialized form of the given object; never {@code null}
+   *
+   * @throws IOException if serializing the given object fails for some reason
    */
   public static byte[] toBytes(Serializable object) throws IOException {
     ByteArrayOutputStream baos = new ByteArrayOutputStream();
@@ -40,7 +46,19 @@ public class Serializer {
 
   /**
    * Convert bytes to {@code Serializable} object.
+   *
+   * @param <T> the type of the object to deserialized; if the actual object
+   *             is not of this type, a {@link ClassCastException} is expected
+   *             at the side of the calling code
+   * @param bytes the java serialized form of the object to deserialize
+   *
+   * @return the deserialized object; never {@code null}
+   *
+   * @throws IOException if deserializing the given data bytes fails for some reason
+   * @throws ClassNotFoundException if the actual object to be deserialized represents
+   *          a type that is not known on the classpath
    */
+  @SuppressWarnings("unchecked")
   public static <T extends Serializable> T fromBytes(byte[] bytes)
       throws IOException, ClassNotFoundException {
     

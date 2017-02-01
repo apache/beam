@@ -53,6 +53,7 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Random;
 import java.util.Set;
@@ -252,34 +253,56 @@ public class InMemExecutor implements Executor {
   /**
    * Set supplier for watermark emit strategy used in state operations.
    * Defaults to {@code WatermarkEmitStrategy.Default}.
+   *
+   * @param supplier the watermark supplier
+   *
+   * @return this instance (for method chaining purposes)
+   *
+   * @throws NullPointerException if the given reference is {@code null}
    */
   public InMemExecutor setWatermarkEmitStrategySupplier(
       java.util.function.Supplier<WatermarkEmitStrategy> supplier) {
-    this.watermarkEmitStrategySupplier = supplier;
+    this.watermarkEmitStrategySupplier = Objects.requireNonNull(supplier);
     return this;
   }
 
   /**
    * Set supplier for {@code TriggerScheduler} to be used in state operations.
    * Default is {@code ProcessingTimeTriggerScheduler}.
+   *
+   * @param supplier the scheduler supplier
+   *
+   * @return this instance (for method chaining purposes)
+   *
+   * @throws NullPointerException if the given reference is {@code null}
    */
   public InMemExecutor setTriggeringSchedulerSupplier(
       java.util.function.Supplier<TriggerScheduler> supplier) {
-    this.triggerSchedulerSupplier = supplier;
+    this.triggerSchedulerSupplier = Objects.requireNonNull(supplier);
     return this;
   }
   
   /**
    * Enable shuffling of windowed data based on the windowID.
-   **/
+   *
+   * @return this instance (for method chaining purposes)
+   */
   public InMemExecutor allowWindowBasedShuffling() {
     this.allowWindowBasedShuffling = true;
     return this;
   }
 
-  /** Set provider for state's storage. Defaults to {@code InMemStorageProvider}. */
+  /**
+   * Set provider for state's storage. Defaults to {@code InMemStorageProvider}.
+   *
+   * @param provider the storage provide
+   *
+   * @return this instance (for method chaining purposes)
+   *
+   * @throws NullPointerException if the given reference is {@code null}
+   */
   public InMemExecutor setStateStorageProvider(StorageProvider provider) {
-    this.storageProvider = provider;
+    this.storageProvider = Objects.requireNonNull(provider);
     return this;
   }
   

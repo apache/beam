@@ -50,7 +50,7 @@ public class FlinkExecutor implements Executor {
   private Duration autoWatermarkInterval = Duration.ofMillis(200);
   private Duration allowedLateness = Duration.ofMillis(0);
   private final Set<Class<?>> registeredClasses = new HashSet<>();
-  private long checkpointInterval = -1L;
+  private Duration checkpointInterval;
   
   // executor to submit flows, if closed all executions should be interrupted
   private final ExecutorService submitExecutor = Executors.newCachedThreadPool();
@@ -70,8 +70,13 @@ public class FlinkExecutor implements Executor {
   }
 
   /**
-   * Specify whether to dump the flink execution plan before executing
-   * a flow using {@link #waitForCompletion(Flow)}.
+   * Specify whether to dump/log the flink execution plan before executing
+   * a flow using {@link #submit(Flow)}.
+   *
+   * @param dumpExecPlan {@code true} to cause the executor dump a flow's execution
+   *          plan prior to executing it
+   *
+   * @return this instance (for method chaining purposes)
    */
   public FlinkExecutor setDumpExecutionPlan(boolean dumpExecPlan) {
     this.dumpExecPlan = dumpExecPlan;
@@ -104,9 +109,9 @@ public class FlinkExecutor implements Executor {
         if (stateBackend.isPresent()) {
           environment.getStreamEnv().setStateBackend(stateBackend.get());
         }
-        if (checkpointInterval > 0) {
-          LOG.info("Enabled checkpoints every {} milliseconds", checkpointInterval);
-          environment.getStreamEnv().enableCheckpointing(checkpointInterval);
+        if (checkpointInterval != null) {
+          LOG.info("Enabled checkpoints every: {}", checkpointInterval);
+          environment.getStreamEnv().enableCheckpointing(checkpointInterval.toMillis());
         } else {
           LOG.warn("Not enabling checkpointing, your flow is probably not fault "
               + "tolerant and/or might encounter performance issues!");
@@ -181,6 +186,10 @@ public class FlinkExecutor implements Executor {
 
   /**
    * Set state backend for this executor (used only if needed).
+   *
+   * @param backend the backend implementation to be used by the executor
+   *
+   * @return this instance (for method chaining purposes)
    */
   public FlinkExecutor setStateBackend(AbstractStateBackend backend) {
     this.stateBackend = Optional.of(backend);
@@ -189,6 +198,11 @@ public class FlinkExecutor implements Executor {
 
   /**
    * Specifies the interval in which watermarks are emitted.
+   *
+   * @param interval the interval in which the executor is supposed
+   *         to automatically emit watermarks
+   *
+   * @return this instance (for method chaining purposes)
    */
   public FlinkExecutor setAutoWatermarkInterval(Duration interval) {
     this.autoWatermarkInterval = Objects.requireNonNull(interval);
@@ -199,6 +213,10 @@ public class FlinkExecutor implements Executor {
    * Specifies the interval in which to allow late comers. This will cause
    * the forwarding of the latest available watermark to be delayed up to
    * this amount of time.
+   *
+   * @param lateness the allowed latest for late comers
+   *
+   * @return this instance (for method chaining purposes)
    */
   public FlinkExecutor setAllowedLateness(Duration lateness) {
     this.allowedLateness = Objects.requireNonNull(lateness);
@@ -206,7 +224,11 @@ public class FlinkExecutor implements Executor {
   }
 
   /**
-   * Register given class to flink.
+   * Pre-register given class to flink for serialization purposes.
+   *
+   * @param cls the type of objects which flink is supposed to serialize/deserialize
+   *
+   * @return this instance (for method chaining purposes)
    */
   public FlinkExecutor registerClass(Class<?> cls) {
     registeredClasses.add(cls);
@@ -214,9 +236,13 @@ public class FlinkExecutor implements Executor {
   }
 
   /**
-   * Set the checkpointing interval in milliseconds.
+   * Set the check-pointing interval.
+   *
+   * @param interval the check-pointing interval for flink
+   *
+   * @return this instance (for method chaining purposes)
    */
-  public FlinkExecutor setCheckpointInterval(long interval) {
+  public FlinkExecutor setCheckpointInterval(Duration interval) {
     this.checkpointInterval = interval;
     return this;
   }

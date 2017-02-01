@@ -17,16 +17,30 @@ package cz.seznam.euphoria.core.client.operator.state;
 
 /**
  * State storage storing lists.
+ *
+ * @param <T> the type of elements stored
  */
 public interface ListStorage<T> extends Storage<T> {
 
-  /** Add element to the state. */
+  /**
+   * Add element to the state.
+   *
+   * @param element the element to add
+   */
   void add(T element);
 
-  /** List all elements. */
+  /**
+   * List all elements.
+   *
+   * @return a collection of the stored elements (in no particular order)
+   */
   Iterable<T> get();
 
-  /** Add all elements. */
+  /**
+   * Add all elements.
+   *
+   * @param what elements to add
+   */
   default void addAll(Iterable<T> what) {
     for (T e : what) {
       add(e);

@@ -34,7 +34,16 @@ public final class TimeSliding<T>
     return new TimeSliding<>(duration.toMillis(), step.toMillis());
   }
 
-  /** Helper method to extract window label from context. */
+  /**
+   * Helper method to extract window label from context.
+   *
+   * @param context the execution context
+   *
+   * @return the {@link TimeInterval} window of this execution
+   *
+   * @throws ClassCastException if the context is not part of a
+   *          time-sliding execution
+   */
   public static TimeInterval getLabel(Context<?> context) {
     return (TimeInterval) context.getWindow();
   }
@@ -42,10 +51,7 @@ public final class TimeSliding<T>
   private final long duration;
   private final long slide;
 
-  private TimeSliding(
-      long duration,
-      long slide) {
-
+  private TimeSliding(long duration, long slide) {
     this.duration = duration;
     this.slide = slide;
 

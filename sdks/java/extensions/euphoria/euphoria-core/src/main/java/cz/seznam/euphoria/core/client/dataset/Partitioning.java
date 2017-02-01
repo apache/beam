@@ -19,12 +19,14 @@ import java.io.Serializable;
 
 /**
  * Partitioning of a dataset.
+ *
+ * @param <T> the type of elements this partitioning scheme is able to handle
  */
 public interface Partitioning<T> extends Serializable {
   
   Partitioner DEFAULT_PARTITIONER = new DefaultPartitioner();
 
-  /** Retrieve partitioner for dataset. */
+  /** @return the actual partitioner */
   default Partitioner<T> getPartitioner() {
     return DEFAULT_PARTITIONER;
   }
@@ -32,7 +34,7 @@ public interface Partitioning<T> extends Serializable {
   default int getNumPartitions() {
     return -1;
   }
-  
+
   /**
    * @return true if the default partitioner is used - e.g. no other has been explicitly set.
    *         Should not be called after distribution.

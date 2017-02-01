@@ -24,15 +24,24 @@ public interface StorageProvider extends Serializable {
 
   /**
    * Retrieve new instance of state storage for values of given type.
+   *
+   * @param <T> the type of values referred to through the descriptor
+   *
    * @param descriptor descriptor of the storage within scope of given key and window/operator
+   *
+   * @return the descriptor of a single value
    */
   <T> ValueStorage<T> getValueStorage(ValueStorageDescriptor<T> descriptor);
 
   /**
    * Retrieve new instance of state storage for lists of values of given type.
+   *
+   * @param <T> the type of values referred to through the descriptor
+   *
    * @param descriptor descriptor of the storage
+   *
+   * @return the descriptor of a single value
    */
   <T> ListStorage<T> getListStorage(ListStorageDescriptor<T> descriptor);
-
 
 }
