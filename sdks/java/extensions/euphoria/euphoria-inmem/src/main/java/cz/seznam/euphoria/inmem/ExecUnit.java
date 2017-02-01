@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package cz.seznam.euphoria.core.executor;
+package cz.seznam.euphoria.inmem;
 
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.graph.DAG;
@@ -33,7 +33,7 @@ import java.util.stream.Collectors;
  * some intermediate datasets. Datasets might be shared across multiple
  * {@code ExecUnit}s.
  */
-public class ExecUnit {
+class ExecUnit {
 
   /** All inputs to this exec unit. */
   final List<Dataset<?>> inputs = new ArrayList<>();
