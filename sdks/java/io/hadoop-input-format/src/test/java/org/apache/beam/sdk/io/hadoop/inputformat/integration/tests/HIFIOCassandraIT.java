@@ -41,9 +41,9 @@ import org.slf4j.LoggerFactory;
 import com.datastax.driver.core.Row;
 
 /**
- * Runs integration test to validate HadoopInputFromatIO for a Cassandra instance
+ * Runs integration test to validate HadoopInputFromatIO for a Cassandra instance.
  *
- * You need to pass Cassandra server IP and port in beamTestPipelineOptions
+ * You need to pass Cassandra server IP and port in beamTestPipelineOptions.
  *
  * <p>
  * You can run just this test by doing the following: mvn test-compile compile

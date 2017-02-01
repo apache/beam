@@ -37,27 +37,23 @@ import org.apache.hadoop.mapreduce.InputFormat;
 import org.elasticsearch.hadoop.cfg.ConfigurationOptions;
 import org.elasticsearch.hadoop.mr.LinkedMapWritable;
 import org.junit.BeforeClass;
-import org.junit.FixMethodOrder;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-import org.junit.runners.MethodSorters;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Runs integration test to validate HadoopInputFromatIO for an Elasticsearch instance on GCP.
+ * Runs integration test to validate HadoopInputFromatIO for an Elasticsearch instance.
  *
- * You need to pass Elasticsearch server IP and port in beamTestPipelineOptions
+ * You need to pass Elasticsearch server IP and port in beamTestPipelineOptions.
  *
  * <p>
  * You can run just this test by doing the following: mvn test-compile compile
  * failsafe:integration-test -D beamTestPipelineOptions='[ "--serverIp=1.2.3.4",
  * "--serverPort=<port>" ]' -Dit.test=HIFIOElasticIT -DskipITs=false
- *
  */
 @RunWith(JUnit4.class)
-@FixMethodOrder(MethodSorters.JVM)
 public class HIFIOElasticIT implements Serializable {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(HIFIOElasticIT.class);
@@ -67,13 +63,12 @@ public class HIFIOElasticIT implements Serializable {
   private static final String ELASTIC_TYPE_NAME = "scientists";
   private static final String ELASTIC_RESOURCE = "/" + ELASTIC_INDEX_NAME + "/" + ELASTIC_TYPE_NAME;
   private static HIFTestOptions options;
-  private static final int SIZE = 10;
+  private static final long TEST_DATA_ROW_COUNT = 10;
 
   @BeforeClass
   public static void setUp() {
     PipelineOptionsFactory.register(HIFTestOptions.class);
     options = TestPipeline.testingPipelineOptions().as(HIFTestOptions.class);
-    LOGGER.info("Pipeline created successfully with the options");
   }
 
   /**
@@ -87,7 +82,7 @@ public class HIFIOElasticIT implements Serializable {
     PCollection<KV<Text, LinkedMapWritable>> esData =
         pipeline.apply(HadoopInputFormatIO.<Text, LinkedMapWritable>read().withConfiguration(conf));
     PCollection<Long> count = esData.apply(Count.<KV<Text, LinkedMapWritable>>globally());
-    PAssert.thatSingleton(count).isEqualTo((long) SIZE);
+    PAssert.thatSingleton(count).isEqualTo(TEST_DATA_ROW_COUNT);
 
     PCollection<LinkedMapWritable> values = esData.apply(Values.<LinkedMapWritable>create());
     MapElements<LinkedMapWritable, String> transformFunc =
@@ -129,7 +124,7 @@ public class HIFIOElasticIT implements Serializable {
     PCollection<KV<Text, LinkedMapWritable>> esData =
         pipeline.apply(HadoopInputFormatIO.<Text, LinkedMapWritable>read().withConfiguration(conf));
     PCollection<Long> count = esData.apply(Count.<KV<Text, LinkedMapWritable>>globally());
-    PAssert.thatSingleton(count).isEqualTo((long) 1);
+    PAssert.thatSingleton(count).isEqualTo(1L);
     pipeline.run().waitUntilFinish();
   }
 
@@ -144,7 +139,7 @@ public class HIFIOElasticIT implements Serializable {
   public static Configuration getConfiguration(HIFTestOptions options) {
     Configuration conf = new Configuration();
     conf.set(ConfigurationOptions.ES_NODES, options.getServerIp());
-    conf.set(ConfigurationOptions.ES_PORT, String.format("%d", options.getServerPort()));
+    conf.set(ConfigurationOptions.ES_PORT, options.getServerPort().toString());
     conf.set(ConfigurationOptions.ES_NODES_WAN_ONLY, TRUE);
     conf.set(ConfigurationOptions.ES_RESOURCE, ELASTIC_RESOURCE);
     conf.set("es.internal.es.version", ELASTIC_INTERNAL_VERSION);
