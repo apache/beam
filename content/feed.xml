@@ -9,6 +9,64 @@
     <generator>Jekyll v3.2.0</generator>
     
       <item>
+        <title>Media recap of the Apache Beam graduation</title>
+        <description>&lt;p&gt;One year ago today Apache Beam was accepted into incubation at the Apache
+Software Foundation. The community’s work over the past year culminated, just
+over three weeks ago, with an &lt;a href=&quot;/blog/2017/01/10/beam-graduates.html&quot;&gt;announcement&lt;/a&gt;
+that Apache Beam has successfully graduated as a new Top-Level Project at the
+foundation. Graduation sparked an additional interest in the project, from
+corporate endorsements, news articles, interviews, to the volume of traffic to
+our website and mailing lists.&lt;/p&gt;
+
+&lt;!--more--&gt;
+
+&lt;p&gt;Corporate endorsements include Google, PayPal, Talend, data Artisans, and
+others. You can read more in the following blog posts:&lt;/p&gt;
+&lt;ul&gt;
+  &lt;li&gt;Google: “&lt;a href=&quot;https://opensource.googleblog.com/2017/01/apache-beam-graduates.html&quot;&gt;Apache Beam graduates to a top-level project&lt;/a&gt;” by Tyler Akidau.&lt;/li&gt;
+  &lt;li&gt;Talend: “&lt;a href=&quot;https://www.talend.com/blog/2017/01/13/future-apache-beam-now-top-level-apache-software-foundation-project/&quot;&gt;The Future of Apache Beam, Now a Top-Level Apache Software Foundation Project&lt;/a&gt;” by Jean-Baptiste Onofré.&lt;/li&gt;
+  &lt;li&gt;Talend: “&lt;a href=&quot;https://www.talend.com/blog/2017/01/23/apache-beam-way-greater-data-agility/?utm_medium=socialpost&amp;amp;utm_source=twitter&amp;amp;utm_campaign=blog&quot;&gt;Apache Beam Your Way to Greater Data Agility&lt;/a&gt;” by Shane Kent.&lt;/li&gt;
+  &lt;li&gt;Google: “&lt;a href=&quot;https://cloud.google.com/blog/big-data/2017/01/apache-beam-graduates-from-incubation-try-it-today-on-google-cloud-dataflow&quot;&gt;Apache Beam graduates from incubation: Try it today on Google Cloud Dataflow&lt;/a&gt;” by Frances Perry.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;News coverage started with the Apache Software Foundation’s press release in
+&lt;a href=&quot;https://globenewswire.com/news-release/2017/01/10/904692/0/en/The-Apache-Software-Foundation-Announces-Apache-Beam-as-a-Top-Level-Project.html&quot;&gt;Nasdaq GlobeNewswire&lt;/a&gt;,
+and followed by coverage in many independent outlets. Some of those in English
+include:&lt;/p&gt;
+&lt;ul&gt;
+  &lt;li&gt;ZDNet: “&lt;a href=&quot;http://www.zdnet.com/article/apache-beam-and-spark-new-coopetition-for-squashing-the-lambda-architecture/&quot;&gt;Apache Beam and Spark: New coopetition for squashing the Lambda Architecture?&lt;/a&gt;” by Tony Baer.&lt;/li&gt;
+  &lt;li&gt;Datanami: “&lt;a href=&quot;https://www.datanami.com/2017/01/10/google-lauds-outside-influence-apache-beam/&quot;&gt;Google Lauds Outside Influence on Apache Beam&lt;/a&gt;” by Alex Woodie.&lt;/li&gt;
+  &lt;li&gt;InfoWorld / JavaWorld: “&lt;a href=&quot;http://www.infoworld.com/article/3156598/big-data/apache-beam-unifies-batch-and-streaming-for-big-data.html&quot;&gt;Apache Beam unifies batch and streaming for big data&lt;/a&gt;” by Serdar Yegulalp, and republished in &lt;a href=&quot;http://www.javaworld.com/article/3156598/big-data/apache-beam-unifies-batch-and-streaming-for-big-data.html&quot;&gt;JavaWorld&lt;/a&gt;.&lt;/li&gt;
+  &lt;li&gt;JAXenter: “&lt;a href=&quot;https://jaxenter.com/apache-beam-interview-131314.html&quot;&gt;In a way, Apache Beam is the glue that connects many big data systems together&lt;/a&gt;” by Kypriani Sinaris.&lt;/li&gt;
+  &lt;li&gt;OStatic: “&lt;a href=&quot;http://ostatic.com/blog/apache-beam-unifies-batch-and-streaming-data-processing&quot;&gt;Apache Beam Unifies Batch and Streaming Data Processing&lt;/a&gt;” by Sam Dean.&lt;/li&gt;
+  &lt;li&gt;Enterprise Apps Today: “&lt;a href=&quot;http://www.enterpriseappstoday.com/business-intelligence/data-analytics/apache-beam-graduates-to-help-define-streaming-data-processing.html&quot;&gt;Apache Beam Graduates to Help Define Streaming Data Processing&lt;/a&gt;” by Sean Michael Kerner.&lt;/li&gt;
+  &lt;li&gt;The Register: “&lt;a href=&quot;http://www.theregister.co.uk/2017/01/10/google_must_be_ibeamiing_as_apache_announces_its_new_top_level_projects/&quot;&gt;Google must be Beaming as Apache announces its new top-level projects&lt;/a&gt;” by Alexander J. Martin.&lt;/li&gt;
+  &lt;li&gt;SiliconANGLE: “&lt;a href=&quot;http://siliconangle.com/blog/2017/01/11/apache-software-foundation-announces-2-top-level-projects/&quot;&gt;Apache Software Foundation announces two more top-level open source projects&lt;/a&gt;” by Mike Wheatley.&lt;/li&gt;
+  &lt;li&gt;SD Times: “&lt;a href=&quot;http://sdtimes.com/apache-beam-goes-top-level/&quot;&gt;Apache Beam goes top level&lt;/a&gt;” by Alex Handy.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;Graduation and media coverage helped push Beam website traffic to record levels.
+The website traffic, measured in unique sessions per hour, peaked at more than
+15 times above the previous week’s numbers. In a steady state, the traffic is
+several times larger than before graduation.&lt;/p&gt;
+
+&lt;p&gt;Hopefully these perspectives entice you to join us on this exciting ride, either
+as a user or a contributor, as we work towards our first release with API
+stability. If you’d like to try out Apache Beam today, check out the latest
+&lt;a href=&quot;/get-started/downloads/&quot;&gt;0.4.0 release&lt;/a&gt;. We welcome
+contribution and participation from anyone through our mailing lists, issue
+tracker, pull requests, and events.&lt;/p&gt;
+</description>
+        <pubDate>Wed, 01 Feb 2017 00:00:01 -0800</pubDate>
+        <link>https://beam.apache.org/blog/2017/02/01/graduation-media-recap.html</link>
+        <guid isPermaLink="true">https://beam.apache.org/blog/2017/02/01/graduation-media-recap.html</guid>
+        
+        
+        <category>blog</category>
+        
+      </item>
+    
+      <item>
         <title>Apache Beam established as a new top-level project</title>
         <description>&lt;p&gt;Today, the Apache Software Foundation &lt;a href=&quot;https://blogs.apache.org/foundation/entry/the-apache-software-foundation-announces&quot;&gt;announced&lt;/a&gt;
 that Apache Beam has successfully graduated from incubation, becoming a new
@@ -702,41 +760,6 @@ PCollection&amp;lt;O&amp;gt; output = input
         
         
         <category>blog</category>
-        
-      </item>
-    
-      <item>
-        <title>Apache Beam Presentation Materials</title>
-        <description>&lt;p&gt;Are you interested in giving a presentation about Apache Beam? Perhaps you want to talk about Apache Beam at a local Meetup or a convention. Excellent!  The Apache Beam community is excited to expand and grow the community. To help kickstart this process, we are excited to announce an initial set of &lt;a href=&quot;/learn/presentation-materials/&quot;&gt;Apache Beam presentation materials&lt;/a&gt; which anyone can use to give a presentation about Apache Beam.&lt;/p&gt;
-
-&lt;!--more--&gt;
-
-&lt;p&gt;As a community, we want to build a shared collection of high quality presentation materials. This initial set includes the following slide decks:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;The Apache Beam model
-    &lt;ul&gt;
-      &lt;li&gt;&lt;a href=&quot;https://goo.gl/r0nvWh&quot;&gt;Long version&lt;/a&gt;&lt;/li&gt;
-      &lt;li&gt;&lt;a href=&quot;https://goo.gl/h5D1yR&quot;&gt;Short version&lt;/a&gt;&lt;/li&gt;
-    &lt;/ul&gt;
-  &lt;/li&gt;
-  &lt;li&gt;Using Apache Beam with runners
-    &lt;ul&gt;
-      &lt;li&gt;&lt;a href=&quot;https://goo.gl/2ay8mi&quot;&gt;Google Cloud Dataflow&lt;/a&gt;&lt;/li&gt;
-    &lt;/ul&gt;
-  &lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;As Apache Beam grows, so will this repository of presentation materials. We are excited to add new materials as the Apache Beam ecosystem grows with new runners, SDKs, and so on. If you are interested in contributing content or have a request, please see the &lt;a href=&quot;/learn/presentation-materials/&quot;&gt;Apache Beam presentation materials&lt;/a&gt; page or email the &lt;a href=&quot;mailto:user@beam.apache.org&quot;&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;user@beam.apache.org&lt;/code&gt;&lt;/a&gt; mailing list with your ideas or questions.&lt;/p&gt;
-</description>
-        <pubDate>Sun, 03 Apr 2016 11:00:00 -0700</pubDate>
-        <link>https://beam.apache.org/beam/capability/2016/04/03/presentation-materials.html</link>
-        <guid isPermaLink="true">https://beam.apache.org/beam/capability/2016/04/03/presentation-materials.html</guid>
-        
-        
-        <category>beam</category>
-        
-        <category>capability</category>
         
       </item>
     
