@@ -2,9 +2,6 @@
 .idea/
 target/
 assembly/
-debian/pkg/
-debian/build/
-/doc/euphoria.png
 .project
 .classpath
 .settings
