@@ -19,6 +19,7 @@ package org.apache.beam.sdk.util;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.ObjectInputStream;
 import java.io.OutputStream;
 import java.util.BitSet;
 import org.apache.beam.sdk.coders.AtomicCoder;
@@ -56,5 +57,11 @@ public class BitSetCoder extends AtomicCoder<BitSet> {
     verifyDeterministic(
         "BitSetCoder requires its byteArrayCoder to be deterministic.",
         byteArrayCoder);
+  }
+
+  private void readObject(ObjectInputStream in)
+      throws IOException, ClassNotFoundException {
+    in.defaultReadObject();
+    this.byteArrayCoder = ByteArrayCoder.of();
   }
 }
