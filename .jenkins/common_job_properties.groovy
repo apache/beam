@@ -178,7 +178,7 @@ class common_job_properties {
 
   // Sets common config for PostCommit jobs.
   static def setPostCommit(def context,
-                           def trigger_phrase,
+                           def trigger_phrase = '',
                            def build_schedule = '0 */6 * * *',
                            def trigger_every_push = true,
                            def notify_address = 'commits@beam.apache.org') {
@@ -192,7 +192,9 @@ class common_job_properties {
     }
 
     // Enable triggering oneshots of pull requests
-    setPullRequestBuildTrigger(context, 'Jenkins PostCommit', '--none--', trigger_phrase)
+    if (trigger_phrase != '') {
+      setPullRequestBuildTrigger(context, 'Jenkins PostCommit', '--none--', trigger_phrase)
+    }
 
     context.publishers {
       // Notify an email address for each failed build (defaults to commits@).
