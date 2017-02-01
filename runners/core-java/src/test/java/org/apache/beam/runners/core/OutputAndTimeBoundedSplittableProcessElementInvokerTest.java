@@ -57,7 +57,7 @@ public class OutputAndTimeBoundedSplittableProcessElementInvokerTest {
     public ProcessContinuation process(ProcessContext context, OffsetRangeTracker tracker)
         throws Exception {
       OffsetRange range = tracker.currentRestriction();
-      for (int i = range.getFrom(); i < range.getTo(); ++i) {
+      for (int i = (int) range.getFrom(); i < range.getTo(); ++i) {
         if (!tracker.tryClaim(i)) {
           return resume();
         }
@@ -116,31 +116,31 @@ public class OutputAndTimeBoundedSplittableProcessElementInvokerTest {
   public void testInvokeProcessElementOutputBounded() throws Exception {
     SplittableProcessElementInvoker<Integer, String, OffsetRange, OffsetRangeTracker>.Result res =
         runTest(10000, Duration.ZERO);
+    assertTrue(res.getContinuation().shouldResume());
     OffsetRange residualRange = res.getResidualRestriction();
     // Should process the first 100 elements.
     assertEquals(1000, residualRange.getFrom());
     assertEquals(10000, residualRange.getTo());
-    assertTrue(res.getContinuation().shouldResume());
   }
 
   @Test
   public void testInvokeProcessElementTimeBounded() throws Exception {
     SplittableProcessElementInvoker<Integer, String, OffsetRange, OffsetRangeTracker>.Result res =
         runTest(10000, Duration.millis(100));
+    assertTrue(res.getContinuation().shouldResume());
     OffsetRange residualRange = res.getResidualRestriction();
     // Should process ideally around 30 elements - but due to timing flakiness, we can't enforce
     // that precisely. Just test that it's not egregiously off.
-    assertThat(residualRange.getFrom(), greaterThan(10));
-    assertThat(residualRange.getFrom(), lessThan(100));
+    assertThat(residualRange.getFrom(), greaterThan(10L));
+    assertThat(residualRange.getFrom(), lessThan(100L));
     assertEquals(10000, residualRange.getTo());
-    assertTrue(res.getContinuation().shouldResume());
   }
 
   @Test
   public void testInvokeProcessElementVoluntaryReturn() throws Exception {
     SplittableProcessElementInvoker<Integer, String, OffsetRange, OffsetRangeTracker>.Result res =
         runTest(5, Duration.millis(100));
-    assertNull(res.getResidualRestriction());
     assertFalse(res.getContinuation().shouldResume());
+    assertNull(res.getResidualRestriction());
   }
 }

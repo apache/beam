@@ -17,28 +17,55 @@
  */
 package org.apache.beam.sdk.transforms.splittabledofn;
 
+import static com.google.common.base.Preconditions.checkArgument;
+
 import java.io.Serializable;
 
 /** A restriction represented by a range of integers [from, to). */
 public class OffsetRange implements Serializable {
-  private final int from;
-  private final int to;
+  private final long from;
+  private final long to;
 
-  public OffsetRange(int from, int to) {
+  public OffsetRange(long from, long to) {
+    checkArgument(from <= to, "Malformed range [%s, %s)", from, to);
     this.from = from;
     this.to = to;
   }
 
-  public int getFrom() {
+  public long getFrom() {
     return from;
   }
 
-  public int getTo() {
+  public long getTo() {
     return to;
   }
 
   @Override
   public String toString() {
-    return "OffsetRange{" + "from=" + from + ", to=" + to + '}';
+    return "[" + from + ", " + to + ')';
+  }
+
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+
+    OffsetRange that = (OffsetRange) o;
+
+    if (from != that.from) {
+      return false;
+    }
+    return to == that.to;
+  }
+
+  @Override
+  public int hashCode() {
+    int result = (int) (from ^ (from >>> 32));
+    result = 31 * result + (int) (to ^ (to >>> 32));
+    return result;
   }
 }

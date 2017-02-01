@@ -17,8 +17,8 @@
  */
 package org.apache.beam.sdk.transforms.splittabledofn;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
-import static com.google.common.base.Preconditions.checkState;
 
 /**
  * A {@link RestrictionTracker} for claiming offsets in an {@link OffsetRange} in a monotonically
@@ -26,22 +26,22 @@ import static com.google.common.base.Preconditions.checkState;
  */
 public class OffsetRangeTracker implements RestrictionTracker<OffsetRange> {
   private OffsetRange range;
-  private Integer lastClaimedOffset = null;
+  private Long lastClaimedOffset = null;
 
   public OffsetRangeTracker(OffsetRange range) {
     this.range = checkNotNull(range);
   }
 
   @Override
-  public OffsetRange currentRestriction() {
+  public synchronized OffsetRange currentRestriction() {
     return range;
   }
 
   @Override
-  public OffsetRange checkpoint() {
+  public synchronized OffsetRange checkpoint() {
     if (lastClaimedOffset == null) {
       OffsetRange res = range;
-      range = new OffsetRange(range.getFrom(), range.getTo());
+      range = new OffsetRange(range.getFrom(), range.getFrom());
       return res;
     }
     OffsetRange res = new OffsetRange(lastClaimedOffset + 1, range.getTo());
@@ -57,12 +57,15 @@ public class OffsetRangeTracker implements RestrictionTracker<OffsetRange> {
    * @return {@code true} if the offset was successfully claimed, {@code false} if it is outside the
    *     current {@link OffsetRange} of this tracker (in that case this operation is a no-op).
    */
-  public boolean tryClaim(int i) {
-    checkState(
+  public synchronized boolean tryClaim(long i) {
+    checkArgument(
         lastClaimedOffset == null || i > lastClaimedOffset,
         "Trying to claim offset %s while last claimed was %s",
         i,
         lastClaimedOffset);
+    checkArgument(
+        i >= range.getFrom(), "Trying to claim offset %s before start of the range %s", i, range);
+    // No respective checkArgument for i < range.to() - it's ok to try claiming offsets beyond it.
     if (i >= range.getTo()) {
       return false;
     }
