@@ -30,13 +30,14 @@ import org.apache.beam.runners.spark.aggregators.NamedAggregators;
 import org.apache.beam.runners.spark.aggregators.SparkAggregators;
 import org.apache.beam.runners.spark.metrics.AggregatorMetricSource;
 import org.apache.beam.runners.spark.metrics.CompositeSource;
+import org.apache.beam.runners.spark.metrics.MetricsAccumulator;
 import org.apache.beam.runners.spark.metrics.SparkBeamMetricSource;
 import org.apache.beam.runners.spark.translation.EvaluationContext;
 import org.apache.beam.runners.spark.translation.SparkContextFactory;
 import org.apache.beam.runners.spark.translation.SparkPipelineTranslator;
 import org.apache.beam.runners.spark.translation.TransformEvaluator;
 import org.apache.beam.runners.spark.translation.TransformTranslator;
-import org.apache.beam.runners.spark.translation.streaming.CheckpointDir;
+import org.apache.beam.runners.spark.translation.streaming.Checkpoint.CheckpointDir;
 import org.apache.beam.runners.spark.translation.streaming.SparkRunnerStreamingContextFactory;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.Read;
@@ -142,6 +143,8 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
             : Optional.<CheckpointDir>absent();
     final Accumulator<NamedAggregators> aggregatorsAccumulator =
         SparkAggregators.getOrCreateNamedAggregators(jsc, maybeCheckpointDir);
+    // Instantiate metrics accumulator
+    MetricsAccumulator.getOrCreateInstance(jsc, maybeCheckpointDir);
     final NamedAggregators initialValue = aggregatorsAccumulator.value();
     if (opts.getEnableSparkMetricSinks()) {
       final MetricsSystem metricsSystem = SparkEnv$.MODULE$.get().metricsSystem();
@@ -179,10 +182,13 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
           JavaStreamingContext.getOrCreate(checkpointDir.getSparkCheckpointDir().toString(),
               contextFactory);
 
-      // Checkpoint aggregator values
+      // Checkpoint aggregator/metrics values
       jssc.addStreamingListener(
           new JavaStreamingListenerWrapper(
               new AggregatorsAccumulator.AccumulatorCheckpointingSparkListener()));
+      jssc.addStreamingListener(
+          new JavaStreamingListenerWrapper(
+              new MetricsAccumulator.AccumulatorCheckpointingSparkListener()));
 
       startPipeline = executorService.submit(new Runnable() {
 

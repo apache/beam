@@ -254,7 +254,7 @@ public final class TransformTranslator {
         Accumulator<NamedAggregators> aggAccum =
             SparkAggregators.getNamedAggregators(jsc);
         Accumulator<SparkMetricsContainer> metricsAccum =
-            MetricsAccumulator.getOrCreateInstance(jsc);
+            MetricsAccumulator.getInstance();
         Map<TupleTag<?>, KV<WindowingStrategy<?, ?>, SideInputBroadcast<?>>> sideInputs =
             TranslationUtils.getSideInputs(transform.getSideInputs(), context);
         context.putDataset(transform,
@@ -281,7 +281,7 @@ public final class TransformTranslator {
         Accumulator<NamedAggregators> aggAccum =
             SparkAggregators.getNamedAggregators(jsc);
         Accumulator<SparkMetricsContainer> metricsAccum =
-            MetricsAccumulator.getOrCreateInstance(jsc);
+            MetricsAccumulator.getInstance();
         JavaPairRDD<TupleTag<?>, WindowedValue<?>> all = inRDD
             .mapPartitionsToPair(
                 new MultiDoFnFunction<>(aggAccum, metricsAccum, stepName, doFn,

@@ -19,8 +19,18 @@
 package org.apache.beam.runners.spark.metrics;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Optional;
+import java.io.IOException;
+import org.apache.beam.runners.spark.translation.streaming.Checkpoint;
+import org.apache.beam.runners.spark.translation.streaming.Checkpoint.CheckpointDir;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
 import org.apache.spark.Accumulator;
 import org.apache.spark.api.java.JavaSparkContext;
+import org.apache.spark.streaming.api.java.JavaStreamingListener;
+import org.apache.spark.streaming.api.java.JavaStreamingListenerBatchCompleted;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 
 /**
@@ -28,10 +38,18 @@ import org.apache.spark.api.java.JavaSparkContext;
  * @see <a href="https://spark.apache.org/docs/1.6.3/streaming-programming-guide.html#accumulators-and-broadcast-variables">accumulators</a>
  */
 public class MetricsAccumulator {
+  private static final Logger LOG = LoggerFactory.getLogger(MetricsAccumulator.class);
+
+  private static final String ACCUMULATOR_CHECKPOINT_FILENAME = "metrics";
 
   private static volatile Accumulator<SparkMetricsContainer> instance = null;
+  private static volatile FileSystem fileSystem;
+  private static volatile Path checkpointFilePath;
 
-  public static Accumulator<SparkMetricsContainer> getOrCreateInstance(JavaSparkContext jsc) {
+  @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
+  public static Accumulator<SparkMetricsContainer> getOrCreateInstance(
+      JavaSparkContext jsc,
+      Optional<CheckpointDir> checkpointDir) {
     if (instance == null) {
       synchronized (MetricsAccumulator.class) {
         if (instance == null) {
@@ -41,17 +59,39 @@ public class MetricsAccumulator {
           SparkMetricsContainer initialValue = new SparkMetricsContainer();
           instance = jsc.sc().accumulator(initialValue, "Beam.Metrics",
               new MetricsAccumulatorParam());
+          if (checkpointDir.isPresent()) {
+            recoverValueFromCheckpoint(jsc, checkpointDir.get());
+          }
         }
       }
     }
     return instance;
   }
 
-  static Accumulator<SparkMetricsContainer> getInstance() {
+  public static Accumulator<SparkMetricsContainer> getInstance() {
     if (instance == null) {
       throw new IllegalStateException("Metrics accumulator has not been instantiated");
     } else {
       return instance;
+    }
+  }
+
+  private static void recoverValueFromCheckpoint(
+      JavaSparkContext jsc,
+      CheckpointDir checkpointDir) {
+    try {
+      Path beamCheckpointPath = checkpointDir.getBeamCheckpointDir();
+      checkpointFilePath = new Path(beamCheckpointPath, ACCUMULATOR_CHECKPOINT_FILENAME);
+      fileSystem = checkpointFilePath.getFileSystem(jsc.hadoopConfiguration());
+      SparkMetricsContainer recoveredValue = Checkpoint.readObject(fileSystem, checkpointFilePath);
+      if (recoveredValue != null) {
+        LOG.info("Recovered metrics from checkpoint: " + recoveredValue);
+        instance.setValue(recoveredValue);
+      } else {
+        LOG.info("No metrics checkpoint found.");
+      }
+    } catch (Exception e) {
+      throw new RuntimeException("Failure while reading metrics checkpoint.", e);
     }
   }
 
@@ -60,6 +100,26 @@ public class MetricsAccumulator {
   static void clear() {
     synchronized (MetricsAccumulator.class) {
       instance = null;
+    }
+  }
+
+  private static void checkpoint() throws IOException {
+    if (checkpointFilePath != null) {
+      Checkpoint.writeObject(fileSystem, checkpointFilePath, instance.value());
+    }
+  }
+
+  /**
+   * Spark Listener which checkpoints {@link SparkMetricsContainer} values for fault-tolerance.
+   */
+  public static class AccumulatorCheckpointingSparkListener extends JavaStreamingListener {
+    @Override
+    public void onBatchCompleted(JavaStreamingListenerBatchCompleted batchCompleted) {
+      try {
+        checkpoint();
+      } catch (IOException e) {
+        LOG.error("Failed to checkpoint metrics singleton.", e);
+      }
     }
   }
 }
