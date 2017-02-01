@@ -33,12 +33,11 @@ mavenJob('beam_Release_NightlySnapshot') {
   // Set maven paramaters.
   common_job_properties.setMavenConfig(delegate)
 
-  // Set that this is a PostCommit job.
-  // Polls SCM on Feb 31st, i.e. never.
+  // This is a post-commit job that runs once per day, not for every push.
   common_job_properties.setPostCommit(
       delegate,
       '0 7 * * *',
-      '0 5 31 2 *',
+      false,
       'dev@beam.apache.org')
 
   // Maven goals for this job.

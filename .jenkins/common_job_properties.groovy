@@ -158,14 +158,15 @@ class common_job_properties {
   // Sets common config for PostCommit jobs.
   static def setPostCommit(def context,
                            def build_schedule = '0 */6 * * *',
-                           def scm_schedule = '* * * * *',
+                           def trigger_every_push = true,
                            def notify_address = 'commits@beam.apache.org') {
     // Set build triggers
     context.triggers {
       // By default runs every 6 hours.
       cron(build_schedule)
-      // Also polls SCM every minute.
-      scm(scm_schedule)
+      if (trigger_every_push) {
+        githubPush()
+      }
     }
 
     context.publishers {
