@@ -4,7 +4,7 @@ index.html in the appropriate place (preserving anchors, etc).
 
 Usage:
   From root directory, after running the jekyll build, execute
-  'python tools/append_index_html_to_internal_links.py'.
+  'python .jenkins/append_index_html_to_internal_links.py'.
 
 Dependencies:
   beautifulsoup4
