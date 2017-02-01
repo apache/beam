@@ -59,8 +59,8 @@ class FilterTextFn(beam.DoFn):
     super(FilterTextFn, self).__init__()
     self.pattern = pattern
     # A custom metric can track values in your pipeline as it runs. Those
-    # values will be displayed in the Dataflow Monitoring UI when this pipeline
-    # is run using the Dataflow service. These metrics below track the number of
+    # values will be available in the monitoring system of the runner used
+    # to run the pipeline. These metrics below track the number of
     # matched and unmatched words.
     self.matched_words = Metrics.counter(self.__class__, 'matched_words')
     self.umatched_words = Metrics.counter(self.__class__, 'umatched_words')

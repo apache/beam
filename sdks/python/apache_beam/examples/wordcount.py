@@ -100,7 +100,7 @@ def run(argv=None):
   # Actually run the pipeline (all operations above are deferred).
   result = p.run()
   result.wait_until_finish()
-  #TODO(pabloem) Add querying of metrics once they are queriable.
+  #TODO(pabloem)(BEAM-1366) Add querying of metrics once they are queriable.
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)

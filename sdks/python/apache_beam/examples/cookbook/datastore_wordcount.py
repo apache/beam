@@ -248,7 +248,7 @@ def run(argv=None):
                                pipeline_options)
 
   result.metrics().query()
-  #TODO(pabloem): Fix these once metrics are 100% queriable.
+  #TODO(pabloem)(BEAM-1366) Fix these once metrics are 100% queriable.
 
 
 if __name__ == '__main__':
