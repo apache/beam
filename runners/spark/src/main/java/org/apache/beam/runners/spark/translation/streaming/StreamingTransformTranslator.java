@@ -397,7 +397,7 @@ final class StreamingTransformTranslator {
             final Accumulator<NamedAggregators> aggAccum =
                 SparkAggregators.getNamedAggregators(jsc);
             final Accumulator<SparkMetricsContainer> metricsAccum =
-                MetricsAccumulator.getOrCreateInstance(jsc);
+                MetricsAccumulator.getInstance();
             final Map<TupleTag<?>, KV<WindowingStrategy<?, ?>, SideInputBroadcast<?>>> sideInputs =
                 TranslationUtils.getSideInputs(transform.getSideInputs(),
                     jsc, pviews);
@@ -438,7 +438,7 @@ final class StreamingTransformTranslator {
             final Accumulator<NamedAggregators> aggAccum =
                 SparkAggregators.getNamedAggregators(jsc);
             final Accumulator<SparkMetricsContainer> metricsAccum =
-                MetricsAccumulator.getOrCreateInstance(jsc);
+                MetricsAccumulator.getInstance();
             final Map<TupleTag<?>, KV<WindowingStrategy<?, ?>, SideInputBroadcast<?>>> sideInputs =
                 TranslationUtils.getSideInputs(transform.getSideInputs(),
                     JavaSparkContext.fromSparkContext(rdd.context()), pviews);
