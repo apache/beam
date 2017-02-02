@@ -23,11 +23,12 @@ class common_job_properties {
   // Sets common top-level job properties.
   static def setTopLevelJobProperties(def context,
                                       def default_branch = 'master',
-                                      def default_timeout = 100) {
+                                      def default_timeout = 100,
+                                      def repo_link = 'https://github.com/apache/beam') {
 
     // GitHub project.
     context.properties {
-      githubProjectUrl('https://github.com/apache/beam/')
+      githubProjectUrl(repo_link + '/')
     }
 
     // Set JDK version.
@@ -46,7 +47,7 @@ class common_job_properties {
     context.scm {
       git {
         remote {
-          url('https://github.com/apache/beam.git')
+          url(repo_link + '.git')
           refspec('+refs/heads/*:refs/remotes/origin/* ' +
                   '+refs/pull/*:refs/remotes/origin/pr/*')
         }
