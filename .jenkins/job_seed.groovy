@@ -31,10 +31,15 @@ job('beam_SeedJob') {
   // This is a post-commit job that runs once per day, not for every push.
   common_job_properties.setPostCommit(
       delegate,
-      'Run Seed Job',
       '0 6 * * *',
       false,
       'dev@beam.apache.org')
+
+  // Allows triggering this build against pull requests.
+  common_job_properties.enableTriggeringOnPreCommit(
+    delegate,
+    'Jenkins Seed Job',
+    'Run Seed Job')
 
   steps {
     dsl {

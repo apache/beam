@@ -44,7 +44,6 @@ mavenJob('beam_PostCommit_Java_RunnableOnService_Gearpump') {
     'Gearpump RunnableOnService Tests',
     'Run Gearpump RunableOnService')
 
-
   // Maven goals for this job.
   goals('-B -e clean verify -am -pl runners/gearpump -DforkCount=0 -DrunnableOnServicePipelineOptions=\'[ "--runner=TestGearpumpRunner", "--streaming=false" ]\'')
 }
