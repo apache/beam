@@ -54,7 +54,7 @@
     <connection>scm:git:git@github.com:GoogleCloudPlatform/DataflowJavaSDK.git</connection>
     <developerConnection>scm:git:git@github.com:GoogleCloudPlatform/DataflowJavaSDK.git</developerConnection>
     <url>git@github.com:GoogleCloudPlatform/DataflowJavaSDK.git</url>
-    <tag>HEAD</tag>
+    <tag>release-2.0.0-beta2</tag>
   </scm>
 
   <distributionManagement>
