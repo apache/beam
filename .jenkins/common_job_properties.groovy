@@ -196,7 +196,6 @@ class common_job_properties {
 
   // Sets common config for PostCommit jobs.
   static def setPostCommit(def context,
-                           def trigger_phrase = '',
                            def build_schedule = '0 */6 * * *',
                            def trigger_every_push = true,
                            def notify_address = 'commits@beam.apache.org') {
