@@ -109,10 +109,14 @@ class common_job_properties {
         orgWhitelist(['apache'])
         allowMembersOfWhitelistedOrgsAsAdmin()
         permitAll()
+        // postCommitPhrase is the argument which gets set when we want to allow
+        // post-commit builds to run against pending pull requests. This block
+        // overrides the default trigger phrase with the new one and sets the
+        // build to happen only when it sees the trigger phrase.
         if (postCommitPhrase != '') {
           triggerPhrase(postcommitPhrase)
           onlyTriggerPhrase()
-	}
+        }
 
         extensions {
           commitStatus {
@@ -176,6 +180,20 @@ class common_job_properties {
     setPullRequestBuildTrigger(context, commitStatusName, successComment)
   }
 
+  // Enable triggering postcommit runs against pull requests. Users can comment the trigger phrase
+  // specified in the postcommit job and have the job run against their PR to run
+  // tests not in the presubmit suite for additional confidence.
+  static def enableTriggeringOnPreCommit(def context,
+                                         def check_title,
+                                         def trigger_phrase) {
+    setPullRequestBuildTrigger(
+      context,
+      check_title,
+      '--none--',
+      trigger_phrase)
+
+  }
+
   // Sets common config for PostCommit jobs.
   static def setPostCommit(def context,
                            def trigger_phrase = '',
@@ -189,13 +207,6 @@ class common_job_properties {
       if (trigger_every_push) {
         githubPush()
       }
-    }
-
-    // Enable triggering oneshots of pull requests. Users can comment the trigger phrase
-    // speficied in the postcommit job and have the job run against their PR to run
-    // tests not in the presubmit suite for additional confidence.
-    if (trigger_phrase != '') {
-      setPullRequestBuildTrigger(context, 'Jenkins PostCommit', '--none--', trigger_phrase)
     }
 
     context.publishers {
