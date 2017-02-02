@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.io.fs;
 
+import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
+
 /**
  * An identifier which represents a resource.
  *
@@ -28,11 +30,24 @@ public interface ResourceId {
   /**
    * Resolves the given {@code String} against this {@code ResourceId}.
    *
+   * <p>In order to write file system agnostic code, callers should not include delimiters
+   * in {@code other}, and should use {@link StandardResolveOptions} to specify
+   * whether to resolve a file or a directory.
+   *
+   * <p>For example:
+   *
+   * <pre>{@code
+   * ResourceId homeDir = ...
+   * ResourceId tempOutput = homeDir
+   *     .resolve("tempDir", StandardResolveOptions.RESOLVE_DIRECTORY)
+   *     .resolve("output", StandardResolveOptions.RESOLVE_FILE);
+   * }</pre>
+   *
    * <p>This {@code ResourceId} should represents a directory.
    *
    * <p>It is up to each file system to resolve in their own way.
    */
-  ResourceId resolve(String other);
+  ResourceId resolve(String other, ResolveOptions resolveOptions);
 
   /**
    * Returns the {@code ResourceId} that represents the current directory of

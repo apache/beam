@@ -20,6 +20,8 @@ package org.apache.beam.sdk.io.gcp.storage;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 
+import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
+import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.util.gcsfs.GcsPath;
 import org.junit.Rule;
 import org.junit.Test;
@@ -38,30 +40,55 @@ public class GcsResourceIdTest {
 
   @Test
   public void testResolve() throws Exception {
-    // Tests for local files without the scheme.
+    // Tests for common gcs paths.
     assertEquals(
         toResourceIdentifier("gs://bucket/tmp/aa"),
-        toResourceIdentifier("gs://bucket/tmp/").resolve("aa"));
+        toResourceIdentifier("gs://bucket/tmp/")
+            .resolve("aa", StandardResolveOptions.RESOLVE_FILE));
     assertEquals(
         toResourceIdentifier("gs://bucket/tmp/aa/bb/cc/"),
-        toResourceIdentifier("gs://bucket/tmp/").resolve("aa/").resolve("bb/").resolve("cc/"));
+        toResourceIdentifier("gs://bucket/tmp/")
+            .resolve("aa", StandardResolveOptions.RESOLVE_DIRECTORY)
+            .resolve("bb", StandardResolveOptions.RESOLVE_DIRECTORY)
+            .resolve("cc", StandardResolveOptions.RESOLVE_DIRECTORY));
 
     // Tests absolute path.
     assertEquals(
         toResourceIdentifier("gs://bucket/tmp/aa"),
-        toResourceIdentifier("gs://bucket/tmp/bb/").resolve("gs://bucket/tmp/aa"));
+        toResourceIdentifier("gs://bucket/tmp/bb/")
+            .resolve("gs://bucket/tmp/aa", StandardResolveOptions.RESOLVE_FILE));
 
     // Tests path with unicode
     assertEquals(
         toResourceIdentifier("gs://bucket/输出 目录/输出 文件01.txt"),
-        toResourceIdentifier("gs://bucket/输出 目录/").resolve("输出 文件01.txt"));
+        toResourceIdentifier("gs://bucket/输出 目录/")
+            .resolve("输出 文件01.txt", StandardResolveOptions.RESOLVE_FILE));
+  }
+
+  @Test
+  public void testResolveHandleBadInputs() throws Exception {
+    assertEquals(
+        toResourceIdentifier("gs://my_bucket/tmp/"),
+        toResourceIdentifier("gs://my_bucket/")
+            .resolve("tmp/", StandardResolveOptions.RESOLVE_DIRECTORY));
+  }
+
+  @Test
+  public void testResolveInvalidInputs() throws Exception {
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage(
+        "The resolved file: [tmp/] should not end with '/'.");
+    toResourceIdentifier("gs://my_bucket/").resolve("tmp/", StandardResolveOptions.RESOLVE_FILE);
   }
 
   @Test
   public void testResolveInvalidNotDirectory() throws Exception {
+    ResourceId tmpDir = toResourceIdentifier("gs://my_bucket/")
+        .resolve("tmp dir", StandardResolveOptions.RESOLVE_FILE);
+
     thrown.expect(IllegalStateException.class);
     thrown.expectMessage("Expected the gcsPath is a directory, but had [gs://my_bucket/tmp dir].");
-    toResourceIdentifier("gs://my_bucket/tmp dir").resolve("aa");
+    tmpDir.resolve("aa", StandardResolveOptions.RESOLVE_FILE);
   }
 
   @Test

@@ -17,8 +17,12 @@
  */
 package org.apache.beam.sdk.io.gcp.storage;
 
+import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 
+import org.apache.beam.sdk.io.fs.ResolveOptions;
+import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.util.gcsfs.GcsPath;
 
@@ -30,6 +34,7 @@ public class GcsResourceId implements ResourceId {
   private final GcsPath gcsPath;
 
   static GcsResourceId fromGcsPath(GcsPath gcsPath) {
+    checkNotNull(gcsPath, "gcsPath");
     return new GcsResourceId(gcsPath);
   }
 
@@ -38,11 +43,30 @@ public class GcsResourceId implements ResourceId {
   }
 
   @Override
-  public ResourceId resolve(String other) {
+  public ResourceId resolve(String other, ResolveOptions resolveOptions) {
     checkState(
         isDirectory(),
         String.format("Expected the gcsPath is a directory, but had [%s].", gcsPath));
-    return fromGcsPath(gcsPath.resolve(other));
+    checkArgument(
+        resolveOptions.equals(StandardResolveOptions.RESOLVE_FILE)
+            || resolveOptions.equals(StandardResolveOptions.RESOLVE_DIRECTORY),
+        String.format("ResolveOptions: [%s] is not supported.", resolveOptions));
+    if (resolveOptions.equals(StandardResolveOptions.RESOLVE_FILE)) {
+      checkArgument(
+          !other.endsWith("/"),
+          "The resolved file: [%s] should not end with '/'.", other);
+      return fromGcsPath(gcsPath.resolve(other));
+    } else {
+      // StandardResolveOptions.RESOLVE_DIRECTORY
+      if (other.endsWith("/")) {
+        // other already contains the delimiter for gcs.
+        // It is not recommended for callers to set the delimiter.
+        // However, we consider it as a valid input.
+        return fromGcsPath(gcsPath.resolve(other));
+      } else {
+        return fromGcsPath(gcsPath.resolve(other + "/"));
+      }
+    }
   }
 
   @Override

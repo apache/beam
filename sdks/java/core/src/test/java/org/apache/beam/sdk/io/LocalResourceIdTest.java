@@ -21,6 +21,8 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 
 import java.nio.file.Paths;
+import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
+import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.commons.lang3.SystemUtils;
 import org.junit.Rule;
 import org.junit.Test;
@@ -46,28 +48,36 @@ public class LocalResourceIdTest {
     // Tests for local files without the scheme.
     assertEquals(
         toResourceIdentifier("/root/tmp/aa"),
-        toResourceIdentifier("/root/tmp/").resolve("aa"));
+        toResourceIdentifier("/root/tmp/")
+            .resolve("aa", StandardResolveOptions.RESOLVE_FILE));
     assertEquals(
         toResourceIdentifier("/root/tmp/aa/bb/cc/"),
-        toResourceIdentifier("/root/tmp/").resolve("aa/").resolve("bb/").resolve("cc/"));
+        toResourceIdentifier("/root/tmp/")
+            .resolve("aa", StandardResolveOptions.RESOLVE_DIRECTORY)
+            .resolve("bb", StandardResolveOptions.RESOLVE_DIRECTORY)
+            .resolve("cc", StandardResolveOptions.RESOLVE_DIRECTORY));
 
     // Tests absolute path.
     assertEquals(
         toResourceIdentifier("/root/tmp/aa"),
-        toResourceIdentifier("/root/tmp/bb/").resolve("/root/tmp/aa"));
+        toResourceIdentifier("/root/tmp/bb/")
+            .resolve("/root/tmp/aa", StandardResolveOptions.RESOLVE_FILE));
 
     // Tests empty authority and path.
     assertEquals(
         toResourceIdentifier("file:/aa"),
-        toResourceIdentifier("file:///").resolve("aa"));
+        toResourceIdentifier("file:///")
+            .resolve("aa", StandardResolveOptions.RESOLVE_FILE));
 
     // Tests path with unicode
     assertEquals(
         toResourceIdentifier("/根目录/输出 文件01.txt"),
-        toResourceIdentifier("/根目录/").resolve("输出 文件01.txt"));
+        toResourceIdentifier("/根目录/")
+            .resolve("输出 文件01.txt", StandardResolveOptions.RESOLVE_FILE));
     assertEquals(
         toResourceIdentifier("file://根目录/输出 文件01.txt"),
-        toResourceIdentifier("file://根目录/").resolve("输出 文件01.txt"));
+        toResourceIdentifier("file://根目录/")
+            .resolve("输出 文件01.txt", StandardResolveOptions.RESOLVE_FILE));
   }
 
   @Test
@@ -83,54 +93,71 @@ public class LocalResourceIdTest {
     assertEquals(
         toResourceIdentifier("file://home/bb"),
         toResourceIdentifier("file://root/../home/output/../")
-            .resolve("aa/")
-            .resolve("../")
-            .resolve("bb"));
+            .resolve("aa", StandardResolveOptions.RESOLVE_DIRECTORY)
+            .resolve("..", StandardResolveOptions.RESOLVE_DIRECTORY)
+            .resolve("bb", StandardResolveOptions.RESOLVE_FILE));
     assertEquals(
         toResourceIdentifier("file://root/aa/bb"),
         toResourceIdentifier("file://root/./")
-            .resolve("aa/")
-            .resolve("./")
-            .resolve("bb"));
+            .resolve("aa", StandardResolveOptions.RESOLVE_DIRECTORY)
+            .resolve(".", StandardResolveOptions.RESOLVE_DIRECTORY)
+            .resolve("bb", StandardResolveOptions.RESOLVE_FILE));
     assertEquals(
         toResourceIdentifier("aa/bb"),
         toResourceIdentifier("a/../")
-            .resolve("aa/")
-            .resolve("./")
-            .resolve("bb"));
+            .resolve("aa", StandardResolveOptions.RESOLVE_DIRECTORY)
+            .resolve(".", StandardResolveOptions.RESOLVE_DIRECTORY)
+            .resolve("bb", StandardResolveOptions.RESOLVE_FILE));
     assertEquals(
         toResourceIdentifier("/aa/bb"),
         toResourceIdentifier("/a/../")
-            .resolve("aa/")
-            .resolve("./")
-            .resolve("bb"));
+            .resolve("aa", StandardResolveOptions.RESOLVE_DIRECTORY)
+            .resolve(".", StandardResolveOptions.RESOLVE_DIRECTORY)
+            .resolve("bb", StandardResolveOptions.RESOLVE_FILE));
 
     // Tests "./", "../", "~/".
     assertEquals(
         toResourceIdentifier("aa/bb"),
         toResourceIdentifier("./")
-            .resolve("aa/")
-            .resolve("./")
-            .resolve("bb"));
+            .resolve("aa", StandardResolveOptions.RESOLVE_DIRECTORY)
+            .resolve(".", StandardResolveOptions.RESOLVE_DIRECTORY)
+            .resolve("bb", StandardResolveOptions.RESOLVE_FILE));
     assertEquals(
         toResourceIdentifier("../aa/bb"),
         toResourceIdentifier("../")
-            .resolve("aa/")
-            .resolve("./")
-            .resolve("bb"));
+            .resolve("aa", StandardResolveOptions.RESOLVE_DIRECTORY)
+            .resolve(".", StandardResolveOptions.RESOLVE_DIRECTORY)
+            .resolve("bb", StandardResolveOptions.RESOLVE_FILE));
     assertEquals(
         toResourceIdentifier("~/aa/bb/"),
         toResourceIdentifier("~/")
-            .resolve("aa/")
-            .resolve("./")
-            .resolve("bb/"));
+            .resolve("aa", StandardResolveOptions.RESOLVE_DIRECTORY)
+            .resolve(".", StandardResolveOptions.RESOLVE_DIRECTORY)
+            .resolve("bb", StandardResolveOptions.RESOLVE_DIRECTORY));
+  }
+
+  @Test
+  public void testResolveHandleBadInputs() throws Exception {
+    assertEquals(
+        toResourceIdentifier("/root/tmp/"),
+        toResourceIdentifier("/root/")
+            .resolve("tmp/", StandardResolveOptions.RESOLVE_DIRECTORY));
+  }
+
+  @Test
+  public void testResolveInvalidInputs() throws Exception {
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("The resolved file: [tmp/] should not end with '/'.");
+    toResourceIdentifier("/root/").resolve("tmp/", StandardResolveOptions.RESOLVE_FILE);
   }
 
   @Test
   public void testResolveInvalidNotDirectory() throws Exception {
+    ResourceId tmp = toResourceIdentifier("/root/")
+        .resolve("tmp", StandardResolveOptions.RESOLVE_FILE);
     thrown.expect(IllegalStateException.class);
     thrown.expectMessage("Expected the path is a directory, but had [/root/tmp].");
-    toResourceIdentifier("/root/tmp").resolve("aa");
+    tmp.resolve("aa", StandardResolveOptions.RESOLVE_FILE);
   }
 
   @Test
@@ -141,20 +168,21 @@ public class LocalResourceIdTest {
     }
     assertEquals(
         toResourceIdentifier("C:\\my home\\out put"),
-        toResourceIdentifier("C:\\my home\\").resolve("out put"));
+        toResourceIdentifier("C:\\my home\\")
+            .resolve("out put", StandardResolveOptions.RESOLVE_FILE));
 
     assertEquals(
         toResourceIdentifier("C:\\out put"),
         toResourceIdentifier("C:\\my home\\")
-            .resolve("..\\")
-            .resolve(".\\")
-            .resolve("out put"));
+            .resolve("..", StandardResolveOptions.RESOLVE_DIRECTORY)
+            .resolve(".", StandardResolveOptions.RESOLVE_DIRECTORY)
+            .resolve("out put", StandardResolveOptions.RESOLVE_FILE));
 
     assertEquals(
         toResourceIdentifier("C:\\my home\\**\\*"),
         toResourceIdentifier("C:\\my home\\")
-            .resolve("**")
-            .resolve("*"));
+            .resolve("**", StandardResolveOptions.RESOLVE_DIRECTORY)
+            .resolve("*", StandardResolveOptions.RESOLVE_FILE));
   }
 
   @Test
@@ -174,6 +202,13 @@ public class LocalResourceIdTest {
     assertEquals(
         toResourceIdentifier("file://根目录/"),
         toResourceIdentifier("file://根目录/输出 文件01.txt").getCurrentDirectory());
+  }
+
+  @Test
+  public void testGetCurrentDirectoryInvalid() throws Exception {
+    thrown.expect(IllegalStateException.class);
+    thrown.expectMessage("Path: [output] doesn't have the current directory.");
+    toResourceIdentifier("output").getCurrentDirectory();
   }
 
   @Test
