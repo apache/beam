@@ -17,6 +17,9 @@
  */
 package org.apache.beam.sdk.io.jms;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -33,6 +36,8 @@ import org.apache.activemq.broker.BrokerService;
 import org.apache.activemq.security.AuthenticationUser;
 import org.apache.activemq.security.SimpleAuthenticationPlugin;
 import org.apache.activemq.store.memory.MemoryPersistenceAdapter;
+import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -40,7 +45,6 @@ import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.values.PCollection;
 import org.junit.After;
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -60,6 +64,7 @@ public class JmsIOTest {
   private static final String USERNAME = "test_user";
   private static final String PASSWORD = "test_password";
   private static final String QUEUE = "test_queue";
+  private static final String TOPIC = "test_topic";
 
   private BrokerService broker;
   private ConnectionFactory connectionFactory;
@@ -167,7 +172,7 @@ public class JmsIOTest {
     session = connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
     MessageConsumer consumer = session.createConsumer(session.createQueue(QUEUE));
     Message msg = consumer.receiveNoWait();
-    Assert.assertNull(msg);
+    assertNull(msg);
   }
 
   @Test
@@ -195,7 +200,35 @@ public class JmsIOTest {
     while (consumer.receive(1000) != null) {
       count++;
     }
-    Assert.assertEquals(100, count);
+    assertEquals(100, count);
+  }
+
+  @Test
+  public void testSplitForQueue() throws Exception {
+    JmsIO.Read read = JmsIO.read().withQueue(QUEUE);
+    PipelineOptions pipelineOptions = PipelineOptionsFactory.create();
+    int desiredNumSplits = 5;
+    JmsIO.UnboundedJmsSource initialSource = new JmsIO.UnboundedJmsSource(read);
+    List<JmsIO.UnboundedJmsSource> splits = initialSource.generateInitialSplits(desiredNumSplits,
+        pipelineOptions);
+    // in the case of a queue, we have concurrent consumers by default, so the initial number
+    // splits is equal to the desired number of splits
+    assertEquals(desiredNumSplits, splits.size());
+  }
+
+  @Test
+  public void testSplitForTopic() throws Exception {
+    JmsIO.Read read = JmsIO.read().withTopic(TOPIC);
+    PipelineOptions pipelineOptions = PipelineOptionsFactory.create();
+    int desiredNumSplits = 5;
+    JmsIO.UnboundedJmsSource initialSource = new JmsIO.UnboundedJmsSource(read);
+    List<JmsIO.UnboundedJmsSource> splits = initialSource.generateInitialSplits(desiredNumSplits,
+        pipelineOptions);
+    // in the case of a topic, we can have only an unique subscriber on the topic per pipeline
+    // else it means we can have duplicate messages (all subscribers on the topic receive every
+    // message).
+    // So, whatever the desizedNumSplits is, the actual number of splits should be 1.
+    assertEquals(1, splits.size());
   }
 
 }
