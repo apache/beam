@@ -29,7 +29,12 @@ import org.hamcrest.TypeSafeMatcher;
  */
 public class MetricMatchers {
 
-  static <T> Matcher<MetricUpdate<T>> metricUpdate(final String name, final T update) {
+  /**
+   * Matches a {@link MetricUpdate} with the given name and contents.
+   *
+   * <p>Visible since it may be used in runner-specific tests.
+   */
+  public static <T> Matcher<MetricUpdate<T>> metricUpdate(final String name, final T update) {
     return new TypeSafeMatcher<MetricUpdate<T>>() {
       @Override
       protected boolean matchesSafely(MetricUpdate<T> item) {
@@ -47,7 +52,12 @@ public class MetricMatchers {
     };
   }
 
-  static <T> Matcher<MetricUpdate<T>> metricUpdate(
+  /**
+   * Matches a {@link MetricUpdate} with the given namespace, name, step and contents.
+   *
+   * <p>Visible since it may be used in runner-specific tests.
+   */
+  public static <T> Matcher<MetricUpdate<T>> metricUpdate(
       final String namespace, final String name, final String step, final T update) {
     return new TypeSafeMatcher<MetricUpdate<T>>() {
       @Override
@@ -70,6 +80,10 @@ public class MetricMatchers {
     };
   }
 
+  /**
+   * Matches a {@link MetricResult} with the given namespace, name and step, and whose attempted
+   * value equals the given value.
+   */
   public static <T> Matcher<MetricResult<T>> attemptedMetricsResult(
       final String namespace, final String name, final String step, final T attempted) {
     return new TypeSafeMatcher<MetricResult<T>>() {
@@ -108,6 +122,10 @@ public class MetricMatchers {
     };
   }
 
+  /**
+   * Matches a {@link MetricResult} with the given namespace, name and step, and whose committed
+   * value equals the given value.
+   */
   public static <T> Matcher<MetricResult<T>> committedMetricsResult(
       final String namespace, final String name, final String step,
       final T committed) {
