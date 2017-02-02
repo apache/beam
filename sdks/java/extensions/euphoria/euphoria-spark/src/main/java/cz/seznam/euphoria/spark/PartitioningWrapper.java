@@ -15,7 +15,7 @@
  */
 package cz.seznam.euphoria.spark;
 
-import cz.seznam.euphoria.core.client.dataset.Partitioning;
+import cz.seznam.euphoria.core.client.dataset.partitioning.Partitioning;
 import org.apache.spark.Partitioner;
 
 /**
@@ -23,7 +23,7 @@ import org.apache.spark.Partitioner;
  */
 class PartitioningWrapper extends Partitioner {
 
-  private final cz.seznam.euphoria.core.client.dataset.Partitioner partitioner;
+  private final cz.seznam.euphoria.core.client.dataset.partitioning.Partitioner partitioner;
   private final int numPartitions;
 
   public PartitioningWrapper(Partitioning partitioning) {
