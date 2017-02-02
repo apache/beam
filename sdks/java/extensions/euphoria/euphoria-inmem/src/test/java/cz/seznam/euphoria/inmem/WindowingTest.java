@@ -17,7 +17,7 @@ package cz.seznam.euphoria.inmem;
 
 import com.google.common.collect.Sets;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
-import cz.seznam.euphoria.core.client.dataset.Partitioner;
+import cz.seznam.euphoria.core.client.dataset.partitioning.Partitioner;
 import cz.seznam.euphoria.core.client.dataset.windowing.Count;
 import cz.seznam.euphoria.core.client.dataset.windowing.Time;
 import cz.seznam.euphoria.core.client.dataset.windowing.TimeInterval;

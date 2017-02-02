@@ -15,7 +15,7 @@
  */
 package cz.seznam.euphoria.flink.streaming;
 
-import cz.seznam.euphoria.core.client.dataset.Partitioning;
+import cz.seznam.euphoria.core.client.dataset.partitioning.Partitioning;
 import cz.seznam.euphoria.core.client.operator.Repartition;
 import cz.seznam.euphoria.flink.FlinkOperator;
 import cz.seznam.euphoria.flink.functions.PartitionerWrapper;
