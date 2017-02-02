@@ -71,7 +71,7 @@ public class Distinct<IN, ELEM, W extends Window>
         UnaryFunction<IN, ELEM> mapper /* optional */) {
 
       // define default partitioning
-      super(new DefaultPartitioning<>(input.getPartitioning().getNumPartitions()));
+      super(new DefaultPartitioning<>(input.getNumPartitions()));
 
       this.name = Objects.requireNonNull(name);
       this.input = Objects.requireNonNull(input);

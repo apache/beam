@@ -93,6 +93,15 @@ public class Flow implements Serializable {
     this.settings = cloneSettings(settings);
   }
 
+  /**
+   * Creates a new (anonymous) Flow.
+   *
+   * @return a new flow with an undefined name,
+   *          i.e. either not named at all or with a system generated name
+   */
+  public static Flow create() {
+    return create(null);
+  }
 
   /**
    * Creates a new Flow.

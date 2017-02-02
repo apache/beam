@@ -49,16 +49,6 @@ public class StateAwareWindowWiseSingleInputOperator<
     this.output = createOutput(input);
   }
 
-  protected StateAwareWindowWiseSingleInputOperator(
-      String name,
-      Flow flow,
-      Dataset<IN> input,
-      UnaryFunction<KIN, KEY> extractor,
-      Windowing<WIN, W> windowing /* optional */,
-      UnaryFunction<WIN, Long> eventTimeAssigner /* optional */) {
-    this(name, flow, input, extractor, windowing, eventTimeAssigner, input.getPartitioning());
-  }
-
   @Override
   public Collection<Dataset<IN>> listInputs() {
     return Collections.singletonList(input);

@@ -141,9 +141,8 @@ public class Join<LEFT, RIGHT, KEY, OUT, W extends Window>
                      BinaryFunctor<LEFT, RIGHT, OUT> joinFunc) {
       
       // define default partitioning
-      super(new DefaultPartitioning<>(Math.max(
-              left.getPartitioning().getNumPartitions(),
-              right.getPartitioning().getNumPartitions())));
+      super(new DefaultPartitioning<>(
+          Math.max(left.getNumPartitions(), right.getNumPartitions())));
 
       this.name = Objects.requireNonNull(name);
       this.left = Objects.requireNonNull(left);
