@@ -402,13 +402,8 @@ class DoFnContext(object):
     else:
       return self.windowed_value.windows
 
-  def aggregate_to(self, aggregator, input_value):
-    self.state.counter_for(aggregator).update(input_value)
-
 
 # TODO(robertwb): Remove all these adapters once service is updated out.
-
-
 class _LoggingContextAdapter(LoggingContext):
 
   def __init__(self, underlying):
