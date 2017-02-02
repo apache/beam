@@ -10,7 +10,7 @@ job('beam_PreCommit_Website_Stage') {
       delegate,
       'asf-site',
       30,
-      'https://github.com/apache/beam-site')
+      'beam-site')
 
   // Set pull request build trigger.
   common_job_properties.setPullRequestBuildTrigger(

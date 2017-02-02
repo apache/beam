@@ -10,7 +10,7 @@ job('beam_PreCommit_Website_Test') {
       delegate,
       'asf-site',
       30,
-      'https://github.com/apache/beam-site')
+      'beam-site')
 
   // Execute concurrent builds. Multiple builds of this project may be executed
   // in parallel. This is safe because this build does not require exclusive
