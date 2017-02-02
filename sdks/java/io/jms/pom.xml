@@ -97,6 +97,12 @@
     </dependency>
     <dependency>
       <groupId>org.apache.activemq</groupId>
+      <artifactId>activemq-jaas</artifactId>
+      <version>${activemq.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.activemq</groupId>
       <artifactId>activemq-kahadb-store</artifactId>
       <version>${activemq.version}</version>
       <scope>test</scope>
