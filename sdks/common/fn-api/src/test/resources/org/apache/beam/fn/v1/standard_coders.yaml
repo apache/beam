@@ -62,6 +62,18 @@ coder:
   urn: "beam:coders:kv:0.1"
   components: [{urn: "beam:coders:bytes:0.1"},
                {urn: "beam:coders:bytes:0.1"}]
+nested: false
+examples:
+  "\u0003abcdef": {key: abc, value: def}
+  "\u0004ab\0cde\0f": {key: "ab\0c", value: "de\0f"}
+
+---
+
+coder:
+  urn: "beam:coders:kv:0.1"
+  components: [{urn: "beam:coders:bytes:0.1"},
+               {urn: "beam:coders:bytes:0.1"}]
+nested: true
 examples:
   "\u0003abc\u0003def": {key: abc, value: def}
   "\u0004ab\0c\u0004de\0f": {key: "ab\0c", value: "de\0f"}
