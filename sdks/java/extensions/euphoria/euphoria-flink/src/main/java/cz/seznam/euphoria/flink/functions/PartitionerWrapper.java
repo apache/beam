@@ -15,7 +15,7 @@
  */
 package cz.seznam.euphoria.flink.functions;
 
-import cz.seznam.euphoria.core.client.dataset.Partitioner;
+import cz.seznam.euphoria.core.client.dataset.partitioning.Partitioner;
 
 public class PartitionerWrapper<T>
         implements org.apache.flink.api.common.functions.Partitioner<T>

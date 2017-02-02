@@ -15,7 +15,7 @@
  */
 package cz.seznam.euphoria.flink.batch;
 
-import cz.seznam.euphoria.core.client.dataset.Partitioning;
+import cz.seznam.euphoria.core.client.dataset.partitioning.Partitioning;
 import cz.seznam.euphoria.core.client.dataset.windowing.WindowedElement;
 import cz.seznam.euphoria.core.client.operator.Repartition;
 import cz.seznam.euphoria.flink.FlinkOperator;

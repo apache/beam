@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package cz.seznam.euphoria.core.client.dataset;
+package cz.seznam.euphoria.core.client.dataset.partitioning;
 
 import java.io.Serializable;
 

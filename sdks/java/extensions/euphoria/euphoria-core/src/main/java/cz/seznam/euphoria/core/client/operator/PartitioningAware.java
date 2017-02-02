@@ -15,8 +15,8 @@
  */
 package cz.seznam.euphoria.core.client.operator;
 
-import cz.seznam.euphoria.core.client.dataset.Partitioner;
-import cz.seznam.euphoria.core.client.dataset.Partitioning;
+import cz.seznam.euphoria.core.client.dataset.partitioning.Partitioner;
+import cz.seznam.euphoria.core.client.dataset.partitioning.Partitioning;
 
 import java.util.Objects;
 
