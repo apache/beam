@@ -68,6 +68,32 @@
     </repository>
   </distributionManagement>
 
+  <repositories>
+    <repository>
+      <id>apache.staging</id>
+      <name>Apache Software Foundation Staging Repository</name>
+      <url>https://repository.apache.org/content/repositories/staging/</url>
+      <releases>
+        <enabled>true</enabled>
+      </releases>
+      <snapshots>
+        <enabled>false</enabled>
+      </snapshots>
+    </repository>
+
+    <repository>
+      <id>apache.snapshots</id>
+      <name>Apache Software Foundation Snapshot Repository</name>
+      <url>https://repository.apache.org/content/repositories/snapshots/</url>
+      <releases>
+        <enabled>false</enabled>
+      </releases>
+      <snapshots>
+        <enabled>true</enabled>
+      </snapshots>
+    </repository>
+  </repositories>
+
   <prerequisites>
     <maven>3.0.3</maven>
   </prerequisites>
@@ -77,7 +103,7 @@
     <timestamp>${maven.build.timestamp}</timestamp>
     <maven.build.timestamp.format>yyyy-MM-dd HH:mm</maven.build.timestamp.format>
 
-    <beam.version>0.4.0</beam.version>
+    <beam.version>0.5.0</beam.version>
 
     <dataflow.release_name>Google Cloud Dataflow SDK for Java</dataflow.release_name>
     <dataflow.container_version>${project.version}-20170103</dataflow.container_version>
