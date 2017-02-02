@@ -343,6 +343,14 @@ class PipelineResult(object):
     """
     raise NotImplementedError
 
+  def metrics(self):
+    """Returns MetricsResult object to query metrics from the runner.
+
+    Raises:
+      NotImplementedError: If the runner does not support this operation.
+    """
+    raise NotImplementedError
+
   # pylint: disable=unused-argument
   def aggregated_values(self, aggregator_or_name):
     """Return a dict of step names to values of the Aggregator."""
