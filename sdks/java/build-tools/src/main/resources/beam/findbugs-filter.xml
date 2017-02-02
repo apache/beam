@@ -167,6 +167,24 @@
   </Match>
 
   <Match>
+    <Class name="org.apache.beam.sdk.io.LocalResourceId"/>
+    <Method name="getCurrentDirectory" />
+    <Bug pattern="NP_NULL_PARAM_DEREF"/>
+    <!--
+      Path.getParent() could return null. However, we check the returned Path is not null.
+    -->
+  </Match>
+
+  <Match>
+    <Class name="org.apache.beam.sdk.io.gcp.storage.GcsResourceId"/>
+    <Method name="getCurrentDirectory" />
+    <Bug pattern="NP_NULL_ON_SOME_PATH_FROM_RETURN_VALUE"/>
+    <!--
+      GcsPath.getParent() could return null. However, we check the returned Path is not null.
+    -->
+  </Match>
+
+  <Match>
     <Class name="org.apache.beam.sdk.util.ZipFiles"/>
     <Method name="zipDirectory" />
     <Bug pattern="NP_NULL_ON_SOME_PATH_FROM_RETURN_VALUE"/>
