@@ -110,6 +110,22 @@ class PipelineTest(unittest.TestCase):
     assert_that(pcoll3, equal_to([14, 15, 16]), label='pcoll3')
     pipeline.run()
 
+  def test_flatmap_builtin(self):
+    pipeline = TestPipeline()
+    pcoll = pipeline | 'label1' >> Create([1, 2, 3])
+    assert_that(pcoll, equal_to([1, 2, 3]))
+
+    pcoll2 = pcoll | 'do' >> FlatMap(lambda x: [x + 10])
+    assert_that(pcoll2, equal_to([11, 12, 13]), label='pcoll2')
+
+    pcoll3 = pcoll2 | 'm1' >> Map(lambda x: [x, 12])
+    assert_that(pcoll3,
+                equal_to([[11, 12], [12, 12], [13, 12]]), label='pcoll3')
+
+    pcoll4 = pcoll3 | 'do2' >> FlatMap(set)
+    assert_that(pcoll4, equal_to([11, 12, 12, 12, 13]), label='pcoll4')
+    pipeline.run()
+
   def test_create_singleton_pcollection(self):
     pipeline = TestPipeline()
     pcoll = pipeline | 'label' >> Create([[1, 2, 3]])
