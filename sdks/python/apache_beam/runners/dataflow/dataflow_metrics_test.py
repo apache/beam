@@ -14,19 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-
 """
-DataflowRunner implementation of MetricResults. It is in charge of
-responding to queries of current metrics by going to the dataflow
-service.
+Tests corresponding to the DataflowRunner implementation of MetricsResult,
+the DataflowMetrics class.
 """
-
-from apache_beam.metrics.metric import MetricResults
-
-
-#TODO(pabloem)(JIRA-1381) Implement this once metrics are queriable from dataflow service
-class DataflowMetrics(MetricResults):
-
-  def query(self, filter=None):
-    return {'counters': [],
-            'distributions': []}
