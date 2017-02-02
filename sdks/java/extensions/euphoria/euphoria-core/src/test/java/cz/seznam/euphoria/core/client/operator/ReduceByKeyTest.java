@@ -20,11 +20,12 @@ import cz.seznam.euphoria.core.client.dataset.HashPartitioner;
 import cz.seznam.euphoria.core.client.dataset.HashPartitioning;
 import cz.seznam.euphoria.core.client.dataset.windowing.Time;
 import cz.seznam.euphoria.core.client.flow.Flow;
+import cz.seznam.euphoria.core.client.io.Context;
 import cz.seznam.euphoria.core.client.util.Pair;
+import cz.seznam.euphoria.core.client.util.Sums;
 import org.junit.Test;
 
 import java.time.Duration;
-import java.util.List;
 import java.util.stream.StreamSupport;
 
 import static org.junit.Assert.*;
@@ -147,5 +148,46 @@ public class ReduceByKeyTest {
     assertTrue(!reduce.getPartitioning().hasDefaultPartitioner());
     assertTrue(reduce.getPartitioning().getPartitioner() instanceof HashPartitioner);
     assertEquals(5, reduce.getPartitioning().getNumPartitions());
+  }
+
+  /**
+   * Verify that the number of partitions of the reduce-by-key
+   * operator's input is preserved in the output since no partitioning
+   * is explicitly specified.
+   */
+  @Test
+  public void testOutputNumPartitionsIsPreserved() {
+    final int N_PARTITIONS = 78;
+
+    Flow f = Flow.create();
+    Dataset<Pair<String, Long>> input = Util.createMockDataset(f, N_PARTITIONS);
+    assertEquals(N_PARTITIONS, input.getNumPartitions());
+
+    Dataset<Pair<String, Long>> output =
+        ReduceByKey.of(input)
+            .keyBy(Pair::getFirst)
+            .valueBy(Pair::getSecond)
+            .combineBy(Sums.ofLongs())
+            .output();
+    assertEquals(N_PARTITIONS, output.getNumPartitions());
+  }
+
+  @Test
+  public void testOutputExplicitNumPartitionsIsRespected() {
+    final int INPUT_PARTITIONS = 78;
+    final int OUTPUT_PARTITIONS = 13;
+
+    Flow f = Flow.create();
+    Dataset<Pair<String, Long>> input = Util.createMockDataset(f, INPUT_PARTITIONS);
+    assertEquals(INPUT_PARTITIONS, input.getNumPartitions());
+
+    Dataset<Pair<String, Long>> output =
+        ReduceByKey.of(input)
+            .keyBy(Pair::getFirst)
+            .valueBy(Pair::getSecond)
+            .combineBy(Sums.ofLongs())
+            .setNumPartitions(OUTPUT_PARTITIONS)
+            .output();
+    assertEquals(OUTPUT_PARTITIONS, output.getNumPartitions());
   }
 }

@@ -76,7 +76,7 @@ public class SumByKey<
     private UnaryFunction<IN, Long> valueExtractor = e -> 1L;
     ByBuilder2(String name, Dataset<IN> input, UnaryFunction<IN, KEY> keyExtractor) {
       // initialize default partitioning according to input
-      super(new DefaultPartitioning<>(input.getPartitioning().getNumPartitions()));
+      super(new DefaultPartitioning<>(input.getNumPartitions()));
 
       this.name = Objects.requireNonNull(name);
       this.input = Objects.requireNonNull(input);
