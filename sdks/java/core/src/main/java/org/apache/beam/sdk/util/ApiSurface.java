@@ -322,6 +322,14 @@ public class ApiSurface {
 
   ///////////////
 
+  private ClassLoader getSdkClassLoader() {
+    final ClassLoader myClassLoader = getClass().getClassLoader();
+    final ClassLoader systemClassLoader = ClassLoader.getSystemClassLoader();
+    return systemClassLoader.equals(myClassLoader)
+        ? systemClassLoader
+        : myClassLoader;
+  }
+
   /** Returns an empty {@link ApiSurface}. */
   public static ApiSurface empty() {
     LOG.debug("Returning an empty ApiSurface");
@@ -348,7 +356,7 @@ public class ApiSurface {
    * its subpackages.
    */
   public ApiSurface includingPackage(String packageName) throws IOException {
-    ClassPath classPath = ClassPath.from(ClassLoader.getSystemClassLoader());
+    ClassPath classPath = ClassPath.from(getSdkClassLoader());
 
     Set<Class<?>> newRootClasses = Sets.newHashSet();
     for (ClassInfo classInfo : classPath.getTopLevelClassesRecursive(packageName)) {
