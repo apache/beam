@@ -47,7 +47,7 @@ public class MetricsAccumulator {
   private static volatile Path checkpointFilePath;
 
   @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
-  public static Accumulator<SparkMetricsContainer> getOrCreateInstance(
+  public static void init(
       JavaSparkContext jsc,
       Optional<CheckpointDir> checkpointDir) {
     if (instance == null) {
@@ -65,7 +65,6 @@ public class MetricsAccumulator {
         }
       }
     }
-    return instance;
   }
 
   public static Accumulator<SparkMetricsContainer> getInstance() {

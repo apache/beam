@@ -144,7 +144,7 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
     final Accumulator<NamedAggregators> aggregatorsAccumulator =
         SparkAggregators.getOrCreateNamedAggregators(jsc, maybeCheckpointDir);
     // Instantiate metrics accumulator
-    MetricsAccumulator.getOrCreateInstance(jsc, maybeCheckpointDir);
+    MetricsAccumulator.init(jsc, maybeCheckpointDir);
     final NamedAggregators initialValue = aggregatorsAccumulator.value();
     if (opts.getEnableSparkMetricSinks()) {
       final MetricsSystem metricsSystem = SparkEnv$.MODULE$.get().metricsSystem();
