@@ -33,6 +33,7 @@ import org.apache.beam.runners.core.DoFnAdapters;
 import org.apache.beam.runners.core.DoFnRunner;
 import org.apache.beam.runners.core.DoFnRunners;
 import org.apache.beam.runners.core.ExecutionContext;
+import org.apache.beam.runners.core.GroupAlsoByWindowViaWindowSetDoFn;
 import org.apache.beam.runners.core.OldDoFn;
 import org.apache.beam.runners.core.PushbackSideInputDoFnRunner;
 import org.apache.beam.runners.core.SideInputHandler;
@@ -244,6 +245,8 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
       sideInputReader = sideInputHandler;
     }
 
+    ExecutionContext.StepContext stepContext = createStepContext();
+
     DoFnRunner<InputT, FnOutputT> doFnRunner = DoFnRunners.simpleRunner(
         serializedOptions.getPipelineOptions(),
         oldDoFn,
@@ -251,9 +254,23 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
         outputManagerFactory.create(output),
         mainOutputTag,
         sideOutputTags,
-        createStepContext(),
+        stepContext,
         aggregatorFactory,
         windowingStrategy);
+
+    if (oldDoFn instanceof GroupAlsoByWindowViaWindowSetDoFn) {
+      // When the doFn is this, we know it came from WindowDoFnOperator and
+      //   InputT = KeyedWorkItem<K, V>
+      //   OutputT = KV<K, V>
+      //
+      // for some K, V
+
+      doFnRunner = DoFnRunners.lateDataDroppingRunner(
+          (DoFnRunner) doFnRunner,
+          stepContext,
+          windowingStrategy,
+          ((GroupAlsoByWindowViaWindowSetDoFn) oldDoFn).getDroppedDueToLatenessAggregator());
+    }
 
     pushbackDoFnRunner =
         PushbackSideInputDoFnRunner.create(doFnRunner, sideInputs, sideInputHandler);
