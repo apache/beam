@@ -19,8 +19,8 @@ package org.apache.beam.runners.flink.translation.functions;
 
 import java.util.Collection;
 import java.util.Map;
-import org.apache.beam.runners.core.OldDoFn;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.join.RawUnionValue;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;

@@ -17,13 +17,13 @@
  */
 package org.apache.beam.runners.flink;
 
-import org.apache.beam.runners.core.OldDoFn;
 import org.apache.beam.runners.core.PerKeyCombineFnRunner;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.Combine.KeyedCombineFn;
 import org.apache.beam.sdk.transforms.CombineFnBase.PerKeyCombineFn;
 import org.apache.beam.sdk.transforms.CombineWithContext;
 import org.apache.beam.sdk.transforms.CombineWithContext.KeyedCombineFnWithContext;
+import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.values.PCollectionView;
 
 /**

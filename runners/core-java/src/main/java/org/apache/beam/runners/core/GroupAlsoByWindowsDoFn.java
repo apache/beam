@@ -18,6 +18,7 @@
 package org.apache.beam.runners.core;
 
 import org.apache.beam.sdk.transforms.Aggregator;
+import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.SystemDoFnInternal;
