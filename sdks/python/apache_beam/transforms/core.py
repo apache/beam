@@ -28,13 +28,14 @@ from apache_beam import typehints
 from apache_beam.coders import typecoders
 from apache_beam.internal import util
 from apache_beam.transforms import ptransform
-from apache_beam.transforms import window
 from apache_beam.transforms.display import HasDisplayData, DisplayDataItem
 from apache_beam.transforms.ptransform import PTransform
 from apache_beam.transforms.ptransform import PTransformWithSideInputs
 from apache_beam.transforms.window import MIN_TIMESTAMP
 from apache_beam.transforms.window import OutputTimeFn
 from apache_beam.transforms.window import WindowedValue
+from apache_beam.transforms.window import TimestampedValue
+from apache_beam.transforms.window import GlobalWindows
 from apache_beam.transforms.window import WindowFn
 from apache_beam.typehints import Any
 from apache_beam.typehints import get_type_hints
@@ -184,8 +185,7 @@ class NewDoFn(WithTypeHints, HasDisplayData):
         trivial_inference.infer_return_type(self.process, [input_type]))
 
   def _strip_output_annotations(self, type_hint):
-    annotations = (window.TimestampedValue, window.WindowedValue,
-                   pvalue.SideOutputValue)
+    annotations = (TimestampedValue, WindowedValue, pvalue.SideOutputValue)
     # TODO(robertwb): These should be parameterized types that the
     # type inferencer understands.
     if (type_hint in annotations
@@ -283,8 +283,7 @@ class DoFn(WithTypeHints, HasDisplayData):
     return self.process
 
   def _strip_output_annotations(self, type_hint):
-    annotations = (window.TimestampedValue, window.WindowedValue,
-                   pvalue.SideOutputValue)
+    annotations = (TimestampedValue, WindowedValue, pvalue.SideOutputValue)
     # TODO(robertwb): These should be parameterized types that the
     # type inferencer understands.
     if (type_hint in annotations
@@ -984,7 +983,7 @@ class CombineGlobally(PTransform):
     if self.as_view:
       return view
     else:
-      if pcoll.windowing.windowfn != window.GlobalWindows():
+      if pcoll.windowing.windowfn != GlobalWindows():
         raise ValueError(
             "Default values are not yet supported in CombineGlobally() if the "
             "output  PCollection is not windowed by GlobalWindows. "
@@ -1068,7 +1067,7 @@ class CombineValues(PTransformWithSideInputs):
         *args, **kwargs)
 
 
-class CombineValuesDoFn(DoFn):
+class CombineValuesDoFn(NewDoFn):
   """DoFn for performing per-key Combine transforms."""
 
   def __init__(self, input_pcoll_type, combinefn, runtime_type_check):
@@ -1076,7 +1075,7 @@ class CombineValuesDoFn(DoFn):
     self.combinefn = combinefn
     self.runtime_type_check = runtime_type_check
 
-  def process(self, p_context, *args, **kwargs):
+  def process(self, element, *args, **kwargs):
     # Expected elements input to this DoFn are 2-tuples of the form
     # (key, iter), with iter an iterable of all the values associated with key
     # in the input PCollection.
@@ -1085,11 +1084,11 @@ class CombineValuesDoFn(DoFn):
       # breaking it up so that output type violations manifest as TypeCheck
       # errors rather than type errors.
       return [
-          (p_context.element[0],
-           self.combinefn.apply(p_context.element[1], *args, **kwargs))]
+          (element[0],
+           self.combinefn.apply(element[1], *args, **kwargs))]
     else:
       # Add the elements into three accumulators (for testing of merge).
-      elements = p_context.element[1]
+      elements = element[1]
       accumulators = []
       for k in range(3):
         if len(elements) <= k:
@@ -1103,7 +1102,7 @@ class CombineValuesDoFn(DoFn):
       accumulator = self.combinefn.merge_accumulators(
           accumulators, *args, **kwargs)
       # Convert accumulator to the final result.
-      return [(p_context.element[0],
+      return [(element[0],
                self.combinefn.extract_output(accumulator, *args, **kwargs))]
 
   def default_type_hints(self):
@@ -1134,22 +1133,23 @@ class GroupByKey(PTransform):
   The implementation here is used only when run on the local direct runner.
   """
 
-  class ReifyWindows(DoFn):
+  class ReifyWindows(NewDoFn):
 
-    def process(self, context):
+    def process(self, element, window=NewDoFn.WindowParam,
+                timestamp=NewDoFn.TimestampParam):
       try:
-        k, v = context.element
+        k, v = element
       except TypeError:
         raise TypeCheckError('Input to GroupByKey must be a PCollection with '
                              'elements compatible with KV[A, B]')
 
-      return [(k, window.WindowedValue(v, context.timestamp, context.windows))]
+      return [(k, WindowedValue(v, timestamp, [window]))]
 
     def infer_output_type(self, input_type):
       key_type, value_type = trivial_inference.key_value_types(input_type)
       return Iterable[KV[key_type, typehints.WindowedValue[value_type]]]
 
-  class GroupAlsoByWindow(DoFn):
+  class GroupAlsoByWindow(NewDoFn):
     # TODO(robertwb): Support combiner lifting.
 
     def __init__(self, windowing):
@@ -1162,7 +1162,7 @@ class GroupByKey(PTransform):
       value_type = windowed_value_iter_type.inner_type.inner_type
       return Iterable[KV[key_type, Iterable[value_type]]]
 
-    def start_bundle(self, context):
+    def start_bundle(self):
       # pylint: disable=wrong-import-order, wrong-import-position
       from apache_beam.transforms.trigger import InMemoryUnmergedState
       from apache_beam.transforms.trigger import create_trigger_driver
@@ -1170,8 +1170,8 @@ class GroupByKey(PTransform):
       self.driver = create_trigger_driver(self.windowing, True)
       self.state_type = InMemoryUnmergedState
 
-    def process(self, context):
-      k, vs = context.element
+    def process(self, element):
+      k, vs = element
       state = self.state_type()
       # TODO(robertwb): Conditionally process in smaller chunks.
       for wvalue in self.driver.process_elements(state, vs, MIN_TIMESTAMP):
@@ -1254,10 +1254,11 @@ class Partition(PTransformWithSideInputs):
   representing each of n partitions, in order.
   """
 
-  class ApplyPartitionFnFn(DoFn):
+  class ApplyPartitionFnFn(NewDoFn):
     """A DoFn that applies a PartitionFn."""
 
-    def process(self, context, partitionfn, n, *args, **kwargs):
+    def process(self, element, partitionfn, n, context=NewDoFn.ContextParam,
+                *args, **kwargs):
       partition = partitionfn.partition_for(context, n, *args, **kwargs)
       if not 0 <= partition < n:
         raise ValueError(
@@ -1265,7 +1266,7 @@ class Partition(PTransformWithSideInputs):
             '%d not in [0, %d)' % (partition, n))
       # Each input is directed into the side output that corresponds to the
       # selected partition.
-      yield pvalue.SideOutputValue(str(partition), context.element)
+      yield pvalue.SideOutputValue(str(partition), element)
 
   def make_fn(self, fn):
     return fn if isinstance(fn, PartitionFn) else CallableWrapperPartitionFn(fn)
@@ -1298,7 +1299,7 @@ class Windowing(object):
     self.accumulation_mode = accumulation_mode
     self.output_time_fn = output_time_fn or OutputTimeFn.OUTPUT_AT_EOW
     self._is_default = (
-        self.windowfn == window.GlobalWindows() and
+        self.windowfn == GlobalWindows() and
         self.triggerfn == DefaultTrigger() and
         self.accumulation_mode == AccumulationMode.DISCARDING and
         self.output_time_fn == OutputTimeFn.OUTPUT_AT_EOW)
@@ -1323,18 +1324,18 @@ class WindowInto(ParDo):
   determined by the windowing function.
   """
 
-  class WindowIntoFn(DoFn):
+  class WindowIntoFn(NewDoFn):
     """A DoFn that applies a WindowInto operation."""
 
     def __init__(self, windowing):
       self.windowing = windowing
 
-    def process(self, context):
+    def process(self, element, context=NewDoFn.ContextParam):
       context = WindowFn.AssignContext(context.timestamp,
-                                       element=context.element,
+                                       element=element,
                                        existing_windows=context.windows)
       new_windows = self.windowing.windowfn.assign(context)
-      yield WindowedValue(context.element, context.timestamp, new_windows)
+      yield WindowedValue(element, context.timestamp, new_windows)
 
   def __init__(self, *args, **kwargs):
     """Initializes a WindowInto transform.
@@ -1413,7 +1414,7 @@ class Flatten(PTransform):
   def get_windowing(self, inputs):
     if not inputs:
       # TODO(robertwb): Return something compatible with every windowing?
-      return Windowing(window.GlobalWindows())
+      return Windowing(GlobalWindows())
     else:
       return super(Flatten, self).get_windowing(inputs)
 
@@ -1451,7 +1452,7 @@ class Create(PTransform):
     return pvalue.PCollection(self.pipeline)
 
   def get_windowing(self, unused_inputs):
-    return Windowing(window.GlobalWindows())
+    return Windowing(GlobalWindows())
 
 
 def Read(*args, **kwargs):

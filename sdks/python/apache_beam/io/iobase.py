@@ -781,9 +781,8 @@ class WriteImpl(ptransform.PTransform):
         min_shards)
 
 
-class _WriteBundleDoFn(core.DoFn):
+class _WriteBundleDoFn(core.NewDoFn):
   """A DoFn for writing elements to an iobase.Writer.
-
   Opens a writer at the first element and closes the writer at finish_bundle().
   """
 
@@ -794,17 +793,17 @@ class _WriteBundleDoFn(core.DoFn):
   def display_data(self):
     return {'sink_dd': self.sink}
 
-  def process(self, context, init_result):
+  def process(self, element, init_result):
     if self.writer is None:
       self.writer = self.sink.open_writer(init_result, str(uuid.uuid4()))
-    self.writer.write(context.element)
+    self.writer.write(element)
 
-  def finish_bundle(self, context, *args, **kwargs):
+  def finish_bundle(self):
     if self.writer is not None:
       yield window.TimestampedValue(self.writer.close(), window.MAX_TIMESTAMP)
 
 
-class _WriteKeyedBundleDoFn(core.DoFn):
+class _WriteKeyedBundleDoFn(core.NewDoFn):
 
   def __init__(self, sink):
     self.sink = sink
@@ -812,8 +811,8 @@ class _WriteKeyedBundleDoFn(core.DoFn):
   def display_data(self):
     return {'sink_dd': self.sink}
 
-  def process(self, context, init_result):
-    bundle = context.element
+  def process(self, element, init_result):
+    bundle = element
     writer = self.sink.open_writer(init_result, str(uuid.uuid4()))
     for element in bundle[1]:  # values
       writer.write(element)
@@ -834,19 +833,19 @@ def _finalize_write(_, sink, init_result, write_results, min_shards):
     return (window.TimestampedValue(v, window.MAX_TIMESTAMP) for v in outputs)
 
 
-class _RoundRobinKeyFn(core.DoFn):
+class _RoundRobinKeyFn(core.NewDoFn):
 
   def __init__(self, count):
     self.count = count
 
-  def start_bundle(self, context):
+  def start_bundle(self):
     self.counter = random.randint(0, self.count - 1)
 
-  def process(self, context):
+  def process(self, element):
     self.counter += 1
     if self.counter >= self.count:
       self.counter -= self.count
-    yield self.counter, context.element
+    yield self.counter, element
 
 
 # For backwards compatibility.
