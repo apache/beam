@@ -24,7 +24,8 @@ service.
 from apache_beam.metrics.metric import MetricResults
 
 
-#TODO(pabloem)(JIRA-1381) Implement this once metrics are queriable from dataflow service
+# TODO(pabloem)(JIRA-1381) Implement this once metrics are queriable from
+# dataflow service
 class DataflowMetrics(MetricResults):
 
   def query(self, filter=None):
