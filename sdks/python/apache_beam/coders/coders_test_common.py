@@ -193,7 +193,7 @@ class CodersTest(unittest.TestCase):
         kv_coder.as_cloud_object())
     # Test binary representation
     self.assertEqual(
-        '\x04\x03abc',
+        '\x04abc',
         kv_coder.encode((4, 'abc')))
     # Test unnested
     self.check_coder(
