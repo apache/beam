@@ -32,6 +32,7 @@ from apache_beam import pvalue
 from apache_beam.internal import json_value
 from apache_beam.internal import pickler
 from apache_beam.pvalue import PCollectionView
+from apache_beam.runners.dataflow.dataflow_metrics import DataflowMetrics
 from apache_beam.runners.runner import PipelineResult
 from apache_beam.runners.runner import PipelineRunner
 from apache_beam.runners.runner import PipelineState
@@ -647,6 +648,9 @@ class DataflowPipelineResult(PipelineResult):
 
   def job_id(self):
     return self._job.id
+
+  def metrics(self):
+    return DataflowMetrics()
 
   @property
   def has_job(self):
