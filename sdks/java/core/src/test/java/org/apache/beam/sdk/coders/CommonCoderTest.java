@@ -48,7 +48,7 @@ public class CommonCoderTest {
       .build();
 
   @AutoValue
-  static abstract class CommonCoder {
+  abstract static class CommonCoder {
     abstract String getUrn();
     abstract List<CommonCoder> getComponents();
     @JsonCreator
@@ -62,7 +62,7 @@ public class CommonCoderTest {
   }
 
   @AutoValue
-  static abstract class CommonCoderTestSpec {
+  abstract static class CommonCoderTestSpec {
     abstract CommonCoder getCoder();
     abstract @Nullable Boolean getNested();
     abstract Map<String, Object> getExamples();
@@ -79,6 +79,7 @@ public class CommonCoderTest {
   abstract static class OneCoderTestSpec {
     abstract CommonCoder getCoder();
     abstract boolean getNested();
+    @SuppressWarnings("mutable")
     abstract byte[] getSerialized();
     abstract Object getValue();
     static OneCoderTestSpec create(
