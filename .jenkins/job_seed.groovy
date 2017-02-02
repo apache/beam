@@ -26,7 +26,7 @@ job('beam_SeedJob') {
   previousNames('beam_SeedJob_Main')
 
   // Set common parameters.
-  common_job_properties.setTopLevelJobProperties(delegate)
+  common_job_properties.setTopLevelMainJobProperties(delegate)
 
   // This is a post-commit job that runs once per day, not for every push.
   common_job_properties.setPostCommit(

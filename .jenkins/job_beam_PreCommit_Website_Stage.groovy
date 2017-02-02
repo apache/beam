@@ -6,14 +6,10 @@ job('beam_PreCommit_Website_Stage') {
               'website to a temporary location to ease reviews.')
 
   // Set common parameters.
-  common_job_properties.setTopLevelJobProperties(
-      delegate,
-      'asf-site',
-      30,
-      'beam-site')
+  common_job_properties.setTopLevelWebsiteJobProperties(delegate)
 
   // Set pull request build trigger.
-  common_job_properties.setPullRequestBuildTrigger(
+  common_job_properties.setPreCommitWithSuccessComment(
       delegate,
       'Jenkins: automatic staging of pull requests',
       '\nJenkins built the site at commit id ${ghprbActualCommit} with ' +

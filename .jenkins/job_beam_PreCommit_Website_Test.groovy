@@ -6,11 +6,7 @@ job('beam_PreCommit_Website_Test') {
               'website.')
 
   // Set common parameters.
-  common_job_properties.setTopLevelJobProperties(
-      delegate,
-      'asf-site',
-      30,
-      'beam-site')
+  common_job_properties.setTopLevelWebsiteJobProperties(delegate)
 
   // Execute concurrent builds. Multiple builds of this project may be executed
   // in parallel. This is safe because this build does not require exclusive
@@ -18,7 +14,7 @@ job('beam_PreCommit_Website_Test') {
   concurrentBuild()
 
   // Set pull request build trigger.
-  common_job_properties.setPullRequestBuildTrigger(
+  common_job_properties.setPreCommit(
       delegate,
       'Jenkins: test website (dead links, etc.)')
 

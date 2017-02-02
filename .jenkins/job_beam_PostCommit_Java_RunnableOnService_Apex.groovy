@@ -23,7 +23,7 @@ mavenJob('beam_PostCommit_Java_RunnableOnService_Apex') {
   description('Runs the RunnableOnService suite on the Apex runner.')
 
   // Set common parameters.
-  common_job_properties.setTopLevelJobProperties(delegate)
+  common_job_properties.setTopLevelMainJobProperties(delegate)
 
   // Set maven parameters.
   common_job_properties.setMavenConfig(delegate)

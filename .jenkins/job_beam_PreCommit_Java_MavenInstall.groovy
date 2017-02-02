@@ -29,7 +29,7 @@ mavenJob('beam_PreCommit_Java_MavenInstall') {
   concurrentBuild()
 
   // Set common parameters.
-  common_job_properties.setTopLevelJobProperties(delegate)
+  common_job_properties.setTopLevelMainJobProperties(delegate)
 
   // Set Maven parameters.
   common_job_properties.setMavenConfig(delegate)

@@ -25,7 +25,7 @@ mavenJob('beam_PostCommit_Java_RunnableOnService_Flink') {
   previousNames('beam_PostCommit_RunnableOnService_FlinkLocal')
 
   // Set common parameters.
-  common_job_properties.setTopLevelJobProperties(delegate)
+  common_job_properties.setTopLevelMainJobProperties(delegate)
 
   // Set maven parameters.
   common_job_properties.setMavenConfig(delegate)

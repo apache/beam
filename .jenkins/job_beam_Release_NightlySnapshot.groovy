@@ -28,7 +28,7 @@ mavenJob('beam_Release_NightlySnapshot') {
   concurrentBuild()
 
   // Set common parameters.
-  common_job_properties.setTopLevelJobProperties(delegate)
+  common_job_properties.setTopLevelMainJobProperties(delegate)
 
   // Set maven paramaters.
   common_job_properties.setMavenConfig(delegate)
