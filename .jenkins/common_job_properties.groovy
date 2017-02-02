@@ -109,9 +109,9 @@ class common_job_properties {
         orgWhitelist(['apache'])
         allowMembersOfWhitelistedOrgsAsAdmin()
         permitAll()
-	if (postCommitPhrase != '') {
+        if (postCommitPhrase != '') {
           triggerPhrase(postcommitPhrase)
-	  onlyTriggerPhrase()
+          onlyTriggerPhrase()
 	}
 
         extensions {
@@ -191,7 +191,9 @@ class common_job_properties {
       }
     }
 
-    // Enable triggering oneshots of pull requests
+    // Enable triggering oneshots of pull requests. Users can comment the trigger phrase
+    // speficied in the postcommit job and have the job run against their PR to run
+    // tests not in the presubmit suite for additional confidence.
     if (trigger_phrase != '') {
       setPullRequestBuildTrigger(context, 'Jenkins PostCommit', '--none--', trigger_phrase)
     }
