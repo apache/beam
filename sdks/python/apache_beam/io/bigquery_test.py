@@ -486,7 +486,8 @@ class TestBigQueryReader(unittest.TestCase):
     self.assertEqual(actual_rows, table_rows)
     self.assertEqual(schema, reader.schema)
 
-  def test_read_from_table_and_job_complete_retry(self):
+  @mock.patch('time.sleep', return_value=None)
+  def test_read_from_table_and_job_complete_retry(self, patched_time_sleep):
     client = mock.Mock()
     client.jobs.Insert.return_value = bigquery.Job(
         jobReference=bigquery.JobReference(

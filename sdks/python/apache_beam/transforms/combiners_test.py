@@ -219,14 +219,13 @@ class CombineTest(unittest.TestCase):
     pipeline.run()
 
   def test_global_sample(self):
-
     def is_good_sample(actual):
       assert len(actual) == 1
       assert sorted(actual[0]) in [[1, 1, 2], [1, 2, 2]], actual
 
     with TestPipeline() as pipeline:
       pcoll = pipeline | 'start' >> Create([1, 1, 2, 2])
-      for ix in xrange(30):
+      for ix in xrange(9):
         assert_that(
             pcoll | combine.Sample.FixedSizeGlobally('sample-%d' % ix, 3),
             is_good_sample,
@@ -235,7 +234,7 @@ class CombineTest(unittest.TestCase):
   def test_per_key_sample(self):
     pipeline = TestPipeline()
     pcoll = pipeline | 'start-perkey' >> Create(
-        sum(([(i, 1), (i, 1), (i, 2), (i, 2)] for i in xrange(300)), []))
+        sum(([(i, 1), (i, 1), (i, 2), (i, 2)] for i in xrange(9)), []))
     result = pcoll | 'sample' >> combine.Sample.FixedSizePerKey(3)
 
     def matcher():
