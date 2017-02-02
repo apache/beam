@@ -20,14 +20,27 @@
 // common properties that are shared among all Jenkins projects.
 class common_job_properties {
 
-  // Sets common top-level job properties.
-  static def setTopLevelJobProperties(def context,
-                                      def default_branch = 'master',
-                                      def default_timeout = 100) {
+  // Sets common top-level job properties for website repository jobs.
+  static def setTopLevelWebsiteJobProperties(def context) {
+    setTopLevelJobProperties(context, 'beam-site', 'asf-site', 30)
+  }
+
+  // Sets common top-level job properties for main repository jobs.
+  static def setTopLevelMainJobProperties(def context,
+                                          def default_branch = 'master') {
+    setTopLevelJobProperties(context, 'beam', default_branch, 100)
+  }
+
+  // Sets common top-level job properties. Should be accessed through one of the
+  // above methods to protect jobs from internal details of param defaults.
+  private static def setTopLevelJobProperties(def context,
+                                              def repository_name,
+                                              def default_branch,
+                                              def default_timeout) {
 
     // GitHub project.
     context.properties {
-      githubProjectUrl('https://github.com/apache/beam/')
+      githubProjectUrl('https://github.com/apache/' + repository_name + '/')
     }
 
     // Set JDK version.
@@ -46,7 +59,7 @@ class common_job_properties {
     context.scm {
       git {
         remote {
-          url('https://github.com/apache/beam.git')
+          url('https://github.com/apache/' + repository_name + '.git')
           refspec('+refs/heads/*:refs/remotes/origin/* ' +
                   '+refs/pull/*:refs/remotes/origin/pr/*')
         }
@@ -83,10 +96,11 @@ class common_job_properties {
     }
   }
 
-  // Sets the pull request build trigger.
-  static def setPullRequestBuildTrigger(def context,
-                                        def commitStatusContext,
-                                        def successComment = '--none--') {
+  // Sets the pull request build trigger. Accessed through precommit methods
+  // below to insulate callers from internal parameter defaults.
+  private static def setPullRequestBuildTrigger(def context,
+                                                def commitStatusContext,
+                                                def successComment = '--none--') {
     context.triggers {
       githubPullRequest {
         admins(['asfbot'])
@@ -150,9 +164,11 @@ class common_job_properties {
   }
 
   // Sets common config for PreCommit jobs.
-  static def setPreCommit(def context, comment) {
+  static def setPreCommit(def context,
+                          def commitStatusName,
+                          def successComment = '--none--') {
     // Set pull request build trigger.
-    setPullRequestBuildTrigger(context, comment)
+    setPullRequestBuildTrigger(context, commitStatusName, successComment)
   }
 
   // Sets common config for PostCommit jobs.
