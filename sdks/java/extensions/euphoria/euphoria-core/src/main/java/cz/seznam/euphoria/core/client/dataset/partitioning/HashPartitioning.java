@@ -13,12 +13,30 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package cz.seznam.euphoria.core.client.dataset;
+package cz.seznam.euphoria.core.client.dataset.partitioning;
 
 /**
- * Default partitioner used in {@link Partitioning}. It is has its own type
- * to determine same partitioner across serializations. As the class is final
- * it cannot has different implementation. 
+ * Partitioning by hashcode of input.
  */
-final class DefaultPartitioner<T> extends HashPartitioner<T> {
+public class HashPartitioning<T> implements Partitioning<T> {
+
+  private final int numPartitions;
+
+  public HashPartitioning() {
+    this(1);
+  }
+
+  public HashPartitioning(int numPartitions) {
+    this.numPartitions = numPartitions;
+  }
+
+  @Override
+  public Partitioner<T> getPartitioner() {
+    return new HashPartitioner<>();
+  }
+
+  @Override
+  public int getNumPartitions() {
+    return numPartitions;
+  }
 }

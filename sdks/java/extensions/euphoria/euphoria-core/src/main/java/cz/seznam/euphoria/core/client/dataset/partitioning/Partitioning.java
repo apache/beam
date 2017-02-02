@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package cz.seznam.euphoria.core.client.dataset;
+package cz.seznam.euphoria.core.client.dataset.partitioning;
 
 import java.io.Serializable;
 
@@ -23,7 +23,7 @@ import java.io.Serializable;
  * @param <T> the type of elements this partitioning scheme is able to handle
  */
 public interface Partitioning<T> extends Serializable {
-  
+
   Partitioner DEFAULT_PARTITIONER = new DefaultPartitioner();
 
   /** @return the actual partitioner */

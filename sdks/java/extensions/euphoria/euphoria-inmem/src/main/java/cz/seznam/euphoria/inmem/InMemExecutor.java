@@ -16,7 +16,7 @@
 package cz.seznam.euphoria.inmem;
 
 import com.google.common.collect.Iterables;
-import cz.seznam.euphoria.core.client.dataset.Partitioning;
+import cz.seznam.euphoria.core.client.dataset.partitioning.Partitioning;
 import cz.seznam.euphoria.core.client.dataset.windowing.Batch;
 import cz.seznam.euphoria.core.client.dataset.windowing.MergingWindowing;
 import cz.seznam.euphoria.core.client.dataset.windowing.Window;
