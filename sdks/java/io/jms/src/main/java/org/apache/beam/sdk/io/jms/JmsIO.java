@@ -325,7 +325,11 @@ public class JmsIO {
 
   private JmsIO() {}
 
-  private static class UnboundedJmsSource extends UnboundedSource<JmsRecord, JmsCheckpointMark> {
+  /**
+   * An unbounded JMS source.
+   */
+  @VisibleForTesting
+  protected static class UnboundedJmsSource extends UnboundedSource<JmsRecord, JmsCheckpointMark> {
 
     private final Read spec;
 
@@ -337,8 +341,15 @@ public class JmsIO {
     public List<UnboundedJmsSource> generateInitialSplits(
         int desiredNumSplits, PipelineOptions options) throws Exception {
       List<UnboundedJmsSource> sources = new ArrayList<>();
-      for (int i = 0; i < desiredNumSplits; i++) {
+      if (spec.getTopic() != null) {
+        // in the case of a topic, we create a single source, so an unique subscriber, to avoid
+        // element duplication
         sources.add(new UnboundedJmsSource(spec));
+      } else {
+        // in the case of a queue, we allow concurrent consumers
+        for (int i = 0; i < desiredNumSplits; i++) {
+          sources.add(new UnboundedJmsSource(spec));
+        }
       }
       return sources;
     }
