@@ -34,13 +34,13 @@ class common_job_properties {
   // Sets common top-level job properties. Should be accessed through one of the
   // above methods to protect jobs from internal details of param defaults.
   private static def setTopLevelJobProperties(def context,
-                                              def repo_name,
+                                              def repository_name,
                                               def default_branch,
                                               def default_timeout) {
 
     // GitHub project.
     context.properties {
-      githubProjectUrl('https://github.com/apache/' + repo_name + '/')
+      githubProjectUrl('https://github.com/apache/' + repository_name + '/')
     }
 
     // Set JDK version.
@@ -59,7 +59,7 @@ class common_job_properties {
     context.scm {
       git {
         remote {
-          url('https://github.com/apache/' + repo_name + '.git')
+          url('https://github.com/apache/' + repository_name + '.git')
           refspec('+refs/heads/*:refs/remotes/origin/* ' +
                   '+refs/pull/*:refs/remotes/origin/pr/*')
         }
