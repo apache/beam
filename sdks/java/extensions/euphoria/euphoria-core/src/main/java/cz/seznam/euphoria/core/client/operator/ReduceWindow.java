@@ -175,8 +175,7 @@ public class ReduceWindow<
           }
           @Override
           public int getNumPartitions() {
-            return numPartitions > 0
-                ? numPartitions : input.getPartitioning().getNumPartitions();
+            return numPartitions > 0 ? numPartitions : input.getNumPartitions();
           }
     });
     this.reducer = reducer;

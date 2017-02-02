@@ -158,7 +158,7 @@ public class ReduceStateByKey<
                     CombinableReduceFunction<STATE> stateCombiner)
     {
       // initialize default partitioning according to input
-      super(new DefaultPartitioning<>(input.getPartitioning().getNumPartitions()));
+      super(new DefaultPartitioning<>(input.getNumPartitions()));
 
       this.name = Objects.requireNonNull(name);
       this.input = Objects.requireNonNull(input);

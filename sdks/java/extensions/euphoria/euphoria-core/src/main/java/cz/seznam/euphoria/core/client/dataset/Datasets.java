@@ -41,16 +41,13 @@ public class Datasets {
   public static <IN, OUT> Dataset<OUT> createOutputFor(
       Flow flow, Dataset<IN> input, Operator<IN, OUT> op) {
 
-    return new OutputDataset<OUT>(flow, (Operator) op, input.isBounded()) {
+    return new OutputDataset<OUT>(flow, op, input.isBounded()) {
       @Override
-      @SuppressWarnings("unchecked")
-      public <X> Partitioning<X> getPartitioning() {
-        if (op instanceof PartitioningAware) {
-          // only partitioning aware operators change the partitioning
-          PartitioningAware<IN> pa = (PartitioningAware<IN>) op;
-          return (Partitioning<X>) pa.getPartitioning();
-        }
-        return input.getPartitioning();
+      public int getNumPartitions() {
+        // only partitioning aware operators can change the partition count
+        return (op instanceof PartitioningAware)
+            ? ((PartitioningAware) op).getPartitioning().getNumPartitions()
+            : input.getNumPartitions();
       }
     };
   }
@@ -70,13 +67,8 @@ public class Datasets {
     
     return new InputDataset<T>(flow, source, source.isBounded()) {
       @Override
-      public <X> Partitioning<X> getPartitioning() {
-        return new Partitioning<X>() {
-          @Override
-          public int getNumPartitions() {
-            return source.getPartitions().size();
-          }
-        };
+      public int getNumPartitions() {
+        return source.getPartitions().size();
       }
     };
   }

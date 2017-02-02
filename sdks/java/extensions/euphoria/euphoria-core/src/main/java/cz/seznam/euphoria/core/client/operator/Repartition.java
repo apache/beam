@@ -55,7 +55,7 @@ public class Repartition<IN>
     private final Dataset<IN> input;
     OutputBuilder(String name, Dataset<IN> input) {
       // initialize default partitioning according to input
-      super(new DefaultPartitioning<>(input.getPartitioning().getNumPartitions()));
+      super(new DefaultPartitioning<>(input.getNumPartitions()));
 
       this.name = Objects.requireNonNull(name);
       this.input = Objects.requireNonNull(input);
