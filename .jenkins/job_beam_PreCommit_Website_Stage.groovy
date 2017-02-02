@@ -9,7 +9,7 @@ job('beam_PreCommit_Website_Stage') {
   common_job_properties.setTopLevelWebsiteJobProperties(delegate)
 
   // Set pull request build trigger.
-  common_job_properties.setPreCommitWithSuccessComment(
+  common_job_properties.setPreCommit(
       delegate,
       'Jenkins: automatic staging of pull requests',
       '\nJenkins built the site at commit id ${ghprbActualCommit} with ' +

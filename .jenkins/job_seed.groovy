@@ -21,7 +21,7 @@ import common_job_properties
 // Defines the seed job, which creates or updates all other Jenkins projects.
 job('beam_SeedJob') {
   description('Automatically configures all Apache Beam Jenkins projects based' +
-              'on Jenkins DSL groovy files checked into the code repository.')
+              ' on Jenkins DSL groovy files checked into the code repository.')
 
   previousNames('beam_SeedJob_Main')
 

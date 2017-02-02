@@ -20,12 +20,12 @@
 // common properties that are shared among all Jenkins projects.
 class common_job_properties {
 
-  // Sets common top-level job properties for website repo jobs.
+  // Sets common top-level job properties for website repository jobs.
   static def setTopLevelWebsiteJobProperties(def context) {
     setTopLevelJobProperties(context, 'beam-site', 'asf-site', 30)
   }
 
-  // Sets common top-level job properties for main repo jobs.
+  // Sets common top-level job properties for main repository jobs.
   static def setTopLevelMainJobProperties(def context,
                                           def default_branch = 'master') {
     setTopLevelJobProperties(context, 'beam', default_branch, 100)
@@ -164,14 +164,10 @@ class common_job_properties {
   }
 
   // Sets common config for PreCommit jobs.
-  static def setPreCommit(def context, comment) {
+  static def setPreCommit(def context,
+                          def comment,
+                          def successComment = '--none--') {
     // Set pull request build trigger.
-    setPullRequestBuildTrigger(context, comment)
-  }
-
-  static def setPreCommitWithSuccessComment(def context,
-                                            def comment,
-                                            def successComment) {
     setPullRequestBuildTrigger(context, comment, successComment)
   }
 
