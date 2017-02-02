@@ -170,8 +170,7 @@ public class TopPerKey<
                     UnaryFunction<IN, V> valueFn,
                     UnaryFunction<IN, S> scoreFn)
     {
-      super(new DefaultPartitioning<>(
-          input.getPartitioning().getNumPartitions()));
+      super(new DefaultPartitioning<>(input.getNumPartitions()));
 
       this.name = requireNonNull(name);
       this.input = requireNonNull(input);

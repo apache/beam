@@ -70,7 +70,7 @@ public class CountByKey<IN, KEY, W extends Window>
 
     WindowingBuilder(String name, Dataset<IN> input, UnaryFunction<IN, KEY> keyExtractor) {
       // define default partitioning
-      super(new DefaultPartitioning<>(input.getPartitioning().getNumPartitions()));
+      super(new DefaultPartitioning<>(input.getNumPartitions()));
 
       this.name = Objects.requireNonNull(name);
       this.input = Objects.requireNonNull(input);
