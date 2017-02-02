@@ -90,11 +90,14 @@ class JsonCoder(object):
 
 class EstimatePiTransform(beam.PTransform):
   """Runs 10M trials, and combine the results to estimate pi."""
+  def __init__(self, tries_per_work_item=100000):
+    self.tries_per_work_item = tries_per_work_item
 
   def expand(self, pcoll):
     # A hundred work items of a hundred thousand tries each.
     return (pcoll
-            | 'Initialize' >> beam.Create([100000] * 100).with_output_types(int)
+            | 'Initialize' >> beam.Create(
+                [self.tries_per_work_item] * 100).with_output_types(int)
             | 'Run trials' >> beam.Map(run_trials)
             | 'Sum' >> beam.CombineGlobally(combine_results).without_defaults())
 
