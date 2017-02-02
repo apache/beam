@@ -52,6 +52,8 @@ cdef class DoFnRunner(Receiver):
   cdef old_dofn_process(self, WindowedValue element)
   cdef new_dofn_process(self, WindowedValue element)
   cdef new_dofn_simple_process(self, WindowedValue element)
+  cdef _new_dofn_window_process(
+      self, WindowedValue element, list args, dict kwargs, object window)
 
   @cython.locals(windowed_value=WindowedValue)
   cpdef _process_outputs(self, WindowedValue element, results)
