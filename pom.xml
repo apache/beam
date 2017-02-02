@@ -1390,6 +1390,8 @@
                       version. Is not shaded, so safe to ignore.
                     -->
                     <exclude>jdk.tools:jdk.tools</exclude>
+                    <!-- Compile-time annotations, safe to ignore -->
+                    <exclude>com.google.errorprone:error_prone_annotations</exclude>
                   </excludes>
                 </enforceBytecodeVersion>
                 <requireJavaVersion>
