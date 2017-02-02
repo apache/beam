@@ -129,6 +129,7 @@ public class AfterWatermarkStateMachine {
       // the new merged window, because even if the merged window is "done" some pending elements
       // haven't had a chance to fire.
       if (!earlyContext.trigger().finishedInAllMergingWindows() || !endOfWindowReached(c)) {
+        earlySubtrigger.invokeOnMerge(earlyContext);
         earlyContext.trigger().setFinished(false);
         if (lateTrigger != null) {
           ExecutableTriggerStateMachine lateSubtrigger = c.trigger().subTrigger(LATE_INDEX);
