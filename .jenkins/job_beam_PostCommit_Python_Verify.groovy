@@ -31,7 +31,7 @@ job('beam_PostCommit_Python_Verify') {
   common_job_properties.setPostCommit(delegate, '0 3-22/6 * * *')
 
   // Allows triggering this build against pull requests.
-  common_job_properties.enableTriggeringOnPreCommit(
+  common_job_properties.enablePhraseTriggeringFromPullRequest(
     delegate,
     'Python PostCommit Tests',
     'Run Python PostCommit')

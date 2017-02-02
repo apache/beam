@@ -34,7 +34,7 @@ mavenJob('beam_PostCommit_Java_RunnableOnService_Flink') {
   common_job_properties.setPostCommit(delegate)
 
   // Allows triggering this build against pull requests.
-  common_job_properties.enableTriggeringOnPreCommit(
+  common_job_properties.enablePhraseTriggeringFromPullRequest(
     delegate,
     'Flink RunnableOnService Tests',
     'Run Flink RunableOnService')

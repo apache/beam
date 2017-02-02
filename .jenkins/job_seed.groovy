@@ -36,7 +36,7 @@ job('beam_SeedJob') {
       'dev@beam.apache.org')
 
   // Allows triggering this build against pull requests.
-  common_job_properties.enableTriggeringOnPreCommit(
+  common_job_properties.enablePhraseTriggeringFromPullRequest(
     delegate,
     'Jenkins Seed Job',
     'Run Seed Job')

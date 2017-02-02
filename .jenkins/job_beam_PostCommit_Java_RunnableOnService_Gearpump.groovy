@@ -39,7 +39,7 @@ mavenJob('beam_PostCommit_Java_RunnableOnService_Gearpump') {
   common_job_properties.setPostCommit(delegate, '0 5 31 2 *')
 
   // Allows triggering this build against pull requests.
-  common_job_properties.enableTriggeringOnPreCommit(
+  common_job_properties.enablePhraseTriggeringFromPullRequest(
     delegate,
     'Gearpump RunnableOnService Tests',
     'Run Gearpump RunableOnService')

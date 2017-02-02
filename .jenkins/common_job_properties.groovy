@@ -101,7 +101,7 @@ class common_job_properties {
   private static def setPullRequestBuildTrigger(def context,
                                                 def commitStatusContext,
                                                 def successComment = '--none--',
-                                                def postCommitPhrase = '') {
+                                                def trigger_phrase = '') {
     context.triggers {
       githubPullRequest {
         admins(['asfbot'])
@@ -109,12 +109,12 @@ class common_job_properties {
         orgWhitelist(['apache'])
         allowMembersOfWhitelistedOrgsAsAdmin()
         permitAll()
-        // postCommitPhrase is the argument which gets set when we want to allow
+        // trigger_phrase is the argument which gets set when we want to allow
         // post-commit builds to run against pending pull requests. This block
         // overrides the default trigger phrase with the new one and sets the
         // build to happen only when it sees the trigger phrase.
-        if (postCommitPhrase != '') {
-          triggerPhrase(postcommitPhrase)
+        if (trigger_phrase != '') {
+          triggerPhrase(trigger_phrase)
           onlyTriggerPhrase()
         }
 
@@ -183,7 +183,7 @@ class common_job_properties {
   // Enable triggering postcommit runs against pull requests. Users can comment the trigger phrase
   // specified in the postcommit job and have the job run against their PR to run
   // tests not in the presubmit suite for additional confidence.
-  static def enableTriggeringOnPreCommit(def context,
+  static def enablePhraseTriggeringFromPullRequest(def context,
                                          def check_title,
                                          def trigger_phrase) {
     setPullRequestBuildTrigger(

@@ -32,7 +32,7 @@ mavenJob('beam_PostCommit_Java_RunnableOnService_Apex') {
   common_job_properties.setPostCommit(delegate)
 
   // Allows triggering this build against pull requests.
-  common_job_properties.enableTriggeringOnPreCommit(
+  common_job_properties.enablePhraseTriggeringFromPullRequest(
     delegate,
     'Apex RunnableOnService Tests',
     'Run Apex RunableOnService')

@@ -34,7 +34,7 @@ mavenJob('beam_PostCommit_Java_RunnableOnService_Spark') {
   common_job_properties.setPostCommit(delegate)
 
   // Allows triggering this build against pull requests.
-  common_job_properties.enableTriggeringOnPreCommit(
+  common_job_properties.enablePhraseTriggeringFromPullRequest(
     delegate,
     'Spark RunnableOnService Tests',
     'Run Spark RunableOnService')
