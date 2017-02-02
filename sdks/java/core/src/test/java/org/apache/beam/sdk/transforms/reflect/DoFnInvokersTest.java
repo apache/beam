@@ -385,7 +385,7 @@ public class DoFnInvokersTest {
               }
 
               @Override
-              public RestrictionTracker restrictionTracker() {
+              public RestrictionTracker<?> restrictionTracker() {
                 return tracker;
               }
             }));

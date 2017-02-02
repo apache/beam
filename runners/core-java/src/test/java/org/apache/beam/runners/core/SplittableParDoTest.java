@@ -20,6 +20,7 @@ package org.apache.beam.runners.core;
 import static org.apache.beam.sdk.transforms.DoFn.ProcessContinuation.resume;
 import static org.apache.beam.sdk.transforms.DoFn.ProcessContinuation.stop;
 import static org.hamcrest.Matchers.contains;
+import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertEquals;
@@ -32,6 +33,9 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
+import java.util.NoSuchElementException;
+import java.util.concurrent.Executors;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.Coder;
@@ -47,12 +51,14 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
+import org.apache.beam.sdk.util.SideInputReader;
 import org.apache.beam.sdk.util.TimerInternals;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.state.StateInternals;
 import org.apache.beam.sdk.util.state.StateInternalsFactory;
 import org.apache.beam.sdk.util.state.TimerInternalsFactory;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
@@ -66,6 +72,9 @@ import org.junit.runners.JUnit4;
 /** Tests for {@link SplittableParDo}. */
 @RunWith(JUnit4.class)
 public class SplittableParDoTest {
+  private static final int MAX_OUTPUTS_PER_BUNDLE = 10000;
+  private static final Duration MAX_BUNDLE_DURATION = Duration.standardSeconds(5);
+
   // ----------------- Tests for whether the transform sets boundedness correctly --------------
   private static class SomeRestriction implements Serializable {}
 
@@ -201,11 +210,13 @@ public class SplittableParDoTest {
 
     ProcessFnTester(
         Instant currentProcessingTime,
-        DoFn<InputT, OutputT> fn,
+        final DoFn<InputT, OutputT> fn,
         Coder<InputT> inputCoder,
-        Coder<RestrictionT> restrictionCoder)
+        Coder<RestrictionT> restrictionCoder,
+        int maxOutputsPerBundle,
+        Duration maxBundleDuration)
         throws Exception {
-      SplittableParDo.ProcessFn<InputT, OutputT, RestrictionT, TrackerT> processFn =
+      final SplittableParDo.ProcessFn<InputT, OutputT, RestrictionT, TrackerT> processFn =
           new SplittableParDo.ProcessFn<>(
               fn, inputCoder, restrictionCoder, IntervalWindow.getCoder());
       this.tester = DoFnTester.of(processFn);
@@ -224,35 +235,32 @@ public class SplittableParDoTest {
               return timerInternals;
             }
           });
-      processFn.setOutputWindowedValue(
-          new OutputWindowedValue<OutputT>() {
-            @Override
-            public void outputWindowedValue(
-                OutputT output,
-                Instant timestamp,
-                Collection<? extends BoundedWindow> windows,
-                PaneInfo pane) {
-              for (BoundedWindow window : windows) {
-                tester
-                    .getMutableOutput(tester.getMainOutputTag())
-                    .add(ValueInSingleWindow.of(output, timestamp, window, pane));
-              }
-            }
+      processFn.setProcessElementInvoker(
+          new OutputAndTimeBoundedSplittableProcessElementInvoker<
+              InputT, OutputT, RestrictionT, TrackerT>(
+              fn,
+              tester.getPipelineOptions(),
+              new OutputWindowedValueToDoFnTester<>(tester),
+              new SideInputReader() {
+                @Nullable
+                @Override
+                public <T> T get(PCollectionView<T> view, BoundedWindow window) {
+                  throw new NoSuchElementException();
+                }
 
-            @Override
-            public <SideOutputT> void sideOutputWindowedValue(
-                TupleTag<SideOutputT> tag,
-                SideOutputT output,
-                Instant timestamp,
-                Collection<? extends BoundedWindow> windows,
-                PaneInfo pane) {
-              for (BoundedWindow window : windows) {
-                tester
-                    .getMutableOutput(tag)
-                    .add(ValueInSingleWindow.of(output, timestamp, window, pane));
-              }
-            }
-          });
+                @Override
+                public <T> boolean contains(PCollectionView<T> view) {
+                  return false;
+                }
+
+                @Override
+                public boolean isEmpty() {
+                  return true;
+                }
+              },
+              Executors.newSingleThreadScheduledExecutor(Executors.defaultThreadFactory()),
+              maxOutputsPerBundle,
+              maxBundleDuration));
       // Do not clone since ProcessFn references non-serializable DoFnTester itself
       // through the state/timer/output callbacks.
       this.tester.setCloningBehavior(DoFnTester.CloningBehavior.DO_NOT_CLONE);
@@ -318,6 +326,37 @@ public class SplittableParDoTest {
     List<OutputT> takeOutputElements() {
       return tester.takeOutputElements();
     }
+
+  }
+
+  private static class OutputWindowedValueToDoFnTester<OutputT>
+      implements OutputWindowedValue<OutputT> {
+    private final DoFnTester<?, OutputT> tester;
+
+    private OutputWindowedValueToDoFnTester(DoFnTester<?, OutputT> tester) {
+      this.tester = tester;
+    }
+
+    @Override
+    public void outputWindowedValue(
+        OutputT output,
+        Instant timestamp,
+        Collection<? extends BoundedWindow> windows,
+        PaneInfo pane) {
+      sideOutputWindowedValue(tester.getMainOutputTag(), output, timestamp, windows, pane);
+    }
+
+    @Override
+    public <SideOutputT> void sideOutputWindowedValue(
+        TupleTag<SideOutputT> tag,
+        SideOutputT output,
+        Instant timestamp,
+        Collection<? extends BoundedWindow> windows,
+        PaneInfo pane) {
+      for (BoundedWindow window : windows) {
+        tester.getMutableOutput(tag).add(ValueInSingleWindow.of(output, timestamp, window, pane));
+      }
+    }
   }
 
   /** A simple splittable {@link DoFn} that's actually monolithic. */
@@ -362,7 +401,8 @@ public class SplittableParDoTest {
     for (WindowExplosion explosion : WindowExplosion.values()) {
       ProcessFnTester<Integer, String, SomeRestriction, SomeRestrictionTracker> tester =
           new ProcessFnTester<>(
-              base, fn, BigEndianIntegerCoder.of(), SerializableCoder.of(SomeRestriction.class));
+              base, fn, BigEndianIntegerCoder.of(), SerializableCoder.of(SomeRestriction.class),
+              MAX_OUTPUTS_PER_BUNDLE, MAX_BUNDLE_DURATION);
       tester.startElement(
           WindowedValue.of(
               ElementAndRestriction.of(42, new SomeRestriction()),
@@ -407,7 +447,8 @@ public class SplittableParDoTest {
     Instant base = Instant.now();
     ProcessFnTester<Integer, String, SomeRestriction, SomeRestrictionTracker> tester =
         new ProcessFnTester<>(
-            base, fn, BigEndianIntegerCoder.of(), SerializableCoder.of(SomeRestriction.class));
+            base, fn, BigEndianIntegerCoder.of(), SerializableCoder.of(SomeRestriction.class),
+            MAX_OUTPUTS_PER_BUNDLE, MAX_BUNDLE_DURATION);
 
     tester.startElement(42, new SomeRestriction());
     assertThat(tester.takeOutputElements(), contains("42"));
@@ -511,7 +552,8 @@ public class SplittableParDoTest {
     Instant base = Instant.now();
     ProcessFnTester<Integer, String, SomeCheckpoint, SomeCheckpointTracker> tester =
         new ProcessFnTester<>(
-            base, fn, BigEndianIntegerCoder.of(), SerializableCoder.of(SomeCheckpoint.class));
+            base, fn, BigEndianIntegerCoder.of(), SerializableCoder.of(SomeCheckpoint.class),
+            MAX_OUTPUTS_PER_BUNDLE, MAX_BUNDLE_DURATION);
 
     tester.startElement(42, new SomeCheckpoint(0));
     assertThat(tester.takeOutputElements(), contains("42"));
@@ -527,8 +569,8 @@ public class SplittableParDoTest {
   }
 
   @Test
-  public void testReactsToCheckpoint() throws Exception {
-    int max = SplittableParDo.ProcessFn.MAX_OUTPUTS_PER_BUNDLE;
+  public void testCheckpointsAfterNumOutputs() throws Exception {
+    int max = 100;
     // Create an fn that attempts to 2x output more than checkpointing allows.
     DoFn<Integer, String> fn = new CounterFn(2 * max + max / 2, 2 * max);
     Instant base = Instant.now();
@@ -536,7 +578,8 @@ public class SplittableParDoTest {
 
     ProcessFnTester<Integer, String, SomeCheckpoint, SomeCheckpointTracker> tester =
         new ProcessFnTester<>(
-            base, fn, BigEndianIntegerCoder.of(), SerializableCoder.of(SomeCheckpoint.class));
+            base, fn, BigEndianIntegerCoder.of(), SerializableCoder.of(SomeCheckpoint.class),
+            max, MAX_BUNDLE_DURATION);
 
     List<String> elements;
 
@@ -561,5 +604,33 @@ public class SplittableParDoTest {
     assertThat(elements, hasItem(String.valueOf(baseIndex + 2 * max)));
     assertThat(elements, hasItem(String.valueOf(baseIndex + 2 * max + max / 2 - 1)));
     assertThat(elements, not(hasItem((String.valueOf(baseIndex + 2 * max + max / 2)))));
+  }
+
+  @Test
+  public void testCheckpointsAfterDuration() throws Exception {
+    // Don't bound number of outputs.
+    int max = Integer.MAX_VALUE;
+    // But bound bundle duration - the bundle should terminate.
+    Duration maxBundleDuration = Duration.standardSeconds(1);
+    // Create an fn that attempts to 2x output more than checkpointing allows.
+    DoFn<Integer, String> fn = new CounterFn(max, max);
+    Instant base = Instant.now();
+    int baseIndex = 42;
+
+    ProcessFnTester<Integer, String, SomeCheckpoint, SomeCheckpointTracker> tester =
+        new ProcessFnTester<>(
+            base, fn, BigEndianIntegerCoder.of(), SerializableCoder.of(SomeCheckpoint.class),
+            max, maxBundleDuration);
+
+    List<String> elements;
+
+    tester.startElement(baseIndex, new SomeCheckpoint(0));
+    // Bundle should terminate, and should do at least some processing.
+    elements = tester.takeOutputElements();
+    assertFalse(elements.isEmpty());
+    // Bundle should have run for at least the requested duration.
+    assertThat(
+        Instant.now().getMillis() - base.getMillis(),
+        greaterThanOrEqualTo(maxBundleDuration.getMillis()));
   }
 }
