@@ -56,6 +56,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
 import javax.annotation.Nullable;
+import org.apache.beam.runners.core.construction.SplittableParDo;
 import org.apache.beam.runners.core.construction.TransformInputs;
 import org.apache.beam.runners.core.construction.WindowingStrategyTranslation;
 import org.apache.beam.runners.dataflow.BatchViewOverrides.GroupByKeyAndSortValuesOnly;
@@ -886,6 +887,45 @@ public class DataflowPipelineTranslator {
     // IO Translation.
 
     registerTransformTranslator(Read.Bounded.class, new ReadTranslator());
+
+    ///////////////////////////////////////////////////////////////////////////
+    // Splittable DoFn translation.
+
+    registerTransformTranslator(
+        SplittableParDo.ProcessKeyedElements.class,
+        new TransformTranslator<SplittableParDo.ProcessKeyedElements>() {
+          @Override
+          public void translate(
+              SplittableParDo.ProcessKeyedElements transform, TranslationContext context) {
+            translateTyped(transform, context);
+          }
+
+          private <InputT, OutputT, RestrictionT> void translateTyped(
+              SplittableParDo.ProcessKeyedElements<InputT, OutputT, RestrictionT> transform,
+              TranslationContext context) {
+            StepTranslationContext stepContext =
+                context.addStep(transform, "SplittableProcessKeyed");
+
+            translateInputs(
+                stepContext, context.getInput(transform), transform.getSideInputs(), context);
+            BiMap<Long, TupleTag<?>> outputMap =
+                translateOutputs(context.getOutputs(transform), stepContext);
+            stepContext.addInput(
+                PropertyNames.SERIALIZED_FN,
+                byteArrayToJsonString(
+                    serializeToByteArray(
+                        DoFnInfo.forFn(
+                            transform.getFn(),
+                            transform.getInputWindowingStrategy(),
+                            transform.getSideInputs(),
+                            transform.getElementCoder(),
+                            outputMap.inverse().get(transform.getMainOutputTag()),
+                            outputMap))));
+            stepContext.addInput(
+                PropertyNames.RESTRICTION_CODER,
+                CloudObjects.asCloudObject(transform.getRestrictionCoder()));
+          }
+        });
   }
 
   private static void translateInputs(

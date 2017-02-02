@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.transforms;
 
 import static com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.sdk.testing.TestPipeline.testingPipelineOptions;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -33,6 +34,8 @@ import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
+import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestStream;
@@ -97,8 +100,25 @@ public class SplittableDoFnTest implements Serializable {
     }
   }
 
+  private static PipelineOptions streamingTestPipelineOptions() {
+    // Using testing options with streaming=true makes it possible to enable UsesSplittableParDo
+    // tests in Dataflow runner, because as of writing, it can run Splittable DoFn only in
+    // streaming mode.
+    // This is a no-op for other runners currently (Direct runner doesn't care, and other
+    // runners don't implement SDF at all yet).
+    //
+    // This is a workaround until https://issues.apache.org/jira/browse/BEAM-1620
+    // is properly implemented and supports marking tests as streaming-only.
+    //
+    // https://issues.apache.org/jira/browse/BEAM-2483 specifically tracks the removal of the
+    // current workaround.
+    PipelineOptions options = testingPipelineOptions();
+    options.as(StreamingOptions.class).setStreaming(true);
+    return options;
+  }
+
   @Rule
-  public final transient TestPipeline p = TestPipeline.create();
+  public final transient TestPipeline p = TestPipeline.fromOptions(streamingTestPipelineOptions());
 
   @Test
   @Category({ValidatesRunner.class, UsesSplittableParDo.class})

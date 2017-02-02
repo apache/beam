@@ -216,13 +216,17 @@
           <execution>
             <id>validates-runner-tests</id>
             <configuration>
+              <!--
+                UsesSplittableParDoWithWindowedSideInputs because of
+                https://issues.apache.org/jira/browse/BEAM-2476
+              -->
               <excludedGroups>
                 org.apache.beam.sdk.testing.LargeKeys$Above10MB,
                 org.apache.beam.sdk.testing.UsesDistributionMetrics,
                 org.apache.beam.sdk.testing.UsesGaugeMetrics,
                 org.apache.beam.sdk.testing.UsesSetState,
                 org.apache.beam.sdk.testing.UsesMapState,
-                org.apache.beam.sdk.testing.UsesSplittableParDo,
+                org.apache.beam.sdk.testing.UsesSplittableParDoWithWindowedSideInputs,
                 org.apache.beam.sdk.testing.UsesUnboundedPCollections,
                 org.apache.beam.sdk.testing.UsesTestStream,
               </excludedGroups>
