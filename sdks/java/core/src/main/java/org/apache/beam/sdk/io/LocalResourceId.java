@@ -73,10 +73,12 @@ class LocalResourceId implements ResourceId {
     if (isDirectory) {
       return this;
     } else {
+      Path parent = path.getParent();
+      checkState(
+          parent != null,
+          String.format("Path: [%s] doesn't have the current directory.", path));
       return fromPath(
-          checkNotNull(
-              path.getParent(),
-              String.format("Path: [%s] doesn't have the current directory.", path)),
+          parent,
           true /* isDirectory */);
     }
   }
