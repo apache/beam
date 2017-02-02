@@ -15,30 +15,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io.gcp.storage;
-
-import com.google.auto.service.AutoService;
-import javax.annotation.Nonnull;
-import org.apache.beam.sdk.io.FileSystem;
-import org.apache.beam.sdk.io.FileSystemRegistrar;
-import org.apache.beam.sdk.options.GcsOptions;
-import org.apache.beam.sdk.options.PipelineOptions;
 
 /**
- * {@link AutoService} registrar for the {@link GcsFileSystem}.
+ * Beam FileSystem interfaces and their default implementations.
  */
-@AutoService(FileSystemRegistrar.class)
-public class GcsFileSystemRegistrar implements FileSystemRegistrar {
-
-  static final String GCS_SCHEME = "gs";
-
-  @Override
-  public FileSystem fromOptions(@Nonnull PipelineOptions options) {
-    return new GcsFileSystem(options.as(GcsOptions.class));
-  }
-
-  @Override
-  public String getScheme() {
-    return GCS_SCHEME;
-  }
-}
+package org.apache.beam.sdk.io.fs;

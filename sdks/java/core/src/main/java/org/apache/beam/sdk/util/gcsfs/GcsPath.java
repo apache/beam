@@ -440,7 +440,7 @@ public class GcsPath implements Path {
   }
 
   @Override
-  public Path resolveSibling(String other) {
+  public GcsPath resolveSibling(String other) {
     if (getNameCount() < 2) {
       throw new UnsupportedOperationException("Can't resolve the sibling of a root path: " + this);
     }
