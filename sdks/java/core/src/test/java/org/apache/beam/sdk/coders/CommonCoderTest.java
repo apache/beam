@@ -29,6 +29,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.google.auto.value.AutoValue;
+import com.google.common.base.MoreObjects;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.io.CharStreams;
@@ -135,17 +136,26 @@ public class CommonCoderTest {
     return ImmutableList.copyOf(ret);
   }
 
-  @Parameters(name = "{0}")
+  @Parameters(name = "{1}")
   public static Iterable<Object[]> data() throws IOException {
     ImmutableList.Builder<Object[]> ret = ImmutableList.builder();
     for (OneCoderTestSpec test : loadStandardCodersSuite()) {
-      ret.add(new Object[] {test});
+      // Some tools cannot handle Unicode in test names, so omit the problematic value field.
+      String testname = MoreObjects.toStringHelper(OneCoderTestSpec.class)
+          .add("coder", test.getCoder())
+          .add("nested", test.getNested())
+          .add("serialized", test.getSerialized())
+          .toString();
+      ret.add(new Object[] {test, testname});
     }
     return ret.build();
   }
 
   @Parameter(0)
   public OneCoderTestSpec testSpec;
+
+  @Parameter(1)
+  public String ignoredTestName;
 
   private static CommonCoderTestSpec parseSpec(String spec) throws IOException {
     ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
