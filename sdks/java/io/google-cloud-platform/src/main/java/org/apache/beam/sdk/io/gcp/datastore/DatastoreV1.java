@@ -189,7 +189,13 @@ public class DatastoreV1 {
    * changes to Datastore every 500 entities.
    */
   @VisibleForTesting
-  static final int DATASTORE_BATCH_UPDATE_LIMIT = 500;
+  static final int DATASTORE_BATCH_WRITE_LIMIT_COUNT = 500;
+
+  /**
+   * Cloud Datastore has a write serialized data size limit of 10MB per batch operation, so we flush
+   * changes to Datastore when the size reaches around ~8MB.
+   */
+  static final int DATASTORE_BATCH_WRITE_LIMIT_BYTES = 8 * 1024 * 1024;
 
   /**
    * Returns an empty {@link DatastoreV1.Read} builder. Configure the source {@code projectId},
@@ -816,14 +822,14 @@ public class DatastoreV1 {
 
   /**
    * {@link DoFn} that writes {@link Mutation}s to Cloud Datastore. Mutations are written in
-   * batches, where the maximum batch size is {@link DatastoreV1#DATASTORE_BATCH_UPDATE_LIMIT}.
+   * batches, where the maximum batch size is {@link DatastoreV1#DATASTORE_BATCH_WRITE_LIMIT_COUNT}.
    *
    * <p>See <a
    * href="https://cloud.google.com/datastore/docs/concepts/entities">
    * Datastore: Entities, Properties, and Keys</a> for information about entity keys and mutations.
    *
    * <p>Commits are non-transactional.  If a commit fails because of a conflict over an entity
-   * group, the commit will be retried (up to {@link DatastoreV1#DATASTORE_BATCH_UPDATE_LIMIT}
+   * group, the commit will be retried (up to {@link DatastoreV1#DATASTORE_BATCH_WRITE_LIMIT_COUNT}
    * times). This means that the mutation operation should be idempotent. Thus, the writer should
    * only be used for {code upsert} and {@code delete} mutation operations, as these are the only
    * two Cloud Datastore mutations that are idempotent.
@@ -836,6 +842,7 @@ public class DatastoreV1 {
     private final V1DatastoreFactory datastoreFactory;
     // Current batch of mutations to be written.
     private final List<Mutation> mutations = new ArrayList<>();
+    private int batchSizeInBytes = 0;
 
     private static final int MAX_RETRIES = 5;
     private static final FluentBackoff BUNDLE_WRITE_BACKOFF =
@@ -855,12 +862,19 @@ public class DatastoreV1 {
     @StartBundle
     public void startBundle(Context c) {
       datastore = datastoreFactory.getDatastore(c.getPipelineOptions(), projectId);
+      mutations.clear();
+      batchSizeInBytes = 0;
     }
 
     @ProcessElement
     public void processElement(ProcessContext c) throws Exception {
       mutations.add(c.element());
-      if (mutations.size() >= DatastoreV1.DATASTORE_BATCH_UPDATE_LIMIT) {
+      // Computing the seriaized size should not add any additional cost since this value is
+      // memoized by protobuf.
+      LOG.info("Entity Size : {}", c.element().getSerializedSize());
+      batchSizeInBytes += c.element().getSerializedSize();
+      if ((mutations.size() >= DatastoreV1.DATASTORE_BATCH_WRITE_LIMIT_COUNT)
+          || (batchSizeInBytes >= DatastoreV1.DATASTORE_BATCH_WRITE_LIMIT_BYTES)) {
         flushBatch();
       }
     }
@@ -884,7 +898,7 @@ public class DatastoreV1 {
      * backing off between retries fails.
      */
     private void flushBatch() throws DatastoreException, IOException, InterruptedException {
-      LOG.debug("Writing batch of {} mutations", mutations.size());
+      LOG.info("Writing batch of {} mutations of size {}", mutations.size(), batchSizeInBytes);
       Sleeper sleeper = Sleeper.DEFAULT;
       BackOff backoff = BUNDLE_WRITE_BACKOFF.backoff();
 
@@ -908,8 +922,9 @@ public class DatastoreV1 {
           }
         }
       }
-      LOG.debug("Successfully wrote {} mutations", mutations.size());
+      LOG.info("Successfully wrote {} mutations with size {}", mutations.size(), batchSizeInBytes);
       mutations.clear();
+      batchSizeInBytes = 0;
     }
 
     @Override

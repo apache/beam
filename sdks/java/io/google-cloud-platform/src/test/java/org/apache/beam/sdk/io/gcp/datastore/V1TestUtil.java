@@ -49,9 +49,11 @@ import com.google.datastore.v1.client.DatastoreFactory;
 import com.google.datastore.v1.client.DatastoreOptions;
 import com.google.protobuf.Int32Value;
 import java.io.IOException;
+import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Random;
 import java.util.UUID;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.options.GcpOptions;
@@ -93,7 +95,8 @@ class V1TestUtil {
   /**
    * Build an entity for the given ancestorKey, kind, namespace and value.
    */
-  static Entity makeEntity(Long value, Key ancestorKey, String kind, @Nullable String namespace) {
+  static Entity makeEntity(String value, Key ancestorKey, String kind, @Nullable String namespace,
+      int numProperties) {
     Entity.Builder entityBuilder = Entity.newBuilder();
     Key.Builder keyBuilder = makeKey(ancestorKey, kind, UUID.randomUUID().toString());
     // NOTE: Namespace is not inherited between keys created with DatastoreHelper.makeKey, so
@@ -104,29 +107,53 @@ class V1TestUtil {
     }
 
     entityBuilder.setKey(keyBuilder.build());
-    entityBuilder.getMutableProperties().put("value", makeValue(value).build());
+    for (int i = 0; i < numProperties; i++) {
+      entityBuilder.putProperties("value" + i, makeValue(value).build());
+    }
     return entityBuilder.build();
+  }
+
+  /**
+   * Returns a {@code List} of random {@code Strings}.
+   * @param numBytes number of bytes in each string.
+   * @param count number of strings to return.
+   */
+  static List<String> createRandomStrings(int numBytes, int count) {
+    List<String> strings = new ArrayList<>(count);
+    byte[] bytes = new byte[numBytes];
+    Random r = new Random();
+    for (int i = 0; i < count; i++) {
+      r.nextBytes(bytes);
+      strings.add(new String(bytes, Charset.forName("UTF-8")));
+    }
+    return strings;
   }
 
   /**
    * A DoFn that creates entity for a long number.
    */
-  static class CreateEntityFn extends DoFn<Long, Entity> {
+  static class CreateEntityFn extends DoFn<String, Entity> {
     private final String kind;
     @Nullable
     private final String namespace;
     private Key ancestorKey;
+    private int numProperties;
 
-    CreateEntityFn(String kind, @Nullable String namespace, String ancestor) {
+    CreateEntityFn(String kind, @Nullable String namespace, String ancestor, int numProperties) {
       this.kind = kind;
       this.namespace = namespace;
       // Build the ancestor key for all created entities once, including the namespace.
       ancestorKey = makeAncestorKey(namespace, kind, ancestor);
+      this.numProperties = numProperties;
+    }
+
+    CreateEntityFn(String kind, @Nullable String namespace, String ancestor) {
+      this(kind, namespace, ancestor, 1);
     }
 
     @ProcessElement
     public void processElement(ProcessContext c) throws Exception {
-      c.output(makeEntity(c.element(), ancestorKey, kind, namespace));
+      c.output(makeEntity(c.element(), ancestorKey, kind, namespace, numProperties));
     }
   }
 

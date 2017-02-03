@@ -19,6 +19,7 @@
 package org.apache.beam.sdk.io.gcp.datastore;
 
 import static org.apache.beam.sdk.io.gcp.datastore.V1TestUtil.countEntities;
+import static org.apache.beam.sdk.io.gcp.datastore.V1TestUtil.createRandomStrings;
 import static org.apache.beam.sdk.io.gcp.datastore.V1TestUtil.deleteAllEntities;
 import static org.junit.Assert.assertEquals;
 
@@ -29,7 +30,9 @@ import org.apache.beam.sdk.io.gcp.datastore.V1TestUtil.CreateEntityFn;
 import org.apache.beam.sdk.options.GcpOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.ToString;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -44,7 +47,7 @@ public class V1WriteIT {
   private V1TestOptions options;
   private String project;
   private String ancestor;
-  private final long numEntities = 1000;
+  private final int numEntities = 1000;
 
   @Before
   public void setup() {
@@ -67,8 +70,43 @@ public class V1WriteIT {
 
     // Write to datastore
     p.apply(CountingInput.upTo(numEntities))
+        .apply(ToString.<Long>element())
         .apply(ParDo.of(new CreateEntityFn(
             options.getKind(), options.getNamespace(), ancestor)))
+        .apply(DatastoreIO.v1().write().withProjectId(project));
+
+    p.run();
+
+    // Count number of entities written to datastore.
+    long numEntitiesWritten = countEntities(options, project, ancestor);
+
+    assertEquals(numEntitiesWritten, numEntities);
+  }
+
+  /**
+   * An end-to-end test for {@link DatastoreV1.Write}.
+   *
+   * <p>Write some large test entities to Cloud Datastore, to test that a batch is flushed when
+   * the byte size limit is reached. Read and count all the entities. Verify that the count matches
+   * the number of entities written.
+   */
+  @Test
+  public void testE2EV1WriteWithLargeEntities() throws Exception {
+    Pipeline p = Pipeline.create(options);
+
+    /*
+     * Datastore has a 1500 bytes limit per property and 1MB per entity. These values are chosen
+     * approximately stay within this limit but still be able to achieve batch size limit of
+     * DATASTORE_BATCH_WRITE_LIMIT_BYTES before reaching the count limit of
+     * DATASTORE_BATCH_WRITE_LIMIT_COUNT.
+     */
+    int numBytesPerEntityProperty = 500;
+    int numPropertiesPerEntity = 500;
+
+    // Write to datastore
+    p.apply(Create.of(createRandomStrings(numBytesPerEntityProperty, numEntities)))
+        .apply(ParDo.of(new CreateEntityFn(
+            options.getKind(), options.getNamespace(), ancestor, numPropertiesPerEntity)))
         .apply(DatastoreIO.v1().write().withProjectId(project));
 
     p.run();

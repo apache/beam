@@ -26,7 +26,7 @@ import static com.google.datastore.v1.client.DatastoreHelper.makeKey;
 import static com.google.datastore.v1.client.DatastoreHelper.makeOrder;
 import static com.google.datastore.v1.client.DatastoreHelper.makeUpsert;
 import static com.google.datastore.v1.client.DatastoreHelper.makeValue;
-import static org.apache.beam.sdk.io.gcp.datastore.DatastoreV1.DATASTORE_BATCH_UPDATE_LIMIT;
+import static org.apache.beam.sdk.io.gcp.datastore.DatastoreV1.DATASTORE_BATCH_WRITE_LIMIT_COUNT;
 import static org.apache.beam.sdk.io.gcp.datastore.DatastoreV1.Read.DEFAULT_BUNDLE_SIZE_BYTES;
 import static org.apache.beam.sdk.io.gcp.datastore.DatastoreV1.Read.QUERY_BATCH_LIMIT;
 import static org.apache.beam.sdk.io.gcp.datastore.DatastoreV1.Read.getEstimatedSizeBytes;
@@ -518,7 +518,7 @@ public class DatastoreV1Test {
   /** Tests {@link DatastoreWriterFn} with entities of more than one batches, but not a multiple. */
   @Test
   public void testDatatoreWriterFnWithMultipleBatches() throws Exception {
-    datastoreWriterFnTest(DATASTORE_BATCH_UPDATE_LIMIT * 3 + 100);
+    datastoreWriterFnTest(DATASTORE_BATCH_WRITE_LIMIT_COUNT * 3 + 100);
   }
 
   /**
@@ -527,7 +527,7 @@ public class DatastoreV1Test {
    */
   @Test
   public void testDatatoreWriterFnWithBatchesExactMultiple() throws Exception {
-    datastoreWriterFnTest(DATASTORE_BATCH_UPDATE_LIMIT * 2);
+    datastoreWriterFnTest(DATASTORE_BATCH_WRITE_LIMIT_COUNT * 2);
   }
 
   // A helper method to test DatastoreWriterFn for various batch sizes.
@@ -546,7 +546,7 @@ public class DatastoreV1Test {
 
     int start = 0;
     while (start < numMutations) {
-      int end = Math.min(numMutations, start + DATASTORE_BATCH_UPDATE_LIMIT);
+      int end = Math.min(numMutations, start + DATASTORE_BATCH_WRITE_LIMIT_COUNT);
       CommitRequest.Builder commitRequest = CommitRequest.newBuilder();
       commitRequest.setMode(CommitRequest.Mode.NON_TRANSACTIONAL);
       commitRequest.addAllMutations(mutations.subList(start, end));
