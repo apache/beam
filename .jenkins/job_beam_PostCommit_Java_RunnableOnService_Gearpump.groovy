@@ -26,7 +26,9 @@ mavenJob('beam_PostCommit_Java_RunnableOnService_Gearpump') {
   previousNames('beam_PostCommit_RunnableOnService_GearpumpLocal')
 
   // Set common parameters.
-  common_job_properties.setTopLevelJobProperties(delegate, 'gearpump-runner')
+  common_job_properties.setTopLevelMainJobProperties(
+      delegate,
+      'gearpump-runner')
 
   // Set maven parameters.
   common_job_properties.setMavenConfig(delegate)
