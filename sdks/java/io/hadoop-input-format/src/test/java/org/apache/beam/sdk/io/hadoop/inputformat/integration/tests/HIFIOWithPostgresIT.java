@@ -6,6 +6,7 @@ import java.util.Arrays;
 import java.util.List;
 
 import org.apache.beam.sdk.io.hadoop.inputformat.HadoopInputFormatIO;
+import org.apache.beam.sdk.io.hadoop.inputformat.HadoopInputFormatIOConstants;
 import org.apache.beam.sdk.io.hadoop.inputformat.custom.options.HIFTestOptions;
 import org.apache.beam.sdk.io.hadoop.inputformat.unit.tests.inputs.DBInputWritable;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -17,7 +18,6 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.mapreduce.InputFormat;
-import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.lib.db.DBInputFormat;
 import org.junit.BeforeClass;
 import org.junit.FixMethodOrder;
@@ -31,10 +31,33 @@ import org.slf4j.LoggerFactory;
 
 /**
  * Runs integration test to validate HadoopInputFromatIO for Postgres instance on GCP.
- *
- *
+ * <P>
+ * In {@link DBInputFormat} value class can be anything which extends DBWritable class. You have to
+ * provide your own custom value class which extends
+ * {@link org.apache.hadoop.mapreduce.lib.db.DBWritable DBWritable} using property
+ * "mapreduce.jdbc.input.class". For serialization and deserialization in Beam, custom value class
+ * must have an empty public constructor and must implement methods readFields(DataInput in) and
+ * write(DataOutput out).
+ * <P>
+ * Please refer custom value class example {@link DBInputWritable} which is input to this test.
+ * 
+ * <h3>Hadoop configuration for DBInputFormat</h3 You can set value class directly by setting
+ * property "mapreduce.jdbc.input.class" as set in this test {@link #getPostgresConfiguration()}.
+ * Another common way to set output class is as follows:
+ * <pre>
+ * {@code
+ * DBInputFormat.setInput(job,
+ *    DBInputWritable.class, // Custom value class.
+ *    "tableName", // Input table name.
+ *    null, 
+ *    null, 
+ *    new String[] {"column1", "column2"}); // Table columns
+ * }
+ * </pre>
  * <p>
- * You can run just this test by doing the following: mvn test-Dtest=HIFIOWithPostgresIT.java
+ * You can run this test by doing the following: mvn test-compile compile
+ * failsafe:integration-test -D beamTestPipelineOptions='[ "--serverIp=1.2.3.4",
+ * "--serverPort=<port>", "--userName=xyz", "--password=root" ]' -Dit.test=HIFIOWithPostgresIT -DskipITs=false
  *
  */
 @RunWith(JUnit4.class)
@@ -86,8 +109,9 @@ public class HIFIOWithPostgresIT implements Serializable {
   }
 
   /**
-   * Method to set Postgres specific configuration- driver class, jdbc url, username, password, and
-   * table name
+   * Returns Hadoop configuration for reading data from Postgres. To read data from Postgres using
+   * HadoopInputFormatIO following properties must be set- driver class, jdbc url, username,
+   * password, table name, query and value type.
    */
   private static Configuration getPostgresConfiguration() throws IOException {
     Configuration conf = new Configuration();
@@ -97,17 +121,10 @@ public class HIFIOWithPostgresIT implements Serializable {
     conf.set("mapreduce.jdbc.password", options.getPassword());
     conf.set("mapreduce.jdbc.input.table.name", INPUT_TABLE_NAME_PROPERTY);
     conf.set("mapreduce.jdbc.input.query", "SELECT * FROM " + INPUT_TABLE_NAME_PROPERTY);
-    conf.setClass("mapreduce.job.inputformat.class", DBInputFormat.class, InputFormat.class);
-    conf.setClass("key.class", LongWritable.class, Object.class);
-    conf.setClass("value.class", DBInputWritable.class, Object.class);
-    Job job = Job.getInstance(conf);
-    DBInputFormat.setInput(job,
-        DBInputWritable.class,
-        "scientists", // Input table name.
-        null,
-        null,
-        new String[] {"name", "id"} // Table columns
-    );
-    return job.getConfiguration();
+    conf.setClass(HadoopInputFormatIOConstants.INPUTFORMAT_CLASSNAME, DBInputFormat.class, InputFormat.class);
+    conf.setClass(HadoopInputFormatIOConstants.KEY_CLASS, LongWritable.class, Object.class);
+    conf.setClass(HadoopInputFormatIOConstants.VALUE_CLASS, DBInputWritable.class, Object.class);
+    conf.setClass("mapreduce.jdbc.input.class", DBInputWritable.class, Object.class);
+    return conf;
   }
 }

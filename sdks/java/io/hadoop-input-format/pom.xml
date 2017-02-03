@@ -168,7 +168,7 @@
 		<commons.io.version>2.4</commons.io.version>
 		<findbugs.jsr305.version>3.0.1</findbugs.jsr305.version>
 		<slf4j.api.version>1.7.14</slf4j.api.version>
-		<guava.version>16.0.1</guava.version>
+		<guava.version>19.0</guava.version>
 	</properties>
 
 	<dependencies>

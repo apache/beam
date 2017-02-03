@@ -15,8 +15,6 @@
 package org.apache.beam.sdk.io.hadoop.inputformat.integration.tests;
 
 import java.io.Serializable;
-import java.util.Arrays;
-import java.util.List;
 
 import org.apache.beam.sdk.io.hadoop.inputformat.HadoopInputFormatIO;
 import org.apache.beam.sdk.io.hadoop.inputformat.HadoopInputFormatIOConstants;
@@ -50,7 +48,7 @@ import org.slf4j.LoggerFactory;
  * <p>
  * You can run just this test by doing the following: mvn test-compile compile
  * failsafe:integration-test -D beamTestPipelineOptions='[ "--serverIp=1.2.3.4",
- * "--serverPort=<port>" ]'
+ * "--serverPort=<port>" ]' -Dit.test=HIFIOHBaseIT -DskipITs=false
  *
  */
 @RunWith(JUnit4.class)

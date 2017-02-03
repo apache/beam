@@ -34,6 +34,7 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.commons.io.FileUtils;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.io.MapWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.InputFormat;
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
@@ -42,6 +43,7 @@ import org.elasticsearch.action.get.GetResponse;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.hadoop.cfg.ConfigurationOptions;
+import org.elasticsearch.hadoop.mr.EsInputFormat;
 import org.elasticsearch.hadoop.mr.LinkedMapWritable;
 import org.elasticsearch.node.Node;
 import org.elasticsearch.node.NodeValidationException;
@@ -65,6 +67,9 @@ import org.slf4j.LoggerFactory;
  *
  * Tests to validate HadoopInputFormatIO for embedded Elasticsearch instance.
  *
+ * {@link EsInputFormat} can be used to read data from Elasticsearch. EsInputFormat by default
+ * returns key class as Text and value class as LinkedMapWritable. If you want to get MapWritable as
+ * value type then you must set property “mapred.mapoutput.value.class” to MapWritable.class.
  */
 @RunWith(JUnit4.class)
 @FixMethodOrder(MethodSorters.JVM)
@@ -102,16 +107,16 @@ public class HIFIOWithElasticTest implements Serializable {
   public void testHifIOWithElastic() {
     Configuration conf = getConfiguration();
 
-    PCollection<KV<Text, LinkedMapWritable>> esData =
-        pipeline.apply(HadoopInputFormatIO.<Text, LinkedMapWritable>read().withConfiguration(conf));
-    PCollection<Long> count = esData.apply(Count.<KV<Text, LinkedMapWritable>>globally());
+    PCollection<KV<Text, MapWritable>> esData =
+        pipeline.apply(HadoopInputFormatIO.<Text, MapWritable>read().withConfiguration(conf));
+    PCollection<Long> count = esData.apply(Count.<KV<Text, MapWritable>>globally());
     PAssert.thatSingleton(count).isEqualTo((long) SIZE);
-    PCollection<LinkedMapWritable> values = esData.apply(Values.<LinkedMapWritable>create());
+    PCollection<MapWritable> values = esData.apply(Values.<MapWritable>create());
 
-    MapElements<LinkedMapWritable, String> transformFunc =
-        MapElements.<LinkedMapWritable, String>via(new SimpleFunction<LinkedMapWritable, String>() {
+    MapElements<MapWritable, String> transformFunc =
+        MapElements.<MapWritable, String>via(new SimpleFunction<MapWritable, String>() {
           @Override
-          public String apply(LinkedMapWritable mapw) {
+          public String apply(MapWritable mapw) {
             Text text = (Text) mapw.get(new Text("id"));
             return text != null ? text.toString() : "";
           }
@@ -146,9 +151,9 @@ public class HIFIOWithElasticTest implements Serializable {
             + "  }\n"
             + "}";
     conf.set(ConfigurationOptions.ES_QUERY, query);
-    PCollection<KV<Text, LinkedMapWritable>> esData =
-        pipeline.apply(HadoopInputFormatIO.<Text, LinkedMapWritable>read().withConfiguration(conf));
-    PCollection<Long> count = esData.apply(Count.<KV<Text, LinkedMapWritable>>globally());
+    PCollection<KV<Text, MapWritable>> esData =
+        pipeline.apply(HadoopInputFormatIO.<Text, MapWritable>read().withConfiguration(conf));
+    PCollection<Long> count = esData.apply(Count.<KV<Text, MapWritable>>globally());
     PAssert.thatSingleton(count).isEqualTo((long) 1);
 
     pipeline.run().waitUntilFinish();
@@ -167,7 +172,7 @@ public class HIFIOWithElasticTest implements Serializable {
   }
 
   /**
-   * Class for in memory Elasticsearch server
+   * Class for in memory Elasticsearch server.
    */
   static class ElasticEmbeddedServer implements Serializable {
 
@@ -258,7 +263,6 @@ public class HIFIOWithElasticTest implements Serializable {
    */
   public Configuration getConfiguration() {
     Configuration conf = new Configuration();
-
     conf.set(ConfigurationOptions.ES_NODES, ELASTIC_IN_MEM_HOSTNAME);
     conf.set(ConfigurationOptions.ES_PORT, String.format("%s", ELASTIC_IN_MEM_PORT));
     conf.set(ConfigurationOptions.ES_RESOURCE, ELASTIC_RESOURCE);
