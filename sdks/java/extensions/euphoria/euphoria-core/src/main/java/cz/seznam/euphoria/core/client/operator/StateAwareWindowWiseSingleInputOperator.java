@@ -16,7 +16,7 @@
 package cz.seznam.euphoria.core.client.operator;
 
 import cz.seznam.euphoria.core.client.dataset.Dataset;
-import cz.seznam.euphoria.core.client.dataset.Partitioning;
+import cz.seznam.euphoria.core.client.dataset.partitioning.Partitioning;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 import cz.seznam.euphoria.core.client.flow.Flow;
@@ -47,16 +47,6 @@ public class StateAwareWindowWiseSingleInputOperator<
     super(name, flow, windowing, eventTimeAssigner, extractor, partitioning);
     this.input = input;
     this.output = createOutput(input);
-  }
-
-  protected StateAwareWindowWiseSingleInputOperator(
-      String name,
-      Flow flow,
-      Dataset<IN> input,
-      UnaryFunction<KIN, KEY> extractor,
-      Windowing<WIN, W> windowing /* optional */,
-      UnaryFunction<WIN, Long> eventTimeAssigner /* optional */) {
-    this(name, flow, input, extractor, windowing, eventTimeAssigner, input.getPartitioning());
   }
 
   @Override

@@ -40,8 +40,7 @@ public class Union<IN> extends Operator<IN, IN> implements OutputBuilder<IN> {
       this.name = name;
     }
 
-    public <IN> OutputBuilder<IN> of(Dataset<IN> left, Dataset<IN> right)
-    {
+    public <IN> OutputBuilder<IN> of(Dataset<IN> left, Dataset<IN> right) {
       if (right.getFlow() != left.getFlow()) {
         throw new IllegalArgumentException("Pass inputs from the same flow");
       }

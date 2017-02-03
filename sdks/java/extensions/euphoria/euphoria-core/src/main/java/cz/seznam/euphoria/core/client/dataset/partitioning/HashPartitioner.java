@@ -13,30 +13,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package cz.seznam.euphoria.core.client.dataset;
+package cz.seznam.euphoria.core.client.dataset.partitioning;
 
 /**
- * Partitioning by hashcode of input.
+ * Partitioner by hash of input.
  */
-public class HashPartitioning<T> implements Partitioning<T> {
-
-  private final int numPartitions;
-
-  public HashPartitioning() {
-    this(1);
-  }
-
-  public HashPartitioning(int numPartitions) {
-    this.numPartitions = numPartitions;
-  }
+public class HashPartitioner<T> implements Partitioner<T> {
 
   @Override
-  public Partitioner<T> getPartitioner() {
-    return new HashPartitioner<>();
-  }
-
-  @Override
-  public int getNumPartitions() {
-    return numPartitions;
+  public int getPartition(T element) {
+    return element.hashCode();
   }
 }
