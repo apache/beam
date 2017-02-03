@@ -84,7 +84,7 @@ word_length_counter = Metrics.counter('main', 'word_lengths')
 word_counter = Metrics.counter('main', 'total_words')
 
 
-class WordExtractingDoFn(beam.NewDoFn):
+class WordExtractingDoFn(beam.DoFn):
   """Parse each line of input text into words."""
 
   def process(self, element):

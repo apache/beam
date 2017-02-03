@@ -112,7 +112,7 @@ class DoFnProcessContext(DoFnContext):
       self.windows = windowed_value.windows
 
 
-class NewDoFn(WithTypeHints, HasDisplayData):
+class DoFn(WithTypeHints, HasDisplayData):
   """A function object used by a transform with custom processing.
 
   The ParDo transform is such a transform. The ParDo.apply
@@ -216,7 +216,7 @@ class NewDoFn(WithTypeHints, HasDisplayData):
     return True
 
 
-# TODO(Sourabh): Remove after migration to NewDoFn
+# TODO(Sourabh): Remove after migration to DoFn
 class OldDoFn(WithTypeHints, HasDisplayData):
   """A function object used by a transform with custom processing.
 
@@ -308,7 +308,7 @@ def _fn_takes_side_inputs(fn):
   return len(argspec.args) > 1 + is_bound or argspec.varargs or argspec.keywords
 
 
-class CallableWrapperDoFn(NewDoFn):
+class CallableWrapperDoFn(DoFn):
   """A DoFn (function) object wrapping a callable object.
 
   The purpose of this class is to conveniently wrap simple functions and use
@@ -679,7 +679,7 @@ class ParDo(PTransformWithSideInputs):
   def __init__(self, fn_or_label, *args, **kwargs):
     super(ParDo, self).__init__(fn_or_label, *args, **kwargs)
 
-    if not isinstance(self.fn, (OldDoFn, NewDoFn)):
+    if not isinstance(self.fn, (OldDoFn, DoFn)):
       raise TypeError('ParDo must be called with a DoFn instance.')
 
   def default_type_hints(self):
@@ -690,7 +690,7 @@ class ParDo(PTransformWithSideInputs):
         self.fn.infer_output_type(input_type))
 
   def make_fn(self, fn):
-    if isinstance(fn, (OldDoFn, NewDoFn)):
+    if isinstance(fn, (OldDoFn, DoFn)):
       return fn
     return CallableWrapperDoFn(fn)
 
@@ -1072,7 +1072,7 @@ class CombineValues(PTransformWithSideInputs):
         *args, **kwargs)
 
 
-class CombineValuesDoFn(NewDoFn):
+class CombineValuesDoFn(DoFn):
   """DoFn for performing per-key Combine transforms."""
 
   def __init__(self, input_pcoll_type, combinefn, runtime_type_check):
@@ -1138,10 +1138,10 @@ class GroupByKey(PTransform):
   The implementation here is used only when run on the local direct runner.
   """
 
-  class ReifyWindows(NewDoFn):
+  class ReifyWindows(DoFn):
 
-    def process(self, element, window=NewDoFn.WindowParam,
-                timestamp=NewDoFn.TimestampParam):
+    def process(self, element, window=DoFn.WindowParam,
+                timestamp=DoFn.TimestampParam):
       try:
         k, v = element
       except TypeError:
@@ -1154,7 +1154,7 @@ class GroupByKey(PTransform):
       key_type, value_type = trivial_inference.key_value_types(input_type)
       return Iterable[KV[key_type, typehints.WindowedValue[value_type]]]
 
-  class GroupAlsoByWindow(NewDoFn):
+  class GroupAlsoByWindow(DoFn):
     # TODO(robertwb): Support combiner lifting.
 
     def __init__(self, windowing):
@@ -1259,10 +1259,10 @@ class Partition(PTransformWithSideInputs):
   representing each of n partitions, in order.
   """
 
-  class ApplyPartitionFnFn(NewDoFn):
+  class ApplyPartitionFnFn(DoFn):
     """A DoFn that applies a PartitionFn."""
 
-    def process(self, element, partitionfn, n, context=NewDoFn.ContextParam,
+    def process(self, element, partitionfn, n, context=DoFn.ContextParam,
                 *args, **kwargs):
       partition = partitionfn.partition_for(context, n, *args, **kwargs)
       if not 0 <= partition < n:
@@ -1329,13 +1329,13 @@ class WindowInto(ParDo):
   determined by the windowing function.
   """
 
-  class WindowIntoFn(NewDoFn):
+  class WindowIntoFn(DoFn):
     """A DoFn that applies a WindowInto operation."""
 
     def __init__(self, windowing):
       self.windowing = windowing
 
-    def process(self, element, context=NewDoFn.ContextParam):
+    def process(self, element, context=DoFn.ContextParam):
       context = WindowFn.AssignContext(context.timestamp,
                                        element=element,
                                        existing_windows=context.windows)

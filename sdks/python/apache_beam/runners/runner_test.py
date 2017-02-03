@@ -109,7 +109,7 @@ class RunnerTest(unittest.TestCase):
                 'a_class': SpecialParDo,
                 'a_time': self.now}
 
-    class SpecialDoFn(beam.NewDoFn):
+    class SpecialDoFn(beam.DoFn):
       def display_data(self):
         return {'dofn_value': 42}
 
@@ -146,7 +146,7 @@ class RunnerTest(unittest.TestCase):
   def test_direct_runner_metrics(self):
     from apache_beam.metrics.metric import Metrics
 
-    class MyDoFn(beam.NewDoFn):
+    class MyDoFn(beam.DoFn):
       def start_bundle(self):
         count = Metrics.counter(self.__class__, 'bundles')
         count.inc()

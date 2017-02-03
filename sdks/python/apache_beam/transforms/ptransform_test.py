@@ -106,7 +106,7 @@ class PTransformTest(unittest.TestCase):
         'instead of args=(0,), kwargs={\'name\': \'value\'}')
 
   def test_do_with_do_fn(self):
-    class AddNDoFn(beam.NewDoFn):
+    class AddNDoFn(beam.DoFn):
 
       def process(self, element, addon):
         return [element + addon]
@@ -118,7 +118,7 @@ class PTransformTest(unittest.TestCase):
     pipeline.run()
 
   def test_do_with_unconstructed_do_fn(self):
-    class MyDoFn(beam.NewDoFn):
+    class MyDoFn(beam.DoFn):
 
       def process(self):
         pass
@@ -192,7 +192,7 @@ class PTransformTest(unittest.TestCase):
 
   @attr('ValidatesRunner')
   def test_par_do_with_multiple_outputs_and_using_yield(self):
-    class SomeDoFn(beam.NewDoFn):
+    class SomeDoFn(beam.DoFn):
       """A custom DoFn using yield."""
 
       def process(self, element):
@@ -273,7 +273,7 @@ class PTransformTest(unittest.TestCase):
     self.assertStartswith(cm.exception.message, expected_error_prefix)
 
   def test_do_fn_with_start_finish(self):
-    class MyDoFn(beam.NewDoFn):
+    class MyDoFn(beam.DoFn):
       def start_bundle(self):
         yield 'start'
 
@@ -721,7 +721,7 @@ class PTransformLabelsTest(unittest.TestCase):
     self.check_label(beam.CombineGlobally(sum), r'CombineGlobally(sum)')
     self.check_label(beam.CombinePerKey(sum), r'CombinePerKey(sum)')
 
-    class MyDoFn(beam.NewDoFn):
+    class MyDoFn(beam.DoFn):
       def process(self):
         pass
 
@@ -796,7 +796,7 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
   def test_do_fn_pipeline_pipeline_type_check_satisfied(self):
     @with_input_types(int, int)
     @with_output_types(typehints.List[int])
-    class AddWithFive(beam.NewDoFn):
+    class AddWithFive(beam.DoFn):
       def process(self, element, five):
         return [element + five]
 
@@ -810,7 +810,7 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
   def test_do_fn_pipeline_pipeline_type_check_violated(self):
     @with_input_types(str, str)
     @with_output_types(typehints.List[str])
-    class ToUpperCaseWithPrefix(beam.NewDoFn):
+    class ToUpperCaseWithPrefix(beam.DoFn):
       def process(self, element, prefix):
         return [prefix + element.upper()]
 
@@ -828,7 +828,7 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
 
     @with_input_types(int, int)
     @with_output_types(int)
-    class AddWithNum(beam.NewDoFn):
+    class AddWithNum(beam.DoFn):
       def process(self, element, num):
         return [element + num]
 
@@ -844,7 +844,7 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
 
     @with_input_types(int, int)
     @with_output_types(typehints.List[int])
-    class AddWithNum(beam.NewDoFn):
+    class AddWithNum(beam.DoFn):
       def process(self, element, num):
         return [element + num]
 
