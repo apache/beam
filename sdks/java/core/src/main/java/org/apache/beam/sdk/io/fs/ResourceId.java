@@ -46,6 +46,19 @@ public interface ResourceId {
    * <p>This {@code ResourceId} should represents a directory.
    *
    * <p>It is up to each file system to resolve in their own way.
+   *
+   * <p>Resolving special characters:
+   * <ul>
+   *   <li>{@code resourceId.resolve("..", StandardResolveOptions.RESOLVE_DIRECTORY)} returns
+   *   the parent directory of this {@code ResourceId}.
+   *   <li>{@code resourceId.resolve("{@literal *}", StandardResolveOptions.RESOLVE_FILE)} returns
+   *   a {@code ResourceId} which matches all files in this {@code ResourceId}.
+   *   <li>{@code resourceId.resolve("{@literal *}", StandardResolveOptions.RESOLVE_DIRECTORY)}
+   *   returns a {@code ResourceId} which matches all directories in this {@code ResourceId}.
+   * </ul>
+   *
+   * @throws IllegalArgumentException if other contains illegal characters or is an illegal name.
+   * It is recommended that callers use common characters, such as [_a-zA-Z0-9-], in {@code other}.
    */
   ResourceId resolve(String other, ResolveOptions resolveOptions);
 

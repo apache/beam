@@ -76,8 +76,7 @@ public class GcsResourceIdTest {
   @Test
   public void testResolveInvalidInputs() throws Exception {
     thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage(
-        "The resolved file: [tmp/] should not end with '/'.");
+    thrown.expectMessage("The resolved file: [tmp/] should not end with '/'.");
     toResourceIdentifier("gs://my_bucket/").resolve("tmp/", StandardResolveOptions.RESOLVE_FILE);
   }
 
@@ -93,15 +92,27 @@ public class GcsResourceIdTest {
 
   @Test
   public void testGetCurrentDirectory() throws Exception {
-    // Tests for local files without the scheme.
+    // Tests gcs paths.
     assertEquals(
         toResourceIdentifier("gs://my_bucket/tmp dir/"),
         toResourceIdentifier("gs://my_bucket/tmp dir/").getCurrentDirectory());
 
-    // Tests path with unicode
+    // Tests path with unicode.
     assertEquals(
         toResourceIdentifier("gs://my_bucket/输出 目录/"),
         toResourceIdentifier("gs://my_bucket/输出 目录/文件01.txt").getCurrentDirectory());
+
+    // Tests bucket with no ending '/'.
+    assertEquals(
+        toResourceIdentifier("gs://my_bucket/"),
+        toResourceIdentifier("gs://my_bucket").getCurrentDirectory());
+  }
+
+  @Test
+  public void testInvalidGcsPath() throws Exception {
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("Invalid GCS URI: gs://");
+    toResourceIdentifier("gs://");
   }
 
   @Test

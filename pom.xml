@@ -101,6 +101,7 @@
     <beamSurefireArgline />
 
     <!-- If updating dependencies, please update any relevant javadoc offlineLinks -->
+    <apache.commons.lang.version>3.5</apache.commons.lang.version>
     <apex.kryo.version>2.24.0</apex.kryo.version>
     <avro.version>1.8.1</avro.version>
     <bigquery.version>v2-rev295-1.22.0</bigquery.version>
@@ -450,6 +451,12 @@
         <groupId>org.apache.beam</groupId>
         <artifactId>beam-examples-java8</artifactId>
         <version>${project.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.apache.commons</groupId>
+        <artifactId>commons-lang3</artifactId>
+        <version>${apache.commons.lang.version}</version>
       </dependency>
 
       <dependency>
