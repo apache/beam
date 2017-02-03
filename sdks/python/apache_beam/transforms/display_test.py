@@ -99,7 +99,7 @@ class DisplayDataTest(unittest.TestCase):
     self.assertEqual(display_pt.display_data(), {})
 
   def test_inheritance_dofn(self):
-    class MyDoFn(beam.DoFn):
+    class MyDoFn(beam.NewDoFn):
       pass
 
     display_dofn = MyDoFn()
@@ -126,12 +126,12 @@ class DisplayDataTest(unittest.TestCase):
     """ Tests basic display data cases (key:value, key:dict)
     It does not test subcomponent inclusion
     """
-    class MyDoFn(beam.DoFn):
+    class MyDoFn(beam.NewDoFn):
       def __init__(self, my_display_data=None):
         self.my_display_data = my_display_data
 
-      def process(self, context):
-        yield context.element + 1
+      def process(self, element):
+        yield element + 1
 
       def display_data(self):
         return {'static_integer': 120,
@@ -168,7 +168,7 @@ class DisplayDataTest(unittest.TestCase):
     hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
 
   def test_drop_if_none(self):
-    class MyDoFn(beam.DoFn):
+    class MyDoFn(beam.NewDoFn):
       def display_data(self):
         return {'some_val': DisplayDataItem('something').drop_if_none(),
                 'non_val': DisplayDataItem(None).drop_if_none(),
@@ -183,7 +183,7 @@ class DisplayDataTest(unittest.TestCase):
     hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
 
   def test_subcomponent(self):
-    class SpecialDoFn(beam.DoFn):
+    class SpecialDoFn(beam.NewDoFn):
       def display_data(self):
         return {'dofn_value': 42}
 

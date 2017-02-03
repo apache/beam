@@ -31,7 +31,7 @@ from apache_beam.utils.pipeline_options import PipelineOptions
 from apache_beam.utils.pipeline_options import SetupOptions
 
 
-class WordExtractingDoFn(beam.DoFn):
+class WordExtractingDoFn(beam.NewDoFn):
   """Parse each line of input text into words."""
 
   def __init__(self):
@@ -40,18 +40,18 @@ class WordExtractingDoFn(beam.DoFn):
     self.word_lengths_counter = Metrics.counter(self.__class__, 'word_lengths')
     self.empty_line_counter = Metrics.counter(self.__class__, 'empty_lines')
 
-  def process(self, context):
+  def process(self, element):
     """Returns an iterator over the words of this element.
 
     The element is a line of text.  If the line is blank, note that, too.
 
     Args:
-      context: the call-specific context.
+      element: the element being processed
 
     Returns:
       The processed element.
     """
-    text_line = context.element.strip()
+    text_line = element.strip()
     if not text_line:
       self.empty_line_counter.inc(1)
     words = re.findall(r'[A-Za-z\']+', text_line)

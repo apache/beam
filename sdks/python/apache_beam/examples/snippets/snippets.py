@@ -305,10 +305,10 @@ def pipeline_logging(lines, output):
   # import Python logging module.
   import logging
 
-  class ExtractWordsFn(beam.DoFn):
+  class ExtractWordsFn(beam.NewDoFn):
 
-    def process(self, context):
-      words = re.findall(r'[A-Za-z\']+', context.element)
+    def process(self, element):
+      words = re.findall(r'[A-Za-z\']+', element)
       for word in words:
         yield word
 
@@ -346,17 +346,17 @@ def pipeline_monitoring(renames):
                           help='output for the pipeline',
                           default='gs://my-bucket/output')
 
-  class ExtractWordsFn(beam.DoFn):
+  class ExtractWordsFn(beam.NewDoFn):
 
-    def process(self, context):
-      words = re.findall(r'[A-Za-z\']+', context.element)
+    def process(self, element):
+      words = re.findall(r'[A-Za-z\']+', element)
       for word in words:
         yield word
 
-  class FormatCountsFn(beam.DoFn):
+  class FormatCountsFn(beam.NewDoFn):
 
-    def process(self, context):
-      word, count = context.element
+    def process(self, element):
+      word, count = element
       yield '%s: %s' % (word, count)
 
   # [START pipeline_monitoring_composite]
@@ -490,10 +490,10 @@ def examples_wordcount_wordcount(renames):
   # [END examples_wordcount_wordcount_composite]
 
   # [START examples_wordcount_wordcount_dofn]
-  class FormatAsTextFn(beam.DoFn):
+  class FormatAsTextFn(beam.NewDoFn):
 
-    def process(self, context):
-      word, count = context.element
+    def process(self, element):
+      word, count = element
       yield '%s: %s' % (word, count)
 
   formatted = counts | beam.ParDo(FormatAsTextFn())
@@ -514,7 +514,7 @@ def examples_wordcount_debugging(renames):
   # [START example_wordcount_debugging_aggregators]
   import logging
 
-  class FilterTextFn(beam.DoFn):
+  class FilterTextFn(beam.NewDoFn):
     """A DoFn that filters for a specific key based on a regular expression."""
 
     def __init__(self, pattern):
@@ -524,8 +524,8 @@ def examples_wordcount_debugging(renames):
       self.matched_words = Metrics.counter(self.__class__, 'matched_words')
       self.umatched_words = Metrics.counter(self.__class__, 'umatched_words')
 
-    def process(self, context):
-      word, _ = context.element
+    def process(self, element):
+      word, _ = element
       if re.match(self.pattern, word):
         # Log at INFO level each element we match. When executing this pipeline
         # using the Dataflow service, these log lines will appear in the Cloud
@@ -534,7 +534,7 @@ def examples_wordcount_debugging(renames):
 
         # Add 1 to the custom metric counter matched_words
         self.matched_words.inc()
-        yield context.element
+        yield element
       else:
         # Log at the "DEBUG" level each element that is not matched. Different
         # log levels can be used to control the verbosity of logging providing
