@@ -32,15 +32,15 @@ from apache_beam.coders import coder_impl
 class StandardCodersTest(unittest.TestCase):
 
   _urn_to_coder_class = {
-      'beam:coders:bytes:0.1': coders.BytesCoder,
-      'beam:coders:varint:0.1': coders.VarIntCoder,
-      'beam:coders:kv:0.1': lambda k, v: coders.TupleCoder((k, v))
+      'urn:beam:coders:bytes:0.1': coders.BytesCoder,
+      'urn:beam:coders:varint:0.1': coders.VarIntCoder,
+      'urn:beam:coders:kv:0.1': lambda k, v: coders.TupleCoder((k, v))
   }
 
   _urn_to_json_value_parser = {
-      'beam:coders:bytes:0.1': lambda x: x,
-      'beam:coders:varint:0.1': lambda x: x,
-      'beam:coders:kv:0.1':
+      'urn:beam:coders:bytes:0.1': lambda x: x,
+      'urn:beam:coders:varint:0.1': lambda x: x,
+      'urn:beam:coders:kv:0.1':
           lambda x, key_parser, value_parser: (key_parser(x['key']),
                                                value_parser(x['value']))
   }

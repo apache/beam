@@ -42,9 +42,9 @@ public class CommonCoderTest {
       "/org/apache/beam/fn/v1/standard_coders.yaml";
 
   private static final Map<String, Class<?>> coders = ImmutableMap.<String, Class<?>>builder()
-      .put("beam:coders:bytes:0.1", ByteCoder.class)
-      .put("beam:coders:kv:0.1", KvCoder.class)
-      .put("beam:coders:varint:0.1", VarLongCoder.class)
+      .put("urn:beam:coders:bytes:0.1", ByteCoder.class)
+      .put("urn:beam:coders:kv:0.1", KvCoder.class)
+      .put("urn:beam:coders:varint:0.1", VarLongCoder.class)
       .build();
 
   @AutoValue
@@ -130,7 +130,6 @@ public class CommonCoderTest {
   @Parameter(0)
   public OneCoderTestSpec testSpec;
 
-
   private static CommonCoderTestSpec parseSpec(String spec) throws IOException {
     ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
     return mapper.readValue(spec, CommonCoderTestSpec.class);
@@ -146,10 +145,10 @@ public class CommonCoderTest {
   /** Converts from JSON-auto-deserialized types into the proper Java types for the known coders. */
   private static Object convertValue(Object value, CommonCoder coderSpec, Coder coder) {
     switch (coderSpec.getUrn()) {
-      case "beam:coders:bytes:0.1": {
+      case "urn:beam:coders:bytes:0.1": {
         return ((String) value).getBytes(StandardCharsets.ISO_8859_1);
       }
-      case "beam:coders:kv:0.1": {
+      case "urn:beam:coders:kv:0.1": {
         Coder keyCoder = ((KvCoder) coder).getKeyCoder();
         Coder valueCoder = ((KvCoder) coder).getValueCoder();
         Map<String, Object> kvMap = (Map<String, Object>) value;
@@ -157,9 +156,8 @@ public class CommonCoderTest {
         Object v = convertValue(kvMap.get("value"), coderSpec.getComponents().get(1), valueCoder);
         return KV.of(k, v);
       }
-      case "beam:coders:varint:0.1":
-        long ret = ((Number) value).longValue();
-        return ret;
+      case "urn:beam:coders:varint:0.1":
+        return ((Number) value).longValue();
       default:
         throw new IllegalStateException("Unknown coder URN: " + coderSpec.getUrn());
     }
@@ -171,11 +169,11 @@ public class CommonCoderTest {
       components.add(instantiateCoder(innerCoder));
     }
     switch (coder.getUrn()) {
-      case "beam:coders:bytes:0.1":
+      case "urn:beam:coders:bytes:0.1":
         return ByteArrayCoder.of();
-      case "beam:coders:kv:0.1":
+      case "urn:beam:coders:kv:0.1":
         return KvCoder.of(components.get(0), components.get(1));
-      case "beam:coders:varint:0.1":
+      case "urn:beam:coders:varint:0.1":
         return VarLongCoder.of();
       default:
         throw new IllegalStateException("Unknown coder URN: " + coder.getUrn());

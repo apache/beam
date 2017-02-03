@@ -17,7 +17,7 @@
 
 
 coder:
-  urn: "beam:coders:bytes:0.1"
+  urn: "urn:beam:coders:bytes:0.1"
 nested: false
 examples:
   "abc": abc
@@ -26,7 +26,7 @@ examples:
 ---
 
 coder:
-  urn: "beam:coders:bytes:0.1"
+  urn: "urn:beam:coders:bytes:0.1"
 nested: true
 examples:
   "\u0003abc": abc
@@ -37,7 +37,7 @@ examples:
 ---
 
 coder:
-  urn: "beam:coders:varint:0.1"
+  urn: "urn:beam:coders:varint:0.1"
 examples:
   "\0": 0
   "\u0001": 1
@@ -49,9 +49,9 @@ examples:
 ---
 
 coder:
-  urn: "beam:coders:kv:0.1"
-  components: [{urn: "beam:coders:bytes:0.1"},
-               {urn: "beam:coders:varint:0.1"}]
+  urn: "urn:beam:coders:kv:0.1"
+  components: [{urn: "urn:beam:coders:bytes:0.1"},
+               {urn: "urn:beam:coders:varint:0.1"}]
 examples:
   "\u0003abc\0": {key: abc, value: 0}
   "\u0004ab\0c\u000A": {key: "ab\0c", value: 10}
@@ -59,9 +59,9 @@ examples:
 ---
 
 coder:
-  urn: "beam:coders:kv:0.1"
-  components: [{urn: "beam:coders:bytes:0.1"},
-               {urn: "beam:coders:bytes:0.1"}]
+  urn: "urn:beam:coders:kv:0.1"
+  components: [{urn: "urn:beam:coders:bytes:0.1"},
+               {urn: "urn:beam:coders:bytes:0.1"}]
 nested: false
 examples:
   "\u0003abcdef": {key: abc, value: def}
@@ -70,9 +70,9 @@ examples:
 ---
 
 coder:
-  urn: "beam:coders:kv:0.1"
-  components: [{urn: "beam:coders:bytes:0.1"},
-               {urn: "beam:coders:bytes:0.1"}]
+  urn: "urn:beam:coders:kv:0.1"
+  components: [{urn: "urn:beam:coders:bytes:0.1"},
+               {urn: "urn:beam:coders:bytes:0.1"}]
 nested: true
 examples:
   "\u0003abc\u0003def": {key: abc, value: def}
