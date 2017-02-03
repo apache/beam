@@ -23,7 +23,7 @@ import sys
 import types
 
 from apache_beam.pvalue import SideOutputValue
-from apache_beam.transforms.core import DoFn
+from apache_beam.transforms.core import OldDoFn
 from apache_beam.transforms.core import NewDoFn
 from apache_beam.transforms.window import WindowedValue
 from apache_beam.typehints import check_constraint
@@ -35,7 +35,8 @@ from apache_beam.typehints.decorators import _check_instance_type
 from apache_beam.typehints.decorators import getcallargs_forhints
 
 
-class TypeCheckWrapperDoFn(DoFn):
+# TODO(Sourabh): Remove after migration to NewDoFn
+class TypeCheckWrapperDoFn(OldDoFn):
   """A wrapper around a DoFn which performs type-checking of input and output.
   """
 
@@ -123,7 +124,8 @@ class TypeCheckWrapperDoFn(DoFn):
       raise TypeCheckError, error_msg, sys.exc_info()[2]
 
 
-class OutputCheckWrapperDoFn(DoFn):
+# TODO(Sourabh): Remove after migration to NewDoFn
+class OutputCheckWrapperDoFn(OldDoFn):
   """A DoFn that verifies against common errors in the output type."""
 
   def __init__(self, dofn, full_label):

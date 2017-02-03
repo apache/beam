@@ -21,6 +21,7 @@ from __future__ import absolute_import
 
 import copy
 import inspect
+import warnings
 import types
 
 from apache_beam import pvalue
@@ -216,7 +217,7 @@ class NewDoFn(WithTypeHints, HasDisplayData):
 
 
 # TODO(Sourabh): Remove after migration to NewDoFn
-class DoFn(WithTypeHints, HasDisplayData):
+class OldDoFn(WithTypeHints, HasDisplayData):
   """A function object used by a transform with custom processing.
 
   The ParDo transform is such a transform. The ParDo.expand()
@@ -227,6 +228,10 @@ class DoFn(WithTypeHints, HasDisplayData):
   define the desired behavior (start_bundle/finish_bundle and process) or wrap a
   callable object using the CallableWrapperDoFn class.
   """
+
+  def __init__(self):
+    warnings.warn('Use of OldDoFn is deprecated please use DoFn instead')
+    super(OldDoFn, self).__init__()
 
   def default_label(self):
     return self.__class__.__name__
@@ -674,7 +679,7 @@ class ParDo(PTransformWithSideInputs):
   def __init__(self, fn_or_label, *args, **kwargs):
     super(ParDo, self).__init__(fn_or_label, *args, **kwargs)
 
-    if not isinstance(self.fn, (DoFn, NewDoFn)):
+    if not isinstance(self.fn, (OldDoFn, NewDoFn)):
       raise TypeError('ParDo must be called with a DoFn instance.')
 
   def default_type_hints(self):
@@ -685,7 +690,7 @@ class ParDo(PTransformWithSideInputs):
         self.fn.infer_output_type(input_type))
 
   def make_fn(self, fn):
-    if isinstance(fn, (DoFn, NewDoFn)):
+    if isinstance(fn, (OldDoFn, NewDoFn)):
       return fn
     return CallableWrapperDoFn(fn)
 
