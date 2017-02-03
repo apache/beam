@@ -14,6 +14,8 @@
  */
 package org.apache.beam.sdk.io.hadoop.inputformat;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+
 import java.io.File;
 import java.io.IOException;
 import java.io.Serializable;
@@ -24,6 +26,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.beam.sdk.PipelineResult;
+import org.apache.beam.sdk.io.TextIO;
+import org.apache.beam.sdk.io.hadoop.inputformat.testing.HIFIOTextMatcher;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
@@ -34,7 +39,6 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.commons.io.FileUtils;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.io.MapWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.InputFormat;
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
@@ -69,7 +73,7 @@ import org.slf4j.LoggerFactory;
  *
  * {@link EsInputFormat} can be used to read data from Elasticsearch. EsInputFormat by default
  * returns key class as Text and value class as LinkedMapWritable. If you want to get MapWritable as
- * value type then you must set property “mapred.mapoutput.value.class” to MapWritable.class.
+ * value type then you must set property "mapred.mapoutput.value.class" to MapWritable.class.
  */
 @RunWith(JUnit4.class)
 @FixMethodOrder(MethodSorters.JVM)
@@ -84,8 +88,10 @@ public class HIFIOWithElasticTest implements Serializable {
   private static final String ELASTIC_INDEX_NAME = "beamdb";
   private static final String ELASTIC_TYPE_NAME = "scientists";
   private static final String ELASTIC_RESOURCE = "/" + ELASTIC_INDEX_NAME + "/" + ELASTIC_TYPE_NAME;
-  private static final int SIZE = 10;
+  private static final int TEST_DATA_ROW_COUNT = 10;
   private static final String ELASTIC_TYPE_ID_PREFIX = "s";
+  private static List<String> expectedList = new ArrayList<>();
+  private static final String OUTPUT_WRITE_FILE_PATH = "D:\\op";
 
   @ClassRule
   public static TemporaryFolder elasticTempFolder = new TemporaryFolder();
@@ -107,28 +113,30 @@ public class HIFIOWithElasticTest implements Serializable {
   public void testHifIOWithElastic() {
     Configuration conf = getConfiguration();
 
-    PCollection<KV<Text, MapWritable>> esData =
-        pipeline.apply(HadoopInputFormatIO.<Text, MapWritable>read().withConfiguration(conf));
-    PCollection<Long> count = esData.apply(Count.<KV<Text, MapWritable>>globally());
-    PAssert.thatSingleton(count).isEqualTo((long) SIZE);
-    PCollection<MapWritable> values = esData.apply(Values.<MapWritable>create());
-
-    MapElements<MapWritable, String> transformFunc =
-        MapElements.<MapWritable, String>via(new SimpleFunction<MapWritable, String>() {
+    PCollection<KV<Text, LinkedMapWritable>> esData =
+        pipeline.apply(HadoopInputFormatIO.<Text, LinkedMapWritable>read().withConfiguration(conf));
+    PCollection<Long> count = esData.apply(Count.<KV<Text, LinkedMapWritable>>globally());
+    PAssert.thatSingleton(count).isEqualTo((long) TEST_DATA_ROW_COUNT);
+    PCollection<LinkedMapWritable> values = esData.apply(Values.<LinkedMapWritable>create());
+    MapElements<LinkedMapWritable, String> transformFunc =
+        MapElements.<LinkedMapWritable, String>via(new SimpleFunction<LinkedMapWritable, String>() {
           @Override
-          public String apply(MapWritable mapw) {
-            Text text = (Text) mapw.get(new Text("id"));
-            return text != null ? text.toString() : "";
+          public String apply(LinkedMapWritable mapw) {
+            return mapw.get(new Text("id")) + "|" + mapw.get(new Text("scientist"));
           }
         });
 
     PCollection<String> textValues = values.apply(transformFunc);
-    List<String> expectedResults = new ArrayList<>();
-    for (int cnt = 0; cnt < SIZE; cnt++) {
-      expectedResults.add(ELASTIC_TYPE_ID_PREFIX + cnt);
-    }
-    PAssert.that(textValues).containsInAnyOrder(expectedResults);
-    pipeline.run().waitUntilFinish();
+
+    // Write Pcollection of Strings to a file using TextIO Write transform.
+    textValues.apply(TextIO.Write.to(OUTPUT_WRITE_FILE_PATH).withNumShards(1).withSuffix("txt"));
+    PipelineResult result = pipeline.run();
+    result.waitUntilFinish();
+
+    // Verify the output values using checksum comparison
+    HIFIOTextMatcher matcher =
+        new HIFIOTextMatcher(OUTPUT_WRITE_FILE_PATH + "-00000-of-00001.txt", expectedList);
+    assertThat(result, matcher);
   }
 
   /**
@@ -151,9 +159,9 @@ public class HIFIOWithElasticTest implements Serializable {
             + "  }\n"
             + "}";
     conf.set(ConfigurationOptions.ES_QUERY, query);
-    PCollection<KV<Text, MapWritable>> esData =
-        pipeline.apply(HadoopInputFormatIO.<Text, MapWritable>read().withConfiguration(conf));
-    PCollection<Long> count = esData.apply(Count.<KV<Text, MapWritable>>globally());
+    PCollection<KV<Text, LinkedMapWritable>> esData =
+        pipeline.apply(HadoopInputFormatIO.<Text, LinkedMapWritable>read().withConfiguration(conf));
+    PCollection<Long> count = esData.apply(Count.<KV<Text, LinkedMapWritable>>globally());
     PAssert.thatSingleton(count).isEqualTo((long) 1);
 
     pipeline.run().waitUntilFinish();
@@ -184,9 +192,11 @@ public class HIFIOWithElasticTest implements Serializable {
 
       Settings settings =
           Settings.builder().put("node.data", TRUE).put("network.host", ELASTIC_IN_MEM_HOSTNAME)
-              .put("http.port", ELASTIC_IN_MEM_PORT).put("path.data", elasticTempFolder.getRoot().getPath())
-              .put("path.home", elasticTempFolder.getRoot().getPath()).put("transport.type", "local")
-              .put("http.enabled", TRUE).put("node.ingest", TRUE).build();
+              .put("http.port", ELASTIC_IN_MEM_PORT)
+              .put("path.data", elasticTempFolder.getRoot().getPath())
+              .put("path.home", elasticTempFolder.getRoot().getPath())
+              .put("transport.type", "local").put("http.enabled", TRUE).put("node.ingest", TRUE)
+              .build();
       node = new PluginNode(settings);
       node.start();
       LOGGER.info("Elastic im memory server started..");
@@ -198,11 +208,10 @@ public class HIFIOWithElasticTest implements Serializable {
     private static void prepareElasticIndex() throws InterruptedException {
       CreateIndexRequest indexRequest = new CreateIndexRequest(ELASTIC_INDEX_NAME);
       node.client().admin().indices().create(indexRequest).actionGet();
-      for (int i = 0; i < SIZE; i++) {
-        node.client()
-            .prepareIndex(ELASTIC_INDEX_NAME, ELASTIC_TYPE_NAME, String.valueOf(i))
-            .setSource(
-                populateElasticData(ELASTIC_TYPE_ID_PREFIX + i, "Faraday")).execute();
+      for (int i = 0; i < TEST_DATA_ROW_COUNT; i++) {
+        node.client().prepareIndex(ELASTIC_INDEX_NAME, ELASTIC_TYPE_NAME, String.valueOf(i))
+            .setSource(populateElasticData(ELASTIC_TYPE_ID_PREFIX + i, "Faraday")).execute();
+        expectedList.add(ELASTIC_TYPE_ID_PREFIX + i + "|" + "Faraday");
         Thread.sleep(100);
       }
       GetResponse response =
@@ -235,9 +244,7 @@ public class HIFIOWithElasticTest implements Serializable {
   }
 
   /**
-   *
    * Class created for handling "http.enabled" property as "true" for Elasticsearch node.
-   *
    */
   static class PluginNode extends Node implements Serializable {
 
