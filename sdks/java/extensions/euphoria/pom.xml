@@ -386,6 +386,7 @@
             <owner>Seznam.cz, a.s.</owner>
           </properties>
           <excludes>
+            <exclue>cd/**</exclue>
             <exclude>**/README</exclude>
             <exclude>src/test/resources/**</exclude>
             <exclude>src/main/resources/**</exclude>
