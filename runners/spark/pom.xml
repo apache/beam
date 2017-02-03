@@ -383,11 +383,11 @@
                     version used by Hadoop (v11) -->
                   <relocation>
                     <pattern>com.google.common</pattern>
-                    <shadedPattern>org.apache.beam.spark.relocated.com.google.common</shadedPattern>
+                    <shadedPattern>org.apache.beam.spark.repackaged.com.google.common</shadedPattern>
                   </relocation>
                   <relocation>
                     <pattern>com.google.thirdparty</pattern>
-                    <shadedPattern>org.apache.beam.spark.relocated.com.google.thirdparty</shadedPattern>
+                    <shadedPattern>org.apache.beam.spark.repackaged.com.google.thirdparty</shadedPattern>
                   </relocation>
                 </relocations>
                 <transformers>
