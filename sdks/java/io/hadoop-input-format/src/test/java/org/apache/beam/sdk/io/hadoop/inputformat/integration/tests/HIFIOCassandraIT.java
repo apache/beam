@@ -58,7 +58,7 @@ public class HIFIOCassandraIT implements Serializable {
   private static final String CASSANDRA_TABLE = "scientists";
   private static HIFTestOptions options;
 
-  @BeforeClass
+  //@BeforeClass
   public static void setUp() {
     PipelineOptionsFactory.register(HIFTestOptions.class);
     options = TestPipeline.testingPipelineOptions().as(HIFTestOptions.class);
