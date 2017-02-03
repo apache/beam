@@ -116,7 +116,7 @@ class DoFnRunner(Receiver):
       self.context = context
 
     # TODO(Sourabhbajaj): Remove the usage of OldDoFn
-    if isinstance(fn, core.NewDoFn):
+    if isinstance(fn, core.DoFn):
 
       class ArgPlaceholder(object):
         def __init__(self, placeholder):
@@ -146,7 +146,7 @@ class DoFnRunner(Receiver):
       # TODO(Sourabhbajaj) Rename this variable once oldDoFn is deprecated
       self.has_windowed_side_inputs = (
           self.has_windowed_side_inputs or
-          core.NewDoFn.WindowParam in defaults)
+          core.DoFn.WindowParam in defaults)
 
       # Try to prepare all the arguments that can just be filled in
       # without any additional work. in the process function.
@@ -158,9 +158,9 @@ class DoFnRunner(Receiver):
             args, kwargs, [si[global_window] for si in side_inputs])
 
       # Create placeholder for element parameter
-      if core.NewDoFn.ElementParam not in defaults:
+      if core.DoFn.ElementParam not in defaults:
         args_to_pick = len(arguments) - len(defaults) - 1 - self_in_args
-        final_args = [ArgPlaceholder(core.NewDoFn.ElementParam)] + \
+        final_args = [ArgPlaceholder(core.DoFn.ElementParam)] + \
                      self.args[:args_to_pick]
       else:
         args_to_pick = len(arguments) - len(defaults) - self_in_args
@@ -169,15 +169,15 @@ class DoFnRunner(Receiver):
       # Fill the OtherPlaceholders for context, window or timestamp
       args = iter(self.args[args_to_pick:])
       for a, d in zip(arguments[-len(defaults):], defaults):
-        if d == core.NewDoFn.ElementParam:
+        if d == core.DoFn.ElementParam:
           final_args.append(ArgPlaceholder(d))
-        elif d == core.NewDoFn.ContextParam:
+        elif d == core.DoFn.ContextParam:
           final_args.append(ArgPlaceholder(d))
-        elif d == core.NewDoFn.WindowParam:
+        elif d == core.DoFn.WindowParam:
           final_args.append(ArgPlaceholder(d))
-        elif d == core.NewDoFn.TimestampParam:
+        elif d == core.DoFn.TimestampParam:
           final_args.append(ArgPlaceholder(d))
-        elif d == core.NewDoFn.SideInputParam:
+        elif d == core.DoFn.SideInputParam:
           # If no more args are present then the value must be passed via kwarg
           try:
             final_args.append(args.next())
@@ -225,7 +225,7 @@ class DoFnRunner(Receiver):
         else:
           self.dofn_process = lambda context: fn.process(context, *args)
 
-        class CurriedFn(core.DoFn):
+        class CurriedFn(core.OldDoFn):
 
           start_bundle = staticmethod(fn.start_bundle)
           process = staticmethod(self.dofn_process)
@@ -252,13 +252,13 @@ class DoFnRunner(Receiver):
   def _new_dofn_window_process(self, element, args, kwargs, window):
     # TODO(sourabhbajaj): Investigate why we can't use `is` instead of ==
     for i, p in self.placeholders:
-      if p == core.NewDoFn.ElementParam:
+      if p == core.DoFn.ElementParam:
         args[i] = element.value
-      elif p == core.NewDoFn.ContextParam:
+      elif p == core.DoFn.ContextParam:
         args[i] = self.context
-      elif p == core.NewDoFn.WindowParam:
+      elif p == core.DoFn.WindowParam:
         args[i] = window
-      elif p == core.NewDoFn.TimestampParam:
+      elif p == core.DoFn.TimestampParam:
         args[i] = element.timestamp
     if not kwargs:
       self._process_outputs(element, self.dofn_process(*args))
@@ -289,7 +289,7 @@ class DoFnRunner(Receiver):
       if self.is_new_dofn:
         _, _, _, defaults = self.dofn.get_function_arguments(method)
         defaults = defaults if defaults else []
-        args = [self.context if d == core.NewDoFn.ContextParam else d
+        args = [self.context if d == core.DoFn.ContextParam else d
                 for d in defaults]
         self._process_outputs(None, f(*args))
       else:

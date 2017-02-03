@@ -53,7 +53,7 @@ from apache_beam.utils.pipeline_options import PipelineOptions
 from apache_beam.utils.pipeline_options import SetupOptions
 
 
-class FilterTextFn(beam.NewDoFn):
+class FilterTextFn(beam.DoFn):
   """A DoFn that filters for a specific key based on a regular expression."""
   def __init__(self, pattern):
     super(FilterTextFn, self).__init__()

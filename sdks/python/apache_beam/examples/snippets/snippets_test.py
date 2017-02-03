@@ -47,7 +47,7 @@ class ParDoTest(unittest.TestCase):
     words = ['aa', 'bbb', 'c']
 
     # [START model_pardo_pardo]
-    class ComputeWordLengthFn(beam.NewDoFn):
+    class ComputeWordLengthFn(beam.DoFn):
       def process(self, element):
         return [len(element)]
     # [END model_pardo_pardo]
@@ -62,7 +62,7 @@ class ParDoTest(unittest.TestCase):
     words = ['aa', 'bbb', 'c']
 
     # [START model_pardo_yield]
-    class ComputeWordLengthFn(beam.NewDoFn):
+    class ComputeWordLengthFn(beam.DoFn):
       def process(self, element):
         yield len(element)
     # [END model_pardo_yield]
@@ -150,7 +150,7 @@ class ParDoTest(unittest.TestCase):
     words = ['a', 'bb', 'ccc', 'dddd']
 
     # [START model_pardo_side_input_dofn]
-    class FilterUsingLength(beam.NewDoFn):
+    class FilterUsingLength(beam.DoFn):
       def process(self, element, lower_bound, upper_bound=float('inf')):
         if lower_bound <= len(element) <= upper_bound:
           yield element
@@ -161,7 +161,7 @@ class ParDoTest(unittest.TestCase):
 
   def test_pardo_with_side_outputs(self):
     # [START model_pardo_emitting_values_on_side_outputs]
-    class ProcessWords(beam.NewDoFn):
+    class ProcessWords(beam.DoFn):
 
       def process(self, element, cutoff_length, marker):
         if len(element) <= cutoff_length:
@@ -261,7 +261,7 @@ class TypeHintsTest(unittest.TestCase):
     with self.assertRaises(typehints.TypeCheckError):
       # [START type_hints_do_fn]
       @beam.typehints.with_input_types(int)
-      class FilterEvensDoFn(beam.NewDoFn):
+      class FilterEvensDoFn(beam.DoFn):
         def process(self, element):
           if element % 2 == 0:
             yield element
@@ -358,7 +358,7 @@ class SnippetsTest(unittest.TestCase):
     def __init__(self, file_to_read=None):
       self.file_to_read = file_to_read
 
-    class ReadDoFn(beam.NewDoFn):
+    class ReadDoFn(beam.DoFn):
 
       def __init__(self, file_to_read):
         self.file_to_read = file_to_read
@@ -387,7 +387,7 @@ class SnippetsTest(unittest.TestCase):
     def __init__(self, file_to_write=None, file_name_suffix=''):
       self.file_to_write = file_to_write
 
-    class WriteDoFn(beam.NewDoFn):
+    class WriteDoFn(beam.DoFn):
       def __init__(self, file_to_write):
         self.file_to_write = file_to_write
         self.file_obj = None

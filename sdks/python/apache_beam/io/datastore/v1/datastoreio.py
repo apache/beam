@@ -25,7 +25,7 @@ from googledatastore import helper as datastore_helper
 from apache_beam.io.datastore.v1 import helper
 from apache_beam.io.datastore.v1 import query_splitter
 from apache_beam.transforms import Create
-from apache_beam.transforms import NewDoFn
+from apache_beam.transforms import DoFn
 from apache_beam.transforms import FlatMap
 from apache_beam.transforms import GroupByKey
 from apache_beam.transforms import Map
@@ -143,7 +143,7 @@ class ReadFromDatastore(PTransform):
 
     return disp_data
 
-  class SplitQueryFn(NewDoFn):
+  class SplitQueryFn(DoFn):
     """A `DoFn` that splits a given query into multiple sub-queries."""
     def __init__(self, project, query, namespace, num_splits):
       super(ReadFromDatastore.SplitQueryFn, self).__init__()
@@ -199,7 +199,7 @@ class ReadFromDatastore(PTransform):
 
       return disp_data
 
-  class ReadFn(NewDoFn):
+  class ReadFn(DoFn):
     """A DoFn that reads entities from Cloud Datastore, for a given query."""
     def __init__(self, project, namespace=None):
       super(ReadFromDatastore.ReadFn, self).__init__()
@@ -320,7 +320,7 @@ class _Mutate(PTransform):
     return {'project': self._project,
             'mutation_fn': self._mutation_fn.__class__.__name__}
 
-  class DatastoreWriteFn(NewDoFn):
+  class DatastoreWriteFn(DoFn):
     """A ``DoFn`` that write mutations to Datastore.
 
     Mutations are written in batches, where the maximum batch size is
