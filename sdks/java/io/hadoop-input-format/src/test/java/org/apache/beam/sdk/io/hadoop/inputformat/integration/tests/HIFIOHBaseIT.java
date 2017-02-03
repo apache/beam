@@ -40,8 +40,6 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.junit.runners.MethodSorters;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Runs test to validate HadoopInputFromatIO for a HBase instance on GCP.
@@ -58,7 +56,6 @@ import org.slf4j.LoggerFactory;
 @RunWith(JUnit4.class)
 @FixMethodOrder(MethodSorters.JVM)
 public class HIFIOHBaseIT implements Serializable {
-  private static final Logger LOGGER = LoggerFactory.getLogger(HIFIOHBaseIT.class);
   private static HIFTestOptions options;
   private static final String TABLE_NAME = "scientists";
 
@@ -66,9 +63,11 @@ public class HIFIOHBaseIT implements Serializable {
   public static void setUp() {
     PipelineOptionsFactory.register(HIFTestOptions.class);
     options = TestPipeline.testingPipelineOptions().as(HIFTestOptions.class);
-    LOGGER.info("Pipeline created successfully with the options");
   }
-
+  
+  /**
+   * This test reads data from the HBase and verifies if data is read successfully.
+   */
   @Test
   public void testHifReadWithHBase() throws Throwable {
     TestPipeline p = TestPipeline.create();
@@ -76,7 +75,7 @@ public class HIFIOHBaseIT implements Serializable {
     SimpleFunction<Result, String> myValueTranslate = new SimpleFunction<Result, String>() {
       @Override
       public String apply(Result input) {
-        return Bytes.toString(input.getValue(Bytes.toBytes("account"), Bytes.toBytes("name")));
+        return Bytes.toString(input.getValue(Bytes.toBytes("info"), Bytes.toBytes("scientist")));
       }
     };
     PCollection<KV<ImmutableBytesWritable, String>> hbaseData =
@@ -86,7 +85,7 @@ public class HIFIOHBaseIT implements Serializable {
     PAssert
         .thatSingleton(
             hbaseData.apply("Count", Count.<KV<ImmutableBytesWritable, String>>globally()))
-        .isEqualTo(4L);
+        .isEqualTo(50L);
     PCollection<String> values = hbaseData.apply(Values.<String>create());
     List<String> expectedValues = Arrays.asList("Einstein", "Darwin", "Copernicus", "Pasteur",
         "Curie", "Faraday", "Newton", "Bohr", "Galilei", "Maxwell");
