@@ -556,13 +556,12 @@ Figure 1: The pipeline data flow.</p>
 <span class="k">class</span> <span class="nc">FilterTextFn</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">DoFn</span><span class="p">):</span>
   <span class="s">"""A DoFn that filters for a specific key based on a regular expression."""</span>
 
-  <span class="c"># A custom aggregator can track values in your pipeline as it runs. Create</span>
-  <span class="c"># custom aggregators matched_word and unmatched_words.</span>
-  <span class="n">matched_words</span> <span class="o">=</span> <span class="n">beam</span><span class="o">.</span><span class="n">Aggregator</span><span class="p">(</span><span class="s">'matched_words'</span><span class="p">)</span>
-  <span class="n">umatched_words</span> <span class="o">=</span> <span class="n">beam</span><span class="o">.</span><span class="n">Aggregator</span><span class="p">(</span><span class="s">'umatched_words'</span><span class="p">)</span>
-
   <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pattern</span><span class="p">):</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">pattern</span> <span class="o">=</span> <span class="n">pattern</span>
+    <span class="c"># A custom metric can track values in your pipeline as it runs. Create</span>
+    <span class="c"># custom metrics matched_word and unmatched_words.</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">matched_words</span> <span class="o">=</span> <span class="n">Metrics</span><span class="o">.</span><span class="n">counter</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__class__</span><span class="p">,</span> <span class="s">'matched_words'</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">umatched_words</span> <span class="o">=</span> <span class="n">Metrics</span><span class="o">.</span><span class="n">counter</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__class__</span><span class="p">,</span> <span class="s">'umatched_words'</span><span class="p">)</span>
 
   <span class="k">def</span> <span class="nf">process</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">context</span><span class="p">):</span>
     <span class="n">word</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">context</span><span class="o">.</span><span class="n">element</span>
@@ -572,8 +571,8 @@ Figure 1: The pipeline data flow.</p>
       <span class="c"># Logging UI.</span>
       <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">'Matched </span><span class="si">%</span><span class="s">s'</span><span class="p">,</span> <span class="n">word</span><span class="p">)</span>
 
-      <span class="c"># Add 1 to the custom aggregator matched_words</span>
-      <span class="n">context</span><span class="o">.</span><span class="n">aggregate_to</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">matched_words</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+      <span class="c"># Add 1 to the custom metric counter matched_words</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">matched_words</span><span class="o">.</span><span class="n">inc</span><span class="p">()</span>
       <span class="k">yield</span> <span class="n">context</span><span class="o">.</span><span class="n">element</span>
     <span class="k">else</span><span class="p">:</span>
       <span class="c"># Log at the "DEBUG" level each element that is not matched. Different</span>
@@ -583,8 +582,8 @@ Figure 1: The pipeline data flow.</p>
       <span class="c"># Logger. This log message will not be visible in the Cloud Logger.</span>
       <span class="n">logging</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">'Did not match </span><span class="si">%</span><span class="s">s'</span><span class="p">,</span> <span class="n">word</span><span class="p">)</span>
 
-      <span class="c"># Add 1 to the custom aggregator umatched_words</span>
-      <span class="n">context</span><span class="o">.</span><span class="n">aggregate_to</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">umatched_words</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+      <span class="c"># Add 1 to the custom metric counter umatched_words</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">umatched_words</span><span class="o">.</span><span class="n">inc</span><span class="p">()</span>
 </code></pre>
 </div>
 
