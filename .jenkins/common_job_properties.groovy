@@ -111,8 +111,9 @@ class common_job_properties {
         permitAll()
         // trigger_phrase is the argument which gets set when we want to allow
         // post-commit builds to run against pending pull requests. This block
-        // overrides the default trigger phrase with the new one and sets the
-        // build to happen only when it sees the trigger phrase.
+        // overrides the default trigger phrase with the new one. Setting this
+        // will disable automatic invocation of this build; the phrase will be
+        // required to start it.
         if (trigger_phrase != '') {
           triggerPhrase(trigger_phrase)
           onlyTriggerPhrase()
@@ -122,7 +123,7 @@ class common_job_properties {
           commitStatus {
             // This is the name that will show up in the GitHub pull request UI
             // for this Jenkins project.
-            delegate.context(commitStatusContext)
+            delegate.context("Jenkins: " + commitStatusContext)
           }
 
           /*
@@ -184,14 +185,13 @@ class common_job_properties {
   // specified in the postcommit job and have the job run against their PR to run
   // tests not in the presubmit suite for additional confidence.
   static def enablePhraseTriggeringFromPullRequest(def context,
-                                         def check_title,
+                                         def commitStatusName,
                                          def trigger_phrase) {
     setPullRequestBuildTrigger(
       context,
-      check_title,
+      commitStatusName,
       '--none--',
       trigger_phrase)
-
   }
 
   // Sets common config for PostCommit jobs.

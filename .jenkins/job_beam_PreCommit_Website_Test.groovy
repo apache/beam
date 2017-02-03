@@ -34,7 +34,7 @@ job('beam_PreCommit_Website_Test') {
   // Set pull request build trigger.
   common_job_properties.setPreCommit(
       delegate,
-      'Jenkins: test website (dead links, etc.)')
+      'Test website (dead links, etc.)')
 
   steps {
     // Run the following shell script as a build step.

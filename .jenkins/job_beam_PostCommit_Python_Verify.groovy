@@ -33,7 +33,7 @@ job('beam_PostCommit_Python_Verify') {
   // Allows triggering this build against pull requests.
   common_job_properties.enablePhraseTriggeringFromPullRequest(
     delegate,
-    'Python PostCommit Tests',
+    'Python SDK PostCommit Tests',
     'Run Python PostCommit')
 
   // Execute shell command to test Python SDK.
