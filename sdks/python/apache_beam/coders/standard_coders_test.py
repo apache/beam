@@ -61,6 +61,8 @@ class StandardCodersTest(unittest.TestCase):
   # runner does not execute this method directly as a test.
   @classmethod
   def _create_tests(cls, coder_test_specs):
+    if not os.path.exists(STANDARD_CODERS_YAML):
+        raise ValueError("Could not find the test spec: %s" % STANDARD_CODERS_YAML)
     for ix, spec in enumerate(yaml.load_all(open(coder_test_specs))):
       spec['index'] = ix
       cls._create_test(spec)
@@ -114,8 +116,7 @@ class StandardCodersTest(unittest.TestCase):
 
 STANDARD_CODERS_YAML = os.path.join(
     os.path.dirname(__file__), 'standard_coders.yaml')
-if os.path.exists(STANDARD_CODERS_YAML):
-  StandardCodersTest._create_tests(STANDARD_CODERS_YAML)
+StandardCodersTest._create_tests(STANDARD_CODERS_YAML)
 
 
 def encode_nested(coder, value, nested=True):
