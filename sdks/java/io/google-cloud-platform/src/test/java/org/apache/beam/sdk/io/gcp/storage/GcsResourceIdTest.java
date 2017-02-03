@@ -58,6 +58,12 @@ public class GcsResourceIdTest {
         toResourceIdentifier("gs://bucket/tmp/bb/")
             .resolve("gs://bucket/tmp/aa", StandardResolveOptions.RESOLVE_FILE));
 
+    // Tests bucket with no ending '/'.
+    assertEquals(
+        toResourceIdentifier("gs://my_bucket/tmp"),
+        toResourceIdentifier("gs://my_bucket")
+            .resolve("tmp", StandardResolveOptions.RESOLVE_FILE));
+
     // Tests path with unicode
     assertEquals(
         toResourceIdentifier("gs://bucket/输出 目录/输出 文件01.txt"),
@@ -113,6 +119,15 @@ public class GcsResourceIdTest {
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("Invalid GCS URI: gs://");
     toResourceIdentifier("gs://");
+  }
+
+  @Test
+  public void testGetScheme() throws Exception {
+    // Tests gcs paths.
+    assertEquals("gs", toResourceIdentifier("gs://my_bucket/tmp dir/").getScheme());
+
+    // Tests bucket with no ending '/'.
+    assertEquals("gs", toResourceIdentifier("gs://my_bucket").getScheme());
   }
 
   @Test

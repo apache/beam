@@ -212,6 +212,15 @@ public class LocalResourceIdTest {
   }
 
   @Test
+  public void testGetScheme() throws Exception {
+    // Tests for local files without the scheme.
+    assertEquals("file", toResourceIdentifier("/root/tmp/").getScheme());
+
+    // Tests path with unicode.
+    assertEquals("file", toResourceIdentifier("file://根目录/").getScheme());
+  }
+
+  @Test
   public void testEquals() throws Exception {
     assertEquals(
         toResourceIdentifier("/root/tmp/"),
