@@ -31,6 +31,7 @@
   <artifactId>euphoria-operator-testkit</artifactId>
   <packaging>jar</packaging>
 
+  <name>${project.groupId}:${project.artifactId}</name>
   <description>
     Definition of tests for executors to pass to validate themselves
     as properly implementing the behavior of all operators.

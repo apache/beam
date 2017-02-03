@@ -29,6 +29,11 @@
   <artifactId>euphoria-flink</artifactId>
   <packaging>jar</packaging>
 
+  <name>${project.groupId}:${project.artifactId}</name>
+  <description>
+    An euphoria executor based on Apache Flink.
+  </description>
+
   <dependencies>
 
     <dependency>

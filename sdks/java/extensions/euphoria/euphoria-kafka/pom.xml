@@ -34,6 +34,11 @@
   <artifactId>euphoria-kafka_${kafka.major}</artifactId>
   <packaging>jar</packaging>
 
+  <name>${project.groupId}:${project.artifactId}</name>
+  <description>
+    DataSource and DataSink implementations for Apache Kafka.
+  </description>
+
   <dependencies>
 
     <dependency>

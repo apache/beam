@@ -28,6 +28,7 @@
 
   <artifactId>euphoria-examples</artifactId>
   <packaging>jar</packaging>
+
   <name>${project.groupId}:${project.artifactId}</name>
   <description>Example programs demonstrating the Euphoria API.</description>
 

@@ -29,6 +29,11 @@
   <artifactId>euphoria-hadoop</artifactId>
   <packaging>jar</packaging>
 
+  <name>${project.groupId}:${project.artifactId}</name>
+  <description>
+    DataSource and DataSink implementations based on HadoopInput/OutputFormats
+  </description>
+
   <dependencies>
 
     <dependency>
