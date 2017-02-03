@@ -34,7 +34,7 @@ mavenJob('beam_PostCommit_Java_RunnableOnService_Apex') {
   // Allows triggering this build against pull requests.
   common_job_properties.enablePhraseTriggeringFromPullRequest(
     delegate,
-    'Apache Apex RunnableOnService Tests',
+    'Apache Apex Runner RunnableOnService Tests',
     'Run Apex RunableOnService')
 
   // Maven goals for this job.

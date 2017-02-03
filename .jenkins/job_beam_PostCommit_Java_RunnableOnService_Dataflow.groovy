@@ -37,7 +37,7 @@ mavenJob('beam_PostCommit_Java_RunnableOnService_Dataflow') {
   // Allows triggering this build against pull requests.
   common_job_properties.enablePhraseTriggeringFromPullRequest(
     delegate,
-    'Google Cloud Dataflow RunnableOnService Tests',
+    'Google Cloud Dataflow Runner RunnableOnService Tests',
     'Run Dataflow RunableOnService')
 
   // Maven goals for this job.

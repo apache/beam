@@ -41,7 +41,7 @@ mavenJob('beam_PostCommit_Java_RunnableOnService_Gearpump') {
   // Allows triggering this build against pull requests.
   common_job_properties.enablePhraseTriggeringFromPullRequest(
     delegate,
-    'Apache Gearpump RunnableOnService Tests',
+    'Apache Gearpump Runner RunnableOnService Tests',
     'Run Gearpump RunableOnService')
 
   // Maven goals for this job.
