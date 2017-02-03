@@ -60,7 +60,7 @@ from apache_beam.utils.pipeline_options import PipelineOptions
 from apache_beam.utils.pipeline_options import SetupOptions
 
 
-class SplitLinesToWordsFn(beam.NewDoFn):
+class SplitLinesToWordsFn(beam.DoFn):
   """A transform to split a line of text into individual words.
 
   This transform will have 3 outputs:

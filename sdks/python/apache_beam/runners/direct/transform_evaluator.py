@@ -35,10 +35,10 @@ from apache_beam.transforms import sideinputs
 from apache_beam.transforms.window import GlobalWindows
 from apache_beam.transforms.window import WindowedValue
 from apache_beam.typehints.typecheck import OutputCheckWrapperDoFn
-from apache_beam.typehints.typecheck import OutputCheckWrapperNewDoFn
+from apache_beam.typehints.typecheck import OutputCheckWrapperOldDoFn
 from apache_beam.typehints.typecheck import TypeCheckError
 from apache_beam.typehints.typecheck import TypeCheckWrapperDoFn
-from apache_beam.typehints.typecheck import TypeCheckWrapperNewDoFn
+from apache_beam.typehints.typecheck import TypeCheckWrapperOldDoFn
 from apache_beam.utils import counters
 from apache_beam.utils.pipeline_options import TypeOptions
 
@@ -351,17 +351,17 @@ class _ParDoEvaluator(_TransformEvaluator):
     if (pipeline_options is not None
         and pipeline_options.view_as(TypeOptions).runtime_type_check):
       # TODO(sourabhbajaj): Remove this if-else
-      if isinstance(dofn, core.NewDoFn):
-        dofn = TypeCheckWrapperNewDoFn(dofn, transform.get_type_hints())
-      else:
+      if isinstance(dofn, core.DoFn):
         dofn = TypeCheckWrapperDoFn(dofn, transform.get_type_hints())
+      else:
+        dofn = TypeCheckWrapperOldDoFn(dofn, transform.get_type_hints())
 
     # TODO(sourabhbajaj): Remove this if-else
-    if isinstance(dofn, core.NewDoFn):
-      dofn = OutputCheckWrapperNewDoFn(
-          dofn, self._applied_ptransform.full_label)
-    else:
+    if isinstance(dofn, core.DoFn):
       dofn = OutputCheckWrapperDoFn(dofn, self._applied_ptransform.full_label)
+    else:
+      dofn = OutputCheckWrapperOldDoFn(dofn,
+                                       self._applied_ptransform.full_label)
     self.runner = DoFnRunner(
         dofn, transform.args, transform.kwargs,
         self._side_inputs,
