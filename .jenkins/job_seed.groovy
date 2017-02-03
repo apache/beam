@@ -35,6 +35,12 @@ job('beam_SeedJob') {
       false,
       'dev@beam.apache.org')
 
+  // Allows triggering this build against pull requests.
+  common_job_properties.enablePhraseTriggeringFromPullRequest(
+    delegate,
+    'Seed Job',
+    'Run Seed Job')
+
   steps {
     dsl {
       // A list or a glob of other groovy files to process.

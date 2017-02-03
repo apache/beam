@@ -34,6 +34,12 @@ mavenJob('beam_PostCommit_Java_RunnableOnService_Dataflow') {
   // Sets that this is a PostCommit job.
   common_job_properties.setPostCommit(delegate)
 
+  // Allows triggering this build against pull requests.
+  common_job_properties.enablePhraseTriggeringFromPullRequest(
+    delegate,
+    'Google Cloud Dataflow Runner RunnableOnService Tests',
+    'Run Dataflow RunableOnService')
+
   // Maven goals for this job.
   goals('-B -e clean verify -am -pl runners/google-cloud-dataflow-java -DforkCount=0 -DrunnableOnServicePipelineOptions=\'[ "--runner=org.apache.beam.runners.dataflow.testing.TestDataflowRunner", "--project=apache-beam-testing", "--tempRoot=gs://temp-storage-for-runnable-on-service-tests/" ]\'')
 }
