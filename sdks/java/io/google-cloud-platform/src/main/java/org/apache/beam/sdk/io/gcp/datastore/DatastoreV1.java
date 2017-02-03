@@ -1067,6 +1067,8 @@ public class DatastoreV1 {
 
       if (localhost != null) {
         builder.localHost(localhost);
+      } else {
+        builder.host("batch-datastore.googleapis.com");
       }
 
       return DatastoreFactory.get().create(builder.build());
