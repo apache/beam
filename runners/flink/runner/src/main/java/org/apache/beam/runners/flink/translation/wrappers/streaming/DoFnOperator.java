@@ -127,6 +127,10 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
 
   private transient Map<String, KvStateSnapshot<?, ?, ?, ?, ?>> restoredSideInputState;
 
+  protected transient FlinkStateInternals<?> stateInternals;
+
+  private final Coder<?> keyCoder;
+
   public DoFnOperator(
       DoFn<InputT, FnOutputT> doFn,
       TypeInformation<WindowedValue<InputT>> inputType,
@@ -136,7 +140,8 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
       WindowingStrategy<?, ?> windowingStrategy,
       Map<Integer, PCollectionView<?>> sideInputTagMapping,
       Collection<PCollectionView<?>> sideInputs,
-      PipelineOptions options) {
+      PipelineOptions options,
+      Coder<?> keyCoder) {
     this.doFn = doFn;
     this.mainOutputTag = mainOutputTag;
     this.sideOutputTags = sideOutputTags;
@@ -156,6 +161,8 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
         new ListStateDescriptor<>("pushed-back-values", inputType);
 
     setChainingStrategy(ChainingStrategy.ALWAYS);
+
+    this.keyCoder = keyCoder;
   }
 
   protected ExecutionContext.StepContext createStepContext() {
@@ -228,6 +235,10 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
     }
 
     outputManager = outputManagerFactory.create(output);
+
+    if (keyCoder != null) {
+      stateInternals = new FlinkStateInternals<>(getStateBackend(), keyCoder);
+    }
 
     this.doFn = getDoFn();
     doFnInvoker = DoFnInvokers.invokerFor(doFn);
@@ -521,7 +532,7 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
 
     @Override
     public StateInternals<?> stateInternals() {
-      throw new UnsupportedOperationException("Not supported for regular DoFns.");
+      return stateInternals;
     }
 
     @Override
