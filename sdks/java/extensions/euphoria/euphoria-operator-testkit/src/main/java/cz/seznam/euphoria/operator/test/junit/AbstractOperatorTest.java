@@ -33,12 +33,14 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.ExecutionException;
 
 import static org.junit.Assert.assertEquals;
 
 public abstract class AbstractOperatorTest implements Serializable {
 
-  /** Automatically injected if the test class or the a suite it is part of
+  /**
+   * Automatically injected if the test class or the a suite it is part of
    * is annotated with {@code @RunWith(ExecutorProviderRunner.class)}.
    */
   protected transient Executor executor;
@@ -50,16 +52,30 @@ public abstract class AbstractOperatorTest implements Serializable {
    */
   protected interface TestCase<T> extends Serializable {
 
-    /** Retrieve number of output partitions to expect in output. */
+    /**
+     * @return the number of output partitions to expect in the test output
+     */
     int getNumOutputPartitions();
 
-    /** Retrieve flow to be run. Write outputs to given sink. */
+    /**
+     * Retrieve flow to be run. Write outputs to given sink.
+     *
+     * @param flow the flow to attach the test logic to
+     * @param bounded if the test is constructed for bounded inputs/outputs
+     *
+     * @return the output data set representing the result of the test logic
+     */
     Dataset<T> getOutput(Flow flow, boolean bounded);
 
-    /** Validate outputs. */
+    /**
+     * Validate outputs.
+     *
+     * @param partitions the partitions to be validated representing the output
+     *         of the test logic
+     */
     void validate(Partitions<T> partitions);
 
-    /** Retrieve number of runs for the test. */
+    /** @return the number of runs for the test */
     default int getNumRuns() { return 1; }
   }
 
@@ -174,9 +190,11 @@ public abstract class AbstractOperatorTest implements Serializable {
 
   /**
    * Run all tests with given executor.
+   *
+   * @param tc the test case to execute
    */
   @SuppressWarnings("unchecked")
-  public void execute(TestCase tc) throws Exception {
+  public void execute(TestCase tc) {
     Preconditions.checkNotNull(executor);
     Preconditions.checkNotNull(processing);
 
@@ -189,7 +207,11 @@ public abstract class AbstractOperatorTest implements Serializable {
         Dataset output = tc.getOutput(flow, proc == Type.BOUNDED);
         // skip if output is not supported for the processing type
         output.persist(sink);
-        executor.submit(flow).get();
+        try {
+          executor.submit(flow).get();
+        } catch (InterruptedException | ExecutionException e) {
+          throw new RuntimeException("Test failure at run #" + i, e);
+        }
         Partitions<?> partitions = new Partitions<>(sink.getOutputs());
         tc.validate(partitions);
       }

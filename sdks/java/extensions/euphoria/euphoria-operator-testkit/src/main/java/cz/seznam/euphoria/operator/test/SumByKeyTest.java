@@ -34,7 +34,7 @@ import static org.junit.Assert.assertEquals;
 public class SumByKeyTest extends AbstractOperatorTest {
 
   @Test
-  public void testTwoPartitions() throws Exception {
+  public void testTwoPartitions() {
     execute(new AbstractTestCase<Integer, Pair<Integer, Long>>() {
       @Override
       protected Dataset<Pair<Integer, Long>> getOutput(Dataset<Integer> input) {

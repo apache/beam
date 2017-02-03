@@ -13,32 +13,34 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package cz.seznam.euphoria.core.client.dataset;
+package cz.seznam.euphoria.inmem;
 
-import cz.seznam.euphoria.core.client.flow.Flow;
+import cz.seznam.euphoria.core.client.graph.DAG;
 import cz.seznam.euphoria.core.client.operator.Operator;
-import java.util.Collection;
 
 /**
- * A dataset registered in flow.
+ * A series of transformations with single output operator.
  */
-public abstract class FlowAwareDataset<T> implements Dataset<T> {
+class ExecPath {
 
-  private final Flow flow;
+  /** A DAG of operators. */
+  private final DAG<Operator<?, ?>> dag;
+  
 
-  public FlowAwareDataset(Flow flow) {
-    this.flow = flow;
+  private ExecPath(DAG<Operator<?, ?>> dag) {
+    this.dag = dag;
   }
 
-  @Override
-  public Flow getFlow() {
-    return flow;
+
+  /**
+   * Create new ExecPath.
+   */
+  static ExecPath of(DAG<Operator<?, ?>> dag) {
+    return new ExecPath(dag);
   }
 
-  @Override
-  public Collection<Operator<?, ?>> getConsumers() {
-    return flow.getConsumersOf(this);
+  public DAG<Operator<?, ?>> dag() {
+    return dag;
   }
-
 
 }

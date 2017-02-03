@@ -54,7 +54,7 @@ public class WindowingTest extends AbstractOperatorTest {
   }
 
   @Test
-  public void consecutiveWindowingTest_ReduceByKey() throws Exception {
+  public void consecutiveWindowingTest_ReduceByKey() {
     execute(new AbstractTestCase<Triple<Instant, Type, String>, Triple<Instant, Type, Long>>() {
 
       @Override
@@ -126,7 +126,7 @@ public class WindowingTest extends AbstractOperatorTest {
   }
 
   @Test
-  public void consecutiveWindowingTest_ReduceStateByKey() throws Exception {
+  public void consecutiveWindowingTest_ReduceStateByKey() {
     execute(new AbstractTestCase<Triple<Instant, Type, String>, Triple<Instant, Type, Long>>() {
 
       @Override

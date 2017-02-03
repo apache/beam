@@ -37,21 +37,27 @@ import org.apache.hadoop.mapreduce.TaskAttemptContext;
  * instantiate the format from {@code Class} object, therefore we
  * need to serialize the underlying {@code DataSink} to bytes and
  * store in to configuration.
+ *
+ * @param <V> the type of the elements written through this output format
  */
 public class DataSinkOutputFormat<V> extends OutputFormat<NullWritable, V> {
 
   private static final String DATA_SINK = "cz.seznam.euphoria.hadoop.data-sink-serialized";
 
   /**
-   * Sets given {@link DataSink} into Hadoop configuration. Note that original
-   * configuration is modified.
+   * Sets/Serializes given {@link DataSink} into Hadoop configuration. Note that
+   * original configuration is modified.
+   *
    * @param conf Instance of Hadoop configuration
    * @param sink Euphoria sink
+   *
    * @return Modified configuration
+   *
+   * @throws IOException if serializing the given data sink fails for some reason
    */
-  public static <V> Configuration configure(
-      Configuration conf, DataSink<V> sink) throws IOException {
-    
+  public static Configuration configure(Configuration conf, DataSink<?> sink)
+      throws IOException {
+
     conf.set(DATA_SINK, toBase64(sink));
     return conf;
   }

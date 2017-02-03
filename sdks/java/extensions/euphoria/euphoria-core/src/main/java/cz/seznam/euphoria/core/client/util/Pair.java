@@ -20,6 +20,9 @@ import java.util.Objects;
 
 /**
  * Pair of any types. The pair has to fit in memory and is read-only.
+ *
+ * @param <K> the type of the key - first element of the pair
+ * @param <V> the type of the value - second element of the pair
  */
 public class Pair<K, V> implements java.util.Map.Entry<K, V> {
 
@@ -42,6 +45,12 @@ public class Pair<K, V> implements java.util.Map.Entry<K, V> {
 
   /**
    * Retrieves a comparator which compares pairs by their {@link #getFirst()} member.
+   *
+   * @param <K> the type of key of the pairs to compare
+   * @param <V> type of the value of the pairs - can be anything since the returned
+   *             comparator does not used it at all
+   *
+   * @return a comparator based on the {@link #getFirst()} property of pairs
    */
   @SuppressWarnings({"unchecked", "UnusedDeclaration"})
   public static <K extends Comparable<K>, V> Comparator<Pair<K, V>> compareByFirst() {
@@ -50,6 +59,12 @@ public class Pair<K, V> implements java.util.Map.Entry<K, V> {
 
   /**
    * Retrieves a comparator which compares pairs by their {@link #getSecond()} member.
+   *
+   * @param <K> the type of key of the pairs - can be anything since the returned
+   *             comparator does not used it at all
+   * @param <V> type of the value of the pairs to compare
+   *
+   * @return a comparator based on the {@link #getSecond()} ()} property of pairs
    */
   @SuppressWarnings({"unchecked", "UnusedDeclaration"})
   public static <K, V extends Comparable<V>> Comparator<Pair<K, V>> compareBySecond() {
@@ -68,6 +83,14 @@ public class Pair<K, V> implements java.util.Map.Entry<K, V> {
 
   /**
    * Construct the pair.
+   *
+   * @param <K> type of the key of the pair
+   * @param <V> type of the value of the pair
+   *
+   * @param first the first element of the pair
+   * @param second the second element of the pair
+   *
+   * @return a newly constructed pair
    */
   public static <K, V> Pair<K, V> of(K first, V second) {
     return new Pair<>(first, second);

@@ -19,11 +19,20 @@ import java.io.Serializable;
 
 /**
  * Function of single argument.
+ *
+ * @param <IN> the type of the element processed
+ * @param <OUT> the type of the result applying element to the function
  */
 @FunctionalInterface
 public interface UnaryFunction<IN, OUT> extends Serializable {
   
-  /** Return the result of this function. */
+  /**
+   * Return the result of this function.
+   *
+   * @param what the element applied to the function
+   *
+   * @return the result of the function application
+   */
   OUT apply(IN what);
 
 }

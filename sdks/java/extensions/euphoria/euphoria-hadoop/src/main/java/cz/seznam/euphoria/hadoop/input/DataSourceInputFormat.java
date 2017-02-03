@@ -38,20 +38,26 @@ import org.apache.hadoop.mapreduce.TaskAttemptContext;
 
 /**
  * {@code InputFormat} based on {@code DataSource}.
+ *
+ * @param <V> the type of elements read from this input format
  */
 public class DataSourceInputFormat<V> extends InputFormat<NullWritable, V> {
 
   private static final String DATA_SOURCE = "cz.seznam.euphoria.hadoop.data-source-serialized";
 
   /**
-   * Sets given {@link DataSource} into Hadoop configuration. Note that original
-   * configuration is modified.
+   * Sets/Serializes given {@link DataSource} into Hadoop configuration. Note that
+   * original configuration is modified.
+   *
    * @param conf Instance of Hadoop configuration
    * @param source Euphoria source
+   *
    * @return Modified configuration
+   *
+   * @throws IOException if serializing the given data source fails for some reason
    */
-  public static <V> Configuration configure(
-          Configuration conf, DataSource<V> source) throws IOException {
+  public static Configuration configure(Configuration conf, DataSource<?> source)
+      throws IOException {
 
     conf.set(DATA_SOURCE, toBase64(source));
     return conf;

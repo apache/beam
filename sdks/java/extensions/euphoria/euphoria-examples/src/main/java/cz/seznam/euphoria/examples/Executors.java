@@ -76,6 +76,24 @@ public class Executors {
 
   /**
    * Creates an executor by name or fails if the specified name is not recognized.
+   * Supported names are:
+   *
+   * <ul>
+   *   <li>inmem - the in memory executor (suitable for unit tests)</li>
+   *   <li>flink-test - a flink executor for running on the local machine
+   *        (suitable for unit tests)</li>
+   *   <li>flink - a flink executor capable of running in a distributed fashion</li>
+   *   <li>spark-test - a local spark executor for running on the local machine
+   *        (suitable for unit tests)</li>
+   *   <li>spark - a spark executor capable of running in a distributed fashion</li>
+   * </ul>
+   *
+   * @param executorName the name of the executor to create
+   *
+   * @return a newly created executor
+   *
+   * @throws IllegalArgumentException if the specified name is unknown
+   * @throws IOException if setting up the executor fails for some reason
    */
   public static Executor createExecutor(String executorName) throws IOException {
     // ~ be sure to go through factories to leverage java lazy class loading;

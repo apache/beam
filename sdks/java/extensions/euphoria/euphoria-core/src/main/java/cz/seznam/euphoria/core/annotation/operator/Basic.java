@@ -21,17 +21,17 @@ import java.lang.annotation.Target;
 
 /**
  * Annotation marking an operator a {@code Basic} operator.
- * A basic operator is such operator that an executor *must* implement
- * in order to be able to run any flow.
+ * Such an operator *must* be implemented (natively) by an executor
+ * in order to run a flow.
  */
 @Documented
 @Target(ElementType.TYPE)
 public @interface Basic {
 
-  /** State complexity, use {@code StateComplexity.<value>}. */
-  int state();
+  /** @return the state complexity */
+  StateComplexity state();
   
-  /** Number of global repartition operations. */
+  /** @return number of global repartition operations */
   int repartitions();
     
 }

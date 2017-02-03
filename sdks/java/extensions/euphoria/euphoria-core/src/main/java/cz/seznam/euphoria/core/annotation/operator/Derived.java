@@ -28,10 +28,10 @@ import java.lang.annotation.Target;
 @Target(ElementType.TYPE)
 public @interface Derived {
 
-  /** State complexity, use {@code StateComplexity.<value>}. */
-  int state();
+  /** @return the state complexity */
+  StateComplexity state();
 
-  /** Number of global repartition operations. */
+  /** @return the number of global repartition operations */
   int repartitions();
 
 
