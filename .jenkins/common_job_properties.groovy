@@ -165,10 +165,10 @@ class common_job_properties {
 
   // Sets common config for PreCommit jobs.
   static def setPreCommit(def context,
-                          def comment,
+                          def commitStatusName,
                           def successComment = '--none--') {
     // Set pull request build trigger.
-    setPullRequestBuildTrigger(context, comment, successComment)
+    setPullRequestBuildTrigger(context, commitStatusName, successComment)
   }
 
   // Sets common config for PostCommit jobs.
