@@ -408,8 +408,8 @@ Figure 1: The pipeline data flow.</p>
 
 <span class="k">class</span> <span class="nc">FormatAsTextFn</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">DoFn</span><span class="p">):</span>
 
-  <span class="k">def</span> <span class="nf">process</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">context</span><span class="p">):</span>
-    <span class="n">word</span><span class="p">,</span> <span class="n">count</span> <span class="o">=</span> <span class="n">context</span><span class="o">.</span><span class="n">element</span>
+  <span class="k">def</span> <span class="nf">process</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">element</span><span class="p">):</span>
+    <span class="n">word</span><span class="p">,</span> <span class="n">count</span> <span class="o">=</span> <span class="n">element</span>
     <span class="k">yield</span> <span class="s">'</span><span class="si">%</span><span class="s">s: </span><span class="si">%</span><span class="s">s'</span> <span class="o">%</span> <span class="p">(</span><span class="n">word</span><span class="p">,</span> <span class="n">count</span><span class="p">)</span>
 
 <span class="n">formatted</span> <span class="o">=</span> <span class="n">counts</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">ParDo</span><span class="p">(</span><span class="n">FormatAsTextFn</span><span class="p">())</span>
@@ -563,8 +563,8 @@ Figure 1: The pipeline data flow.</p>
     <span class="bp">self</span><span class="o">.</span><span class="n">matched_words</span> <span class="o">=</span> <span class="n">Metrics</span><span class="o">.</span><span class="n">counter</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__class__</span><span class="p">,</span> <span class="s">'matched_words'</span><span class="p">)</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">umatched_words</span> <span class="o">=</span> <span class="n">Metrics</span><span class="o">.</span><span class="n">counter</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__class__</span><span class="p">,</span> <span class="s">'umatched_words'</span><span class="p">)</span>
 
-  <span class="k">def</span> <span class="nf">process</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">context</span><span class="p">):</span>
-    <span class="n">word</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">context</span><span class="o">.</span><span class="n">element</span>
+  <span class="k">def</span> <span class="nf">process</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">element</span><span class="p">):</span>
+    <span class="n">word</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">element</span>
     <span class="k">if</span> <span class="n">re</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">pattern</span><span class="p">,</span> <span class="n">word</span><span class="p">):</span>
       <span class="c"># Log at INFO level each element we match. When executing this pipeline</span>
       <span class="c"># using the Dataflow service, these log lines will appear in the Cloud</span>
@@ -573,7 +573,7 @@ Figure 1: The pipeline data flow.</p>
 
       <span class="c"># Add 1 to the custom metric counter matched_words</span>
       <span class="bp">self</span><span class="o">.</span><span class="n">matched_words</span><span class="o">.</span><span class="n">inc</span><span class="p">()</span>
-      <span class="k">yield</span> <span class="n">context</span><span class="o">.</span><span class="n">element</span>
+      <span class="k">yield</span> <span class="n">element</span>
     <span class="k">else</span><span class="p">:</span>
       <span class="c"># Log at the "DEBUG" level each element that is not matched. Different</span>
       <span class="c"># log levels can be used to control the verbosity of logging providing</span>

@@ -1035,9 +1035,9 @@ tree, [2]
 <span class="c"># The only change is that the first arguments are self and a context, rather than the PCollection element itself.</span>
 
 <span class="k">class</span> <span class="nc">FilterUsingLength</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">DoFn</span><span class="p">):</span>
-  <span class="k">def</span> <span class="nf">process</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">context</span><span class="p">,</span> <span class="n">lower_bound</span><span class="p">,</span> <span class="n">upper_bound</span><span class="o">=</span><span class="nb">float</span><span class="p">(</span><span class="s">'inf'</span><span class="p">)):</span>
-    <span class="k">if</span> <span class="n">lower_bound</span> <span class="o">&lt;=</span> <span class="nb">len</span><span class="p">(</span><span class="n">context</span><span class="o">.</span><span class="n">element</span><span class="p">)</span> <span class="o">&lt;=</span> <span class="n">upper_bound</span><span class="p">:</span>
-      <span class="k">yield</span> <span class="n">context</span><span class="o">.</span><span class="n">element</span>
+  <span class="k">def</span> <span class="nf">process</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">element</span><span class="p">,</span> <span class="n">lower_bound</span><span class="p">,</span> <span class="n">upper_bound</span><span class="o">=</span><span class="nb">float</span><span class="p">(</span><span class="s">'inf'</span><span class="p">)):</span>
+    <span class="k">if</span> <span class="n">lower_bound</span> <span class="o">&lt;=</span> <span class="nb">len</span><span class="p">(</span><span class="n">element</span><span class="p">)</span> <span class="o">&lt;=</span> <span class="n">upper_bound</span><span class="p">:</span>
+      <span class="k">yield</span> <span class="n">element</span>
 
 <span class="n">small_words</span> <span class="o">=</span> <span class="n">words</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">ParDo</span><span class="p">(</span><span class="n">FilterUsingLength</span><span class="p">(),</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">3</span><span class="p">)</span>
 
@@ -1166,17 +1166,17 @@ tree, [2]
 
 <span class="k">class</span> <span class="nc">ProcessWords</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">DoFn</span><span class="p">):</span>
 
-  <span class="k">def</span> <span class="nf">process</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">context</span><span class="p">,</span> <span class="n">cutoff_length</span><span class="p">,</span> <span class="n">marker</span><span class="p">):</span>
-    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">context</span><span class="o">.</span><span class="n">element</span><span class="p">)</span> <span class="o">&lt;=</span> <span class="n">cutoff_length</span><span class="p">:</span>
+  <span class="k">def</span> <span class="nf">process</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">element</span><span class="p">,</span> <span class="n">cutoff_length</span><span class="p">,</span> <span class="n">marker</span><span class="p">):</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">element</span><span class="p">)</span> <span class="o">&lt;=</span> <span class="n">cutoff_length</span><span class="p">:</span>
       <span class="c"># Emit this short word to the main output.</span>
-      <span class="k">yield</span> <span class="n">context</span><span class="o">.</span><span class="n">element</span>
+      <span class="k">yield</span> <span class="n">element</span>
     <span class="k">else</span><span class="p">:</span>
       <span class="c"># Emit this word's long length to a side output.</span>
       <span class="k">yield</span> <span class="n">pvalue</span><span class="o">.</span><span class="n">SideOutputValue</span><span class="p">(</span>
-          <span class="s">'above_cutoff_lengths'</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">context</span><span class="o">.</span><span class="n">element</span><span class="p">))</span>
-    <span class="k">if</span> <span class="n">context</span><span class="o">.</span><span class="n">element</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="n">marker</span><span class="p">):</span>
+          <span class="s">'above_cutoff_lengths'</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">element</span><span class="p">))</span>
+    <span class="k">if</span> <span class="n">element</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="n">marker</span><span class="p">):</span>
       <span class="c"># Emit this word to a different side output.</span>
-      <span class="k">yield</span> <span class="n">pvalue</span><span class="o">.</span><span class="n">SideOutputValue</span><span class="p">(</span><span class="s">'marked strings'</span><span class="p">,</span> <span class="n">context</span><span class="o">.</span><span class="n">element</span><span class="p">)</span>
+      <span class="k">yield</span> <span class="n">pvalue</span><span class="o">.</span><span class="n">SideOutputValue</span><span class="p">(</span><span class="s">'marked strings'</span><span class="p">,</span> <span class="n">element</span><span class="p">)</span>
 
 
 <span class="c"># Side outputs are also available in Map and FlatMap.</span>
