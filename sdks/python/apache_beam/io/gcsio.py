@@ -546,7 +546,8 @@ class GcsBufferedReader(object):
         self.buffer_start_position + len(self.buffer) <= self.position):
       bytes_to_request = min(self._remaining(), self.buffer_size)
       self.buffer_start_position = self.position
-      while True:
+      retry_count = 0
+      while retry_count <= 10:
         queue = Queue.Queue()
         t = threading.Thread(target=self._fetch_to_queue,
                              args=(queue, self._get_segment,
@@ -554,19 +555,13 @@ class GcsBufferedReader(object):
         t.daemon = True
         t.start()
         try:
-          result, exn = queue.get(timeout=self.segment_timeout)
-          if exn:
-            logging.error(
-                'Exception while fetching %d bytes from position %d of %s: %s.',
-                bytes_to_request, self.position, self.path, exn)
-            raise exn
-          self.buffer = result
-          return
+          result, exn, tb = queue.get(timeout=self.segment_timeout)
         except Queue.Empty:
           logging.warning(
               ('Timed out fetching %d bytes from position %d of %s after %f '
                'seconds; retrying...'), bytes_to_request, self.position,
               self.path, self.segment_timeout)
+          retry_count += 1
           # Reinitialize download objects.
           self.download_stream = cStringIO.StringIO()
           self.downloader = transfer.Download(
@@ -574,13 +569,24 @@ class GcsBufferedReader(object):
               chunksize=self.buffer_size)
           self.client.objects.Get(self.get_request, download=self.downloader)
           continue
+        if exn:
+          logging.error(
+              ('Exception while fetching %d bytes from position %d of %s: '
+               '%s\n%s'),
+              bytes_to_request, self.position, self.path, exn, tb)
+          raise exn
+        self.buffer = result
+        return
+      raise GcsIOError(
+          'Reached retry limit for _fetch_next_if_buffer_exhausted.')
 
   def _fetch_to_queue(self, queue, func, args):
     try:
       value = func(*args)
-      queue.put((value, None))
+      queue.put((value, None, None))
     except Exception as e:  # pylint: disable=broad-except
-      queue.put((None, e))
+      tb = traceback.format_exc()
+      queue.put((None, e, tb))
 
   def _remaining(self):
     return self.size - self.position
