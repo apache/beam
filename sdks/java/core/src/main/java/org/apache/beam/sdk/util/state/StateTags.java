@@ -43,6 +43,63 @@ public class StateTags {
     STANDARD_REGISTRY.registerStandardCoders();
   }
 
+  /** @deprecated for migration purposes only */
+  @Deprecated
+  private static <K> StateBinder<K> adaptTagBinder(final StateTag.StateBinder<K> binder) {
+    return new StateBinder<K>() {
+      @Override
+      public <T> ValueState<T> bindValue(
+          String id, StateSpec<? super K, ValueState<T>> spec, Coder<T> coder) {
+        return binder.bindValue(tagForSpec(id, spec), coder);
+      }
+
+      @Override
+      public <T> BagState<T> bindBag(
+          String id, StateSpec<? super K, BagState<T>> spec, Coder<T> elemCoder) {
+        return binder.bindBag(tagForSpec(id, spec), elemCoder);
+      }
+
+      @Override
+      public <InputT, AccumT, OutputT>
+          AccumulatorCombiningState<InputT, AccumT, OutputT> bindCombiningValue(
+              String id,
+              StateSpec<? super K, AccumulatorCombiningState<InputT, AccumT, OutputT>> spec,
+              Coder<AccumT> accumCoder,
+              CombineFn<InputT, AccumT, OutputT> combineFn) {
+        return binder.bindCombiningValue(tagForSpec(id, spec), accumCoder, combineFn);
+      }
+
+      @Override
+      public <InputT, AccumT, OutputT>
+          AccumulatorCombiningState<InputT, AccumT, OutputT> bindKeyedCombiningValue(
+              String id,
+              StateSpec<? super K, AccumulatorCombiningState<InputT, AccumT, OutputT>> spec,
+              Coder<AccumT> accumCoder,
+              KeyedCombineFn<? super K, InputT, AccumT, OutputT> combineFn) {
+        return binder.bindKeyedCombiningValue(tagForSpec(id, spec), accumCoder, combineFn);
+      }
+
+      @Override
+      public <InputT, AccumT, OutputT>
+          AccumulatorCombiningState<InputT, AccumT, OutputT> bindKeyedCombiningValueWithContext(
+              String id,
+              StateSpec<? super K, AccumulatorCombiningState<InputT, AccumT, OutputT>> spec,
+              Coder<AccumT> accumCoder,
+              KeyedCombineFnWithContext<? super K, InputT, AccumT, OutputT> combineFn) {
+        return binder.bindKeyedCombiningValueWithContext(
+            tagForSpec(id, spec), accumCoder, combineFn);
+      }
+
+      @Override
+      public <W extends BoundedWindow> WatermarkHoldState<W> bindWatermark(
+          String id,
+          StateSpec<? super K, WatermarkHoldState<W>> spec,
+          OutputTimeFn<? super W> outputTimeFn) {
+        return binder.bindWatermark(tagForSpec(id, spec), outputTimeFn);
+      }
+    };
+  }
+
   private enum StateKind {
     SYSTEM('s'),
     USER('u');
@@ -238,7 +295,7 @@ public class StateTags {
     @Deprecated
     public StateT bind(StateTag.StateBinder<? extends K> binder) {
       return spec.bind(
-          this.id.getRawId(), StateSpecs.adaptTagBinder(binder));
+          this.id.getRawId(), adaptTagBinder(binder));
     }
 
     @Override
