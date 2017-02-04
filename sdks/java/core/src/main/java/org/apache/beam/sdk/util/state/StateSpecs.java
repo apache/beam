@@ -60,8 +60,7 @@ public class StateSpecs {
 
   /**
    * Create a state spec for values that use a {@link KeyedCombineFn} to automatically merge
-   * multiple {@code InputT}s into a single {@code OutputT}. The key provided to the {@link
-   * KeyedCombineFn} comes from the keyed {@link StateAccessor}.
+   * multiple {@code InputT}s into a single {@code OutputT}.
    */
   public static <K, InputT, AccumT, OutputT>
       StateSpec<K, AccumulatorCombiningState<InputT, AccumT, OutputT>> keyedCombiningValue(
@@ -71,9 +70,7 @@ public class StateSpecs {
 
   /**
    * Create a state spec for values that use a {@link KeyedCombineFnWithContext} to automatically
-   * merge multiple {@code InputT}s into a single {@code OutputT}. The key provided to the {@link
-   * KeyedCombineFn} comes from the keyed {@link StateAccessor}, the context provided comes from the
-   * {@link StateContext}.
+   * merge multiple {@code InputT}s into a single {@code OutputT}.
    */
   public static <K, InputT, AccumT, OutputT>
       StateSpec<K, AccumulatorCombiningState<InputT, AccumT, OutputT>>

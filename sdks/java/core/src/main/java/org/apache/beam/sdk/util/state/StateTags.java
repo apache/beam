@@ -87,8 +87,7 @@ public class StateTags {
 
   /**
    * Create a state tag for values that use a {@link KeyedCombineFn} to automatically merge
-   * multiple {@code InputT}s into a single {@code OutputT}. The key provided to the
-   * {@link KeyedCombineFn} comes from the keyed {@link StateAccessor}.
+   * multiple {@code InputT}s into a single {@code OutputT}.
    */
   public static <K, InputT, AccumT,
       OutputT> StateTag<K, AccumulatorCombiningState<InputT, AccumT, OutputT>>
@@ -100,9 +99,7 @@ public class StateTags {
 
   /**
    * Create a state tag for values that use a {@link KeyedCombineFnWithContext} to automatically
-   * merge multiple {@code InputT}s into a single {@code OutputT}. The key provided to the
-   * {@link KeyedCombineFn} comes from the keyed {@link StateAccessor}, the context provided comes
-   * from the {@link StateContext}.
+   * merge multiple {@code InputT}s into a single {@code OutputT}.
    */
   public static <K, InputT, AccumT, OutputT>
       StateTag<K, AccumulatorCombiningState<InputT, AccumT, OutputT>>

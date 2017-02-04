@@ -25,6 +25,8 @@ import java.util.Collection;
 import java.util.Map;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.core.ActiveWindowSet;
+import org.apache.beam.runners.core.MergingStateAccessor;
+import org.apache.beam.runners.core.StateAccessor;
 import org.apache.beam.runners.core.StateInternals;
 import org.apache.beam.runners.core.StateNamespace;
 import org.apache.beam.runners.core.StateNamespaces;
@@ -35,9 +37,7 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.TimeDomain;
 import org.apache.beam.sdk.util.Timers;
-import org.apache.beam.sdk.util.state.MergingStateAccessor;
 import org.apache.beam.sdk.util.state.State;
-import org.apache.beam.sdk.util.state.StateAccessor;
 import org.apache.beam.sdk.util.state.StateTag;
 import org.joda.time.Instant;
 
