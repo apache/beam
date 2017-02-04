@@ -75,7 +75,7 @@ class RetryTest(unittest.TestCase):
 
   def transient_failure(self, a, b):
     self.calls += 1
-    if self.calls > 8:
+    if self.calls > 4:
       return a + b
     raise NotImplementedError
 
@@ -99,7 +99,7 @@ class RetryTest(unittest.TestCase):
                       retry.with_exponential_backoff(clock=self.clock)(
                           self.permanent_failure),
                       10, b=20)
-    self.assertEqual(len(self.clock.calls), 16)
+    self.assertEqual(len(self.clock.calls), 7)
 
   def test_with_explicit_number_of_retries(self):
     self.assertRaises(NotImplementedError,
@@ -133,7 +133,7 @@ class RetryTest(unittest.TestCase):
                           fuzz=False)(
                               self.permanent_failure),
                       10, b=20)
-    self.assertEqual(len(self.clock.calls), 16)
+    self.assertEqual(len(self.clock.calls), 7)
     self.assertEqual(self.clock.calls[0], 10.0)
 
   def test_log_calls_for_permanent_failure(self):
@@ -142,7 +142,7 @@ class RetryTest(unittest.TestCase):
                           clock=self.clock, logger=self.logger.log)(
                               self.permanent_failure),
                       10, b=20)
-    self.assertEqual(len(self.logger.calls), 16)
+    self.assertEqual(len(self.logger.calls), 7)
     for message, func_name, exn_name  in self.logger.calls:
       self.assertTrue(message.startswith('Retry with exponential backoff:'))
       self.assertEqual(exn_name, 'NotImplementedError\n')
@@ -153,11 +153,10 @@ class RetryTest(unittest.TestCase):
         clock=self.clock, logger=self.logger.log, fuzz=False)(
             self.transient_failure)(10, b=20)
     self.assertEqual(result, 30)
-    self.assertEqual(len(self.clock.calls), 8)
+    self.assertEqual(len(self.clock.calls), 4)
     self.assertEqual(self.clock.calls,
-                     [5.0 * 1, 5.0 * 2, 5.0 * 4, 5.0 * 8,
-                      5.0 * 16, 5.0 * 32, 5.0 * 64, 5.0 * 128])
-    self.assertEqual(len(self.logger.calls), 8)
+                     [5.0 * 1, 5.0 * 2, 5.0 * 4, 5.0 * 8,])
+    self.assertEqual(len(self.logger.calls), 4)
     for message, func_name, exn_name  in self.logger.calls:
       self.assertTrue(message.startswith('Retry with exponential backoff:'))
       self.assertEqual(exn_name, 'NotImplementedError\n')
