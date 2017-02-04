@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="en">
+
+  <head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <title>Ensuring Python Type Safety</title>
+  <meta name="description" content="Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.
+">
+
+  <link rel="stylesheet" href="/styles/site.css">
+  <link rel="stylesheet" href="/css/theme.css">
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.2.0/jquery.min.js"></script>
+  <script src="/js/bootstrap.min.js"></script>
+  <script src="/js/language-switch.js"></script>
+  <link rel="canonical" href="https://beam.apache.org/documentation/sdks/python-type-safety/" data-proofer-ignore>
+  <link rel="alternate" type="application/rss+xml" title="Apache Beam" href="https://beam.apache.org/feed.xml">
+  <script>
+    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+    (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+    m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+    })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+
+    ga('create', 'UA-73650088-1', 'auto');
+    ga('send', 'pageview');
+
+  </script>
+  <link rel="shortcut icon" type="image/x-icon" href="/images/favicon.ico">
+</head>
+
+
+  <body role="document">
+
+    <nav class="navbar navbar-default navbar-fixed-top">
+  <div class="container">
+    <div class="navbar-header">
+      <a href="/" class="navbar-brand" >
+        <img alt="Brand" style="height: 25px" src="/images/beam_logo_navbar.png">
+      </a>
+      <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar" aria-expanded="false" aria-controls="navbar">
+        <span class="sr-only">Toggle navigation</span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+      </button>
+    </div>
+    <div id="navbar" class="navbar-collapse collapse">
+      <ul class="nav navbar-nav">
+        <li class="dropdown">
+		  <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">Get Started <span class="caret"></span></a>
+		  <ul class="dropdown-menu">
+			  <li><a href="/get-started/beam-overview/">Beam Overview</a></li>
+        <li><a href="/get-started/quickstart-java/">Quickstart - Java</a></li>
+        <li><a href="/get-started/quickstart-py/">Quickstart - Python</a></li>
+			  <li role="separator" class="divider"></li>
+			  <li class="dropdown-header">Example Walkthroughs</li>
+			  <li><a href="/get-started/wordcount-example/">WordCount</a></li>
+			  <li><a href="/get-started/mobile-gaming-example/">Mobile Gaming</a></li>
+              <li role="separator" class="divider"></li>
+              <li class="dropdown-header">Resources</li>
+              <li><a href="/get-started/downloads">Downloads</a></li>
+              <li><a href="/get-started/support">Support</a></li>
+		  </ul>
+	    </li>
+        <li class="dropdown">
+		  <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">Documentation <span class="caret"></span></a>
+		  <ul class="dropdown-menu">
+			  <li><a href="/documentation">Using the Documentation</a></li>
+			  <li role="separator" class="divider"></li>
+			  <li class="dropdown-header">Beam Concepts</li>
+			  <li><a href="/documentation/programming-guide/">Programming Guide</a></li>
+			  <li><a href="/documentation/resources/">Additional Resources</a></li>
+			  <li role="separator" class="divider"></li>
+              <li class="dropdown-header">Pipeline Fundamentals</li>
+              <li><a href="/documentation/pipelines/design-your-pipeline/">Design Your Pipeline</a></li>
+              <li><a href="/documentation/pipelines/create-your-pipeline/">Create Your Pipeline</a></li>
+              <li><a href="/documentation/pipelines/test-your-pipeline/">Test Your Pipeline</a></li>
+              <li role="separator" class="divider"></li>
+			  <li class="dropdown-header">SDKs</li>
+			  <li><a href="/documentation/sdks/java/">Java SDK</a></li>
+			  <li><a href="/documentation/sdks/javadoc/0.4.0/" target="_blank">Java SDK API Reference <img src="/images/external-link-icon.png"
+                 width="14" height="14"
+                 alt="External link."></a>
+        </li>
+        <li><a href="/documentation/sdks/python/">Python SDK</a></li>
+			  <li role="separator" class="divider"></li>
+			  <li class="dropdown-header">Runners</li>
+			  <li><a href="/documentation/runners/capability-matrix/">Capability Matrix</a></li>
+			  <li><a href="/documentation/runners/direct/">Direct Runner</a></li>
+			  <li><a href="/documentation/runners/apex/">Apache Apex Runner</a></li>
+			  <li><a href="/documentation/runners/flink/">Apache Flink Runner</a></li>
+			  <li><a href="/documentation/runners/spark/">Apache Spark Runner</a></li>
+			  <li><a href="/documentation/runners/dataflow/">Cloud Dataflow Runner</a></li>
+		  </ul>
+	    </li>
+        <li class="dropdown">
+		  <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">Contribute <span class="caret"></span></a>
+		  <ul class="dropdown-menu">
+			  <li><a href="/contribute">Get Started Contributing</a></li>
+        <li role="separator" class="divider"></li>
+        <li class="dropdown-header">Guides</li>
+			  <li><a href="/contribute/contribution-guide/">Contribution Guide</a></li>
+        <li><a href="/contribute/testing/">Testing Guide</a></li>
+        <li><a href="/contribute/release-guide/">Release Guide</a></li>
+        <li><a href="/contribute/ptransform-style-guide/">PTransform Style Guide</a></li>
+        <li role="separator" class="divider"></li>
+        <li class="dropdown-header">Technical References</li>
+        <li><a href="/contribute/design-principles/">Design Principles</a></li>
+			  <li><a href="/contribute/work-in-progress/">Ongoing Projects</a></li>
+        <li><a href="/contribute/source-repository/">Source Repository</a></li>      
+        <li role="separator" class="divider"></li>
+			  <li class="dropdown-header">Promotion</li>
+        <li><a href="/contribute/presentation-materials/">Presentation Materials</a></li>
+        <li><a href="/contribute/logos/">Logos and Design</a></li>
+        <li role="separator" class="divider"></li>
+        <li><a href="/contribute/maturity-model/">Maturity Model</a></li>
+        <li><a href="/contribute/team/">Team</a></li>
+		  </ul>
+	    </li>
+
+        <li><a href="/blog">Blog</a></li>
+      </ul>
+      <ul class="nav navbar-nav navbar-right">
+        <li class="dropdown">
+          <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false"><img src="https://www.apache.org/foundation/press/kit/feather_small.png" alt="Apache Logo" style="height:24px;">Apache Software Foundation<span class="caret"></span></a>
+          <ul class="dropdown-menu dropdown-menu-right">
+            <li><a href="http://www.apache.org/">ASF Homepage</a></li>
+            <li><a href="http://www.apache.org/licenses/">License</a></li>
+            <li><a href="http://www.apache.org/security/">Security</a></li>
+            <li><a href="http://www.apache.org/foundation/thanks.html">Thanks</a></li>
+            <li><a href="http://www.apache.org/foundation/sponsorship.html">Sponsorship</a></li>
+            <li><a href="https://www.apache.org/foundation/policies/conduct">Code of Conduct</a></li>
+          </ul>
+        </li>
+      </ul>
+    </div><!--/.nav-collapse -->
+  </div>
+</nav>
+
+
+<link rel="stylesheet" href="">
+
+
+    <div class="container" role="main">
+
+      <div class="row">
+        <h1 id="ensuring-python-type-safety">Ensuring Python Type Safety</h1>
+
+<p>Python is a dynamically-typed language with no static type checking. Because of the way Python’s type checking works, as well as the deferred nature of runner execution, developer productivity can easily become bottle-necked by time spent investigating type-related errors.</p>
+
+<p>The Apache Beam SDK for Python uses <strong>type hints</strong> during pipeline construction and runtime to try to emulate the correctness guarantees achieved by true static typing. Additionally, using type hints lays some groundwork that allows the backend service to perform efficient type deduction and registration of <code class="highlighter-rouge">Coder</code> objects.</p>
+
+<p>Python version 3.5 introduces a module called <strong>typing</strong> to provide hints for type validators in the language. The Beam SDK for Python, based on Python version 2.7, implements a subset of <a href="https://www.python.org/dev/peps/pep-0484/">PEP 484</a> and aims to follow it as closely as possible in its own typehints module.</p>
+
+<h2 id="benefits-of-type-hints">Benefits of Type Hints</h2>
+
+<p>The Beam SDK for Python includes some automatic type checking: for example, some <code class="highlighter-rouge">PTransform</code>s, such as <code class="highlighter-rouge">Create</code> and simple <code class="highlighter-rouge">ParDo</code> transforms, attempt to deduce their output type given their input. However, the Beam cannot infer types in all cases. Therefore, the recommendation is that you declare type hints to aid you in performing your own type checks if necessary.</p>
+
+<p>When you use type hints, the runner raises exceptions during pipeline construction time, rather than runtime. For example, the runner generates an exception if it detects that your pipeline applies mismatched <code class="highlighter-rouge">PTransforms</code> (where the expected outputs of one transform do not match the expected inputs of the following transform). These exceptions are raised at pipeline construction time, regardless of where your pipeline will execute. Introducing type hints for the <code class="highlighter-rouge">PTransform</code>s you define allows you to catch potential bugs up front in the local runner, rather than after minutes of execution into a deep, complex pipeline.</p>
+
+<p>Consider the following example, in which <code class="highlighter-rouge">numbers</code> is a <code class="highlighter-rouge">PCollection</code> of <code class="highlighter-rouge">str</code> values:</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>numbers = p | beam.Create(['1', '2', '3'])
+</code></pre>
+</div>
+
+<p>The code then applies a <code class="highlighter-rouge">Filter</code> transform to the <code class="highlighter-rouge">numbers</code> collection with a callable that retrieves the even numbers.</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>evens = numbers | beam.Filter(lambda x: x % 2 == 0)
+</code></pre>
+</div>
+
+<p>When you call <code class="highlighter-rouge">p.run()</code>, this code generates an error because <code class="highlighter-rouge">Filter</code> expects a <code class="highlighter-rouge">PCollection</code> of integers, but is given a <code class="highlighter-rouge">PCollection</code> of strings instead.</p>
+
+<h2 id="declaring-type-hints">Declaring Type Hints</h2>
+
+<p>You can declare type hints on callables, <code class="highlighter-rouge">DoFn</code>s, or entire <code class="highlighter-rouge">PTransforms</code>. There are two ways to declare type hints: inline during pipeline construction, or as properties of the <code class="highlighter-rouge">DoFn</code> or <code class="highlighter-rouge">PTransform</code>, using decorators.</p>
+
+<p>You can always declare type hints inline, but if you need them for code that is going to be reused, declare them as decorators. For example, if your <code class="highlighter-rouge">DoFn</code> requires an <code class="highlighter-rouge">int</code> input, it makes more sense to declare the type hint for the input as a property of the <code class="highlighter-rouge">DoFn</code> rather than inline.</p>
+
+<h3 id="declaring-type-hints-inline">Declaring Type Hints Inline</h3>
+
+<p>To specify type hints inline, use the methods <code class="highlighter-rouge">with_input_types</code> and <code class="highlighter-rouge">with_output_types</code>. The following example code declares an input type hint inline:</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>p.options.view_as(TypeOptions).pipeline_type_check = True
+evens = numbers | beam.Filter(lambda x: x % 2 == 0).with_input_types(int)
+</code></pre>
+</div>
+
+<p>When you apply the Filter transform to the numbers collection in the example above, you’ll be able to catch the error during pipeline construction.</p>
+
+<h3 id="declaring-type-hints-using-decorators">Declaring Type Hints Using Decorators</h3>
+
+<p>To specify type hints as properties of a <code class="highlighter-rouge">DoFn</code> or <code class="highlighter-rouge">PTransform</code>, use the decorators <code class="highlighter-rouge">@with_input_types()</code> and <code class="highlighter-rouge">@with_output_types()</code>.</p>
+
+<p>The following code declares an <code class="highlighter-rouge">int</code> type hint on <code class="highlighter-rouge">FilterEvensDoFn</code>, using the decorator <code class="highlighter-rouge">@with_input_types()</code>.</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>@beam.typehints.with_input_types(int)
+class FilterEvensDoFn(beam.DoFn):
+  def process(self, element):
+    if element % 2 == 0:
+      yield element
+evens = numbers | beam.ParDo(FilterEvensDoFn())
+</code></pre>
+</div>
+
+<p>Decorators receive an arbitrary number of positional and/or keyword arguments, typically interpreted in the context of the function they’re wrapping. Generally the first argument is a type hint for the main input, and additional arguments are type hints for side inputs.</p>
+
+<h3 id="defining-generic-types">Defining Generic Types</h3>
+
+<p>You can use type hint annotations to define generic types. The following code specifies an input type hint that asserts the generic type <code class="highlighter-rouge">T</code>, and an output type hint that asserts the type <code class="highlighter-rouge">Tuple[int, T]</code>.</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>T = beam.typehints.TypeVariable('T')
+
+@beam.typehints.with_input_types(T)
+@beam.typehints.with_output_types(beam.typehints.Tuple[int, T])
+class MyTransform(beam.PTransform):
+  def expand(self, pcoll):
+    return pcoll | beam.Map(lambda x: (len(x), x))
+
+words_with_lens = words | MyTransform()
+</code></pre>
+</div>
+
+<h2 id="kinds-of-type-hints">Kinds of Type Hints</h2>
+
+<p>You can use type hints with any class, including Python primitive types, container classes, and user-defined classes. All classes, such as <code class="highlighter-rouge">int</code>, <code class="highlighter-rouge">float</code>, and user-defined classes, can be used to define type hints, called <strong>simple type hints</strong>. Container types such as lists, tuples, and iterables, can also be used to define type hints and are called <strong>parameterized type hints</strong>. Finally, there are some special types that don’t correspond to any concrete Python classes, such as <code class="highlighter-rouge">Any</code>, <code class="highlighter-rouge">Optional</code>, and <code class="highlighter-rouge">Union</code>, that are also permitted as type hints.</p>
+
+<h3 id="simple-type-hints">Simple Type Hints</h3>
+
+<p>Type hints can be of any class, from <code class="highlighter-rouge">int</code> and <code class="highlighter-rouge">str</code>, to user-defined classes. If you have a class as a type hint, you may want to define a coder for it.</p>
+
+<h3 id="parameterized-type-hints">Parameterized Type Hints</h3>
+
+<p>Parameterized type hints are useful for hinting the types of container-like Python objects, such as <code class="highlighter-rouge">list</code>. These type hints further refine the elements in those container objects.</p>
+
+<p>The parameters for parameterized type hints can be simple types, parameterized types, or type variables. Element types that are type variables, such as <code class="highlighter-rouge">T</code>, impose relationships between the inputs and outputs of an operation (for example, <code class="highlighter-rouge">List[T]</code> -&gt; <code class="highlighter-rouge">T</code>). Type hints can be nested, allowing you to define type hints for complex types. For example, <code class="highlighter-rouge">List[Tuple[int, int, str]]</code>.</p>
+
+<p>In order to avoid conflicting with the namespace of the built-in container types, the first letter is capitalized.</p>
+
+<p>The following parameterized type hints are permitted:</p>
+
+<ul>
+  <li><code class="highlighter-rouge">Tuple[T, U]</code></li>
+  <li><code class="highlighter-rouge">Tuple[T, ...]</code></li>
+  <li><code class="highlighter-rouge">List[T]</code></li>
+  <li><code class="highlighter-rouge">KV[T, U]</code></li>
+  <li><code class="highlighter-rouge">Dict[T, U]</code></li>
+  <li><code class="highlighter-rouge">Set[T]</code></li>
+  <li><code class="highlighter-rouge">Iterable[T]</code></li>
+  <li><code class="highlighter-rouge">Iterator[T]</code></li>
+  <li><code class="highlighter-rouge">Generator[T]</code></li>
+</ul>
+
+<p><strong>Note:</strong> The <code class="highlighter-rouge">Tuple[T, U]</code> type hint is a tuple with a fixed number of heterogeneously typed elements, while the <code class="highlighter-rouge">Tuple[T, ...]</code> type hint is a tuple with a variable of homogeneously typed elements.</p>
+
+<h3 id="special-type-hints">Special Type Hints</h3>
+
+<p>The following are special type hints that don’t correspond to a class, but rather to special types introduced in <a href="https://www.python.org/dev/peps/pep-0484/">PEP 484</a>.</p>
+
+<ul>
+  <li><code class="highlighter-rouge">Any</code></li>
+  <li><code class="highlighter-rouge">Union[T, U, V]</code></li>
+  <li><code class="highlighter-rouge">Optional[T]</code></li>
+</ul>
+
+<h2 id="runtime-type-checking">Runtime Type Checking</h2>
+
+<p>In addition to using type hints for type checking at pipeline construction, you can enable runtime type checking to check that actual elements satisfy the declared type constraints during pipeline execution.</p>
+
+<p>For example, the following code would pass at both pipeline construction and runtime.</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>p | beam.Create(['a']) | beam.Map(lambda x: 3).with_output_types(str)
+p.run()
+</code></pre>
+</div>
+
+<p>However, if you enable runtime type checking, the code passes at pipeline construction and fails at runtime. To enable runtime type checking, set the pipeline option <code class="highlighter-rouge">runtime_type_check</code> to <code class="highlighter-rouge">True</code>.</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>p.options.view_as(TypeOptions).runtime_type_check = True
+p | beam.Create(['a']) | beam.Map(lambda x: 3).with_output_types(str)
+p.run()
+</code></pre>
+</div>
+
+<h2 id="use-of-type-hints-in-coders">Use of Type Hints in Coders</h2>
+
+<p>When your pipeline reads, writes, or otherwise materializes its data, the elements in your <code class="highlighter-rouge">PCollection</code> need to be encoded and decoded to and from byte strings. Byte strings are used for intermediate storage, for comparing keys in <code class="highlighter-rouge">GroupByKey</code> operations, and for reading from sources and writing to sinks.</p>
+
+<p>The Beam SDK for Python uses Python’s native support for serializing objects, a process called <strong>pickling</strong>, to serialize user functions. However, using the <code class="highlighter-rouge">PickleCoder</code> comes with several drawbacks: it is less efficient in time and space, and the encoding used is not deterministic, which hinders distributed partitioning, grouping, and state lookup.</p>
+
+<p>To avoid these drawbacks, you can define <code class="highlighter-rouge">Coder</code> classes for encoding and decoding types in a more efficient way. You can specify a <code class="highlighter-rouge">Coder</code> to describe how the elements of a given <code class="highlighter-rouge">PCollection</code> should be encoded and decoded.</p>
+
+<p>In order to be correct and efficient, a <code class="highlighter-rouge">Coder</code> needs type information and for <code class="highlighter-rouge">PCollection</code>s to be associated with a specific type. Type hints are what make this type information available. The Beam SDK for Python provides built-in coders for the standard Python types <code class="highlighter-rouge">int</code>, <code class="highlighter-rouge">float</code>, <code class="highlighter-rouge">str</code>, <code class="highlighter-rouge">bytes</code>, and <code class="highlighter-rouge">unicode</code>.</p>
+
+<h3 id="deterministic-coders">Deterministic Coders</h3>
+
+<p>If you don’t define a <code class="highlighter-rouge">Coder</code>, the default is <code class="highlighter-rouge">PickleCoder</code>, which is nondeterministic. In some cases, you must specify a deterministic <code class="highlighter-rouge">Coder</code> or else you will get a runtime error.</p>
+
+<p>For example, suppose you have a <code class="highlighter-rouge">PCollection</code> of key-value pairs whose keys are <code class="highlighter-rouge">Player</code> objects. If you apply a <code class="highlighter-rouge">GroupByKey</code> transform to such a collection, its key objects might be serialized differently on different machines when a nondeterministic coder, such as the default pickle coder, is used. Since <code class="highlighter-rouge">GroupByKey</code> uses this serialized representation to compare keys, this may result in incorrect behavior. To ensure that the elements are always encoded and decoded in the same way, you need to define a deterministic <code class="highlighter-rouge">Coder</code> for the <code class="highlighter-rouge">Player</code> class.</p>
+
+<p>The following code shows the example <code class="highlighter-rouge">Player</code> class and how to define a <code class="highlighter-rouge">Coder</code> for it. When you use type hints, Beam infers which <code class="highlighter-rouge">Coder</code>s to use, using <code class="highlighter-rouge">beam.coders.registry</code>. The following code registers <code class="highlighter-rouge">PlayerCoder</code> as a coder for the <code class="highlighter-rouge">Player</code> class. In the example, the input type declared for <code class="highlighter-rouge">CombinePerKey</code> is <code class="highlighter-rouge">Tuple[Player, int]</code>. In this case, Beam infers that the <code class="highlighter-rouge">Coder</code> objects to use are <code class="highlighter-rouge">TupleCoder</code>, <code class="highlighter-rouge">PlayerCoder</code>, and <code class="highlighter-rouge">IntCoder</code>.</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>class Player(object):
+  def __init__(self, team, name):
+    self.team = team
+    self.name = name
+
+class PlayerCoder(beam.coders.Coder):
+  def encode(self, player):
+    return '%s:%s' % (player.team, player.name)
+
+  def decode(self, s):
+    return Player(*s.split(':'))
+
+  def is_deterministic(self):
+    return True
+
+beam.coders.registry.register_coder(Player, PlayerCoder)
+
+def parse_player_and_score(csv):
+  name, team, score = csv.split(',')
+  return Player(team, name), int(score)
+
+totals = (
+    lines
+    | beam.Map(parse_player_and_score)
+    | beam.CombinePerKey(sum).with_input_types(
+        beam.typehints.Tuple[Player, int]))
+</code></pre>
+</div>
+
+
+      </div>
+
+
+    <hr>
+  <div class="row">
+      <div class="col-xs-12">
+          <footer>
+              <p class="text-center">
+                &copy; Copyright
+                <a href="http://www.apache.org">The Apache Software Foundation</a>,
+                2017. All Rights Reserved.
+              </p>
+              <p class="text-center">
+                <a href="/privacy_policy">Privacy Policy</a> |
+                <a href="/feed.xml">RSS Feed</a>
+              </p>
+          </footer>
+      </div>
+  </div>
+  <!-- container div end -->
+</div>
+
+
+  </body>
+
+</html>
