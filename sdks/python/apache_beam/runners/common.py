@@ -115,141 +115,89 @@ class DoFnRunner(Receiver):
       assert context is not None
       self.context = context
 
-    # TODO(Sourabhbajaj): Remove the usage of OldDoFn
-    if isinstance(fn, core.DoFn):
+    class ArgPlaceholder(object):
+      def __init__(self, placeholder):
+        self.placeholder = placeholder
 
-      class ArgPlaceholder(object):
-        def __init__(self, placeholder):
-          self.placeholder = placeholder
+    # Stash values for use in dofn_process.
+    self.side_inputs = side_inputs
+    self.has_windowed_inputs = not all(
+        si.is_globally_windowed() for si in self.side_inputs)
 
-      self.is_new_dofn = True
+    self.args = args if args else []
+    self.kwargs = kwargs if kwargs else {}
+    self.dofn = fn
+    self.dofn_process = fn.process
 
-      # Stash values for use in new_dofn_process.
-      self.side_inputs = side_inputs
-      self.has_windowed_side_inputs = not all(
-          si.is_globally_windowed() for si in self.side_inputs)
+    arguments, _, _, defaults = self.dofn.get_function_arguments('process')
+    defaults = defaults if defaults else []
+    self_in_args = int(self.dofn.is_process_bounded())
 
-      self.args = args if args else []
-      self.kwargs = kwargs if kwargs else {}
-      self.dofn = fn
-      self.dofn_process = fn.process
+    self.use_simple_invoker = (
+        not side_inputs and not args and not kwargs and not defaults)
+    if self.use_simple_invoker:
+      # As we're using the simple invoker we don't need to compute placeholders
+      return
 
-      arguments, _, _, defaults = self.dofn.get_function_arguments('process')
-      defaults = defaults if defaults else []
-      self_in_args = int(self.dofn.is_process_bounded())
+    self.has_windowed_inputs = (self.has_windowed_inputs or
+                                core.DoFn.WindowParam in defaults)
 
-      self.simple_process = (
-          not side_inputs and not args and not kwargs and not defaults)
-      if self.simple_process:
-        return
+    # Try to prepare all the arguments that can just be filled in
+    # without any additional work. in the process function.
+    # Also cache all the placeholders needed in the process function.
 
-      # TODO(Sourabhbajaj) Rename this variable once oldDoFn is deprecated
-      self.has_windowed_side_inputs = (
-          self.has_windowed_side_inputs or
-          core.DoFn.WindowParam in defaults)
+    # Fill in sideInputs if they are globally windowed
+    if not self.has_windowed_inputs:
+      self.args, self.kwargs = util.insert_values_in_args(
+          args, kwargs, [si[global_window] for si in side_inputs])
 
-      # Try to prepare all the arguments that can just be filled in
-      # without any additional work. in the process function.
-      # Also cache all the placeholders needed in the process function.
-
-      # Fill in sideInputs if they are globally windowed
-      if not self.has_windowed_side_inputs:
-        self.args, self.kwargs = util.insert_values_in_args(
-            args, kwargs, [si[global_window] for si in side_inputs])
-
-      # Create placeholder for element parameter
-      if core.DoFn.ElementParam not in defaults:
-        args_to_pick = len(arguments) - len(defaults) - 1 - self_in_args
-        final_args = [ArgPlaceholder(core.DoFn.ElementParam)] + \
-                     self.args[:args_to_pick]
-      else:
-        args_to_pick = len(arguments) - len(defaults) - self_in_args
-        final_args = self.args[:args_to_pick]
-
-      # Fill the OtherPlaceholders for context, window or timestamp
-      args = iter(self.args[args_to_pick:])
-      for a, d in zip(arguments[-len(defaults):], defaults):
-        if d == core.DoFn.ElementParam:
-          final_args.append(ArgPlaceholder(d))
-        elif d == core.DoFn.ContextParam:
-          final_args.append(ArgPlaceholder(d))
-        elif d == core.DoFn.WindowParam:
-          final_args.append(ArgPlaceholder(d))
-        elif d == core.DoFn.TimestampParam:
-          final_args.append(ArgPlaceholder(d))
-        elif d == core.DoFn.SideInputParam:
-          # If no more args are present then the value must be passed via kwarg
-          try:
-            final_args.append(args.next())
-          except StopIteration:
-            if a not in self.kwargs:
-              raise ValueError("Value for sideinput %s not provided" % a)
-        else:
-          # If no more args are present then the value must be passed via kwarg
-          try:
-            final_args.append(args.next())
-          except StopIteration:
-            pass
-      final_args.extend(list(args))
-      self.args = final_args
-
-      # Stash the list of placeholder positions for performance
-      self.placeholders = [(i, x.placeholder) for (i, x) in enumerate(self.args)
-                           if isinstance(x, ArgPlaceholder)]
-
+    # Create placeholder for element parameter
+    if core.DoFn.ElementParam not in defaults:
+      args_to_pick = len(arguments) - len(defaults) - 1 - self_in_args
+      final_args = [ArgPlaceholder(core.DoFn.ElementParam)] + \
+                   self.args[:args_to_pick]
     else:
-      self.is_new_dofn = False
-      self.has_windowed_side_inputs = False  # Set to True in one case below.
-      if not args and not kwargs:
-        self.dofn = fn
-        self.dofn_process = fn.process
+      args_to_pick = len(arguments) - len(defaults) - self_in_args
+      final_args = self.args[:args_to_pick]
+
+    # Fill the OtherPlaceholders for context, window or timestamp
+    args = iter(self.args[args_to_pick:])
+    for a, d in zip(arguments[-len(defaults):], defaults):
+      if d == core.DoFn.ElementParam:
+        final_args.append(ArgPlaceholder(d))
+      elif d == core.DoFn.ContextParam:
+        final_args.append(ArgPlaceholder(d))
+      elif d == core.DoFn.WindowParam:
+        final_args.append(ArgPlaceholder(d))
+      elif d == core.DoFn.TimestampParam:
+        final_args.append(ArgPlaceholder(d))
+      elif d == core.DoFn.SideInputParam:
+        # If no more args are present then the value must be passed via kwarg
+        try:
+          final_args.append(args.next())
+        except StopIteration:
+          if a not in self.kwargs:
+            raise ValueError("Value for sideinput %s not provided" % a)
       else:
-        if side_inputs and all(
-            side_input.is_globally_windowed() for side_input in side_inputs):
-          args, kwargs = util.insert_values_in_args(
-              args, kwargs, [side_input[global_window]
-                             for side_input in side_inputs])
-          side_inputs = []
-        if side_inputs:
-          self.has_windowed_side_inputs = True
+        # If no more args are present then the value must be passed via kwarg
+        try:
+          final_args.append(args.next())
+        except StopIteration:
+          pass
+    final_args.extend(list(args))
+    self.args = final_args
 
-          def process(context):
-            w = context.windows[0]
-            cur_args, cur_kwargs = util.insert_values_in_args(
-                args, kwargs, [side_input[w] for side_input in side_inputs])
-            return fn.process(context, *cur_args, **cur_kwargs)
-          self.dofn_process = process
-        elif kwargs:
-          self.dofn_process = lambda context: fn.process(
-              context, *args, **kwargs)
-        else:
-          self.dofn_process = lambda context: fn.process(context, *args)
-
-        class CurriedFn(core.OldDoFn):
-
-          start_bundle = staticmethod(fn.start_bundle)
-          process = staticmethod(self.dofn_process)
-          finish_bundle = staticmethod(fn.finish_bundle)
-
-        self.dofn = CurriedFn()
+    # Stash the list of placeholder positions for performance
+    self.placeholders = [(i, x.placeholder) for (i, x) in enumerate(self.args)
+                         if isinstance(x, ArgPlaceholder)]
 
   def receive(self, windowed_value):
     self.process(windowed_value)
 
-  def old_dofn_process(self, element):
-    if self.has_windowed_side_inputs and len(element.windows) > 1:
-      for w in element.windows:
-        self.context.set_element(
-            WindowedValue(element.value, element.timestamp, (w,)))
-        self._process_outputs(element, self.dofn_process(self.context))
-    else:
-      self.context.set_element(element)
-      self._process_outputs(element, self.dofn_process(self.context))
-
-  def new_dofn_simple_process(self, element):
+  def _dofn_simple_invoker(self, element):
     self._process_outputs(element, self.dofn_process(element.value))
 
-  def _new_dofn_window_process(self, element, args, kwargs, window):
+  def _dofn_window_invoker(self, element, args, kwargs, window):
     # TODO(sourabhbajaj): Investigate why we can't use `is` instead of ==
     for i, p in self.placeholders:
       if p == core.DoFn.ElementParam:
@@ -265,18 +213,18 @@ class DoFnRunner(Receiver):
     else:
       self._process_outputs(element, self.dofn_process(*args, **kwargs))
 
-  def new_dofn_process(self, element):
+  def _dofn_invoker(self, element):
     self.context.set_element(element)
     # Call for the process function for each window if has windowed side inputs
     # or if the process accesses the window parameter. We can just call it once
     # otherwise as none of the arguments are changing
-    if self.has_windowed_side_inputs:
+    if self.has_windowed_inputs:
       for w in element.windows:
         args, kwargs = util.insert_values_in_args(
             self.args, self.kwargs, [si[w] for si in self.side_inputs])
-        self._new_dofn_window_process(element, args, kwargs, w)
+        self._dofn_window_invoker(element, args, kwargs, w)
     else:
-      self._new_dofn_window_process(element, self.args, self.kwargs, None)
+      self._dofn_window_invoker(element, self.args, self.kwargs, None)
 
   def _invoke_bundle_method(self, method):
     try:
@@ -285,15 +233,11 @@ class DoFnRunner(Receiver):
       self.context.set_element(None)
       f = getattr(self.dofn, method)
 
-      # TODO(Sourabhbajaj): Remove this if-else
-      if self.is_new_dofn:
-        _, _, _, defaults = self.dofn.get_function_arguments(method)
-        defaults = defaults if defaults else []
-        args = [self.context if d == core.DoFn.ContextParam else d
-                for d in defaults]
-        self._process_outputs(None, f(*args))
-      else:
-        self._process_outputs(None, f(self.context))
+      _, _, _, defaults = self.dofn.get_function_arguments(method)
+      defaults = defaults if defaults else []
+      args = [self.context if d == core.DoFn.ContextParam else d
+              for d in defaults]
+      self._process_outputs(None, f(*args))
     except BaseException as exn:
       self.reraise_augmented(exn)
     finally:
@@ -310,13 +254,10 @@ class DoFnRunner(Receiver):
     try:
       self.logging_context.enter()
       self.scoped_metrics_container.enter()
-      if self.is_new_dofn:
-        if self.simple_process:
-          self.new_dofn_simple_process(element)
-        else:
-          self.new_dofn_process(element)
+      if self.use_simple_invoker:
+        self._dofn_simple_invoker(element)
       else:
-        self.old_dofn_process(element)
+        self._dofn_invoker(element)
     except BaseException as exn:
       self.reraise_augmented(exn)
     finally:
