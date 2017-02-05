@@ -69,7 +69,7 @@ class MainInputTest(unittest.TestCase):
   def test_typed_dofn_class(self):
     @typehints.with_input_types(int)
     @typehints.with_output_types(str)
-    class MyDoFn(beam.NewDoFn):
+    class MyDoFn(beam.DoFn):
       def process(self, element):
         return [str(element)]
 
@@ -83,7 +83,7 @@ class MainInputTest(unittest.TestCase):
       [1, 2, 3] | (beam.ParDo(MyDoFn()) | 'again' >> beam.ParDo(MyDoFn()))
 
   def test_typed_dofn_instance(self):
-    class MyDoFn(beam.NewDoFn):
+    class MyDoFn(beam.DoFn):
       def process(self, element):
         return [str(element)]
     my_do_fn = MyDoFn().with_input_types(int).with_output_types(str)

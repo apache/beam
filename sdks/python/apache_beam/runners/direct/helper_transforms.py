@@ -43,7 +43,7 @@ class LiftedCombinePerKey(beam.PTransform):
         | beam.ParDo(FinishCombine(self._combine_fn)))
 
 
-class PartialGroupByKeyCombiningValues(beam.NewDoFn):
+class PartialGroupByKeyCombiningValues(beam.DoFn):
   """Aggregates values into a per-key-window cache.
 
   As bundles are in-memory-sized, we don't bother flushing until the very end.
@@ -54,7 +54,7 @@ class PartialGroupByKeyCombiningValues(beam.NewDoFn):
   def start_bundle(self):
     self._cache = collections.defaultdict(self._combine_fn.create_accumulator)
 
-  def process(self, element, window=beam.NewDoFn.WindowParam):
+  def process(self, element, window=beam.DoFn.WindowParam):
     k, vi = element
     self._cache[k, window] = self._combine_fn.add_input(self._cache[k, window],
                                                         vi)
@@ -76,7 +76,7 @@ class PartialGroupByKeyCombiningValues(beam.NewDoFn):
     return hints
 
 
-class FinishCombine(beam.NewDoFn):
+class FinishCombine(beam.DoFn):
   """Merges partially combined results.
   """
   def __init__(self, combine_fn):

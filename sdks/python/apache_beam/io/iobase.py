@@ -781,7 +781,7 @@ class WriteImpl(ptransform.PTransform):
         min_shards)
 
 
-class _WriteBundleDoFn(core.NewDoFn):
+class _WriteBundleDoFn(core.DoFn):
   """A DoFn for writing elements to an iobase.Writer.
   Opens a writer at the first element and closes the writer at finish_bundle().
   """
@@ -803,7 +803,7 @@ class _WriteBundleDoFn(core.NewDoFn):
       yield window.TimestampedValue(self.writer.close(), window.MAX_TIMESTAMP)
 
 
-class _WriteKeyedBundleDoFn(core.NewDoFn):
+class _WriteKeyedBundleDoFn(core.DoFn):
 
   def __init__(self, sink):
     self.sink = sink
@@ -833,7 +833,7 @@ def _finalize_write(_, sink, init_result, write_results, min_shards):
     return (window.TimestampedValue(v, window.MAX_TIMESTAMP) for v in outputs)
 
 
-class _RoundRobinKeyFn(core.NewDoFn):
+class _RoundRobinKeyFn(core.DoFn):
 
   def __init__(self, count):
     self.count = count

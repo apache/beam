@@ -305,7 +305,7 @@ def pipeline_logging(lines, output):
   # import Python logging module.
   import logging
 
-  class ExtractWordsFn(beam.NewDoFn):
+  class ExtractWordsFn(beam.DoFn):
 
     def process(self, element):
       words = re.findall(r'[A-Za-z\']+', element)
@@ -346,14 +346,14 @@ def pipeline_monitoring(renames):
                           help='output for the pipeline',
                           default='gs://my-bucket/output')
 
-  class ExtractWordsFn(beam.NewDoFn):
+  class ExtractWordsFn(beam.DoFn):
 
     def process(self, element):
       words = re.findall(r'[A-Za-z\']+', element)
       for word in words:
         yield word
 
-  class FormatCountsFn(beam.NewDoFn):
+  class FormatCountsFn(beam.DoFn):
 
     def process(self, element):
       word, count = element
@@ -490,7 +490,7 @@ def examples_wordcount_wordcount(renames):
   # [END examples_wordcount_wordcount_composite]
 
   # [START examples_wordcount_wordcount_dofn]
-  class FormatAsTextFn(beam.NewDoFn):
+  class FormatAsTextFn(beam.DoFn):
 
     def process(self, element):
       word, count = element
@@ -514,7 +514,7 @@ def examples_wordcount_debugging(renames):
   # [START example_wordcount_debugging_aggregators]
   import logging
 
-  class FilterTextFn(beam.NewDoFn):
+  class FilterTextFn(beam.DoFn):
     """A DoFn that filters for a specific key based on a regular expression."""
 
     def __init__(self, pattern):

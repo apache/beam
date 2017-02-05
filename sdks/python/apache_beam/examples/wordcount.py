@@ -31,7 +31,7 @@ from apache_beam.utils.pipeline_options import PipelineOptions
 from apache_beam.utils.pipeline_options import SetupOptions
 
 
-class WordExtractingDoFn(beam.NewDoFn):
+class WordExtractingDoFn(beam.DoFn):
   """Parse each line of input text into words."""
 
   def __init__(self):

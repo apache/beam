@@ -59,7 +59,7 @@ THIRTY_DAYS_IN_SECONDS = 30 * 24 * ONE_HOUR_IN_SECONDS
 MAX_TIMESTAMP = 0x7fffffffffffffff
 
 
-class ExtractUserAndTimestampDoFn(beam.NewDoFn):
+class ExtractUserAndTimestampDoFn(beam.DoFn):
   """Extracts user and timestamp representing a Wikipedia edit."""
 
   def process(self, element):
@@ -103,17 +103,17 @@ class TopPerMonth(beam.PTransform):
             .without_defaults())
 
 
-class SessionsToStringsDoFn(beam.NewDoFn):
+class SessionsToStringsDoFn(beam.DoFn):
   """Adds the session information to be part of the key."""
 
-  def process(self, element, window=beam.NewDoFn.WindowParam):
+  def process(self, element, window=beam.DoFn.WindowParam):
     yield (element[0] + ' : ' + str(window), element[1])
 
 
-class FormatOutputDoFn(beam.NewDoFn):
+class FormatOutputDoFn(beam.DoFn):
   """Formats a string containing the user, count, and session."""
 
-  def process(self, element, window=beam.NewDoFn.WindowParam):
+  def process(self, element, window=beam.DoFn.WindowParam):
     for kv in element:
       session = kv[0]
       count = kv[1]

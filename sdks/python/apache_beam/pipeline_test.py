@@ -31,7 +31,7 @@ from apache_beam.transforms import CombineGlobally
 from apache_beam.transforms import Create
 from apache_beam.transforms import FlatMap
 from apache_beam.transforms import Map
-from apache_beam.transforms import NewDoFn
+from apache_beam.transforms import DoFn
 from apache_beam.transforms import ParDo
 from apache_beam.transforms import PTransform
 from apache_beam.transforms import Read
@@ -262,10 +262,10 @@ class PipelineTest(unittest.TestCase):
     self.assertEqual([1, 4, 9], p | Create([1, 2, 3]) | Map(lambda x: x*x))
 
 
-class NewDoFnTest(unittest.TestCase):
+class DoFnTest(unittest.TestCase):
 
   def test_element(self):
-    class TestDoFn(NewDoFn):
+    class TestDoFn(DoFn):
       def process(self, element):
         yield element + 10
 
@@ -275,8 +275,8 @@ class NewDoFnTest(unittest.TestCase):
     pipeline.run()
 
   def test_context_param(self):
-    class TestDoFn(NewDoFn):
-      def process(self, element, context=NewDoFn.ContextParam):
+    class TestDoFn(DoFn):
+      def process(self, element, context=DoFn.ContextParam):
         yield context.element + 10
 
     pipeline = TestPipeline()
@@ -285,7 +285,7 @@ class NewDoFnTest(unittest.TestCase):
     pipeline.run()
 
   def test_side_input_no_tag(self):
-    class TestDoFn(NewDoFn):
+    class TestDoFn(DoFn):
       def process(self, element, prefix, suffix):
         return ['%s-%s-%s' % (prefix, element, suffix)]
 
@@ -300,8 +300,8 @@ class NewDoFnTest(unittest.TestCase):
     pipeline.run()
 
   def test_side_input_tagged(self):
-    class TestDoFn(NewDoFn):
-      def process(self, element, prefix, suffix=NewDoFn.SideInputParam):
+    class TestDoFn(DoFn):
+      def process(self, element, prefix, suffix=DoFn.SideInputParam):
         return ['%s-%s-%s' % (prefix, element, suffix)]
 
     pipeline = TestPipeline()
@@ -315,8 +315,8 @@ class NewDoFnTest(unittest.TestCase):
     pipeline.run()
 
   def test_window_param(self):
-    class TestDoFn(NewDoFn):
-      def process(self, element, window=NewDoFn.WindowParam):
+    class TestDoFn(DoFn):
+      def process(self, element, window=DoFn.WindowParam):
         yield (element, (float(window.start), float(window.end)))
 
     pipeline = TestPipeline()
@@ -330,8 +330,8 @@ class NewDoFnTest(unittest.TestCase):
     pipeline.run()
 
   def test_timestamp_param(self):
-    class TestDoFn(NewDoFn):
-      def process(self, element, timestamp=NewDoFn.TimestampParam):
+    class TestDoFn(DoFn):
+      def process(self, element, timestamp=DoFn.TimestampParam):
         yield timestamp
 
     pipeline = TestPipeline()

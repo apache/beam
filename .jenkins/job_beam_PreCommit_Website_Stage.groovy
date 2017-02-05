@@ -29,7 +29,7 @@ job('beam_PreCommit_Website_Stage') {
   // Set pull request build trigger.
   common_job_properties.setPreCommit(
       delegate,
-      'Jenkins: automatic staging of pull requests',
+      'Automatic staging of pull requests',
       '\nJenkins built the site at commit id ${ghprbActualCommit} with ' +
       'Jekyll and staged it [here](http://apache-beam-website-pull-' +
       'requests.storage.googleapis.com/${ghprbPullId}/index.html). ' +
