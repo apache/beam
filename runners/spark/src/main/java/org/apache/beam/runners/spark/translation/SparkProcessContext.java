@@ -62,8 +62,10 @@ class SparkProcessContext<FnInputT, FnOutputT, OutputT> {
 
     // skip if partition is empty.
     if (!partition.hasNext()) {
+      DoFnInvokers.invokerFor(doFn).invokeTeardown();
       return Lists.newArrayList();
     }
+
     // call startBundle() before beginning to process the partition.
     doFnRunner.startBundle();
     // process the partition; finishBundle() is called from within the output iterator.
