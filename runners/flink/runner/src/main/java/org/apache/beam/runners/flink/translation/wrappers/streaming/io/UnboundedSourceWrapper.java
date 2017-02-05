@@ -32,6 +32,7 @@ import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -227,11 +228,11 @@ public class UnboundedSourceWrapper<
 
     if (localReaders.size() == 0) {
       // do nothing, but still look busy ...
-      // also, output a Long.MAX_VALUE watermark since we know that we're not
+      // also, output a TIMESTAMP_MAX_VALUE watermark since we know that we're not
       // going to emit anything
       // we can't return here since Flink requires that all operators stay up,
       // otherwise checkpointing would not work correctly anymore
-      ctx.emitWatermark(new Watermark(Long.MAX_VALUE));
+      ctx.emitWatermark(new Watermark(BoundedWindow.TIMESTAMP_MAX_VALUE.getMillis()));
 
       // wait until this is canceled
       final Object waitLock = new Object();

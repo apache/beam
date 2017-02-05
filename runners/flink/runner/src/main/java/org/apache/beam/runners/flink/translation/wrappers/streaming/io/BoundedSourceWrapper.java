@@ -23,6 +23,7 @@ import java.util.List;
 import org.apache.beam.runners.flink.translation.utils.SerializedPipelineOptions;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -170,8 +171,8 @@ public class BoundedSourceWrapper<OutputT>
 
     }
 
-    // emit final Long.MAX_VALUE watermark, just to be sure
-    ctx.emitWatermark(new Watermark(Long.MAX_VALUE));
+    // emit final TIMESTAMP_MAX_VALUE watermark, just to be sure
+    ctx.emitWatermark(new Watermark(BoundedWindow.TIMESTAMP_MAX_VALUE.getMillis()));
   }
 
   /**
