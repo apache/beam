@@ -640,23 +640,6 @@ class TextSinkTest(_TestCaseWithTempDirCleanUp):
     with open(self.path, 'r') as f:
       self.assertEqual(f.read().splitlines(), header.splitlines())
 
-  def test_write_display_data(self):
-    write = WriteToText('prefix')
-    dd = DisplayData.create_from(write)
-    expected_items = [
-        DisplayDataItemMatcher(
-            'append_newline', True),
-        DisplayDataItemMatcher(
-            'compression', 'auto'),
-        DisplayDataItemMatcher(
-            'shards', 0),
-        DisplayDataItemMatcher(
-            'file_pattern',
-            '{}{}'.format('prefix',
-                          '-%(shard_num)05d-of-%(num_shards)05d'))]
-    hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
-
-
   def test_write_dataflow(self):
     pipeline = TestPipeline()
     pcoll = pipeline | beam.core.Create(self.lines)
