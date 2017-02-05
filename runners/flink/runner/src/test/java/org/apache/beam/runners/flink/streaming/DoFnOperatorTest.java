@@ -103,7 +103,8 @@ public class DoFnOperatorTest {
         WindowingStrategy.globalDefault(),
         new HashMap<Integer, PCollectionView<?>>(), /* side-input mapping */
         Collections.<PCollectionView<?>>emptyList(), /* side inputs */
-        PipelineOptionsFactory.as(FlinkPipelineOptions.class));
+        PipelineOptionsFactory.as(FlinkPipelineOptions.class),
+        null);
 
     OneInputStreamOperatorTestHarness<WindowedValue<String>, String> testHarness =
         new OneInputStreamOperatorTestHarness<>(doFnOperator);
@@ -147,7 +148,8 @@ public class DoFnOperatorTest {
         WindowingStrategy.globalDefault(),
         new HashMap<Integer, PCollectionView<?>>(), /* side-input mapping */
         Collections.<PCollectionView<?>>emptyList(), /* side inputs */
-        PipelineOptionsFactory.as(FlinkPipelineOptions.class));
+        PipelineOptionsFactory.as(FlinkPipelineOptions.class),
+        null);
 
     OneInputStreamOperatorTestHarness<WindowedValue<String>, RawUnionValue> testHarness =
         new OneInputStreamOperatorTestHarness<>(doFnOperator);
@@ -207,7 +209,8 @@ public class DoFnOperatorTest {
         WindowingStrategy.globalDefault(),
         sideInputMapping, /* side-input mapping */
         ImmutableList.<PCollectionView<?>>of(view1, view2), /* side inputs */
-        PipelineOptionsFactory.as(FlinkPipelineOptions.class));
+        PipelineOptionsFactory.as(FlinkPipelineOptions.class),
+        null);
 
     TwoInputStreamOperatorTestHarness<WindowedValue<String>, RawUnionValue, String> testHarness =
         new TwoInputStreamOperatorTestHarness<>(doFnOperator);

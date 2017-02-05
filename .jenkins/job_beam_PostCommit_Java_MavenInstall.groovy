@@ -29,7 +29,7 @@ mavenJob('beam_PostCommit_Java_MavenInstall') {
   concurrentBuild()
 
   // Set common parameters.
-  common_job_properties.setTopLevelJobProperties(delegate)
+  common_job_properties.setTopLevelMainJobProperties(delegate)
 
   // Set maven parameters.
   common_job_properties.setMavenConfig(delegate)
@@ -38,5 +38,5 @@ mavenJob('beam_PostCommit_Java_MavenInstall') {
   common_job_properties.setPostCommit(delegate)
 
   // Maven goals for this job.
-  goals('-B -e -P release,dataflow-runner clean install -DskipITs=false -DintegrationTestPipelineOptions=\'[ "--project=apache-beam-testing", "--tempRoot=gs://temp-storage-for-end-to-end-tests", "--runner=org.apache.beam.runners.dataflow.testing.TestDataflowRunner" ]\'')
+  goals('-B -e -P release,dataflow-runner clean install coveralls:report -DrepoToken=$COVERALLS_REPO_TOKEN -DskipITs=false -DintegrationTestPipelineOptions=\'[ "--project=apache-beam-testing", "--tempRoot=gs://temp-storage-for-end-to-end-tests", "--runner=org.apache.beam.runners.dataflow.testing.TestDataflowRunner" ]\'')
 }

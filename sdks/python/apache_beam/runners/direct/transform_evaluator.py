@@ -35,10 +35,10 @@ from apache_beam.transforms import sideinputs
 from apache_beam.transforms.window import GlobalWindows
 from apache_beam.transforms.window import WindowedValue
 from apache_beam.typehints.typecheck import OutputCheckWrapperDoFn
-from apache_beam.typehints.typecheck import OutputCheckWrapperNewDoFn
+from apache_beam.typehints.typecheck import OutputCheckWrapperOldDoFn
 from apache_beam.typehints.typecheck import TypeCheckError
 from apache_beam.typehints.typecheck import TypeCheckWrapperDoFn
-from apache_beam.typehints.typecheck import TypeCheckWrapperNewDoFn
+from apache_beam.typehints.typecheck import TypeCheckWrapperOldDoFn
 from apache_beam.utils import counters
 from apache_beam.utils.pipeline_options import TypeOptions
 
@@ -61,7 +61,8 @@ class TransformEvaluatorRegistry(object):
     }
 
   def for_application(
-      self, applied_ptransform, input_committed_bundle, side_inputs):
+      self, applied_ptransform, input_committed_bundle,
+      side_inputs, scoped_metrics_container):
     """Returns a TransformEvaluator suitable for processing given inputs."""
     assert applied_ptransform
     assert bool(applied_ptransform.side_inputs) == bool(side_inputs)
@@ -78,7 +79,8 @@ class TransformEvaluatorRegistry(object):
           'Execution of [%s] not implemented in runner %s.' % (
               type(applied_ptransform.transform), self))
     return evaluator(self._evaluation_context, applied_ptransform,
-                     input_committed_bundle, side_inputs)
+                     input_committed_bundle, side_inputs,
+                     scoped_metrics_container)
 
   def should_execute_serially(self, applied_ptransform):
     """Returns True if this applied_ptransform should run one bundle at a time.
@@ -108,7 +110,7 @@ class _TransformEvaluator(object):
   """An evaluator of a specific application of a transform."""
 
   def __init__(self, evaluation_context, applied_ptransform,
-               input_committed_bundle, side_inputs):
+               input_committed_bundle, side_inputs, scoped_metrics_container):
     self._evaluation_context = evaluation_context
     self._applied_ptransform = applied_ptransform
     self._input_committed_bundle = input_committed_bundle
@@ -116,7 +118,9 @@ class _TransformEvaluator(object):
     self._expand_outputs()
     self._execution_context = evaluation_context.get_execution_context(
         applied_ptransform)
-    self.start_bundle()
+    self.scoped_metrics_container = scoped_metrics_container
+    with scoped_metrics_container:
+      self.start_bundle()
 
   def _expand_outputs(self):
     outputs = set()
@@ -176,14 +180,14 @@ class _BoundedReadEvaluator(_TransformEvaluator):
   MAX_ELEMENT_PER_BUNDLE = 100
 
   def __init__(self, evaluation_context, applied_ptransform,
-               input_committed_bundle, side_inputs):
+               input_committed_bundle, side_inputs, scoped_metrics_container):
     assert not input_committed_bundle
     assert not side_inputs
     self._source = applied_ptransform.transform.source
     self._source.pipeline_options = evaluation_context.pipeline_options
     super(_BoundedReadEvaluator, self).__init__(
         evaluation_context, applied_ptransform, input_committed_bundle,
-        side_inputs)
+        side_inputs, scoped_metrics_container)
 
   def finish_bundle(self):
     assert len(self._outputs) == 1
@@ -213,11 +217,11 @@ class _FlattenEvaluator(_TransformEvaluator):
   """TransformEvaluator for Flatten transform."""
 
   def __init__(self, evaluation_context, applied_ptransform,
-               input_committed_bundle, side_inputs):
+               input_committed_bundle, side_inputs, scoped_metrics_container):
     assert not side_inputs
     super(_FlattenEvaluator, self).__init__(
         evaluation_context, applied_ptransform, input_committed_bundle,
-        side_inputs)
+        side_inputs, scoped_metrics_container)
 
   def start_bundle(self):
     assert len(self._outputs) == 1
@@ -237,12 +241,12 @@ class _CreateEvaluator(_TransformEvaluator):
   """TransformEvaluator for Create transform."""
 
   def __init__(self, evaluation_context, applied_ptransform,
-               input_committed_bundle, side_inputs):
+               input_committed_bundle, side_inputs, scoped_metrics_container):
     assert not input_committed_bundle
     assert not side_inputs
     super(_CreateEvaluator, self).__init__(
         evaluation_context, applied_ptransform, input_committed_bundle,
-        side_inputs)
+        side_inputs, scoped_metrics_container)
 
   def start_bundle(self):
     assert len(self._outputs) == 1
@@ -311,10 +315,10 @@ class _ParDoEvaluator(_TransformEvaluator):
   """TransformEvaluator for ParDo transform."""
 
   def __init__(self, evaluation_context, applied_ptransform,
-               input_committed_bundle, side_inputs):
+               input_committed_bundle, side_inputs, scoped_metrics_container):
     super(_ParDoEvaluator, self).__init__(
         evaluation_context, applied_ptransform, input_committed_bundle,
-        side_inputs)
+        side_inputs, scoped_metrics_container)
 
   def start_bundle(self):
     transform = self._applied_ptransform.transform
@@ -347,23 +351,25 @@ class _ParDoEvaluator(_TransformEvaluator):
     if (pipeline_options is not None
         and pipeline_options.view_as(TypeOptions).runtime_type_check):
       # TODO(sourabhbajaj): Remove this if-else
-      if isinstance(dofn, core.NewDoFn):
-        dofn = TypeCheckWrapperNewDoFn(dofn, transform.get_type_hints())
-      else:
+      if isinstance(dofn, core.DoFn):
         dofn = TypeCheckWrapperDoFn(dofn, transform.get_type_hints())
+      else:
+        dofn = TypeCheckWrapperOldDoFn(dofn, transform.get_type_hints())
 
     # TODO(sourabhbajaj): Remove this if-else
-    if isinstance(dofn, core.NewDoFn):
-      dofn = OutputCheckWrapperNewDoFn(
-          dofn, self._applied_ptransform.full_label)
-    else:
+    if isinstance(dofn, core.DoFn):
       dofn = OutputCheckWrapperDoFn(dofn, self._applied_ptransform.full_label)
-    self.runner = DoFnRunner(dofn, transform.args, transform.kwargs,
-                             self._side_inputs,
-                             self._applied_ptransform.inputs[0].windowing,
-                             tagged_receivers=self._tagged_receivers,
-                             step_name=self._applied_ptransform.full_label,
-                             state=DoFnState(self._counter_factory))
+    else:
+      dofn = OutputCheckWrapperOldDoFn(dofn,
+                                       self._applied_ptransform.full_label)
+    self.runner = DoFnRunner(
+        dofn, transform.args, transform.kwargs,
+        self._side_inputs,
+        self._applied_ptransform.inputs[0].windowing,
+        tagged_receivers=self._tagged_receivers,
+        step_name=self._applied_ptransform.full_label,
+        state=DoFnState(self._counter_factory),
+        scoped_metrics_container=self.scoped_metrics_container)
     self.runner.start()
 
   def process_element(self, element):
@@ -391,11 +397,11 @@ class _GroupByKeyOnlyEvaluator(_TransformEvaluator):
       self.completed = False
 
   def __init__(self, evaluation_context, applied_ptransform,
-               input_committed_bundle, side_inputs):
+               input_committed_bundle, side_inputs, scoped_metrics_container):
     assert not side_inputs
     super(_GroupByKeyOnlyEvaluator, self).__init__(
         evaluation_context, applied_ptransform, input_committed_bundle,
-        side_inputs)
+        side_inputs, scoped_metrics_container)
 
   @property
   def _is_final_bundle(self):
@@ -463,11 +469,11 @@ class _CreatePCollectionViewEvaluator(_TransformEvaluator):
   """TransformEvaluator for CreatePCollectionView transform."""
 
   def __init__(self, evaluation_context, applied_ptransform,
-               input_committed_bundle, side_inputs):
+               input_committed_bundle, side_inputs, scoped_metrics_container):
     assert not side_inputs
     super(_CreatePCollectionViewEvaluator, self).__init__(
         evaluation_context, applied_ptransform, input_committed_bundle,
-        side_inputs)
+        side_inputs, scoped_metrics_container)
 
   @property
   def _is_final_bundle(self):
@@ -509,11 +515,11 @@ class _NativeWriteEvaluator(_TransformEvaluator):
   """TransformEvaluator for _NativeWrite transform."""
 
   def __init__(self, evaluation_context, applied_ptransform,
-               input_committed_bundle, side_inputs):
+               input_committed_bundle, side_inputs, scoped_metrics_container):
     assert not side_inputs
     super(_NativeWriteEvaluator, self).__init__(
         evaluation_context, applied_ptransform, input_committed_bundle,
-        side_inputs)
+        side_inputs, scoped_metrics_container)
 
     assert applied_ptransform.transform.sink
     self._sink = applied_ptransform.transform.sink

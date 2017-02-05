@@ -37,11 +37,11 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
-
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.Pipeline.PipelineExecutionException;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.BigEndianLongCoder;
+import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.io.UnboundedSource.UnboundedReader;
@@ -143,6 +143,7 @@ public class KafkaIOTest {
     final MockConsumer<byte[], byte[]> consumer =
         new MockConsumer<byte[], byte[]>(offsetResetStrategy) {
           // override assign() in order to set offset limits & to save assigned partitions.
+          @Override
           public void assign(final List<TopicPartition> assigned) {
             super.assign(assigned);
             assignedPartitions.set(ImmutableList.copyOf(assigned));
@@ -200,6 +201,7 @@ public class KafkaIOTest {
       this.offsetResetStrategy = offsetResetStrategy;
     }
 
+    @Override
     public Consumer<byte[], byte[]> apply(Map<String, Object> config) {
       return mkMockConsumer(topics, partitionsPerTopic, numElements, offsetResetStrategy);
     }
@@ -209,13 +211,13 @@ public class KafkaIOTest {
    * Creates a consumer with two topics, with 5 partitions each.
    * numElements are (round-robin) assigned all the 10 partitions.
    */
-  private static KafkaIO.TypedRead<Integer, Long> mkKafkaReadTransform(
+  private static KafkaIO.Read<Integer, Long> mkKafkaReadTransform(
       int numElements,
       @Nullable SerializableFunction<KV<Integer, Long>, Instant> timestampFn) {
 
     List<String> topics = ImmutableList.of("topic_a", "topic_b");
 
-    KafkaIO.Read<Integer, Long> reader = KafkaIO.read()
+    KafkaIO.Read<Integer, Long> reader = KafkaIO.<Integer, Long>read()
         .withBootstrapServers("none")
         .withTopics(topics)
         .withConsumerFactoryFn(new ConsumerFactoryFn(
@@ -288,11 +290,12 @@ public class KafkaIOTest {
 
     List<String> topics = ImmutableList.of("test");
 
-    KafkaIO.TypedRead<byte[], Long> reader = KafkaIO.read()
+    KafkaIO.Read<byte[], Long> reader = KafkaIO.<byte[], Long>read()
         .withBootstrapServers("none")
         .withTopicPartitions(ImmutableList.of(new TopicPartition("test", 5)))
         .withConsumerFactoryFn(new ConsumerFactoryFn(
             topics, 10, numElements, OffsetResetStrategy.EARLIEST)) // 10 partitions
+        .withKeyCoder(ByteArrayCoder.of())
         .withValueCoder(BigEndianLongCoder.of())
         .withMaxNumRecords(numElements / 10);
 
@@ -414,7 +417,7 @@ public class KafkaIOTest {
     UnboundedSource<KafkaRecord<Integer, Long>, KafkaCheckpointMark> source =
         mkKafkaReadTransform(numElements, new ValueAsTimestampFn())
           .makeSource()
-          .generateInitialSplits(1, PipelineOptionsFactory.fromArgs(new String[0]).create())
+          .generateInitialSplits(1, PipelineOptionsFactory.create())
           .get(0);
 
     UnboundedReader<KafkaRecord<Integer, Long>> reader = source.createReader(null, null);
@@ -454,7 +457,7 @@ public class KafkaIOTest {
     UnboundedSource<KafkaRecord<Integer, Long>, KafkaCheckpointMark> source =
         mkKafkaReadTransform(initialNumElements, new ValueAsTimestampFn())
             .makeSource()
-            .generateInitialSplits(1, PipelineOptionsFactory.fromArgs(new String[0]).create())
+            .generateInitialSplits(1, PipelineOptionsFactory.create())
             .get(0);
 
     UnboundedReader<KafkaRecord<Integer, Long>> reader = source.createReader(null, null);
@@ -473,7 +476,7 @@ public class KafkaIOTest {
     int numElements = 100; // all the 20 partitions will have elements
     List<String> topics = ImmutableList.of("topic_a", "topic_b");
 
-    source = KafkaIO.read()
+    source = KafkaIO.<Integer, Long>read()
         .withBootstrapServers("none")
         .withTopics(topics)
         .withConsumerFactoryFn(new ConsumerFactoryFn(
@@ -483,7 +486,7 @@ public class KafkaIOTest {
         .withMaxNumRecords(numElements)
         .withTimestampFn(new ValueAsTimestampFn())
         .makeSource()
-        .generateInitialSplits(1, PipelineOptionsFactory.fromArgs(new String[0]).create())
+        .generateInitialSplits(1, PipelineOptionsFactory.create())
         .get(0);
 
     reader = source.createReader(null, mark);
@@ -519,7 +522,7 @@ public class KafkaIOTest {
       p
         .apply(mkKafkaReadTransform(numElements, new ValueAsTimestampFn())
             .withoutMetadata())
-        .apply(KafkaIO.write()
+        .apply(KafkaIO.<Integer, Long>write()
             .withBootstrapServers("none")
             .withTopic(topic)
             .withKeyCoder(BigEndianIntegerCoder.of())
@@ -552,10 +555,9 @@ public class KafkaIOTest {
         .apply(mkKafkaReadTransform(numElements, new ValueAsTimestampFn())
             .withoutMetadata())
         .apply(Values.<Long>create()) // there are no keys
-        .apply(KafkaIO.write()
+        .apply(KafkaIO.<Integer, Long>write()
             .withBootstrapServers("none")
             .withTopic(topic)
-            .withKeyCoder(BigEndianIntegerCoder.of())
             .withValueCoder(BigEndianLongCoder.of())
             .withProducerFactoryFn(new ProducerFactoryFn())
             .values());
@@ -594,7 +596,7 @@ public class KafkaIOTest {
       p
         .apply(mkKafkaReadTransform(numElements, new ValueAsTimestampFn())
             .withoutMetadata())
-        .apply(KafkaIO.write()
+        .apply(KafkaIO.<Integer, Long>write()
             .withBootstrapServers("none")
             .withTopic(topic)
             .withKeyCoder(BigEndianIntegerCoder.of())

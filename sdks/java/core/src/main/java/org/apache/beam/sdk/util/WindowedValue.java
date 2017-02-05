@@ -131,7 +131,7 @@ public abstract class WindowedValue<T> {
    */
   @Deprecated
   public static <T> WindowedValue<T> valueInEmptyWindows(T value) {
-    return new ValueInEmptyWindows<T>(value, PaneInfo.NO_FIRING);
+    return new ValueInEmptyWindows<>(value, PaneInfo.NO_FIRING);
   }
 
   /**
@@ -143,7 +143,7 @@ public abstract class WindowedValue<T> {
    */
   @Deprecated
   public static <T> WindowedValue<T> valueInEmptyWindows(T value, PaneInfo pane) {
-    return new ValueInEmptyWindows<T>(value, pane);
+    return new ValueInEmptyWindows<>(value, pane);
   }
 
   /**
@@ -656,22 +656,22 @@ public abstract class WindowedValue<T> {
                        Context context)
         throws CoderException, IOException {
       Context nestedContext = context.nested();
-      valueCoder.encode(windowedElem.getValue(), outStream, nestedContext);
       InstantCoder.of().encode(
           windowedElem.getTimestamp(), outStream, nestedContext);
       windowsCoder.encode(windowedElem.getWindows(), outStream, nestedContext);
-      PaneInfoCoder.INSTANCE.encode(windowedElem.getPane(), outStream, context);
+      PaneInfoCoder.INSTANCE.encode(windowedElem.getPane(), outStream, nestedContext);
+      valueCoder.encode(windowedElem.getValue(), outStream, context);
     }
 
     @Override
     public WindowedValue<T> decode(InputStream inStream, Context context)
         throws CoderException, IOException {
       Context nestedContext = context.nested();
-      T value = valueCoder.decode(inStream, nestedContext);
       Instant timestamp = InstantCoder.of().decode(inStream, nestedContext);
       Collection<? extends BoundedWindow> windows =
           windowsCoder.decode(inStream, nestedContext);
       PaneInfo pane = PaneInfoCoder.INSTANCE.decode(inStream, nestedContext);
+      T value = valueCoder.decode(inStream, context);
       return WindowedValue.of(value, timestamp, windows, pane);
     }
 
@@ -689,14 +689,15 @@ public abstract class WindowedValue<T> {
     public void registerByteSizeObserver(WindowedValue<T> value,
                                          ElementByteSizeObserver observer,
                                          Context context) throws Exception {
+      InstantCoder.of().registerByteSizeObserver(value.getTimestamp(), observer, context.nested());
+      windowsCoder.registerByteSizeObserver(value.getWindows(), observer, context.nested());
+      PaneInfoCoder.INSTANCE.registerByteSizeObserver(value.getPane(), observer, context.nested());
       valueCoder.registerByteSizeObserver(value.getValue(), observer, context);
-      InstantCoder.of().registerByteSizeObserver(value.getTimestamp(), observer, context);
-      windowsCoder.registerByteSizeObserver(value.getWindows(), observer, context);
     }
 
     @Override
-    public CloudObject asCloudObject() {
-      CloudObject result = super.asCloudObject();
+    public CloudObject initializeCloudObject() {
+      CloudObject result = CloudObject.forClassName("kind:windowed_value");
       addBoolean(result, PropertyNames.IS_WRAPPER, true);
       return result;
     }
@@ -769,8 +770,8 @@ public abstract class WindowedValue<T> {
     }
 
     @Override
-    public CloudObject asCloudObject() {
-      CloudObject result = super.asCloudObject();
+    public CloudObject initializeCloudObject() {
+      CloudObject result = CloudObject.forClass(getClass());
       addBoolean(result, PropertyNames.IS_WRAPPER, true);
       return result;
     }

@@ -17,14 +17,13 @@
  */
 package org.apache.beam.sdk.transforms.join;
 
-import static org.junit.Assert.assertEquals;
-
-import java.util.Arrays;
+import com.google.common.collect.ImmutableList;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.DoubleCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
-import org.apache.beam.sdk.util.CloudObject;
-import org.apache.beam.sdk.util.Serializer;
+import org.apache.beam.sdk.testing.CoderProperties;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
+import org.apache.beam.sdk.util.TimerInternals.TimerDataCoder;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -36,12 +35,13 @@ import org.junit.runners.JUnit4;
 public class UnionCoderTest {
 
   @Test
-  public void testSerializationDeserialization() {
-    UnionCoder newCoder =
-        UnionCoder.of(Arrays.<Coder<?>>asList(StringUtf8Coder.of(),
-            DoubleCoder.of()));
-    CloudObject encoding = newCoder.asCloudObject();
-    Coder<?> decodedCoder = Serializer.deserialize(encoding, Coder.class);
-    assertEquals(newCoder, decodedCoder);
+  public void testCoderIsSerializable() {
+    CoderProperties.coderSerializable(UnionCoder.of(ImmutableList.<Coder<?>>of(
+        StringUtf8Coder.of(), DoubleCoder.of())));
+  }
+
+  @Test
+  public void testCoderIsSerializableWithWellKnownCoderType() {
+    CoderProperties.coderSerializable(TimerDataCoder.of(GlobalWindow.Coder.INSTANCE));
   }
 }

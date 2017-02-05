@@ -19,21 +19,27 @@
 import common_job_properties
 
 // Defines the seed job, which creates or updates all other Jenkins projects.
-job('beam_SeedJob_Main') {
-  description('Automatically configures all Apache Beam main repo Jenkins ' +
-              'projects based on Jenkins DSL groovy files checked into the ' +
-              'code repository.')
+job('beam_SeedJob') {
+  description('Automatically configures all Apache Beam Jenkins projects based' +
+              ' on Jenkins DSL groovy files checked into the code repository.')
+
+  previousNames('beam_SeedJob_Main')
 
   // Set common parameters.
-  common_job_properties.setTopLevelJobProperties(delegate)
+  common_job_properties.setTopLevelMainJobProperties(delegate)
 
-  // Set that this is a PostCommit job.
-  // Polls SCM on Feb 31st, i.e. never.
+  // This is a post-commit job that runs once per day, not for every push.
   common_job_properties.setPostCommit(
       delegate,
       '0 6 * * *',
-      '0 5 31 2 *',
-      'dev@beam.incubator.apache.org')
+      false,
+      'dev@beam.apache.org')
+
+  // Allows triggering this build against pull requests.
+  common_job_properties.enablePhraseTriggeringFromPullRequest(
+    delegate,
+    'Seed Job',
+    'Run Seed Job')
 
   steps {
     dsl {

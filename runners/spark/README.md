@@ -56,7 +56,7 @@ The Spark runner provides full support for the Beam Model in batch processing vi
 
 ### Streaming
 
-Providing full support for the Beam Model in streaming pipelines is under development. To follow-up you can subscribe to our [mailing list](http://beam.incubator.apache.org/get-started/support/).
+Providing full support for the Beam Model in streaming pipelines is under development. To follow-up you can subscribe to our [mailing list](http://beam.apache.org/get-started/support/).
 
 ### issue tracking
 
@@ -67,12 +67,12 @@ See [Beam JIRA](https://issues.apache.org/jira/browse/BEAM) (runner-spark)
 
 To get the latest version of the Spark Runner, first clone the Beam repository:
 
-    git clone https://github.com/apache/incubator-beam
+    git clone https://github.com/apache/beam
 
     
 Then switch to the newly created directory and run Maven to build the Apache Beam:
 
-    cd incubator-beam
+    cd beam
     mvn clean install -DskipTests
 
 Now Apache Beam and the Spark Runner are installed in your local maven repository.
@@ -116,7 +116,7 @@ Check the output by running:
 __Note: running examples using `mvn exec:exec` only works for Spark local mode at the
 moment. See the next section for how to run on a cluster.__
 
-[wc]: https://github.com/apache/incubator-beam/blob/master/runners/spark/src/main/java/org/apache/beam/runners/spark/examples/WordCount.java
+[wc]: https://github.com/apache/beam/blob/master/runners/spark/src/main/java/org/apache/beam/runners/spark/examples/WordCount.java
 ## Running on a Cluster
 
 Spark Beam pipelines can be run on a cluster using the `spark-submit` command.

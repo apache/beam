@@ -92,7 +92,7 @@ public class KeyedWorkItemCoder<K, ElemT> extends StandardCoder<KeyedWorkItem<K,
     Coder.Context nestedContext = context.nested();
     keyCoder.encode(value.key(), outStream, nestedContext);
     timersCoder.encode(value.timersIterable(), outStream, nestedContext);
-    elemsCoder.encode(value.elementsIterable(), outStream, nestedContext);
+    elemsCoder.encode(value.elementsIterable(), outStream, context);
   }
 
   @Override
@@ -101,7 +101,7 @@ public class KeyedWorkItemCoder<K, ElemT> extends StandardCoder<KeyedWorkItem<K,
     Coder.Context nestedContext = context.nested();
     K key = keyCoder.decode(inStream, nestedContext);
     Iterable<TimerData> timers = timersCoder.decode(inStream, nestedContext);
-    Iterable<WindowedValue<ElemT>> elems = elemsCoder.decode(inStream, nestedContext);
+    Iterable<WindowedValue<ElemT>> elems = elemsCoder.decode(inStream, context);
     return KeyedWorkItems.workItem(key, timers, elems);
   }
 

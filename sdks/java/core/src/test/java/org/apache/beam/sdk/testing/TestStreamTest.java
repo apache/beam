@@ -347,4 +347,9 @@ public class TestStreamTest implements Serializable {
     CoderProperties.coderDecodeEncodeEqual(coder, wm);
     CoderProperties.coderDecodeEncodeEqual(coder, procTime);
   }
+
+  @Test
+  public void testCoderIsSerializableWithWellKnownCoderType() {
+    CoderProperties.coderSerializable(TestStream.EventCoder.of(GlobalWindow.Coder.INSTANCE));
+  }
 }

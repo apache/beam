@@ -705,4 +705,3 @@ class LengthPrefixCoder(FastCoder):
 
   def __repr__(self):
     return 'LengthPrefixCoder[%r]' % self._value_coder
-

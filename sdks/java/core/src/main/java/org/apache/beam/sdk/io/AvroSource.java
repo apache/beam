@@ -297,11 +297,6 @@ public class AvroSource<T> extends BlockBasedSource<T> {
   }
 
   @Override
-  public boolean producesSortedKeys(PipelineOptions options) throws Exception {
-    return false;
-  }
-
-  @Override
   public AvroCoder<T> getDefaultOutputCoder() {
     if (coder == null) {
       coder = AvroCoder.of(type, internOrParseSchemaString(readSchemaString));

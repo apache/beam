@@ -170,6 +170,23 @@ class PipelineOptionsTest(unittest.TestCase):
     options = PipelineOptions(flags=[''])
     self.assertEqual(options.get_all_options()['template_location'], None)
 
+  def test_redefine_options(self):
+
+    class TestRedefinedOptios(PipelineOptions):  # pylint: disable=unused-variable
+
+      @classmethod
+      def _add_argparse_args(cls, parser):
+        parser.add_argument('--redefined_flag', action='store_true')
+
+    class TestRedefinedOptios(PipelineOptions):
+
+      @classmethod
+      def _add_argparse_args(cls, parser):
+        parser.add_argument('--redefined_flag', action='store_true')
+
+    options = PipelineOptions(['--redefined_flag'])
+    self.assertEqual(options.get_all_options()['redefined_flag'], True)
+
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
   unittest.main()

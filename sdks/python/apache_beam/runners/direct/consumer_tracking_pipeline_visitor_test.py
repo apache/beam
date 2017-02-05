@@ -76,16 +76,16 @@ class ConsumerTrackingPipelineVisitorTest(unittest.TestCase):
 
     class SplitNumbersFn(DoFn):
 
-      def process(self, context):
-        if context.element < 0:
-          yield pvalue.SideOutputValue('tag_negative', context.element)
+      def process(self, element):
+        if element < 0:
+          yield pvalue.SideOutputValue('tag_negative', element)
         else:
-          yield context.element
+          yield element
 
     class ProcessNumbersFn(DoFn):
 
-      def process(self, context, negatives):
-        yield context.element
+      def process(self, element, negatives):
+        yield element
 
     root_create = Create('create', [[-1, 2, 3]])
 

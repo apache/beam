@@ -29,6 +29,11 @@ import org.hamcrest.TypeSafeMatcher;
  */
 public class MetricMatchers {
 
+  /**
+   * Matches a {@link MetricUpdate} with the given name and contents.
+   *
+   * <p>Visible since it may be used in runner-specific tests.
+   */
   public static <T> Matcher<MetricUpdate<T>> metricUpdate(final String name, final T update) {
     return new TypeSafeMatcher<MetricUpdate<T>>() {
       @Override
@@ -47,6 +52,11 @@ public class MetricMatchers {
     };
   }
 
+  /**
+   * Matches a {@link MetricUpdate} with the given namespace, name, step and contents.
+   *
+   * <p>Visible since it may be used in runner-specific tests.
+   */
   public static <T> Matcher<MetricUpdate<T>> metricUpdate(
       final String namespace, final String name, final String step, final T update) {
     return new TypeSafeMatcher<MetricUpdate<T>>() {
@@ -70,16 +80,18 @@ public class MetricMatchers {
     };
   }
 
-  public static <T> Matcher<MetricResult<T>> metricResult(
-      final String namespace, final String name, final String step,
-      final T committed, final T attempted) {
+  /**
+   * Matches a {@link MetricResult} with the given namespace, name and step, and whose attempted
+   * value equals the given value.
+   */
+  public static <T> Matcher<MetricResult<T>> attemptedMetricsResult(
+      final String namespace, final String name, final String step, final T attempted) {
     return new TypeSafeMatcher<MetricResult<T>>() {
       @Override
       protected boolean matchesSafely(MetricResult<T> item) {
         return Objects.equals(namespace, item.name().namespace())
             && Objects.equals(name, item.name().name())
             && item.step().contains(step)
-            && Objects.equals(committed, item.committed())
             && Objects.equals(attempted, item.attempted());
       }
 
@@ -89,7 +101,6 @@ public class MetricMatchers {
             .appendText("MetricResult{inNamespace=").appendValue(namespace)
             .appendText(", name=").appendValue(name)
             .appendText(", step=").appendValue(step)
-            .appendText(", committed=").appendValue(committed)
             .appendText(", attempted=").appendValue(attempted)
             .appendText("}");
       }
@@ -97,23 +108,51 @@ public class MetricMatchers {
       @Override
       protected void describeMismatchSafely(MetricResult<T> item, Description mismatchDescription) {
         mismatchDescription.appendText("MetricResult{");
-        if (!Objects.equals(namespace, item.name().namespace())) {
+
+        describeMetricsResultMembersMismatch(item, mismatchDescription, namespace, name, step);
+
+        if (!Objects.equals(attempted, item.attempted())) {
           mismatchDescription
-              .appendText("inNamespace: ").appendValue(namespace)
-              .appendText(" != ").appendValue(item.name().namespace());
+              .appendText("attempted: ").appendValue(attempted)
+              .appendText(" != ").appendValue(item.attempted());
         }
 
-        if (!Objects.equals(name, item.name().name())) {
-          mismatchDescription
-              .appendText("name: ").appendValue(name)
-              .appendText(" != ").appendValue(item.name().name());
-        }
+        mismatchDescription.appendText("}");
+      }
+    };
+  }
 
-        if (!item.step().contains(step)) {
-          mismatchDescription
-              .appendText("step: ").appendValue(step)
-              .appendText(" != ").appendValue(item.step());
-        }
+  /**
+   * Matches a {@link MetricResult} with the given namespace, name and step, and whose committed
+   * value equals the given value.
+   */
+  public static <T> Matcher<MetricResult<T>> committedMetricsResult(
+      final String namespace, final String name, final String step,
+      final T committed) {
+    return new TypeSafeMatcher<MetricResult<T>>() {
+      @Override
+      protected boolean matchesSafely(MetricResult<T> item) {
+        return Objects.equals(namespace, item.name().namespace())
+            && Objects.equals(name, item.name().name())
+            && item.step().contains(step)
+            && Objects.equals(committed, item.committed());
+      }
+
+      @Override
+      public void describeTo(Description description) {
+        description
+            .appendText("MetricResult{inNamespace=").appendValue(namespace)
+            .appendText(", name=").appendValue(name)
+            .appendText(", step=").appendValue(step)
+            .appendText(", committed=").appendValue(committed)
+            .appendText("}");
+      }
+
+      @Override
+      protected void describeMismatchSafely(MetricResult<T> item, Description mismatchDescription) {
+        mismatchDescription.appendText("MetricResult{");
+
+        describeMetricsResultMembersMismatch(item, mismatchDescription, namespace, name, step);
 
         if (!Objects.equals(committed, item.committed())) {
           mismatchDescription
@@ -121,14 +160,33 @@ public class MetricMatchers {
               .appendText(" != ").appendValue(item.committed());
         }
 
-        if (!Objects.equals(attempted, item.attempted())) {
-          mismatchDescription
-              .appendText("attempted: ").appendValue(attempted)
-              .appendText(" != ").appendValue(item.attempted());
-        }
         mismatchDescription.appendText("}");
       }
     };
   }
 
+  private static <T> void describeMetricsResultMembersMismatch(
+      MetricResult<T> item,
+      Description mismatchDescription,
+      String namespace,
+      String name,
+      String step) {
+    if (!Objects.equals(namespace, item.name().namespace())) {
+      mismatchDescription
+          .appendText("inNamespace: ").appendValue(namespace)
+          .appendText(" != ").appendValue(item.name().namespace());
+    }
+
+    if (!Objects.equals(name, item.name().name())) {
+      mismatchDescription
+          .appendText("name: ").appendValue(name)
+          .appendText(" != ").appendValue(item.name().name());
+    }
+
+    if (!item.step().contains(step)) {
+      mismatchDescription
+          .appendText("step: ").appendValue(step)
+          .appendText(" != ").appendValue(item.step());
+    }
+  }
 }

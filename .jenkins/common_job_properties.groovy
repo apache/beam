@@ -20,14 +20,27 @@
 // common properties that are shared among all Jenkins projects.
 class common_job_properties {
 
-  // Sets common top-level job properties.
-  static def setTopLevelJobProperties(def context,
-                                      def default_branch = 'master',
-                                      def default_timeout = 100) {
+  // Sets common top-level job properties for website repository jobs.
+  static def setTopLevelWebsiteJobProperties(def context) {
+    setTopLevelJobProperties(context, 'beam-site', 'asf-site', 30)
+  }
+
+  // Sets common top-level job properties for main repository jobs.
+  static def setTopLevelMainJobProperties(def context,
+                                          def default_branch = 'master') {
+    setTopLevelJobProperties(context, 'beam', default_branch, 100)
+  }
+
+  // Sets common top-level job properties. Should be accessed through one of the
+  // above methods to protect jobs from internal details of param defaults.
+  private static def setTopLevelJobProperties(def context,
+                                              def repository_name,
+                                              def default_branch,
+                                              def default_timeout) {
 
     // GitHub project.
     context.properties {
-      githubProjectUrl('https://github.com/apache/incubator-beam/')
+      githubProjectUrl('https://github.com/apache/' + repository_name + '/')
     }
 
     // Set JDK version.
@@ -46,7 +59,7 @@ class common_job_properties {
     context.scm {
       git {
         remote {
-          url('https://github.com/apache/incubator-beam.git')
+          url('https://github.com/apache/' + repository_name + '.git')
           refspec('+refs/heads/*:refs/remotes/origin/* ' +
                   '+refs/pull/*:refs/remotes/origin/pr/*')
         }
@@ -77,13 +90,18 @@ class common_job_properties {
       environmentVariables {
         env('SPARK_LOCAL_IP', '127.0.0.1')
       }
+      credentialsBinding {
+        string("COVERALLS_REPO_TOKEN", "beam-coveralls-token")
+      }
     }
   }
 
-  // Sets the pull request build trigger.
-  static def setPullRequestBuildTrigger(def context,
-                                        def commitStatusContext,
-                                        def successComment = '--none--') {
+  // Sets the pull request build trigger. Accessed through precommit methods
+  // below to insulate callers from internal parameter defaults.
+  private static def setPullRequestBuildTrigger(def context,
+                                                def commitStatusContext,
+                                                def successComment = '--none--',
+                                                def trigger_phrase = '') {
     context.triggers {
       githubPullRequest {
         admins(['asfbot'])
@@ -91,12 +109,21 @@ class common_job_properties {
         orgWhitelist(['apache'])
         allowMembersOfWhitelistedOrgsAsAdmin()
         permitAll()
+        // trigger_phrase is the argument which gets set when we want to allow
+        // post-commit builds to run against pending pull requests. This block
+        // overrides the default trigger phrase with the new one. Setting this
+        // will disable automatic invocation of this build; the phrase will be
+        // required to start it.
+        if (trigger_phrase != '') {
+          triggerPhrase(trigger_phrase)
+          onlyTriggerPhrase()
+        }
 
         extensions {
           commitStatus {
             // This is the name that will show up in the GitHub pull request UI
             // for this Jenkins project.
-            delegate.context(commitStatusContext)
+            delegate.context("Jenkins: " + commitStatusContext)
           }
 
           /*
@@ -147,22 +174,38 @@ class common_job_properties {
   }
 
   // Sets common config for PreCommit jobs.
-  static def setPreCommit(def context, comment) {
+  static def setPreCommit(def context,
+                          def commitStatusName,
+                          def successComment = '--none--') {
     // Set pull request build trigger.
-    setPullRequestBuildTrigger(context, comment)
+    setPullRequestBuildTrigger(context, commitStatusName, successComment)
+  }
+
+  // Enable triggering postcommit runs against pull requests. Users can comment the trigger phrase
+  // specified in the postcommit job and have the job run against their PR to run
+  // tests not in the presubmit suite for additional confidence.
+  static def enablePhraseTriggeringFromPullRequest(def context,
+                                         def commitStatusName,
+                                         def trigger_phrase) {
+    setPullRequestBuildTrigger(
+      context,
+      commitStatusName,
+      '--none--',
+      trigger_phrase)
   }
 
   // Sets common config for PostCommit jobs.
   static def setPostCommit(def context,
                            def build_schedule = '0 */6 * * *',
-                           def scm_schedule = '* * * * *',
-                           def notify_address = 'commits@beam.incubator.apache.org') {
+                           def trigger_every_push = true,
+                           def notify_address = 'commits@beam.apache.org') {
     // Set build triggers
     context.triggers {
       // By default runs every 6 hours.
       cron(build_schedule)
-      // Also polls SCM every minute.
-      scm(scm_schedule)
+      if (trigger_every_push) {
+        githubPush()
+      }
     }
 
     context.publishers {

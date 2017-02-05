@@ -99,6 +99,19 @@ class _TextSource(filebasedsource.FileBasedSource):
           'lines might significantly slow down processing.')
     self._skip_header_lines = skip_header_lines
 
+  def display_data(self):
+    parent_dd = super(_TextSource, self).display_data()
+    parent_dd['strip_newline'] = DisplayDataItem(
+        self._strip_trailing_newlines,
+        label='Strip Trailing New Lines')
+    parent_dd['buffer_size'] = DisplayDataItem(
+        self._buffer_size,
+        label='Buffer Size')
+    parent_dd['coder'] = DisplayDataItem(
+        self._coder.__class__,
+        label='Coder')
+    return parent_dd
+
   def read_records(self, file_name, range_tracker):
     start_offset = range_tracker.start_position()
     read_buffer = _TextSource.ReadBuffer('', 0)
@@ -291,11 +304,6 @@ class ReadFromText(PTransform):
   def expand(self, pvalue):
     return pvalue.pipeline | Read(self._source)
 
-  def display_data(self):
-    return {'source_dd': self._source,
-            'strip_newline': DisplayDataItem(self._strip_trailing_newlines,
-                                             label='Strip Trailing New Lines')}
-
 
 class WriteToText(PTransform):
   """A PTransform for writing to text files."""
@@ -343,16 +351,9 @@ class WriteToText(PTransform):
           append_trailing_newlines is set, '\n' will be added.
     """
 
-    self._append_trailing_newlines = append_trailing_newlines
     self._sink = _TextSink(file_path_prefix, file_name_suffix,
                            append_trailing_newlines, num_shards,
                            shard_name_template, coder, compression_type, header)
 
   def expand(self, pcoll):
     return pcoll | Write(self._sink)
-
-  def display_data(self):
-    return {'sink_dd': self._sink,
-            'append_newline': DisplayDataItem(
-                self._append_trailing_newlines,
-                label='Append Trailing New Lines')}

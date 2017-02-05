@@ -22,7 +22,7 @@
   <parent>
     <groupId>org.apache.beam</groupId>
     <artifactId>beam-sdks-java-parent</artifactId>
-    <version>0.5.0-incubating-SNAPSHOT</version>
+    <version>0.6.0-SNAPSHOT</version>
     <relativePath>../pom.xml</relativePath>
   </parent>
 
@@ -40,6 +40,8 @@
     <module>kinesis</module>
     <module>mongodb</module>
     <module>jdbc</module>
+    <module>elasticsearch</module>
+    <module>mqtt</module>
   </modules>
 
 </project>

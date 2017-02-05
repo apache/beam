@@ -79,7 +79,7 @@ public class DefaultCoderTest {
     }
 
     protected CustomSerializableCoder() {
-      super(CustomRecord.class);
+      super(CustomRecord.class, TypeDescriptor.of(CustomRecord.class));
     }
   }
 
@@ -93,7 +93,7 @@ public class DefaultCoderTest {
     }
 
     protected OldCustomSerializableCoder() {
-      super(OldCustomRecord.class);
+      super(OldCustomRecord.class, TypeDescriptor.of(OldCustomRecord.class));
     }
   }
 

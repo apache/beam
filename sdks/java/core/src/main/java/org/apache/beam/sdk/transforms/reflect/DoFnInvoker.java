@@ -21,17 +21,13 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFn.FinishBundle;
-import org.apache.beam.sdk.transforms.DoFn.InputProvider;
-import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
 import org.apache.beam.sdk.transforms.DoFn.ProcessElement;
 import org.apache.beam.sdk.transforms.DoFn.StartBundle;
 import org.apache.beam.sdk.transforms.DoFn.StateId;
 import org.apache.beam.sdk.transforms.DoFn.TimerId;
-import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.Timer;
-import org.apache.beam.sdk.util.WindowingInternals;
 import org.apache.beam.sdk.util.state.State;
 
 /**
@@ -115,30 +111,11 @@ public interface DoFnInvoker<InputT, OutputT> {
     /** Provide a {@link DoFn.OnTimerContext} to use with the given {@link DoFn}. */
     DoFn<InputT, OutputT>.OnTimerContext onTimerContext(DoFn<InputT, OutputT> doFn);
 
-    /** A placeholder for testing purposes. */
-    InputProvider<InputT> inputProvider();
-
-    /** A placeholder for testing purposes. */
-    OutputReceiver<OutputT> outputReceiver();
-
-    /**
-     * For migration from {@link OldDoFn} to {@link DoFn}, provide a {@link WindowingInternals} so
-     * an {@link OldDoFn} can be run via {@link DoFnInvoker}.
-     *
-     * <p>This is <i>not</i> exposed via the reflective capabilities of {@link DoFn}.
-     *
-     * @deprecated Please port occurences of {@link OldDoFn} to {@link DoFn}. If they require state
-     *     and timers, they will need to wait for the arrival of those features. Do not introduce
-     *     new uses of this method.
-     */
-    @Deprecated
-    WindowingInternals<InputT, OutputT> windowingInternals();
-
     /**
      * If this is a splittable {@link DoFn}, returns the {@link RestrictionTracker} associated with
      * the current {@link ProcessElement} call.
      */
-    <RestrictionT> RestrictionTracker<RestrictionT> restrictionTracker();
+    RestrictionTracker<?> restrictionTracker();
 
     /** Returns the state cell for the given {@link StateId}. */
     State state(String stateId);
@@ -170,21 +147,6 @@ public interface DoFnInvoker<InputT, OutputT> {
     }
 
     @Override
-    public InputProvider<InputT> inputProvider() {
-      return null;
-    }
-
-    @Override
-    public OutputReceiver<OutputT> outputReceiver() {
-      return null;
-    }
-
-    @Override
-    public WindowingInternals<InputT, OutputT> windowingInternals() {
-      return null;
-    }
-
-    @Override
     public State state(String stateId) {
       return null;
     }
@@ -194,7 +156,7 @@ public interface DoFnInvoker<InputT, OutputT> {
       return null;
     }
 
-    public <RestrictionT> RestrictionTracker<RestrictionT> restrictionTracker() {
+    public RestrictionTracker<?> restrictionTracker() {
       return null;
     }
   }

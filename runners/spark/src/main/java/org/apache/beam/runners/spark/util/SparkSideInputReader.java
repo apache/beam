@@ -37,10 +37,10 @@ import org.apache.beam.sdk.values.TupleTag;
  * A {@link SideInputReader} for thw SparkRunner.
  */
 public class SparkSideInputReader implements SideInputReader {
-  private final Map<TupleTag<?>, KV<WindowingStrategy<?, ?>, BroadcastHelper<?>>> sideInputs;
+  private final Map<TupleTag<?>, KV<WindowingStrategy<?, ?>, SideInputBroadcast<?>>> sideInputs;
 
-  public SparkSideInputReader(Map<TupleTag<?>, KV<WindowingStrategy<?, ?>, BroadcastHelper<?>>>
-                                  sideInputs) {
+  public SparkSideInputReader(
+      Map<TupleTag<?>, KV<WindowingStrategy<?, ?>, SideInputBroadcast<?>>> sideInputs) {
     this.sideInputs = sideInputs;
   }
 
@@ -49,7 +49,7 @@ public class SparkSideInputReader implements SideInputReader {
   public <T> T get(PCollectionView<T> view, BoundedWindow window) {
     //--- validate sideInput.
     checkNotNull(view, "The PCollectionView passed to sideInput cannot be null ");
-    KV<WindowingStrategy<?, ?>, BroadcastHelper<?>> windowedBroadcastHelper =
+    KV<WindowingStrategy<?, ?>, SideInputBroadcast<?>> windowedBroadcastHelper =
         sideInputs.get(view.getTagInternal());
     checkNotNull(windowedBroadcastHelper, "SideInput for view " + view + " is not available.");
 

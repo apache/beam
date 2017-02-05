@@ -62,7 +62,7 @@ public class ApexStateInternalsTest {
       StateTags.value("stringValue", StringUtf8Coder.of());
   private static final StateTag<Object, AccumulatorCombiningState<Integer, int[], Integer>>
       SUM_INTEGER_ADDR = StateTags.combiningValueFromInputInternal(
-          "sumInteger", VarIntCoder.of(), new Sum.SumIntegerFn());
+          "sumInteger", VarIntCoder.of(), Sum.ofIntegers());
   private static final StateTag<Object, BagState<String>> STRING_BAG_ADDR =
       StateTags.bag("stringBag", StringUtf8Coder.of());
   private static final StateTag<Object, WatermarkHoldState<BoundedWindow>>

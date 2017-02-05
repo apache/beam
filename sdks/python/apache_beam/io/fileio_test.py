@@ -205,8 +205,6 @@ class TestFileSink(_TestCaseWithTempDirCleanUp):
     dd = DisplayData.create_from(sink)
     expected_items = [
         DisplayDataItemMatcher(
-            'shards', 0),
-        DisplayDataItemMatcher(
             'compression', 'auto'),
         DisplayDataItemMatcher(
             'file_pattern',

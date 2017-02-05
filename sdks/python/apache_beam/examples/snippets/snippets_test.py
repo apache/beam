@@ -48,8 +48,8 @@ class ParDoTest(unittest.TestCase):
 
     # [START model_pardo_pardo]
     class ComputeWordLengthFn(beam.DoFn):
-      def process(self, context):
-        return [len(context.element)]
+      def process(self, element):
+        return [len(element)]
     # [END model_pardo_pardo]
 
     # [START model_pardo_apply]
@@ -63,8 +63,8 @@ class ParDoTest(unittest.TestCase):
 
     # [START model_pardo_yield]
     class ComputeWordLengthFn(beam.DoFn):
-      def process(self, context):
-        yield len(context.element)
+      def process(self, element):
+        yield len(element)
     # [END model_pardo_yield]
 
     word_lengths = words | beam.ParDo(ComputeWordLengthFn())
@@ -151,9 +151,9 @@ class ParDoTest(unittest.TestCase):
 
     # [START model_pardo_side_input_dofn]
     class FilterUsingLength(beam.DoFn):
-      def process(self, context, lower_bound, upper_bound=float('inf')):
-        if lower_bound <= len(context.element) <= upper_bound:
-          yield context.element
+      def process(self, element, lower_bound, upper_bound=float('inf')):
+        if lower_bound <= len(element) <= upper_bound:
+          yield element
 
     small_words = words | beam.ParDo(FilterUsingLength(), 0, 3)
     # [END model_pardo_side_input_dofn]
@@ -163,17 +163,17 @@ class ParDoTest(unittest.TestCase):
     # [START model_pardo_emitting_values_on_side_outputs]
     class ProcessWords(beam.DoFn):
 
-      def process(self, context, cutoff_length, marker):
-        if len(context.element) <= cutoff_length:
+      def process(self, element, cutoff_length, marker):
+        if len(element) <= cutoff_length:
           # Emit this short word to the main output.
-          yield context.element
+          yield element
         else:
           # Emit this word's long length to a side output.
           yield pvalue.SideOutputValue(
-              'above_cutoff_lengths', len(context.element))
-        if context.element.startswith(marker):
+              'above_cutoff_lengths', len(element))
+        if element.startswith(marker):
           # Emit this word to a different side output.
-          yield pvalue.SideOutputValue('marked strings', context.element)
+          yield pvalue.SideOutputValue('marked strings', element)
     # [END model_pardo_emitting_values_on_side_outputs]
 
     words = ['a', 'an', 'the', 'music', 'xyz']
@@ -262,9 +262,9 @@ class TypeHintsTest(unittest.TestCase):
       # [START type_hints_do_fn]
       @beam.typehints.with_input_types(int)
       class FilterEvensDoFn(beam.DoFn):
-        def process(self, context):
-          if context.element % 2 == 0:
-            yield context.element
+        def process(self, element):
+          if element % 2 == 0:
+            yield element
       evens = numbers | beam.ParDo(FilterEvensDoFn())
       # [END type_hints_do_fn]
 
@@ -364,10 +364,10 @@ class SnippetsTest(unittest.TestCase):
         self.file_to_read = file_to_read
         self.coder = coders.StrUtf8Coder()
 
-      def process(self, context):
+      def process(self, element):
         pass
 
-      def finish_bundle(self, context):
+      def finish_bundle(self):
         assert self.file_to_read
         for file_name in glob.glob(self.file_to_read):
           with open(file_name) as file:
@@ -393,16 +393,16 @@ class SnippetsTest(unittest.TestCase):
         self.file_obj = None
         self.coder = coders.ToStringCoder()
 
-      def start_bundle(self, context):
+      def start_bundle(self):
         assert self.file_to_write
         self.file_to_write += str(uuid.uuid4())
         self.file_obj = open(self.file_to_write, 'w')
 
-      def process(self, context):
+      def process(self, element):
         assert self.file_obj
-        self.file_obj.write(self.coder.encode(context.element) + '\n')
+        self.file_obj.write(self.coder.encode(element) + '\n')
 
-      def finish_bundle(self, context):
+      def finish_bundle(self):
         assert self.file_obj
         self.file_obj.close()
 

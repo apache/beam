@@ -196,9 +196,6 @@ class TestAvro(unittest.TestCase):
             'file_pattern',
             'some_avro_sink-%(shard_num)05d-of-%(num_shards)05d.end'),
         DisplayDataItemMatcher(
-            'shards',
-            0),
-        DisplayDataItemMatcher(
             'codec',
             'null'),
         DisplayDataItemMatcher(
@@ -218,9 +215,6 @@ class TestAvro(unittest.TestCase):
         DisplayDataItemMatcher(
             'file_pattern',
             'some_avro_sink-%(shard_num)05d-of-%(num_shards)05d'),
-        DisplayDataItemMatcher(
-            'shards',
-            0),
         DisplayDataItemMatcher(
             'codec',
             'deflate'),
@@ -290,8 +284,8 @@ class TestAvro(unittest.TestCase):
     # work rebalancing test that completes within an acceptable amount of time.
     old_sync_interval = avro.datafile.SYNC_INTERVAL
     try:
-      avro.datafile.SYNC_INTERVAL = 5
-      file_name = self._write_data(count=20)
+      avro.datafile.SYNC_INTERVAL = 2
+      file_name = self._write_data(count=5)
       source = AvroSource(file_name)
       splits = [split
                 for split in source.split(desired_bundle_size=float('inf'))]

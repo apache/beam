@@ -638,7 +638,7 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
 
     @Override
     public CombineFn<Long, ?, Long> getCombineFn() {
-      return new Sum.SumLongFn();
+      return Sum.ofLongs();
     }
 
     public long getSum() {

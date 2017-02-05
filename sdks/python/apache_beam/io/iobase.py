@@ -759,16 +759,15 @@ class WriteImpl(ptransform.PTransform):
       write_result_coll = (keyed_pcoll
                            | core.WindowInto(window.GlobalWindows())
                            | core.GroupByKey()
-                           | 'WriteBundles' >> core.Map(
-                               _write_keyed_bundle, self.sink,
+                           | 'WriteBundles' >> core.ParDo(
+                               _WriteKeyedBundleDoFn(self.sink),
                                AsSingleton(init_result_coll)))
     else:
       min_shards = 1
       write_result_coll = (pcoll
                            | 'WriteBundles' >>
-                           core.ParDo(
-                               _WriteBundleDoFn(), self.sink,
-                               AsSingleton(init_result_coll))
+                           core.ParDo(_WriteBundleDoFn(self.sink),
+                                      AsSingleton(init_result_coll))
                            | 'Pair' >> core.Map(lambda x: (None, x))
                            | core.WindowInto(window.GlobalWindows())
                            | core.GroupByKey()
@@ -784,28 +783,40 @@ class WriteImpl(ptransform.PTransform):
 
 class _WriteBundleDoFn(core.DoFn):
   """A DoFn for writing elements to an iobase.Writer.
-
   Opens a writer at the first element and closes the writer at finish_bundle().
   """
 
-  def __init__(self):
+  def __init__(self, sink):
     self.writer = None
+    self.sink = sink
 
-  def process(self, context, sink, init_result):
+  def display_data(self):
+    return {'sink_dd': self.sink}
+
+  def process(self, element, init_result):
     if self.writer is None:
-      self.writer = sink.open_writer(init_result, str(uuid.uuid4()))
-    self.writer.write(context.element)
+      self.writer = self.sink.open_writer(init_result, str(uuid.uuid4()))
+    self.writer.write(element)
 
-  def finish_bundle(self, context, *args, **kwargs):
+  def finish_bundle(self):
     if self.writer is not None:
       yield window.TimestampedValue(self.writer.close(), window.MAX_TIMESTAMP)
 
 
-def _write_keyed_bundle(bundle, sink, init_result):
-  writer = sink.open_writer(init_result, str(uuid.uuid4()))
-  for element in bundle[1]:  # values
-    writer.write(element)
-  return window.TimestampedValue(writer.close(), window.MAX_TIMESTAMP)
+class _WriteKeyedBundleDoFn(core.DoFn):
+
+  def __init__(self, sink):
+    self.sink = sink
+
+  def display_data(self):
+    return {'sink_dd': self.sink}
+
+  def process(self, element, init_result):
+    bundle = element
+    writer = self.sink.open_writer(init_result, str(uuid.uuid4()))
+    for element in bundle[1]:  # values
+      writer.write(element)
+    return [window.TimestampedValue(writer.close(), window.MAX_TIMESTAMP)]
 
 
 def _finalize_write(_, sink, init_result, write_results, min_shards):
@@ -827,14 +838,14 @@ class _RoundRobinKeyFn(core.DoFn):
   def __init__(self, count):
     self.count = count
 
-  def start_bundle(self, context):
+  def start_bundle(self):
     self.counter = random.randint(0, self.count - 1)
 
-  def process(self, context):
+  def process(self, element):
     self.counter += 1
     if self.counter >= self.count:
       self.counter -= self.count
-    yield self.counter, context.element
+    yield self.counter, element
 
 
 # For backwards compatibility.

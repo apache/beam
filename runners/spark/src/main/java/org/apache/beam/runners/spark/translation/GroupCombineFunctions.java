@@ -24,8 +24,8 @@ import java.util.Map;
 import org.apache.beam.runners.core.SystemReduceFn;
 import org.apache.beam.runners.spark.aggregators.NamedAggregators;
 import org.apache.beam.runners.spark.coders.CoderHelpers;
-import org.apache.beam.runners.spark.util.BroadcastHelper;
 import org.apache.beam.runners.spark.util.ByteArray;
+import org.apache.beam.runners.spark.util.SideInputBroadcast;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.IterableCoder;
@@ -102,7 +102,7 @@ public class GroupCombineFunctions {
                   final Coder<OutputT> oCoder,
                   final SparkRuntimeContext runtimeContext,
                   final WindowingStrategy<?, ?> windowingStrategy,
-                  final Map<TupleTag<?>, KV<WindowingStrategy<?, ?>, BroadcastHelper<?>>>
+                  final Map<TupleTag<?>, KV<WindowingStrategy<?, ?>, SideInputBroadcast<?>>>
                       sideInputs,
                   boolean hasDefault) {
     // handle empty input RDD, which will natively skip the entire execution as Spark will not
@@ -190,8 +190,8 @@ public class GroupCombineFunctions {
                 final KvCoder<K, InputT> inputCoder,
                 final SparkRuntimeContext runtimeContext,
                 final WindowingStrategy<?, ?> windowingStrategy,
-                final Map<TupleTag<?>, KV<WindowingStrategy<?, ?>,
-                    BroadcastHelper<?>>> sideInputs) {
+                final Map<TupleTag<?>, KV<WindowingStrategy<?, ?>, SideInputBroadcast<?>>>
+                    sideInputs) {
     //--- coders.
     final Coder<K> keyCoder = inputCoder.getKeyCoder();
     final Coder<InputT> viCoder = inputCoder.getValueCoder();

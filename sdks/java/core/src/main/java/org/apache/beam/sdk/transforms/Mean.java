@@ -64,7 +64,7 @@ public class Mean {
    * @param <NumT> the type of the {@code Number}s being combined
    */
   public static <NumT extends Number> Combine.Globally<NumT, Double> globally() {
-    return Combine.<NumT, Double>globally(new MeanFn<>()).named("Mean.Globally");
+    return Combine.<NumT, Double>globally(Mean.<NumT>of());
   }
 
   /**
@@ -81,11 +81,8 @@ public class Mean {
    * @param <NumT> the type of the {@code Number}s being combined
    */
   public static <K, NumT extends Number> Combine.PerKey<K, NumT, Double> perKey() {
-    return Combine.<K, NumT, Double>perKey(new MeanFn<>()).named("Mean.PerKey");
+    return Combine.<K, NumT, Double>perKey(Mean.<NumT>of());
   }
-
-
-  /////////////////////////////////////////////////////////////////////////////
 
   /**
    * A {@code Combine.CombineFn} that computes the arithmetic mean
@@ -97,13 +94,19 @@ public class Mean {
    *
    * @param <NumT> the type of the {@code Number}s being combined
    */
-  static class MeanFn<NumT extends Number>
+  public static <NumT extends Number>
+  Combine.AccumulatingCombineFn<NumT, CountSum<NumT>, Double> of() {
+    return new MeanFn<>();
+  }
+
+  /////////////////////////////////////////////////////////////////////////////
+
+  private static class MeanFn<NumT extends Number>
   extends Combine.AccumulatingCombineFn<NumT, CountSum<NumT>, Double> {
     /**
      * Constructs a combining function that computes the mean over
      * a collection of values of type {@code N}.
      */
-    public MeanFn() {}
 
     @Override
     public CountSum<NumT> createAccumulator() {
@@ -185,18 +188,16 @@ public class Mean {
      @Override
      public void encode(CountSum<NumT> value, OutputStream outStream, Coder.Context context)
          throws CoderException, IOException {
-       Coder.Context nestedContext = context.nested();
-       LONG_CODER.encode(value.count, outStream, nestedContext);
-       DOUBLE_CODER.encode(value.sum, outStream, nestedContext);
+       LONG_CODER.encode(value.count, outStream, context.nested());
+       DOUBLE_CODER.encode(value.sum, outStream, context);
      }
 
      @Override
      public CountSum<NumT> decode(InputStream inStream, Coder.Context context)
          throws CoderException, IOException {
-       Coder.Context nestedContext = context.nested();
        return new CountSum<>(
-           LONG_CODER.decode(inStream, nestedContext),
-           DOUBLE_CODER.decode(inStream, nestedContext));
+           LONG_CODER.decode(inStream, context.nested()),
+           DOUBLE_CODER.decode(inStream, context));
     }
   }
 }

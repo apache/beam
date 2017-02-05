@@ -17,6 +17,11 @@
 
 """Utility functions used throughout the package."""
 
+import logging
+from multiprocessing.pool import ThreadPool
+import threading
+import weakref
+
 
 class ArgumentPlaceholder(object):
   """A place holder object replacing PValues in argument lists.
@@ -92,3 +97,31 @@ def insert_values_in_args(args, kwargs, values):
       (k, v_iter.next()) if isinstance(v, ArgumentPlaceholder) else (k, v)
       for k, v in sorted(kwargs.iteritems()))
   return (new_args, new_kwargs)
+
+
+def run_using_threadpool(fn_to_execute, inputs, pool_size):
+  """Runs the given function on given inputs using a thread pool.
+
+  Args:
+    fn_to_execute: Function to execute
+    inputs: Inputs on which given function will be executed in parallel.
+    pool_size: Size of thread pool.
+  Returns:
+    Results retrieved after executing the given function on given inputs.
+  """
+
+  # ThreadPool crashes in old versions of Python (< 2.7.5) if created
+  # from a child thread. (http://bugs.python.org/issue10015)
+  if not hasattr(threading.current_thread(), '_children'):
+    threading.current_thread()._children = weakref.WeakKeyDictionary()
+  pool = ThreadPool(min(pool_size, len(inputs)))
+  try:
+    # We record and reset logging level here since 'apitools' library Beam
+    # depends on updates the logging level when used with a threadpool -
+    # https://github.com/google/apitools/issues/141
+    # TODO: Remove this once above issue in 'apitools' is fixed.
+    old_level = logging.getLogger().level
+    return pool.map(fn_to_execute, inputs)
+  finally:
+    pool.terminate()
+    logging.getLogger().setLevel(old_level)

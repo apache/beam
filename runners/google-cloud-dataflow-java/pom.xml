@@ -22,7 +22,7 @@
   <parent>
     <groupId>org.apache.beam</groupId>
     <artifactId>beam-runners-parent</artifactId>
-    <version>0.5.0-incubating-SNAPSHOT</version>
+    <version>0.6.0-SNAPSHOT</version>
     <relativePath>../pom.xml</relativePath>
   </parent>
 
@@ -33,8 +33,8 @@
   <packaging>jar</packaging>
 
   <properties>
-    <timestamp>${maven.build.timestamp}</timestamp>
-    <maven.build.timestamp.format>yyyy-MM-dd HH:mm</maven.build.timestamp.format>
+    <dataflow.container_version>beam-master-20170126</dataflow.container_version>
+    <dataflow.environment_major_version>6</dataflow.environment_major_version>
   </properties>
 
   <build>
@@ -78,10 +78,11 @@
             <id>runnable-on-service-tests</id>
             <configuration>
               <excludedGroups>
-                org.apache.beam.sdk.testing.UsesStatefulParDo,
+                org.apache.beam.sdk.testing.UsesAttemptedMetrics,
+                org.apache.beam.sdk.testing.UsesCommittedMetrics,
                 org.apache.beam.sdk.testing.UsesTimersInParDo,
                 org.apache.beam.sdk.testing.UsesSplittableParDo,
-                org.apache.beam.sdk.testing.UsesMetrics
+                org.apache.beam.sdk.testing.UsesUnboundedPCollections,
               </excludedGroups>
               <excludes>
                 <exclude>org.apache.beam.sdk.transforms.FlattenTest</exclude>
@@ -200,6 +201,11 @@
     <dependency>
       <groupId>com.google.apis</groupId>
       <artifactId>google-api-services-clouddebugger</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>com.google.apis</groupId>
+      <artifactId>google-api-services-storage</artifactId>
     </dependency>
 
     <dependency>

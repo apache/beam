@@ -94,11 +94,11 @@ To get started using the Flink Runner, we first need to install the latest versi
 
 To retrieve the latest version of Flink-Runner, run the following command
 
-    git clone https://github.com/apache/incubator-beam
+    git clone https://github.com/apache/beam
 
 Then switch to the newly created directory and run Maven to build the Beam runner:
 
-    cd incubator-beam
+    cd beam
     mvn clean install -DskipTests
 
 Flink-Runner is now installed in your local maven repository.
@@ -169,7 +169,7 @@ The contents of the root `pom.xml` should be slightly changed afterwards (explan
     <dependency>
       <groupId>org.apache.beam</groupId>
       <artifactId>beam-runners-flink_2.10</artifactId>
-      <version>0.2.0-incubating-SNAPSHOT</version>
+      <version>0.2.0-SNAPSHOT</version>
     </dependency>
 
     <!-- Uncomment, if you want to use Flink's Kafka connector -->

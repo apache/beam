@@ -24,11 +24,11 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.Map;
+import org.apache.beam.runners.core.OldDoFn;
 import org.apache.beam.runners.flink.translation.wrappers.SerializableFnAggregatorWrapper;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.transforms.Combine;
-import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.TimerInternals;
@@ -252,7 +252,7 @@ abstract class FlinkProcessContextBase<InputT, OutputT>
   public abstract <T> void sideOutputWithTimestamp(TupleTag<T> tag, T output, Instant timestamp);
 
   @Override
-  protected <AggInputT, AggOutputT> Aggregator<AggInputT, AggOutputT>
+  public <AggInputT, AggOutputT> Aggregator<AggInputT, AggOutputT>
   createAggregatorInternal(String name, Combine.CombineFn<AggInputT, ?, AggOutputT> combiner) {
     @SuppressWarnings("unchecked")
     SerializableFnAggregatorWrapper<AggInputT, AggOutputT> result =

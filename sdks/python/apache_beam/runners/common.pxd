@@ -18,6 +18,7 @@
 cimport cython
 
 from apache_beam.utils.windowed_value cimport WindowedValue
+from apache_beam.metrics.execution cimport ScopedMetricsContainer
 
 
 cdef type SideOutputValue, TimestampedValue
@@ -37,16 +38,22 @@ cdef class DoFnRunner(Receiver):
   cdef LoggingContext logging_context
   cdef object step_name
   cdef bint is_new_dofn
-  cdef object args
+  cdef list args
   cdef dict kwargs
-  cdef object side_inputs
+  cdef ScopedMetricsContainer scoped_metrics_container
+  cdef list side_inputs
   cdef bint has_windowed_side_inputs
+  cdef list placeholders
+  cdef bint simple_process
 
   cdef Receiver main_receivers
 
   cpdef process(self, WindowedValue element)
   cdef old_dofn_process(self, WindowedValue element)
   cdef new_dofn_process(self, WindowedValue element)
+  cdef new_dofn_simple_process(self, WindowedValue element)
+  cdef _new_dofn_window_process(
+      self, WindowedValue element, list args, dict kwargs, object window)
 
   @cython.locals(windowed_value=WindowedValue)
   cpdef _process_outputs(self, WindowedValue element, results)

@@ -130,8 +130,8 @@ class DisplayDataTest(unittest.TestCase):
       def __init__(self, my_display_data=None):
         self.my_display_data = my_display_data
 
-      def process(self, context):
-        yield context.element + 1
+      def process(self, element):
+        yield element + 1
 
       def display_data(self):
         return {'static_integer': 120,

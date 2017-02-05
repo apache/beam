@@ -329,9 +329,8 @@ public class BigtableIOTest {
         }));
   }
 
-  private static void runReadTest(BigtableIO.Read read, List<Row> expected) {
-    TestPipeline p = TestPipeline.create();
-    PCollection<Row> rows = p.apply(read);
+  private void runReadTest(BigtableIO.Read read, List<Row> expected) {
+    PCollection<Row> rows = p.apply(read.getTableId() + "_" + read.getKeyRange(), read);
     PAssert.that(rows).containsInAnyOrder(expected);
     p.run();
   }

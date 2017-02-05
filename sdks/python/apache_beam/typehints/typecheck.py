@@ -24,7 +24,7 @@ import types
 
 from apache_beam.pvalue import SideOutputValue
 from apache_beam.transforms.core import DoFn
-from apache_beam.transforms.core import NewDoFn
+from apache_beam.transforms.core import OldDoFn
 from apache_beam.transforms.window import WindowedValue
 from apache_beam.typehints import check_constraint
 from apache_beam.typehints import CompositeTypeHintError
@@ -35,7 +35,8 @@ from apache_beam.typehints.decorators import _check_instance_type
 from apache_beam.typehints.decorators import getcallargs_forhints
 
 
-class TypeCheckWrapperDoFn(DoFn):
+# TODO(Sourabh): Remove after migration to DoFn
+class TypeCheckWrapperOldDoFn(OldDoFn):
   """A wrapper around a DoFn which performs type-checking of input and output.
   """
 
@@ -123,7 +124,8 @@ class TypeCheckWrapperDoFn(DoFn):
       raise TypeCheckError, error_msg, sys.exc_info()[2]
 
 
-class OutputCheckWrapperDoFn(DoFn):
+# TODO(Sourabh): Remove after migration to DoFn
+class OutputCheckWrapperOldDoFn(OldDoFn):
   """A DoFn that verifies against common errors in the output type."""
 
   def __init__(self, dofn, full_label):
@@ -165,8 +167,8 @@ class OutputCheckWrapperDoFn(DoFn):
     return output
 
 
-class AbstractDoFnWrapper(NewDoFn):
-  """An abstract class to create wrapper around NewDoFn"""
+class AbstractDoFnWrapper(DoFn):
+  """An abstract class to create wrapper around DoFn"""
 
   def __init__(self, dofn):
     super(AbstractDoFnWrapper, self).__init__()
@@ -197,11 +199,11 @@ class AbstractDoFnWrapper(NewDoFn):
     return self.dofn.is_process_bounded()
 
 
-class OutputCheckWrapperNewDoFn(AbstractDoFnWrapper):
+class OutputCheckWrapperDoFn(AbstractDoFnWrapper):
   """A DoFn that verifies against common errors in the output type."""
 
   def __init__(self, dofn, full_label):
-    super(OutputCheckWrapperNewDoFn, self).__init__(dofn)
+    super(OutputCheckWrapperDoFn, self).__init__(dofn)
     self.full_label = full_label
 
   def wrapper(self, method, args, kwargs):
@@ -230,12 +232,12 @@ class OutputCheckWrapperNewDoFn(AbstractDoFnWrapper):
     return output
 
 
-class TypeCheckWrapperNewDoFn(AbstractDoFnWrapper):
+class TypeCheckWrapperDoFn(AbstractDoFnWrapper):
   """A wrapper around a DoFn which performs type-checking of input and output.
   """
 
   def __init__(self, dofn, type_hints, label=None):
-    super(TypeCheckWrapperNewDoFn, self).__init__(dofn)
+    super(TypeCheckWrapperDoFn, self).__init__(dofn)
     self.dofn = dofn
     self._process_fn = self.dofn.process_argspec_fn()
     if type_hints.input_types:

@@ -153,13 +153,12 @@ class ReadFromDatastore(PTransform):
       self._query = query
       self._num_splits = num_splits
 
-    def start_bundle(self, context):
+    def start_bundle(self):
       self._datastore = helper.get_datastore(self._project)
 
-    def process(self, p_context, *args, **kwargs):
+    def process(self, query, *args, **kwargs):
       # distinct key to be used to group query splits.
       key = 1
-      query = p_context.element
 
       # If query has a user set limit, then the query cannot be split.
       if query.HasField('limit'):
@@ -208,11 +207,10 @@ class ReadFromDatastore(PTransform):
       self._datastore_namespace = namespace
       self._datastore = None
 
-    def start_bundle(self, context):
+    def start_bundle(self):
       self._datastore = helper.get_datastore(self._project)
 
-    def process(self, p_context, *args, **kwargs):
-      query = p_context.element
+    def process(self, query, *args, **kwargs):
       # Returns an iterator of entities that reads in batches.
       entities = helper.fetch_entities(self._project, self._datastore_namespace,
                                        query, self._datastore)
@@ -338,16 +336,16 @@ class _Mutate(PTransform):
       self._datastore = None
       self._mutations = []
 
-    def start_bundle(self, context):
+    def start_bundle(self):
       self._mutations = []
       self._datastore = helper.get_datastore(self._project)
 
-    def process(self, context):
-      self._mutations.append(context.element)
+    def process(self, element):
+      self._mutations.append(element)
       if len(self._mutations) >= _Mutate._WRITE_BATCH_SIZE:
         self._flush_batch()
 
-    def finish_bundle(self, context):
+    def finish_bundle(self):
       if self._mutations:
         self._flush_batch()
       self._mutations = []

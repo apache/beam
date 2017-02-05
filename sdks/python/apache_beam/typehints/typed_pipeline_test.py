@@ -70,8 +70,8 @@ class MainInputTest(unittest.TestCase):
     @typehints.with_input_types(int)
     @typehints.with_output_types(str)
     class MyDoFn(beam.DoFn):
-      def process(self, context):
-        return [str(context.element)]
+      def process(self, element):
+        return [str(element)]
 
     result = [1, 2, 3] | beam.ParDo(MyDoFn())
     self.assertEqual(['1', '2', '3'], sorted(result))
@@ -84,8 +84,8 @@ class MainInputTest(unittest.TestCase):
 
   def test_typed_dofn_instance(self):
     class MyDoFn(beam.DoFn):
-      def process(self, context):
-        return [str(context.element)]
+      def process(self, element):
+        return [str(element)]
     my_do_fn = MyDoFn().with_input_types(int).with_output_types(str)
 
     result = [1, 2, 3] | beam.ParDo(my_do_fn)

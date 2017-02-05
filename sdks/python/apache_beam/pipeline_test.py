@@ -31,15 +31,15 @@ from apache_beam.transforms import CombineGlobally
 from apache_beam.transforms import Create
 from apache_beam.transforms import FlatMap
 from apache_beam.transforms import Map
-from apache_beam.transforms import NewDoFn
+from apache_beam.transforms import DoFn
 from apache_beam.transforms import ParDo
 from apache_beam.transforms import PTransform
 from apache_beam.transforms import Read
 from apache_beam.transforms import WindowInto
 from apache_beam.transforms.util import assert_that
 from apache_beam.transforms.util import equal_to
-from apache_beam.transforms.window import IntervalWindow
-from apache_beam.transforms.window import WindowFn
+from apache_beam.transforms.window import SlidingWindows
+from apache_beam.transforms.window import TimestampedValue
 from apache_beam.utils.timestamp import MIN_TIMESTAMP
 
 
@@ -69,9 +69,6 @@ class FakeSource(NativeSource):
 
 
 class PipelineTest(unittest.TestCase):
-
-  def setUp(self):
-    self.runner_name = 'DirectRunner'
 
   @staticmethod
   def custom_callable(pcoll):
@@ -103,7 +100,7 @@ class PipelineTest(unittest.TestCase):
       self.leave_composite.append(transform_node)
 
   def test_create(self):
-    pipeline = TestPipeline(runner=self.runner_name)
+    pipeline = TestPipeline()
     pcoll = pipeline | 'label1' >> Create([1, 2, 3])
     assert_that(pcoll, equal_to([1, 2, 3]))
 
@@ -113,20 +110,36 @@ class PipelineTest(unittest.TestCase):
     assert_that(pcoll3, equal_to([14, 15, 16]), label='pcoll3')
     pipeline.run()
 
+  def test_flatmap_builtin(self):
+    pipeline = TestPipeline()
+    pcoll = pipeline | 'label1' >> Create([1, 2, 3])
+    assert_that(pcoll, equal_to([1, 2, 3]))
+
+    pcoll2 = pcoll | 'do' >> FlatMap(lambda x: [x + 10])
+    assert_that(pcoll2, equal_to([11, 12, 13]), label='pcoll2')
+
+    pcoll3 = pcoll2 | 'm1' >> Map(lambda x: [x, 12])
+    assert_that(pcoll3,
+                equal_to([[11, 12], [12, 12], [13, 12]]), label='pcoll3')
+
+    pcoll4 = pcoll3 | 'do2' >> FlatMap(set)
+    assert_that(pcoll4, equal_to([11, 12, 12, 12, 13]), label='pcoll4')
+    pipeline.run()
+
   def test_create_singleton_pcollection(self):
-    pipeline = TestPipeline(runner=self.runner_name)
+    pipeline = TestPipeline()
     pcoll = pipeline | 'label' >> Create([[1, 2, 3]])
     assert_that(pcoll, equal_to([[1, 2, 3]]))
     pipeline.run()
 
   def test_read(self):
-    pipeline = TestPipeline(runner=self.runner_name)
+    pipeline = TestPipeline()
     pcoll = pipeline | 'read' >> Read(FakeSource([1, 2, 3]))
     assert_that(pcoll, equal_to([1, 2, 3]))
     pipeline.run()
 
   def test_visit_entire_graph(self):
-    pipeline = Pipeline(self.runner_name)
+    pipeline = Pipeline()
     pcoll1 = pipeline | 'pcoll' >> Create([1, 2, 3])
     pcoll2 = pcoll1 | 'do1' >> FlatMap(lambda x: [x + 1])
     pcoll3 = pcoll2 | 'do2' >> FlatMap(lambda x: [x + 1])
@@ -145,14 +158,14 @@ class PipelineTest(unittest.TestCase):
     self.assertEqual(visitor.leave_composite[0].transform, transform)
 
   def test_apply_custom_transform(self):
-    pipeline = TestPipeline(runner=self.runner_name)
+    pipeline = TestPipeline()
     pcoll = pipeline | 'pcoll' >> Create([1, 2, 3])
     result = pcoll | PipelineTest.CustomTransform()
     assert_that(result, equal_to([2, 3, 4]))
     pipeline.run()
 
   def test_reuse_custom_transform_instance(self):
-    pipeline = Pipeline(self.runner_name)
+    pipeline = Pipeline()
     pcoll1 = pipeline | 'pcoll1' >> Create([1, 2, 3])
     pcoll2 = pipeline | 'pcoll2' >> Create([4, 5, 6])
     transform = PipelineTest.CustomTransform()
@@ -167,7 +180,7 @@ class PipelineTest(unittest.TestCase):
         'pvalue | "label" >> transform')
 
   def test_reuse_cloned_custom_transform_instance(self):
-    pipeline = TestPipeline(runner=self.runner_name)
+    pipeline = TestPipeline()
     pcoll1 = pipeline | 'pc1' >> Create([1, 2, 3])
     pcoll2 = pipeline | 'pc2' >> Create([4, 5, 6])
     transform = PipelineTest.CustomTransform()
@@ -240,7 +253,7 @@ class PipelineTest(unittest.TestCase):
     def raise_exception(exn):
       raise exn
     with self.assertRaises(ValueError):
-      with Pipeline(self.runner_name) as p:
+      with Pipeline() as p:
         # pylint: disable=expression-not-assigned
         p | Create([ValueError]) | Map(raise_exception)
 
@@ -249,33 +262,30 @@ class PipelineTest(unittest.TestCase):
     self.assertEqual([1, 4, 9], p | Create([1, 2, 3]) | Map(lambda x: x*x))
 
 
-class NewDoFnTest(unittest.TestCase):
-
-  def setUp(self):
-    self.runner_name = 'DirectRunner'
+class DoFnTest(unittest.TestCase):
 
   def test_element(self):
-    class TestDoFn(NewDoFn):
+    class TestDoFn(DoFn):
       def process(self, element):
         yield element + 10
 
-    pipeline = TestPipeline(runner=self.runner_name)
+    pipeline = TestPipeline()
     pcoll = pipeline | 'Create' >> Create([1, 2]) | 'Do' >> ParDo(TestDoFn())
     assert_that(pcoll, equal_to([11, 12]))
     pipeline.run()
 
   def test_context_param(self):
-    class TestDoFn(NewDoFn):
-      def process(self, element, context=NewDoFn.ContextParam):
+    class TestDoFn(DoFn):
+      def process(self, element, context=DoFn.ContextParam):
         yield context.element + 10
 
-    pipeline = TestPipeline(runner=self.runner_name)
+    pipeline = TestPipeline()
     pcoll = pipeline | 'Create' >> Create([1, 2])| 'Do' >> ParDo(TestDoFn())
     assert_that(pcoll, equal_to([11, 12]))
     pipeline.run()
 
   def test_side_input_no_tag(self):
-    class TestDoFn(NewDoFn):
+    class TestDoFn(DoFn):
       def process(self, element, prefix, suffix):
         return ['%s-%s-%s' % (prefix, element, suffix)]
 
@@ -290,8 +300,8 @@ class NewDoFnTest(unittest.TestCase):
     pipeline.run()
 
   def test_side_input_tagged(self):
-    class TestDoFn(NewDoFn):
-      def process(self, element, prefix, suffix=NewDoFn.SideInputParam):
+    class TestDoFn(DoFn):
+      def process(self, element, prefix, suffix=DoFn.SideInputParam):
         return ['%s-%s-%s' % (prefix, element, suffix)]
 
     pipeline = TestPipeline()
@@ -305,35 +315,26 @@ class NewDoFnTest(unittest.TestCase):
     pipeline.run()
 
   def test_window_param(self):
-    class TestDoFn(NewDoFn):
-      def process(self, element, window=NewDoFn.WindowParam):
-        yield (float(window.start), float(window.end))
+    class TestDoFn(DoFn):
+      def process(self, element, window=DoFn.WindowParam):
+        yield (element, (float(window.start), float(window.end)))
 
-    class TestWindowFn(WindowFn):
-      """Windowing function adding two disjoint windows to each element."""
-
-      def assign(self, assign_context):
-        _ = assign_context
-        return [IntervalWindow(10, 20), IntervalWindow(20, 30)]
-
-      def merge(self, existing_windows):
-        return existing_windows
-
-    pipeline = TestPipeline(runner=self.runner_name)
+    pipeline = TestPipeline()
     pcoll = (pipeline
-             | 'KVs' >> Create([(1, 10), (2, 20)])
-             | 'W' >> WindowInto(windowfn=TestWindowFn())
-             | 'Do' >> ParDo(TestDoFn()))
-    assert_that(pcoll, equal_to([(10.0, 20.0), (10.0, 20.0),
-                                 (20.0, 30.0), (20.0, 30.0)]))
+             | Create([1, 7])
+             | Map(lambda x: TimestampedValue(x, x))
+             | WindowInto(windowfn=SlidingWindows(10, 5))
+             | ParDo(TestDoFn()))
+    assert_that(pcoll, equal_to([(1, (-5, 5)), (1, (0, 10)),
+                                 (7, (0, 10)), (7, (5, 15))]))
     pipeline.run()
 
   def test_timestamp_param(self):
-    class TestDoFn(NewDoFn):
-      def process(self, element, timestamp=NewDoFn.TimestampParam):
+    class TestDoFn(DoFn):
+      def process(self, element, timestamp=DoFn.TimestampParam):
         yield timestamp
 
-    pipeline = TestPipeline(runner=self.runner_name)
+    pipeline = TestPipeline()
     pcoll = pipeline | 'Create' >> Create([1, 2]) | 'Do' >> ParDo(TestDoFn())
     assert_that(pcoll, equal_to([MIN_TIMESTAMP, MIN_TIMESTAMP]))
     pipeline.run()

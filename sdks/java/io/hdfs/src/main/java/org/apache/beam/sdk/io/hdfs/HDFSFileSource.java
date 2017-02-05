@@ -237,13 +237,23 @@ public class HDFSFileSource<K, V> extends BoundedSource<KV<K, V>> {
   @Override
   public long getEstimatedSizeBytes(PipelineOptions options) {
     long size = 0;
+
     try {
+      // If this source represents a split from splitIntoBundles, then return the size of the split,
+      // rather then the entire input
+      if (serializableSplit != null) {
+        return serializableSplit.getSplit().getLength();
+      }
+
       Job job = Job.getInstance(); // new instance
       for (FileStatus st : listStatus(createFormat(job), job)) {
         size += st.getLen();
       }
     } catch (IOException | NoSuchMethodException | InvocationTargetException
         | IllegalAccessException | InstantiationException e) {
+      // ignore, and return 0
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
       // ignore, and return 0
     }
     return size;
@@ -258,11 +268,6 @@ public class HDFSFileSource<K, V> extends BoundedSource<KV<K, V>> {
     @SuppressWarnings("unchecked")
     List<FileStatus> stat = (List<FileStatus>) listStatus.invoke(format, jobContext);
     return stat;
-  }
-
-  @Override
-  public boolean producesSortedKeys(PipelineOptions options) throws Exception {
-    return false;
   }
 
   static class HDFSFileReader<K, V> extends BoundedSource.BoundedReader<KV<K, V>> {

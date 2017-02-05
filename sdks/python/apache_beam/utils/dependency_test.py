@@ -106,27 +106,34 @@ class SetupTest(unittest.TestCase):
         dependency.stage_job_resources(options))
 
   def test_with_requirements_file(self):
-    staging_dir = tempfile.mkdtemp()
-    source_dir = tempfile.mkdtemp()
+    try:
+      staging_dir = tempfile.mkdtemp()
+      requirements_cache_dir = tempfile.mkdtemp()
+      source_dir = tempfile.mkdtemp()
 
-    options = PipelineOptions()
-    options.view_as(GoogleCloudOptions).staging_location = staging_dir
-    self.update_options(options)
-    options.view_as(SetupOptions).requirements_file = os.path.join(
-        source_dir, dependency.REQUIREMENTS_FILE)
-    self.create_temp_file(
-        os.path.join(source_dir, dependency.REQUIREMENTS_FILE), 'nothing')
-    self.assertEqual(
-        sorted([dependency.REQUIREMENTS_FILE,
-                'abc.txt', 'def.txt']),
-        sorted(dependency.stage_job_resources(
-            options,
-            populate_requirements_cache=self.populate_requirements_cache)))
-    self.assertTrue(
-        os.path.isfile(
-            os.path.join(staging_dir, dependency.REQUIREMENTS_FILE)))
-    self.assertTrue(os.path.isfile(os.path.join(staging_dir, 'abc.txt')))
-    self.assertTrue(os.path.isfile(os.path.join(staging_dir, 'def.txt')))
+      options = PipelineOptions()
+      options.view_as(GoogleCloudOptions).staging_location = staging_dir
+      self.update_options(options)
+      options.view_as(SetupOptions).requirements_cache = requirements_cache_dir
+      options.view_as(SetupOptions).requirements_file = os.path.join(
+          source_dir, dependency.REQUIREMENTS_FILE)
+      self.create_temp_file(
+          os.path.join(source_dir, dependency.REQUIREMENTS_FILE), 'nothing')
+      self.assertEqual(
+          sorted([dependency.REQUIREMENTS_FILE,
+                  'abc.txt', 'def.txt']),
+          sorted(dependency.stage_job_resources(
+              options,
+              populate_requirements_cache=self.populate_requirements_cache)))
+      self.assertTrue(
+          os.path.isfile(
+              os.path.join(staging_dir, dependency.REQUIREMENTS_FILE)))
+      self.assertTrue(os.path.isfile(os.path.join(staging_dir, 'abc.txt')))
+      self.assertTrue(os.path.isfile(os.path.join(staging_dir, 'def.txt')))
+    finally:
+      shutil.rmtree(staging_dir)
+      shutil.rmtree(requirements_cache_dir)
+      shutil.rmtree(source_dir)
 
   def test_requirements_file_not_present(self):
     staging_dir = tempfile.mkdtemp()

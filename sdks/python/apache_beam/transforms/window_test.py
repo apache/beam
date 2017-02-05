@@ -26,12 +26,12 @@ from apache_beam.transforms import core
 from apache_beam.transforms import Create
 from apache_beam.transforms import GroupByKey
 from apache_beam.transforms import Map
-from apache_beam.transforms import window
 from apache_beam.transforms import WindowInto
 from apache_beam.transforms.timeutil import MAX_TIMESTAMP
 from apache_beam.transforms.timeutil import MIN_TIMESTAMP
 from apache_beam.transforms.util import assert_that, equal_to
 from apache_beam.transforms.window import FixedWindows
+from apache_beam.transforms.window import GlobalWindow
 from apache_beam.transforms.window import IntervalWindow
 from apache_beam.transforms.window import Sessions
 from apache_beam.transforms.window import SlidingWindows
@@ -48,44 +48,43 @@ sort_values = Map(lambda (k, vs): (k, sorted(vs)))
 
 
 class ReifyWindowsFn(core.DoFn):
-  def process(self, context):
-    key, values = context.element
-    for window in context.windows:
-      yield "%s @ %s" % (key, window), values
+  def process(self, element, window=core.DoFn.WindowParam):
+    key, values = element
+    yield "%s @ %s" % (key, window), values
 reify_windows = core.ParDo(ReifyWindowsFn())
 
 
 class WindowTest(unittest.TestCase):
 
   def test_global_window(self):
-    self.assertEqual(window.GlobalWindow(), window.GlobalWindow())
-    self.assertNotEqual(window.GlobalWindow(),
-                        window.IntervalWindow(MIN_TIMESTAMP, MAX_TIMESTAMP))
-    self.assertNotEqual(window.IntervalWindow(MIN_TIMESTAMP, MAX_TIMESTAMP),
-                        window.GlobalWindow())
+    self.assertEqual(GlobalWindow(), GlobalWindow())
+    self.assertNotEqual(GlobalWindow(),
+                        IntervalWindow(MIN_TIMESTAMP, MAX_TIMESTAMP))
+    self.assertNotEqual(IntervalWindow(MIN_TIMESTAMP, MAX_TIMESTAMP),
+                        GlobalWindow())
 
   def test_fixed_windows(self):
     # Test windows with offset: 2, 7, 12, 17, ...
-    windowfn = window.FixedWindows(size=5, offset=2)
-    self.assertEqual([window.IntervalWindow(7, 12)],
+    windowfn = FixedWindows(size=5, offset=2)
+    self.assertEqual([IntervalWindow(7, 12)],
                      windowfn.assign(context('v', 7, [])))
-    self.assertEqual([window.IntervalWindow(7, 12)],
+    self.assertEqual([IntervalWindow(7, 12)],
                      windowfn.assign(context('v', 11, [])))
-    self.assertEqual([window.IntervalWindow(12, 17)],
+    self.assertEqual([IntervalWindow(12, 17)],
                      windowfn.assign(context('v', 12, [])))
 
     # Test windows without offset: 0, 5, 10, 15, ...
-    windowfn = window.FixedWindows(size=5)
-    self.assertEqual([window.IntervalWindow(5, 10)],
+    windowfn = FixedWindows(size=5)
+    self.assertEqual([IntervalWindow(5, 10)],
                      windowfn.assign(context('v', 5, [])))
-    self.assertEqual([window.IntervalWindow(5, 10)],
+    self.assertEqual([IntervalWindow(5, 10)],
                      windowfn.assign(context('v', 9, [])))
-    self.assertEqual([window.IntervalWindow(10, 15)],
+    self.assertEqual([IntervalWindow(10, 15)],
                      windowfn.assign(context('v', 10, [])))
 
     # Test windows with offset out of range.
-    windowfn = window.FixedWindows(size=5, offset=12)
-    self.assertEqual([window.IntervalWindow(7, 12)],
+    windowfn = FixedWindows(size=5, offset=12)
+    self.assertEqual([IntervalWindow(7, 12)],
                      windowfn.assign(context('v', 11, [])))
 
   def test_sliding_windows_assignment(self):

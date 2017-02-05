@@ -39,7 +39,7 @@ class EstimatePiTest(unittest.TestCase):
 
   def test_basics(self):
     p = TestPipeline()
-    result = p | 'Estimate' >> estimate_pi.EstimatePiTransform()
+    result = p | 'Estimate' >> estimate_pi.EstimatePiTransform(5000)
 
     # Note: Probabilistically speaking this test can fail with a probability
     # that is very small (VERY) given that we run at least 10 million trials.

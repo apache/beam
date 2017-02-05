@@ -22,7 +22,7 @@ import java.util.List;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.util.StringUtils;
+import org.apache.beam.sdk.util.NameUtils;
 
 /**
  * A {@link PValueBase} is an abstract base class that provides
@@ -155,6 +155,6 @@ public abstract class PValueBase extends POutputValueBase implements PValue {
    * <p>By default, uses the base name of the current class as its kind string.
    */
   protected String getKindString() {
-    return StringUtils.approximateSimpleName(getClass());
+    return NameUtils.approximateSimpleName(getClass());
   }
 }

@@ -57,7 +57,8 @@ class WindowEvaluatorFactory implements TransformEvaluatorFactory {
       AppliedPTransform<PCollection<InputT>, PCollection<InputT>, Window.Bound<InputT>> transform) {
     WindowFn<? super InputT, ?> fn = transform.getTransform().getWindowFn();
     UncommittedBundle<InputT> outputBundle =
-        evaluationContext.createBundle(transform.getOutput());
+        evaluationContext.createBundle(
+            (PCollection<InputT>) Iterables.getOnlyElement(transform.getOutputs()).getValue());
     if (fn == null) {
       return PassthroughTransformEvaluator.create(transform, outputBundle);
     }

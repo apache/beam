@@ -31,10 +31,10 @@
   <description>Apache Beam provides a simple, Java-based interface
   for processing virtually any size data. This artifact includes the parent POM
   for other Beam artifacts.</description>
-  <url>http://beam.incubator.apache.org</url>
+  <url>http://beam.apache.org/</url>
   <inceptionYear>2016</inceptionYear>
 
-  <version>0.5.0-incubating-SNAPSHOT</version>
+  <version>0.6.0-SNAPSHOT</version>
 
   <licenses>
     <license>
@@ -45,10 +45,10 @@
   </licenses>
 
   <scm>
-    <connection>scm:git:https://git-wip-us.apache.org/repos/asf/incubator-beam.git</connection>
-    <developerConnection>scm:git:https://git-wip-us.apache.org/repos/asf/incubator-beam.git</developerConnection>
-    <url>https://git-wip-us.apache.org/repos/asf?p=incubator-beam.git;a=summary</url>
-    <tag>release-0.2.0-incubating</tag>
+    <connection>scm:git:https://git-wip-us.apache.org/repos/asf/beam.git</connection>
+    <developerConnection>scm:git:https://git-wip-us.apache.org/repos/asf/beam.git</developerConnection>
+    <url>https://git-wip-us.apache.org/repos/asf?p=beam.git;a=summary</url>
+    <tag>HEAD</tag>
   </scm>
 
   <issueManagement>
@@ -59,32 +59,32 @@
   <mailingLists>
     <mailingList>
       <name>Beam Dev</name>
-      <subscribe>dev-subscribe@beam.incubator.apache.org</subscribe>
-      <unsubscribe>dev-unsubscribe@beam.incubator.apache.org</unsubscribe>
-      <post>dev@beam.incubator.apache.org</post>
-      <archive>http://www.mail-archive.com/dev%beam.incubator.apache.org</archive>
+      <subscribe>dev-subscribe@beam.apache.org</subscribe>
+      <unsubscribe>dev-unsubscribe@beam.apache.org</unsubscribe>
+      <post>dev@beam.apache.org</post>
+      <archive>http://www.mail-archive.com/dev%beam.apache.org</archive>
     </mailingList>
     <mailingList>
       <name>Beam User</name>
-      <subscribe>user-subscribe@beam.incubator.apache.org</subscribe>
-      <unsubscribe>user-unsubscribe@beam.incubator.apache.org</unsubscribe>
-      <post>user@beam.incubator.apache.org</post>
-      <archive>http://www.mail-archive.com/user%beam.incubator.apache.org</archive>
+      <subscribe>user-subscribe@beam.apache.org</subscribe>
+      <unsubscribe>user-unsubscribe@beam.apache.org</unsubscribe>
+      <post>user@beam.apache.org</post>
+      <archive>http://www.mail-archive.com/user%beam.apache.org</archive>
     </mailingList>
     <mailingList>
       <name>Beam Commits</name>
-      <subscribe>commits-subscribe@beam.incubator.apache.org</subscribe>
-      <unsubscribe>commits-unsubscribe@beam.incubator.apache.org</unsubscribe>
-      <post>commits@beam.incubator.apache.org</post>
-      <archive>http://www.mail-archive.com/commits%beam.incubator.apache.org</archive>
+      <subscribe>commits-subscribe@beam.apache.org</subscribe>
+      <unsubscribe>commits-unsubscribe@beam.apache.org</unsubscribe>
+      <post>commits@beam.apache.org</post>
+      <archive>http://www.mail-archive.com/commits%beam.apache.org</archive>
     </mailingList>
   </mailingLists>
 
   <developers>
     <developer>
       <name>The Apache Beam Team</name>
-      <email>dev@beam.incubator.apache.org</email>
-      <url>http://beam.incubator.apache.org</url>
+      <email>dev@beam.apache.org</email>
+      <url>http://beam.apache.org</url>
       <organization>Apache Software Foundation</organization>
       <organizationUrl>http://www.apache.org</organizationUrl>
     </developer>
@@ -112,12 +112,12 @@
     <datastore.client.version>1.2.0</datastore.client.version>
     <datastore.proto.version>1.2.0</datastore.proto.version>
     <google-auto-service.version>1.0-rc2</google-auto-service.version>
-    <google-auto-value.version>1.1</google-auto-value.version>
+    <google-auto-value.version>1.3</google-auto-value.version>
     <google-auth.version>0.6.0</google-auth.version>
     <google-clients.version>1.22.0</google-clients.version>
     <google-cloud-bigdataoss.version>1.4.5</google-cloud-bigdataoss.version>
     <google-cloud-dataflow-java-proto-library-all.version>0.5.160304</google-cloud-dataflow-java-proto-library-all.version>
-    <guava.version>19.0</guava.version>
+    <guava.version>20.0</guava.version>
     <grpc.version>1.0.1</grpc.version>
     <hamcrest.version>1.3</hamcrest.version>
     <jackson.version>2.7.2</jackson.version>
@@ -127,9 +127,10 @@
     <mockito.version>1.9.5</mockito.version>
     <netty.version>4.1.3.Final</netty.version>
     <os-maven-plugin.version>1.4.0.Final</os-maven-plugin.version>
-    <protobuf.version>3.0.0</protobuf.version>
+    <protobuf.version>3.1.0</protobuf.version>
     <pubsub.version>v1-rev10-1.22.0</pubsub.version>
     <slf4j.version>1.7.14</slf4j.version>
+    <spark.version>1.6.2</spark.version>
     <stax2.version>3.1.4</stax2.version>
     <storage.version>v1-rev71-1.22.0</storage.version>
     <woodstox.version>4.4.1</woodstox.version>
@@ -148,6 +149,8 @@
     <module>sdks</module>
     <module>runners</module>
     <module>examples</module>
+    <!-- sdks/java/javadoc builds project-wide Javadoc. It has to run last. -->
+    <module>sdks/java/javadoc</module>
   </modules>
 
   <profiles>
@@ -162,9 +165,6 @@
             <plugin>
               <groupId>org.apache.maven.plugins</groupId>
               <artifactId>maven-javadoc-plugin</artifactId>
-              <configuration>
-                <additionalparam>${beam.javadoc_opts}</additionalparam>
-              </configuration>
               <executions>
                 <execution>
                   <id>javadoc</id>
@@ -314,10 +314,39 @@
 
   <dependencyManagement>
     <dependencies>
+      <dependency>
+        <groupId>org.apache.beam</groupId>
+        <artifactId>beam-sdks-common-fn-api</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.apache.beam</groupId>
+        <artifactId>beam-runners-flink_2.10-examples</artifactId>
+        <version>${project.version}</version>
+      </dependency>
 
       <dependency>
         <groupId>org.apache.beam</groupId>
         <artifactId>beam-sdks-java-core</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+
+      <dependency>
+	<groupId>org.apache.beam</groupId>
+	<artifactId>beam-sdks-java-extensions-join-library</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+
+      <dependency>
+	<groupId>org.apache.beam</groupId>
+	<artifactId>beam-sdks-java-extensions-sorter</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+
+      <dependency>
+	<groupId>org.apache.beam</groupId>
+	<artifactId>beam-sdks-java-harness</artifactId>
         <version>${project.version}</version>
       </dependency>
 
@@ -329,7 +358,49 @@
 
       <dependency>
         <groupId>org.apache.beam</groupId>
+        <artifactId>beam-sdks-java-io-elasticsearch</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.apache.beam</groupId>
+        <artifactId>beam-sdks-java-io-hdfs</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.apache.beam</groupId>
+        <artifactId>beam-sdks-java-io-jdbc</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.apache.beam</groupId>
+        <artifactId>beam-sdks-java-io-jms</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.apache.beam</groupId>
         <artifactId>beam-sdks-java-io-kafka</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.apache.beam</groupId>
+        <artifactId>beam-sdks-java-io-kinesis</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.apache.beam</groupId>
+        <artifactId>beam-sdks-java-io-mongodb</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.apache.beam</groupId>
+        <artifactId>beam-sdks-java-io-mqtt</artifactId>
         <version>${project.version}</version>
       </dependency>
 
@@ -372,6 +443,12 @@
       <dependency>
         <groupId>org.apache.beam</groupId>
         <artifactId>beam-examples-java</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.apache.beam</groupId>
+        <artifactId>beam-examples-java8</artifactId>
         <version>${project.version}</version>
       </dependency>
 
@@ -729,6 +806,13 @@
       </dependency>
 
       <dependency>
+        <groupId>io.netty</groupId>
+        <artifactId>netty-transport-native-epoll</artifactId>
+        <version>${netty.version}</version>
+        <classifier>linux-x86_64</classifier>
+      </dependency>
+
+      <dependency>
         <groupId>org.apache.avro</groupId>
         <artifactId>avro</artifactId>
         <version>${avro.version}</version>
@@ -738,6 +822,12 @@
         <groupId>com.google.guava</groupId>
         <artifactId>guava</artifactId>
         <version>${guava.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>com.google.errorprone</groupId>
+        <artifactId>error_prone_annotations</artifactId>
+        <version>2.0.15</version>
       </dependency>
 
       <dependency>
@@ -824,8 +914,28 @@
   </dependencyManagement>
 
   <build>
+    <extensions>
+      <extension>
+        <groupId>kr.motd.maven</groupId>
+        <artifactId>os-maven-plugin</artifactId>
+        <version>${os-maven-plugin.version}</version>
+      </extension>
+    </extensions>
+
     <pluginManagement>
       <plugins>
+        <plugin>
+          <groupId>org.xolstice.maven.plugins</groupId>
+          <artifactId>protobuf-maven-plugin</artifactId>
+          <version>0.5.0</version>
+        </plugin>
+
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-antrun-plugin</artifactId>
+          <version>1.8</version>
+        </plugin>
+        
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-checkstyle-plugin</artifactId>
@@ -942,9 +1052,22 @@
         </plugin>
 
         <plugin>
+          <!-- Set up Javadoc configuration for javadoc run via in the Maven
+               build. Beam only uses the plugin to create the individual javadoc
+               attached artifacts used for IDEs. The combined javadoc for the
+               website is built in the sdks/java/javadoc directory. Rather than
+               duplicate a raft of configuration between the ant.xml there and
+               here, we leave things simple here. -->
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-javadoc-plugin</artifactId>
           <version>2.10.3</version>
+          <configuration>
+            <additionalparam>${beam.javadoc_opts}</additionalparam>
+            <windowtitle>Apache Beam SDK for Java, version ${project.version} API</windowtitle>
+            <doctitle>Apache Beam SDK for Java, version ${project.version}</doctitle>
+            <use>false</use>
+            <quiet>true</quiet>
+          </configuration>
         </plugin>
 
         <plugin>
@@ -954,6 +1077,7 @@
           <configuration>
             <reportFile>${project.build.directory}/${project.build.finalName}.rat</reportFile>
             <excludeSubProjects>false</excludeSubProjects>
+            <consoleOutput>true</consoleOutput>
             <useDefaultExcludes>true</useDefaultExcludes>
             <excludes>
               <!-- Keep exclude sync with .gitignore -->
@@ -963,6 +1087,7 @@
               <exclude>.github/**/*</exclude>
               <exclude>**/*.iml</exclude>
               <exclude>**/.idea/**/*</exclude>
+              <exclude>**/*.egg-info/**/*</exclude>
               <exclude>**/package-list</exclude>
               <exclude>**/user.avsc</exclude>
               <exclude>**/test/resources/**/*.txt</exclude>
@@ -986,7 +1111,13 @@
           <artifactId>versions-maven-plugin</artifactId>
           <version>2.1</version>
         </plugin>
-
+	
+        <plugin>
+          <groupId>org.codehaus.mojo</groupId>
+          <artifactId>build-helper-maven-plugin</artifactId>
+          <version>1.12</version>
+        </plugin>
+	
         <plugin>
           <groupId>org.codehaus.mojo</groupId>
           <artifactId>exec-maven-plugin</artifactId>
@@ -1126,12 +1257,6 @@
         </plugin>
 
         <plugin>
-          <groupId>org.codehaus.mojo</groupId>
-          <artifactId>build-helper-maven-plugin</artifactId>
-          <version>1.10</version>
-        </plugin>
-
-        <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-shade-plugin</artifactId>
           <version>2.4.3</version>
@@ -1257,6 +1382,16 @@
             </goals>
             <configuration>
               <rules>
+                <enforceBytecodeVersion>
+                  <maxJdkVersion>1.7</maxJdkVersion>
+                  <excludes>
+                    <!--
+                      Supplied by the user JDK and compiled with matching
+                      version. Is not shaded, so safe to ignore.
+                    -->
+                    <exclude>jdk.tools:jdk.tools</exclude>
+                  </excludes>
+                </enforceBytecodeVersion>
                 <requireJavaVersion>
                   <version>[1.7,)</version>
                 </requireJavaVersion>
@@ -1267,6 +1402,13 @@
             </configuration>
           </execution>
         </executions>
+        <dependencies>
+          <dependency>
+            <groupId>org.codehaus.mojo</groupId>
+            <artifactId>extra-enforcer-rules</artifactId>
+            <version>1.0-beta-6</version>
+          </dependency>
+        </dependencies>
       </plugin>
     </plugins>
   </build>

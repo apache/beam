@@ -28,10 +28,12 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+
 import org.apache.beam.runners.core.AggregatorFactory;
 import org.apache.beam.runners.core.DoFnRunner;
 import org.apache.beam.runners.core.DoFnRunners;
 import org.apache.beam.runners.core.ExecutionContext;
+import org.apache.beam.runners.core.GroupAlsoByWindowViaWindowSetNewDoFn;
 import org.apache.beam.runners.core.PushbackSideInputDoFnRunner;
 import org.apache.beam.runners.core.SideInputHandler;
 import org.apache.beam.runners.flink.translation.utils.SerializedPipelineOptions;
@@ -42,9 +44,9 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.DoFnAdapters;
-import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.join.RawUnionValue;
+import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
+import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.NullSideInputReader;
@@ -78,10 +80,10 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.StreamTaskState;
 
 /**
- * Flink operator for executing {@link OldDoFn DoFns}.
+ * Flink operator for executing {@link DoFn DoFns}.
  *
- * @param <InputT> the input type of the {@link OldDoFn}
- * @param <FnOutputT> the output type of the {@link OldDoFn}
+ * @param <InputT> the input type of the {@link DoFn}
+ * @param <FnOutputT> the output type of the {@link DoFn}
  * @param <OutputT> the output type of the operator, this can be different from the fn output
  *                 type when we have side outputs
  */
@@ -90,7 +92,7 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
     implements OneInputStreamOperator<WindowedValue<InputT>, OutputT>,
       TwoInputStreamOperator<WindowedValue<InputT>, RawUnionValue, OutputT> {
 
-  protected OldDoFn<InputT, FnOutputT> oldDoFn;
+  protected DoFn<InputT, FnOutputT> doFn;
 
   protected final SerializedPipelineOptions serializedOptions;
 
@@ -108,6 +110,12 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
 
   protected transient SideInputHandler sideInputHandler;
 
+  protected transient SideInputReader sideInputReader;
+
+  protected transient DoFnRunners.OutputManager outputManager;
+
+  private transient DoFnInvoker<InputT, FnOutputT> doFnInvoker;
+
   protected transient long currentInputWatermark;
 
   protected transient long currentOutputWatermark;
@@ -120,9 +128,12 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
 
   private transient Map<String, KvStateSnapshot<?, ?, ?, ?, ?>> restoredSideInputState;
 
-  @Deprecated
+  protected transient FlinkStateInternals<?> stateInternals;
+
+  private final Coder<?> keyCoder;
+
   public DoFnOperator(
-      OldDoFn<InputT, FnOutputT> oldDoFn,
+      DoFn<InputT, FnOutputT> doFn,
       TypeInformation<WindowedValue<InputT>> inputType,
       TupleTag<FnOutputT> mainOutputTag,
       List<TupleTag<?>> sideOutputTags,
@@ -130,8 +141,9 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
       WindowingStrategy<?, ?> windowingStrategy,
       Map<Integer, PCollectionView<?>> sideInputTagMapping,
       Collection<PCollectionView<?>> sideInputs,
-      PipelineOptions options) {
-    this.oldDoFn = oldDoFn;
+      PipelineOptions options,
+      Coder<?> keyCoder) {
+    this.doFn = doFn;
     this.mainOutputTag = mainOutputTag;
     this.sideOutputTags = sideOutputTags;
     this.sideInputTagMapping = sideInputTagMapping;
@@ -150,28 +162,8 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
         new ListStateDescriptor<>("pushed-back-values", inputType);
 
     setChainingStrategy(ChainingStrategy.ALWAYS);
-  }
 
-  public DoFnOperator(
-      DoFn<InputT, FnOutputT> doFn,
-      TypeInformation<WindowedValue<InputT>> inputType,
-      TupleTag<FnOutputT> mainOutputTag,
-      List<TupleTag<?>> sideOutputTags,
-      OutputManagerFactory<OutputT> outputManagerFactory,
-      WindowingStrategy<?, ?> windowingStrategy,
-      Map<Integer, PCollectionView<?>> sideInputTagMapping,
-      Collection<PCollectionView<?>> sideInputs,
-      PipelineOptions options) {
-    this(
-        DoFnAdapters.toOldDoFn(doFn),
-        inputType,
-        mainOutputTag,
-        sideOutputTags,
-        outputManagerFactory,
-        windowingStrategy,
-        sideInputTagMapping,
-        sideInputs,
-        options);
+    this.keyCoder = keyCoder;
   }
 
   protected ExecutionContext.StepContext createStepContext() {
@@ -180,15 +172,13 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
 
   // allow overriding this in WindowDoFnOperator because this one dynamically creates
   // the DoFn
-  protected OldDoFn<InputT, FnOutputT> getOldDoFn() {
-    return oldDoFn;
+  protected DoFn<InputT, FnOutputT> getDoFn() {
+    return doFn;
   }
 
   @Override
   public void open() throws Exception {
     super.open();
-
-    this.oldDoFn = getOldDoFn();
 
     currentInputWatermark = Long.MIN_VALUE;
     currentOutputWatermark = currentInputWatermark;
@@ -214,7 +204,8 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
       }
     };
 
-    SideInputReader sideInputReader = NullSideInputReader.of(sideInputs);
+    sideInputReader = NullSideInputReader.of(sideInputs);
+
     if (!sideInputs.isEmpty()) {
       String operatorIdentifier =
           this.getClass().getSimpleName() + "_"
@@ -244,27 +235,52 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
       sideInputReader = sideInputHandler;
     }
 
-    DoFnRunner<InputT, FnOutputT> doFnRunner = DoFnRunners.createDefault(
+    outputManager = outputManagerFactory.create(output);
+
+    if (keyCoder != null) {
+      stateInternals = new FlinkStateInternals<>(getStateBackend(), keyCoder);
+    }
+
+    this.doFn = getDoFn();
+    doFnInvoker = DoFnInvokers.invokerFor(doFn);
+
+    doFnInvoker.invokeSetup();
+
+    ExecutionContext.StepContext stepContext = createStepContext();
+
+    DoFnRunner<InputT, FnOutputT> doFnRunner = DoFnRunners.simpleRunner(
         serializedOptions.getPipelineOptions(),
-        oldDoFn,
+        doFn,
         sideInputReader,
-        outputManagerFactory.create(output),
+        outputManager,
         mainOutputTag,
         sideOutputTags,
-        createStepContext(),
+        stepContext,
         aggregatorFactory,
         windowingStrategy);
 
+    if (doFn instanceof GroupAlsoByWindowViaWindowSetNewDoFn) {
+      // When the doFn is this, we know it came from WindowDoFnOperator and
+      //   InputT = KeyedWorkItem<K, V>
+      //   OutputT = KV<K, V>
+      //
+      // for some K, V
+
+      doFnRunner = DoFnRunners.lateDataDroppingRunner(
+          (DoFnRunner) doFnRunner,
+          stepContext,
+          windowingStrategy,
+          ((GroupAlsoByWindowViaWindowSetNewDoFn) doFn).getDroppedDueToLatenessAggregator());
+    }
+
     pushbackDoFnRunner =
         PushbackSideInputDoFnRunner.create(doFnRunner, sideInputs, sideInputHandler);
-
-    oldDoFn.setup();
   }
 
   @Override
   public void close() throws Exception {
     super.close();
-    oldDoFn.teardown();
+    doFnInvoker.invokeTeardown();
   }
 
   protected final long getPushbackWatermarkHold() {
@@ -532,7 +548,7 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
 
     @Override
     public StateInternals<?> stateInternals() {
-      throw new UnsupportedOperationException("Not supported for regular DoFns.");
+      return stateInternals;
     }
 
     @Override

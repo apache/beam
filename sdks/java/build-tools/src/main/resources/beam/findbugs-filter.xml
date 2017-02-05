@@ -34,12 +34,42 @@
           unapproved artifact license.
         -->
   <Match>
+    <Class name="org.apache.beam.fn.harness.control.BeamFnControlClient$InboundObserver"/>
+    <Method name="onCompleted"/>
+    <Bug pattern="NP_NONNULL_PARAM_VIOLATION"/>
+    <!--
+    Findbugs limitation when using Void typed CompletableFuture. This is a limitation of FindBugs as discussed here:
+    https://github.com/findbugsproject/findbugs/issues/79
+    -->
+  </Match>
+
+  <Match>
+    <Class name="org.apache.beam.fn.harness.data.BeamFnDataInboundObserver"/>
+    <Method name="accept"/>
+    <Bug pattern="NP_NONNULL_PARAM_VIOLATION"/>
+    <!--
+    Findbugs limitation when using Void typed CompletableFuture. This is a limitation of FindBugs as discussed here:
+    https://github.com/findbugsproject/findbugs/issues/79
+    -->
+  </Match>
+
+  <Match>
+    <Class name="org.apache.beam.fn.harness.logging.BeamFnLoggingClient$LogControlObserver"/>
+    <Method name="onCompleted"/>
+    <Bug pattern="NP_NONNULL_PARAM_VIOLATION"/>
+    <!--
+    Findbugs limitation when using Void typed CompletableFuture. This is a limitation of FindBugs as discussed here:
+    https://github.com/findbugsproject/findbugs/issues/79
+    -->
+  </Match>
+
+  <Match>
     <Class name="org.apache.beam.sdk.coders.AvroCoder$SerializableSchemaSupplier"/>
     <Field name="schema"/>
     <Bug pattern="SE_BAD_FIELD"/>
     <!--
     writeReplace makes this object serializable. This is a limitation of FindBugs as discussed here:
-     http://stackoverflow.com/questions/26156523/is-writeobject-not-neccesary-using-the-serialization-proxy-pattern
+    http://stackoverflow.com/questions/26156523/is-writeobject-not-neccesary-using-the-serialization-proxy-pattern
     -->
   </Match>
 
@@ -122,32 +152,6 @@
     <Method name="writeAndOwn" />
     <Bug pattern="EI_EXPOSE_REP"/>
     <!-- Takes ownership of input buffer -->
-  </Match>
-
-  <Match>
-    <Class name="org.apache.beam.runners.spark.util.BroadcastHelper$CodedBroadcastHelper"/>
-    <Or>
-      <Field name="bcast" />
-      <Field name="value" />
-    </Or>
-    <Bug pattern="IS2_INCONSISTENT_SYNC"/>
-    <!--
-      Spark's Broadcast variables are a distributed and cached objects
-      and should not be treated as "normal" objects.
-    -->
-  </Match>
-
-  <Match>
-    <Class name="org.apache.beam.runners.spark.util.BroadcastHelper$DirectBroadcastHelper"/>
-    <Or>
-      <Field name="bcast" />
-      <Field name="value" />
-    </Or>
-    <Bug pattern="IS2_INCONSISTENT_SYNC"/>
-    <!--
-      Spark's Broadcast variables are a distributed and cached objects
-      and should not be treated as "normal" objects.
-    -->
   </Match>
 
   <Match>

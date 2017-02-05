@@ -35,8 +35,6 @@ import java.net.SocketTimeoutException;
 import java.util.List;
 import java.util.Map;
 import javax.annotation.Nullable;
-import org.apache.beam.runners.dataflow.internal.DataflowAggregatorTransforms;
-import org.apache.beam.runners.dataflow.internal.DataflowMetricUpdateExtractor;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.runners.dataflow.util.MonitoringUtil;
 import org.apache.beam.sdk.AggregatorRetrievalException;
