@@ -218,7 +218,7 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
     super.open();
 
     currentInputWatermark = Long.MIN_VALUE;
-    currentOutputWatermark = currentInputWatermark;
+    currentOutputWatermark = Long.MIN_VALUE;
 
     AggregatorFactory aggregatorFactory = new AggregatorFactory() {
       @Override
