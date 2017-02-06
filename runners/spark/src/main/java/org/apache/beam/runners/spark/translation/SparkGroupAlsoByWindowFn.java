@@ -18,7 +18,6 @@
 
 package org.apache.beam.runners.spark.translation;
 
-import com.google.common.collect.Iterables;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -151,21 +150,21 @@ public class SparkGroupAlsoByWindowFn<K, InputT, W extends BoundedWindow>
       ReduceFnRunner<K, InputT, Iterable<InputT>, W> reduceFnRunner) throws Exception {
     List<TimerInternals.TimerData> timers = new ArrayList<>();
     while (true) {
-        TimerInternals.TimerData timer;
-        while ((timer = timerInternals.removeNextEventTimer()) != null) {
-          timers.add(timer);
-        }
-        while ((timer = timerInternals.removeNextProcessingTimer()) != null) {
-          timers.add(timer);
-        }
-        while ((timer = timerInternals.removeNextSynchronizedProcessingTimer()) != null) {
-          timers.add(timer);
-        }
-        if (timers.isEmpty()) {
-          break;
-        }
-        reduceFnRunner.onTimers(timers);
-        timers.clear();
+      TimerInternals.TimerData timer;
+      while ((timer = timerInternals.removeNextEventTimer()) != null) {
+        timers.add(timer);
+      }
+      while ((timer = timerInternals.removeNextProcessingTimer()) != null) {
+        timers.add(timer);
+      }
+      while ((timer = timerInternals.removeNextSynchronizedProcessingTimer()) != null) {
+        timers.add(timer);
+      }
+      if (timers.isEmpty()) {
+        break;
+      }
+      reduceFnRunner.onTimers(timers);
+      timers.clear();
     }
   }
 
