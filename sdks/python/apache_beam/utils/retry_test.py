@@ -51,7 +51,7 @@ def test_function(a, b):
   raise NotImplementedError
 
 
-@retry.with_exponential_backoff(initial_delay_secs=1.0, num_retries=1)
+@retry.with_exponential_backoff(initial_delay_secs=0.1, num_retries=1)
 def test_function_with_real_clock(a, b):
   _ = a, b
   raise NotImplementedError
