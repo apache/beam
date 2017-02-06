@@ -437,11 +437,13 @@ class AbstractComponentCoderImpl(StreamCoderImpl):
           'Number of components does not match number of coders.')
     for i in range(0, len(self._coder_impls)):
       c = self._coder_impls[i]   # type cast
-      c.encode_to_stream(values[i], out, nested or i < len(self._coder_impls))
+      c.encode_to_stream(values[i], out,
+                         nested or i + 1 < len(self._coder_impls))
 
   def decode_from_stream(self, in_stream, nested):
     return self._construct_from_components(
-        [c.decode_from_stream(in_stream, nested or i < len(self._coder_impls))
+        [c.decode_from_stream(in_stream,
+                              nested or i + 1 < len(self._coder_impls))
          for i, c in enumerate(self._coder_impls)])
 
   def estimate_size(self, value, nested=False):
@@ -460,7 +462,7 @@ class AbstractComponentCoderImpl(StreamCoderImpl):
       c = self._coder_impls[i]  # type cast
       child_size, child_observables = (
           c.get_estimated_size_and_observables(
-              values[i], nested=nested or i < len(self._coder_impls)))
+              values[i], nested=nested or i  + 1< len(self._coder_impls)))
       estimated_size += child_size
       observables += child_observables
     return estimated_size, observables
