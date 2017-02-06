@@ -34,14 +34,14 @@ import org.joda.time.Instant;
  * implementation is applicable.
  */
 @SystemDoFnInternal
-public class GroupAlsoByWindowsViaOutputBufferDoFn<K, InputT, OutputT, W extends BoundedWindow>
+public class GroupAlsoByWindowViaOutputBufferDoFn<K, InputT, OutputT, W extends BoundedWindow>
     extends GroupAlsoByWindowsDoFn<K, InputT, OutputT, W> {
 
   private final WindowingStrategy<?, W> strategy;
   private final StateInternalsFactory<K> stateInternalsFactory;
   private SystemReduceFn<K, InputT, ?, OutputT, W> reduceFn;
 
-  public GroupAlsoByWindowsViaOutputBufferDoFn(
+  public GroupAlsoByWindowViaOutputBufferDoFn(
       WindowingStrategy<?, W> windowingStrategy,
       StateInternalsFactory<K> stateInternalsFactory,
       SystemReduceFn<K, InputT, ?, OutputT, W> reduceFn) {

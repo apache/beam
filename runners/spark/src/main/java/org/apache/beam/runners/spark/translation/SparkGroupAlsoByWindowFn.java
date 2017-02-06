@@ -22,6 +22,7 @@ import com.google.common.collect.Iterables;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import org.apache.beam.runners.core.GroupAlsoByWindowViaOutputBufferDoFn;
 import org.apache.beam.runners.core.GroupAlsoByWindowsDoFn;
 import org.apache.beam.runners.core.InMemoryTimerInternals;
 import org.apache.beam.runners.core.OutputWindowedValue;
@@ -50,7 +51,7 @@ import org.joda.time.Instant;
 
 
 /**
- * An implementation of {@link org.apache.beam.runners.core.GroupAlsoByWindowsViaOutputBufferDoFn}
+ * An implementation of {@link GroupAlsoByWindowViaOutputBufferDoFn}
  * for the Spark runner.
  */
 public class SparkGroupAlsoByWindowFn<K, InputT, W extends BoundedWindow>
