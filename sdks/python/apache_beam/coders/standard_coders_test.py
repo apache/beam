@@ -62,7 +62,8 @@ class StandardCodersTest(unittest.TestCase):
   @classmethod
   def _create_tests(cls, coder_test_specs):
     if not os.path.exists(STANDARD_CODERS_YAML):
-        raise ValueError("Could not find the test spec: %s" % STANDARD_CODERS_YAML)
+      raise ValueError(
+          "Could not find the test spec: %s" % STANDARD_CODERS_YAML)
     for ix, spec in enumerate(yaml.load_all(open(coder_test_specs))):
       spec['index'] = ix
       cls._create_test(spec)
