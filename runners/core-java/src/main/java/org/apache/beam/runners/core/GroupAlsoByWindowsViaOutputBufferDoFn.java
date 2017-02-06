@@ -17,7 +17,6 @@
  */
 package org.apache.beam.runners.core;
 
-import com.google.common.collect.Iterables;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.beam.runners.core.triggers.ExecutableTriggerStateMachine;
@@ -25,7 +24,6 @@ import org.apache.beam.runners.core.triggers.TriggerStateMachines;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.SystemDoFnInternal;
 import org.apache.beam.sdk.util.TimerInternals;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.util.state.StateInternals;
 import org.apache.beam.sdk.util.state.StateInternalsFactory;
@@ -77,25 +75,8 @@ public class GroupAlsoByWindowsViaOutputBufferDoFn<K, InputT, OutputT, W extends
             reduceFn,
             c.getPipelineOptions());
 
-    Iterable<List<WindowedValue<InputT>>> chunks =
-        Iterables.partition(c.element().getValue(), 1000);
-    for (Iterable<WindowedValue<InputT>> chunk : chunks) {
-      // Process the chunk of elements.
-      reduceFnRunner.processElements(chunk);
-
-      // Then, since elements are sorted by their timestamp, advance the input watermark
-      // to the first element.
-      timerInternals.advanceInputWatermark(chunk.iterator().next().getTimestamp());
-      // Advance the processing times.
-      timerInternals.advanceProcessingTime(Instant.now());
-      timerInternals.advanceSynchronizedProcessingTime(Instant.now());
-
-      // Fire all the eligible timers.
-      fireEligibleTimers(timerInternals, reduceFnRunner);
-
-      // Leave the output watermark undefined. Since there's no late data in batch mode
-      // there's really no need to track it as we do for streaming.
-    }
+    // Process the elements.
+    reduceFnRunner.processElements(c.element().getValue());
 
     // Finish any pending windows by advancing the input watermark to infinity.
     timerInternals.advanceInputWatermark(BoundedWindow.TIMESTAMP_MAX_VALUE);
