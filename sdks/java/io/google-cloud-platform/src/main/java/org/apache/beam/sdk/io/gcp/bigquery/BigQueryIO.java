@@ -97,9 +97,11 @@ import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupByKey;
+import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.display.DisplayData;
@@ -1684,9 +1686,6 @@ public class BigQueryIO {
 
       @Nullable private BigQueryServices bigQueryServices;
 
-      @VisibleForTesting @Nullable String stepUuid;
-      @VisibleForTesting @Nullable ValueProvider<String> jobUuid;
-
       private static class TranslateTableSpecFunction implements
           SerializableFunction<BoundedWindow, TableReference> {
         private SerializableFunction<BoundedWindow, String> tableSpecFunction;
@@ -1991,11 +1990,7 @@ public class BigQueryIO {
 
         ValueProvider<TableReference> table = getTableWithDefaultProject(options);
 
-        stepUuid = randomUUIDString();
-        jobUuid = NestedValueProvider.of(
-           StaticValueProvider.of(options.getJobName()), new CreatePerBeamJobUuid(stepUuid));
-        ValueProvider<String> jobIdToken = NestedValueProvider.of(
-            jobUuid, new BeamJobUuidToBigQueryJobUuid());
+        String stepUuid = randomUUIDString();
 
         String tempLocation = options.getTempLocation();
         String tempFilePrefix;
@@ -2010,7 +2005,18 @@ public class BigQueryIO {
               e);
         }
 
+        // Create a singleton job ID token at execution time.
         PCollection<String> singleton = p.apply("Create", Create.of(tempFilePrefix));
+        PCollectionView<String> jobIdTokenView = p
+            .apply("TriggerIdCreation", Create.of("ignored"))
+            .apply("CreateJobId", MapElements.via(
+                new SimpleFunction<String, String>() {
+                  @Override
+                  public String apply(String input) {
+                    return randomUUIDString();
+                  }
+                }))
+            .apply(View.<String>asSingleton());
 
         PCollection<TableRow> inputInGlobalWindow =
             input.apply(
@@ -2043,26 +2049,27 @@ public class BigQueryIO {
             .apply("MultiPartitionsWriteTables", ParDo.of(new WriteTables(
                 false,
                 bqServices,
-                jobIdToken,
+                jobIdTokenView,
                 tempFilePrefix,
                 NestedValueProvider.of(table, new TableRefToJson()),
                 jsonSchema,
                 WriteDisposition.WRITE_EMPTY,
                 CreateDisposition.CREATE_IF_NEEDED,
-                tableDescription)));
+                tableDescription))
+            .withSideInputs(jobIdTokenView));
 
         PCollectionView<Iterable<String>> tempTablesView = tempTables
             .apply("TempTablesView", View.<String>asIterable());
         singleton.apply(ParDo
             .of(new WriteRename(
                 bqServices,
-                jobIdToken,
+                jobIdTokenView,
                 NestedValueProvider.of(table, new TableRefToJson()),
                 writeDisposition,
                 createDisposition,
                 tempTablesView,
                 tableDescription))
-            .withSideInputs(tempTablesView));
+            .withSideInputs(tempTablesView, jobIdTokenView));
 
         // Write single partition to final table
         partitions.get(singlePartitionTag)
@@ -2070,13 +2077,14 @@ public class BigQueryIO {
             .apply("SinglePartitionWriteTables", ParDo.of(new WriteTables(
                 true,
                 bqServices,
-                jobIdToken,
+                jobIdTokenView,
                 tempFilePrefix,
                 NestedValueProvider.of(table, new TableRefToJson()),
                 jsonSchema,
                 writeDisposition,
                 createDisposition,
-                tableDescription)));
+                tableDescription))
+            .withSideInputs(jobIdTokenView));
 
         return PDone.in(input.getPipeline());
       }
@@ -2325,7 +2333,7 @@ public class BigQueryIO {
     static class WriteTables extends DoFn<KV<Long, Iterable<List<String>>>, String> {
       private final boolean singlePartition;
       private final BigQueryServices bqServices;
-      private final ValueProvider<String> jobIdToken;
+      private final PCollectionView<String> jobIdToken;
       private final String tempFilePrefix;
       private final ValueProvider<String> jsonTableRef;
       private final ValueProvider<String> jsonSchema;
@@ -2336,7 +2344,7 @@ public class BigQueryIO {
       public WriteTables(
           boolean singlePartition,
           BigQueryServices bqServices,
-          ValueProvider<String> jobIdToken,
+          PCollectionView<String> jobIdToken,
           String tempFilePrefix,
           ValueProvider<String> jsonTableRef,
           ValueProvider<String> jsonSchema,
@@ -2357,7 +2365,8 @@ public class BigQueryIO {
       @ProcessElement
       public void processElement(ProcessContext c) throws Exception {
         List<String> partition = Lists.newArrayList(c.element().getValue()).get(0);
-        String jobIdPrefix = String.format(jobIdToken.get() + "_%05d", c.element().getKey());
+        String jobIdPrefix = String.format(
+            c.sideInput(jobIdToken) + "_%05d", c.element().getKey());
         TableReference ref = fromJsonString(jsonTableRef.get(), TableReference.class);
         if (!singlePartition) {
           ref.setTableId(jobIdPrefix);
@@ -2460,8 +2469,6 @@ public class BigQueryIO {
         super.populateDisplayData(builder);
 
         builder
-            .addIfNotNull(DisplayData.item("jobIdToken", jobIdToken)
-                .withLabel("Job ID Token"))
             .addIfNotNull(DisplayData.item("tempFilePrefix", tempFilePrefix)
                 .withLabel("Temporary File Prefix"))
             .addIfNotNull(DisplayData.item("jsonTableRef", jsonTableRef)
@@ -2478,7 +2485,7 @@ public class BigQueryIO {
      */
     static class WriteRename extends DoFn<String, Void> {
       private final BigQueryServices bqServices;
-      private final ValueProvider<String> jobIdToken;
+      private final PCollectionView<String> jobIdToken;
       private final ValueProvider<String> jsonTableRef;
       private final WriteDisposition writeDisposition;
       private final CreateDisposition createDisposition;
@@ -2487,7 +2494,7 @@ public class BigQueryIO {
 
       public WriteRename(
           BigQueryServices bqServices,
-          ValueProvider<String> jobIdToken,
+          PCollectionView<String> jobIdToken,
           ValueProvider<String> jsonTableRef,
           WriteDisposition writeDisposition,
           CreateDisposition createDisposition,
@@ -2518,7 +2525,7 @@ public class BigQueryIO {
         copy(
             bqServices.getJobService(c.getPipelineOptions().as(BigQueryOptions.class)),
             bqServices.getDatasetService(c.getPipelineOptions().as(BigQueryOptions.class)),
-            jobIdToken.get(),
+            c.sideInput(jobIdToken),
             fromJsonString(jsonTableRef.get(), TableReference.class),
             tempTables,
             writeDisposition,
@@ -2598,8 +2605,6 @@ public class BigQueryIO {
         super.populateDisplayData(builder);
 
         builder
-            .addIfNotNull(DisplayData.item("jobIdToken", jobIdToken)
-                .withLabel("Job ID Token"))
             .addIfNotNull(DisplayData.item("jsonTableRef", jsonTableRef)
                 .withLabel("Table Reference"))
             .add(DisplayData.item("writeDisposition", writeDisposition.toString())
