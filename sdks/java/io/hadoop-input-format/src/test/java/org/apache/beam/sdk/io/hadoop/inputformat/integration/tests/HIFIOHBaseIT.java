@@ -38,7 +38,11 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+<<<<<<< HEAD
+import org.junit.runners.MethodSorters;
+=======
 
+>>>>>>> b739f678d78e14da3f1dd5c7778e33867f6093c3
 
 /**
  * Runs test to validate HadoopInputFromatIO for a HBase instance on GCP.
@@ -57,14 +61,17 @@ import org.junit.runners.JUnit4;
 public class HIFIOHBaseIT implements Serializable {
   private static HIFTestOptions options;
   private static final String TABLE_NAME = "scientists";
-  private static final long COUNT_RECORDS = 4L;
+  private static final long COUNT_RECORDS = 50L;
 
   @BeforeClass
   public static void setUp() {
     PipelineOptionsFactory.register(HIFTestOptions.class);
     options = TestPipeline.testingPipelineOptions().as(HIFTestOptions.class);
   }
-
+  
+  /**
+   * This test reads data from the HBase and verifies if data is read successfully.
+   */
   @Test
   public void testHifReadWithHBase() throws Throwable {
     TestPipeline p = TestPipeline.create();
@@ -72,7 +79,7 @@ public class HIFIOHBaseIT implements Serializable {
     SimpleFunction<Result, String> myValueTranslate = new SimpleFunction<Result, String>() {
       @Override
       public String apply(Result input) {
-        return Bytes.toString(input.getValue(Bytes.toBytes("account"), Bytes.toBytes("name")));
+        return Bytes.toString(input.getValue(Bytes.toBytes("info"), Bytes.toBytes("scientist")));
       }
     };
     PCollection<KV<ImmutableBytesWritable, String>> hbaseData =
