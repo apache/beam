@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.direct;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.auto.value.AutoValue;
@@ -1361,6 +1362,11 @@ public class WatermarkManager {
        * it has previously been deleted. Returns this {@link TimerUpdateBuilder}.
        */
       public TimerUpdateBuilder setTimer(TimerData setTimer) {
+        checkArgument(
+            setTimer.getTimestamp().isBefore(BoundedWindow.TIMESTAMP_MAX_VALUE),
+            "Got a timer for after the end of time (%s), got %s",
+            BoundedWindow.TIMESTAMP_MAX_VALUE,
+            setTimer.getTimestamp());
         deletedTimers.remove(setTimer);
         setTimers.add(setTimer);
         return this;
