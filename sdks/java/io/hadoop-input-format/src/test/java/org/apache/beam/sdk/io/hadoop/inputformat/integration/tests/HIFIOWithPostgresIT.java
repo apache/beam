@@ -20,30 +20,28 @@ import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.mapreduce.InputFormat;
 import org.apache.hadoop.mapreduce.lib.db.DBInputFormat;
 import org.junit.BeforeClass;
-import org.junit.FixMethodOrder;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-import org.junit.runners.MethodSorters;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Runs integration test to validate HadoopInputFromatIO for Postgres instance on GCP.
  * <P>
- * In {@link DBInputFormat} value class can be anything which extends DBWritable class. You have to
- * provide your own custom value class which extends
+ * In {@link DBInputFormat}, key class is LongWritable, and value class can be anything which
+ * extends DBWritable class. You have to provide your own custom value class which extends
  * {@link org.apache.hadoop.mapreduce.lib.db.DBWritable DBWritable} using property
  * "mapreduce.jdbc.input.class". For serialization and deserialization in Beam, custom value class
  * must have an empty public constructor and must implement methods readFields(DataInput in) and
  * write(DataOutput out).
  * <P>
- * Please refer custom value class example {@link DBInputWritable} which is input to this test.
+ * Please refer sample custom value class example {@link DBInputWritable} which is input to this
+ * test.
  * 
  * <h3>Hadoop configuration for DBInputFormat</h3 You can set value class directly by setting
  * property "mapreduce.jdbc.input.class" as set in this test {@link #getPostgresConfiguration()}.
  * Another common way to set output class is as follows:
+ * 
  * <pre>
  * {@code
  * DBInputFormat.setInput(job,
@@ -55,32 +53,31 @@ import org.slf4j.LoggerFactory;
  * }
  * </pre>
  * <p>
- * You can run this test by doing the following: mvn test-compile compile
+ * You can run this test by using the following maven command: mvn test-compile compile
  * failsafe:integration-test -D beamTestPipelineOptions='[ "--serverIp=1.2.3.4",
- * "--serverPort=<port>", "--userName=xyz", "--password=root" ]' -Dit.test=HIFIOWithPostgresIT -DskipITs=false
+ * "--serverPort=<port>", "--userName=xyz", "--password=root" ]' -Dit.test=HIFIOWithPostgresIT
+ * -DskipITs=false
  *
  */
 @RunWith(JUnit4.class)
-@FixMethodOrder(MethodSorters.JVM)
 public class HIFIOWithPostgresIT implements Serializable {
-
-  private static final Logger LOGGER = LoggerFactory.getLogger(HIFIOWithPostgresIT.class);
-
   private static final String DRIVER_CLASS_PROPERTY = "org.postgresql.Driver";
   private static String URL_PROPERTY = "jdbc:postgresql://";
   private static final String INPUT_TABLE_NAME_PROPERTY = "scientists";
   private static final String DATABASE_NAME = "beamdb";
+  private static final long COUNT_RECORDS = 10L;
 
-  @Rule public final TestPipeline p = TestPipeline.create();
+  @Rule
+  public final TestPipeline p = TestPipeline.create();
   private static HIFTestOptions options;
 
   @BeforeClass
   public static void setUp() {
     PipelineOptionsFactory.register(HIFTestOptions.class);
     options = TestPipeline.testingPipelineOptions().as(HIFTestOptions.class);
-    LOGGER.info("Pipeline created successfully with the options");
-    URL_PROPERTY += options.getServerIp() + ":" + String.format("%d", options.getServerPort()) + "/"
-        + DATABASE_NAME;
+    URL_PROPERTY +=
+        options.getServerIp() + ":" + String.format("%d", options.getServerPort()) + "/"
+            + DATABASE_NAME;
   }
 
   @Test
@@ -89,10 +86,9 @@ public class HIFIOWithPostgresIT implements Serializable {
     Configuration conf = getPostgresConfiguration();
     PCollection<KV<LongWritable, DBInputWritable>> postgresData =
         p.apply(HadoopInputFormatIO.<LongWritable, DBInputWritable>read().withConfiguration(conf));
-    PAssert
-        .thatSingleton(
-            postgresData.apply("Count", Count.<KV<LongWritable, DBInputWritable>>globally()))
-        .isEqualTo(10L);
+    PAssert.thatSingleton(
+        postgresData.apply("Count", Count.<KV<LongWritable, DBInputWritable>>globally()))
+        .isEqualTo(COUNT_RECORDS);
     List<KV<LongWritable, DBInputWritable>> expectedResults =
         Arrays.asList(KV.of(new LongWritable(0L), new DBInputWritable("Faraday", "1")),
             KV.of(new LongWritable(1L), new DBInputWritable("Newton", "2")),
@@ -110,7 +106,7 @@ public class HIFIOWithPostgresIT implements Serializable {
 
   /**
    * Returns Hadoop configuration for reading data from Postgres. To read data from Postgres using
-   * HadoopInputFormatIO following properties must be set- driver class, jdbc url, username,
+   * HadoopInputFormatIO, following properties must be set- driver class, jdbc url, username,
    * password, table name, query and value type.
    */
   private static Configuration getPostgresConfiguration() throws IOException {
@@ -121,7 +117,8 @@ public class HIFIOWithPostgresIT implements Serializable {
     conf.set("mapreduce.jdbc.password", options.getPassword());
     conf.set("mapreduce.jdbc.input.table.name", INPUT_TABLE_NAME_PROPERTY);
     conf.set("mapreduce.jdbc.input.query", "SELECT * FROM " + INPUT_TABLE_NAME_PROPERTY);
-    conf.setClass(HadoopInputFormatIOConstants.INPUTFORMAT_CLASSNAME, DBInputFormat.class, InputFormat.class);
+    conf.setClass(HadoopInputFormatIOConstants.INPUTFORMAT_CLASSNAME, DBInputFormat.class,
+        InputFormat.class);
     conf.setClass(HadoopInputFormatIOConstants.KEY_CLASS, LongWritable.class, Object.class);
     conf.setClass(HadoopInputFormatIOConstants.VALUE_CLASS, DBInputWritable.class, Object.class);
     conf.setClass("mapreduce.jdbc.input.class", DBInputWritable.class, Object.class);

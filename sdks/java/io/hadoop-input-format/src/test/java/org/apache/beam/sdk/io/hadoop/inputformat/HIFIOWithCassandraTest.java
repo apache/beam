@@ -14,15 +14,21 @@
  */
 package org.apache.beam.sdk.io.hadoop.inputformat;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+
 import java.io.Serializable;
-import java.util.Arrays;
+import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.PipelineResult;
+import org.apache.beam.sdk.io.TextIO;
+import org.apache.beam.sdk.io.hadoop.inputformat.testing.HIFIOTextMatcher;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.SimpleFunction;
+import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.hadoop.conf.Configuration;
@@ -55,6 +61,15 @@ public class HIFIOWithCassandraTest implements Serializable {
   private static final String CASSANDRA_KEYSPACE = "beamdb";
   private static final String CASSANDRA_HOST = "127.0.0.1";
   private static final String CASSANDRA_TABLE = "scientists";
+  private static final String CASSANDRA_THRIFT_PORT_PROPERTY="cassandra.input.thrift.port";
+  private static final String CASSANDRA_THRIFT_ADDRESS_PROPERTY="cassandra.input.thrift.address";
+  private static final String CASSANDRA_PARTITIONER_CLASS_PROPERTY="cassandra.input.partitioner.class";
+  private static final String CASSANDRA_PARTITIONER_CLASS_VALUE="Murmur3Partitioner";
+  private static final String CASSANDRA_KEYSPACE_PROPERTY="cassandra.input.keyspace";
+  private static final String CASSANDRA_COLUMNFAMILY_PROPERTY="cassandra.input.columnfamily";
+  private static final String CASSANDRA_PORT="9061";
+  private static final String OUTPUT_WRITE_FILE_PATH = "output";
+  private static List<String> expectedList = new ArrayList<>();
   private static transient Cluster cluster;
   private static transient Session session;
 
@@ -80,13 +95,14 @@ public class HIFIOWithCassandraTest implements Serializable {
     session.execute("CREATE TABLE " + CASSANDRA_TABLE
         + "(id int, scientist text, PRIMARY KEY(id));");
     session.execute("INSERT INTO " + CASSANDRA_TABLE + "(id, scientist) values(0, 'Faraday');");
+    expectedList.add("0|Faraday");
     session.execute("INSERT INTO " + CASSANDRA_TABLE + "(id, scientist) values(1, 'Newton');");
+    expectedList.add("1|Newton");
   }
 
   /**
    * Test to read data from embedded Cassandra instance and verify whether data is read
    * successfully.
-   *
    * @throws Exception
    */
   @Test
@@ -96,7 +112,8 @@ public class HIFIOWithCassandraTest implements Serializable {
     SimpleFunction<Row, String> myValueTranslate = new SimpleFunction<Row, String>() {
       @Override
       public String apply(Row input) {
-        return input.getString("scientist");
+        String scientistRecord=input.getInt("id")+"|"+input.getString("scientist");
+        return scientistRecord;
       }
     };
     PCollection<KV<Long, String>> cassandraData = p
@@ -105,10 +122,19 @@ public class HIFIOWithCassandraTest implements Serializable {
                       .withValueTranslation(myValueTranslate));
     PAssert.thatSingleton(cassandraData.apply("Count", Count.<KV<Long, String>>globally()))
         .isEqualTo(2L);
-    List<KV<Long, String>> expectedResults =
-        Arrays.asList(KV.of(2L, "Faraday"), KV.of(1L, "Newton"));
-    PAssert.that(cassandraData).containsInAnyOrder(expectedResults);
-    p.run().waitUntilFinish();
+
+    PCollection<String> textValues = cassandraData.apply(Values.<String>create());
+
+    // Write Pcollection of Strings to a file using TextIO Write transform.
+    textValues.apply(TextIO.Write.to(OUTPUT_WRITE_FILE_PATH).withNumShards(1).withSuffix("txt"));
+    PipelineResult result = p.run();
+    result.waitUntilFinish();
+
+    // Verify the output values using checksum comparison
+    HIFIOTextMatcher matcher =
+        new HIFIOTextMatcher(OUTPUT_WRITE_FILE_PATH + "-00000-of-00001.txt", expectedList);
+    assertThat(result, matcher);
+
   }
 
   /**
@@ -186,11 +212,11 @@ public class HIFIOWithCassandraTest implements Serializable {
    */
   public Configuration getConfiguration() {
     Configuration conf = new Configuration();
-    conf.set("cassandra.input.thrift.port", "9061");
-    conf.set("cassandra.input.thrift.address", CASSANDRA_HOST);
-    conf.set("cassandra.input.partitioner.class", "Murmur3Partitioner");
-    conf.set("cassandra.input.keyspace", CASSANDRA_KEYSPACE);
-    conf.set("cassandra.input.columnfamily", CASSANDRA_TABLE);
+    conf.set(CASSANDRA_THRIFT_PORT_PROPERTY, CASSANDRA_PORT );
+    conf.set(CASSANDRA_THRIFT_ADDRESS_PROPERTY, CASSANDRA_HOST);
+    conf.set(CASSANDRA_PARTITIONER_CLASS_PROPERTY, CASSANDRA_PARTITIONER_CLASS_VALUE);
+    conf.set(CASSANDRA_KEYSPACE_PROPERTY, CASSANDRA_KEYSPACE);
+    conf.set(CASSANDRA_COLUMNFAMILY_PROPERTY, CASSANDRA_TABLE);
     conf.setClass(HadoopInputFormatIOConstants.INPUTFORMAT_CLASSNAME,
         org.apache.cassandra.hadoop.cql3.CqlInputFormat.class, InputFormat.class);
     conf.setClass(HadoopInputFormatIOConstants.KEY_CLASS, java.lang.Long.class, Object.class);

@@ -35,29 +35,33 @@ import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.io.ImmutableBytesWritable;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.junit.BeforeClass;
-import org.junit.FixMethodOrder;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+<<<<<<< HEAD
 import org.junit.runners.MethodSorters;
+=======
+
+>>>>>>> b739f678d78e14da3f1dd5c7778e33867f6093c3
 
 /**
  * Runs test to validate HadoopInputFromatIO for a HBase instance on GCP.
  *
- * To read data from HBase {@link org.apache.hadoop.hbase.mapreduce.TableInputFormat.class TableInputFormat} can be used.
- * You need to pass HBase server IP and port in beamTestPipelineOptions.
+ * To read data from HBase {@link org.apache.hadoop.hbase.mapreduce.TableInputFormat.class
+ * TableInputFormat} can be used. You need to pass HBase server IP and port in
+ * beamTestPipelineOptions.
  *
  * <p>
- * You can run just this test by doing the following: mvn test-compile compile
+ * You can run just this test by using the following maven command: mvn test-compile compile
  * failsafe:integration-test -D beamTestPipelineOptions='[ "--serverIp=1.2.3.4",
  * "--serverPort=<port>" ]' -Dit.test=HIFIOHBaseIT -DskipITs=false
  *
  */
 @RunWith(JUnit4.class)
-@FixMethodOrder(MethodSorters.JVM)
 public class HIFIOHBaseIT implements Serializable {
   private static HIFTestOptions options;
   private static final String TABLE_NAME = "scientists";
+  private static final long COUNT_RECORDS = 50L;
 
   @BeforeClass
   public static void setUp() {
@@ -85,7 +89,7 @@ public class HIFIOHBaseIT implements Serializable {
     PAssert
         .thatSingleton(
             hbaseData.apply("Count", Count.<KV<ImmutableBytesWritable, String>>globally()))
-        .isEqualTo(50L);
+        .isEqualTo(COUNT_RECORDS);
     PCollection<String> values = hbaseData.apply(Values.<String>create());
     List<String> expectedValues = Arrays.asList("Einstein", "Darwin", "Copernicus", "Pasteur",
         "Curie", "Faraday", "Newton", "Bohr", "Galilei", "Maxwell");
@@ -94,7 +98,7 @@ public class HIFIOHBaseIT implements Serializable {
 	}
 
   /**
-   * Returns Hadoop configuration of reading data from HBase. To read data from HBase following
+   * Returns Hadoop configuration of reading data from HBase. To read data from HBase, following
    * properties must be set: zookeeper address, zookeeper client port and table name.
    */
   private Configuration getHBaseConfiguration() {
