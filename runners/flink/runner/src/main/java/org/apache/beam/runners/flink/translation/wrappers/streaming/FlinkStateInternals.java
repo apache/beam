@@ -75,7 +75,7 @@ public class FlinkStateInternals<K> implements StateInternals<K> {
    * Returns the minimum over all watermark holds.
    */
   public Instant watermarkHold() {
-    long min = Long.MAX_VALUE;
+    long min = BoundedWindow.TIMESTAMP_MAX_VALUE.getMillis();
     for (Instant hold: watermarkHolds.values()) {
       min = Math.min(min, hold.getMillis());
     }
