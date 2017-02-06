@@ -696,7 +696,7 @@ public class HadoopInputFormatIO {
          * to validate key/value classes by encoding and decoding key/value object with the given
          * coder.
          */
-        return useCoderToValidateClass(property, coder);
+        return validateClassUsingCoder(property, coder);
       }      
       /*
        * Validates key/value class with InputFormat's parameterized type.
@@ -711,7 +711,7 @@ public class HadoopInputFormatIO {
      * Returns true if first record's key/value encodes and decodes successfully. Also sets
      * expectedKeyClass/expectedValueClass if cloning of key/value fails.
      */
-    private <T> boolean useCoderToValidateClass(String property, Coder<T> coder)
+    private <T> boolean validateClassUsingCoder(String property, Coder<T> coder)
         throws IOException, InterruptedException {
       final RecordReader<?, ?> reader;
       reader = fetchFirstRecord();

@@ -38,11 +38,6 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-<<<<<<< HEAD
-import org.junit.runners.MethodSorters;
-=======
-
->>>>>>> b739f678d78e14da3f1dd5c7778e33867f6093c3
 
 /**
  * Runs test to validate HadoopInputFromatIO for a HBase instance on GCP.

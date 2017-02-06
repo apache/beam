@@ -7,13 +7,24 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 
+import org.apache.beam.sdk.io.hadoop.inputformat.integration.tests.HIFIOWithPostgresIT;
 import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.mapreduce.lib.db.DBWritable;
 
+/**
+ * To access the data from RDBMS using {@link DBInputFormat} you have to create a class to define
+ * the data which you are going to read. {@link DBInputWritable} is a class to read data from
+ * Postgres DB in test {@link HIFIOWithPostgresIT}. DBInputWritable holds id and name of the
+ * scientist.
+ */
 public class DBInputWritable implements Writable, DBWritable {
   public String id;
   public String name;
 
+  /* 
+   * Empty constuctor is required for encoding and decoding values in Beam.
+   * Note: missing empty constuctor may result in RuntimeException  java.lang.NoSuchMethodException... <init>()
+   */
   public DBInputWritable() {}
 
   public DBInputWritable(String id, String name) {
@@ -21,18 +32,43 @@ public class DBInputWritable implements Writable, DBWritable {
     this.name = name;
   }
 
+  public String getId() {
+    return id;
+  }
+
+  public String getName() {
+    return name;
+  }
+
+  /*
+   * Defines how the data had to be extracted from the DB. Both name and id field values are
+   * extracted inthe form of string.
+   */
+  public void readFields(ResultSet rs) throws SQLException {
+    name = rs.getString(1);
+    id = rs.getString(2);
+  }
+
+  /*
+   * Method is kept blank because the test does not aims to write back the data to Postgres.
+   */
+  public void write(PreparedStatement ps) {}
+
+  /*
+   * Deserialize the fields {id, name} of this object from in. Note: You must implement this method
+   * for decoding in Beam. Leaving this method empty may result in incompatible value class in
+   * Beam.
+   */
   public void readFields(DataInput in) throws IOException {
     name = in.readUTF();
     id = in.readUTF();
   }
 
-  public void readFields(ResultSet rs) throws SQLException
-  // Resultset object represents the data returned from a SQL statement
-  {
-    name = rs.getString(1);
-    id = rs.getString(2);
-  }
-
+  /*
+   * Serialize the fields {id, name} of this object to out. Note: You must implement this method
+   * for encoding in Beam. Leaving this method empty may result in incompatible value class in
+   * Beam.
+   */
   public void write(DataOutput out) throws IOException {
     out.writeUTF(name);
     out.writeUTF(id);
@@ -67,18 +103,5 @@ public class DBInputWritable implements Writable, DBWritable {
     } else if (!name.equals(other.name))
       return false;
     return true;
-  }
-
-  public void write(PreparedStatement ps) throws SQLException {
-    ps.setString(1, name);
-    ps.setString(2, id);
-  }
-
-  public String getId() {
-    return id;
-  }
-
-  public String getName() {
-    return name;
   }
 }
