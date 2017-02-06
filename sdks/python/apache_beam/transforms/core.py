@@ -21,7 +21,6 @@ from __future__ import absolute_import
 
 import copy
 import inspect
-import warnings
 import types
 
 from apache_beam import pvalue
@@ -214,88 +213,6 @@ class DoFn(WithTypeHints, HasDisplayData):
         self.process.im_class is types.ClassType:
       return False # Method is a classmethod
     return True
-
-
-# TODO(Sourabh): Remove after migration to DoFn
-class OldDoFn(WithTypeHints, HasDisplayData):
-  """A function object used by a transform with custom processing.
-
-  The ParDo transform is such a transform. The ParDo.expand()
-  method will take an object of type DoFn and apply it to all elements of a
-  PCollection object.
-
-  In order to have concrete DoFn objects one has to subclass from DoFn and
-  define the desired behavior (start_bundle/finish_bundle and process) or wrap a
-  callable object using the CallableWrapperDoFn class.
-  """
-
-  def __init__(self):
-    warnings.warn('Use of OldDoFn is deprecated please use DoFn instead')
-    super(OldDoFn, self).__init__()
-
-  def default_label(self):
-    return self.__class__.__name__
-
-  def infer_output_type(self, input_type):
-    # TODO(robertwb): Side inputs types.
-    # TODO(robertwb): Assert compatibility with input type hint?
-    return self._strip_output_annotations(
-        trivial_inference.infer_return_type(self.process, [input_type]))
-
-  def start_bundle(self, context):
-    """Called before a bundle of elements is processed on a worker.
-
-    Elements to be processed are split into bundles and distributed
-    to workers.  Before a worker calls process() on the first element
-    of its bundle, it calls this method.
-
-    Args:
-      context: a DoFnContext object
-    """
-    pass
-
-  def finish_bundle(self, context):
-    """Called after a bundle of elements is processed on a worker.
-
-    Args:
-      context: a DoFnContext object
-    """
-    pass
-
-  def process(self, context, *args, **kwargs):
-    """Called for each element of a pipeline.
-
-    Args:
-      context: a DoFnProcessContext object containing, among other
-        attributes, the element to be processed.
-        See the DoFnProcessContext documentation for details.
-      *args: side inputs
-      **kwargs: keyword side inputs
-    """
-    raise NotImplementedError
-
-  @staticmethod
-  def from_callable(fn):
-    return CallableWrapperDoFn(fn)
-
-  def process_argspec_fn(self):
-    """Returns the Python callable that will eventually be invoked.
-
-    This should ideally be the user-level function that is called with
-    the main and (if any) side inputs, and is used to relate the type
-    hint parameters with the input parameters (e.g., by argument name).
-    """
-    return self.process
-
-  def _strip_output_annotations(self, type_hint):
-    annotations = (TimestampedValue, WindowedValue, pvalue.SideOutputValue)
-    # TODO(robertwb): These should be parameterized types that the
-    # type inferencer understands.
-    if (type_hint in annotations
-        or trivial_inference.element_type(type_hint) in annotations):
-      return Any
-    else:
-      return type_hint
 
 
 def _fn_takes_side_inputs(fn):
@@ -679,7 +596,7 @@ class ParDo(PTransformWithSideInputs):
   def __init__(self, fn_or_label, *args, **kwargs):
     super(ParDo, self).__init__(fn_or_label, *args, **kwargs)
 
-    if not isinstance(self.fn, (OldDoFn, DoFn)):
+    if not isinstance(self.fn, DoFn):
       raise TypeError('ParDo must be called with a DoFn instance.')
 
   def default_type_hints(self):
@@ -690,7 +607,7 @@ class ParDo(PTransformWithSideInputs):
         self.fn.infer_output_type(input_type))
 
   def make_fn(self, fn):
-    if isinstance(fn, (OldDoFn, DoFn)):
+    if isinstance(fn, DoFn):
       return fn
     return CallableWrapperDoFn(fn)
 
