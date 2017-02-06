@@ -196,15 +196,9 @@ import com.google.common.collect.Lists;
  *   cassandraConf.set("cassandra.input.partitioner.class", "Murmur3Partitioner");
  *   cassandraConf.set("cassandra.input.keyspace", "myKeySpace");
  *   cassandraConf.set("cassandra.input.columnfamily", "myColumnFamily");
-<<<<<<< Updated upstream
  *   cassandraConf.setClass("key.class", {@link java.lang.Long Long.class}, Object.class);
  *   cassandraConf.setClass("value.class", {@link com.datastax.driver.core.Row Row.class}, Object.class);
  *   cassandraConf.setClass("mapreduce.job.inputformat.class", {@link org.apache.cassandra.hadoop.cql3.CqlInputFormat CqlInputFormat.class}, InputFormat.class);
-=======
- *   cassandraConf.setClass("key.class",{@link java.lang.Long Long.class}, Object.class);
- *   cassandraConf.setClass("value.class",{@link com.datastax.driver.core.Row Row.class}, Object.class);
- *   cassandraConf.setClass("mapreduce.job.inputformat.class",{@link org.apache.cassandra.hadoop.cql3.CqlInputFormat CqlInputFormat.class}, InputFormat.class);
->>>>>>> Stashed changes
  *   }
  * </pre>
  * <p>

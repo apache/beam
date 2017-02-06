@@ -14,7 +14,7 @@ import org.apache.hadoop.mapreduce.lib.db.DBWritable;
 /**
  * To access the data from RDBMS using {@link DBInputFormat} you have to create a class to define
  * the data which you are going to read. {@link DBInputWritable} is a class to read data from
- * Postgres DB in test {@link HIFIOWithPostgresIT}. DBInputWritable holds id and name of the
+ * Postgres DB in test {@link HIFIOWithPostgresIT}. {@link DBInputWritable} holds id and name of the
  * scientist.
  */
 public class DBInputWritable implements Writable, DBWritable {
