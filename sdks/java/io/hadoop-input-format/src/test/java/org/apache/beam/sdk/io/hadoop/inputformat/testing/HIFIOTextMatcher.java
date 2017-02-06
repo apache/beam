@@ -14,6 +14,8 @@
  */
 package org.apache.beam.sdk.io.hadoop.inputformat.testing;
 
+import static com.google.common.base.Preconditions.checkArgument;
+
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.nio.charset.StandardCharsets;
@@ -30,8 +32,7 @@ import org.hamcrest.TypeSafeMatcher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import autovalue.shaded.org.apache.commons.lang.StringUtils;
-
+import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.common.hash.HashCode;
 import com.google.common.hash.Hashing;
@@ -51,11 +52,19 @@ public class HIFIOTextMatcher extends TypeSafeMatcher<PipelineResult> implements
   private List<String> expectedList;
 
   public HIFIOTextMatcher(String filePath, List<String> expectedList) {
+    checkArgument(!Strings.isNullOrEmpty(filePath), "Expected valid file path, but received %s",
+        filePath);
+    checkArgument(null != expectedList && !expectedList.isEmpty(),
+        "Expected a valid list, but received %s", expectedList);
     this.filePath = filePath;
     this.expectedList = expectedList;
   }
 
   public HIFIOTextMatcher(String filePath, String expectedChecksum) {
+    checkArgument(!Strings.isNullOrEmpty(filePath), "Expected valid file path, but received %s",
+        filePath);
+    checkArgument(!Strings.isNullOrEmpty(filePath),
+        "Expected a valid checksum value, but received %s", expectedChecksum);
     this.filePath = filePath;
     this.expectedChecksum = expectedChecksum;
   }
@@ -74,7 +83,7 @@ public class HIFIOTextMatcher extends TypeSafeMatcher<PipelineResult> implements
    */
   @Override
   protected boolean matchesSafely(PipelineResult arg0) {
-    if (StringUtils.isEmpty(expectedChecksum)) {
+    if (Strings.isNullOrEmpty(expectedChecksum)) {
       expectedChecksum = generateHash(expectedList);
     }
     ArrayList<String> actualList = new ArrayList<String>();
