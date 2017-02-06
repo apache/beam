@@ -35,7 +35,7 @@ import org.joda.time.Instant;
  */
 @SystemDoFnInternal
 public class GroupAlsoByWindowsViaOutputBufferDoFn<K, InputT, OutputT, W extends BoundedWindow>
-   extends GroupAlsoByWindowsDoFn<K, InputT, OutputT, W> {
+    extends GroupAlsoByWindowsDoFn<K, InputT, OutputT, W> {
 
   private final WindowingStrategy<?, W> strategy;
   private final StateInternalsFactory<K> stateInternalsFactory;
@@ -90,25 +90,26 @@ public class GroupAlsoByWindowsViaOutputBufferDoFn<K, InputT, OutputT, W extends
     reduceFnRunner.persist();
   }
 
-  private void fireEligibleTimers(InMemoryTimerInternals timerInternals,
-      ReduceFnRunner<K, InputT, OutputT, W> reduceFnRunner) throws Exception {
+  private void fireEligibleTimers(
+      InMemoryTimerInternals timerInternals, ReduceFnRunner<K, InputT, OutputT, W> reduceFnRunner)
+      throws Exception {
     List<TimerInternals.TimerData> timers = new ArrayList<>();
     while (true) {
-        TimerInternals.TimerData timer;
-        while ((timer = timerInternals.removeNextEventTimer()) != null) {
-          timers.add(timer);
-        }
-        while ((timer = timerInternals.removeNextProcessingTimer()) != null) {
-          timers.add(timer);
-        }
-        while ((timer = timerInternals.removeNextSynchronizedProcessingTimer()) != null) {
-          timers.add(timer);
-        }
-        if (timers.isEmpty()) {
-          break;
-        }
-        reduceFnRunner.onTimers(timers);
-        timers.clear();
+      TimerInternals.TimerData timer;
+      while ((timer = timerInternals.removeNextEventTimer()) != null) {
+        timers.add(timer);
+      }
+      while ((timer = timerInternals.removeNextProcessingTimer()) != null) {
+        timers.add(timer);
+      }
+      while ((timer = timerInternals.removeNextSynchronizedProcessingTimer()) != null) {
+        timers.add(timer);
+      }
+      if (timers.isEmpty()) {
+        break;
+      }
+      reduceFnRunner.onTimers(timers);
+      timers.clear();
     }
   }
 }
