@@ -376,10 +376,10 @@ public class HadoopInputFormatIO {
       return toBuilder().setValueTranslationFunction(function)
           .setValueClass((TypeDescriptor<V>) function.getOutputTypeDescriptor()).build();
     }
-    
+
     @Override
     public PCollection<KV<K, V>> expand(PBegin input) {
-      // Get the key and value coders based on the key and value classes.      
+      // Get the key and value coders based on the key and value classes.
       CoderRegistry coderRegistry = input.getPipeline().getCoderRegistry();
       Coder<K> keyCoder = getDefaultCoder(getKeyClass(), coderRegistry);
       Coder<V> valueCoder = getDefaultCoder(getValueClass(), coderRegistry);
@@ -405,7 +405,7 @@ public class HadoopInputFormatIO {
       checkNotNull(configuration.get("value.class"),
           HadoopInputFormatIOConstants.MISSING_INPUTFORMAT_VALUE_CLASS_ERROR_MSG);
     }
-    
+
     /**
      * Validates inputs provided by the pipeline user before reading the data.
      */
@@ -491,7 +491,7 @@ public class HadoopInputFormatIO {
     private TaskAttemptContextImpl taskAttemptContext;
     private transient Class<?> expectedKeyClass;
     private transient Class<?> expectedValueClass;
-    
+
     HadoopInputFormatBoundedSource(
         SerializableConfiguration conf,
         Coder<K> keyCoder,
@@ -691,7 +691,7 @@ public class HadoopInputFormatIO {
          * coder.
          */
         return validateClassUsingCoder(property, coder);
-      }      
+      }
       /*
        * Validates key/value class with InputFormat's parameterized type.
        */
@@ -753,7 +753,7 @@ public class HadoopInputFormatIO {
       }
       return true;
     }
-   
+
     /**
      * Returns parameterized type of the InputFormat class.
      */
@@ -786,7 +786,7 @@ public class HadoopInputFormatIO {
       reader.nextKeyValue();
       return reader;
     }
-  
+
     @VisibleForTesting
     InputFormat<?, ?> getInputFormat(){
       return inputFormatObj;
@@ -796,7 +796,7 @@ public class HadoopInputFormatIO {
     public Coder<KV<K, V>> getDefaultOutputCoder() {
       return KvCoder.of(keyCoder, valueCoder);
     }
-    
+
     private Class<?> getExpectedKeyClass() {
       return expectedKeyClass;
     }
@@ -831,7 +831,7 @@ public class HadoopInputFormatIO {
 
     /**
      * BoundedReader for Hadoop InputFormat source.
-     * 
+     *
      * @param <K> Type of keys RecordReader emits.
      * @param <V> Type of values RecordReader emits.
      */
@@ -872,21 +872,25 @@ public class HadoopInputFormatIO {
           recordsReturned = 0;
           currentReader =
               (RecordReader<K1, V1>) inputFormatObj.createRecordReader(split, taskAttemptContext);
-          if (currentReader != null) {
-            currentReader.initialize(split, taskAttemptContext);
-            if (currentReader.nextKeyValue()) {
-              recordsReturned++;
-              return true;
+          // currentReader object could be accessed concurrently by multiple sources. Hence to be on
+          // safer side, it has been added in synchronized block
+          synchronized (currentReader) {
+            if (currentReader != null) {
+              currentReader.initialize(split, taskAttemptContext);
+              if (currentReader.nextKeyValue()) {
+                recordsReturned++;
+                return true;
+              }
+            } else {
+              throw new IOException(String.format(
+                  HadoopInputFormatIOConstants.NULL_CREATE_RECORDREADER_ERROR_MSG,
+                  inputFormatObj.getClass()));
             }
-          } else {
-            throw new IOException(
-                String.format(HadoopInputFormatIOConstants.NULL_CREATE_RECORDREADER_ERROR_MSG,
-                    inputFormatObj.getClass()));
+            currentReader = null;
           }
         } catch (InterruptedException e) {
           throw new IOException("Unable to read data: ", e);
         }
-        currentReader = null;
         doneReading = true;
         return false;
       }
@@ -929,11 +933,11 @@ public class HadoopInputFormatIO {
         }
         return KV.of(key, value);
       }
-      
+
       /**
-       * Returns the serialized output of transformed key or value object. 
-       * @throws ClassCastException 
-       * @throws CoderException 
+       * Returns the serialized output of transformed key or value object.
+       * @throws ClassCastException
+       * @throws CoderException
        */
       private <T, T1> T1 transformKeyOrValue(T input,
           @Nullable SimpleFunction<T, T1> simpleFunction, Coder<T1> coder) throws CoderException,
@@ -966,15 +970,15 @@ public class HadoopInputFormatIO {
       private boolean isKnownImmutable(Object o) {
         Set<Class<?>> immutableTypes = new HashSet<Class<?>>(
             Arrays.asList(
-                String.class, 
-                Byte.class, 
-                Short.class, 
-                Integer.class, 
+                String.class,
+                Byte.class,
+                Short.class,
+                Integer.class,
                 Long.class,
-                Float.class, 
-                Double.class, 
-                Boolean.class, 
-                BigInteger.class, 
+                Float.class,
+                Double.class,
+                Boolean.class,
+                BigInteger.class,
                 BigDecimal.class));
         return immutableTypes.contains(o.getClass());
       }
