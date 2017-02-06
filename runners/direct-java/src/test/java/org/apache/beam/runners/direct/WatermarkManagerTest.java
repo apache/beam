@@ -67,11 +67,13 @@ import org.hamcrest.BaseMatcher;
 import org.hamcrest.Description;
 import org.hamcrest.Matcher;
 import org.hamcrest.Matchers;
+import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.joda.time.ReadableInstant;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
@@ -80,6 +82,9 @@ import org.junit.runners.JUnit4;
  */
 @RunWith(JUnit4.class)
 public class WatermarkManagerTest implements Serializable {
+  @Rule
+  public transient ExpectedException thrown = ExpectedException.none();
+
   private transient MockClock clock;
 
   private transient PCollection<Integer> createdInts;
@@ -1345,6 +1350,28 @@ public class WatermarkManagerTest implements Serializable {
     assertThat(update.getCompletedTimers(), containsInAnyOrder(completedOne, completedTwo));
     assertThat(update.getSetTimers(), contains(set));
     assertThat(update.getDeletedTimers(), contains(deleted));
+  }
+
+  @Test
+  public void timerUpdateBuilderWithSetAtEndOfTime() {
+    Instant timerStamp = BoundedWindow.TIMESTAMP_MAX_VALUE;
+    TimerData tooFar = TimerData.of(StateNamespaces.global(), timerStamp, TimeDomain.EVENT_TIME);
+
+    TimerUpdateBuilder builder = TimerUpdate.builder(StructuralKey.empty());
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage(timerStamp.toString());
+    builder.setTimer(tooFar);
+  }
+
+  @Test
+  public void timerUpdateBuilderWithSetPastEndOfTime() {
+    Instant timerStamp = BoundedWindow.TIMESTAMP_MAX_VALUE.plus(Duration.standardMinutes(2));
+    TimerData tooFar = TimerData.of(StateNamespaces.global(), timerStamp, TimeDomain.EVENT_TIME);
+
+    TimerUpdateBuilder builder = TimerUpdate.builder(StructuralKey.empty());
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage(timerStamp.toString());
+    builder.setTimer(tooFar);
   }
 
   @Test
