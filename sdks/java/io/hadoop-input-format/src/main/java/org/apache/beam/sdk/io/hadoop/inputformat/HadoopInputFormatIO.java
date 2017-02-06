@@ -196,15 +196,9 @@ import com.google.common.collect.Lists;
  *   cassandraConf.set("cassandra.input.partitioner.class", "Murmur3Partitioner");
  *   cassandraConf.set("cassandra.input.keyspace", "myKeySpace");
  *   cassandraConf.set("cassandra.input.columnfamily", "myColumnFamily");
-<<<<<<< Updated upstream
  *   cassandraConf.setClass("key.class", {@link java.lang.Long Long.class}, Object.class);
  *   cassandraConf.setClass("value.class", {@link com.datastax.driver.core.Row Row.class}, Object.class);
  *   cassandraConf.setClass("mapreduce.job.inputformat.class", {@link org.apache.cassandra.hadoop.cql3.CqlInputFormat CqlInputFormat.class}, InputFormat.class);
-=======
- *   cassandraConf.setClass("key.class",{@link java.lang.Long Long.class}, Object.class);
- *   cassandraConf.setClass("value.class",{@link com.datastax.driver.core.Row Row.class}, Object.class);
- *   cassandraConf.setClass("mapreduce.job.inputformat.class",{@link org.apache.cassandra.hadoop.cql3.CqlInputFormat CqlInputFormat.class}, InputFormat.class);
->>>>>>> Stashed changes
  *   }
  * </pre>
  * <p>
@@ -696,7 +690,7 @@ public class HadoopInputFormatIO {
          * to validate key/value classes by encoding and decoding key/value object with the given
          * coder.
          */
-        return useCoderToValidateClass(property, coder);
+        return validateClassUsingCoder(property, coder);
       }      
       /*
        * Validates key/value class with InputFormat's parameterized type.
@@ -711,7 +705,7 @@ public class HadoopInputFormatIO {
      * Returns true if first record's key/value encodes and decodes successfully. Also sets
      * expectedKeyClass/expectedValueClass if cloning of key/value fails.
      */
-    private <T> boolean useCoderToValidateClass(String property, Coder<T> coder)
+    private <T> boolean validateClassUsingCoder(String property, Coder<T> coder)
         throws IOException, InterruptedException {
       final RecordReader<?, ?> reader;
       reader = fetchFirstRecord();

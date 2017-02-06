@@ -130,15 +130,14 @@ public class HIFIOElasticIT implements Serializable {
     pipeline.run().waitUntilFinish();
   }
 
-  /**
-   * Set the Elasticsearch configuration parameters in the Hadoop configuration object.
-   * Configuration object should have InputFormat class, key class and value class to be set.
-   * Mandatory fields for ESInputFormat to be set are es.resource, es.nodes, es.port,
-   * es.internal.es.version, es.nodes.wan.only. Please refer <a
-   * href="https://www.elastic.co/guide/en/elasticsearch/hadoop/current/configuration.html"
+  /*
+   * Returns Hadoop configuration for reading data from Elasticsearch. Configuration object should
+   * have InputFormat class, key class and value class to be set. Mandatory fields for ESInputFormat
+   * to be set are es.resource, es.nodes, es.port, es.internal.es.version, es.nodes.wan.only. Please
+   * refer <a href="https://www.elastic.co/guide/en/elasticsearch/hadoop/current/configuration.html"
    * >Elasticsearch Configuration</a> for more details.
    */
-  public static Configuration getConfiguration(HIFTestOptions options) {
+  private static Configuration getConfiguration(HIFTestOptions options) {
     Configuration conf = new Configuration();
     conf.set(ConfigurationOptions.ES_NODES, options.getServerIp());
     conf.set(ConfigurationOptions.ES_PORT, options.getServerPort().toString());

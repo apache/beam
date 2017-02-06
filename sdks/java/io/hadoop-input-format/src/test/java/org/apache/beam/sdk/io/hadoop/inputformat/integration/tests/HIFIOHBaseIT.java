@@ -38,11 +38,6 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-<<<<<<< HEAD
-import org.junit.runners.MethodSorters;
-=======
-
->>>>>>> b739f678d78e14da3f1dd5c7778e33867f6093c3
 
 /**
  * Runs test to validate HadoopInputFromatIO for a HBase instance on GCP.
@@ -69,7 +64,7 @@ public class HIFIOHBaseIT implements Serializable {
     options = TestPipeline.testingPipelineOptions().as(HIFTestOptions.class);
   }
   
-  /**
+  /*
    * This test reads data from the HBase and verifies if data is read successfully.
    */
   @Test
@@ -97,9 +92,10 @@ public class HIFIOHBaseIT implements Serializable {
     p.run().waitUntilFinish();
 	}
 
-  /**
-   * Returns Hadoop configuration of reading data from HBase. To read data from HBase, following
-   * properties must be set: zookeeper address, zookeeper client port and table name.
+  /*
+   * Returns Hadoop configuration for reading data from HBase. To read data from HBase using
+   * HadoopInputFormatIO, following properties must be set: InputFormat class, InputFormat key
+   * class, InputFormat value class, ZooKeeper address, ZooKeeper client port and table name.
    */
   private Configuration getHBaseConfiguration() {
     Configuration conf = HBaseConfiguration.create();

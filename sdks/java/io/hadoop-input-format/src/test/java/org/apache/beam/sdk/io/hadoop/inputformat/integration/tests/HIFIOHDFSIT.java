@@ -52,10 +52,10 @@ import org.junit.runners.JUnit4;
  */
 @RunWith(JUnit4.class)
 public class HIFIOHDFSIT implements Serializable {
-  private static HIFTestOptions options;
-  private static final String FILE_NAME = "scintistData.txt";
-  private static String filePath = "hdfs://";
+  private static final String FILE_NAME = "scientistData.txt";
   private static final long COUNT_RECORDS = 10L;
+  private static String filePath = "hdfs://";
+  private static HIFTestOptions options;
 
   @BeforeClass
   public static void setUp() {
@@ -66,8 +66,8 @@ public class HIFIOHDFSIT implements Serializable {
             + FILE_NAME;
   }
 
-  /**
-   * This test reads data from HDFS and verifies if data is read successfully.
+  /*
+   * This test reads data from HDFS and verifies if the data is read successfully.
    */
   @Test
   public void testHifReadWithHDFS() throws Throwable {
@@ -93,10 +93,11 @@ public class HIFIOHDFSIT implements Serializable {
     p.run().waitUntilFinish();
   }
 
-  /**
-   * Returns Hadoop configuration of reading data from HDFS. To read data from HDFS, following
-   * properties must be set: NameNode IP address, NameNode metadata service port and file name.
-   * You can control size of split using property "mapred.max.split.size".
+  /*
+   * Returns Hadoop configuration for reading data from HDFS. To read data from HDFS using
+   * HadoopInputFormatIO, following properties must be set: InputFormat class, InputFormat key
+   * class, InputFormat value class, NameNode IP address, NameNode metadata service port and file
+   * name. You can control size of the file split using property "mapred.max.split.size".
    */
   private Configuration getHDFSConfiguration() {
     Configuration conf = new Configuration();

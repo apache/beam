@@ -76,7 +76,7 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class HIFIOWithPostgresIT implements Serializable {
   private static final String DRIVER_CLASS_PROPERTY = "org.postgresql.Driver";
-  private static String URL_PROPERTY = "jdbc:postgresql://";
+  private static String urlProperty = "jdbc:postgresql://";
   private static final String INPUT_TABLE_NAME_PROPERTY = "scientists";
   private static final String DATABASE_NAME = "beamdb";
   private static final long COUNT_RECORDS = 10L;
@@ -89,13 +89,15 @@ public class HIFIOWithPostgresIT implements Serializable {
   public static void setUp() {
     PipelineOptionsFactory.register(HIFTestOptions.class);
     options = TestPipeline.testingPipelineOptions().as(HIFTestOptions.class);
-    URL_PROPERTY +=
-        options.getServerIp() + ":" + String.format("%d", options.getServerPort()) + "/"
-            + DATABASE_NAME;
+    urlProperty += options.getServerIp() + ":" 
+                + String.format("%d", options.getServerPort()) + "/" + DATABASE_NAME;
   }
 
+  /*
+   * This test reads data from Postgres and verifies if the data is read successfully.
+   */
   @Test
-  public void testReadData() throws IOException, InstantiationException, IllegalAccessException,
+  public void testHifReadWithPostgres() throws IOException, InstantiationException, IllegalAccessException,
       ClassNotFoundException, InterruptedException {
     Configuration conf = getPostgresConfiguration();
     PCollection<KV<LongWritable, DBInputWritable>> postgresData =
@@ -118,15 +120,16 @@ public class HIFIOWithPostgresIT implements Serializable {
     p.run();
   }
 
-  /**
+  /*
    * Returns Hadoop configuration for reading data from Postgres. To read data from Postgres using
-   * HadoopInputFormatIO, following properties must be set- driver class, jdbc url, username,
-   * password, table name, query and value type.
+   * HadoopInputFormatIO, following properties must be set: InputFormat class, InputFormat key
+   * class, InputFormat value class, driver class, jdbc url, username, password, table name, query
+   * and value type.
    */
   private static Configuration getPostgresConfiguration() throws IOException {
     Configuration conf = new Configuration();
     conf.set("mapreduce.jdbc.driver.class", DRIVER_CLASS_PROPERTY);
-    conf.set("mapreduce.jdbc.url", URL_PROPERTY);
+    conf.set("mapreduce.jdbc.url", urlProperty);
     conf.set("mapreduce.jdbc.username", options.getUserName());
     conf.set("mapreduce.jdbc.password", options.getPassword());
     conf.set("mapreduce.jdbc.input.table.name", INPUT_TABLE_NAME_PROPERTY);
