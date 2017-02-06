@@ -54,11 +54,11 @@ class FuzzedExponentialIntervals(object):
       [(1 - fuzz) * d, d].
     max_delay_sec: Maximum delay (in seconds). After this limit is reached,
       further tries use max_delay_sec instead of exponentially increasing
-      the time. Defaults to 4 hours.
+      the time. Defaults to 1 hour.
   """
 
   def __init__(self, initial_delay_secs, num_retries, factor=2, fuzz=0.5,
-               max_delay_secs=60 * 60 * 4):
+               max_delay_secs=60 * 60 * 1):
     self._initial_delay_secs = initial_delay_secs
     self._num_retries = num_retries
     self._factor = factor
@@ -115,9 +115,9 @@ def no_retries(fun):
 
 
 def with_exponential_backoff(
-    num_retries=16, initial_delay_secs=5.0, logger=logging.warning,
+    num_retries=7, initial_delay_secs=5.0, logger=logging.warning,
     retry_filter=retry_on_server_errors_filter,
-    clock=Clock(), fuzz=True, factor=2, max_delay_secs=60 * 60 * 4):
+    clock=Clock(), fuzz=True, factor=2, max_delay_secs=60 * 60):
   """Decorator with arguments that control the retry logic.
 
   Args:
