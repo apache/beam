@@ -14,19 +14,23 @@
  */
 package org.apache.beam.sdk.io.hadoop.inputformat.integration.tests;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+
 import java.io.Serializable;
-import java.util.Arrays;
-import java.util.List;
 
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.PipelineResult;
+import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.io.hadoop.inputformat.HadoopInputFormatIO;
 import org.apache.beam.sdk.io.hadoop.inputformat.HadoopInputFormatIOConstants;
 import org.apache.beam.sdk.io.hadoop.inputformat.custom.options.HIFTestOptions;
+import org.apache.beam.sdk.io.hadoop.inputformat.testing.HIFIOTextMatcher;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.SimpleFunction;
+import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.hadoop.conf.Configuration;
@@ -51,14 +55,15 @@ import com.datastax.driver.core.Row;
 @RunWith(JUnit4.class)
 public class HIFIOCassandraIT implements Serializable {
 
-  private static final String CASSANDRA_KEYSPACE = "beamdb";
-  private static final String CASSANDRA_TABLE = "scientists";
+  private static final String CASSANDRA_KEYSPACE = "ycsb";
+  private static final String CASSANDRA_TABLE = "usertable";
   private static final String CASSANDRA_THRIFT_PORT_PROPERTY="cassandra.input.thrift.port";
   private static final String CASSANDRA_THRIFT_ADDRESS_PROPERTY="cassandra.input.thrift.address";
   private static final String CASSANDRA_PARTITIONER_CLASS_PROPERTY="cassandra.input.partitioner.class";
   private static final String CASSANDRA_KEYSPACE_PROPERTY="cassandra.input.keyspace";
   private static final String CASSANDRA_COLUMNFAMILY_PROPERTY="cassandra.input.columnfamily";
   private static final String CASSANDRA_PARTITIONER_CLASS_VALUE="Murmur3Partitioner";
+  private static final String OUTPUT_WRITE_FILE_PATH = "output-cassandra";
   private static HIFTestOptions options;
 
   @BeforeClass
@@ -77,21 +82,27 @@ public class HIFIOCassandraIT implements Serializable {
     SimpleFunction<Row, String> myValueTranslate = new SimpleFunction<Row, String>() {
       @Override
       public String apply(Row input) {
-        return input.getString("scientist");
+        return input.getString("y_id") + "|" + input.getString("field0") + "|"
+            + input.getString("field1");
       }
     };
     PCollection<KV<Long, String>> cassandraData = pipeline
                     .apply(HadoopInputFormatIO.<Long, String>read().withConfiguration(conf)
                         .withValueTranslation(myValueTranslate));
     PAssert.thatSingleton(cassandraData.apply("Count", Count.<KV<Long, String>>globally()))
-        .isEqualTo(10L);
+        .isEqualTo(1000L);
 
-    List<KV<Long, String>> expectedResults =
-        Arrays.asList(KV.of(1L, "Faraday"), KV.of(2L, "Newton"), KV.of(3L, "Galilei"),
-            KV.of(4L, "Maxwell"), KV.of(5L, "Pasteur"), KV.of(6L, "Copernicus"),
-            KV.of(7L, "Curie"), KV.of(8L, "Bohr"), KV.of(9L, "Darwin"), KV.of(10L, "Einstein"));
-    PAssert.that(cassandraData).containsInAnyOrder(expectedResults);
-    pipeline.run().waitUntilFinish();
+    PCollection<String> textValues = cassandraData.apply(Values.<String>create());
+
+    // Write Pcollection of Strings to a file using TextIO Write transform.
+    textValues.apply(TextIO.Write.to(OUTPUT_WRITE_FILE_PATH).withNumShards(1).withSuffix("txt"));
+    PipelineResult result = pipeline.run();
+    result.waitUntilFinish();
+
+    // Verify the output values using checksum comparison
+    HIFIOTextMatcher matcher =
+        new HIFIOTextMatcher(OUTPUT_WRITE_FILE_PATH + "-00000-of-00001.txt", "a45a33ad0fcb6de99050c47f09cd8400e8112db0");
+    assertThat(result, matcher);
   }
 
   /**
@@ -103,11 +114,11 @@ public class HIFIOCassandraIT implements Serializable {
     Pipeline pipeline = TestPipeline.create(options);
     Configuration conf = getConfiguration(options);
     conf.set("cassandra.input.cql", "select * from " + CASSANDRA_KEYSPACE + "." + CASSANDRA_TABLE
-        + " where token(id) > ? and token(id) <= ? and scientist='Einstein' allow filtering");
+        + " where token(y_id) > ? and token(y_id) <= ? and y_id='user3117720508089767496' allow filtering");
     SimpleFunction<Row, String> myValueTranslate = new SimpleFunction<Row, String>() {
       @Override
       public String apply(Row input) {
-        return input.getString("id");
+        return input.getString("y_id");
       }
     };
     PCollection<KV<Long, String>> cassandraData = pipeline
