@@ -814,7 +814,6 @@ class TextFileSink(FileSink):
         label='Append Trailing New Lines')
     return dd_parent
 
-
   def write_encoded_record(self, file_handle, encoded_value):
     """Writes a single encoded record."""
     file_handle.write(encoded_value)
