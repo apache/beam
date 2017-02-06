@@ -369,7 +369,6 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
         Coder<RestrictionT> restrictionCoder,
         Coder<? extends BoundedWindow> windowCoder) {
       this.fn = fn;
-      this.invoker = DoFnInvokers.invokerFor(fn);
       this.windowCoder = windowCoder;
       this.elementTag =
           StateTags.value("element", WindowedValue.getFullCoder(elementCoder, this.windowCoder));
@@ -387,6 +386,21 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
     public void setProcessElementInvoker(
         SplittableProcessElementInvoker<InputT, OutputT, RestrictionT, TrackerT> invoker) {
       this.processElementInvoker = invoker;
+    }
+
+    public DoFn<InputT, OutputT> getFn() {
+      return fn;
+    }
+
+    @Setup
+    public void setup() throws Exception {
+      invoker = DoFnInvokers.invokerFor(fn);
+      invoker.invokeSetup();
+    }
+
+    @Teardown
+    public void tearDown() throws Exception {
+      invoker.invokeTeardown();
     }
 
     @StartBundle
