@@ -90,8 +90,10 @@ class MemoryReporter(object):
   """
 
   def __init__(self, interval_sec=60.0):
+    # guppy might not have installed. Set up the reporter only when guppy is
+    # installed.  http://pypi.python.org/pypi/guppy/0.1.10
     try:
-      from guppy import hpy
+      from guppy import hpy  # pylint: disable=import-error
       self._hpy = hpy
       self._interval_sec = interval_sec
       self._enabled = False
