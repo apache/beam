@@ -16,6 +16,8 @@ import org.hamcrest.TypeSafeMatcher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import autovalue.shaded.org.apache.commons.lang.StringUtils;
+
 import com.google.common.collect.Lists;
 import com.google.common.hash.HashCode;
 import com.google.common.hash.Hashing;
@@ -27,6 +29,7 @@ import com.google.common.hash.Hashing;
 public class HIFIOTextMatcher extends TypeSafeMatcher<PipelineResult> implements
     SerializableMatcher<PipelineResult> {
 
+  private static final long serialVersionUID = 1L;
   private static final Logger LOGGER = LoggerFactory.getLogger(HIFIOTextMatcher.class);
   private String expectedChecksum;
   private String actualChecksum;
@@ -36,6 +39,11 @@ public class HIFIOTextMatcher extends TypeSafeMatcher<PipelineResult> implements
   public HIFIOTextMatcher(String filePath, List<String> expectedList) {
     this.filePath = filePath;
     this.expectedList = expectedList;
+  }
+
+  public HIFIOTextMatcher(String filePath, String expectedChecksum) {
+    this.filePath = filePath;
+    this.expectedChecksum = expectedChecksum;
   }
 
   @Override
@@ -50,7 +58,9 @@ public class HIFIOTextMatcher extends TypeSafeMatcher<PipelineResult> implements
    */
   @Override
   protected boolean matchesSafely(PipelineResult arg0) {
-    expectedChecksum = generateHash(expectedList);
+    if (StringUtils.isEmpty(expectedChecksum)) {
+      expectedChecksum = generateHash(expectedList);
+    }
     ArrayList<String> actualList = new ArrayList<String>();
     Scanner s;
     try {
