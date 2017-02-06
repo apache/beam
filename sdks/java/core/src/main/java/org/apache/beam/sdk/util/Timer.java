@@ -20,6 +20,7 @@ package org.apache.beam.sdk.util;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.joda.time.Duration;
+import org.joda.time.Instant;
 
 /**
  * A timer for a specified time domain that can be set to register the desire for further processing
@@ -42,6 +43,16 @@ import org.joda.time.Duration;
  */
 @Experimental(Experimental.Kind.TIMERS)
 public interface Timer {
+  /**
+   * Sets or resets the time in the timer's {@link TimeDomain} at which it should fire. If the timer
+   * was already set, resets it to the new requested time.
+   *
+   * <p>For {@link TimeDomain#PROCESSING_TIME}, the behavior is be unpredictable, since processing
+   * time timers are ignored after a window has expired. Instead, it is recommended to use
+   * {@link #setForNowPlus(Duration)}.
+   */
+  void set(Instant instant);
+
   /**
    * Sets or resets the time relative to the current time in the timer's {@link TimeDomain} at which
    * this it should fire. If the timer was already set, resets it to the new requested time.
