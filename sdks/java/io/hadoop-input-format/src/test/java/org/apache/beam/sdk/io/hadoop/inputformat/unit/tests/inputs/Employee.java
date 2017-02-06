@@ -19,7 +19,7 @@ import org.apache.beam.sdk.coders.DefaultCoder;
 import org.apache.beam.sdk.io.hadoop.inputformat.HadoopInputFormatIO;
 /**
  * This class is Employee POJO class with properties- employee name and address. 
- * Used in {@linkplain HadoopInputFormatIO} for different unit tests
+ * Used in {@linkplain HadoopInputFormatIO} for different unit tests.
  */
 @DefaultCoder(AvroCoder.class)
 public class Employee {
