@@ -48,8 +48,6 @@ import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.util.Timer;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.sdk.util.state.InMemoryStateInternals;
-import org.apache.beam.sdk.util.state.StateInternals;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TupleTag;
@@ -133,11 +131,6 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
       sideInputs.put(sideInput, windowValues);
     }
     windowValues.put(window, value);
-  }
-
-  @SuppressWarnings("unchecked")
-  public <K> StateInternals<K> getStateInternals() {
-    return (StateInternals<K>) stateInternals;
   }
 
   public PipelineOptions getPipelineOptions() {
@@ -228,8 +221,6 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
     }
     TestContext context = new TestContext();
     context.setupDelegateAggregators();
-    // State and timer internals are per-bundle.
-    stateInternals = InMemoryStateInternals.forKey(new Object());
     try {
       fnInvoker.invokeStartBundle(context);
     } catch (UserCodeException e) {
@@ -767,8 +758,6 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
 
   /** The outputs from the {@link DoFn} under test. */
   private Map<TupleTag<?>, List<ValueInSingleWindow<?>>> outputs;
-
-  private InMemoryStateInternals<?> stateInternals;
 
   /** The state of processing of the {@link DoFn} under test. */
   private State state = State.UNINITIALIZED;
