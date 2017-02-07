@@ -175,7 +175,8 @@ class _TransformEvaluator(object):
 class _BoundedReadEvaluator(_TransformEvaluator):
   """TransformEvaluator for bounded Read transform."""
 
-  MAX_ELEMENT_PER_BUNDLE = 100
+  # After some benchmarks, 1000 was optimal among {100,1000,10000}
+  MAX_ELEMENT_PER_BUNDLE = 1000
 
   def __init__(self, evaluation_context, applied_ptransform,
                input_committed_bundle, side_inputs, scoped_metrics_container):
