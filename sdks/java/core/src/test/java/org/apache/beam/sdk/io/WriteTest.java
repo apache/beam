@@ -254,14 +254,11 @@ public class WriteTest {
   public void testBuildWrite() {
     Sink<String> sink = new TestSink() {};
     Write.Bound<String> write = Write.to(sink).withNumShards(3);
-    assertEquals(3, write.getNumShards());
     assertThat(write.getSink(), is(sink));
 
     Write.Bound<String> write2 = write.withNumShards(7);
-    assertEquals(7, write2.getNumShards());
     assertThat(write2.getSink(), is(sink));
     // original unchanged
-    assertEquals(3, write.getNumShards());
   }
 
   @Test
