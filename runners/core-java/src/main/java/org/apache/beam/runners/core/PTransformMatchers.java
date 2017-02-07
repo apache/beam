@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.core.runnerapi;
+package org.apache.beam.runners.core;
 
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
@@ -31,19 +31,29 @@ import org.apache.beam.sdk.transforms.PTransform;
  * UrnPTransformMatcher.
  */
 @Experimental(Kind.CORE_RUNNERS_ONLY)
-public class ClassPTransformMatcher implements PTransformMatcher {
-  private final Class<? extends PTransform> clazz;
+public class PTransformMatchers {
+  private PTransformMatchers() {}
 
-  public static ClassPTransformMatcher create(Class<? extends PTransform> clazz) {
-    return new ClassPTransformMatcher(clazz);
+  /**
+   * Returns a {@link PTransformMatcher} that matches a {@link PTransform} if the class of the
+   * {@link PTransform} is equal to the {@link Class} provided ot this matcher.
+   * @param clazz
+   * @return
+   */
+  public static PTransformMatcher classEqualTo(Class<? extends PTransform> clazz) {
+    return new EqualClassPTransformMatcher(clazz);
   }
 
-  private ClassPTransformMatcher(Class<? extends PTransform> clazz) {
-    this.clazz = clazz;
-  }
+  private static class EqualClassPTransformMatcher implements PTransformMatcher {
+    private final Class<? extends PTransform> clazz;
 
-  @Override
-  public boolean matches(AppliedPTransform<?, ?, ?> application) {
-    return application.getTransform().getClass().equals(clazz);
+    private EqualClassPTransformMatcher(Class<? extends PTransform> clazz) {
+      this.clazz = clazz;
+    }
+
+    @Override
+    public boolean matches(AppliedPTransform<?, ?, ?> application) {
+      return application.getTransform().getClass().equals(clazz);
+    }
   }
 }

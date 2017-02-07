@@ -24,6 +24,8 @@ import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertThat;
 
 import java.io.Serializable;
+import org.apache.beam.runners.core.PTransformMatchers;
+import org.apache.beam.sdk.runners.PTransformMatcher;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.Create;
@@ -40,16 +42,16 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 /**
- * Tests for {@link ClassPTransformMatcher}.
+ * Tests for {@link PTransformMatcher}.
  */
 @RunWith(JUnit4.class)
-public class ClassPTransformMatcherTest implements Serializable {
+public class PTransformMatchersTest implements Serializable {
   @Rule
   public transient TestPipeline p = TestPipeline.create().enableAbandonedNodeEnforcement(false);
 
   @Test
-  public void matchesSameClass() {
-    ClassPTransformMatcher matcher = ClassPTransformMatcher.create(ParDo.Bound.class);
+  public void classEqualToMatchesSameClass() {
+    PTransformMatcher matcher = PTransformMatchers.classEqualTo(ParDo.Bound.class);
     PCollection<Integer> input = p.apply(Create.of(1));
     ParDo.Bound<Integer, Integer> pardo = ParDo.of(new DoFn<Integer, Integer>() {
       @ProcessElement
@@ -64,14 +66,14 @@ public class ClassPTransformMatcherTest implements Serializable {
   }
 
   @Test
-  public void matchesSubClass() {
+  public void classEqualToMatchesSubClass() {
     class MyPTransform extends PTransform<PCollection<Integer>, PCollection<Integer>> {
       @Override
       public PCollection<Integer> expand(PCollection<Integer> input) {
         return input;
       }
     }
-    ClassPTransformMatcher matcher = ClassPTransformMatcher.create(MyPTransform.class);
+    PTransformMatcher matcher = PTransformMatchers.classEqualTo(MyPTransform.class);
     PCollection<Integer> input = p.apply(Create.of(1));
     MyPTransform subclass = new MyPTransform() {};
 
@@ -86,8 +88,8 @@ public class ClassPTransformMatcherTest implements Serializable {
   }
 
   @Test
-  public void doesNotMatchUnrelatedClass() {
-    ClassPTransformMatcher matcher = ClassPTransformMatcher.create(ParDo.Bound.class);
+  public void classEqualToDoesNotMatchUnrelatedClass() {
+    PTransformMatcher matcher = PTransformMatchers.classEqualTo(ParDo.Bound.class);
     PCollection<Integer> input = p.apply(Create.of(1));
     Window.Bound<Integer> window = Window.into(new GlobalWindows());
     PCollection<Integer> output = input.apply(window);
