@@ -2,10 +2,9 @@ package count
 
 import "github.com/apache/beam/sdks/go/pkg/beam"
 
-// TODO(herohde): KV uses []byte as a generic "untyped" value with coder-equality.
+// NOTE(herohde): KV uses []byte as a generic "untyped" value with coder-equality.
 
 type KV struct {
-	// Key   []byte `beam:"key"`
 	Key   []byte `beam:"key"`
 	Count int    `beam:"value"`
 }
@@ -34,18 +33,12 @@ func Reduce(key []byte, counts <-chan int, out chan<- KV) {
 }
 
 // PerElement counts the number of elements in a collection by key.
-func PerElement(p *beam.Pipeline, col beam.PCollection) (beam.PCollection, error) {
+func PerElement(p *beam.Pipeline, col beam.PCollection) beam.PCollection {
 	p = p.Composite("count.PerElement")
 
-	pre, err := beam.ParDo1(p, Map, col)
-	if err != nil {
-		return beam.PCollection{}, err
-	}
-	post, err := beam.GroupByKey(p, pre)
-	if err != nil {
-		return beam.PCollection{}, err
-	}
-	return beam.ParDo1(p, Reduce, post)
+	pre := beam.ParDo(p, Map, col)
+	post := beam.GroupByKey(p, pre)
+	return beam.ParDo(p, Reduce, post)
 }
 
 func Drop(kvs <-chan KV, out chan<- []byte) {
@@ -55,16 +48,10 @@ func Drop(kvs <-chan KV, out chan<- []byte) {
 }
 
 // Dedup removes all duplicates from a collection, under coder equality.
-func Dedup(p *beam.Pipeline, col beam.PCollection) (beam.PCollection, error) {
+func Dedup(p *beam.Pipeline, col beam.PCollection) beam.PCollection {
 	p = p.Composite("count.DeDup")
 
-	pre, err := beam.ParDo1(p, Map, col)
-	if err != nil {
-		return beam.PCollection{}, err
-	}
-	post, err := beam.GroupByKey(p, pre)
-	if err != nil {
-		return beam.PCollection{}, err
-	}
-	return beam.ParDo1(p, Drop, post)
+	pre := beam.ParDo(p, Map, col)
+	post := beam.GroupByKey(p, pre)
+	return beam.ParDo(p, Drop, post)
 }

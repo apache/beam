@@ -32,7 +32,10 @@ type chanID struct {
 }
 
 func Execute(ctx context.Context, p *beam.Pipeline) error {
-	edges := p.FakeBuild()
+	edges, err := p.FakeBuild()
+	if err != nil {
+		return err
+	}
 
 	//	for _, edge := range edges {
 	//		log.Printf("%v", edge)

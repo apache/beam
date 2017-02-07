@@ -18,8 +18,8 @@ type TableRow struct {
 	columns map[string]string
 }
 
-func ReadUntyped(p *beam.Pipeline, table string) (beam.PCollection, error) {
-	return beam.PCollection{}, nil
+func ReadUntyped(p *beam.Pipeline, table string) beam.PCollection {
+	return beam.PCollection{}
 }
 
 // GOOD: we could support implicit conversion of an untyped TableRow to
@@ -27,13 +27,13 @@ func ReadUntyped(p *beam.Pipeline, table string) (beam.PCollection, error) {
 // The IO implementation could basically do similar type processing for
 // user convenience.
 
-func Read(p *beam.Pipeline, table string, schema interface{}) (beam.PCollection, error) {
-	return beam.PCollection{}, nil
+func Read(p *beam.Pipeline, table string, schema interface{}) beam.PCollection {
+	return beam.PCollection{}
 }
 
 // TODO: if the schema is not explicit here, we could fish it out of the col.T. That would
 // require a step with explicit typing to accept the result of GBK. Not sure what will work best.
 
-func Write(p *beam.Pipeline, table string, schema interface{}, opt Options, col beam.PCollection) error {
-	return nil
+func Write(p *beam.Pipeline, table string, schema interface{}, opt Options, col beam.PCollection) {
+
 }
