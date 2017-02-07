@@ -345,8 +345,7 @@ public class FlinkStreamingTransformTranslators {
       @SuppressWarnings("unchecked")
       PCollection<InputT> inputPCollection = (PCollection<InputT>) context.getInput(transform);
 
-      TypeInformation<WindowedValue<InputT>> inputTypeInfo =
-          context.getTypeInfo(inputPCollection);
+      Coder<WindowedValue<InputT>> inputCoder = context.getCoder(inputPCollection);
 
       DataStream<WindowedValue<InputT>> inputDataStream =
           context.getInputDataStream(context.getInput(transform));
@@ -366,7 +365,7 @@ public class FlinkStreamingTransformTranslators {
         DoFnOperator<InputT, OutputT, WindowedValue<OutputT>> doFnOperator =
             new DoFnOperator<>(
                 transform.getFn(),
-                inputTypeInfo,
+                inputCoder,
                 new TupleTag<OutputT>("main output"),
                 Collections.<TupleTag<?>>emptyList(),
                 new DoFnOperator.DefaultOutputManagerFactory<WindowedValue<OutputT>>(),
@@ -387,7 +386,7 @@ public class FlinkStreamingTransformTranslators {
         DoFnOperator<InputT, OutputT, WindowedValue<OutputT>> doFnOperator =
             new DoFnOperator<>(
                 transform.getFn(),
-                inputTypeInfo,
+                inputCoder,
                 new TupleTag<OutputT>("main output"),
                 Collections.<TupleTag<?>>emptyList(),
                 new DoFnOperator.DefaultOutputManagerFactory<WindowedValue<OutputT>>(),
@@ -536,8 +535,7 @@ public class FlinkStreamingTransformTranslators {
       @SuppressWarnings("unchecked")
       PCollection<InputT> inputPCollection = (PCollection<InputT>) context.getInput(transform);
 
-      TypeInformation<WindowedValue<InputT>> inputTypeInfo =
-          context.getTypeInfo(inputPCollection);
+      Coder<WindowedValue<InputT>> inputCoder = context.getCoder(inputPCollection);
 
       DataStream<WindowedValue<InputT>> inputDataStream =
           context.getInputDataStream(context.getInput(transform));
@@ -557,7 +555,7 @@ public class FlinkStreamingTransformTranslators {
         DoFnOperator<InputT, OutputT, RawUnionValue> doFnOperator =
             new DoFnOperator<>(
                 transform.getFn(),
-                inputTypeInfo,
+                inputCoder,
                 transform.getMainOutputTag(),
                 transform.getSideOutputTags().getAll(),
                 new DoFnOperator.MultiOutputOutputManagerFactory(tagsToLabels),
@@ -582,7 +580,7 @@ public class FlinkStreamingTransformTranslators {
         DoFnOperator<InputT, OutputT, RawUnionValue> doFnOperator =
             new DoFnOperator<>(
                 transform.getFn(),
-                inputTypeInfo,
+                inputCoder,
                 transform.getMainOutputTag(),
                 transform.getSideOutputTags().getAll(),
                 new DoFnOperator.MultiOutputOutputManagerFactory(tagsToLabels),
@@ -811,7 +809,7 @@ public class FlinkStreamingTransformTranslators {
       WindowDoFnOperator<K, InputT, Iterable<InputT>> doFnOperator =
           new WindowDoFnOperator<>(
               reduceFn,
-              (TypeInformation) workItemTypeInfo,
+              (Coder) windowedWorkItemCoder,
               new TupleTag<KV<K, Iterable<InputT>>>("main output"),
               Collections.<TupleTag<?>>emptyList(),
               outputManagerFactory,
@@ -911,7 +909,7 @@ public class FlinkStreamingTransformTranslators {
         WindowDoFnOperator<K, InputT, OutputT> doFnOperator =
             new WindowDoFnOperator<>(
                 reduceFn,
-                (TypeInformation) workItemTypeInfo,
+                (Coder) windowedWorkItemCoder,
                 new TupleTag<KV<K, OutputT>>("main output"),
                 Collections.<TupleTag<?>>emptyList(),
                 new DoFnOperator.DefaultOutputManagerFactory<WindowedValue<KV<K, OutputT>>>(),
@@ -936,7 +934,7 @@ public class FlinkStreamingTransformTranslators {
         WindowDoFnOperator<K, InputT, OutputT> doFnOperator =
             new WindowDoFnOperator<>(
                 reduceFn,
-                (TypeInformation) workItemTypeInfo,
+                (Coder) windowedWorkItemCoder,
                 new TupleTag<KV<K, OutputT>>("main output"),
                 Collections.<TupleTag<?>>emptyList(),
                 new DoFnOperator.DefaultOutputManagerFactory<WindowedValue<KV<K, OutputT>>>(),
