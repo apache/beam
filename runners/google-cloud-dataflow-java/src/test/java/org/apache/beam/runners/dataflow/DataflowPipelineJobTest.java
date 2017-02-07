@@ -52,6 +52,7 @@ import com.google.common.collect.ImmutableSetMultimap;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.net.SocketTimeoutException;
+import java.util.Collections;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import org.apache.beam.runners.dataflow.testing.TestDataflowPipelineOptions;
@@ -71,6 +72,7 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
+import org.apache.beam.sdk.values.TaggedPValue;
 import org.joda.time.Duration;
 import org.junit.Before;
 import org.junit.Rule;
@@ -671,7 +673,12 @@ public class DataflowPipelineJobTest {
       String fullName, PTransform<PInput, POutput> transform, Pipeline p) {
     PInput input = mock(PInput.class);
     when(input.getPipeline()).thenReturn(p);
-    return AppliedPTransform.of(fullName, input, mock(POutput.class), transform);
+    return AppliedPTransform.of(
+        fullName,
+        Collections.<TaggedPValue>emptyList(),
+        Collections.<TaggedPValue>emptyList(),
+        transform,
+        p);
   }
 
 
