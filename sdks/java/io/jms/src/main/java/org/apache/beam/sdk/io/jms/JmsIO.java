@@ -405,14 +405,26 @@ public class JmsIO {
       Read spec = source.spec;
       ConnectionFactory connectionFactory = spec.getConnectionFactory();
       try {
+        Connection connection;
         if (spec.getUsername() != null) {
-          this.connection =
+          connection =
               connectionFactory.createConnection(spec.getUsername(), spec.getPassword());
         } else {
-          this.connection = connectionFactory.createConnection();
+          connection = connectionFactory.createConnection();
         }
-        this.connection.start();
+        connection.start();
+        this.connection = connection;
+      } catch (Exception e) {
+        throw new IOException("Error connecting to JMS", e);
+      }
+
+      try {
         this.session = this.connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
+      } catch (Exception e) {
+        throw new IOException("Error creating JMS session", e);
+      }
+
+      try {
         if (spec.getTopic() != null) {
           this.consumer =
               this.session.createConsumer(this.session.createTopic(spec.getTopic()));
@@ -420,11 +432,11 @@ public class JmsIO {
           this.consumer =
               this.session.createConsumer(this.session.createQueue(spec.getQueue()));
         }
-
-        return advance();
       } catch (Exception e) {
-        throw new IOException(e);
+        throw new IOException("Error creating JMS consumer", e);
       }
+
+      return advance();
     }
 
     @Override
