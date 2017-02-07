@@ -54,7 +54,9 @@ import org.apache.beam.sdk.util.IOChannelUtils;
 import org.apache.beam.sdk.util.PCollectionViews;
 import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.hamcrest.Matchers;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -255,6 +257,13 @@ public class WriteWithShardingFactoryTest {
       maxKey = Math.max(maxKey, kv.getKey());
     }
     assertThat(maxKey, equalTo(12L));
+  }
+
+  @Test
+  public void getInputSucceeds() {
+    PCollection<String> original = p.apply(Create.of("foo"));
+    PCollection<?> input = factory.getInput(original.expand(), p);
+    assertThat(input, Matchers.<PCollection<?>>equalTo(original));
   }
 
   private static class TestSink extends Sink<Object> {
