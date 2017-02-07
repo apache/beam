@@ -38,6 +38,7 @@ import org.apache.beam.sdk.values.TupleTag;
  */
 public class DoFnRunnerFactory<InputT, OutputT> implements Serializable {
 
+  private static final long serialVersionUID = 1083167395296383469L;
   private final DoFn<InputT, OutputT> fn;
   private final transient PipelineOptions options;
   private final SideInputReader sideInputReader;

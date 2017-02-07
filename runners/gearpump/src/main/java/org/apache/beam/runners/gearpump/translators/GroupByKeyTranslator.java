@@ -23,9 +23,8 @@ import com.google.common.collect.Lists;
 
 import java.io.Serializable;
 import java.nio.ByteBuffer;
-import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Collection;
-import java.util.LinkedList;
 import java.util.List;
 
 import org.apache.beam.runners.gearpump.translators.utils.TranslatorUtils;
@@ -34,9 +33,8 @@ import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
-import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.OutputTimeFn;
+import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
@@ -48,15 +46,14 @@ import org.apache.gearpump.streaming.dsl.javaapi.JavaStream;
 import org.apache.gearpump.streaming.dsl.javaapi.functions.GroupByFunction;
 import org.apache.gearpump.streaming.dsl.window.api.Discarding$;
 import org.apache.gearpump.streaming.dsl.window.api.EventTimeTrigger$;
-import org.apache.gearpump.streaming.dsl.window.api.Window;
-import org.apache.gearpump.streaming.dsl.window.api.WindowFn;
-import org.apache.gearpump.streaming.dsl.window.impl.Bucket;
-import scala.collection.JavaConversions;
-
+import org.apache.gearpump.streaming.dsl.window.api.WindowFunction;
+import org.apache.gearpump.streaming.dsl.window.api.Windows;
+import org.apache.gearpump.streaming.dsl.window.impl.Window;
 
 /**
  * {@link GroupByKey} is translated to Gearpump groupBy function.
  */
+@SuppressWarnings({"rawtypes", "unchecked"})
 public class GroupByKeyTranslator<K, V> implements TransformTranslator<GroupByKey<K, V>> {
   @Override
   public void translate(GroupByKey<K, V> transform, TranslationContext context) {
@@ -67,69 +64,51 @@ public class GroupByKeyTranslator<K, V> implements TransformTranslator<GroupByKe
     int parallelism = context.getPipelineOptions().getParallelism();
     OutputTimeFn<? super BoundedWindow> outputTimeFn = (OutputTimeFn<? super BoundedWindow>)
         input.getWindowingStrategy().getOutputTimeFn();
+    WindowFn<KV<K, V>, BoundedWindow> windowFn = (WindowFn<KV<K, V>, BoundedWindow>)
+        input.getWindowingStrategy().getWindowFn();
     JavaStream<WindowedValue<KV<K, Iterable<V>>>> outputStream = inputStream
-        .window(Window.apply(new GearpumpWindowFn(input.getWindowingStrategy().getWindowFn()),
+        .window(Windows.apply(
+            new GearpumpWindowFn(windowFn.isNonMerging()),
             EventTimeTrigger$.MODULE$, Discarding$.MODULE$), "assign_window")
         .groupBy(new GroupByFn<K, V>(inputKeyCoder), parallelism, "group_by_Key_and_Window")
         .map(new ValueToIterable<K, V>(), "map_value_to_iterable")
-        .map(new KeyedByTimestamp<K, V>(), "keyed_by_timestamp")
-        .reduce(new Merge<K, V>(outputTimeFn), "merge")
+        .map(new KeyedByTimestamp<K, V>((OutputTimeFn<? super BoundedWindow>)
+            input.getWindowingStrategy().getOutputTimeFn()), "keyed_by_timestamp")
+        .reduce(new Merge<>(windowFn, outputTimeFn), "merge")
         .map(new Values<K, V>(), "values");
 
     context.setOutputStream(context.getOutput(transform), outputStream);
   }
 
-  private static class GearpumpWindowFn<T, W extends BoundedWindow> implements WindowFn,
-      Serializable {
+  private static class GearpumpWindowFn<T, W extends BoundedWindow>
+      implements WindowFunction<WindowedValue<T>>, Serializable {
 
-    private org.apache.beam.sdk.transforms.windowing.WindowFn<T, W> windowFn;
+    private final boolean isNonMerging;
 
-    GearpumpWindowFn(org.apache.beam.sdk.transforms.windowing.WindowFn<T, W> windowFn) {
-      this.windowFn = windowFn;
+    public GearpumpWindowFn(boolean isNonMerging) {
+      this.isNonMerging = isNonMerging;
     }
 
     @Override
-    public scala.collection.immutable.List<Bucket> apply(final Instant timestamp) {
+    public Window[] apply(Context<WindowedValue<T>> context) {
       try {
-        Collection<W> windows = windowFn.assignWindows(windowFn.new AssignContext() {
-          @Override
-          public T element() {
-            throw new UnsupportedOperationException();
-          }
-
-          @Override
-          public org.joda.time.Instant timestamp() {
-            return TranslatorUtils.java8TimeToJodaTime(timestamp);
-          }
-
-          @Override
-          public W window() {
-            throw new UnsupportedOperationException();
-          }
-        });
-
-        List<Bucket> buckets = new LinkedList<>();
-        for (BoundedWindow window : windows) {
-          buckets.add(getBucket(window));
-        }
-        return JavaConversions.asScalaBuffer(buckets).toList();
+        return toGearpumpWindows(context.element().getWindows().toArray(new BoundedWindow[0]));
       } catch (Exception e) {
         throw new RuntimeException(e);
       }
     }
 
-    private Bucket getBucket(BoundedWindow window) {
-      if (window instanceof IntervalWindow) {
-        IntervalWindow intervalWindow = (IntervalWindow) window;
-        Instant start = TranslatorUtils.jodaTimeToJava8Time(intervalWindow.start());
-        Instant end = TranslatorUtils.jodaTimeToJava8Time(intervalWindow.end());
-        return new Bucket(start, end);
-      } else if (window instanceof GlobalWindow) {
-        Instant end = TranslatorUtils.jodaTimeToJava8Time(window.maxTimestamp());
-        return new Bucket(Instant.MIN, end);
-      } else {
-        throw new RuntimeException("unknown window " + window.getClass().getName());
+    @Override
+    public boolean isNonMerging() {
+      return isNonMerging;
+    }
+
+    private Window[] toGearpumpWindows(BoundedWindow[] windows) {
+      Window[] gwins = new Window[windows.length];
+      for (int i = 0; i < windows.length; i++) {
+        gwins[i] = TranslatorUtils.boundedWindowToGearpumpWindow(windows[i]);
       }
+      return gwins;
     }
   }
 
@@ -166,19 +145,30 @@ public class GroupByKeyTranslator<K, V> implements TransformTranslator<GroupByKe
       extends MapFunction<WindowedValue<KV<K, Iterable<V>>>,
       KV<org.joda.time.Instant, WindowedValue<KV<K, Iterable<V>>>>> {
 
+    private final OutputTimeFn<? super BoundedWindow> outputTimeFn;
+
+    public KeyedByTimestamp(OutputTimeFn<? super BoundedWindow> outputTimeFn) {
+      this.outputTimeFn = outputTimeFn;
+    }
+
     @Override
     public KV<org.joda.time.Instant, WindowedValue<KV<K, Iterable<V>>>> apply(
         WindowedValue<KV<K, Iterable<V>>> wv) {
-      return KV.of(wv.getTimestamp(), wv);
+      org.joda.time.Instant timestamp = outputTimeFn.assignOutputTime(wv.getTimestamp(),
+          Iterables.getOnlyElement(wv.getWindows()));
+      return KV.of(timestamp, wv);
     }
   }
 
   private static class Merge<K, V> extends
       ReduceFunction<KV<org.joda.time.Instant, WindowedValue<KV<K, Iterable<V>>>>> {
 
+    private final WindowFn<KV<K, V>, BoundedWindow> windowFn;
     private final OutputTimeFn<? super BoundedWindow> outputTimeFn;
 
-    Merge(OutputTimeFn<? super BoundedWindow> outputTimeFn) {
+    Merge(WindowFn<KV<K, V>, BoundedWindow> windowFn,
+        OutputTimeFn<? super BoundedWindow> outputTimeFn) {
+      this.windowFn = windowFn;
       this.outputTimeFn = outputTimeFn;
     }
 
@@ -189,13 +179,40 @@ public class GroupByKeyTranslator<K, V> implements TransformTranslator<GroupByKe
       org.joda.time.Instant t1 = kv1.getKey();
       org.joda.time.Instant t2 = kv2.getKey();
 
-      WindowedValue<KV<K, Iterable<V>>> wv1 = kv1.getValue();
-      WindowedValue<KV<K, Iterable<V>>> wv2 = kv2.getValue();
+      final WindowedValue<KV<K, Iterable<V>>> wv1 = kv1.getValue();
+      final WindowedValue<KV<K, Iterable<V>>> wv2 = kv2.getValue();
 
-      return KV.of(outputTimeFn.combine(t1, t2),
+      final List<BoundedWindow> mergedWindows = new ArrayList<>();
+      if (!windowFn.isNonMerging()) {
+        try {
+          windowFn.mergeWindows(windowFn.new MergeContext() {
+
+            @Override
+            public Collection<BoundedWindow> windows() {
+              ArrayList<BoundedWindow> windows = new ArrayList<>();
+              windows.addAll(wv1.getWindows());
+              windows.addAll(wv2.getWindows());
+              return windows;
+            }
+
+            @Override
+            public void merge(Collection<BoundedWindow> toBeMerged,
+                BoundedWindow mergeResult) throws Exception {
+              mergedWindows.add(mergeResult);
+            }
+          });
+        } catch (Exception e) {
+          throw new RuntimeException(e);
+        }
+      } else {
+        mergedWindows.addAll(wv1.getWindows());
+      }
+
+      org.joda.time.Instant timestamp = outputTimeFn.combine(t1, t2);
+      return KV.of(timestamp,
           WindowedValue.of(KV.of(wv1.getValue().getKey(),
-              Iterables.concat(wv1.getValue().getValue(), wv2.getValue().getValue())),
-              wv1.getTimestamp(), wv1.getWindows(), wv1.getPane()));
+              Iterables.concat(wv1.getValue().getValue(), wv2.getValue().getValue())), timestamp,
+              mergedWindows, wv1.getPane()));
     }
   }
 

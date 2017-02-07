@@ -27,7 +27,7 @@ import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.metrics.MetricResults;
 import org.apache.beam.sdk.transforms.Aggregator;
 
-import org.apache.gearpump.cluster.MasterToAppMaster;
+import org.apache.gearpump.cluster.ApplicationStatus;
 import org.apache.gearpump.cluster.MasterToAppMaster.AppMasterData;
 import org.apache.gearpump.cluster.client.ClientContext;
 import org.joda.time.Duration;
@@ -105,7 +105,7 @@ public class GearpumpPipelineResult implements PipelineResult {
   }
 
   private State getGearpumpState() {
-    String status = null;
+    ApplicationStatus status = null;
     List<AppMasterData> apps =
         JavaConverters.<AppMasterData>seqAsJavaListConverter(
             (Seq<AppMasterData>) client.listApps().appMasters()).asJava();
@@ -114,9 +114,9 @@ public class GearpumpPipelineResult implements PipelineResult {
         status = app.status();
       }
     }
-    if (null == status || status.equals(MasterToAppMaster.AppMasterNonExist())) {
+    if (null == status || status instanceof ApplicationStatus.NONEXIST$) {
       return State.UNKNOWN;
-    } else if (status.equals(MasterToAppMaster.AppMasterActive())) {
+    } else if (status instanceof ApplicationStatus.ACTIVE$) {
       return State.RUNNING;
     } else {
       return State.STOPPED;
