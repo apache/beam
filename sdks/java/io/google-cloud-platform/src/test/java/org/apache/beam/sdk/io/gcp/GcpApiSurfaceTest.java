@@ -37,8 +37,11 @@ public class GcpApiSurfaceTest {
   @Test
   public void testGcpApiSurface() throws Exception {
 
+    final Package thisPackage = getClass().getPackage();
+    final ClassLoader thisClassLoader = getClass().getClassLoader();
+
     final ApiSurface apiSurface =
-        ApiSurface.ofPackage(getClass().getPackage())
+        ApiSurface.ofPackage(thisPackage, thisClassLoader)
             .pruningPattern("org[.]apache[.]beam[.].*Test.*")
             .pruningPattern("org[.]apache[.]beam[.].*IT")
             .pruningPattern("java[.]lang.*");

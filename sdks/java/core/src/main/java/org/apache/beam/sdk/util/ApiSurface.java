@@ -322,14 +322,6 @@ public class ApiSurface {
 
   ///////////////
 
-  private ClassLoader getSdkClassLoader() {
-    final ClassLoader myClassLoader = getClass().getClassLoader();
-    final ClassLoader systemClassLoader = ClassLoader.getSystemClassLoader();
-    return systemClassLoader.equals(myClassLoader)
-        ? systemClassLoader
-        : myClassLoader;
-  }
-
   /** Returns an empty {@link ApiSurface}. */
   public static ApiSurface empty() {
     LOG.debug("Returning an empty ApiSurface");
@@ -337,13 +329,14 @@ public class ApiSurface {
   }
 
   /** Returns an {@link ApiSurface} object representing the given package and all subpackages. */
-  public static ApiSurface ofPackage(String packageName) throws IOException {
-    return ApiSurface.empty().includingPackage(packageName);
+  public static ApiSurface ofPackage(String packageName, ClassLoader classLoader)
+      throws IOException {
+    return ApiSurface.empty().includingPackage(packageName, classLoader);
   }
 
   /** Returns an {@link ApiSurface} object representing the given package and all subpackages. */
-  public static ApiSurface ofPackage(Package aPackage) throws IOException {
-    return ApiSurface.empty().includingPackage(aPackage.getName());
+  public static ApiSurface ofPackage(Package aPackage, ClassLoader classLoader) throws IOException {
+    return ofPackage(aPackage.getName(), classLoader);
   }
 
   /** Returns an {@link ApiSurface} object representing just the surface of the given class. */
@@ -355,8 +348,9 @@ public class ApiSurface {
    * Returns an {@link ApiSurface} like this one, but also including the named package and all of
    * its subpackages.
    */
-  public ApiSurface includingPackage(String packageName) throws IOException {
-    ClassPath classPath = ClassPath.from(getSdkClassLoader());
+  public ApiSurface includingPackage(String packageName, ClassLoader classLoader)
+      throws IOException {
+    ClassPath classPath = ClassPath.from(classLoader);
 
     Set<Class<?>> newRootClasses = Sets.newHashSet();
     for (ClassInfo classInfo : classPath.getTopLevelClassesRecursive(packageName)) {
@@ -829,25 +823,11 @@ public class ApiSurface {
    *
    * <p>Note that our idea of "public" does not include various internal-only APIs.
    */
-  public static ApiSurface getSdkApiSurface() throws IOException {
-    return ApiSurface.ofPackage("org.apache.beam")
+  public static ApiSurface getSdkApiSurface(final ClassLoader classLoader) throws IOException {
+    return ApiSurface.ofPackage("org.apache.beam", classLoader)
         .pruningPattern("org[.]apache[.]beam[.].*Test")
-
         // Exposes Guava, but not intended for users
         .pruningClassName("org.apache.beam.sdk.util.common.ReflectHelpers")
         .pruningPrefix("java");
-  }
-
-  public static void main(String[] args) throws Exception {
-    List<String> names = Lists.newArrayList();
-    for (Class clazz : getSdkApiSurface().getExposedClasses()) {
-      names.add(clazz.getName());
-    }
-    List<String> sortedNames = Lists.newArrayList(names);
-    Collections.sort(sortedNames);
-
-    for (String name : sortedNames) {
-      System.out.println(name);
-    }
   }
 }

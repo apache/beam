@@ -56,6 +56,7 @@ public class SdkCoreApiSurfaceTest {
             "org.joda.time",
             "org.junit");
 
-    assertThat(ApiSurface.getSdkApiSurface(), containsOnlyPackages(allowed));
+    assertThat(
+        ApiSurface.getSdkApiSurface(getClass().getClassLoader()), containsOnlyPackages(allowed));
   }
 }
