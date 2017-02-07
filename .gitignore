@@ -39,6 +39,10 @@ env/
 # committed.
 dependency-reduced-pom.xml
 
+# The build process copies the standard_coders.yaml file into Python module,
+# but it shouldn't be committed.
+sdks/python/apache_beam/coders/standard_coders.yaml
+
 # Hotspot VM leaves this log in a non-target directory when java crashes
 hs_err_pid*.log
 
