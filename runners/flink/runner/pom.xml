@@ -220,6 +220,12 @@
       <artifactId>flink-test-utils_2.10</artifactId>
       <version>${flink.version}</version>
       <scope>test</scope>
+        <exclusions>
+            <exclusion>
+                <artifactId>apacheds-jdbm1</artifactId>
+                <groupId>org.apache.directory.jdbm</groupId>
+            </exclusion>
+        </exclusions>
     </dependency>
 
     <!-- Optional Pipeline Registration -->

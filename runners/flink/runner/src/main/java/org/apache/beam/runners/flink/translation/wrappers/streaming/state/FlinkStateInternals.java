@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.flink.translation.wrappers.streaming;
+package org.apache.beam.runners.flink.translation.wrappers.streaming.state;
 
 import com.google.common.collect.Lists;
 import java.nio.ByteBuffer;
@@ -48,27 +48,25 @@ import org.apache.beam.sdk.util.state.WatermarkHoldState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
-import org.apache.flink.runtime.state.AbstractStateBackend;
+import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.joda.time.Instant;
 
 /**
- * {@link StateInternals} that uses a Flink {@link AbstractStateBackend} to
- * manage state.
+ * {@link StateInternals} that uses a Flink {@link KeyedStateBackend} to manage state.
  *
  * <p>Note: In the Flink streaming runner the key is always encoded
  * using an {@link Coder} and stored in a {@link ByteBuffer}.
  */
 public class FlinkStateInternals<K> implements StateInternals<K> {
 
-  private final Coder<K> keyCoder;
-
-  private final AbstractStateBackend flinkStateBackend;
+  private final KeyedStateBackend<ByteBuffer> flinkStateBackend;
+  private Coder<K> keyCoder;
 
   // on recovery, these will no be properly set because we don't
   // know which watermark hold states there are in the Flink State Backend
   private final Map<String, Instant> watermarkHolds = new HashMap<>();
 
-  public FlinkStateInternals(AbstractStateBackend flinkStateBackend, Coder<K> keyCoder) {
+  public FlinkStateInternals(KeyedStateBackend<ByteBuffer> flinkStateBackend, Coder<K> keyCoder) {
     this.flinkStateBackend = flinkStateBackend;
     this.keyCoder = keyCoder;
   }
@@ -86,7 +84,7 @@ public class FlinkStateInternals<K> implements StateInternals<K> {
 
   @Override
   public K getKey() {
-    ByteBuffer keyBytes = (ByteBuffer) flinkStateBackend.getCurrentKey();
+    ByteBuffer keyBytes = flinkStateBackend.getCurrentKey();
     try {
       return CoderUtils.decodeFromByteArray(keyCoder, keyBytes.array());
     } catch (CoderException e) {
@@ -202,10 +200,10 @@ public class FlinkStateInternals<K> implements StateInternals<K> {
     private final StateNamespace namespace;
     private final StateTag<? super K, ValueState<T>> address;
     private final ValueStateDescriptor<T> flinkStateDescriptor;
-    private final AbstractStateBackend flinkStateBackend;
+    private final KeyedStateBackend<ByteBuffer> flinkStateBackend;
 
     FlinkValueState(
-        AbstractStateBackend flinkStateBackend,
+        KeyedStateBackend<ByteBuffer> flinkStateBackend,
         StateTag<? super K, ValueState<T>> address,
         StateNamespace namespace,
         Coder<T> coder) {
@@ -288,10 +286,10 @@ public class FlinkStateInternals<K> implements StateInternals<K> {
     private final StateNamespace namespace;
     private final StateTag<? super K, BagState<T>> address;
     private final ListStateDescriptor<T> flinkStateDescriptor;
-    private final AbstractStateBackend flinkStateBackend;
+    private final KeyedStateBackend<ByteBuffer> flinkStateBackend;
 
     FlinkBagState(
-        AbstractStateBackend flinkStateBackend,
+        KeyedStateBackend<ByteBuffer> flinkStateBackend,
         StateTag<? super K, BagState<T>> address,
         StateNamespace namespace,
         Coder<T> coder) {
@@ -402,10 +400,10 @@ public class FlinkStateInternals<K> implements StateInternals<K> {
     private final StateTag<? super K, AccumulatorCombiningState<InputT, AccumT, OutputT>> address;
     private final Combine.CombineFn<InputT, AccumT, OutputT> combineFn;
     private final ValueStateDescriptor<AccumT> flinkStateDescriptor;
-    private final AbstractStateBackend flinkStateBackend;
+    private final KeyedStateBackend<ByteBuffer> flinkStateBackend;
 
     FlinkAccumulatorCombiningState(
-        AbstractStateBackend flinkStateBackend,
+        KeyedStateBackend<ByteBuffer> flinkStateBackend,
         StateTag<? super K, AccumulatorCombiningState<InputT, AccumT, OutputT>> address,
         Combine.CombineFn<InputT, AccumT, OutputT> combineFn,
         StateNamespace namespace,
@@ -570,11 +568,11 @@ public class FlinkStateInternals<K> implements StateInternals<K> {
     private final StateTag<? super K, AccumulatorCombiningState<InputT, AccumT, OutputT>> address;
     private final Combine.KeyedCombineFn<? super K, InputT, AccumT, OutputT> combineFn;
     private final ValueStateDescriptor<AccumT> flinkStateDescriptor;
-    private final AbstractStateBackend flinkStateBackend;
+    private final KeyedStateBackend<ByteBuffer> flinkStateBackend;
     private final FlinkStateInternals<K> flinkStateInternals;
 
     FlinkKeyedAccumulatorCombiningState(
-        AbstractStateBackend flinkStateBackend,
+        KeyedStateBackend<ByteBuffer> flinkStateBackend,
         StateTag<? super K, AccumulatorCombiningState<InputT, AccumT, OutputT>> address,
         Combine.KeyedCombineFn<? super K, InputT, AccumT, OutputT> combineFn,
         StateNamespace namespace,
@@ -746,12 +744,12 @@ public class FlinkStateInternals<K> implements StateInternals<K> {
     private final CombineWithContext.KeyedCombineFnWithContext<
         ? super K, InputT, AccumT, OutputT> combineFn;
     private final ValueStateDescriptor<AccumT> flinkStateDescriptor;
-    private final AbstractStateBackend flinkStateBackend;
+    private final KeyedStateBackend<ByteBuffer> flinkStateBackend;
     private final FlinkStateInternals<K> flinkStateInternals;
     private final CombineWithContext.Context context;
 
     FlinkAccumulatorCombiningStateWithContext(
-        AbstractStateBackend flinkStateBackend,
+        KeyedStateBackend<ByteBuffer> flinkStateBackend,
         StateTag<? super K, AccumulatorCombiningState<InputT, AccumT, OutputT>> address,
         CombineWithContext.KeyedCombineFnWithContext<
             ? super K, InputT, AccumT, OutputT> combineFn,
@@ -918,12 +916,12 @@ public class FlinkStateInternals<K> implements StateInternals<K> {
     private final StateTag<? super K, WatermarkHoldState<W>> address;
     private final OutputTimeFn<? super W> outputTimeFn;
     private final StateNamespace namespace;
-    private final AbstractStateBackend flinkStateBackend;
+    private final KeyedStateBackend<ByteBuffer> flinkStateBackend;
     private final FlinkStateInternals<K> flinkStateInternals;
     private final ValueStateDescriptor<Instant> flinkStateDescriptor;
 
     public FlinkWatermarkHoldState(
-        AbstractStateBackend flinkStateBackend,
+        KeyedStateBackend<ByteBuffer> flinkStateBackend,
         FlinkStateInternals<K> flinkStateInternals,
         StateTag<? super K, WatermarkHoldState<W>> address,
         StateNamespace namespace,
