@@ -17,10 +17,8 @@
  */
 package org.apache.beam.sdk.io;
 
-import static org.apache.beam.sdk.TestUtils.INTS_ARRAY;
 import static org.apache.beam.sdk.TestUtils.LINES2_ARRAY;
 import static org.apache.beam.sdk.TestUtils.LINES_ARRAY;
-import static org.apache.beam.sdk.TestUtils.NO_INTS_ARRAY;
 import static org.apache.beam.sdk.TestUtils.NO_LINES_ARRAY;
 import static org.apache.beam.sdk.io.TextIO.CompressionType.AUTO;
 import static org.apache.beam.sdk.io.TextIO.CompressionType.BZIP2;
@@ -79,8 +77,6 @@ import javax.annotation.Nullable;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
-import org.apache.beam.sdk.coders.TextualIntegerCoder;
-import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.io.BoundedSource.BoundedReader;
 import org.apache.beam.sdk.io.FileBasedSink.WritableByteChannelFactory;
 import org.apache.beam.sdk.io.TextIO.CompressionType;
@@ -215,28 +211,21 @@ public class TextIOTest {
     });
   }
 
-  private <T> void runTestRead(T[] expected, Coder<T> coder) throws Exception {
+  private <T> void runTestRead(String[] expected) throws Exception {
     File tmpFile = Files.createTempFile(tempFolder, "file", "txt").toFile();
     String filename = tmpFile.getPath();
 
     try (PrintStream writer = new PrintStream(new FileOutputStream(tmpFile))) {
-      for (T elem : expected) {
-        byte[] encodedElem = CoderUtils.encodeToByteArray(coder, elem);
+      for (String elem : expected) {
+        byte[] encodedElem = CoderUtils.encodeToByteArray(StringUtf8Coder.of(), elem);
         String line = new String(encodedElem);
         writer.println(line);
       }
     }
 
-    TextIO.Read.Bound<T> read;
-    if (coder.equals(StringUtf8Coder.of())) {
-      TextIO.Read.Bound<String> readStrings = TextIO.Read.from(filename);
-      // T==String
-      read = (TextIO.Read.Bound<T>) readStrings;
-    } else {
-      read = TextIO.Read.from(filename).withCoder(coder);
-    }
+    TextIO.Read.Bound read = TextIO.Read.from(filename);
 
-    PCollection<T> output = p.apply(read);
+    PCollection<String> output = p.apply(read);
 
     PAssert.that(output).containsInAnyOrder(expected);
     p.run();
@@ -245,31 +234,13 @@ public class TextIOTest {
   @Test
   @Category(NeedsRunner.class)
   public void testReadStrings() throws Exception {
-    runTestRead(LINES_ARRAY, StringUtf8Coder.of());
+    runTestRead(LINES_ARRAY);
   }
 
   @Test
   @Category(NeedsRunner.class)
   public void testReadEmptyStrings() throws Exception {
-    runTestRead(NO_LINES_ARRAY, StringUtf8Coder.of());
-  }
-
-  @Test
-  @Category(NeedsRunner.class)
-  public void testReadInts() throws Exception {
-    runTestRead(INTS_ARRAY, TextualIntegerCoder.of());
-  }
-
-  @Test
-  @Category(NeedsRunner.class)
-  public void testReadEmptyInts() throws Exception {
-    runTestRead(NO_INTS_ARRAY, TextualIntegerCoder.of());
-  }
-
-  @Test
-  @Category(NeedsRunner.class)
-  public void testReadNulls() throws Exception {
-    runTestRead(new Void[] {null, null, null}, VoidCoder.of());
+    runTestRead(NO_LINES_ARRAY);
   }
 
   @Test
@@ -286,7 +257,7 @@ public class TextIOTest {
 
   @Test
   public void testReadDisplayData() {
-    TextIO.Read.Bound<?> read = TextIO.Read
+    TextIO.Read.Bound read = TextIO.Read
         .from("foo.*")
         .withCompressionType(BZIP2)
         .withoutValidation();
@@ -303,7 +274,7 @@ public class TextIOTest {
   public void testPrimitiveReadDisplayData() {
     DisplayDataEvaluator evaluator = DisplayDataEvaluator.create();
 
-    TextIO.Read.Bound<String> read = TextIO.Read
+    TextIO.Read.Bound read = TextIO.Read
         .from("foobar")
         .withoutValidation();
 
@@ -312,36 +283,32 @@ public class TextIOTest {
         displayData, hasItem(hasDisplayItem(hasValue(startsWith("foobar")))));
   }
 
-  private <T> void runTestWrite(T[] elems, Coder<T> coder) throws Exception {
-    runTestWrite(elems, null, null, coder, 1);
+  private void runTestWrite(String[] elems) throws Exception {
+    runTestWrite(elems, null, null, 1);
   }
 
-  private <T> void runTestWrite(T[] elems, Coder<T> coder, int numShards) throws Exception {
-    runTestWrite(elems, null, null, coder, numShards);
+  private void runTestWrite(String[] elems, int numShards) throws Exception {
+    runTestWrite(elems, null, null, numShards);
   }
 
-  private <T> void runTestWrite(T[] elems, Coder<T> coder, String header, String footer)
+  private void runTestWrite(String[] elems, String header, String footer)
       throws Exception {
-    runTestWrite(elems, header, footer, coder, 1);
+    runTestWrite(elems, header, footer, 1);
   }
 
-  private <T> void runTestWrite(
-      T[] elems, String header, String footer, Coder<T> coder, int numShards) throws Exception {
+  private void runTestWrite(
+      String[] elems, String header, String footer, int numShards) throws Exception {
     String outputName = "file.txt";
     Path baseDir = Files.createTempDirectory(tempFolder, "testwrite");
     String baseFilename = baseDir.resolve(outputName).toString();
 
-    PCollection<T> input = p.apply(Create.of(Arrays.asList(elems)).withCoder(coder));
+    PCollection<String> input =
+        p.apply(Create.of(Arrays.asList(elems)).withCoder(StringUtf8Coder.of()));
 
-    TextIO.Write.Bound<T> write;
-    if (coder.equals(StringUtf8Coder.of())) {
-      TextIO.Write.Bound<String> writeStrings = TextIO.Write.to(baseFilename);
-      // T==String
-      write = (TextIO.Write.Bound<T>) writeStrings;
-    } else {
-      write = TextIO.Write.to(baseFilename).withCoder(coder);
-    }
-    write = write.withHeader(header).withFooter(footer);
+    TextIO.Write.Bound write =
+        TextIO.Write.to(baseFilename)
+            .withHeader(header)
+            .withFooter(footer);
 
     if (numShards == 1) {
       write = write.withoutSharding();
@@ -353,15 +320,14 @@ public class TextIOTest {
 
     p.run();
 
-    assertOutputFiles(elems, header, footer, coder, numShards, baseDir, outputName,
+    assertOutputFiles(elems, header, footer, numShards, baseDir, outputName,
         write.getShardNameTemplate());
   }
 
-  public static <T> void assertOutputFiles(
-      T[] elems,
+  public static void assertOutputFiles(
+      String[] elems,
       final String header,
       final String footer,
-      Coder<T> coder,
       int numShards,
       Path rootLocation,
       String outputName,
@@ -400,8 +366,8 @@ public class TextIOTest {
     }
 
     List<String> expectedElements = new ArrayList<>(elems.length);
-    for (T elem : elems) {
-      byte[] encodedElem = CoderUtils.encodeToByteArray(coder, elem);
+    for (String elem : elems) {
+      byte[] encodedElem = CoderUtils.encodeToByteArray(StringUtf8Coder.of(), elem);
       String line = new String(encodedElem);
       expectedElements.add(line);
     }
@@ -453,55 +419,43 @@ public class TextIOTest {
   @Test
   @Category(NeedsRunner.class)
   public void testWriteStrings() throws Exception {
-    runTestWrite(LINES_ARRAY, StringUtf8Coder.of());
+    runTestWrite(LINES_ARRAY);
   }
 
   @Test
   @Category(NeedsRunner.class)
   public void testWriteEmptyStringsNoSharding() throws Exception {
-    runTestWrite(NO_LINES_ARRAY, StringUtf8Coder.of(), 0);
+    runTestWrite(NO_LINES_ARRAY, 0);
   }
 
   @Test
   @Category(NeedsRunner.class)
   public void testWriteEmptyStrings() throws Exception {
-    runTestWrite(NO_LINES_ARRAY, StringUtf8Coder.of());
-  }
-
-  @Test
-  @Category(NeedsRunner.class)
-  public void testWriteInts() throws Exception {
-    runTestWrite(INTS_ARRAY, TextualIntegerCoder.of());
-  }
-
-  @Test
-  @Category(NeedsRunner.class)
-  public void testWriteEmptyInts() throws Exception {
-    runTestWrite(NO_INTS_ARRAY, TextualIntegerCoder.of());
+    runTestWrite(NO_LINES_ARRAY);
   }
 
   @Test
   @Category(NeedsRunner.class)
   public void testShardedWrite() throws Exception {
-    runTestWrite(LINES_ARRAY, StringUtf8Coder.of(), 5);
+    runTestWrite(LINES_ARRAY, 5);
   }
 
   @Test
   @Category(NeedsRunner.class)
   public void testWriteWithHeader() throws Exception {
-    runTestWrite(LINES_ARRAY, StringUtf8Coder.of(), MY_HEADER, null);
+    runTestWrite(LINES_ARRAY, MY_HEADER, null);
   }
 
   @Test
   @Category(NeedsRunner.class)
   public void testWriteWithFooter() throws Exception {
-    runTestWrite(LINES_ARRAY, StringUtf8Coder.of(), null, MY_FOOTER);
+    runTestWrite(LINES_ARRAY, null, MY_FOOTER);
   }
 
   @Test
   @Category(NeedsRunner.class)
   public void testWriteWithHeaderAndFooter() throws Exception {
-    runTestWrite(LINES_ARRAY, StringUtf8Coder.of(), MY_HEADER, MY_FOOTER);
+    runTestWrite(LINES_ARRAY, MY_HEADER, MY_FOOTER);
   }
 
   @Test
@@ -515,7 +469,7 @@ public class TextIOTest {
 
     final WritableByteChannelFactory writableByteChannelFactory =
         new DrunkWritableByteChannelFactory();
-    TextIO.Write.Bound<String> write = TextIO.Write.to(baseDir.resolve(outputName).toString())
+    TextIO.Write.Bound write = TextIO.Write.to(baseDir.resolve(outputName).toString())
         .withoutSharding().withWritableByteChannelFactory(writableByteChannelFactory);
     DisplayData displayData = DisplayData.from(write);
     assertThat(displayData, hasDisplayItem("writableByteChannelFactory", "DRUNK"));
@@ -529,13 +483,13 @@ public class TextIOTest {
       drunkElems.add(elem + elem);
       drunkElems.add("");
     }
-    assertOutputFiles(drunkElems.toArray(new String[0]), null, null, coder, 1, baseDir,
+    assertOutputFiles(drunkElems.toArray(new String[0]), null, null, 1, baseDir,
         outputName + writableByteChannelFactory.getFilenameSuffix(), write.getShardNameTemplate());
   }
 
   @Test
   public void testWriteDisplayData() {
-    TextIO.Write.Bound<?> write = TextIO.Write
+    TextIO.Write.Bound write = TextIO.Write
         .to("foo")
         .withSuffix("bar")
         .withShardNameTemplate("-SS-of-NN-")
@@ -558,7 +512,7 @@ public class TextIOTest {
 
   @Test
   public void testWriteDisplayDataValidateThenHeader() {
-    TextIO.Write.Bound<?> write = TextIO.Write
+    TextIO.Write.Bound write = TextIO.Write
         .to("foo")
         .withHeader("myHeader");
 
@@ -570,7 +524,7 @@ public class TextIOTest {
 
   @Test
   public void testWriteDisplayDataValidateThenFooter() {
-    TextIO.Write.Bound<?> write = TextIO.Write
+    TextIO.Write.Bound write = TextIO.Write
         .to("foo")
         .withFooter("myFooter");
 
@@ -590,7 +544,7 @@ public class TextIOTest {
 
     DisplayDataEvaluator evaluator = DisplayDataEvaluator.create();
 
-    TextIO.Write.Bound<?> write = TextIO.Write.to(outputPath);
+    TextIO.Write.Bound write = TextIO.Write.to(outputPath);
 
     Set<DisplayData> displayData = evaluator.displayDataForPrimitiveTransforms(write);
     assertThat("TextIO.Write should include the file prefix in its primitive display data",
@@ -649,21 +603,21 @@ public class TextIOTest {
 
   @Test
   public void testReadWithoutValidationFlag() throws Exception {
-    TextIO.Read.Bound<String> read = TextIO.Read.from("gs://bucket/foo*/baz");
+    TextIO.Read.Bound read = TextIO.Read.from("gs://bucket/foo*/baz");
     assertTrue(read.needsValidation());
     assertFalse(read.withoutValidation().needsValidation());
   }
 
   @Test
   public void testWriteWithoutValidationFlag() throws Exception {
-    TextIO.Write.Bound<String> write = TextIO.Write.to("gs://bucket/foo/baz");
+    TextIO.Write.Bound write = TextIO.Write.to("gs://bucket/foo/baz");
     assertTrue(write.needsValidation());
     assertFalse(write.withoutValidation().needsValidation());
   }
 
   @Test
   public void testCompressionTypeIsSet() throws Exception {
-    TextIO.Read.Bound<String> read = TextIO.Read.from("gs://bucket/test");
+    TextIO.Read.Bound read = TextIO.Read.from("gs://bucket/test");
     assertEquals(AUTO, read.getCompressionType());
     read = TextIO.Read.from("gs://bucket/test").withCompressionType(GZIP);
     assertEquals(GZIP, read.getCompressionType());
@@ -688,7 +642,7 @@ public class TextIOTest {
   private void assertReadingCompressedFileMatchesExpected(
       File file, CompressionType compressionType, String[] expected) {
 
-    TextIO.Read.Bound<String> read =
+    TextIO.Read.Bound read =
         TextIO.Read.from(file.getPath()).withCompressionType(compressionType);
     PCollection<String> output = p.apply("Read_" + file + "_" + compressionType.toString(), read);
 
@@ -1064,74 +1018,74 @@ public class TextIOTest {
   }
 
   private void runTestReadWithData(byte[] data, List<String> expectedResults) throws Exception {
-    TextSource<String> source = prepareSource(data);
+    TextSource source = prepareSource(data);
     List<String> actual = SourceTestUtils.readFromSource(source, PipelineOptionsFactory.create());
     assertThat(actual, containsInAnyOrder(new ArrayList<>(expectedResults).toArray(new String[0])));
   }
 
   @Test
   public void testSplittingSourceWithEmptyLines() throws Exception {
-    TextSource<String> source = prepareSource("\n\n\n".getBytes(StandardCharsets.UTF_8));
+    TextSource source = prepareSource("\n\n\n".getBytes(StandardCharsets.UTF_8));
     SourceTestUtils.assertSplitAtFractionExhaustive(source, PipelineOptionsFactory.create());
   }
 
   @Test
   public void testSplittingSourceWithLineFeedDelimiter() throws Exception {
-    TextSource<String> source = prepareSource("asdf\nhjkl\nxyz\n".getBytes(StandardCharsets.UTF_8));
+    TextSource source = prepareSource("asdf\nhjkl\nxyz\n".getBytes(StandardCharsets.UTF_8));
     SourceTestUtils.assertSplitAtFractionExhaustive(source, PipelineOptionsFactory.create());
   }
 
   @Test
   public void testSplittingSourceWithCarriageReturnDelimiter() throws Exception {
-    TextSource<String> source = prepareSource("asdf\rhjkl\rxyz\r".getBytes(StandardCharsets.UTF_8));
+    TextSource source = prepareSource("asdf\rhjkl\rxyz\r".getBytes(StandardCharsets.UTF_8));
     SourceTestUtils.assertSplitAtFractionExhaustive(source, PipelineOptionsFactory.create());
   }
 
   @Test
   public void testSplittingSourceWithCarriageReturnAndLineFeedDelimiter() throws Exception {
-    TextSource<String> source = prepareSource(
+    TextSource source = prepareSource(
         "asdf\r\nhjkl\r\nxyz\r\n".getBytes(StandardCharsets.UTF_8));
     SourceTestUtils.assertSplitAtFractionExhaustive(source, PipelineOptionsFactory.create());
   }
 
   @Test
   public void testSplittingSourceWithMixedDelimiters() throws Exception {
-    TextSource<String> source = prepareSource(
+    TextSource source = prepareSource(
         "asdf\rhjkl\r\nxyz\n".getBytes(StandardCharsets.UTF_8));
     SourceTestUtils.assertSplitAtFractionExhaustive(source, PipelineOptionsFactory.create());
   }
 
   @Test
   public void testSplittingSourceWithLineFeedDelimiterAndNonEmptyBytesAtEnd() throws Exception {
-    TextSource<String> source = prepareSource("asdf\nhjkl\nxyz".getBytes(StandardCharsets.UTF_8));
+    TextSource source = prepareSource("asdf\nhjkl\nxyz".getBytes(StandardCharsets.UTF_8));
     SourceTestUtils.assertSplitAtFractionExhaustive(source, PipelineOptionsFactory.create());
   }
 
   @Test
   public void testSplittingSourceWithCarriageReturnDelimiterAndNonEmptyBytesAtEnd()
       throws Exception {
-    TextSource<String> source = prepareSource("asdf\rhjkl\rxyz".getBytes(StandardCharsets.UTF_8));
+    TextSource source = prepareSource("asdf\rhjkl\rxyz".getBytes(StandardCharsets.UTF_8));
     SourceTestUtils.assertSplitAtFractionExhaustive(source, PipelineOptionsFactory.create());
   }
 
   @Test
   public void testSplittingSourceWithCarriageReturnAndLineFeedDelimiterAndNonEmptyBytesAtEnd()
       throws Exception {
-    TextSource<String> source = prepareSource(
+    TextSource source = prepareSource(
         "asdf\r\nhjkl\r\nxyz".getBytes(StandardCharsets.UTF_8));
     SourceTestUtils.assertSplitAtFractionExhaustive(source, PipelineOptionsFactory.create());
   }
 
   @Test
   public void testSplittingSourceWithMixedDelimitersAndNonEmptyBytesAtEnd() throws Exception {
-    TextSource<String> source = prepareSource("asdf\rhjkl\r\nxyz".getBytes(StandardCharsets.UTF_8));
+    TextSource source = prepareSource("asdf\rhjkl\r\nxyz".getBytes(StandardCharsets.UTF_8));
     SourceTestUtils.assertSplitAtFractionExhaustive(source, PipelineOptionsFactory.create());
   }
 
-  private TextSource<String> prepareSource(byte[] data) throws IOException {
+  private TextSource prepareSource(byte[] data) throws IOException {
     Path path = Files.createTempFile(tempFolder, "tempfile", "ext");
     Files.write(path, data);
-    return new TextSource<>(path.toString(), StringUtf8Coder.of());
+    return new TextSource(path.toString());
   }
 
   @Test
