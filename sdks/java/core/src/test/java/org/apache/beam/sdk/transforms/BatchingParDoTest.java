@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.transforms;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 import java.io.Serializable;
@@ -25,18 +26,19 @@ import java.util.ArrayList;
 import java.util.List;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
-import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.RunnableOnService;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.testing.UsesTestStream;
 import org.apache.beam.sdk.testing.UsesTimersInParDo;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TimestampedValue;
+import org.hamcrest.Matchers;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.BeforeClass;
@@ -46,14 +48,17 @@ import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.slf4j.LoggerFactory;
 
+/** Test Class for {@link BatchingParDo}. */
 @RunWith(JUnit4.class)
 public class BatchingParDoTest implements Serializable {
-  private static final int BATCH_SIZE = 2;
-  private static final long NUM_ELEMENTS = 10;
+  private static final int BATCH_SIZE = 3;
+  private static final long NUM_ELEMENTS = 100;
   private static final int ALLOWED_LATENESS = 0;
   private static final int TIMESTAMP_INTERVAL = 1;
-  private static final int WINDOW_DURATION = 5;
+  private static final long WINDOW_DURATION = 5;
+  private static final org.slf4j.Logger LOGGER = LoggerFactory.getLogger(BatchingParDoTest.class);
   private static ArrayList<TimestampedValue<KV<String, String>>> data;
   private static SimpleFunction<Iterable<String>, Iterable<String>> perBatchFn;
   private static BatchingParDo<String, String, String> batchingParDo;
@@ -62,10 +67,7 @@ public class BatchingParDoTest implements Serializable {
 
   @BeforeClass
   public static void initialize() {
-
-    // give time for the pipeline to start so that first element timestamp is in pipeline
-    // (relative time to now() because of timer
-    startInstant = Instant.now().plus(Duration.standardSeconds(10));
+    startInstant = new Instant(0);
     data = createTestData();
     perBatchFn =
         new SimpleFunction<Iterable<String>, Iterable<String>>() {
@@ -95,12 +97,14 @@ public class BatchingParDoTest implements Serializable {
       "Maxwell"
     };
     ArrayList<TimestampedValue<KV<String, String>>> data = new ArrayList<>();
-    long offset = 1;
+    long offset = 0;
     for (int i = 0; i < NUM_ELEMENTS; i++) {
       int index = i % scientists.length;
-      data.add(
+      TimestampedValue<KV<String, String>> element =
           TimestampedValue.of(
-              KV.of("key", scientists[index]), startInstant.plus(Duration.standardSeconds(offset * TIMESTAMP_INTERVAL))));
+              KV.of("key", scientists[index]),
+              startInstant.plus(Duration.standardSeconds(offset * TIMESTAMP_INTERVAL)));
+      data.add(element);
       offset++;
     }
     return data;
@@ -110,15 +114,19 @@ public class BatchingParDoTest implements Serializable {
   @Ignore
   @Test
   public void testUnderlyingDoFn() throws Exception {
-    DoFnTester<KV<String, String>, String> fnTester =
+    DoFnTester<KV<String, String>, KV<String, String>> fnTester =
         DoFnTester.of(
-            new BatchingParDo.BatchingDoFn<String, String, String>(
-                BATCH_SIZE, perBatchFn, new Duration(ALLOWED_LATENESS), StringUtf8Coder.of()));
+            new BatchingParDo.BatchingDoFn<>(
+                BATCH_SIZE,
+                perBatchFn,
+                new Duration(ALLOWED_LATENESS),
+                StringUtf8Coder.of(),
+                StringUtf8Coder.of()));
     int nbElementsProcessed = 0;
     for (TimestampedValue<KV<String, String>> element : data) {
       fnTester.processElement(element.getValue());
       nbElementsProcessed++;
-      List<String> output = fnTester.takeOutputElements();
+      List<KV<String, String>> output = fnTester.takeOutputElements();
       // end of batch
       if ((nbElementsProcessed % BATCH_SIZE) == 0) {
         assertEquals(
@@ -128,9 +136,8 @@ public class BatchingParDoTest implements Serializable {
         assertTrue(
             "All elements since last batch should have been processed",
             checkAllElementsProcessing(output, Processing.PROCESSED));
-      }
-      // not end of batch
-      else {
+      } else {
+        // not end of batch
         assertTrue(
             "we should have processed no elements since last batch",
             checkAllElementsProcessing(output, Processing.UNPROCESSED));
@@ -141,12 +148,11 @@ public class BatchingParDoTest implements Serializable {
   @Test
   @Category({RunnableOnService.class, UsesTimersInParDo.class})
   public void testInBatchMode() {
-    // TODO deal with infinite loop
-    PCollection<String> collection =
+    PCollection<KV<String, String>> collection =
         pipeline
             .apply("Input data", Create.of(data))
-          // remove timestamps from dataset to be closer to users usecase
-          .apply(
+            // remove timestamps from dataset to be closer to users usecase
+            .apply(
                 "remove timestamps",
                 ParDo.of(
                     new DoFn<TimestampedValue<KV<String, String>>, KV<String, String>>() {
@@ -156,8 +162,9 @@ public class BatchingParDoTest implements Serializable {
                       }
                     }))
             .apply(batchingParDo)
-            .setCoder(StringUtf8Coder.of());
-    PAssert.thatSingleton(collection.apply("Count", Count.<String>globally()))
+            .setCoder(KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()));
+    PAssert.that(collection).satisfies(new CheckAllElementsProcessingFn());
+    PAssert.thatSingleton(collection.apply("Count", Count.<KV<String, String>>globally()))
         .isEqualTo(NUM_ELEMENTS);
     pipeline.run();
   }
@@ -165,7 +172,6 @@ public class BatchingParDoTest implements Serializable {
   @Test
   @Category({RunnableOnService.class, UsesTimersInParDo.class, UsesTestStream.class})
   public void testInStreamingMode() {
-    // TODO deal with infinite loop
     TestStream.Builder<KV<String, String>> streamBuilder =
         TestStream.create(KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()))
             .advanceWatermarkTo(startInstant);
@@ -174,32 +180,69 @@ public class BatchingParDoTest implements Serializable {
     }
     TestStream<KV<String, String>> stream =
         streamBuilder
-            //          .advanceProcessingTime(Duration.standardSeconds(10))
-            .advanceWatermarkTo(startInstant.plus(Duration.standardSeconds(5)))
-            .advanceWatermarkTo(startInstant.plus(Duration.standardSeconds(10)))
-            //          .advanceProcessingTime(Duration.standardSeconds(20))
+            .advanceWatermarkTo(startInstant.plus(Duration.standardSeconds(WINDOW_DURATION - 1)))
+            .advanceWatermarkTo(startInstant.plus(Duration.standardSeconds(WINDOW_DURATION + 1)))
+            .advanceWatermarkTo(startInstant.plus(Duration.standardSeconds(NUM_ELEMENTS)))
             .advanceWatermarkToInfinity();
 
-    PCollection<String> output =
+    PCollection<KV<String, String>> inputCollection =
         pipeline
             .apply(stream)
             .apply(
                 Window.<KV<String, String>>into(
-                    FixedWindows.of(Duration.standardSeconds(WINDOW_DURATION))))
+                    FixedWindows.of(Duration.standardSeconds(WINDOW_DURATION))));
+    inputCollection.apply(
+        ParDo.of(
+            new DoFn<KV<String, String>, Void>() {
+              @ProcessElement
+              public void processElement(ProcessContext c, BoundedWindow window) {
+                LOGGER.debug(
+                    "*** ELEMENT: (%s,%s) *** with timestamp %s in window %s",
+                    c.element().getKey(),
+                    c.element().getValue(),
+                    c.timestamp().toString(),
+                    window.toString());
+              }
+            }));
+
+    // elements have the same key and collection is divided into windows,
+    // so Count.perKey values are the number of elements in windows
+    PCollection<KV<String, Long>> countInput =
+        inputCollection.apply(
+            "Count elements in windows before applying batchingParDo",
+            Count.<String, String>perKey());
+    PAssert.that("Wrong number of elements in windows before BatchingParDo", countInput)
+        .satisfies(new CheckValuesFn(WINDOW_DURATION));
+
+    PCollection<KV<String, String>> outputCollection =
+        inputCollection
             .apply(batchingParDo)
-            .setCoder(StringUtf8Coder.of());
-    PAssert.that(output).containsInAnyOrder("Einstein2", "Darwin2");
+            .setCoder(KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()));
+
+    PAssert.that("All elements have not been processed", outputCollection)
+        .satisfies(new CheckAllElementsProcessingFn());
+
+    // elements have the same key and collection is divided into windows,
+    // so Count.perKey values are the number of elements in windows
+    PCollection<KV<String, Long>> countOutput =
+        outputCollection.apply(
+            "Count elements in windows after applying batchingParDo",
+            Count.<String, String>perKey());
+
+    PAssert.that("Wrong number of elements in windows after BatchingParDo", countOutput)
+        .satisfies(new CheckValuesFn(WINDOW_DURATION));
     pipeline.run().waitUntilFinish();
   }
 
-  private boolean checkAllElementsProcessing(List<String> output, Processing processing) {
-    for (String element : output) {
+  private boolean checkAllElementsProcessing(
+      Iterable<KV<String, String>> listToCheck, Processing processing) {
+    for (KV<String, String> element : listToCheck) {
       if (processing == Processing.PROCESSED) {
-        if (!element.matches(".*2")) {
+        if (!element.getValue().matches(".*2")) {
           return false;
         }
       } else {
-        if (element.matches(".*2")) {
+        if (element.getValue().matches(".*2")) {
           return false;
         }
       }
@@ -210,5 +253,32 @@ public class BatchingParDoTest implements Serializable {
   private enum Processing {
     PROCESSED,
     UNPROCESSED
+  }
+
+  private class CheckAllElementsProcessingFn
+      implements SerializableFunction<Iterable<KV<String, String>>, Void> {
+    @Override
+    public Void apply(Iterable<KV<String, String>> input) {
+      assertTrue(
+          "all elements of the collection have not been processed ",
+          checkAllElementsProcessing(input, Processing.PROCESSED));
+      return null;
+    }
+  }
+
+  private class CheckValuesFn implements SerializableFunction<Iterable<KV<String, Long>>, Void> {
+    private long num;
+
+    private CheckValuesFn(long num) {
+      this.num = num;
+    }
+
+    @Override
+    public Void apply(Iterable<KV<String, Long>> input) {
+      for (KV<String, Long> element : input) {
+        assertThat(element.getValue(), Matchers.equalTo(num));
+      }
+      return null;
+    }
   }
 }
