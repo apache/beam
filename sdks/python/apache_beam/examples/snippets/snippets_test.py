@@ -427,18 +427,18 @@ class SnippetsTest(unittest.TestCase):
     # real data.
     beam.io.ReadFromText = SnippetsTest.DummyReadTransform
     beam.io.WriteToText = SnippetsTest.DummyWriteTransform
-    self.files = []
+    self.temp_files = []
 
   def tearDown(self):
     beam.io.ReadFromText = self.old_read_from_text
     beam.io.WriteToText = self.old_write_to_text
     # Cleanup all the temporary files created in the test
-    map(os.remove, self.files)
+    map(os.remove, self.temp_files)
 
   def create_temp_file(self, contents=''):
     with tempfile.NamedTemporaryFile(delete=False) as f:
       f.write(contents)
-      self.files.append(f.name)
+      self.temp_files.append(f.name)
       return f.name
 
   def get_output(self, path, sorted_output=True, suffix=''):
@@ -565,7 +565,7 @@ class SnippetsTest(unittest.TestCase):
     with open(temp_path) as src, gzip.open(gzip_file_name, 'wb') as dst:
       dst.writelines(src)
       # Add the temporary gzip file to be cleaned up as well.
-      self.files.append(gzip_file_name)
+      self.temp_files.append(gzip_file_name)
     snippets.model_textio_compressed(
         {'read': gzip_file_name}, ['aa', 'bb', 'cc'])
 
