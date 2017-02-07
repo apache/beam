@@ -25,7 +25,7 @@ import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
  * <p>{@link ResourceId} is hierarchical and composed of a sequence of directory
  * and file name elements separated by a special separator or delimiter.
  *
- * TODO: add examples for how ResourceId is constructed and used.
+ * <p>TODO: add examples for how ResourceId is constructed and used.
  */
 public interface ResourceId {
 
