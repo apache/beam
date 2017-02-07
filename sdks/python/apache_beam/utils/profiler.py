@@ -25,6 +25,7 @@ import StringIO
 import tempfile
 import time
 from threading import Timer
+import warnings
 
 from apache_beam.utils.dependency import _dependency_file_copy
 
@@ -79,36 +80,34 @@ class MemoryReporter(object):
       # this will report continuously with 30 seconds between reports.
     mr.stop()
 
-  Or simply:
+  NOTE: A reporter with start() should always stop(), or the parent process can
+  never finish.
+
+  Or simply the following which does star() and stop():
     with MemoryReporter(interval_sec=100):
-      <do some thing>
+      while ...
+        <do some thing>
 
   Also it could report on demand without continuous reporting.
-    mr = MemoryReporter()  # default interval 60s but not activated.
+    mr = MemoryReporter()  # default interval 60s but not started.
     <do something>
     mr.report_once()
   """
 
   def __init__(self, interval_sec=60.0):
-    # guppy might not have installed. Set up the reporter only when guppy is
-    # installed.  http://pypi.python.org/pypi/guppy/0.1.10
+    # guppy might not have installed. http://pypi.python.org/pypi/guppy/0.1.10
+    # The reporter can be set up only when guppy is installed (and guppy cannot
+    # be added to the required packages in setup.py, since it's not available
+    # in all platforms).
     try:
       from guppy import hpy  # pylint: disable=import-error
       self._hpy = hpy
       self._interval_sec = interval_sec
-      self._enabled = False
-
-      def report_with_interval():
-        if not self._enabled:
-          return
-        self.report_once()
-        self._timer = Timer(self._interval_sec, report_with_interval)
-        self._timer.start()
-
-      self._timer = Timer(self._interval_sec, report_with_interval)
-
+      self._timer = None
     except ImportError:
-      logging.warning('guppy is not installed; MemoryReporter not available.')
+      warnings.warn('guppy is not installed; MemoryReporter not available.')
+      self._hpy = None
+    self._enabled = False
 
   def __enter__(self):
     self.start()
@@ -118,12 +117,18 @@ class MemoryReporter(object):
     self.stop()
 
   def start(self):
-    if self._enabled:
-      return
-    if not self._hpy:
-      logging.warning('guppy is not installed; MemoryReporter not available.')
+    if self._enabled or not self._hpy:
       return
     self._enabled = True
+
+    def report_with_interval():
+      if not self._enabled:
+        return
+      self.report_once()
+      self._timer = Timer(self._interval_sec, report_with_interval)
+      self._timer.start()
+
+    self._timer = Timer(self._interval_sec, report_with_interval)
     self._timer.start()
 
   def stop(self):
@@ -134,10 +139,8 @@ class MemoryReporter(object):
 
   def report_once(self):
     if not self._hpy:
-      logging.warning('guppy is not installed; MemoryReporter not available.')
       return
     report_start_time = time.time()
     heap_profile = self._hpy().heap()
-    logging.info('*** MemoryReport Heap:\n %s', heap_profile)
-    logging.info('*** MemoryReport took %.1f sec.',
-                 time.time() - report_start_time)
+    logging.info('*** MemoryReport Heap:\n %s\n MemoryReport took %.1f sec',
+                 heap_profile, time.time() - report_start_time)
