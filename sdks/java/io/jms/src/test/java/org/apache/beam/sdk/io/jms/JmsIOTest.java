@@ -143,7 +143,7 @@ public class JmsIOTest {
             .withPassword("BAD"));
 
     runPipelineExpectingJmsConnectException(
-        "User name [\" + USERNAME + \"] or password is invalid.");
+        "User name [" + USERNAME + "] or password is invalid.");
   }
 
   @Test
