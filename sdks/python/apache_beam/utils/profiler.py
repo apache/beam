@@ -73,7 +73,7 @@ class Profile(object):
 class MemoryReporter(object):
   """A memory reporter that reports the memory usage and heap profile.
   Usage:
-    mr = MemoryReporter(interval_sec=30.0)
+    mr = MemoryReporter(interval_second=30.0)
     mr.start()
     while ...
       <do something>
@@ -84,7 +84,7 @@ class MemoryReporter(object):
   never finish.
 
   Or simply the following which does star() and stop():
-    with MemoryReporter(interval_sec=100):
+    with MemoryReporter(interval_second=100):
       while ...
         <do some thing>
 
@@ -94,7 +94,7 @@ class MemoryReporter(object):
     mr.report_once()
   """
 
-  def __init__(self, interval_sec=60.0):
+  def __init__(self, interval_second=60.0):
     # guppy might not have installed. http://pypi.python.org/pypi/guppy/0.1.10
     # The reporter can be set up only when guppy is installed (and guppy cannot
     # be added to the required packages in setup.py, since it's not available
@@ -102,7 +102,7 @@ class MemoryReporter(object):
     try:
       from guppy import hpy  # pylint: disable=import-error
       self._hpy = hpy
-      self._interval_sec = interval_sec
+      self._interval_second = interval_second
       self._timer = None
     except ImportError:
       warnings.warn('guppy is not installed; MemoryReporter not available.')
@@ -125,10 +125,10 @@ class MemoryReporter(object):
       if not self._enabled:
         return
       self.report_once()
-      self._timer = Timer(self._interval_sec, report_with_interval)
+      self._timer = Timer(self._interval_second, report_with_interval)
       self._timer.start()
 
-    self._timer = Timer(self._interval_sec, report_with_interval)
+    self._timer = Timer(self._interval_second, report_with_interval)
     self._timer.start()
 
   def stop(self):
@@ -142,5 +142,5 @@ class MemoryReporter(object):
       return
     report_start_time = time.time()
     heap_profile = self._hpy().heap()
-    logging.info('*** MemoryReport Heap:\n %s\n MemoryReport took %.1f sec',
+    logging.info('*** MemoryReport Heap:\n %s\n MemoryReport took %.1f seconds',
                  heap_profile, time.time() - report_start_time)
