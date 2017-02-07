@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.beam.runners.core.runnerapi;
+package org.apache.beam.runners.core;
 
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.is;
@@ -24,7 +24,6 @@ import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertThat;
 
 import java.io.Serializable;
-import org.apache.beam.runners.core.PTransformMatchers;
 import org.apache.beam.sdk.runners.PTransformMatcher;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
@@ -60,7 +59,11 @@ public class PTransformMatchersTest implements Serializable {
     });
     PCollection<Integer> output = input.apply(pardo);
 
-    AppliedPTransform<?, ?, ?> application = AppliedPTransform.of("DoStuff", input, output, pardo);
+    AppliedPTransform<?, ?, ?> application =
+        AppliedPTransform
+            .<PCollection<Integer>, PCollection<Integer>,
+                PTransform<? super PCollection<Integer>, PCollection<Integer>>>
+                of("DoStuff", input.expand(), output.expand(), pardo, p);
 
     assertThat(matcher.matches(application), is(true));
   }
@@ -82,7 +85,10 @@ public class PTransformMatchersTest implements Serializable {
     PCollection<Integer> output = input.apply(subclass);
 
     AppliedPTransform<?, ?, ?> application =
-        AppliedPTransform.of("DoStuff", input, output, subclass);
+        AppliedPTransform
+            .<PCollection<Integer>, PCollection<Integer>,
+                PTransform<PCollection<Integer>, PCollection<Integer>>>
+                of("DoStuff", input.expand(), output.expand(), subclass, p);
 
     assertThat(matcher.matches(application), is(false));
   }
@@ -94,7 +100,11 @@ public class PTransformMatchersTest implements Serializable {
     Window.Bound<Integer> window = Window.into(new GlobalWindows());
     PCollection<Integer> output = input.apply(window);
 
-    AppliedPTransform<?, ?, ?> application = AppliedPTransform.of("DoStuff", input, output, window);
+    AppliedPTransform<?, ?, ?> application =
+        AppliedPTransform
+            .<PCollection<Integer>, PCollection<Integer>,
+                PTransform<PCollection<Integer>, PCollection<Integer>>>
+                of("DoStuff", input.expand(), output.expand(), window, p);
 
     assertThat(matcher.matches(application), is(false));
   }
