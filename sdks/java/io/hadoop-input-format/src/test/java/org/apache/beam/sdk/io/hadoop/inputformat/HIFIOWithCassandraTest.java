@@ -36,12 +36,10 @@ import org.apache.hadoop.mapreduce.InputFormat;
 import org.cassandraunit.utils.EmbeddedCassandraServerHelper;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
-import org.junit.FixMethodOrder;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-import org.junit.runners.MethodSorters;
 
 import com.datastax.driver.core.Cluster;
 import com.datastax.driver.core.Row;
@@ -55,7 +53,6 @@ import com.datastax.driver.mapping.annotations.Table;
  *
  */
 @RunWith(JUnit4.class)
-@FixMethodOrder(MethodSorters.JVM)
 public class HIFIOWithCassandraTest implements Serializable {
   private static final long serialVersionUID = 1L;
   private static final String CASSANDRA_KEYSPACE = "beamdb";
