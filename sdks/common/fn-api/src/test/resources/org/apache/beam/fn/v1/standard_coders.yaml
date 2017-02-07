@@ -15,6 +15,25 @@
 # limitations under the License.
 #
 
+# This file is broken into multiple sections delimited by ---. Each section specifies a set of
+# reference encodings for a single standardized coder used in a specific context.
+#
+# Each section contains up to 3 properties:
+#
+#   coder: a common coder spec. Currently, a URN and URNs for component coders as necessary.
+#   nested: a boolean meaning whether the coder was used in the nested context. Missing means to
+#           test both contexts, a shorthand for when the coder is invariant across context.
+#   examples: a map of {encoded bytes: original JSON object} encoded with the coder in the context.
+#             The LHS (key) is a byte array encoded as a JSON-escaped string. The RHS (value) is
+#             one of a few standard JSON types such as numbers, strings, dicts that map naturally
+#             to the type encoded by the coder.
+#
+# These choices were made to strike a balance between portability, ease of use, and simple
+# legibility of this file itself.
+#
+# It is expected that future work will move the `coder` field into a format that it would be
+# represented by the Runner API, so that it can be understood by all SDKs and harnesses.
+
 
 coder:
   urn: "urn:beam:coders:bytes:0.1"

@@ -462,7 +462,7 @@ class AbstractComponentCoderImpl(StreamCoderImpl):
       c = self._coder_impls[i]  # type cast
       child_size, child_observables = (
           c.get_estimated_size_and_observables(
-              values[i], nested=nested or i  + 1< len(self._coder_impls)))
+              values[i], nested=nested or i + 1 < len(self._coder_impls)))
       estimated_size += child_size
       observables += child_observables
     return estimated_size, observables
