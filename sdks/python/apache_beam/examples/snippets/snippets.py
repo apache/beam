@@ -828,8 +828,7 @@ def model_textio(renames):
   # [START model_textio_read]
   p = beam.Pipeline(options=PipelineOptions())
   # [START model_pipelineio_read]
-  lines = p | 'ReadFromText' >> beam.io.ReadFromText(
-      'gs://my_bucket/path/to/input-*.csv')
+  lines = p | 'ReadFromText' >> beam.io.ReadFromText('path/to/input-*.csv')
   # [END model_pipelineio_read]
   # [END model_textio_read]
 
@@ -837,10 +836,25 @@ def model_textio(renames):
   filtered_words = lines | 'FilterWords' >> beam.FlatMap(filter_words)
   # [START model_pipelineio_write]
   filtered_words | 'WriteToText' >> beam.io.WriteToText(
-      'gs://my_bucket/path/to/numbers', file_name_suffix='.csv')
+      '/path/to/numbers', file_name_suffix='.csv')
   # [END model_pipelineio_write]
   # [END model_textio_write]
 
+  p.visit(SnippetUtils.RenameFiles(renames))
+  p.run().wait_until_finish()
+
+
+def model_textio_compressed(renames, expected):
+  """Using a Read Transform to read compressed text files."""
+  p = TestPipeline()
+
+  # [START model_textio_write_compressed]
+  lines = p | 'ReadFromText' >> beam.io.ReadFromText(
+      '/path/to/input-*.csv.gz',
+      compression_type=beam.io.fileio.CompressionTypes.GZIP)
+  # [END model_textio_write_compressed]
+
+  beam.assert_that(lines, beam.equal_to(expected))
   p.visit(SnippetUtils.RenameFiles(renames))
   p.run().wait_until_finish()
 
