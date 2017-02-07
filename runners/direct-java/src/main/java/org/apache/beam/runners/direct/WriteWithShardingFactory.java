@@ -21,7 +21,10 @@ package org.apache.beam.runners.direct;
 import static com.google.common.base.Preconditions.checkArgument;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.Iterables;
+import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
+import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.Write;
 import org.apache.beam.sdk.io.Write.Bound;
 import org.apache.beam.sdk.transforms.Count;
@@ -39,6 +42,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PDone;
+import org.apache.beam.sdk.values.TaggedPValue;
 import org.joda.time.Duration;
 
 /**
@@ -58,6 +62,12 @@ class WriteWithShardingFactory<InputT>
       return new DynamicallyReshardedWrite<>(transform);
     }
     return transform;
+  }
+
+  @Override
+  public PCollection<InputT> getInput(
+      List<TaggedPValue> inputs, Pipeline p) {
+    return (PCollection<InputT>) Iterables.getOnlyElement(inputs).getValue();
   }
 
   private static class DynamicallyReshardedWrite<T> extends PTransform<PCollection<T>, PDone> {

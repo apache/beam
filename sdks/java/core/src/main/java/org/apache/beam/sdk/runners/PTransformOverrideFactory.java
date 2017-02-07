@@ -19,11 +19,14 @@
 
 package org.apache.beam.sdk.runners;
 
+import java.util.List;
+import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
+import org.apache.beam.sdk.values.TaggedPValue;
 
 /**
  * Produces {@link PipelineRunner}-specific overrides of {@link PTransform PTransforms}, and
@@ -38,4 +41,9 @@ public interface PTransformOverrideFactory<
    * Returns a {@link PTransform} that produces equivalent output to the provided transform.
    */
   PTransform<InputT, OutputT> getReplacementTransform(TransformT transform);
+
+  /**
+   * Returns the composite type that replacement transforms consumed from an equivalent expansion.
+   */
+  InputT getInput(List<TaggedPValue> inputs, Pipeline p);
 }
