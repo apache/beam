@@ -53,7 +53,7 @@ After this import statement
 
 * transform classes are available as beam.FlatMap, beam.GroupByKey, etc.
 * Pipeline class is available as beam.Pipeline
-* text source/sink transforms are available as beam.io.RedfromText,
+* text read/write transforms are available as beam.io.ReadfromText,
   beam.io.WriteToText
 
 Examples

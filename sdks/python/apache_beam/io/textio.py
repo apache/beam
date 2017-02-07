@@ -225,7 +225,7 @@ class _TextSink(fileio.FileSink):
                shard_name_template=None,
                coder=coders.ToStringCoder(),
                compression_type=fileio.CompressionTypes.AUTO):
-    """Initialize a TextFileSink.
+    """Initialize a _TextSink.
 
     Args:
       file_path_prefix: The file path to write to. The files written will begin
@@ -257,7 +257,7 @@ class _TextSink(fileio.FileSink):
           compression.
 
     Returns:
-      A TextFileSink object usable for writing.
+      A _TextSink object usable for writing.
     """
     super(_TextSink, self).__init__(
         file_path_prefix,
