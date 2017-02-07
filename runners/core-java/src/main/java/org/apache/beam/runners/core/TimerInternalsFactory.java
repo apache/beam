@@ -15,10 +15,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.beam.runners.core;
 
-package org.apache.beam.sdk.testing;
+import java.io.Serializable;
+import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 
 /**
- * Category tag for validation tests which utilize {@link org.apache.beam.sdk.metrics.Metrics}.
+ * A factory for providing {@link TimerInternals} for a particular key.
+ *
+ * <p>Because it will generally be embedded in a {@link org.apache.beam.sdk.transforms.DoFn DoFn},
+ * albeit at execution time, it is marked {@link Serializable}.
  */
-public interface UsesMetrics {}
+@Experimental(Kind.STATE)
+public interface TimerInternalsFactory<K> {
+
+  /** Returns {@link TimerInternals} for the provided key. */
+  TimerInternals timerInternalsForKey(K key);
+}

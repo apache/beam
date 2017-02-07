@@ -25,10 +25,16 @@ job('beam_PostCommit_Python_Verify') {
   previousNames('beam_PostCommit_PythonVerify')
 
   // Set common parameters.
-  common_job_properties.setTopLevelJobProperties(delegate)
+  common_job_properties.setTopLevelMainJobProperties(delegate)
 
   // Sets that this is a PostCommit job.
   common_job_properties.setPostCommit(delegate, '0 3-22/6 * * *')
+
+  // Allows triggering this build against pull requests.
+  common_job_properties.enablePhraseTriggeringFromPullRequest(
+    delegate,
+    'Python SDK PostCommit Tests',
+    'Run Python PostCommit')
 
   // Execute shell command to test Python SDK.
   steps {

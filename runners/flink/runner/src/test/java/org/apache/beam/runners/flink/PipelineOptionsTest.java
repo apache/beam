@@ -119,6 +119,7 @@ public class PipelineOptionsTest {
         WindowingStrategy.globalDefault(),
         new HashMap<Integer, PCollectionView<?>>(),
         Collections.<PCollectionView<?>>emptyList(),
+        null,
         null);
 
   }
@@ -138,7 +139,8 @@ public class PipelineOptionsTest {
         WindowingStrategy.globalDefault(),
         new HashMap<Integer, PCollectionView<?>>(),
         Collections.<PCollectionView<?>>emptyList(),
-        options);
+        options,
+        null);
 
     final byte[] serialized = SerializationUtils.serialize(doFnOperator);
 

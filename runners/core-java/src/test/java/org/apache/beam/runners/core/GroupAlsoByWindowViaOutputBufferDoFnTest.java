@@ -22,16 +22,15 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowingStrategy;
-import org.apache.beam.sdk.util.state.StateInternalsFactory;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 /**
- * Unit tests for {@link GroupAlsoByWindowsViaOutputBufferDoFn}.
+ * Unit tests for {@link GroupAlsoByWindowViaOutputBufferDoFn}.
  */
 @RunWith(JUnit4.class)
-public class GroupAlsoByWindowsViaOutputBufferDoFnTest {
+public class GroupAlsoByWindowViaOutputBufferDoFnTest {
 
   private class BufferingGABWViaOutputBufferDoFnFactory<K, InputT>
   implements GroupAlsoByWindowsDoFnFactory<K, InputT, Iterable<InputT>> {
@@ -47,7 +46,7 @@ public class GroupAlsoByWindowsViaOutputBufferDoFnTest {
     GroupAlsoByWindowsDoFn<K, InputT, Iterable<InputT>, W> forStrategy(
             WindowingStrategy<?, W> windowingStrategy,
             StateInternalsFactory<K> stateInternalsFactory) {
-      return new GroupAlsoByWindowsViaOutputBufferDoFn<K, InputT, Iterable<InputT>, W>(
+      return new GroupAlsoByWindowViaOutputBufferDoFn<K, InputT, Iterable<InputT>, W>(
           windowingStrategy,
           stateInternalsFactory,
           SystemReduceFn.<K, InputT, W>buffering(inputCoder));

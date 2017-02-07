@@ -113,9 +113,8 @@ class SourceTestUtilsTest(unittest.TestCase):
     self.assertTrue(stats.non_trivial_fractions)
 
   def test_split_at_fraction_exhaustive(self):
-    data = self._create_data(20)
+    data = self._create_data(10)
     source = self._create_source(data)
-
     source_test_utils.assertSplitAtFractionExhaustive(source)
 
 if __name__ == '__main__':

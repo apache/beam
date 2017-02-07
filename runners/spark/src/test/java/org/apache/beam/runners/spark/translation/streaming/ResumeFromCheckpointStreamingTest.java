@@ -160,7 +160,7 @@ public class ResumeFromCheckpointStreamingTest {
         "auto.offset.reset", "earliest"
     );
 
-    KafkaIO.Read<String, String> read = KafkaIO.read()
+    KafkaIO.Read<String, String> read = KafkaIO.<String, String>read()
         .withBootstrapServers(EMBEDDED_KAFKA_CLUSTER.getBrokerList())
         .withTopics(Collections.singletonList(TOPIC))
         .withKeyCoder(StringUtf8Coder.of())

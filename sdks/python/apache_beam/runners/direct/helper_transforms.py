@@ -51,15 +51,15 @@ class PartialGroupByKeyCombiningValues(beam.DoFn):
   def __init__(self, combine_fn):
     self._combine_fn = combine_fn
 
-  def start_bundle(self, context):
+  def start_bundle(self):
     self._cache = collections.defaultdict(self._combine_fn.create_accumulator)
 
-  def process(self, context):
-    k, vi = context.element
-    for w in context.windows:
-      self._cache[k, w] = self._combine_fn.add_input(self._cache[k, w], vi)
+  def process(self, element, window=beam.DoFn.WindowParam):
+    k, vi = element
+    self._cache[k, window] = self._combine_fn.add_input(self._cache[k, window],
+                                                        vi)
 
-  def finish_bundle(self, context):
+  def finish_bundle(self):
     for (k, w), va in self._cache.items():
       yield WindowedValue((k, va), w.end, (w,))
 
@@ -82,8 +82,8 @@ class FinishCombine(beam.DoFn):
   def __init__(self, combine_fn):
     self._combine_fn = combine_fn
 
-  def process(self, context):
-    k, vs = context.element
+  def process(self, element):
+    k, vs = element
     return [(
         k,
         self._combine_fn.extract_output(

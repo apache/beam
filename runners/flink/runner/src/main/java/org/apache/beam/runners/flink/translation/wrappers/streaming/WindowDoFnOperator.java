@@ -38,25 +38,24 @@ import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.ScheduledFuture;
 import javax.annotation.Nullable;
-
 import org.apache.beam.runners.core.ExecutionContext;
 import org.apache.beam.runners.core.GroupAlsoByWindowViaWindowSetNewDoFn;
 import org.apache.beam.runners.core.KeyedWorkItem;
 import org.apache.beam.runners.core.KeyedWorkItems;
+import org.apache.beam.runners.core.StateInternals;
+import org.apache.beam.runners.core.StateInternalsFactory;
+import org.apache.beam.runners.core.StateNamespace;
 import org.apache.beam.runners.core.SystemReduceFn;
+import org.apache.beam.runners.core.TimerInternals;
+import org.apache.beam.runners.core.TimerInternalsFactory;
 import org.apache.beam.runners.flink.translation.wrappers.DataInputViewWrapper;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.TimeDomain;
-import org.apache.beam.sdk.util.TimerInternals;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowingStrategy;
-import org.apache.beam.sdk.util.state.StateInternals;
-import org.apache.beam.sdk.util.state.StateInternalsFactory;
-import org.apache.beam.sdk.util.state.StateNamespace;
-import org.apache.beam.sdk.util.state.TimerInternalsFactory;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
@@ -80,7 +79,6 @@ public class WindowDoFnOperator<K, InputT, OutputT>
     extends DoFnOperator<KeyedWorkItem<K, InputT>, KV<K, OutputT>, WindowedValue<KV<K, OutputT>>>
     implements Triggerable {
 
-  private final Coder<K> keyCoder;
   private final TimerInternals.TimerDataCoder timerCoder;
 
   private transient Set<Tuple2<ByteBuffer, TimerInternals.TimerData>> watermarkTimers;
@@ -91,7 +89,6 @@ public class WindowDoFnOperator<K, InputT, OutputT>
   private transient Multiset<Long> processingTimeTimerTimestamps;
   private transient Map<Long, ScheduledFuture<?>> processingTimeTimerFutures;
 
-  private transient FlinkStateInternals<K> stateInternals;
   private transient FlinkTimerInternals timerInternals;
 
   private final SystemReduceFn<K, InputT, ?, OutputT, BoundedWindow> systemReduceFn;
@@ -116,11 +113,11 @@ public class WindowDoFnOperator<K, InputT, OutputT>
         windowingStrategy,
         sideInputTagMapping,
         sideInputs,
-        options);
+        options,
+        keyCoder);
 
     this.systemReduceFn = systemReduceFn;
 
-    this.keyCoder = keyCoder;
     this.timerCoder =
         TimerInternals.TimerDataCoder.of(windowingStrategy.getWindowFn().windowCoder());
   }
@@ -132,7 +129,7 @@ public class WindowDoFnOperator<K, InputT, OutputT>
       public StateInternals<K> stateInternalsForKey(K key) {
         //this will implicitly be keyed by the key of the incoming
         // element or by the key of a firing timer
-        return stateInternals;
+        return (StateInternals<K>) stateInternals;
       }
     };
     TimerInternalsFactory<K> timerInternalsFactory = new TimerInternalsFactory<K>() {
@@ -192,7 +189,6 @@ public class WindowDoFnOperator<K, InputT, OutputT>
     // ScheduledFutures are not checkpointed
     processingTimeTimerFutures = new HashMap<>();
 
-    stateInternals = new FlinkStateInternals<>(getStateBackend(), keyCoder);
     timerInternals = new FlinkTimerInternals();
 
     // call super at the end because this will call getDoFn() which requires stateInternals
@@ -275,7 +271,7 @@ public class WindowDoFnOperator<K, InputT, OutputT>
 
         pushbackDoFnRunner.processElement(WindowedValue.valueInGlobalWindow(
             KeyedWorkItems.<K, InputT>timersWorkItem(
-                stateInternals.getKey(),
+                (K) stateInternals.getKey(),
                 Collections.singletonList(timer.f1))));
 
       } else {
@@ -313,7 +309,7 @@ public class WindowDoFnOperator<K, InputT, OutputT>
 
         pushbackDoFnRunner.processElement(WindowedValue.valueInGlobalWindow(
                 KeyedWorkItems.<K, InputT>timersWorkItem(
-                    stateInternals.getKey(),
+                    (K) stateInternals.getKey(),
                     Collections.singletonList(timer.f1))));
 
       } else {

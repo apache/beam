@@ -116,9 +116,16 @@ class PipelineOptions(HasDisplayData):
     Returns:
       Dictionary of all args and values.
     """
+
+    # TODO(BEAM-1319): PipelineOption sub-classes in the main session might be
+    # repeated. Pick last unique instance of each subclass to avoid conflicts.
     parser = argparse.ArgumentParser()
+    subset = {}
     for cls in PipelineOptions.__subclasses__():
+      subset[str(cls)] = cls
+    for cls in subset.values():
       cls._add_argparse_args(parser)  # pylint: disable=protected-access
+
     known_args, _ = parser.parse_known_args(self._flags)
     result = vars(known_args)
 
@@ -188,6 +195,14 @@ class StandardOptions(PipelineOptions):
                         default=False,
                         action='store_true',
                         help='Whether to enable streaming mode.')
+
+  # TODO(BEAM-1265): Remove this error, once at least one runner supports
+  # streaming pipelines.
+  def validate(self, validator):
+    errors = []
+    if self.view_as(StandardOptions).streaming:
+      errors.append('Streaming pipelines are not supported.')
+    return errors
 
 
 class TypeOptions(PipelineOptions):

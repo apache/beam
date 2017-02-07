@@ -65,8 +65,6 @@ public final class PaneInfo {
    * produces a final pane, it will not be merged into any new windows.
    *
    * <p>The predictions above are made using the mechanism of watermarks.
-   * See {@link org.apache.beam.sdk.util.TimerInternals} for more information
-   * about watermarks.
    *
    * <p>We can state some properties of {@code LATE} and {@code ON_TIME} panes, but first need some
    * definitions:

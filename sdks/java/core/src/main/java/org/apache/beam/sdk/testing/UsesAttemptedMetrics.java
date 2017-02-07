@@ -15,21 +15,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.util.state;
 
-import java.io.Serializable;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
+package org.apache.beam.sdk.testing;
+
+import org.apache.beam.sdk.metrics.MetricResult;
 
 /**
- * A factory for providing {@link StateInternals} for a particular key.
- *
- * <p>Because it will generally be embedded in a {@link org.apache.beam.sdk.transforms.DoFn DoFn},
- * albeit at execution time, it is marked {@link Serializable}.
+ * Category tag for validation tests which utilize {@link org.apache.beam.sdk.metrics.Metrics}.
+ * Tests tagged with {@link UsesAttemptedMetrics} should be run for runners which support
+ * {@link MetricResult#attempted()}.
  */
-@Experimental(Kind.STATE)
-public interface StateInternalsFactory<K> {
-
-  /** Returns {@link StateInternals} for the provided key. */
-  StateInternals<K> stateInternalsForKey(K key);
-}
+public class UsesAttemptedMetrics {}

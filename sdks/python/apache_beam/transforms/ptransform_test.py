@@ -108,8 +108,8 @@ class PTransformTest(unittest.TestCase):
   def test_do_with_do_fn(self):
     class AddNDoFn(beam.DoFn):
 
-      def process(self, context, addon):
-        return [context.element + addon]
+      def process(self, element, addon):
+        return [element + addon]
 
     pipeline = TestPipeline()
     pcoll = pipeline | 'Start' >> beam.Create([1, 2, 3])
@@ -120,7 +120,7 @@ class PTransformTest(unittest.TestCase):
   def test_do_with_unconstructed_do_fn(self):
     class MyDoFn(beam.DoFn):
 
-      def process(self, context):
+      def process(self):
         pass
 
     pipeline = TestPipeline()
@@ -195,12 +195,12 @@ class PTransformTest(unittest.TestCase):
     class SomeDoFn(beam.DoFn):
       """A custom DoFn using yield."""
 
-      def process(self, context):
-        yield context.element
-        if context.element % 2 == 0:
-          yield pvalue.SideOutputValue('even', context.element)
+      def process(self, element):
+        yield element
+        if element % 2 == 0:
+          yield pvalue.SideOutputValue('even', element)
         else:
-          yield pvalue.SideOutputValue('odd', context.element)
+          yield pvalue.SideOutputValue('odd', element)
 
     pipeline = TestPipeline()
     nums = pipeline | 'Some Numbers' >> beam.Create([1, 2, 3, 4])
@@ -274,14 +274,15 @@ class PTransformTest(unittest.TestCase):
 
   def test_do_fn_with_start_finish(self):
     class MyDoFn(beam.DoFn):
-      def start_bundle(self, c):
+      def start_bundle(self):
         yield 'start'
 
-      def process(self, c):
+      def process(self, element):
         pass
 
-      def finish_bundle(self, c):
+      def finish_bundle(self):
         yield 'finish'
+
     pipeline = TestPipeline()
     pcoll = pipeline | 'Start' >> beam.Create([1, 2, 3])
     result = pcoll | 'Do' >> beam.ParDo(MyDoFn())
@@ -721,7 +722,7 @@ class PTransformLabelsTest(unittest.TestCase):
     self.check_label(beam.CombinePerKey(sum), r'CombinePerKey(sum)')
 
     class MyDoFn(beam.DoFn):
-      def process(self, context):
+      def process(self):
         pass
 
     self.check_label(beam.ParDo(MyDoFn()), r'ParDo(MyDoFn)')
@@ -796,8 +797,8 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
     @with_input_types(int, int)
     @with_output_types(typehints.List[int])
     class AddWithFive(beam.DoFn):
-      def process(self, context, five):
-        return [context.element + five]
+      def process(self, element, five):
+        return [element + five]
 
     d = (self.p
          | 'T' >> beam.Create([1, 2, 3]).with_output_types(int)
@@ -810,8 +811,8 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
     @with_input_types(str, str)
     @with_output_types(typehints.List[str])
     class ToUpperCaseWithPrefix(beam.DoFn):
-      def process(self, context, prefix):
-        return [prefix + context.element.upper()]
+      def process(self, element, prefix):
+        return [prefix + element.upper()]
 
     with self.assertRaises(typehints.TypeCheckError) as e:
       (self.p
@@ -819,7 +820,7 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
        | 'Upper' >> beam.ParDo(ToUpperCaseWithPrefix(), 'hello'))
 
     self.assertEqual("Type hint violation for 'Upper': "
-                     "requires <type 'str'> but got <type 'int'> for context",
+                     "requires <type 'str'> but got <type 'int'> for element",
                      e.exception.message)
 
   def test_do_fn_pipeline_runtime_type_check_satisfied(self):
@@ -828,8 +829,8 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
     @with_input_types(int, int)
     @with_output_types(int)
     class AddWithNum(beam.DoFn):
-      def process(self, context, num):
-        return [context.element + num]
+      def process(self, element, num):
+        return [element + num]
 
     d = (self.p
          | 'T' >> beam.Create([1, 2, 3]).with_output_types(int)
@@ -844,8 +845,8 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
     @with_input_types(int, int)
     @with_output_types(typehints.List[int])
     class AddWithNum(beam.DoFn):
-      def process(self, context, num):
-        return [context.element + num]
+      def process(self, element, num):
+        return [element + num]
 
     with self.assertRaises(typehints.TypeCheckError) as e:
       (self.p
@@ -854,7 +855,7 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
       self.p.run()
 
     self.assertEqual("Type hint violation for 'Add': "
-                     "requires <type 'int'> but got <type 'str'> for context",
+                     "requires <type 'int'> but got <type 'str'> for element",
                      e.exception.message)
 
   def test_pardo_does_not_type_check_using_type_hint_decorators(self):
@@ -1513,7 +1514,7 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
     self.assertEqual(
         "Type hint violation for 'ParDo(PartialGroupByKeyCombiningValues)': "
         "requires Tuple[TypeVariable[K], Union[float, int, long]] "
-        "but got Tuple[None, str] for context",
+        "but got Tuple[None, str] for element",
         e.exception.message)
 
   def test_mean_globally_runtime_checking_satisfied(self):
@@ -1570,7 +1571,7 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
     self.assertEqual(
         "Type hint violation for 'ParDo(PartialGroupByKeyCombiningValues)': "
         "requires Tuple[TypeVariable[K], Union[float, int, long]] "
-        "but got Tuple[str, str] for context",
+        "but got Tuple[str, str] for element",
         e.exception.message)
 
   def test_mean_per_key_runtime_checking_satisfied(self):
@@ -1603,7 +1604,7 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
         "Runtime type violation detected within "
         "ParDo(OddMean/CombinePerKey(MeanCombineFn)/LiftedCombinePerKey/"
         "ParDo(PartialGroupByKeyCombiningValues)): "
-        "Type-hint for argument: 'context.element' violated: "
+        "Type-hint for argument: 'element' violated: "
         "Tuple[TypeVariable[K], Union[float, int, long]]"
         " hint type-constraint violated. "
         "The type of element #1 in the passed tuple is incorrect. "
@@ -1651,7 +1652,7 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
     self.assertEqual(
         "Type hint violation for 'ParDo(PartialGroupByKeyCombiningValues)': "
         "requires Tuple[TypeVariable[K], Any] "
-        "but got <type 'int'> for context",
+        "but got <type 'int'> for element",
         e.exception.message)
 
   def test_count_perkey_runtime_type_checking_satisfied(self):
@@ -1732,7 +1733,7 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
     self.assertEqual(
         "Type hint violation for 'ParDo(PartialGroupByKeyCombiningValues)': "
         "requires Tuple[TypeVariable[K], TypeVariable[T]] "
-        "but got <type 'int'> for context",
+        "but got <type 'int'> for element",
         e.exception.message)
 
   def test_per_key_pipeline_checking_satisfied(self):
@@ -1867,7 +1868,7 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
         "Type hint violation for 'ParDo(PartialGroupByKeyCombiningValues)': "
         "requires "
         "Tuple[TypeVariable[K], Tuple[TypeVariable[K], TypeVariable[V]]] "
-        "but got Tuple[None, int] for context",
+        "but got Tuple[None, int] for element",
         e.exception.message)
 
   def test_to_dict_pipeline_check_satisfied(self):

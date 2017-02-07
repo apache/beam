@@ -28,10 +28,13 @@ import java.util.List;
 import java.util.Set;
 import org.apache.beam.runners.spark.SparkPipelineOptions;
 import org.apache.beam.runners.spark.aggregators.ClearAggregatorsRule;
+import org.apache.beam.runners.spark.aggregators.SparkAggregators;
 import org.apache.beam.runners.spark.examples.WordCount;
+import org.apache.beam.runners.spark.translation.SparkContextFactory;
 import org.apache.beam.runners.spark.translation.streaming.utils.SparkTestPipelineOptions;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.MapElements;
@@ -94,5 +97,15 @@ public class NamedAggregatorsTest {
 
     assertThat(InMemoryMetrics.<Double>valueOf("emptyLines"), is(1d));
 
+  }
+
+  @Test
+  public void testNonExistingAggregatorName() throws Exception {
+    final SparkPipelineOptions options = PipelineOptionsFactory.as(SparkPipelineOptions.class);
+    final Long valueOf =
+        SparkAggregators.valueOf(
+            "myMissingAggregator", Long.class, SparkContextFactory.getSparkContext(options));
+
+    assertThat(valueOf, is(nullValue()));
   }
 }

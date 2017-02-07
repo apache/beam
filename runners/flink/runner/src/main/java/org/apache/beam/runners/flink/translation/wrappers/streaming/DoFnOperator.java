@@ -33,8 +33,11 @@ import org.apache.beam.runners.core.AggregatorFactory;
 import org.apache.beam.runners.core.DoFnRunner;
 import org.apache.beam.runners.core.DoFnRunners;
 import org.apache.beam.runners.core.ExecutionContext;
+import org.apache.beam.runners.core.GroupAlsoByWindowViaWindowSetNewDoFn;
 import org.apache.beam.runners.core.PushbackSideInputDoFnRunner;
 import org.apache.beam.runners.core.SideInputHandler;
+import org.apache.beam.runners.core.StateInternals;
+import org.apache.beam.runners.core.TimerInternals;
 import org.apache.beam.runners.flink.translation.utils.SerializedPipelineOptions;
 import org.apache.beam.runners.flink.translation.wrappers.SerializableFnAggregatorWrapper;
 import org.apache.beam.sdk.coders.Coder;
@@ -50,10 +53,8 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.NullSideInputReader;
 import org.apache.beam.sdk.util.SideInputReader;
-import org.apache.beam.sdk.util.TimerInternals;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowingStrategy;
-import org.apache.beam.sdk.util.state.StateInternals;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.flink.api.common.ExecutionConfig;
@@ -127,6 +128,10 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
 
   private transient Map<String, KvStateSnapshot<?, ?, ?, ?, ?>> restoredSideInputState;
 
+  protected transient FlinkStateInternals<?> stateInternals;
+
+  private final Coder<?> keyCoder;
+
   public DoFnOperator(
       DoFn<InputT, FnOutputT> doFn,
       TypeInformation<WindowedValue<InputT>> inputType,
@@ -136,7 +141,8 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
       WindowingStrategy<?, ?> windowingStrategy,
       Map<Integer, PCollectionView<?>> sideInputTagMapping,
       Collection<PCollectionView<?>> sideInputs,
-      PipelineOptions options) {
+      PipelineOptions options,
+      Coder<?> keyCoder) {
     this.doFn = doFn;
     this.mainOutputTag = mainOutputTag;
     this.sideOutputTags = sideOutputTags;
@@ -156,6 +162,8 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
         new ListStateDescriptor<>("pushed-back-values", inputType);
 
     setChainingStrategy(ChainingStrategy.ALWAYS);
+
+    this.keyCoder = keyCoder;
   }
 
   protected ExecutionContext.StepContext createStepContext() {
@@ -229,10 +237,16 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
 
     outputManager = outputManagerFactory.create(output);
 
+    if (keyCoder != null) {
+      stateInternals = new FlinkStateInternals<>(getStateBackend(), keyCoder);
+    }
+
     this.doFn = getDoFn();
     doFnInvoker = DoFnInvokers.invokerFor(doFn);
 
     doFnInvoker.invokeSetup();
+
+    ExecutionContext.StepContext stepContext = createStepContext();
 
     DoFnRunner<InputT, FnOutputT> doFnRunner = DoFnRunners.simpleRunner(
         serializedOptions.getPipelineOptions(),
@@ -241,13 +255,26 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
         outputManager,
         mainOutputTag,
         sideOutputTags,
-        createStepContext(),
+        stepContext,
         aggregatorFactory,
         windowingStrategy);
 
+    if (doFn instanceof GroupAlsoByWindowViaWindowSetNewDoFn) {
+      // When the doFn is this, we know it came from WindowDoFnOperator and
+      //   InputT = KeyedWorkItem<K, V>
+      //   OutputT = KV<K, V>
+      //
+      // for some K, V
+
+      doFnRunner = DoFnRunners.lateDataDroppingRunner(
+          (DoFnRunner) doFnRunner,
+          stepContext,
+          windowingStrategy,
+          ((GroupAlsoByWindowViaWindowSetNewDoFn) doFn).getDroppedDueToLatenessAggregator());
+    }
+
     pushbackDoFnRunner =
         PushbackSideInputDoFnRunner.create(doFnRunner, sideInputs, sideInputHandler);
-
   }
 
   @Override
@@ -521,7 +548,7 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
 
     @Override
     public StateInternals<?> stateInternals() {
-      throw new UnsupportedOperationException("Not supported for regular DoFns.");
+      return stateInternals;
     }
 
     @Override

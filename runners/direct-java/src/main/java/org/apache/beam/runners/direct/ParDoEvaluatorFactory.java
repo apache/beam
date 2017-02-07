@@ -111,7 +111,7 @@ final class ParDoEvaluatorFactory<InputT, OutputT> implements TransformEvaluator
             .getExecutionContext(application, inputBundleKey)
             .getOrCreateStepContext(stepName, stepName);
 
-    DoFnLifecycleManager fnManager = getManagerForCloneOf(doFn);
+    DoFnLifecycleManager fnManager = fnClones.getUnchecked(doFn);
 
     return DoFnLifecycleManagerRemovingTransformEvaluator.wrapping(
         createParDoEvaluator(
@@ -170,7 +170,4 @@ final class ParDoEvaluatorFactory<InputT, OutputT> implements TransformEvaluator
     return pcs;
   }
 
-  public DoFnLifecycleManager getManagerForCloneOf(DoFn<?, ?> fn) {
-    return fnClones.getUnchecked(fn);
-  }
 }

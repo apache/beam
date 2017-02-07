@@ -45,9 +45,11 @@ import logging
 
 import apache_beam as beam
 from apache_beam import combiners
-from apache_beam import window
 from apache_beam.io import ReadFromText
 from apache_beam.io import WriteToText
+from apache_beam.transforms.window import FixedWindows
+from apache_beam.transforms.window import Sessions
+from apache_beam.transforms.window import TimestampedValue
 from apache_beam.utils.pipeline_options import PipelineOptions
 from apache_beam.utils.pipeline_options import SetupOptions
 
@@ -60,12 +62,12 @@ MAX_TIMESTAMP = 0x7fffffffffffffff
 class ExtractUserAndTimestampDoFn(beam.DoFn):
   """Extracts user and timestamp representing a Wikipedia edit."""
 
-  def process(self, context):
-    table_row = json.loads(context.element)
+  def process(self, element):
+    table_row = json.loads(element)
     if 'contributor_username' in table_row:
       user_name = table_row['contributor_username']
       timestamp = table_row['timestamp']
-      yield window.TimestampedValue(user_name, timestamp)
+      yield TimestampedValue(user_name, timestamp)
 
 
 class ComputeSessions(beam.PTransform):
@@ -81,7 +83,7 @@ class ComputeSessions(beam.PTransform):
   def expand(self, pcoll):
     return (pcoll
             | 'ComputeSessionsWindow' >> beam.WindowInto(
-                window.Sessions(gap_size=ONE_HOUR_IN_SECONDS))
+                Sessions(gap_size=ONE_HOUR_IN_SECONDS))
             | combiners.Count.PerElement())
 
 
@@ -94,7 +96,7 @@ class TopPerMonth(beam.PTransform):
   def expand(self, pcoll):
     return (pcoll
             | 'TopPerMonthWindow' >> beam.WindowInto(
-                window.FixedWindows(size=THIRTY_DAYS_IN_SECONDS))
+                FixedWindows(size=THIRTY_DAYS_IN_SECONDS))
             | 'Top' >> combiners.core.CombineGlobally(
                 combiners.TopCombineFn(
                     10, lambda first, second: first[1] < second[1]))
@@ -104,20 +106,18 @@ class TopPerMonth(beam.PTransform):
 class SessionsToStringsDoFn(beam.DoFn):
   """Adds the session information to be part of the key."""
 
-  def process(self, context):
-    yield (context.element[0] + ' : ' +
-           ', '.join([str(w) for w in context.windows]), context.element[1])
+  def process(self, element, window=beam.DoFn.WindowParam):
+    yield (element[0] + ' : ' + str(window), element[1])
 
 
 class FormatOutputDoFn(beam.DoFn):
   """Formats a string containing the user, count, and session."""
 
-  def process(self, context):
-    for kv in context.element:
+  def process(self, element, window=beam.DoFn.WindowParam):
+    for kv in element:
       session = kv[0]
       count = kv[1]
-      yield (session + ' : ' + str(count) + ' : '
-             + ', '.join([str(w) for w in context.windows]))
+      yield session + ' : ' + str(count) + ' : ' + str(window)
 
 
 class ComputeTopSessions(beam.PTransform):

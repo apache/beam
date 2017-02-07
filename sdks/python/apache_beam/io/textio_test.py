@@ -258,8 +258,8 @@ class TextSourceTest(unittest.TestCase):
         (splits[0].source, splits[0].start_position, splits[0].stop_position))
 
   def test_dynamic_work_rebalancing(self):
-    file_name, expected_data = write_data(15)
-    assert len(expected_data) == 15
+    file_name, expected_data = write_data(5)
+    assert len(expected_data) == 5
     source = TextSource(file_name, 0, CompressionTypes.UNCOMPRESSED, True,
                         coders.StrUtf8Coder())
     splits = [split for split in source.split(desired_bundle_size=100000)]
@@ -279,8 +279,8 @@ class TextSourceTest(unittest.TestCase):
         perform_multi_threaded_test=False)
 
   def test_dynamic_work_rebalancing_mixed_eol(self):
-    file_name, expected_data = write_data(15, eol=EOL.MIXED)
-    assert len(expected_data) == 15
+    file_name, expected_data = write_data(5, eol=EOL.MIXED)
+    assert len(expected_data) == 5
     source = TextSource(file_name, 0, CompressionTypes.UNCOMPRESSED, True,
                         coders.StrUtf8Coder())
     splits = [split for split in source.split(desired_bundle_size=100000)]
@@ -374,7 +374,7 @@ class TextSourceTest(unittest.TestCase):
     pipeline.run()
 
   def test_read_gzip_large(self):
-    _, lines = write_data(10000)
+    _, lines = write_data(1000)
     file_name = tempfile.NamedTemporaryFile(
         delete=False, prefix=tempfile.template).name
     with gzip.GzipFile(file_name, 'wb') as f:
@@ -389,7 +389,7 @@ class TextSourceTest(unittest.TestCase):
     pipeline.run()
 
   def test_read_gzip_large_after_splitting(self):
-    _, lines = write_data(10000)
+    _, lines = write_data(1000)
     file_name = tempfile.NamedTemporaryFile(
         delete=False, prefix=tempfile.template).name
     with gzip.GzipFile(file_name, 'wb') as f:

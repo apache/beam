@@ -64,11 +64,9 @@ class DatastoreioTest(unittest.TestCase):
 
         split_query_fn = ReadFromDatastore.SplitQueryFn(
             self._PROJECT, self._query, None, num_splits)
-        mock_context = MagicMock()
-        mock_context.element = self._query
-        split_query_fn.start_bundle(mock_context)
+        split_query_fn.start_bundle()
         returned_split_queries = []
-        for split_query in split_query_fn.process(mock_context):
+        for split_query in split_query_fn.process(self._query):
           returned_split_queries.append(split_query)
 
         self.assertEqual(len(returned_split_queries), num_splits)
@@ -93,11 +91,9 @@ class DatastoreioTest(unittest.TestCase):
                           side_effect=fake_get_splits):
           split_query_fn = ReadFromDatastore.SplitQueryFn(
               self._PROJECT, self._query, None, num_splits)
-          mock_context = MagicMock()
-          mock_context.element = self._query
-          split_query_fn.start_bundle(mock_context)
+          split_query_fn.start_bundle()
           returned_split_queries = []
-          for split_query in split_query_fn.process(mock_context):
+          for split_query in split_query_fn.process(self._query):
             returned_split_queries.append(split_query)
 
           self.assertEqual(len(returned_split_queries), expected_num_splits)
@@ -112,11 +108,9 @@ class DatastoreioTest(unittest.TestCase):
       self._query.limit.value = 3
       split_query_fn = ReadFromDatastore.SplitQueryFn(
           self._PROJECT, self._query, None, 4)
-      mock_context = MagicMock()
-      mock_context.element = self._query
-      split_query_fn.start_bundle(mock_context)
+      split_query_fn.start_bundle()
       returned_split_queries = []
-      for split_query in split_query_fn.process(mock_context):
+      for split_query in split_query_fn.process(self._query):
         returned_split_queries.append(split_query)
 
       self.assertEqual(1, len(returned_split_queries))
@@ -138,11 +132,9 @@ class DatastoreioTest(unittest.TestCase):
                           side_effect=ValueError("Testing query split error")):
           split_query_fn = ReadFromDatastore.SplitQueryFn(
               self._PROJECT, self._query, None, num_splits)
-          mock_context = MagicMock()
-          mock_context.element = self._query
-          split_query_fn.start_bundle(mock_context)
+          split_query_fn.start_bundle()
           returned_split_queries = []
-          for split_query in split_query_fn.process(mock_context):
+          for split_query in split_query_fn.process(self._query):
             returned_split_queries.append(split_query)
 
           self.assertEqual(len(returned_split_queries), expected_num_splits)
@@ -182,12 +174,10 @@ class DatastoreioTest(unittest.TestCase):
 
       datastore_write_fn = _Mutate.DatastoreWriteFn(self._PROJECT)
 
-      mock_context = MagicMock()
-      datastore_write_fn.start_bundle(mock_context)
+      datastore_write_fn.start_bundle()
       for mutation in expected_mutations:
-        mock_context.element = mutation
-        datastore_write_fn.process(mock_context)
-      datastore_write_fn.finish_bundle(mock_context)
+        datastore_write_fn.process(mutation)
+      datastore_write_fn.finish_bundle()
 
       self.assertEqual(actual_mutations, expected_mutations)
       self.assertEqual((num_entities - 1) / _Mutate._WRITE_BATCH_SIZE + 1,

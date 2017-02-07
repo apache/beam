@@ -32,6 +32,7 @@ string. The tags can contain only letters, digits and _.
 
 import apache_beam as beam
 from apache_beam.test_pipeline import TestPipeline
+from apache_beam.metrics import Metrics
 
 # Quiet some pylint warnings that happen because of the somewhat special
 # format for the code snippets.
@@ -306,8 +307,8 @@ def pipeline_logging(lines, output):
 
   class ExtractWordsFn(beam.DoFn):
 
-    def process(self, context):
-      words = re.findall(r'[A-Za-z\']+', context.element)
+    def process(self, element):
+      words = re.findall(r'[A-Za-z\']+', element)
       for word in words:
         yield word
 
@@ -347,15 +348,15 @@ def pipeline_monitoring(renames):
 
   class ExtractWordsFn(beam.DoFn):
 
-    def process(self, context):
-      words = re.findall(r'[A-Za-z\']+', context.element)
+    def process(self, element):
+      words = re.findall(r'[A-Za-z\']+', element)
       for word in words:
         yield word
 
   class FormatCountsFn(beam.DoFn):
 
-    def process(self, context):
-      word, count = context.element
+    def process(self, element):
+      word, count = element
       yield '%s: %s' % (word, count)
 
   # [START pipeline_monitoring_composite]
@@ -491,8 +492,8 @@ def examples_wordcount_wordcount(renames):
   # [START examples_wordcount_wordcount_dofn]
   class FormatAsTextFn(beam.DoFn):
 
-    def process(self, context):
-      word, count = context.element
+    def process(self, element):
+      word, count = element
       yield '%s: %s' % (word, count)
 
   formatted = counts | beam.ParDo(FormatAsTextFn())
@@ -516,25 +517,24 @@ def examples_wordcount_debugging(renames):
   class FilterTextFn(beam.DoFn):
     """A DoFn that filters for a specific key based on a regular expression."""
 
-    # A custom aggregator can track values in your pipeline as it runs. Create
-    # custom aggregators matched_word and unmatched_words.
-    matched_words = beam.Aggregator('matched_words')
-    umatched_words = beam.Aggregator('umatched_words')
-
     def __init__(self, pattern):
       self.pattern = pattern
+      # A custom metric can track values in your pipeline as it runs. Create
+      # custom metrics matched_word and unmatched_words.
+      self.matched_words = Metrics.counter(self.__class__, 'matched_words')
+      self.umatched_words = Metrics.counter(self.__class__, 'umatched_words')
 
-    def process(self, context):
-      word, _ = context.element
+    def process(self, element):
+      word, _ = element
       if re.match(self.pattern, word):
         # Log at INFO level each element we match. When executing this pipeline
         # using the Dataflow service, these log lines will appear in the Cloud
         # Logging UI.
         logging.info('Matched %s', word)
 
-        # Add 1 to the custom aggregator matched_words
-        context.aggregate_to(self.matched_words, 1)
-        yield context.element
+        # Add 1 to the custom metric counter matched_words
+        self.matched_words.inc()
+        yield element
       else:
         # Log at the "DEBUG" level each element that is not matched. Different
         # log levels can be used to control the verbosity of logging providing
@@ -543,8 +543,8 @@ def examples_wordcount_debugging(renames):
         # Logger. This log message will not be visible in the Cloud Logger.
         logging.debug('Did not match %s', word)
 
-        # Add 1 to the custom aggregator umatched_words
-        context.aggregate_to(self.umatched_words, 1)
+        # Add 1 to the custom metric counter umatched_words
+        self.umatched_words.inc()
   # [END example_wordcount_debugging_logging]
   # [END example_wordcount_debugging_aggregators]
 
@@ -828,8 +828,7 @@ def model_textio(renames):
   # [START model_textio_read]
   p = beam.Pipeline(options=PipelineOptions())
   # [START model_pipelineio_read]
-  lines = p | 'ReadFromText' >> beam.io.ReadFromText(
-      'gs://my_bucket/path/to/input-*.csv')
+  lines = p | 'ReadFromText' >> beam.io.ReadFromText('path/to/input-*.csv')
   # [END model_pipelineio_read]
   # [END model_textio_read]
 
@@ -837,10 +836,25 @@ def model_textio(renames):
   filtered_words = lines | 'FilterWords' >> beam.FlatMap(filter_words)
   # [START model_pipelineio_write]
   filtered_words | 'WriteToText' >> beam.io.WriteToText(
-      'gs://my_bucket/path/to/numbers', file_name_suffix='.csv')
+      '/path/to/numbers', file_name_suffix='.csv')
   # [END model_pipelineio_write]
   # [END model_textio_write]
 
+  p.visit(SnippetUtils.RenameFiles(renames))
+  p.run().wait_until_finish()
+
+
+def model_textio_compressed(renames, expected):
+  """Using a Read Transform to read compressed text files."""
+  p = TestPipeline()
+
+  # [START model_textio_write_compressed]
+  lines = p | 'ReadFromText' >> beam.io.ReadFromText(
+      '/path/to/input-*.csv.gz',
+      compression_type=beam.io.fileio.CompressionTypes.GZIP)
+  # [END model_textio_write_compressed]
+
+  beam.assert_that(lines, beam.equal_to(expected))
   p.visit(SnippetUtils.RenameFiles(renames))
   p.run().wait_until_finish()
 

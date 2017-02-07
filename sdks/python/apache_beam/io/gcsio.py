@@ -26,6 +26,7 @@ import fnmatch
 import logging
 import multiprocessing
 import os
+import Queue
 import re
 import threading
 import traceback
@@ -62,6 +63,10 @@ except ImportError:
 # | 400 MB buffer | 34.72 MB/s | 71.13 MB/s  | 79.13 MB/s  | 85.39 MB/s  |
 # +---------------+------------+-------------+-------------+-------------+
 DEFAULT_READ_BUFFER_SIZE = 16 * 1024 * 1024
+
+# This is the number of seconds the library will wait for a partial-file read
+# operation from GCS to complete before retrying.
+DEFAULT_READ_SEGMENT_TIMEOUT_SECONDS = 60
 
 # This is the size of chunks used when writing to GCS.
 WRITE_CHUNK_SIZE = 8 * 1024 * 1024
@@ -393,18 +398,20 @@ class GcsBufferedReader(object):
                client,
                path,
                mode='r',
-               buffer_size=DEFAULT_READ_BUFFER_SIZE):
+               buffer_size=DEFAULT_READ_BUFFER_SIZE,
+               segment_timeout=DEFAULT_READ_SEGMENT_TIMEOUT_SECONDS):
     self.client = client
     self.path = path
     self.bucket, self.name = parse_gcs_path(path)
     self.mode = mode
     self.buffer_size = buffer_size
+    self.segment_timeout = segment_timeout
 
     # Get object state.
-    get_request = (storage.StorageObjectsGetRequest(
+    self.get_request = (storage.StorageObjectsGetRequest(
         bucket=self.bucket, object=self.name))
     try:
-      metadata = self._get_object_metadata(get_request)
+      metadata = self._get_object_metadata(self.get_request)
     except HttpError as http_error:
       if http_error.status_code == 404:
         raise IOError(errno.ENOENT, 'Not found: %s' % self.path)
@@ -415,13 +422,13 @@ class GcsBufferedReader(object):
     self.size = metadata.size
 
     # Ensure read is from file of the correct generation.
-    get_request.generation = metadata.generation
+    self.get_request.generation = metadata.generation
 
     # Initialize read buffer state.
     self.download_stream = cStringIO.StringIO()
     self.downloader = transfer.Download(
-        self.download_stream, auto_transfer=False, chunksize=buffer_size)
-    self.client.objects.Get(get_request, download=self.downloader)
+        self.download_stream, auto_transfer=False, chunksize=self.buffer_size)
+    self.client.objects.Get(self.get_request, download=self.downloader)
     self.position = 0
     self.buffer = ''
     self.buffer_start_position = 0
@@ -539,7 +546,47 @@ class GcsBufferedReader(object):
         self.buffer_start_position + len(self.buffer) <= self.position):
       bytes_to_request = min(self._remaining(), self.buffer_size)
       self.buffer_start_position = self.position
-      self.buffer = self._get_segment(self.position, bytes_to_request)
+      retry_count = 0
+      while retry_count <= 10:
+        queue = Queue.Queue()
+        t = threading.Thread(target=self._fetch_to_queue,
+                             args=(queue, self._get_segment,
+                                   (self.position, bytes_to_request)))
+        t.daemon = True
+        t.start()
+        try:
+          result, exn, tb = queue.get(timeout=self.segment_timeout)
+        except Queue.Empty:
+          logging.warning(
+              ('Timed out fetching %d bytes from position %d of %s after %f '
+               'seconds; retrying...'), bytes_to_request, self.position,
+              self.path, self.segment_timeout)
+          retry_count += 1
+          # Reinitialize download objects.
+          self.download_stream = cStringIO.StringIO()
+          self.downloader = transfer.Download(
+              self.download_stream, auto_transfer=False,
+              chunksize=self.buffer_size)
+          self.client.objects.Get(self.get_request, download=self.downloader)
+          continue
+        if exn:
+          logging.error(
+              ('Exception while fetching %d bytes from position %d of %s: '
+               '%s\n%s'),
+              bytes_to_request, self.position, self.path, exn, tb)
+          raise exn
+        self.buffer = result
+        return
+      raise GcsIOError(
+          'Reached retry limit for _fetch_next_if_buffer_exhausted.')
+
+  def _fetch_to_queue(self, queue, func, args):
+    try:
+      value = func(*args)
+      queue.put((value, None, None))
+    except Exception as e:  # pylint: disable=broad-except
+      tb = traceback.format_exc()
+      queue.put((None, e, tb))
 
   def _remaining(self):
     return self.size - self.position
@@ -555,11 +602,15 @@ class GcsBufferedReader(object):
     """Get the given segment of the current GCS file."""
     if size == 0:
       return ''
+    # The objects self.downloader and self.download_stream may be recreated if
+    # this call times out; we save them locally to avoid any threading issues.
+    downloader = self.downloader
+    download_stream = self.download_stream
     end = start + size - 1
-    self.downloader.GetRange(start, end)
-    value = self.download_stream.getvalue()
+    downloader.GetRange(start, end)
+    value = download_stream.getvalue()
     # Clear the cStringIO object after we've read its contents.
-    self.download_stream.truncate(0)
+    download_stream.truncate(0)
     assert len(value) == size
     return value
 

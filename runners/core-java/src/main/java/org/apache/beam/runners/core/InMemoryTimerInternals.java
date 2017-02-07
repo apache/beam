@@ -29,9 +29,7 @@ import java.util.TreeSet;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.TimeDomain;
-import org.apache.beam.sdk.util.TimerInternals;
 import org.apache.beam.sdk.util.WindowTracing;
-import org.apache.beam.sdk.util.state.StateNamespace;
 import org.joda.time.Instant;
 
 /** {@link TimerInternals} with all watermarks and processing clock simulated in-memory. */

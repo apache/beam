@@ -18,6 +18,7 @@
 """Tests for all code snippets used in public docs."""
 
 import glob
+import gzip
 import logging
 import os
 import tempfile
@@ -48,8 +49,8 @@ class ParDoTest(unittest.TestCase):
 
     # [START model_pardo_pardo]
     class ComputeWordLengthFn(beam.DoFn):
-      def process(self, context):
-        return [len(context.element)]
+      def process(self, element):
+        return [len(element)]
     # [END model_pardo_pardo]
 
     # [START model_pardo_apply]
@@ -63,8 +64,8 @@ class ParDoTest(unittest.TestCase):
 
     # [START model_pardo_yield]
     class ComputeWordLengthFn(beam.DoFn):
-      def process(self, context):
-        yield len(context.element)
+      def process(self, element):
+        yield len(element)
     # [END model_pardo_yield]
 
     word_lengths = words | beam.ParDo(ComputeWordLengthFn())
@@ -151,9 +152,9 @@ class ParDoTest(unittest.TestCase):
 
     # [START model_pardo_side_input_dofn]
     class FilterUsingLength(beam.DoFn):
-      def process(self, context, lower_bound, upper_bound=float('inf')):
-        if lower_bound <= len(context.element) <= upper_bound:
-          yield context.element
+      def process(self, element, lower_bound, upper_bound=float('inf')):
+        if lower_bound <= len(element) <= upper_bound:
+          yield element
 
     small_words = words | beam.ParDo(FilterUsingLength(), 0, 3)
     # [END model_pardo_side_input_dofn]
@@ -163,17 +164,17 @@ class ParDoTest(unittest.TestCase):
     # [START model_pardo_emitting_values_on_side_outputs]
     class ProcessWords(beam.DoFn):
 
-      def process(self, context, cutoff_length, marker):
-        if len(context.element) <= cutoff_length:
+      def process(self, element, cutoff_length, marker):
+        if len(element) <= cutoff_length:
           # Emit this short word to the main output.
-          yield context.element
+          yield element
         else:
           # Emit this word's long length to a side output.
           yield pvalue.SideOutputValue(
-              'above_cutoff_lengths', len(context.element))
-        if context.element.startswith(marker):
+              'above_cutoff_lengths', len(element))
+        if element.startswith(marker):
           # Emit this word to a different side output.
-          yield pvalue.SideOutputValue('marked strings', context.element)
+          yield pvalue.SideOutputValue('marked strings', element)
     # [END model_pardo_emitting_values_on_side_outputs]
 
     words = ['a', 'an', 'the', 'music', 'xyz']
@@ -262,9 +263,9 @@ class TypeHintsTest(unittest.TestCase):
       # [START type_hints_do_fn]
       @beam.typehints.with_input_types(int)
       class FilterEvensDoFn(beam.DoFn):
-        def process(self, context):
-          if context.element % 2 == 0:
-            yield context.element
+        def process(self, element):
+          if element % 2 == 0:
+            yield element
       evens = numbers | beam.ParDo(FilterEvensDoFn())
       # [END type_hints_do_fn]
 
@@ -355,28 +356,36 @@ class SnippetsTest(unittest.TestCase):
     To be used for testing.
     """
 
-    def __init__(self, file_to_read=None):
+    def __init__(self, file_to_read=None, compression_type=None):
       self.file_to_read = file_to_read
+      self.compression_type = compression_type
 
     class ReadDoFn(beam.DoFn):
 
-      def __init__(self, file_to_read):
+      def __init__(self, file_to_read, compression_type):
         self.file_to_read = file_to_read
+        self.compression_type = compression_type
         self.coder = coders.StrUtf8Coder()
 
-      def process(self, context):
+      def process(self, element):
         pass
 
-      def finish_bundle(self, context):
+      def finish_bundle(self):
         assert self.file_to_read
         for file_name in glob.glob(self.file_to_read):
-          with open(file_name) as file:
-            for record in file:
-              yield self.coder.decode(record.rstrip('\n'))
+          if self.compression_type is None:
+            with open(file_name) as file:
+              for record in file:
+                yield self.coder.decode(record.rstrip('\n'))
+          else:
+            with gzip.open(file_name, 'r') as file:
+              for record in file:
+                yield self.coder.decode(record.rstrip('\n'))
 
     def expand(self, pcoll):
       return pcoll | beam.Create([None]) | 'DummyReadForTesting' >> beam.ParDo(
-          SnippetsTest.DummyReadTransform.ReadDoFn(self.file_to_read))
+          SnippetsTest.DummyReadTransform.ReadDoFn(
+              self.file_to_read, self.compression_type))
 
   class DummyWriteTransform(beam.PTransform):
     """A transform that will replace iobase.WriteToText.
@@ -393,16 +402,16 @@ class SnippetsTest(unittest.TestCase):
         self.file_obj = None
         self.coder = coders.ToStringCoder()
 
-      def start_bundle(self, context):
+      def start_bundle(self):
         assert self.file_to_write
         self.file_to_write += str(uuid.uuid4())
         self.file_obj = open(self.file_to_write, 'w')
 
-      def process(self, context):
+      def process(self, element):
         assert self.file_obj
-        self.file_obj.write(self.coder.encode(context.element) + '\n')
+        self.file_obj.write(self.coder.encode(element) + '\n')
 
-      def finish_bundle(self, context):
+      def finish_bundle(self):
         assert self.file_obj
         self.file_obj.close()
 
@@ -418,14 +427,18 @@ class SnippetsTest(unittest.TestCase):
     # real data.
     beam.io.ReadFromText = SnippetsTest.DummyReadTransform
     beam.io.WriteToText = SnippetsTest.DummyWriteTransform
+    self.temp_files = []
 
   def tearDown(self):
     beam.io.ReadFromText = self.old_read_from_text
     beam.io.WriteToText = self.old_write_to_text
+    # Cleanup all the temporary files created in the test
+    map(os.remove, self.temp_files)
 
   def create_temp_file(self, contents=''):
     with tempfile.NamedTemporaryFile(delete=False) as f:
       f.write(contents)
+      self.temp_files.append(f.name)
       return f.name
 
   def get_output(self, path, sorted_output=True, suffix=''):
@@ -545,6 +558,16 @@ class SnippetsTest(unittest.TestCase):
     self.assertEqual(
         ['aa', 'bb', 'bb', 'cc', 'cc', 'cc'],
         self.get_output(result_path, suffix='.csv'))
+
+  def test_model_textio_compressed(self):
+    temp_path = self.create_temp_file('aa\nbb\ncc')
+    gzip_file_name = temp_path + '.gz'
+    with open(temp_path) as src, gzip.open(gzip_file_name, 'wb') as dst:
+      dst.writelines(src)
+      # Add the temporary gzip file to be cleaned up as well.
+      self.temp_files.append(gzip_file_name)
+    snippets.model_textio_compressed(
+        {'read': gzip_file_name}, ['aa', 'bb', 'cc'])
 
   def test_model_datastoreio(self):
     # We cannot test datastoreio functionality in unit tests therefore we limit
