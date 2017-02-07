@@ -17,6 +17,6 @@
  */
 
 /**
- * Beam FileSystem interfaces and their default implementations.
+ * Apache Beam FileSystem interfaces and their default implementations.
  */
 package org.apache.beam.sdk.io.fs;

@@ -77,7 +77,7 @@ public class GcsResourceId implements ResourceId {
       GcsPath parent = gcsPath.getParent();
       checkState(
           parent != null,
-          String.format("Path: [%s] doesn't have the current directory.", gcsPath));
+          String.format("Failed to get the current directory for path: [%s].", gcsPath));
       return fromGcsPath(parent);
     }
   }

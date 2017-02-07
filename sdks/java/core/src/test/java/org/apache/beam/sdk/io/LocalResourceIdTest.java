@@ -40,7 +40,7 @@ public class LocalResourceIdTest {
   public ExpectedException thrown = ExpectedException.none();
 
   @Test
-  public void testResolve() throws Exception {
+  public void testResolveInUnix() throws Exception {
     if (SystemUtils.IS_OS_WINDOWS) {
       // Skip tests
       return;
@@ -81,7 +81,7 @@ public class LocalResourceIdTest {
   }
 
   @Test
-  public void testResolveNormalization() throws Exception {
+  public void testResolveNormalizationInUnix() throws Exception {
     if (SystemUtils.IS_OS_WINDOWS) {
       // Skip tests
       return;
@@ -137,7 +137,11 @@ public class LocalResourceIdTest {
   }
 
   @Test
-  public void testResolveHandleBadInputs() throws Exception {
+  public void testResolveHandleBadInputsInUnix() throws Exception {
+    if (SystemUtils.IS_OS_WINDOWS) {
+      // Skip tests
+      return;
+    }
     assertEquals(
         toResourceIdentifier("/root/tmp/"),
         toResourceIdentifier("/root/")
@@ -186,7 +190,7 @@ public class LocalResourceIdTest {
   }
 
   @Test
-  public void testGetCurrentDirectory() throws Exception {
+  public void testGetCurrentDirectoryInUnix() throws Exception {
     // Tests for local files without the scheme.
     assertEquals(
         toResourceIdentifier("/root/tmp/"),
@@ -202,13 +206,12 @@ public class LocalResourceIdTest {
     assertEquals(
         toResourceIdentifier("file://根目录/"),
         toResourceIdentifier("file://根目录/输出 文件01.txt").getCurrentDirectory());
-  }
 
-  @Test
-  public void testGetCurrentDirectoryInvalid() throws Exception {
-    thrown.expect(IllegalStateException.class);
-    thrown.expectMessage("Path: [output] doesn't have the current directory.");
-    toResourceIdentifier("output").getCurrentDirectory();
+
+    // Tests path without parent.
+    assertEquals(
+        toResourceIdentifier("./"),
+        toResourceIdentifier("output").getCurrentDirectory());
   }
 
   @Test
