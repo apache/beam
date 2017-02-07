@@ -57,6 +57,8 @@ public class ProvidedSparkContextTest {
     public void testWithProvidedContext() throws Exception {
         JavaSparkContext jsc = new JavaSparkContext("local[*]", "Existing_Context");
         testWithValidProvidedContext(jsc);
+        // A provided context must not be stopped after execution
+        assertFalse(jsc.sc().isStopped());
         jsc.stop();
     }
 
