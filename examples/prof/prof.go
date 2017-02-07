@@ -64,19 +64,12 @@ func build(p *beam.Pipeline) error {
 	if err != nil {
 		return err
 	}
-	col, err := beam.ParDo1(p, Extract, lines)
-	if err != nil {
-		return err
-	}
-	counted, err := count.PerElement(p, col)
-	if err != nil {
-		return err
-	}
-	formatted, err := beam.ParDo1(p, Format2, counted)
-	if err != nil {
-		return err
-	}
-	return beam.ParDo0(p, Drop, formatted)
+
+	col := beam.ParDo(p, Extract, lines)
+	counted := count.PerElement(p, col)
+	formatted := beam.ParDo(p, Format2, counted)
+	beam.ParDo0(p, Drop, formatted)
+	return nil
 }
 
 func run(p *beam.Pipeline, n int) error {

@@ -53,34 +53,19 @@ func Multi(words, sample <-chan string, small, big chan<- string) error {
 	return nil
 }
 
-func build(p *beam.Pipeline) error {
-	lines, err := textio.Read(p, *input)
-	if err != nil {
-		return err
-	}
-	words, err := beam.ParDo1(p, Extract, lines)
-	if err != nil {
-		return err
-	}
-
-	small, big, err := beam.ParDo2(p, Multi, words, beam.SideInput{Input: words})
-	if err != nil {
-		return err
-	}
-
-	if err := textio.Write(p, *output, small); err != nil {
-		return err
-	}
-	return textio.Write(p, *output, big)
-}
-
 func main() {
 	flag.Parse()
 
 	p := beam.NewPipeline()
-	if err := build(p); err != nil {
-		log.Fatalf("Failed to constuct pipeline: %v", err)
-	}
+
+	lines := textio.Read(p, *input)
+	words := beam.ParDo(p, Extract, lines)
+
+	small, big := beam.ParDo2(p, Multi, words, beam.SideInput{Input: words})
+
+	textio.Write(p, *output, small)
+	textio.Write(p, *output, big)
+
 	if err := local.Execute(context.Background(), p); err != nil {
 		log.Fatalf("Failed to execute job: %v", err)
 	}

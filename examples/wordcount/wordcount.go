@@ -53,43 +53,25 @@ func Format2(in <-chan KV, out chan<- string) {
 }
 
 // CountWords is a composite transform.
-func CountWords(p *beam.Pipeline, lines beam.PCollection) (beam.PCollection, error) {
-	return beam.Composite1(p, "CountWords", func(p *beam.Pipeline) (beam.PCollection, error) {
-		col, err := beam.ParDo1(p, Extract, lines)
-		if err != nil {
-			return beam.PCollection{}, err
-		}
+func CountWords(p *beam.Pipeline, lines beam.PCollection) beam.PCollection {
+	return beam.Composite(p, "CountWords", func(p *beam.Pipeline) beam.PCollection {
+		col := beam.ParDo(p, Extract, lines)
 		return count.PerElement(p, col)
 	})
-}
-
-func Wordcount(p *beam.Pipeline) error {
-	lines, err := textio.Read(p, *input)
-	if err != nil {
-		return err
-	}
-	counted, err := CountWords(p, lines)
-	if err != nil {
-		return err
-	}
-	formatted, err := beam.ParDo1(p, Format2, counted)
-	if err != nil {
-		return err
-	}
-	return textio.Write(p, os.ExpandEnv(*output), formatted)
 }
 
 func main() {
 	flag.Parse()
 	log.Print("Running wordcount")
 
-	p := beam.NewPipeline()
-
 	// (1) build pipeline
 
-	if err := Wordcount(p); err != nil {
-		log.Fatalf("Failed to constuct pipeline: %v", err)
-	}
+	p := beam.NewPipeline()
+
+	lines := textio.Read(p, *input)
+	counted := CountWords(p, lines)
+	formatted := beam.ParDo(p, Format2, counted)
+	textio.Write(p, os.ExpandEnv(*output), formatted)
 
 	// (2) execute it locally
 

@@ -45,11 +45,11 @@ func Zero(out chan<- int) {
 func roll(p *beam.Pipeline) beam.PCollection {
 	num := rand.Intn(*real) + 1
 
-	col, _ := beam.Source(p, Zero)
+	col := beam.Source(p, Zero)
 	for i := 0; i < num; i++ {
-		col, _ = beam.ParDo1(p, Inc, col)
+		col = beam.ParDo(p, Inc, col)
 	}
-	col, _ = beam.ParDo1(p, Min, col, beam.Data{Data: *dice})
+	col = beam.ParDo(p, Min, col, beam.Data{Data: *dice})
 
 	log.Printf("Lucky number %v!", num)
 	return col
@@ -91,25 +91,20 @@ func Eval(_ <-chan string, a, b, c, d, e <-chan int) {
 	}
 }
 
-func build(p *beam.Pipeline) error {
-	tick, _ := beam.Source(p, Tick)
-	return beam.ParDo0(p, Eval, tick,
+func main() {
+	flag.Parse()
+	rand.Seed(time.Now().UnixNano())
+
+	p := beam.NewPipeline()
+	tick := beam.Source(p, Tick)
+	beam.ParDo0(p, Eval, tick,
 		beam.SideInput{Input: roll(p)},
 		beam.SideInput{Input: roll(p)},
 		beam.SideInput{Input: roll(p)},
 		beam.SideInput{Input: roll(p)},
 		beam.SideInput{Input: roll(p)},
 	)
-}
 
-func main() {
-	flag.Parse()
-	rand.Seed(time.Now().UnixNano())
-
-	p := beam.NewPipeline()
-	if err := build(p); err != nil {
-		log.Fatalf("Failed to constuct pipeline: %v", err)
-	}
 	if err := local.Execute(context.Background(), p); err != nil {
 		log.Fatalf("Failed to execute job: %v", err)
 	}

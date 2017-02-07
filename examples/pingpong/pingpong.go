@@ -67,8 +67,8 @@ func Subset(a, b <-chan string) {
 	}
 }
 
-func subset(p *beam.Pipeline, a, b beam.PCollection) error {
-	return beam.ParDo0(p, Subset, a, beam.SideInput{Input: b})
+func subset(p *beam.Pipeline, a, b beam.PCollection) {
+	beam.ParDo0(p, Subset, a, beam.SideInput{Input: b})
 }
 
 func Drop(elms <-chan string) {
@@ -79,8 +79,8 @@ func Drop(elms <-chan string) {
 	log.Printf("Dropped: %v", i)
 }
 
-func drop(p *beam.Pipeline, empty beam.PCollection) error {
-	return beam.ParDo0(p, Drop, empty)
+func drop(p *beam.Pipeline, empty beam.PCollection) {
+	beam.ParDo0(p, Drop, empty)
 }
 
 // stitch constructs two composite PTranformations that provide input to each other. It
@@ -89,10 +89,10 @@ func stitch(p *beam.Pipeline, words beam.PCollection) (beam.PCollection, beam.PC
 	ping := p.Composite("ping")
 	pong := p.Composite("pong")
 
-	small1, big1, _ := beam.ParDo2(ping, Multi, words, beam.SideInput{Input: words})   // self-sample (ping)
-	small2, big2, _ := beam.ParDo2(pong, Multi, words, beam.SideInput{Input: big1})    // big-sample  (pong). More words are small.
-	empty3, big3, _ := beam.ParDo2(ping, Multi, big2, beam.SideInput{Input: small1})   // small-sample big (ping). All words are big.
-	small4, empty4, _ := beam.ParDo2(pong, Multi, small2, beam.SideInput{Input: big3}) // big-sample small (pong). All words are small.
+	small1, big1 := beam.ParDo2(ping, Multi, words, beam.SideInput{Input: words})   // self-sample (ping)
+	small2, big2 := beam.ParDo2(pong, Multi, words, beam.SideInput{Input: big1})    // big-sample  (pong). More words are small.
+	empty3, big3 := beam.ParDo2(ping, Multi, big2, beam.SideInput{Input: small1})   // small-sample big (ping). All words are big.
+	small4, empty4 := beam.ParDo2(pong, Multi, small2, beam.SideInput{Input: big3}) // big-sample small (pong). All words are small.
 
 	drop(p, empty3)
 	drop(p, empty4)
@@ -101,29 +101,23 @@ func stitch(p *beam.Pipeline, words beam.PCollection) (beam.PCollection, beam.PC
 	return small4, big3
 }
 
-func build(p *beam.Pipeline) error {
-	lines, _ := textio.Read(p, *input)
-	words, _ := beam.ParDo1(p, Extract, lines)
+func main() {
+	flag.Parse()
 
-	small, big, _ := beam.ParDo2(p, Multi, words, beam.SideInput{Input: words})
+	p := beam.NewPipeline()
+
+	lines := textio.Read(p, *input)
+	words := beam.ParDo(p, Extract, lines)
+
+	small, big := beam.ParDo2(p, Multi, words, beam.SideInput{Input: words})
 	small2, big2 := stitch(p, words)
 
 	subset(p, small, small2)
 	subset(p, big2, big)
 
-	if err := textio.Write(p, *output, small2); err != nil {
-		return err
-	}
-	return textio.Write(p, *output, big2)
-}
+	textio.Write(p, *output, small2)
+	textio.Write(p, *output, big2)
 
-func main() {
-	flag.Parse()
-
-	p := beam.NewPipeline()
-	if err := build(p); err != nil {
-		log.Fatalf("Failed to constuct pipeline: %v", err)
-	}
 	if err := local.Execute(context.Background(), p); err != nil {
 		log.Fatalf("Failed to execute job: %v", err)
 	}

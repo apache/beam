@@ -16,7 +16,7 @@ type Context struct {
 	Filename string `beam:"data"`
 }
 
-func Read(p *beam.Pipeline, filename string) (beam.PCollection, error) {
+func Read(p *beam.Pipeline, filename string) beam.PCollection {
 	return beam.Source(p, readFn, beam.Data{filename})
 }
 
@@ -36,8 +36,8 @@ func readFn(ctx Context, out chan<- string) error {
 	return scanner.Err()
 }
 
-func Write(p *beam.Pipeline, filename string, col beam.PCollection) error {
-	return beam.Sink(p, writeFn, col, beam.Data{filename})
+func Write(p *beam.Pipeline, filename string, col beam.PCollection) {
+	beam.Sink(p, writeFn, col, beam.Data{filename})
 }
 
 func writeFn(ctx Context, lines <-chan string) error {
@@ -94,5 +94,5 @@ func Immediate(p *beam.Pipeline, filename string) (beam.PCollection, error) {
 		return beam.PCollection{}, err
 	}
 
-	return beam.Source(p, lines, beam.Data{data})
+	return beam.Source(p, lines, beam.Data{data}), nil
 }
