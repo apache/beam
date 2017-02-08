@@ -35,14 +35,14 @@ public interface ReadableState<T> {
    *
    * <p>If there will be many calls to {@link #read} for different state in short succession,
    * you should first call {@link #readLater} for all of them so the reads can potentially be
-   * batched (depending on the underlying {@link StateInternals} implementation}.
+   * batched (depending on the underlying implementation}.
    */
   T read();
 
   /**
    * Indicate that the value will be read later.
    *
-   * <p>This allows a {@link StateInternals} implementation to start an asynchronous prefetch or
+   * <p>This allows an implementation to start an asynchronous prefetch or
    * to include this state in the next batch of reads.
    *
    * @return this for convenient chaining

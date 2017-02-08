@@ -49,16 +49,10 @@ import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.OutputTimeFns;
 import org.apache.beam.sdk.util.TimeDomain;
-import org.apache.beam.sdk.util.TimerInternals;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowingStrategy;
-import org.apache.beam.sdk.util.state.StateInternals;
-import org.apache.beam.sdk.util.state.StateInternalsFactory;
-import org.apache.beam.sdk.util.state.StateNamespace;
-import org.apache.beam.sdk.util.state.StateNamespaces;
 import org.apache.beam.sdk.util.state.StateTag;
 import org.apache.beam.sdk.util.state.StateTags;
-import org.apache.beam.sdk.util.state.TimerInternalsFactory;
 import org.apache.beam.sdk.util.state.ValueState;
 import org.apache.beam.sdk.util.state.WatermarkHoldState;
 import org.apache.beam.sdk.values.KV;
@@ -375,7 +369,6 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
         Coder<RestrictionT> restrictionCoder,
         Coder<? extends BoundedWindow> windowCoder) {
       this.fn = fn;
-      this.invoker = DoFnInvokers.invokerFor(fn);
       this.windowCoder = windowCoder;
       this.elementTag =
           StateTags.value("element", WindowedValue.getFullCoder(elementCoder, this.windowCoder));
@@ -393,6 +386,21 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
     public void setProcessElementInvoker(
         SplittableProcessElementInvoker<InputT, OutputT, RestrictionT, TrackerT> invoker) {
       this.processElementInvoker = invoker;
+    }
+
+    public DoFn<InputT, OutputT> getFn() {
+      return fn;
+    }
+
+    @Setup
+    public void setup() throws Exception {
+      invoker = DoFnInvokers.invokerFor(fn);
+      invoker.invokeSetup();
+    }
+
+    @Teardown
+    public void tearDown() throws Exception {
+      invoker.invokeTeardown();
     }
 
     @StartBundle

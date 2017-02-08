@@ -435,7 +435,7 @@ class TestGCSIO(unittest.TestCase):
     f = self.gcs.open(file_name)
     random.seed(0)
     f.buffer_size = 1024 * 1024
-    f.segment_timeout = 0.1
+    f.segment_timeout = 0.01
     self.assertEqual(f.mode, 'r')
     f._real_get_segment = f._get_segment
 

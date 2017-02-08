@@ -17,14 +17,20 @@
  */
 package org.apache.beam.sdk.io.jms;
 
+import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertThat;
+import static org.junit.Assert.fail;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
-
 import javax.jms.Connection;
 import javax.jms.ConnectionFactory;
+import javax.jms.JMSException;
 import javax.jms.Message;
 import javax.jms.MessageConsumer;
 import javax.jms.MessageProducer;
@@ -49,7 +55,6 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
-import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
@@ -71,9 +76,6 @@ public class JmsIOTest {
 
   @Rule
   public final transient TestPipeline pipeline = TestPipeline.create();
-
-  @Rule
-  public ExpectedException expectedException = ExpectedException.none();
 
   @Before
   public void startBroker() throws Exception {
@@ -105,26 +107,34 @@ public class JmsIOTest {
     broker.stop();
   }
 
+  private void runPipelineExpectingJmsConnectException(String innerMessage) {
+    try {
+      pipeline.run();
+      fail();
+    } catch (Exception e) {
+      Throwable cause = e.getCause();
+      assertThat(cause, instanceOf(IOException.class));
+      assertThat(cause.getMessage(), equalTo("Error connecting to JMS"));
+      Throwable innerCause = cause.getCause();
+      assertThat(innerCause, instanceOf(JMSException.class));
+      assertThat(innerCause.getMessage(), containsString(innerMessage));
+    }
+  }
+
   @Test
   @Category(NeedsRunner.class)
   public void testAuthenticationRequired() {
-    expectedException.expect(Exception.class);
-    expectedException.expectMessage("User name [null] or password is invalid.");
-
     pipeline.apply(
         JmsIO.read()
             .withConnectionFactory(connectionFactory)
             .withQueue(QUEUE));
 
-    pipeline.run();
+    runPipelineExpectingJmsConnectException("User name [null] or password is invalid.");
   }
 
   @Test
   @Category(NeedsRunner.class)
   public void testAuthenticationWithBadPassword() {
-    expectedException.expect(Exception.class);
-    expectedException.expectMessage("User name [" + USERNAME + "] or password is invalid.");
-
     pipeline.apply(
         JmsIO.read()
             .withConnectionFactory(connectionFactory)
@@ -132,7 +142,8 @@ public class JmsIOTest {
             .withUsername(USERNAME)
             .withPassword("BAD"));
 
-    pipeline.run();
+    runPipelineExpectingJmsConnectException(
+        "User name [" + USERNAME + "] or password is invalid.");
   }
 
   @Test

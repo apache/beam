@@ -18,6 +18,7 @@
 """Tests for all code snippets used in public docs."""
 
 import glob
+import gzip
 import logging
 import os
 import tempfile
@@ -355,13 +356,15 @@ class SnippetsTest(unittest.TestCase):
     To be used for testing.
     """
 
-    def __init__(self, file_to_read=None):
+    def __init__(self, file_to_read=None, compression_type=None):
       self.file_to_read = file_to_read
+      self.compression_type = compression_type
 
     class ReadDoFn(beam.DoFn):
 
-      def __init__(self, file_to_read):
+      def __init__(self, file_to_read, compression_type):
         self.file_to_read = file_to_read
+        self.compression_type = compression_type
         self.coder = coders.StrUtf8Coder()
 
       def process(self, element):
@@ -370,13 +373,19 @@ class SnippetsTest(unittest.TestCase):
       def finish_bundle(self):
         assert self.file_to_read
         for file_name in glob.glob(self.file_to_read):
-          with open(file_name) as file:
-            for record in file:
-              yield self.coder.decode(record.rstrip('\n'))
+          if self.compression_type is None:
+            with open(file_name) as file:
+              for record in file:
+                yield self.coder.decode(record.rstrip('\n'))
+          else:
+            with gzip.open(file_name, 'r') as file:
+              for record in file:
+                yield self.coder.decode(record.rstrip('\n'))
 
     def expand(self, pcoll):
       return pcoll | beam.Create([None]) | 'DummyReadForTesting' >> beam.ParDo(
-          SnippetsTest.DummyReadTransform.ReadDoFn(self.file_to_read))
+          SnippetsTest.DummyReadTransform.ReadDoFn(
+              self.file_to_read, self.compression_type))
 
   class DummyWriteTransform(beam.PTransform):
     """A transform that will replace iobase.WriteToText.
@@ -418,14 +427,18 @@ class SnippetsTest(unittest.TestCase):
     # real data.
     beam.io.ReadFromText = SnippetsTest.DummyReadTransform
     beam.io.WriteToText = SnippetsTest.DummyWriteTransform
+    self.temp_files = []
 
   def tearDown(self):
     beam.io.ReadFromText = self.old_read_from_text
     beam.io.WriteToText = self.old_write_to_text
+    # Cleanup all the temporary files created in the test
+    map(os.remove, self.temp_files)
 
   def create_temp_file(self, contents=''):
     with tempfile.NamedTemporaryFile(delete=False) as f:
       f.write(contents)
+      self.temp_files.append(f.name)
       return f.name
 
   def get_output(self, path, sorted_output=True, suffix=''):
@@ -545,6 +558,16 @@ class SnippetsTest(unittest.TestCase):
     self.assertEqual(
         ['aa', 'bb', 'bb', 'cc', 'cc', 'cc'],
         self.get_output(result_path, suffix='.csv'))
+
+  def test_model_textio_compressed(self):
+    temp_path = self.create_temp_file('aa\nbb\ncc')
+    gzip_file_name = temp_path + '.gz'
+    with open(temp_path) as src, gzip.open(gzip_file_name, 'wb') as dst:
+      dst.writelines(src)
+      # Add the temporary gzip file to be cleaned up as well.
+      self.temp_files.append(gzip_file_name)
+    snippets.model_textio_compressed(
+        {'read': gzip_file_name}, ['aa', 'bb', 'cc'])
 
   def test_model_datastoreio(self):
     # We cannot test datastoreio functionality in unit tests therefore we limit
