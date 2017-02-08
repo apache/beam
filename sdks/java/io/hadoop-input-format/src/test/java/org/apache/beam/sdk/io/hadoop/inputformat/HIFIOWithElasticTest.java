@@ -57,26 +57,24 @@ import org.elasticsearch.transport.Netty4Plugin;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
-import org.junit.FixMethodOrder;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-import org.junit.runners.MethodSorters;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- *
  * Tests to validate HadoopInputFormatIO for embedded Elasticsearch instance.
  *
  * {@link EsInputFormat} can be used to read data from Elasticsearch. EsInputFormat by default
- * returns key class as Text and value class as LinkedMapWritable. If you want to get MapWritable as
- * value type then you must set property "mapred.mapoutput.value.class" to MapWritable.class.
+ * returns key class as Text and value class as LinkedMapWritable. You can also set MapWritable as
+ * value class, provided that you set the property "mapred.mapoutput.value.class" with
+ * MapWritable.class. If this property is not set then, using MapWritable as value class may give
+ * org.apache.beam.sdk.coders.CoderException due to unexpected extra bytes after decoding.
  */
 @RunWith(JUnit4.class)
-@FixMethodOrder(MethodSorters.JVM)
 public class HIFIOWithElasticTest implements Serializable {
 
   private static final long serialVersionUID = 1L;
@@ -167,7 +165,7 @@ public class HIFIOWithElasticTest implements Serializable {
     pipeline.run().waitUntilFinish();
   }
 
-  public static Map<String, String> populateElasticData(String id, String name) {
+  public static Map<String, String> createElasticRow(String id, String name) {
     Map<String, String> data = new HashMap<String, String>();
     data.put("id", id);
     data.put("scientist", name);
@@ -199,10 +197,10 @@ public class HIFIOWithElasticTest implements Serializable {
               .build();
       node = new PluginNode(settings);
       node.start();
-      LOGGER.info("Elastic im memory server started..");
+      LOGGER.info("Elastic in memory server started.");
       prepareElasticIndex();
       LOGGER.info("Prepared index " + ELASTIC_INDEX_NAME
-          + "and populated data on elastic in memory server..");
+          + "and populated data on elastic in memory server.");
     }
 
     private static void prepareElasticIndex() throws InterruptedException {
@@ -210,8 +208,11 @@ public class HIFIOWithElasticTest implements Serializable {
       node.client().admin().indices().create(indexRequest).actionGet();
       for (int i = 0; i < TEST_DATA_ROW_COUNT; i++) {
         node.client().prepareIndex(ELASTIC_INDEX_NAME, ELASTIC_TYPE_NAME, String.valueOf(i))
-            .setSource(populateElasticData(ELASTIC_TYPE_ID_PREFIX + i, "Faraday")).execute();
-        expectedList.add(ELASTIC_TYPE_ID_PREFIX + i + "|" + "Faraday");
+            .setSource(createElasticRow(ELASTIC_TYPE_ID_PREFIX + i, "Faraday" + i)).execute();
+        expectedList.add(ELASTIC_TYPE_ID_PREFIX + i + "|" + "Faraday" + i);
+
+        // Adding data to the elastic server instance sometimes take slight more time which may lead
+        // to assertion error in the test. Hence, added Thread.sleep(100)
         Thread.sleep(100);
       }
       GetResponse response =
@@ -262,9 +263,9 @@ public class HIFIOWithElasticTest implements Serializable {
 
   /**
    * Set the Elasticsearch configuration parameters in the Hadoop configuration object.
-   * Configuration object should have InputFormat class, key class and value class to be set.
-   * Mandatory fields for ESInputFormat to be set are es.resource, es.nodes, es.port,
-   * es.internal.es.version. Please refer <a
+   * Configuration object should have InputFormat class, key class and value class set. Mandatory
+   * fields for ESInputFormat to be set are es.resource, es.nodes, es.port, es.internal.es.version.
+   * Please refer to <a
    * href="https://www.elastic.co/guide/en/elasticsearch/hadoop/current/configuration.html"
    * >Elasticsearch Configuration</a> for more details.
    */
