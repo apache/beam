@@ -204,8 +204,8 @@ class PTransformTest(unittest.TestCase):
 
     pipeline = TestPipeline()
     nums = pipeline | 'Some Numbers' >> beam.Create([1, 2, 3, 4])
-    results = nums | beam.ParDo(
-        'ClassifyNumbers', SomeDoFn()).with_outputs('odd', 'even', main='main')
+    results = nums | 'ClassifyNumbers' >> beam.ParDo(
+        SomeDoFn()).with_outputs('odd', 'even', main='main')
     assert_that(results.main, equal_to([1, 2, 3, 4]))
     assert_that(results.odd, equal_to([1, 3]), label='assert:odd')
     assert_that(results.even, equal_to([2, 4]), label='assert:even')
@@ -221,8 +221,8 @@ class PTransformTest(unittest.TestCase):
 
     pipeline = TestPipeline()
     nums = pipeline | 'Some Numbers' >> beam.Create([1, 2, 3, 4])
-    results = nums | beam.FlatMap(
-        'ClassifyNumbers', some_fn).with_outputs('odd', 'even', main='main')
+    results = nums | 'ClassifyNumbers' >> beam.FlatMap(
+        some_fn).with_outputs('odd', 'even', main='main')
     assert_that(results.main, equal_to([1, 2, 3, 4]))
     assert_that(results.odd, equal_to([1, 3]), label='assert:odd')
     assert_that(results.even, equal_to([2, 4]), label='assert:even')
@@ -232,8 +232,7 @@ class PTransformTest(unittest.TestCase):
   def test_undeclared_side_outputs(self):
     pipeline = TestPipeline()
     nums = pipeline | 'Some Numbers' >> beam.Create([1, 2, 3, 4])
-    results = nums | beam.FlatMap(
-        'ClassifyNumbers',
+    results = nums | 'ClassifyNumbers' >> beam.FlatMap(
         lambda x: [x,
                    pvalue.SideOutputValue('even' if x % 2 == 0 else 'odd', x)]
     ).with_outputs()
@@ -246,8 +245,7 @@ class PTransformTest(unittest.TestCase):
   def test_empty_side_outputs(self):
     pipeline = TestPipeline()
     nums = pipeline | 'Some Numbers' >> beam.Create([1, 3, 5])
-    results = nums | beam.FlatMap(
-        'ClassifyNumbers',
+    results = nums | 'ClassifyNumbers' >> beam.FlatMap(
         lambda x: [x,
                    pvalue.SideOutputValue('even' if x % 2 == 0 else 'odd', x)]
     ).with_outputs()

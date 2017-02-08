@@ -480,8 +480,8 @@ def examples_wordcount_wordcount(renames):
     def expand(self, pcoll):
       return (pcoll
               # Convert lines of text into individual words.
-              | beam.FlatMap(
-                  'ExtractWords', lambda x: re.findall(r'[A-Za-z\']+', x))
+              | 'ExtractWords' >> beam.FlatMap(
+                  lambda x: re.findall(r'[A-Za-z\']+', x))
 
               # Count the number of times each word occurs.
               | beam.combiners.Count.PerElement())

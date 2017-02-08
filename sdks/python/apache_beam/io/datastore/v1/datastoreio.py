@@ -126,8 +126,10 @@ class ReadFromDatastore(PTransform):
                    self._project, self._query, self._datastore_namespace,
                    self._num_splits)))
 
-    sharded_queries = queries | GroupByKey() | Values() | FlatMap('flatten',
-                                                                  lambda x: x)
+    sharded_queries = (queries
+                       | GroupByKey()
+                       | Values()
+                       | 'flatten' >> FlatMap(lambda x: x))
 
     entities = sharded_queries | 'Read' >> ParDo(
         ReadFromDatastore.ReadFn(self._project, self._datastore_namespace))
