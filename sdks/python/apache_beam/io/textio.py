@@ -248,8 +248,6 @@ class _TextSource(filebasedsource.FileBasedSource):
               sep_bounds[1] - record_start_position_in_buffer)
 
 
-
-
 class _TextSink(fileio.FileSink):
   """A sink to a GCS or local text file or files."""
 
@@ -260,7 +258,7 @@ class _TextSink(fileio.FileSink):
                num_shards=0,
                shard_name_template=None,
                coder=coders.ToStringCoder(),
-               compression_type=CompressionTypes.AUTO,
+               compression_type=fileio.CompressionTypes.AUTO,
                header=None):
     """Initialize a _TextSink.
 
