@@ -4,9 +4,9 @@
  * copyright ownership. The ASF licenses this file to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance with the License. You may obtain a
  * copy of the License at
- *
+ * 
  * http://www.apache.org/licenses/LICENSE-2.0
- *
+ * 
  * Unless required by applicable law or agreed to in writing, software distributed under the License
  * is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express
  * or implied. See the License for the specific language governing permissions and limitations under
@@ -58,12 +58,13 @@ public class HIFIOCassandraIT implements Serializable {
 
   private static final String CASSANDRA_KEYSPACE = "ycsb";
   private static final String CASSANDRA_TABLE = "usertable";
-  private static final String CASSANDRA_THRIFT_PORT_PROPERTY="cassandra.input.thrift.port";
-  private static final String CASSANDRA_THRIFT_ADDRESS_PROPERTY="cassandra.input.thrift.address";
-  private static final String CASSANDRA_PARTITIONER_CLASS_PROPERTY="cassandra.input.partitioner.class";
-  private static final String CASSANDRA_KEYSPACE_PROPERTY="cassandra.input.keyspace";
-  private static final String CASSANDRA_COLUMNFAMILY_PROPERTY="cassandra.input.columnfamily";
-  private static final String CASSANDRA_PARTITIONER_CLASS_VALUE="Murmur3Partitioner";
+  private static final String CASSANDRA_THRIFT_PORT_PROPERTY = "cassandra.input.thrift.port";
+  private static final String CASSANDRA_THRIFT_ADDRESS_PROPERTY = "cassandra.input.thrift.address";
+  private static final String CASSANDRA_PARTITIONER_CLASS_PROPERTY =
+      "cassandra.input.partitioner.class";
+  private static final String CASSANDRA_KEYSPACE_PROPERTY = "cassandra.input.keyspace";
+  private static final String CASSANDRA_COLUMNFAMILY_PROPERTY = "cassandra.input.columnfamily";
+  private static final String CASSANDRA_PARTITIONER_CLASS_VALUE = "Murmur3Partitioner";
   private static final String OUTPUT_WRITE_FILE_PATH = "output-cassandra";
   private static HIFTestOptions options;
 
@@ -79,30 +80,38 @@ public class HIFIOCassandraIT implements Serializable {
   @Test
   public void testHIFReadForCassandra() {
     // Expected hashcode is evaluated during insertion time one time and hardcoded here.
-    String expectedHashCode = "4651110ba1ef2cd3a7315091ca27877b18fceb0e";
+    String expectedHashCode = "a26b01ae5fe64cce653624df8f6ff761bc87c23a";
+    Long NUM_ROWS = 1000L;
     Pipeline pipeline = TestPipeline.create(options);
     Configuration conf = getConfiguration(options);
     SimpleFunction<Row, String> myValueTranslate = new SimpleFunction<Row, String>() {
       @Override
       public String apply(Row input) {
         return input.getString("y_id") + "|" + input.getString("field0") + "|"
-            + input.getString("field1");
+            + input.getString("field1") + "|" + input.getString("field2") + "|"
+            + input.getString("field3") + "|" + input.getString("field4") + "|"
+            + input.getString("field5") + "|" + input.getString("field6") + "|"
+            + input.getString("field7") + "|" + input.getString("field8") + "|"
+            + input.getString("field9") + "|" + input.getString("field10") + "|"
+            + input.getString("field11") + "|" + input.getString("field12") + "|"
+            + input.getString("field13") + "|" + input.getString("field14") + "|"
+            + input.getString("field15") + "|" + input.getString("field16");
       }
     };
-    PCollection<KV<Long, String>> cassandraData = pipeline
-                    .apply(HadoopInputFormatIO.<Long, String>read().withConfiguration(conf)
-                        .withValueTranslation(myValueTranslate));
+    PCollection<KV<Long, String>> cassandraData =
+        pipeline.apply(HadoopInputFormatIO.<Long, String>read().withConfiguration(conf)
+            .withValueTranslation(myValueTranslate));
     PAssert.thatSingleton(cassandraData.apply("Count", Count.<KV<Long, String>>globally()))
-        .isEqualTo(1000L);
+        .isEqualTo(NUM_ROWS);
 
     PCollection<String> textValues = cassandraData.apply(Values.<String>create());
     // Verify the output values using checksum comparison.
     PCollection<String> consolidatedHashcode =
         textValues.apply(Combine.globally(new HashingFn()).withoutDefaults());
     PAssert.that(consolidatedHashcode).containsInAnyOrder(expectedHashCode);
- 
+
     pipeline.run().waitUntilFinish();
-  
+
   }
 
   /**
@@ -111,22 +120,36 @@ public class HIFIOCassandraIT implements Serializable {
    */
   @Test
   public void testHIFReadForCassandraQuery() {
+    String expectedHashCode = "4d5eca54814d73168da6a739ea2bd374831e3fda";
+    Long NUM_ROWS = 1L;
+
     Pipeline pipeline = TestPipeline.create(options);
     Configuration conf = getConfiguration(options);
-    conf.set("cassandra.input.cql", "select * from " + CASSANDRA_KEYSPACE + "." + CASSANDRA_TABLE
-        + " where token(y_id) > ? and token(y_id) <= ? and y_id='user3117720508089767496' allow filtering");
+    conf.set(
+        "cassandra.input.cql",
+        "select * from "
+            + CASSANDRA_KEYSPACE
+            + "."
+            + CASSANDRA_TABLE
+            + " where token(y_id) > ? and token(y_id) <= ? and y_id='user3117720508089767496' allow filtering");
     SimpleFunction<Row, String> myValueTranslate = new SimpleFunction<Row, String>() {
       @Override
       public String apply(Row input) {
         return input.getString("y_id");
       }
     };
-    PCollection<KV<Long, String>> cassandraData = pipeline
-                    .apply(HadoopInputFormatIO.<Long, String>read()
-                        .withConfiguration(conf)
-                        .withValueTranslation(myValueTranslate));
+    PCollection<KV<Long, String>> cassandraData =
+        pipeline.apply(HadoopInputFormatIO.<Long, String>read().withConfiguration(conf)
+            .withValueTranslation(myValueTranslate));
     PAssert.thatSingleton(cassandraData.apply("Count", Count.<KV<Long, String>>globally()))
-        .isEqualTo(1L);
+        .isEqualTo(NUM_ROWS);
+
+    PCollection<String> textValues = cassandraData.apply(Values.<String>create());
+    // Verify the output values using checksum comparison.
+    PCollection<String> consolidatedHashcode =
+        textValues.apply(Combine.globally(new HashingFn()).withoutDefaults());
+    PAssert.that(consolidatedHashcode).containsInAnyOrder(expectedHashCode);
+
 
     pipeline.run().waitUntilFinish();
   }
