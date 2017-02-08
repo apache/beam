@@ -795,8 +795,6 @@ class CombineGlobally(PTransform):
   are applied.
 
   Args:
-    label: name of this transform instance. Useful while monitoring and
-      debugging a pipeline execution.
     pcoll: a PCollection to be reduced into a single value.
     fn: a CombineFn object that will be called to progressively reduce the
       PCollection into single values, or a callable suitable for wrapping
@@ -822,13 +820,13 @@ class CombineGlobally(PTransform):
   has_defaults = True
   as_view = False
 
-  def __init__(self, label_or_fn, *args, **kwargs):
-    if label_or_fn is None or isinstance(label_or_fn, str):
-      label, fn, args = label_or_fn, args[0], args[1:]
-    else:
-      label, fn = None, label_or_fn
+  def __init__(self, fn, *args, **kwargs):
+    if not (isinstance(fn, CombineFn) or callable(fn)):
+      raise TypeError(
+          'CombineGlobally can be used only with combineFn objects. '
+          'Received %r instead.' % (fn))
 
-    super(CombineGlobally, self).__init__(label)
+    super(CombineGlobally, self).__init__()
     self.fn = fn
     self.args = args
     self.kwargs = kwargs
