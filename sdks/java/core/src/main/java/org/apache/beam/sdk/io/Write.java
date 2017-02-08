@@ -97,18 +97,20 @@ public class Write {
    */
   public static class Bound<T> extends PTransform<PCollection<T>, PDone> {
     private final Sink<T> sink;
+    @Nullable
     private final PTransform<PCollection<T>, PCollectionView<Integer>> computeNumShards;
 
     private Bound(
         Sink<T> sink,
         @Nullable PTransform<PCollection<T>, PCollectionView<Integer>> computeNumShards) {
       this.sink = sink;
-        this.computeNumShards = computeNumShards;
+      this.computeNumShards = computeNumShards;
     }
 
     @Override
     public PDone expand(PCollection<T> input) {
-      checkArgument(IsBounded.BOUNDED == input.isBounded(),
+      checkArgument(
+          IsBounded.BOUNDED == input.isBounded(),
           "%s can only be applied to a Bounded PCollection",
           Write.class.getSimpleName());
       PipelineOptions options = input.getPipeline().getOptions();
@@ -134,6 +136,13 @@ public class Write {
       return sink;
     }
 
+    /**
+     * Gets the {@link PTransform} that will be used to determine sharding. This can be either a
+     * static number of shards (as following a call to {@link #withNumShards(int)}), dynamic (by
+     * {@link #withSharding(PTransform)}), or runner-determined (by {@link
+     * #withRunnerDeterminedSharding()}.
+     */
+    @Nullable
     public PTransform<PCollection<T>, PCollectionView<Integer>> getSharding() {
       return computeNumShards;
     }
@@ -485,7 +494,7 @@ public class Write {
 
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
-      builder.add(DisplayData.item("numShards", numShards));
+      builder.add(DisplayData.item("numShards", numShards).withLabel("ConstantShards"));
     }
   }
 }

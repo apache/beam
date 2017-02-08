@@ -356,6 +356,34 @@ public class WriteTest {
   }
 
   @Test
+  public void testCustomShardStrategyDisplayData() {
+    TestSink sink = new TestSink() {
+      @Override
+      public void populateDisplayData(DisplayData.Builder builder) {
+        builder.add(DisplayData.item("foo", "bar"));
+      }
+    };
+    Write.Bound<String> write =
+        Write.to(sink)
+            .withSharding(
+                new PTransform<PCollection<String>, PCollectionView<Integer>>() {
+                  @Override
+                  public PCollectionView<Integer> expand(PCollection<String> input) {
+                    return null;
+                  }
+
+                  @Override
+                  public void populateDisplayData(DisplayData.Builder builder) {
+                    builder.add(DisplayData.item("spam", "ham"));
+                  }
+                });
+    DisplayData displayData = DisplayData.from(write);
+    assertThat(displayData, hasDisplayItem("sink", sink.getClass()));
+    assertThat(displayData, includesDisplayDataFor("sink", sink));
+    assertThat(displayData, hasDisplayItem("spam", "ham"));
+  }
+
+  @Test
   public void testWriteUnbounded() {
     PCollection<String> unbounded = p.apply(CountingInput.unbounded())
         .apply(ToString.of());
