@@ -15,30 +15,27 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io.gcp.storage;
-
-import com.google.auto.service.AutoService;
-import javax.annotation.Nonnull;
-import org.apache.beam.sdk.io.FileSystem;
-import org.apache.beam.sdk.io.FileSystemRegistrar;
-import org.apache.beam.sdk.options.GcsOptions;
-import org.apache.beam.sdk.options.PipelineOptions;
+package org.apache.beam.sdk.io.fs;
 
 /**
- * {@link AutoService} registrar for the {@link GcsFileSystem}.
+ * An object that configures {@link ResourceId#resolve}.
  */
-@AutoService(FileSystemRegistrar.class)
-public class GcsFileSystemRegistrar implements FileSystemRegistrar {
+public interface ResolveOptions {
 
-  static final String GCS_SCHEME = "gs";
+  /**
+   * Defines the standard resolve options.
+   */
+  enum StandardResolveOptions implements ResolveOptions {
+    /**
+     * Resolve a file.
+     */
+    RESOLVE_FILE,
 
-  @Override
-  public FileSystem fromOptions(@Nonnull PipelineOptions options) {
-    return new GcsFileSystem(options.as(GcsOptions.class));
-  }
-
-  @Override
-  public String getScheme() {
-    return GCS_SCHEME;
+    /**
+     * Resolve a directory.
+     *
+     * <p>This requires {@link ResourceId} implementation to append a delimiter.
+     */
+    RESOLVE_DIRECTORY,
   }
 }
