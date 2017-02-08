@@ -88,13 +88,12 @@ class WindowFn(object):
   class AssignContext(object):
     """Context passed to WindowFn.assign()."""
 
-    def __init__(self, timestamp, element=None, existing_windows=None):
+    def __init__(self, timestamp, element=None):
       self.timestamp = Timestamp.of(timestamp)
       self.element = element
-      self.existing_windows = existing_windows
 
   def assign(self, assign_context):
-    """Associates a timestamp and set of windows to an element."""
+    """Associates a timestamp to an element."""
     raise NotImplementedError
 
   class MergeContext(object):
