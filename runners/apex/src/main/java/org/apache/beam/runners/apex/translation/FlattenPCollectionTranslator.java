@@ -35,14 +35,14 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TaggedPValue;
 
 /**
- * {@link Flatten.FlattenPCollectionList} translation to Apex operator.
+ * {@link Flatten.PCollections} translation to Apex operator.
  */
 class FlattenPCollectionTranslator<T> implements
-    TransformTranslator<Flatten.FlattenPCollectionList<T>> {
+    TransformTranslator<Flatten.PCollections<T>> {
   private static final long serialVersionUID = 1L;
 
   @Override
-  public void translate(Flatten.FlattenPCollectionList<T> transform, TranslationContext context) {
+  public void translate(Flatten.PCollections<T> transform, TranslationContext context) {
     List<PCollection<T>> inputCollections = extractPCollections(context.getInputs());
 
     if (inputCollections.isEmpty()) {

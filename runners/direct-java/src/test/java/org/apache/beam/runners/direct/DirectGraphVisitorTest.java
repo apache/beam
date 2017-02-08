@@ -35,7 +35,7 @@ import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Flatten;
-import org.apache.beam.sdk.transforms.Flatten.FlattenPCollectionList;
+import org.apache.beam.sdk.transforms.Flatten.PCollections;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.View;
@@ -110,7 +110,7 @@ public class DirectGraphVisitorTest implements Serializable {
 
   @Test
   public void getRootTransformsContainsEmptyFlatten() {
-    FlattenPCollectionList<String> flatten = Flatten.pCollections();
+    PCollections<String> flatten = Flatten.pCollections();
     PCollectionList<String> emptyList = PCollectionList.empty(p);
     PCollection<String> empty = emptyList.apply(flatten);
     empty.setCoder(StringUtf8Coder.of());

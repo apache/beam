@@ -327,7 +327,7 @@ public class PTransformMatchersTest implements Serializable {
   public void emptyFlattenWithEmptyFlatten() {
     AppliedPTransform application =
         AppliedPTransform
-            .<PCollectionList<Object>, PCollection<Object>, Flatten.FlattenPCollectionList<Object>>
+            .<PCollectionList<Object>, PCollection<Object>, Flatten.PCollections<Object>>
                 of(
                     "EmptyFlatten",
                     Collections.<TaggedPValue>emptyList(),
@@ -346,7 +346,7 @@ public class PTransformMatchersTest implements Serializable {
   public void emptyFlattenWithNonEmptyFlatten() {
     AppliedPTransform application =
         AppliedPTransform
-            .<PCollectionList<Object>, PCollection<Object>, Flatten.FlattenPCollectionList<Object>>
+            .<PCollectionList<Object>, PCollection<Object>, Flatten.PCollections<Object>>
                 of(
                     "Flatten",
                     Collections.singletonList(
@@ -369,7 +369,7 @@ public class PTransformMatchersTest implements Serializable {
   public void emptyFlattenWithNonFlatten() {
     AppliedPTransform application =
         AppliedPTransform
-            .<PCollection<Iterable<Object>>, PCollection<Object>, Flatten.FlattenIterables<Object>>
+            .<PCollection<Iterable<Object>>, PCollection<Object>, Flatten.Iterables<Object>>
                 of(
                     "EmptyFlatten",
                     Collections.<TaggedPValue>emptyList(),

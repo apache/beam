@@ -108,7 +108,7 @@ class FlinkBatchTransformTranslators {
     TRANSLATORS.put(GroupByKey.class, new GroupByKeyTranslatorBatch());
     TRANSLATORS.put(Reshuffle.class, new ReshuffleTranslatorBatch());
 
-    TRANSLATORS.put(Flatten.FlattenPCollectionList.class, new FlattenPCollectionTranslatorBatch());
+    TRANSLATORS.put(Flatten.PCollections.class, new FlattenPCollectionTranslatorBatch());
 
     TRANSLATORS.put(Window.Bound.class, new WindowBoundTranslatorBatch());
 
@@ -706,12 +706,12 @@ class FlinkBatchTransformTranslators {
 
   private static class FlattenPCollectionTranslatorBatch<T>
       implements FlinkBatchPipelineTranslator.BatchTransformTranslator<
-          Flatten.FlattenPCollectionList<T>> {
+      Flatten.PCollections<T>> {
 
     @Override
     @SuppressWarnings("unchecked")
     public void translateNode(
-        Flatten.FlattenPCollectionList<T> transform,
+        Flatten.PCollections<T> transform,
         FlinkBatchTranslationContext context) {
 
       List<TaggedPValue> allInputs = context.getInputs(transform);
