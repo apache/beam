@@ -633,15 +633,9 @@ class CallablePTransform(PTransform):
     return res
 
   def __call__(self, *args, **kwargs):
-    if args and args[0] is None:
-      label, self._args = None, args[1:]
-    elif args and isinstance(args[0], str):
-      label, self._args = args[0], args[1:]
-    else:
-      label, self._args = None, args
+    self._args = args
     self._kwargs = kwargs
-    # We know the label now, so initialize the super-class.
-    super(CallablePTransform, self).__init__(label=label)
+    super(CallablePTransform, self).__init__()
     return self
 
   def expand(self, pcoll):

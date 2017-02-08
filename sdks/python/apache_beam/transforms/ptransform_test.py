@@ -686,8 +686,7 @@ class PTransformLabelsTest(unittest.TestCase):
   def test_apply_ptransform_using_decorator(self):
     pipeline = TestPipeline()
     pcoll = pipeline | 'PColl' >> beam.Create([1, 2, 3])
-    sample = SamplePTransform('*Sample*')
-    _ = pcoll | sample
+    _ = pcoll | '*Sample*' >> SamplePTransform()
     self.assertTrue('*Sample*' in pipeline.applied_labels)
     self.assertTrue('*Sample*/ToPairs' in pipeline.applied_labels)
     self.assertTrue('*Sample*/Group' in pipeline.applied_labels)
@@ -726,7 +725,17 @@ class PTransformLabelsTest(unittest.TestCase):
 
   def test_lable_propogation(self):
     self.check_label('TestMap' >> beam.Map(len), r'TestMap')
-    self.check_label('TestFilter' >> beam.Filter(len), r'TestFilter')
+    self.check_label('TestLambda' >> beam.Map(lambda x: x), r'TestLambda')
+    self.check_label('TestFlatMap' >> beam.FlatMap(list), r'TestFlatMap')
+    self.check_label('TestFilter' >> beam.Filter(sum), r'TestFilter')
+    self.check_label('TestCG' >> beam.CombineGlobally(sum), r'TestCG')
+    self.check_label('TestCPK' >> beam.CombinePerKey(sum), r'TestCPK')
+
+    class MyDoFn(beam.DoFn):
+      def process(self):
+        pass
+
+    self.check_label('TestParDo' >> beam.ParDo(MyDoFn()), r'TestParDo')
 
 
 class PTransformTestDisplayData(unittest.TestCase):
