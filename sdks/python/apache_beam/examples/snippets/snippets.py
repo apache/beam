@@ -1129,8 +1129,8 @@ def model_join_using_side_inputs(
                       '%s' % ','.join(filtered_emails),
                       '%s' % ','.join(filtered_phone_numbers)])
 
-  contact_lines = names | beam.core.Map(
-      "CreateContacts", join_info, AsIter(emails), AsIter(phones))
+  contact_lines = names | 'CreateContacts' >> beam.core.Map(
+      join_info, AsIter(emails), AsIter(phones))
   # [END model_join_using_side_inputs]
   contact_lines | beam.io.WriteToText(output_path)
   p.run()

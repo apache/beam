@@ -727,6 +727,10 @@ class PTransformLabelsTest(unittest.TestCase):
 
     self.check_label(beam.ParDo(MyDoFn()), r'ParDo(MyDoFn)')
 
+  def test_lable_propogation(self):
+    self.check_label('TestMap' >> beam.Map(len), r'TestMap')
+    self.check_label('TestFilter' >> beam.Filter(len), r'TestFilter')
+
 
 class PTransformTestDisplayData(unittest.TestCase):
   def test_map_named_function(self):
