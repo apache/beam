@@ -541,8 +541,8 @@ class PTransformTest(unittest.TestCase):
     pipeline = TestPipeline()
     pcoll = pipeline | 'Start' >> beam.Create(
         [(3, 1), (2, 1), (1, 1), (3, 2), (2, 2), (3, 3)])
-    keys = pcoll.apply('keys', beam.Keys())
-    vals = pcoll.apply('vals', beam.Values())
+    keys = pcoll.apply(beam.Keys('keys'))
+    vals = pcoll.apply(beam.Values('vals'))
     assert_that(keys, equal_to([1, 2, 2, 3, 3, 3]), label='assert:keys')
     assert_that(vals, equal_to([1, 1, 1, 2, 2, 3]), label='assert:vals')
     pipeline.run()
@@ -551,7 +551,7 @@ class PTransformTest(unittest.TestCase):
     pipeline = TestPipeline()
     pcoll = pipeline | 'Start' >> beam.Create(
         [(6, 3), (1, 2), (7, 1), (5, 2), (3, 2)])
-    result = pcoll.apply('swap', beam.KvSwap())
+    result = pcoll.apply(beam.KvSwap(), label='swap')
     assert_that(result, equal_to([(1, 7), (2, 1), (2, 3), (2, 5), (3, 6)]))
     pipeline.run()
 
@@ -559,7 +559,7 @@ class PTransformTest(unittest.TestCase):
     pipeline = TestPipeline()
     pcoll = pipeline | 'Start' >> beam.Create(
         [6, 3, 1, 1, 9, 'pleat', 'pleat', 'kazoo', 'navel'])
-    result = pcoll.apply('nodupes', beam.RemoveDuplicates())
+    result = pcoll.apply(beam.RemoveDuplicates())
     assert_that(result, equal_to([1, 3, 6, 9, 'pleat', 'kazoo', 'navel']))
     pipeline.run()
 
