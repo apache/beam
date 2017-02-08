@@ -101,20 +101,6 @@ public class IOChannelUtilsTest {
   }
 
   @Test
-  public void testResolveSinglePath() throws Exception {
-    String expected = tmpFolder.getRoot().toPath().resolve("aa").toString();
-    assertEquals(expected, IOChannelUtils.resolve(tmpFolder.getRoot().toString(), "aa"));
-  }
-
-  @Test
-  public void testResolveMultiplePaths() throws Exception {
-    String expected =
-        tmpFolder.getRoot().toPath().resolve("aa").resolve("bb").resolve("cc").toString();
-    assertEquals(expected,
-        IOChannelUtils.resolve(tmpFolder.getRoot().getPath(), "aa", "bb", "cc"));
-  }
-
-  @Test
   public void testRegisterIOFactoriesAllowOverride() throws Exception {
     IOChannelUtils.registerIOFactoriesAllowOverride(PipelineOptionsFactory.create());
     IOChannelUtils.registerIOFactoriesAllowOverride(PipelineOptionsFactory.create());
@@ -124,6 +110,8 @@ public class IOChannelUtilsTest {
 
   @Test
   public void testRegisterIOFactories() throws Exception {
+    IOChannelFactory factory = IOChannelUtils.getFactory("c:\\");
+
     IOChannelUtils.deregisterScheme("gs");
     IOChannelUtils.deregisterScheme("file");
 

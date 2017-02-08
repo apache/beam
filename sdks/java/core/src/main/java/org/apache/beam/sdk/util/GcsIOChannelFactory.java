@@ -20,7 +20,6 @@ package org.apache.beam.sdk.util;
 import java.io.IOException;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.WritableByteChannel;
-import java.nio.file.Path;
 import java.util.Collection;
 import java.util.LinkedList;
 import java.util.List;
@@ -86,16 +85,6 @@ public class GcsIOChannelFactory implements IOChannelFactory {
   public boolean isReadSeekEfficient(String spec) throws IOException {
     // TODO It is incorrect to return true here for files with content encoding set to gzip.
     return true;
-  }
-
-  @Override
-  public String resolve(String path, String other) throws IOException {
-    return toPath(path).resolve(other).toString();
-  }
-
-  @Override
-  public Path toPath(String path) {
-    return GcsPath.fromUri(path);
   }
 
   @Override

@@ -20,11 +20,11 @@ package org.apache.beam.examples;
 
 import java.util.Date;
 import org.apache.beam.examples.WordCount.WordCountOptions;
+import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.FileChecksumMatcher;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestPipelineOptions;
-import org.apache.beam.sdk.util.IOChannelUtils;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -59,7 +59,7 @@ public class WordCountIT {
     WordCountITOptions options = TestPipeline.testingPipelineOptions().as(WordCountITOptions.class);
 
     options.setInputFile(DEFAULT_INPUT);
-    options.setOutput(IOChannelUtils.resolve(
+    options.setOutput(FileSystems.resolve(
         options.getTempRoot(),
         String.format("WordCountIT-%tF-%<tH-%<tM-%<tS-%<tL", new Date()),
         "output",

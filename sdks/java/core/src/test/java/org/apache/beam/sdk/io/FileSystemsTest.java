@@ -17,13 +17,16 @@
  */
 package org.apache.beam.sdk.io;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 import com.google.common.collect.Sets;
 import java.net.URI;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.io.FileSystems.StandardResolveOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.commons.lang3.SystemUtils;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -43,6 +46,187 @@ public class FileSystemsTest {
   @Before
   public void setup() {
     FileSystems.setDefaultConfigInWorkers(PipelineOptionsFactory.create());
+  }
+
+  @Test
+  public void testResolve() throws Exception {
+    // Tests for local files without the scheme.
+    assertEquals(
+        "/root/tmp/aa",
+        FileSystems.resolve("/root/tmp", "aa"));
+    assertEquals(
+        "/root/tmp/aa/bb/cc",
+        FileSystems.resolve("/root/tmp", "aa", "bb", "cc"));
+
+    // Tests uris with scheme.
+    assertEquals(
+        "file:/root/tmp/aa",
+        FileSystems.resolve("file:/root/tmp", "aa"));
+    assertEquals(
+        "file:/aa",
+        FileSystems.resolve("file:///", "aa"));
+    assertEquals(
+        "gs://bucket/tmp/aa",
+        FileSystems.resolve("gs://bucket/tmp", "aa"));
+
+    // Tests for Windows OS path in URI format.
+    assertEquals(
+        "file:/C:/home%20dir/a%20b/a%20b",
+        FileSystems.resolve("file:/C:/home%20dir", "a%20b", "a%20b"));
+
+    // Tests absolute path.
+    assertEquals(
+        "/root/tmp/aa",
+        FileSystems.resolve("/root/tmp/bb", "/root/tmp/aa"));
+
+    // Tests authority with empty path.
+    assertEquals(
+        "gs://bucket/staging",
+        FileSystems.resolve("gs://bucket/", "staging"));
+    assertEquals(
+        "gs://bucket/staging",
+        FileSystems.resolve("gs://bucket", "staging"));
+    assertEquals(
+        "gs://bucket/",
+        FileSystems.resolve("gs://bucket", "."));
+
+    // Tests empty authority and path.
+    assertEquals(
+        "file:/aa",
+        FileSystems.resolve("file:///", "aa"));
+
+    // Tests normalizing of "." and ".."
+    assertEquals(
+        "s3://authority/../home/bb",
+        FileSystems.resolve("s3://authority/../home/output/..", "aa", "..", "bb"));
+    assertEquals(
+        "s3://authority/aa/bb",
+        FileSystems.resolve("s3://authority/.", "aa", ".", "bb"));
+    assertEquals(
+        "aa/bb",
+        FileSystems.resolve("a/..", "aa", ".", "bb"));
+    assertEquals(
+        "/aa/bb",
+        FileSystems.resolve("/a/..", "aa", ".", "bb"));
+
+    // Tests ".", "./", "..", "../", "~".
+    assertEquals(
+        "aa/bb",
+        FileSystems.resolve(".", "aa", "./", "bb"));
+    assertEquals(
+        "aa/bb",
+        FileSystems.resolve("./", "aa", "./", "bb"));
+    assertEquals(
+        "../aa/bb",
+        FileSystems.resolve("..", "aa", "./", "bb"));
+    assertEquals(
+        "../aa/bb",
+        FileSystems.resolve("../", "aa", "./", "bb"));
+    assertEquals(
+        "~/aa/bb",
+        FileSystems.resolve("~", "aa", "./", "bb"));
+
+    // Tests path with unicode
+    assertEquals(
+        "/根目录/输出 文件01.txt",
+        FileSystems.resolve("/根目录", "输出 文件01.txt"));
+    assertEquals(
+        "gs://根目录/输出 文件01.txt",
+        FileSystems.resolve("gs://根目录", "输出 文件01.txt"));
+  }
+
+  @Test
+  public void testResolveSibling() throws Exception {
+    // Tests for local files without the scheme.
+    assertEquals(
+        "/root/aa",
+        FileSystems.resolve("/root/tmp", "aa", StandardResolveOptions.RESOLVE_SIBLING));
+  }
+
+
+  @Test
+  public void testResolveWithPattern() {
+    // Test resolve asterisks.
+    assertEquals(
+        "/root/tmp/**/*",
+        FileSystems.resolve("/root/tmp", "**", "*"));
+
+    assertEquals(
+        "file:/C:/home/**/*",
+        FileSystems.resolve("file:/C:/home", "**", "*"));
+  }
+
+  @Test
+  public void testResolveInWindowsOS() throws Exception {
+    if (SystemUtils.IS_OS_WINDOWS) {
+      assertEquals(
+          "C:\\my home\\out put",
+          FileSystems.resolve("C:\\my home", "out put"));
+
+      assertEquals(
+          "C:\\my home\\**\\*",
+          FileSystems.resolve("C:\\my home", "**", "*"));
+    } else {
+      // Skip tests
+    }
+  }
+
+  @Test
+  public void testResolveIllegalURIChars() throws Exception {
+    // Tests for Windows OS path in URI format but with illegal chars.
+    assertEquals(
+        "file:/C:/home dir/a b/a b",
+        FileSystems.resolve("file:/C:/home dir", "a b", "a b"));
+  }
+
+  @Test
+  public void testResolveOtherIsEmptyPath() throws Exception {
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("Expected other is not empty.");
+    // Tests resolving empty strings.
+    FileSystems.resolve("/root/tmp/aa", "", "");
+  }
+
+  @Test
+  public void testResolveDirectoryHasQuery() throws Exception {
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("Expected no query in uri");
+    // Tests resolving empty strings.
+    FileSystems.resolve("/root/tmp/aa?q", "bb");
+  }
+
+  @Test
+  public void testResolveDirectoryHasFragment() throws Exception {
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("Expected no fragment in uri");
+    // Tests resolving empty strings.
+    FileSystems.resolve("/root/tmp/aa#q", "bb");
+  }
+
+  @Test
+  public void testResolveOtherHasQuery() throws Exception {
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("Expected no query in uri");
+    // Tests resolving empty strings.
+    FileSystems.resolve("/root/tmp/aa", "bb?q");
+  }
+
+  @Test
+  public void testResolveOtherHasFragment() throws Exception {
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("Expected no fragment in uri");
+    // Tests resolving empty strings.
+    FileSystems.resolve("/root/tmp/aa", "bb#q");
+  }
+
+  @Test
+  public void testGetLowerCaseScheme() throws Exception {
+    assertEquals("gs", FileSystems.getLowerCaseScheme("gs://bucket/output"));
+    assertEquals("gs", FileSystems.getLowerCaseScheme("GS://bucket/output"));
+    assertEquals("file", FileSystems.getLowerCaseScheme("/home/output"));
+    assertEquals("file", FileSystems.getLowerCaseScheme("file:///home/output"));
+    assertEquals("file", FileSystems.getLowerCaseScheme("C:\\home\\output"));
+    assertEquals("file", FileSystems.getLowerCaseScheme("C:\\home\\output"));
   }
 
   @Test

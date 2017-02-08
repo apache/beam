@@ -31,6 +31,7 @@ import java.util.TreeMap;
 import java.util.concurrent.ThreadLocalRandom;
 import org.apache.beam.examples.common.WriteWindowedFilesDoFn;
 import org.apache.beam.sdk.PipelineResult;
+import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.testing.FileChecksumMatcher;
@@ -41,7 +42,6 @@ import org.apache.beam.sdk.testing.TestPipelineOptions;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.util.ExplicitShardedFile;
 import org.apache.beam.sdk.util.FluentBackoff;
-import org.apache.beam.sdk.util.IOChannelUtils;
 import org.apache.beam.sdk.util.ShardedFile;
 import org.hamcrest.Description;
 import org.hamcrest.TypeSafeMatcher;
@@ -103,7 +103,7 @@ public class WindowedWordCountIT {
     options.setWindowSize(10);
 
     options.setOutput(
-        IOChannelUtils.resolve(
+        FileSystems.resolve(
             options.getTempRoot(),
             String.format(
                 "WindowedWordCountIT.%s-%tFT%<tH:%<tM:%<tS.%<tL+%s",

@@ -51,8 +51,9 @@ import org.apache.beam.sdk.io.FileBasedSink.FileResult;
 import org.apache.beam.sdk.io.FileBasedSink.WritableByteChannelFactory;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.sdk.util.IOChannelUtils;
 import org.apache.commons.compress.compressors.bzip2.BZip2CompressorInputStream;
+import org.apache.commons.lang3.SystemUtils;
+import org.hamcrest.Matchers;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -89,7 +90,7 @@ public class FileBasedSinkTest {
   @Test
   public void testWriter() throws Exception {
     String testUid = "testId";
-    String expectedFilename = IOChannelUtils.resolve(getBaseTempDirectory(), testUid);
+    String expectedFilename = FileSystems.resolve(getBaseTempDirectory(), testUid);
     SimpleSink.SimpleWriter writer = buildWriter();
 
     List<String> values = Arrays.asList("sympathetic vulture", "boresome hummingbird");
@@ -195,7 +196,7 @@ public class FileBasedSinkTest {
     List<File> temporaryFiles = new ArrayList<>();
     for (int i = 0; i < numFiles; i++) {
       String temporaryFilename =
-          FileBasedWriteOperation.buildTemporaryFilename(tempDirectory, "" + i);
+          FileBasedWriteOperation.buildTemporaryFilename(tempDirectory, String.valueOf(i));
       File tmpFile = new File(tmpFolder.getRoot(), temporaryFilename);
       tmpFile.getParentFile().mkdirs();
       assertTrue(tmpFile.createNewFile());
@@ -248,8 +249,9 @@ public class FileBasedSinkTest {
     List<File> temporaryFiles = new ArrayList<>();
     List<File> outputFiles = new ArrayList<>();
     for (int i = 0; i < numFiles; i++) {
-      File tmpFile = new File(tmpFolder.getRoot(),
-          FileBasedWriteOperation.buildTemporaryFilename(baseTemporaryFilename, "" + i));
+      File tmpFile = new File(
+          tmpFolder.getRoot(),
+          FileBasedWriteOperation.buildTemporaryFilename(baseTemporaryFilename, String.valueOf(i)));
       tmpFile.getParentFile().mkdirs();
       assertTrue(tmpFile.createNewFile());
       temporaryFiles.add(tmpFile);
@@ -417,6 +419,109 @@ public class FileBasedSinkTest {
     assertEquals(expected, actual);
   }
 
+  @Test
+  public void testBuildTemporaryDirectoryName() {
+    FileBasedWriteOperation.TemporaryDirectoryBuilder tempDirBuilder =
+        new FileBasedWriteOperation.TemporaryDirectoryBuilder();
+    // Tests for local files without the scheme.
+    assertThat(
+        tempDirBuilder.apply("/home/output"),
+        Matchers.startsWith("/home/temp-beam-"));
+
+    // TODO: FileBasedSink could write tmp files in the parent directory.
+    // See https://issues.apache.org/jira/browse/BEAM-1315
+    assertThat(
+        tempDirBuilder.apply("/home/output/"),
+        Matchers.startsWith("/home/temp-beam-"));
+
+    // Tests for non-escaping chars.
+    assertThat(
+        tempDirBuilder.apply("gs://my bucket/out put"),
+        Matchers.startsWith("gs://my bucket/temp-beam-"));
+
+    // Tests authority with empty path.
+    assertThat(
+        tempDirBuilder.apply("gs://bucket/"),
+        Matchers.startsWith("gs://bucket/temp-beam-"));
+
+    // Tests empty authority and path.
+    assertThat(
+        tempDirBuilder.apply("file:///"),
+        Matchers.startsWith("file:/temp-beam-"));
+
+    // Tests local root path.
+    assertThat(
+        tempDirBuilder.apply("/"),
+        Matchers.startsWith("/temp-beam-"));
+
+    // Tests normalizing of "." and ".."
+    assertThat(
+        tempDirBuilder.apply("s3://authority/../home/dir/../output"),
+        Matchers.startsWith("s3://authority/../home/temp-beam-"));
+    assertThat(
+        tempDirBuilder.apply("s3://authority/./output"),
+        Matchers.startsWith("s3://authority/temp-beam-"));
+    assertThat(
+        tempDirBuilder.apply("a/.."),
+        Matchers.startsWith("temp-beam-"));
+    assertThat(
+        tempDirBuilder.apply("/a/.."),
+        Matchers.startsWith("/temp-beam-"));
+
+    // Tests  ".", "./", "../".
+    assertThat(
+        tempDirBuilder.apply("."),
+        Matchers.startsWith("temp-beam-"));
+    assertThat(
+        tempDirBuilder.apply("./"),
+        Matchers.startsWith("temp-beam-"));
+    assertThat(
+        tempDirBuilder.apply("../"),
+        Matchers.startsWith("../temp-beam-"));
+    assertThat(
+        tempDirBuilder.apply(".."),
+        Matchers.startsWith("../temp-beam-"));
+
+    // Tests bad inputs [BEAM-1168], such as: "~", are handled gracefully.
+    assertThat(
+        tempDirBuilder.apply("~"),
+        Matchers.startsWith("temp-beam-"));
+  }
+
+  @Test
+  public void testBuildTemporaryDirectoryNameWindowsOS() {
+    FileBasedWriteOperation.TemporaryDirectoryBuilder tempDirBuilder =
+        new FileBasedWriteOperation.TemporaryDirectoryBuilder();
+
+    // Tests for Windows OS path in URI format.
+    assertThat(
+        tempDirBuilder.apply("file:/C:/home%20dir/a%20b.txt"),
+        Matchers.startsWith("file:/C:/home%20dir/temp-beam-"));
+    // Tests for Windows OS path in URI format, but with illegal chars.
+    assertThat(
+        tempDirBuilder.apply("file:///C:/home dir/a b.txt"),
+        Matchers.startsWith("file:/C:/home dir/temp-beam-"));
+
+    if (SystemUtils.IS_OS_WINDOWS) {
+      // Tests for Windows OS path in non-URI format.
+      assertThat(
+          tempDirBuilder.apply("C:\\my home\\output"),
+          Matchers.startsWith("C:\\my home\\temp-beam-"));
+    }
+  }
+
+  @Test
+  public void testBuildTemporaryDirectoryNameSameEachInvocation() throws Exception {
+    FileBasedWriteOperation.TemporaryDirectoryBuilder tempDirBuilder =
+        new FileBasedWriteOperation.TemporaryDirectoryBuilder();
+
+    String firstTempDir = tempDirBuilder.apply("/home/output");
+    Thread.sleep(1000);
+    assertEquals(
+        firstTempDir,
+        tempDirBuilder.apply("/home/output"));
+  }
+
   /**
    * {@link CompressionType#BZIP2} correctly writes Gzipped data.
    */
@@ -486,9 +591,9 @@ public class FileBasedSinkTest {
     SimpleSink.SimpleWriteOperation writeOp =
         new SimpleSink(getBaseOutputFilename(), "txt", new DrunkWritableByteChannelFactory())
             .createWriteOperation(null);
-    final FileBasedWriter<String> writer =
-        writeOp.createWriter(null);
-    final String expectedFilename = IOChannelUtils.resolve(writeOp.tempDirectory.get(), testUid);
+    final FileBasedWriter<String> writer = writeOp.createWriter(null);
+    final String expectedFilename =
+        FileSystems.resolve(writeOp.tempDirectory.get(), testUid);
 
     final List<String> expected = new ArrayList<>();
     expected.add("header");
