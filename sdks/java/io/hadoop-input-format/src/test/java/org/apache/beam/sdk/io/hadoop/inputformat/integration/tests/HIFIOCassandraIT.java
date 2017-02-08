@@ -24,10 +24,11 @@ import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.io.hadoop.inputformat.HadoopInputFormatIO;
 import org.apache.beam.sdk.io.hadoop.inputformat.HadoopInputFormatIOConstants;
 import org.apache.beam.sdk.io.hadoop.inputformat.custom.options.HIFTestOptions;
-import org.apache.beam.sdk.io.hadoop.inputformat.testing.HIFIOTextMatcher;
+import org.apache.beam.sdk.io.hadoop.inputformat.testing.HashingFn;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.transforms.Values;
@@ -77,6 +78,8 @@ public class HIFIOCassandraIT implements Serializable {
    */
   @Test
   public void testHIFReadForCassandra() {
+    // Expected hashcode is evaluated during insertion time one time and hardcoded here.
+    String expectedHashCode = "4651110ba1ef2cd3a7315091ca27877b18fceb0e";
     Pipeline pipeline = TestPipeline.create(options);
     Configuration conf = getConfiguration(options);
     SimpleFunction<Row, String> myValueTranslate = new SimpleFunction<Row, String>() {
@@ -93,16 +96,13 @@ public class HIFIOCassandraIT implements Serializable {
         .isEqualTo(1000L);
 
     PCollection<String> textValues = cassandraData.apply(Values.<String>create());
-
-    // Write Pcollection of Strings to a file using TextIO Write transform.
-    textValues.apply(TextIO.Write.to(OUTPUT_WRITE_FILE_PATH).withNumShards(1).withSuffix("txt"));
-    PipelineResult result = pipeline.run();
-    result.waitUntilFinish();
-
-    // Verify the output values using checksum comparison
-    HIFIOTextMatcher matcher =
-        new HIFIOTextMatcher(OUTPUT_WRITE_FILE_PATH + "-00000-of-00001.txt", "a45a33ad0fcb6de99050c47f09cd8400e8112db0");
-    assertThat(result, matcher);
+    // Verify the output values using checksum comparison.
+    PCollection<String> consolidatedHashcode =
+        textValues.apply(Combine.globally(new HashingFn()).withoutDefaults());
+    PAssert.that(consolidatedHashcode).containsInAnyOrder(expectedHashCode);
+ 
+    pipeline.run().waitUntilFinish();
+  
   }
 
   /**
