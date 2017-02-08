@@ -445,17 +445,17 @@
     
     
 
-    <td width="25%" class="cap-summary" style="background-color:#ddd;border-color:#ca1"><center><b>&#x2715; (<a href="https://issues.apache.org/jira/browse/BEAM-25">BEAM-25</a>)</b></center>
+    <td width="25%" class="cap-summary" style="background-color:#ec3;border-color:#ca1"><center><b>&#x2713;</b></center>
 </td>
     
     
 
-    <td width="25%" class="cap-summary" style="background-color:#ddd;border-color:#ca1"><center><b>&#x2715;</b></center>
+    <td width="25%" class="cap-summary" style="background-color:#fe5;border-color:#ca1"><center><b>~</b></center>
 </td>
     
     
 
-    <td width="25%" class="cap-summary" style="background-color:#ddd;border-color:#ca1"><center><b>&#x2715;</b></center>
+    <td width="25%" class="cap-summary" style="background-color:#fe5;border-color:#ca1"><center><b>~</b></center>
 </td>
     
     
@@ -939,17 +939,17 @@
     
     
 
-    <td width="25%" class="cap-summary" style="background-color:#ddd;border-color:#6a4"><center><b>&#x2715; (<a href="https://issues.apache.org/jira/browse/BEAM-27">BEAM-27</a>)</b></center>
+    <td width="25%" class="cap-summary" style="background-color:#8c6;border-color:#6a4"><center><b>&#x2713;</b></center>
 </td>
     
     
 
-    <td width="25%" class="cap-summary" style="background-color:#ddd;border-color:#6a4"><center><b>&#x2715;</b></center>
+    <td width="25%" class="cap-summary" style="background-color:#ae8;border-color:#6a4"><center><b>~</b></center>
 </td>
     
     
 
-    <td width="25%" class="cap-summary" style="background-color:#ddd;border-color:#6a4"><center><b>&#x2715;</b></center>
+    <td width="25%" class="cap-summary" style="background-color:#ae8;border-color:#6a4"><center><b>~</b></center>
 </td>
     
     
@@ -1357,27 +1357,27 @@
     
     
 
-    <td width="25%" class="cap" style="background-color:#ddd;border-color:#ca1"><center><b>No: storage per key, per window<br />(<a href="https://issues.apache.org/jira/browse/BEAM-25">BEAM-25</a>)</b></center><br />Allows fine-grained access to per-key, per-window persistent state. Necessary for certain use cases (e.g. high-volume windows which store large amounts of data, but typically only access small portions of it; complex state machines; etc.) that are not easily or efficiently addressed via <tt>Combine</tt> or <tt>GroupByKey</tt>+<tt>ParDo</tt>.
+    <td width="25%" class="cap" style="background-color:#ec3;border-color:#ca1"><center><b>Yes: storage per key, per window</b></center><br />Allows fine-grained access to per-key, per-window persistent state. Necessary for certain use cases (e.g. high-volume windows which store large amounts of data, but typically only access small portions of it; complex state machines; etc.) that are not easily or efficiently addressed via <tt>Combine</tt> or <tt>GroupByKey</tt>+<tt>ParDo</tt>.
 </td>
     
     
 
-    <td width="25%" class="cap" style="background-color:#ddd;border-color:#ca1"><center><b>No: pending model support</b></center><br />Dataflow already supports keyed state internally, so adding support for this should be easy once the Beam model exposes it.
+    <td width="25%" class="cap" style="background-color:#fe5;border-color:#ca1"><center><b>Partially: non-merging windows</b></center><br />Keyed state is fully supported for non-merging windows.
 </td>
     
     
 
-    <td width="25%" class="cap" style="background-color:#ddd;border-color:#ca1"><center><b>No: pending model support</b></center><br />Flink already supports keyed state, so adding support for this should be easy once the Beam model exposes it.
+    <td width="25%" class="cap" style="background-color:#fe5;border-color:#ca1"><center><b>Partially: streaming, non-merging windows</b></center><br />Keyed state is supported in streaming mode for non-merging windows.
 </td>
     
     
 
-    <td width="25%" class="cap" style="background-color:#ddd;border-color:#ca1"><center><b>No: pending model support</b></center><br />Spark supports keyed state with mapWithState() so support shuold be straight forward.
+    <td width="25%" class="cap" style="background-color:#ddd;border-color:#ca1"><center><b>No: not implemented</b></center><br />Spark supports keyed state with mapWithState() so support shuold be straight forward.
 </td>
     
     
 
-    <td width="25%" class="cap" style="background-color:#ddd;border-color:#ca1"><center><b>No: pending model support</b></center><br />Apex supports keyed state, so adding support for this should be easy once the Beam model exposes it.
+    <td width="25%" class="cap" style="background-color:#ddd;border-color:#ca1"><center><b>No: not implemented</b></center><br />Apex supports keyed state, so adding support for this should be easy.
 </td>
     
   </tr>
@@ -1851,27 +1851,27 @@
     
     
 
-    <td width="25%" class="cap" style="background-color:#ddd;border-color:#6a4"><center><b>No: delayed processing callbacks<br />(<a href="https://issues.apache.org/jira/browse/BEAM-27">BEAM-27</a>)</b></center><br />A fine-grained mechanism for performing work at some point in the future, in either the event-time or processing-time domain. Useful for orchestrating delayed events, timeouts, etc in complex state per-key, per-window state machines.
+    <td width="25%" class="cap" style="background-color:#8c6;border-color:#6a4"><center><b>Yes: delayed processing callbacks</b></center><br />A fine-grained mechanism for performing work at some point in the future, in either the event-time or processing-time domain. Useful for orchestrating delayed events, timeouts, etc in complex state per-key, per-window state machines.
 </td>
     
     
 
-    <td width="25%" class="cap" style="background-color:#ddd;border-color:#6a4"><center><b>No: pending model support</b></center><br />Dataflow already supports timers internally, so adding support for this should be easy once the Beam model exposes it.
+    <td width="25%" class="cap" style="background-color:#ae8;border-color:#6a4"><center><b>Partially: non-merging windows</b></center><br />Dataflow supports timers in non-merging windows.
 </td>
     
     
 
-    <td width="25%" class="cap" style="background-color:#ddd;border-color:#6a4"><center><b>No: pending model support</b></center><br />Flink already supports timers internally, so adding support for this should be easy once the Beam model exposes it.
+    <td width="25%" class="cap" style="background-color:#ae8;border-color:#6a4"><center><b>Partially: streaming, non-merging windows</b></center><br />The Flink runner support timers in non-merging windows when run in streaming mode.
 </td>
     
     
 
-    <td width="25%" class="cap" style="background-color:#ddd;border-color:#6a4"><center><b>No: pending model support</b></center><br />
+    <td width="25%" class="cap" style="background-color:#ddd;border-color:#6a4"><center><b>No: not implemented</b></center><br />
 </td>
     
     
 
-    <td width="25%" class="cap" style="background-color:#ddd;border-color:#6a4"><center><b>No: pending model support</b></center><br />
+    <td width="25%" class="cap" style="background-color:#ddd;border-color:#6a4"><center><b>No: not implemented</b></center><br />
 </td>
     
   </tr>
