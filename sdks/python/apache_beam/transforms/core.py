@@ -667,7 +667,7 @@ class _MultiParDo(PTransform):
         pcoll.pipeline, self._do_transform, self._tags, self._main_tag)
 
 
-def FlatMap(fn_or_label, *args, **kwargs):  # pylint: disable=invalid-name
+def FlatMap(fn, *args, **kwargs):  # pylint: disable=invalid-name
   """FlatMap is like ParDo except it takes a callable to specify the
   transformation.
 
@@ -676,8 +676,7 @@ def FlatMap(fn_or_label, *args, **kwargs):  # pylint: disable=invalid-name
   the output PCollection.
 
   Args:
-    fn_or_label: name of this transform instance. Useful while monitoring and
-      debugging a pipeline execution.
+    fn: a callable object.
     *args: positional arguments passed to the transform callable.
     **kwargs: keyword arguments passed to the transform callable.
 
@@ -688,20 +687,15 @@ def FlatMap(fn_or_label, *args, **kwargs):  # pylint: disable=invalid-name
     TypeError: If the fn passed as argument is not a callable. Typical error
       is to pass a DoFn instance which is supported only for ParDo.
   """
-  if fn_or_label is None or isinstance(fn_or_label, str):
-    label, fn, args = fn_or_label, args[0], args[1:]
-  else:
-    label, fn = None, fn_or_label
+  label = 'FlatMap(%s)' % ptransform.label_from_callable(fn)
   if not callable(fn):
     raise TypeError(
         'FlatMap can be used only with callable objects. '
-        'Received %r instead for %s argument.'
-        % (fn, 'first' if label is None else 'second'))
+        'Received %r instead.' % (fn))
 
-  if label is None:
-    label = 'FlatMap(%s)' % ptransform.label_from_callable(fn)
-
-  return ParDo(label, CallableWrapperDoFn(fn), *args, **kwargs)
+  pardo = ParDo(CallableWrapperDoFn(fn), *args, **kwargs)
+  pardo.label = label
+  return pardo
 
 
 def Map(fn, *args, **kwargs):  # pylint: disable=invalid-name
@@ -744,7 +738,9 @@ def Map(fn, *args, **kwargs):  # pylint: disable=invalid-name
   wrapper._argspec_fn = fn
   # pylint: enable=protected-access
 
-  return FlatMap(label, wrapper, *args, **kwargs)
+  pardo = FlatMap(wrapper, *args, **kwargs)
+  pardo.label = label
+  return pardo
 
 
 def Filter(fn, *args, **kwargs):  # pylint: disable=invalid-name
@@ -787,7 +783,9 @@ def Filter(fn, *args, **kwargs):  # pylint: disable=invalid-name
   wrapper._argspec_fn = fn
   # pylint: enable=protected-access
 
-  return FlatMap(label, wrapper, *args, **kwargs)
+  pardo = FlatMap(wrapper, *args, **kwargs)
+  pardo.label = label
+  return pardo
 
 
 class CombineGlobally(PTransform):
