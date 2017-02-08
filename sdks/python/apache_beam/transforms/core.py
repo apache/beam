@@ -723,11 +723,13 @@ def Map(fn, *args, **kwargs):  # pylint: disable=invalid-name
   if not callable(fn):
     raise TypeError(
         'Map can be used only with callable objects. '
-        'Received %r instead' % (fn))
+        'Received %r instead.' % (fn))
   if _fn_takes_side_inputs(fn):
     wrapper = lambda x, *args, **kwargs: [fn(x, *args, **kwargs)]
   else:
     wrapper = lambda x: [fn(x)]
+
+  label = 'Map(%s)' % ptransform.label_from_callable(fn)
 
   # TODO. What about callable classes?
   if hasattr(fn, '__name__'):
@@ -736,14 +738,12 @@ def Map(fn, *args, **kwargs):  # pylint: disable=invalid-name
   # Proxy the type-hint information from the original function to this new
   # wrapped function.
   get_type_hints(wrapper).input_types = get_type_hints(fn).input_types
-  output_hint = get_type_hints(fn).simple_output_type(None)
+  output_hint = get_type_hints(fn).simple_output_type(label)
   if output_hint:
     get_type_hints(wrapper).set_output_types(typehints.Iterable[output_hint])
   # pylint: disable=protected-access
   wrapper._argspec_fn = fn
   # pylint: enable=protected-access
-
-  label = 'Map(%s)' % ptransform.label_from_callable(fn)
 
   return FlatMap(label, wrapper, *args, **kwargs)
 
@@ -766,8 +766,10 @@ def Filter(fn, *args, **kwargs):  # pylint: disable=invalid-name
   if not callable(fn):
     raise TypeError(
         'Filter can be used only with callable objects. '
-        'Received %r instead' % (fn))
+        'Received %r instead.' % (fn))
   wrapper = lambda x, *args, **kwargs: [x] if fn(x, *args, **kwargs) else []
+
+  label = 'Filter(%s)' % ptransform.label_from_callable(fn)
 
   # TODO: What about callable classes?
   if hasattr(fn, '__name__'):
@@ -775,7 +777,7 @@ def Filter(fn, *args, **kwargs):  # pylint: disable=invalid-name
   # Proxy the type-hint information from the function being wrapped, setting the
   # output type to be the same as the input type.
   get_type_hints(wrapper).input_types = get_type_hints(fn).input_types
-  output_hint = get_type_hints(fn).simple_output_type(None)
+  output_hint = get_type_hints(fn).simple_output_type(label)
   if (output_hint is None
       and get_type_hints(wrapper).input_types
       and get_type_hints(wrapper).input_types[0]):
@@ -785,8 +787,6 @@ def Filter(fn, *args, **kwargs):  # pylint: disable=invalid-name
   # pylint: disable=protected-access
   wrapper._argspec_fn = fn
   # pylint: enable=protected-access
-
-  label = 'Filter(%s)' % ptransform.label_from_callable(fn)
 
   return FlatMap(label, wrapper, *args, **kwargs)
 
