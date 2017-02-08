@@ -19,10 +19,10 @@ package org.apache.beam.runners.direct;
 
 import org.apache.beam.runners.core.BaseExecutionContext;
 import org.apache.beam.runners.core.ExecutionContext;
+import org.apache.beam.runners.core.TimerInternals;
 import org.apache.beam.runners.direct.DirectExecutionContext.DirectStepContext;
 import org.apache.beam.runners.direct.WatermarkManager.TimerUpdate;
 import org.apache.beam.runners.direct.WatermarkManager.TransformWatermarks;
-import org.apache.beam.sdk.util.TimerInternals;
 
 /**
  * Execution Context for the {@link DirectRunner}.

@@ -28,14 +28,11 @@ import shutil
 import time
 import zlib
 
-from apache_beam import coders
 from apache_beam.internal import util
 from apache_beam.io import gcsio
 from apache_beam.io import iobase
 from apache_beam.transforms.display import DisplayDataItem
 
-
-__all__ = ['TextFileSink']
 
 DEFAULT_SHARD_NAME_TEMPLATE = '-SSSSS-of-NNNNN'
 
@@ -734,6 +731,7 @@ class FileSinkWriter(iobase.Writer):
   def close(self):
     self.sink.close(self.temp_handle)
     return self.temp_shard_path
+<<<<<<< HEAD
 
 
 class TextFileSink(FileSink):
@@ -819,3 +817,5 @@ class TextFileSink(FileSink):
     file_handle.write(encoded_value)
     if self._append_trailing_newlines:
       file_handle.write('\n')
+=======
+>>>>>>> upstream/master

@@ -15,22 +15,29 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.util.state;
+package org.apache.beam.sdk.transforms;
 
-import java.io.Serializable;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
-import org.apache.beam.sdk.util.TimerInternals;
+import org.junit.Rule;
+import org.junit.Test;
+import org.junit.rules.ExpectedException;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 
 /**
- * A factory for providing {@link TimerInternals} for a particular key.
- *
- * <p>Because it will generally be embedded in a {@link org.apache.beam.sdk.transforms.DoFn DoFn},
- * albeit at execution time, it is marked {@link Serializable}.
+ * Tests for {@link SimpleFunction}.
  */
-@Experimental(Kind.STATE)
-public interface TimerInternalsFactory<K> {
+@RunWith(JUnit4.class)
+public class SimpleFunctionTest {
 
-  /** Returns {@link TimerInternals} for the provided key. */
-  TimerInternals timerInternalsForKey(K key);
+  @Rule
+  public ExpectedException thrown = ExpectedException.none();
+
+  @Test
+  public void testFailureIfNotOverridden() {
+    thrown.expect(IllegalStateException.class);
+    thrown.expectMessage("must override");
+    thrown.expectMessage("apply");
+
+    SimpleFunction<Integer, Integer> broken = new SimpleFunction<Integer, Integer>() {};
+  }
 }

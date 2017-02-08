@@ -48,6 +48,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import org.apache.beam.sdk.Pipeline.PipelineExecutionException;
 import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.KvCoder;
@@ -80,6 +81,7 @@ import org.apache.beam.sdk.util.Timer;
 import org.apache.beam.sdk.util.TimerSpec;
 import org.apache.beam.sdk.util.TimerSpecs;
 import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
+import org.apache.beam.sdk.util.state.AccumulatorCombiningState;
 import org.apache.beam.sdk.util.state.BagState;
 import org.apache.beam.sdk.util.state.StateSpec;
 import org.apache.beam.sdk.util.state.StateSpecs;
@@ -1502,6 +1504,104 @@ public class ParDoTest implements Serializable {
 
   @Test
   @Category({RunnableOnService.class, UsesStatefulParDo.class})
+  public void testValueStateFixedWindows() {
+    final String stateId = "foo";
+
+    DoFn<KV<String, Integer>, Integer> fn =
+        new DoFn<KV<String, Integer>, Integer>() {
+
+          @StateId(stateId)
+          private final StateSpec<Object, ValueState<Integer>> intState =
+              StateSpecs.value(VarIntCoder.of());
+
+          @ProcessElement
+          public void processElement(
+              ProcessContext c, @StateId(stateId) ValueState<Integer> state) {
+            Integer currentValue = MoreObjects.firstNonNull(state.read(), 0);
+            c.output(currentValue);
+            state.write(currentValue + 1);
+          }
+        };
+
+    IntervalWindow firstWindow = new IntervalWindow(new Instant(0), new Instant(10));
+    IntervalWindow secondWindow = new IntervalWindow(new Instant(10), new Instant(20));
+
+    PCollection<Integer> output =
+        pipeline
+            .apply(
+                Create.timestamped(
+                    // first window
+                    TimestampedValue.of(KV.of("hello", 7), new Instant(1)),
+                    TimestampedValue.of(KV.of("hello", 14), new Instant(2)),
+                    TimestampedValue.of(KV.of("hello", 21), new Instant(3)),
+
+                    // second window
+                    TimestampedValue.of(KV.of("hello", 28), new Instant(11)),
+                    TimestampedValue.of(KV.of("hello", 35), new Instant(13))))
+            .apply(Window.<KV<String, Integer>>into(FixedWindows.of(Duration.millis(10))))
+            .apply("Stateful ParDo", ParDo.of(fn));
+
+    PAssert.that(output).inWindow(firstWindow).containsInAnyOrder(0, 1, 2);
+    PAssert.that(output).inWindow(secondWindow).containsInAnyOrder(0, 1);
+    pipeline.run();
+  }
+
+  /**
+   * Tests that there is no state bleeding between adjacent stateful {@link ParDo} transforms,
+   * which may (or may not) be executed in similar contexts after runner optimizations.
+   */
+  @Test
+  @Category({RunnableOnService.class, UsesStatefulParDo.class})
+  public void testValueStateSameId() {
+    final String stateId = "foo";
+
+    DoFn<KV<String, Integer>, KV<String, Integer>> fn =
+        new DoFn<KV<String, Integer>, KV<String, Integer>>() {
+
+          @StateId(stateId)
+          private final StateSpec<Object, ValueState<Integer>> intState =
+              StateSpecs.value(VarIntCoder.of());
+
+          @ProcessElement
+          public void processElement(
+              ProcessContext c, @StateId(stateId) ValueState<Integer> state) {
+            Integer currentValue = MoreObjects.firstNonNull(state.read(), 0);
+            c.output(KV.of("sizzle", currentValue));
+            state.write(currentValue + 1);
+          }
+        };
+
+    DoFn<KV<String, Integer>, Integer> fn2 =
+        new DoFn<KV<String, Integer>, Integer>() {
+
+          @StateId(stateId)
+          private final StateSpec<Object, ValueState<Integer>> intState =
+              StateSpecs.value(VarIntCoder.of());
+
+          @ProcessElement
+          public void processElement(
+              ProcessContext c, @StateId(stateId) ValueState<Integer> state) {
+            Integer currentValue = MoreObjects.firstNonNull(state.read(), 13);
+            c.output(currentValue);
+            state.write(currentValue + 13);
+          }
+        };
+
+    PCollection<KV<String, Integer>> intermediate =
+        pipeline.apply(Create.of(KV.of("hello", 42), KV.of("hello", 97), KV.of("hello", 84)))
+            .apply("First stateful ParDo", ParDo.of(fn));
+
+    PCollection<Integer> output =
+            intermediate.apply("Second stateful ParDo", ParDo.of(fn2));
+
+    PAssert.that(intermediate)
+        .containsInAnyOrder(KV.of("sizzle", 0), KV.of("sizzle", 1), KV.of("sizzle", 2));
+    PAssert.that(output).containsInAnyOrder(13, 26, 39);
+    pipeline.run();
+  }
+
+  @Test
+  @Category({RunnableOnService.class, UsesStatefulParDo.class})
   public void testValueStateSideOutput() {
     final String stateId = "foo";
 
@@ -1582,6 +1682,45 @@ public class ParDoTest implements Serializable {
             .apply(ParDo.of(fn));
 
     PAssert.that(output).containsInAnyOrder(Lists.newArrayList(12, 42, 84, 97));
+    pipeline.run();
+  }
+
+  @Test
+  @Category({RunnableOnService.class, UsesStatefulParDo.class})
+  public void testCombiningState() {
+    final String stateId = "foo";
+
+    DoFn<KV<String, Double>, String> fn =
+        new DoFn<KV<String, Double>, String>() {
+
+          private static final double EPSILON = 0.0001;
+
+          @StateId(stateId)
+          private final StateSpec<
+                  Object, AccumulatorCombiningState<Double, Mean.CountSum<Double>, Double>>
+              combiningState =
+                  StateSpecs.combiningValue(new Mean.CountSumCoder<Double>(), Mean.<Double>of());
+
+          @ProcessElement
+          public void processElement(
+              ProcessContext c,
+              @StateId(stateId)
+                  AccumulatorCombiningState<Double, Mean.CountSum<Double>, Double> state) {
+            state.add(c.element().getValue());
+            Double currentValue = state.read();
+            if (Math.abs(currentValue - 0.5) < EPSILON) {
+              c.output("right on");
+            }
+          }
+        };
+
+    PCollection<String> output =
+        pipeline
+            .apply(Create.of(KV.of("hello", 0.3), KV.of("hello", 0.6), KV.of("hello", 0.6)))
+            .apply(ParDo.of(fn));
+
+    // There should only be one moment at which the average is exactly 0.5
+    PAssert.that(output).containsInAnyOrder("right on");
     pipeline.run();
   }
 
@@ -1672,6 +1811,98 @@ public class ParDoTest implements Serializable {
 
     PCollection<Integer> output = pipeline.apply(Create.of(KV.of("hello", 37))).apply(ParDo.of(fn));
     PAssert.that(output).containsInAnyOrder(3, 42);
+    pipeline.run();
+  }
+
+  /**
+   * Tests that an event time timer set absolutely for the last possible moment fires and results in
+   * supplementary output. The test is otherwise identical to {@link #testEventTimeTimerBounded()}.
+   */
+  @Test
+  @Category({RunnableOnService.class, UsesTimersInParDo.class})
+  public void testEventTimeTimerAbsolute() throws Exception {
+    final String timerId = "foo";
+
+    DoFn<KV<String, Integer>, Integer> fn =
+        new DoFn<KV<String, Integer>, Integer>() {
+
+          @TimerId(timerId)
+          private final TimerSpec spec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
+
+          @ProcessElement
+          public void processElement(
+              ProcessContext context, @TimerId(timerId) Timer timer, BoundedWindow window) {
+            timer.set(window.maxTimestamp());
+            context.output(3);
+          }
+
+          @OnTimer(timerId)
+          public void onTimer(OnTimerContext context) {
+            context.output(42);
+          }
+        };
+
+    PCollection<Integer> output = pipeline.apply(Create.of(KV.of("hello", 37))).apply(ParDo.of(fn));
+    PAssert.that(output).containsInAnyOrder(3, 42);
+    pipeline.run();
+  }
+
+  @Test
+  @Category({RunnableOnService.class, UsesTimersInParDo.class})
+  public void testAbsoluteProcessingTimeTimerRejected() throws Exception {
+    final String timerId = "foo";
+
+    DoFn<KV<String, Integer>, Integer> fn =
+        new DoFn<KV<String, Integer>, Integer>() {
+
+          @TimerId(timerId)
+          private final TimerSpec spec = TimerSpecs.timer(TimeDomain.PROCESSING_TIME);
+
+          @ProcessElement
+          public void processElement(ProcessContext context, @TimerId(timerId) Timer timer) {
+            timer.set(new Instant(0));
+          }
+
+          @OnTimer(timerId)
+          public void onTimer(OnTimerContext context) {}
+        };
+
+    PCollection<Integer> output = pipeline.apply(Create.of(KV.of("hello", 37))).apply(ParDo.of(fn));
+    thrown.expect(PipelineExecutionException.class);
+    // Note that runners can reasonably vary their message - this matcher should be flexible
+    // and can be evolved.
+    thrown.expectMessage("relative timers");
+    thrown.expectMessage("processing time");
+    pipeline.run();
+  }
+
+  @Test
+  @Category({RunnableOnService.class, UsesTimersInParDo.class})
+  public void testOutOfBoundsEventTimeTimer() throws Exception {
+    final String timerId = "foo";
+
+    DoFn<KV<String, Integer>, Integer> fn =
+        new DoFn<KV<String, Integer>, Integer>() {
+
+          @TimerId(timerId)
+          private final TimerSpec spec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
+
+          @ProcessElement
+          public void processElement(
+              ProcessContext context, BoundedWindow window, @TimerId(timerId) Timer timer) {
+            timer.set(window.maxTimestamp().plus(1L));
+          }
+
+          @OnTimer(timerId)
+          public void onTimer(OnTimerContext context) {}
+        };
+
+    PCollection<Integer> output = pipeline.apply(Create.of(KV.of("hello", 37))).apply(ParDo.of(fn));
+    thrown.expect(PipelineExecutionException.class);
+    // Note that runners can reasonably vary their message - this matcher should be flexible
+    // and can be evolved.
+    thrown.expectMessage("event time timer");
+    thrown.expectMessage("expiration");
     pipeline.run();
   }
 

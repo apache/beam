@@ -15,11 +15,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.util.state;
+package org.apache.beam.runners.core;
 
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import org.apache.beam.sdk.util.state.State;
+import org.apache.beam.sdk.util.state.StateTag;
+import org.apache.beam.sdk.util.state.WatermarkHoldState;
 import org.joda.time.Instant;
 
 /**

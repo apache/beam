@@ -52,11 +52,7 @@ import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.SideInputReader;
-import org.apache.beam.sdk.util.TimerInternals;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.sdk.util.state.StateInternals;
-import org.apache.beam.sdk.util.state.StateInternalsFactory;
-import org.apache.beam.sdk.util.state.TimerInternalsFactory;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TimestampedValue;
@@ -200,13 +196,15 @@ public class SplittableParDoTest {
    * {@link DoFn.ProcessElement} calls).
    */
   private static class ProcessFnTester<
-      InputT, OutputT, RestrictionT, TrackerT extends RestrictionTracker<RestrictionT>> {
+          InputT, OutputT, RestrictionT, TrackerT extends RestrictionTracker<RestrictionT>>
+      implements AutoCloseable {
     private final DoFnTester<
             KeyedWorkItem<String, ElementAndRestriction<InputT, RestrictionT>>, OutputT>
         tester;
     private Instant currentProcessingTime;
 
     private InMemoryTimerInternals timerInternals;
+    private InMemoryStateInternals<String> stateInternals;
 
     ProcessFnTester(
         Instant currentProcessingTime,
@@ -221,11 +219,12 @@ public class SplittableParDoTest {
               fn, inputCoder, restrictionCoder, IntervalWindow.getCoder());
       this.tester = DoFnTester.of(processFn);
       this.timerInternals = new InMemoryTimerInternals();
+      this.stateInternals = InMemoryStateInternals.forKey("dummy");
       processFn.setStateInternalsFactory(
           new StateInternalsFactory<String>() {
             @Override
             public StateInternals<String> stateInternalsForKey(String key) {
-              return tester.getStateInternals();
+              return stateInternals;
             }
           });
       processFn.setTimerInternalsFactory(
@@ -268,6 +267,11 @@ public class SplittableParDoTest {
       timerInternals.advanceProcessingTime(currentProcessingTime);
 
       this.currentProcessingTime = currentProcessingTime;
+    }
+
+    @Override
+    public void close() throws Exception {
+      tester.close();
     }
 
     /** Performs a seed {@link DoFn.ProcessElement} call feeding the element and restriction. */
@@ -632,5 +636,70 @@ public class SplittableParDoTest {
     assertThat(
         Instant.now().getMillis() - base.getMillis(),
         greaterThanOrEqualTo(maxBundleDuration.getMillis()));
+  }
+
+  private static class LifecycleVerifyingFn extends DoFn<Integer, String> {
+    private enum State {
+      BEFORE_SETUP,
+      OUTSIDE_BUNDLE,
+      INSIDE_BUNDLE,
+      TORN_DOWN
+    }
+
+    private State state = State.BEFORE_SETUP;
+
+    @ProcessElement
+    public void process(ProcessContext c, SomeRestrictionTracker tracker) {
+      assertEquals(State.INSIDE_BUNDLE, state);
+    }
+
+    @GetInitialRestriction
+    public SomeRestriction getInitialRestriction(Integer element) {
+      return new SomeRestriction();
+    }
+
+    @NewTracker
+    public SomeRestrictionTracker newTracker(SomeRestriction restriction) {
+      return new SomeRestrictionTracker();
+    }
+
+    @Setup
+    public void setup() {
+      assertEquals(State.BEFORE_SETUP, state);
+      state = State.OUTSIDE_BUNDLE;
+    }
+
+    @Teardown
+    public void tearDown() {
+      assertEquals(State.OUTSIDE_BUNDLE, state);
+      state = State.TORN_DOWN;
+    }
+
+    @StartBundle
+    public void startBundle(Context c) {
+      assertEquals(State.OUTSIDE_BUNDLE, state);
+      state = State.INSIDE_BUNDLE;
+    }
+
+    @FinishBundle
+    public void finishBundle(Context c) {
+      assertEquals(State.INSIDE_BUNDLE, state);
+      state = State.OUTSIDE_BUNDLE;
+    }
+  }
+
+  @Test
+  public void testInvokesLifecycleMethods() throws Exception {
+    DoFn<Integer, String> fn = new LifecycleVerifyingFn();
+    try (ProcessFnTester<Integer, String, SomeRestriction, SomeRestrictionTracker> tester =
+        new ProcessFnTester<>(
+            Instant.now(),
+            fn,
+            BigEndianIntegerCoder.of(),
+            SerializableCoder.of(SomeRestriction.class),
+            MAX_OUTPUTS_PER_BUNDLE,
+            MAX_BUNDLE_DURATION)) {
+      tester.startElement(42, new SomeRestriction());
+    }
   }
 }
