@@ -737,12 +737,14 @@ def Map(fn, *args, **kwargs):  # pylint: disable=invalid-name
   # Proxy the type-hint information from the original function to this new
   # wrapped function.
   get_type_hints(wrapper).input_types = get_type_hints(fn).input_types
-  output_hint = get_type_hints(fn).simple_output_type(label)
+  output_hint = get_type_hints(fn).simple_output_type(None)
   if output_hint:
     get_type_hints(wrapper).set_output_types(typehints.Iterable[output_hint])
   # pylint: disable=protected-access
   wrapper._argspec_fn = fn
   # pylint: enable=protected-access
+
+  label = 'Map(%s)' % ptransform.label_from_callable(fn)
 
   return FlatMap(label, wrapper, *args, **kwargs)
 
@@ -776,7 +778,7 @@ def Filter(fn, *args, **kwargs):  # pylint: disable=invalid-name
   # Proxy the type-hint information from the function being wrapped, setting the
   # output type to be the same as the input type.
   get_type_hints(wrapper).input_types = get_type_hints(fn).input_types
-  output_hint = get_type_hints(fn).simple_output_type(label)
+  output_hint = get_type_hints(fn).simple_output_type(None)
   if (output_hint is None
       and get_type_hints(wrapper).input_types
       and get_type_hints(wrapper).input_types[0]):
@@ -786,6 +788,8 @@ def Filter(fn, *args, **kwargs):  # pylint: disable=invalid-name
   # pylint: disable=protected-access
   wrapper._argspec_fn = fn
   # pylint: enable=protected-access
+
+  label = 'Filter(%s)' % ptransform.label_from_callable(fn)
 
   return FlatMap(label, wrapper, *args, **kwargs)
 
