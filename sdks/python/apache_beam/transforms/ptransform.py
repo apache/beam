@@ -507,19 +507,13 @@ class PTransformWithSideInputs(PTransform):
   for PTransforms that fit this model.
   """
 
-  def __init__(self, fn_or_label, *args, **kwargs):
-    if fn_or_label is None or isinstance(fn_or_label, basestring):
-      label = fn_or_label
-      fn, args = args[0], args[1:]
-    else:
-      label = None
-      fn = fn_or_label
+  def __init__(self, fn, *args, **kwargs):
     if isinstance(fn, type) and issubclass(fn, typehints.WithTypeHints):
       # Don't treat Fn class objects as callables.
       raise ValueError('Use %s() not %s.' % (fn.__name__, fn.__name__))
     self.fn = self.make_fn(fn)
     # Now that we figure out the label, initialize the super-class.
-    super(PTransformWithSideInputs, self).__init__(label=label)
+    super(PTransformWithSideInputs, self).__init__()
 
     if (any([isinstance(v, pvalue.PCollection) for v in args]) or
         any([isinstance(v, pvalue.PCollection) for v in kwargs.itervalues()])):
