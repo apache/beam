@@ -23,6 +23,7 @@ import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.startsWith;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -62,21 +63,27 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.regex.Pattern;
+import org.apache.beam.runners.dataflow.DataflowRunner.StreamingShardedWriteFactory;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineDebugOptions;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.Pipeline.PipelineVisitor;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.extensions.gcp.auth.NoopCredentialFactory;
 import org.apache.beam.sdk.extensions.gcp.auth.TestCredential;
 import org.apache.beam.sdk.extensions.gcp.storage.NoopPathValidator;
+import org.apache.beam.sdk.io.FileBasedSink;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.TextIO;
+import org.apache.beam.sdk.io.WriteFiles;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptions.CheckEnabled;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.ValueProvider;
+import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
+import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.runners.TransformHierarchy.Node;
 import org.apache.beam.sdk.testing.ExpectedLogs;
@@ -87,7 +94,10 @@ import org.apache.beam.sdk.util.GcsUtil;
 import org.apache.beam.sdk.util.ReleaseInfo;
 import org.apache.beam.sdk.util.gcsfs.GcsPath;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PDone;
+import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TimestampedValue;
+import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.hamcrest.Description;
 import org.hamcrest.Matchers;
@@ -823,7 +833,6 @@ public class DataflowRunnerTest {
     DataflowRunner.fromOptions(options);
   }
 
-
   @Test
   public void testValidProfileLocation() throws IOException {
     DataflowPipelineOptions options = buildPipelineOptions();
@@ -1047,8 +1056,8 @@ public class DataflowRunnerTest {
   }
 
   /**
-   * Tests that the {@link DataflowRunner} with {@code --templateLocation} returns normally
-   * when the runner issuccessfully run.
+   * Tests that the {@link DataflowRunner} with {@code --templateLocation} returns normally when the
+   * runner is successfully run.
    */
   @Test
   public void testTemplateRunnerFullCompletion() throws Exception {
@@ -1126,5 +1135,34 @@ public class DataflowRunnerTest {
     options.setExperiments(ImmutableList.of("experiment1", "beam_fn_api"));
     assertThat(
         getContainerImageForJob(options), equalTo("gcr.io/java/foo"));
+  }
+
+  @Test
+  public void testStreamingWriteWithNoShardingReturnsNewTransform() {
+    TestPipeline p = TestPipeline.create();
+    StreamingShardedWriteFactory<Object> factory = new StreamingShardedWriteFactory(p.getOptions());
+    WriteFiles<Object> original = WriteFiles.to(new TestSink(tmpFolder.toString()));
+    PCollection<Object> objs = (PCollection) p.apply(Create.empty(VoidCoder.of()));
+    AppliedPTransform<PCollection<Object>, PDone, WriteFiles<Object>> originalApplication =
+        AppliedPTransform.of(
+            "writefiles", objs.expand(), Collections.<TupleTag<?>, PValue>emptyMap(), original, p);
+
+    assertThat(
+        factory.getReplacementTransform(originalApplication).getTransform(),
+        not(equalTo((Object) original)));
+  }
+
+  private static class TestSink extends FileBasedSink<Object> {
+    @Override
+    public void validate(PipelineOptions options) {}
+
+    TestSink(String tmpFolder) {
+      super(StaticValueProvider.of(FileSystems.matchNewResource(tmpFolder, true)),
+          null);
+    }
+    @Override
+    public WriteOperation<Object> createWriteOperation() {
+      throw new IllegalArgumentException("Should not be used");
+    }
   }
 }
