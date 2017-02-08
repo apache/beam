@@ -577,8 +577,6 @@ class ParDo(PTransformWithSideInputs):
   process method.
 
   Args:
-      label: name of this transform instance. Useful while monitoring and
-        debugging a pipeline execution.
       pcoll: a PCollection to be processed.
       dofn: a DoFn object to be applied to each element of pcoll argument.
       *args: positional arguments passed to the dofn object.
@@ -592,8 +590,8 @@ class ParDo(PTransformWithSideInputs):
   the argument lists.
   """
 
-  def __init__(self, fn_or_label, *args, **kwargs):
-    super(ParDo, self).__init__(fn_or_label, *args, **kwargs)
+  def __init__(self, fn, *args, **kwargs):
+    super(ParDo, self).__init__(fn, *args, **kwargs)
 
     if not isinstance(self.fn, DoFn):
       raise TypeError('ParDo must be called with a DoFn instance.')
@@ -870,8 +868,8 @@ class CombineGlobally(PTransform):
                 | 'KeyWithVoid' >> add_input_types(
                     Map(lambda v: (None, v)).with_output_types(
                         KV[None, pcoll.element_type]))
-                | CombinePerKey(
-                    'CombinePerKey', self.fn, *self.args, **self.kwargs)
+                | 'CombinePerKey' >> CombinePerKey(
+                    self.fn, *self.args, **self.kwargs)
                 | 'UnKey' >> Map(lambda (k, v): v))
 
     if not self.has_defaults and not self.as_view:
@@ -946,8 +944,8 @@ class CombinePerKey(PTransformWithSideInputs):
   def expand(self, pcoll):
     args, kwargs = util.insert_values_in_args(
         self.args, self.kwargs, self.side_inputs)
-    return pcoll | GroupByKey() | CombineValues('Combine',
-                                                self.fn, *args, **kwargs)
+    return pcoll | GroupByKey() | 'Combine' >> CombineValues(
+        self.fn, *args, **kwargs)
 
 
 # TODO(robertwb): Rename to CombineGroupedValues?
@@ -1113,16 +1111,16 @@ class GroupByKey(PTransform):
               | 'group_by_key' >> (GroupByKeyOnly()
                  .with_input_types(reify_output_type)
                  .with_output_types(gbk_input_type))
-              | (ParDo('group_by_window',
-                       self.GroupAlsoByWindow(pcoll.windowing))
+              | ('group_by_window' >> ParDo(
+                     self.GroupAlsoByWindow(pcoll.windowing))
                  .with_input_types(gbk_input_type)
                  .with_output_types(gbk_output_type)))
     else:
       return (pcoll
               | 'reify_windows' >> ParDo(self.ReifyWindows())
               | 'group_by_key' >> GroupByKeyOnly()
-              | ParDo('group_by_window',
-                      self.GroupAlsoByWindow(pcoll.windowing)))
+              | 'group_by_window' >> ParDo(
+                    self.GroupAlsoByWindow(pcoll.windowing)))
 
 
 @typehints.with_input_types(typehints.KV[K, V])
@@ -1256,7 +1254,8 @@ class WindowInto(ParDo):
     self.windowing = Windowing(windowfn, triggerfn, accumulation_mode,
                                output_time_fn)
     dofn = self.WindowIntoFn(self.windowing)
-    super(WindowInto, self).__init__(label, dofn)
+    super(WindowInto, self).__init__(dofn)
+    self.label = label
 
   def get_windowing(self, unused_inputs):
     return self.windowing

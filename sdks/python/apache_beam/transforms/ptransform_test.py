@@ -421,8 +421,7 @@ class PTransformTest(unittest.TestCase):
     pipeline = TestPipeline()
     pcoll = pipeline | 'Start' >> beam.Create([0, 1, 2, 3, 4, 5, 6, 7, 8])
     partitions = (
-        pcoll | beam.Partition(
-            'part',
+        pcoll | 'part' >> beam.Partition(
             lambda e, n, offset: (e % 3) + offset, 4,
             1))
     assert_that(partitions[0], equal_to([]))
