@@ -20,6 +20,8 @@ package org.apache.beam.sdk.io;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import java.util.List;
 import java.util.UUID;
@@ -97,7 +99,9 @@ public class Write {
     private final Sink<T> sink;
     private final PTransform<PCollection<T>, PCollectionView<Integer>> computeNumShards;
 
-    private Bound(Sink<T> sink, @Nullable PTransform<PCollection<T>, PCollectionView<Integer>> computeNumShards) {
+    private Bound(
+        Sink<T> sink,
+        @Nullable PTransform<PCollection<T>, PCollectionView<Integer>> computeNumShards) {
       this.sink = sink;
         this.computeNumShards = computeNumShards;
     }
@@ -117,10 +121,10 @@ public class Write {
       super.populateDisplayData(builder);
       builder
           .add(DisplayData.item("sink", sink.getClass()).withLabel("Write Sink"))
-          .include("sink", sink)
-          .addIfNotNull(
-              DisplayData.item("sharding", getSharding() == null ? null : getSharding().getClass()))
-          .include("sharding", getSharding());
+          .include("sink", sink);
+      if (getSharding() != null) {
+        builder.include("sharding", getSharding());
+      }
     }
 
     /**
@@ -160,7 +164,8 @@ public class Write {
      * more information.
      */
     public Bound<T> withSharding(PTransform<PCollection<T>, PCollectionView<Integer>> sharding) {
-      checkNotNull(sharding, "Cannot provide null sharding. Use withoutSharding() instead");
+      checkNotNull(
+          sharding, "Cannot provide null sharding. Use withRunnerDeterminedSharding() instead");
       return new Bound<>(sink, sharding);
     }
 
@@ -168,7 +173,7 @@ public class Write {
      * Returns a new {@link Write.Bound} that will write to the current {@link Sink} with
      * runner-determined sharding.
      */
-    public Bound<T> withoutSharding() {
+    public Bound<T> withRunnerDeterminedSharding() {
       return new Bound<>(sink, null);
     }
 
@@ -293,7 +298,7 @@ public class Write {
       }
 
       @ProcessElement
-      public Integer processElement(ProcessContext context) {
+      public void processElement(ProcessContext context) {
         Integer shardCount = context.sideInput(numShards);
         if (shardNumber == -1) {
           // We want to desynchronize the first record sharding key for each instance of
@@ -302,7 +307,7 @@ public class Write {
         } else {
           shardNumber = (shardNumber + 1) % shardCount;
         }
-        return shardNumber;
+        context.output(KV.of(shardNumber, context.element()));
       }
     }
 
@@ -387,7 +392,7 @@ public class Write {
       PCollection<WriteT> results;
       final PCollectionView<Integer> numShards;
       if (computeNumShards == null) {
-        numShards = p.apply(Create.of(0)).apply(View.<Integer>asSingleton());
+        numShards = null;
         results =
             inputInGlobalWindow.apply(
                 "WriteBundles",
@@ -397,7 +402,9 @@ public class Write {
         numShards = inputInGlobalWindow.apply(computeNumShards);
         results =
             inputInGlobalWindow
-                .apply("ApplyShardLabel", ParDo.of(new ApplyShardingKey<T>(numShards)))
+                .apply(
+                    "ApplyShardLabel",
+                    ParDo.of(new ApplyShardingKey<T>(numShards)).withSideInputs(numShards))
                 .apply("GroupIntoShards", GroupByKey.<Integer, T>create())
                 .apply(
                     "WriteShardedBundles",
@@ -414,6 +421,11 @@ public class Write {
       // The WriteOperation's state is the same as after its initialization in the first do-once
       // ParDo. There is a dependency between this ParDo and the parallel write (the writer results
       // collection as a side input), so it will happen after the parallel write.
+      ImmutableList.Builder<PCollectionView<?>> sideInputs =
+          ImmutableList.<PCollectionView<?>>builder().add(resultsView);
+      if (numShards != null) {
+        sideInputs.add(numShards);
+      }
       operationCollection
           .apply("Finalize", ParDo.of(new DoFn<WriteOperation<T, WriteT>, Integer>() {
             @ProcessElement
@@ -424,7 +436,12 @@ public class Write {
               LOG.debug("Side input initialized to finalize write operation {}.", writeOperation);
 
               // We must always output at least 1 shard, and honor user-specified numShards if set.
-              int minShardsNeeded = Math.max(1, c.sideInput(numShards));
+              int minShardsNeeded;
+              if (numShards == null) {
+                minShardsNeeded = 1;
+              } else {
+                minShardsNeeded = c.sideInput(numShards);
+              }
               int extraShardsNeeded = minShardsNeeded - results.size();
               if (extraShardsNeeded > 0) {
                 LOG.info(
@@ -442,18 +459,23 @@ public class Write {
               writeOperation.finalize(results, c.getPipelineOptions());
               LOG.debug("Done finalizing write operation {}", writeOperation);
             }
-          }).withSideInputs(resultsView, numShards));
+          }).withSideInputs(sideInputs.build()));
       return PDone.in(input.getPipeline());
     }
   }
 
-  private static class ConstantShards<T>
+  @VisibleForTesting
+  static class ConstantShards<T>
       extends PTransform<PCollection<T>, PCollectionView<Integer>> {
     private final int numShards;
 
     private ConstantShards(int numShards) {
       checkArgument(numShards > 0, "NumShards must be greater than zero");
       this.numShards = numShards;
+    }
+
+    public int getNumShards() {
+      return numShards;
     }
 
     @Override
