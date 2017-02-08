@@ -199,26 +199,25 @@ categories:
       - name: Keyed State
         values:
           - class: model
-            jira: BEAM-25
-            l1: 'No'
+            l1: 'Yes'
             l2: storage per key, per window
             l3: Allows fine-grained access to per-key, per-window persistent state. Necessary for certain use cases (e.g. high-volume windows which store large amounts of data, but typically only access small portions of it; complex state machines; etc.) that are not easily or efficiently addressed via <tt>Combine</tt> or <tt>GroupByKey</tt>+<tt>ParDo</tt>. 
           - class: dataflow
-            l1: 'No'
-            l2: pending model support
-            l3: Dataflow already supports keyed state internally, so adding support for this should be easy once the Beam model exposes it.
+            l1: 'Partially'
+            l2: non-merging windows
+            l3: Keyed state is fully supported for non-merging windows.
           - class: flink
-            l1: 'No'
-            l2: pending model support
-            l3: Flink already supports keyed state, so adding support for this should be easy once the Beam model exposes it.
+            l1: 'Partially'
+            l2: streaming, non-merging windows
+            l3: Keyed state is supported in streaming mode for non-merging windows.
           - class: spark
             l1: 'No'
-            l2: pending model support
+            l2: not implemented
             l3: Spark supports keyed state with mapWithState() so support shuold be straight forward.
           - class: apex
             l1: 'No'
-            l2: pending model support
-            l3: Apex supports keyed state, so adding support for this should be easy once the Beam model exposes it.
+            l2: not implemented
+            l3: Apex supports keyed state, so adding support for this should be easy.
 
   - description: Where in event time?
     anchor: where
@@ -563,25 +562,24 @@ categories:
       - name: Timers
         values:
           - class: model
-            jira: BEAM-27
-            l1: 'No'
+            l1: 'Yes'
             l2: delayed processing callbacks
             l3: A fine-grained mechanism for performing work at some point in the future, in either the event-time or processing-time domain. Useful for orchestrating delayed events, timeouts, etc in complex state per-key, per-window state machines.
           - class: dataflow
-            l1: 'No'
-            l2: pending model support
-            l3: Dataflow already supports timers internally, so adding support for this should be easy once the Beam model exposes it.
+            l1: 'Partially'
+            l2: non-merging windows
+            l3: Dataflow supports timers in non-merging windows.
           - class: flink
-            l1: 'No'
-            l2: pending model support
-            l3: Flink already supports timers internally, so adding support for this should be easy once the Beam model exposes it.
+            l1: 'Partially'
+            l2: streaming, non-merging windows
+            l3: The Flink runner support timers in non-merging windows when run in streaming mode.
           - class: spark
             l1: 'No'
-            l2: pending model support
+            l2: not implemented
             l3: ''
           - class: apex
             l1: 'No'
-            l2: pending model support
+            l2: not implemented
             l3: ''
 
   - description: How do refinements relate?
