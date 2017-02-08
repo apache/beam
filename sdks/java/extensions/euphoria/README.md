@@ -24,6 +24,19 @@ and new data sources or destinations - idealy just by configuration.
    time_)
  * Flexible windowing (_Time, TimeSliding, Session, Count_)
 
+## Download
+
+The best way to use Euphoria is by adding the following Maven dependency to your _pom.xml_:
+
+```xml
+<dependency>
+  <groupId>cz.seznam.euphoria</groupId>
+  <artifactId>euphoria-core</artifactId>
+  <version>0.5.0</version>
+</dependency>
+```
+You may want to add additional modules, such as support of various engines or I/O data sources/sinks. For more details read the [Maven Dependencies](https://github.com/seznam/euphoria/wiki/Maven-dependencies) wiki page.
+
 
 ## WordCount example
 
