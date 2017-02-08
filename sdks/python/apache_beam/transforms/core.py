@@ -525,8 +525,7 @@ class PartitionFn(WithTypeHints):
     """Specify which partition will receive this element.
 
     Args:
-      context: A DoFnProcessContext containing an element of the
-        input PCollection.
+      element: An element of the input PCollection.
       num_partitions: Number of partitions, i.e., output PCollections.
       *args: optional parameters and side inputs.
       **kwargs: optional parameters and side inputs.
@@ -559,8 +558,8 @@ class CallableWrapperPartitionFn(PartitionFn):
       raise TypeError('Expected a callable object instead of: %r' % fn)
     self._fn = fn
 
-  def partition_for(self, context, num_partitions, *args, **kwargs):
-    return self._fn(context.element, num_partitions, *args, **kwargs)
+  def partition_for(self, element, num_partitions, *args, **kwargs):
+    return self._fn(element, num_partitions, *args, **kwargs)
 
 
 class ParDo(PTransformWithSideInputs):
@@ -1179,9 +1178,8 @@ class Partition(PTransformWithSideInputs):
   class ApplyPartitionFnFn(DoFn):
     """A DoFn that applies a PartitionFn."""
 
-    def process(self, element, partitionfn, n, context=DoFn.ContextParam,
-                *args, **kwargs):
-      partition = partitionfn.partition_for(context, n, *args, **kwargs)
+    def process(self, element, partitionfn, n, *args, **kwargs):
+      partition = partitionfn.partition_for(element, n, *args, **kwargs)
       if not 0 <= partition < n:
         raise ValueError(
             'PartitionFn specified out-of-bounds partition index: '
