@@ -169,7 +169,7 @@
   <Match>
     <Class name="org.apache.beam.sdk.io.LocalResourceId"/>
     <Method name="getCurrentDirectory" />
-    <Bug pattern="NP_NULL_ON_SOME_PATH_FROM_RETURN_VALUE"/>
+    <Bug pattern="NP_NULL_PARAM_DEREF"/>
     <!--
       Path.getParent() could return null. However, we check the returned Path is not null.
     -->
