@@ -4,9 +4,9 @@
  * copyright ownership. The ASF licenses this file to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance with the License. You may obtain a
  * copy of the License at
- *
+ * 
  * http://www.apache.org/licenses/LICENSE-2.0
- *
+ * 
  * Unless required by applicable law or agreed to in writing, software distributed under the License
  * is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express
  * or implied. See the License for the specific language governing permissions and limitations under
@@ -14,17 +14,22 @@
  */
 package org.apache.beam.sdk.io.hadoop.inputformat.integration.tests;
 
+import java.io.IOException;
 import java.io.Serializable;
 import java.util.Arrays;
 import java.util.List;
+import java.util.logging.FileHandler;
+import java.util.logging.Logger;
 
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.hadoop.inputformat.HadoopInputFormatIO;
 import org.apache.beam.sdk.io.hadoop.inputformat.HadoopInputFormatIOConstants;
 import org.apache.beam.sdk.io.hadoop.inputformat.custom.options.HIFTestOptions;
+import org.apache.beam.sdk.io.hadoop.inputformat.testing.HashingFn;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.SimpleFunction;
@@ -32,6 +37,7 @@ import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.io.MapWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.InputFormat;
 import org.elasticsearch.hadoop.cfg.ConfigurationOptions;
@@ -40,8 +46,6 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Runs integration test to validate HadoopInputFromatIO for an Elasticsearch instance.
@@ -56,14 +60,14 @@ import org.slf4j.LoggerFactory;
 @RunWith(JUnit4.class)
 public class HIFIOElasticIT implements Serializable {
 
-  private static final Logger LOGGER = LoggerFactory.getLogger(HIFIOElasticIT.class);
+  static Logger logger = Logger.getLogger("HIFChecksumEvaluator");
   private static final String ELASTIC_INTERNAL_VERSION = "5.x";
   private static final String TRUE = "true";
-  private static final String ELASTIC_INDEX_NAME = "beamdb";
-  private static final String ELASTIC_TYPE_NAME = "scientists";
+  private static final String ELASTIC_INDEX_NAME = "test_data";
+  private static final String ELASTIC_TYPE_NAME = "test_type";
   private static final String ELASTIC_RESOURCE = "/" + ELASTIC_INDEX_NAME + "/" + ELASTIC_TYPE_NAME;
   private static HIFTestOptions options;
-  private static final long TEST_DATA_ROW_COUNT = 10;
+  private static final long TEST_DATA_ROW_COUNT = 1000L;
 
   @BeforeClass
   public static void setUp() {
@@ -74,14 +78,20 @@ public class HIFIOElasticIT implements Serializable {
   /**
    * This test reads data from the Elasticsearch instance and verifies whether data is read
    * successfully.
+   * @throws IOException 
+   * @throws SecurityException 
    */
   @Test
-  public void testHifIOWithElastic() {
+  public void testHifIOWithElastic() throws SecurityException, IOException {
+    FileHandler fh = new FileHandler("ElasticIT.log");
+    logger.addHandler(fh);
+    // Expected hashcode is evaluated during insertion time one time and hardcoded here.
+    String expectedHashCode = "7373697a12faa08be32104f67cf7ec2be2e20a1f";
     Pipeline pipeline = TestPipeline.create(options);
     Configuration conf = getConfiguration(options);
-    PCollection<KV<Text, LinkedMapWritable>> esData = pipeline
-                    .apply(HadoopInputFormatIO.<Text, LinkedMapWritable>read()
-                        .withConfiguration(conf));
+    PCollection<KV<Text, LinkedMapWritable>> esData =
+        pipeline.apply(HadoopInputFormatIO.<Text, LinkedMapWritable>read().withConfiguration(conf));
+    // Verify that the count of objects fetched using HIFInputFormat IO is correct.
     PCollection<Long> count = esData.apply(Count.<KV<Text, LinkedMapWritable>>globally());
     PAssert.thatSingleton(count).isEqualTo(TEST_DATA_ROW_COUNT);
 
@@ -90,17 +100,41 @@ public class HIFIOElasticIT implements Serializable {
         MapElements.<LinkedMapWritable, String>via(new SimpleFunction<LinkedMapWritable, String>() {
           @Override
           public String apply(LinkedMapWritable mapw) {
-            Text text = (Text) mapw.get(new Text("scientist"));
-            return text != null ? text.toString() : "";
+            String rowValue = "";
+            rowValue = addFieldValuesToRow(rowValue, mapw, "User_Name");
+            rowValue = addFieldValuesToRow(rowValue, mapw, "Item_Code");
+            rowValue = addFieldValuesToRow(rowValue, mapw, "Txn_ID");
+            rowValue = addFieldValuesToRow(rowValue, mapw, "Item_ID");
+            rowValue = addFieldValuesToRow(rowValue, mapw, "last_updated");
+            rowValue = addFieldValuesToRow(rowValue, mapw, "Price");
+            rowValue = addFieldValuesToRow(rowValue, mapw, "Title");
+            rowValue = addFieldValuesToRow(rowValue, mapw, "Description");
+            rowValue = addFieldValuesToRow(rowValue, mapw, "Age");
+            rowValue = addFieldValuesToRow(rowValue, mapw, "Item_Name");
+            rowValue = addFieldValuesToRow(rowValue, mapw, "Item_Price");
+            rowValue = addFieldValuesToRow(rowValue, mapw, "Availability");
+            rowValue = addFieldValuesToRow(rowValue, mapw, "Batch_Num");
+            rowValue = addFieldValuesToRow(rowValue, mapw, "Last_Ordered");
+            rowValue = addFieldValuesToRow(rowValue, mapw, "City");
+            logger.info("Row Value: " + rowValue);
+            return rowValue;
           }
         });
 
     PCollection<String> textValues = values.apply(transformFunc);
-    List<String> expectedResults =
-        Arrays.asList("Faraday", "Newton", "Galilei", "Maxwell", "Pasteur", "Copernicus", "Curie",
-            "Bohr", "Darwin", "Einstein");
-    PAssert.that(textValues).containsInAnyOrder(expectedResults);
+    // Verify the output values using checksum comparison.
+    PCollection<String> consolidatedHashcode =
+        textValues.apply(Combine.globally(new HashingFn()).withoutDefaults());
+    PAssert.that(consolidatedHashcode).containsInAnyOrder(expectedHashCode);
     pipeline.run().waitUntilFinish();
+
+  }
+
+  private String addFieldValuesToRow(String row, MapWritable mapw, String columnName) {
+    Object valueObj = (Object) mapw.get(new Text(columnName));
+    row += valueObj.toString() + "|";
+
+    return row;
   }
 
   /**
@@ -109,24 +143,51 @@ public class HIFIOElasticIT implements Serializable {
    */
   @Test
   public void testHifIOWithElasticQuery() {
+    String expectedHashCode = "bbec8c2a39655de29b96d6069cef016db53d36a7";
+    Long expectedRecords=1L;
     Pipeline pipeline = TestPipeline.create(options);
     Configuration conf = getConfiguration(options);
     String query =
-        "{" + "  \"query\": {"
-            + "  \"match\" : {"
-            + "    \"scientist\" : {"
-            + "      \"query\" : \"Newton\","
-            + "      \"type\" : \"boolean\""
-            + "    }"
-            + "  }"
-            + "  }"
-            + "}";
+        "{" + "  \"query\": {" + "  \"match\" : {" + "    \"Title\" : {"
+            + "      \"query\" : \"M9u5xcAR\"," + "      \"type\" : \"boolean\"" + "    }" + "  }"
+            + "  }" + "}";
     conf.set(ConfigurationOptions.ES_QUERY, query);
-    PCollection<KV<Text, LinkedMapWritable>> esData = pipeline
-                    .apply(HadoopInputFormatIO.<Text, LinkedMapWritable>read()
-                        .withConfiguration(conf));
+    PCollection<KV<Text, LinkedMapWritable>> esData =
+        pipeline.apply(HadoopInputFormatIO.<Text, LinkedMapWritable>read().withConfiguration(conf));
     PCollection<Long> count = esData.apply(Count.<KV<Text, LinkedMapWritable>>globally());
-    PAssert.thatSingleton(count).isEqualTo(1L);
+    // Verify that the count of objects fetched using HIFInputFormat IO is correct.
+    PAssert.thatSingleton(count).isEqualTo(expectedRecords);
+    PCollection<LinkedMapWritable> values = esData.apply(Values.<LinkedMapWritable>create());
+    MapElements<LinkedMapWritable, String> transformFunc =
+        MapElements.<LinkedMapWritable, String>via(new SimpleFunction<LinkedMapWritable, String>() {
+          @Override
+          public String apply(LinkedMapWritable mapw) {
+            String rowValue = "";
+            rowValue = addFieldValuesToRow(rowValue, mapw, "User_Name");
+            rowValue = addFieldValuesToRow(rowValue, mapw, "Item_Code");
+            rowValue = addFieldValuesToRow(rowValue, mapw, "Txn_ID");
+            rowValue = addFieldValuesToRow(rowValue, mapw, "Item_ID");
+            rowValue = addFieldValuesToRow(rowValue, mapw, "last_updated");
+            rowValue = addFieldValuesToRow(rowValue, mapw, "Price");
+            rowValue = addFieldValuesToRow(rowValue, mapw, "Title");
+            rowValue = addFieldValuesToRow(rowValue, mapw, "Description");
+            rowValue = addFieldValuesToRow(rowValue, mapw, "Age");
+            rowValue = addFieldValuesToRow(rowValue, mapw, "Item_Name");
+            rowValue = addFieldValuesToRow(rowValue, mapw, "Item_Price");
+            rowValue = addFieldValuesToRow(rowValue, mapw, "Availability");
+            rowValue = addFieldValuesToRow(rowValue, mapw, "last_updated");
+            rowValue = addFieldValuesToRow(rowValue, mapw, "Last_Ordered");
+            rowValue = addFieldValuesToRow(rowValue, mapw, "City");
+            rowValue = addFieldValuesToRow(rowValue, mapw, "Country");
+            return rowValue;
+          }
+        });
+
+    PCollection<String> textValues = values.apply(transformFunc);
+    // Verify the output values using checksum comparison.
+    PCollection<String> consolidatedHashcode =
+        textValues.apply(Combine.globally(new HashingFn()).withoutDefaults());
+    PAssert.that(consolidatedHashcode).containsInAnyOrder(expectedHashCode);
     pipeline.run().waitUntilFinish();
   }
 
