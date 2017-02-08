@@ -182,8 +182,8 @@ public class PTransformMatchers {
     return new PTransformMatcher() {
       @Override
       public boolean matches(AppliedPTransform<?, ?, ?> application) {
-        if (application.getTransform() instanceof Write.Bound) {
-          return ((Write.Bound) application.getTransform()).getSharding() == null;
+        if (application.getTransform() instanceof Write) {
+          return ((Write) application.getTransform()).getSharding() == null;
         }
         return false;
       }

@@ -139,7 +139,7 @@ public class TransformTreeTest {
           assertTrue(visited.add(TransformsSeen.COMBINE_GLOBALLY));
           assertNotNull(node.getEnclosingNode());
           assertTrue(node.isCompositeNode());
-        } else if (transform instanceof Write.Bound) {
+        } else if (transform instanceof Write) {
           assertTrue(visited.add(TransformsSeen.WRITE));
           assertNotNull(node.getEnclosingNode());
           assertTrue(node.isCompositeNode());
@@ -161,7 +161,7 @@ public class TransformTreeTest {
         PTransform<?, ?> transform = node.getTransform();
         // Pick is a composite, should not be visited here.
         assertThat(transform, not(instanceOf(Combine.Globally.class)));
-        assertThat(transform, not(instanceOf(Write.Bound.class)));
+        assertThat(transform, not(instanceOf(Write.class)));
         if (transform instanceof Read.Bounded
             && node.getEnclosingNode().getTransform() instanceof TextIO.Read.Bound) {
           assertTrue(visited.add(TransformsSeen.READ));

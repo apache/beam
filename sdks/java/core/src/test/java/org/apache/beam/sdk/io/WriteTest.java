@@ -210,7 +210,7 @@ public class WriteTest {
     }
 
     TestSink sink = new TestSink();
-    Write.Bound<String> write = Write.to(sink).withSharding(new LargestInt());
+    Write<String> write = Write.to(sink).withSharding(new LargestInt());
     p.apply(Create.timestamped(inputs, timestamps).withCoder(StringUtf8Coder.of()))
         .apply(IDENTITY_MAP)
         .apply(write);
@@ -307,7 +307,7 @@ public class WriteTest {
   @Test
   public void testBuildWrite() {
     Sink<String> sink = new TestSink() {};
-    Write.Bound<String> write = Write.to(sink).withNumShards(3);
+    Write<String> write = Write.to(sink).withNumShards(3);
     assertThat(write.getSink(), is(sink));
     PTransform<PCollection<String>, PCollectionView<Integer>> originalSharding =
         write.getSharding();
@@ -315,12 +315,12 @@ public class WriteTest {
     assertThat(((ConstantShards<String>) write.getSharding()).getNumShards().get(), equalTo(3));
     assertThat(write.getSharding(), equalTo(originalSharding));
 
-    Write.Bound<String> write2 = write.withSharding(SHARDING_TRANSFORM);
+    Write<String> write2 = write.withSharding(SHARDING_TRANSFORM);
     assertThat(write2.getSink(), is(sink));
     assertThat(write2.getSharding(), equalTo(SHARDING_TRANSFORM));
     // original unchanged
 
-    Write.Bound<String> writeUnsharded = write2.withRunnerDeterminedSharding();
+    Write<String> writeUnsharded = write2.withRunnerDeterminedSharding();
     assertThat(writeUnsharded.getSharding(), nullValue());
     assertThat(write.getSharding(), equalTo(originalSharding));
   }
@@ -333,7 +333,7 @@ public class WriteTest {
         builder.add(DisplayData.item("foo", "bar"));
       }
     };
-    Write.Bound<String> write = Write.to(sink);
+    Write<String> write = Write.to(sink);
     DisplayData displayData = DisplayData.from(write);
 
     assertThat(displayData, hasDisplayItem("sink", sink.getClass()));
@@ -348,7 +348,7 @@ public class WriteTest {
         builder.add(DisplayData.item("foo", "bar"));
       }
     };
-    Write.Bound<String> write = Write.to(sink).withNumShards(1);
+    Write<String> write = Write.to(sink).withNumShards(1);
     DisplayData displayData = DisplayData.from(write);
     assertThat(displayData, hasDisplayItem("sink", sink.getClass()));
     assertThat(displayData, includesDisplayDataFor("sink", sink));
@@ -363,7 +363,7 @@ public class WriteTest {
         builder.add(DisplayData.item("foo", "bar"));
       }
     };
-    Write.Bound<String> write =
+    Write<String> write =
         Write.to(sink)
             .withSharding(
                 new PTransform<PCollection<String>, PCollectionView<Integer>>() {
@@ -433,7 +433,7 @@ public class WriteTest {
     }
 
     TestSink sink = new TestSink();
-    Write.Bound<String> write = Write.to(sink);
+    Write<String> write = Write.to(sink);
     if (numConfiguredShards.isPresent()) {
       write = write.withNumShards(numConfiguredShards.get());
     }

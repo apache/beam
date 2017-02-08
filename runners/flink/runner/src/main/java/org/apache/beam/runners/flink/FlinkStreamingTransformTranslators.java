@@ -118,7 +118,7 @@ class FlinkStreamingTransformTranslators {
   static {
     TRANSLATORS.put(Read.Bounded.class, new BoundedReadSourceTranslator());
     TRANSLATORS.put(Read.Unbounded.class, new UnboundedReadSourceTranslator());
-    TRANSLATORS.put(Write.Bound.class, new WriteSinkStreamingTranslator());
+    TRANSLATORS.put(Write.class, new WriteSinkStreamingTranslator());
     TRANSLATORS.put(TextIO.Write.Bound.class, new TextIOWriteBoundStreamingTranslator());
 
     TRANSLATORS.put(ParDo.Bound.class, new ParDoBoundStreamingTranslator());
@@ -194,10 +194,10 @@ class FlinkStreamingTransformTranslators {
   }
 
   private static class WriteSinkStreamingTranslator<T>
-      extends FlinkStreamingPipelineTranslator.StreamTransformTranslator<Write.Bound<T>> {
+      extends FlinkStreamingPipelineTranslator.StreamTransformTranslator<Write<T>> {
 
     @Override
-    public void translateNode(Write.Bound<T> transform, FlinkStreamingTranslationContext context) {
+    public void translateNode(Write<T> transform, FlinkStreamingTranslationContext context) {
       String name = transform.getName();
       PValue input = context.getInput(transform);
 

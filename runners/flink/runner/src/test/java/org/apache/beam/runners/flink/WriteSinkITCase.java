@@ -38,7 +38,7 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.test.util.JavaProgramTestBase;
 
 /**
- * Tests the translation of custom Write.Bound sinks.
+ * Tests the translation of custom Write sinks.
  */
 public class WriteSinkITCase extends JavaProgramTestBase {
 

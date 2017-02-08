@@ -29,7 +29,6 @@ import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.Write;
-import org.apache.beam.sdk.io.Write.Bound;
 import org.apache.beam.sdk.runners.PTransformOverrideFactory;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -48,13 +47,15 @@ import org.apache.beam.sdk.values.TaggedPValue;
  * of shards is the log base 10 of the number of input records, with up to 2 additional shards.
  */
 class WriteWithShardingFactory<InputT>
-    implements PTransformOverrideFactory<PCollection<InputT>, PDone, Bound<InputT>> {
+    implements PTransformOverrideFactory<PCollection<InputT>, PDone, Write<InputT>> {
   static final int MAX_RANDOM_EXTRA_SHARDS = 3;
   @VisibleForTesting static final int MIN_SHARDS_FOR_LOG = 3;
 
   @Override
-  public PTransform<PCollection<InputT>, PDone> getReplacementTransform(Bound<InputT> transform) {
-    return transform.withSharding(new LogElementShardsWithDrift<InputT>());
+  public PTransform<PCollection<InputT>, PDone> getReplacementTransform(
+      Write<InputT> transform) {
+
+      return transform.withSharding(new LogElementShardsWithDrift<InputT>());
   }
 
   @Override
