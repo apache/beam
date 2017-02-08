@@ -64,7 +64,7 @@ public class ApexPipelineTranslator implements Pipeline.PipelineVisitor {
     registerTransformTranslator(Read.Unbounded.class, new ReadUnboundedTranslator());
     registerTransformTranslator(Read.Bounded.class, new ReadBoundedTranslator());
     registerTransformTranslator(GroupByKey.class, new GroupByKeyTranslator());
-    registerTransformTranslator(Flatten.FlattenPCollectionList.class,
+    registerTransformTranslator(Flatten.PCollections.class,
         new FlattenPCollectionTranslator());
     registerTransformTranslator(PrimitiveCreate.class, new CreateValuesTranslator());
     registerTransformTranslator(CreateApexPCollectionView.class,
