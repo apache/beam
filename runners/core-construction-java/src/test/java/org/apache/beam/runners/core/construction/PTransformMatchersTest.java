@@ -387,7 +387,7 @@ public class PTransformMatchersTest implements Serializable {
 
   @Test
   public void writeWithRunnerDeterminedSharding() {
-    Write.Bound<Integer> write =
+    Write<Integer> write =
         Write.to(
             new FileBasedSink<Integer>("foo", "bar") {
               @Override
@@ -400,13 +400,13 @@ public class PTransformMatchersTest implements Serializable {
         PTransformMatchers.writeWithRunnerDeterminedSharding().matches(appliedWrite(write)),
         is(true));
 
-    Write.Bound<Integer> withStaticSharding = write.withNumShards(3);
+    Write<Integer> withStaticSharding = write.withNumShards(3);
     assertThat(
         PTransformMatchers.writeWithRunnerDeterminedSharding()
             .matches(appliedWrite(withStaticSharding)),
         is(false));
 
-    Write.Bound<Integer> withCustomSharding =
+    Write<Integer> withCustomSharding =
         write.withSharding(Sum.integersGlobally().asSingletonView());
     assertThat(
         PTransformMatchers.writeWithRunnerDeterminedSharding()
@@ -414,8 +414,8 @@ public class PTransformMatchersTest implements Serializable {
         is(false));
   }
 
-  private AppliedPTransform<?, ?, ?> appliedWrite(Write.Bound<Integer> write) {
-    return AppliedPTransform.<PCollection<Integer>, PDone, Write.Bound<Integer>>of(
+  private AppliedPTransform<?, ?, ?> appliedWrite(Write<Integer> write) {
+    return AppliedPTransform.<PCollection<Integer>, PDone, Write<Integer>>of(
         "Write",
         Collections.<TaggedPValue>emptyList(),
         Collections.<TaggedPValue>emptyList(),

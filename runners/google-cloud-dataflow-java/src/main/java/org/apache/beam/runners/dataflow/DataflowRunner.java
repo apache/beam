@@ -86,7 +86,6 @@ import org.apache.beam.sdk.io.PubsubUnboundedSource;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.io.Write;
-import org.apache.beam.sdk.io.Write.Bound;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsValidator;
 import org.apache.beam.sdk.options.ValueProvider.NestedValueProvider;
@@ -367,7 +366,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
               "The DataflowRunner in batch mode does not support Read.Unbounded"));
       ptoverrides
           // Write uses views internally
-          .put(PTransformMatchers.classEqualTo(Write.Bound.class), new BatchWriteFactory(this))
+          .put(PTransformMatchers.classEqualTo(Write.class), new BatchWriteFactory(this))
           .put(
               PTransformMatchers.classEqualTo(View.AsMap.class),
               new ReflectiveOneToOneOverrideFactory(BatchViewOverrides.BatchViewAsMap.class, this))
@@ -772,14 +771,14 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   }
 
   private class BatchWriteFactory<T>
-      implements PTransformOverrideFactory<PCollection<T>, PDone, Write.Bound<T>> {
+      implements PTransformOverrideFactory<PCollection<T>, PDone, Write<T>> {
     private final DataflowRunner runner;
     private BatchWriteFactory(DataflowRunner dataflowRunner) {
       this.runner = dataflowRunner;
     }
 
     @Override
-    public PTransform<PCollection<T>, PDone> getReplacementTransform(Bound<T> transform) {
+    public PTransform<PCollection<T>, PDone> getReplacementTransform(Write<T> transform) {
       return new BatchWrite<>(runner, transform);
     }
 
@@ -797,17 +796,17 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
 
   /**
    * Specialized implementation which overrides
-   * {@link org.apache.beam.sdk.io.Write.Bound Write.Bound} to provide Google
+   * {@link org.apache.beam.sdk.io.Write Write} to provide Google
    * Cloud Dataflow specific path validation of {@link FileBasedSink}s.
    */
   private static class BatchWrite<T> extends PTransform<PCollection<T>, PDone> {
     private final DataflowRunner runner;
-    private final Write.Bound<T> transform;
+    private final Write<T> transform;
     /**
      * Builds an instance of this class from the overridden transform.
      */
     @SuppressWarnings("unused") // used via reflection in DataflowRunner#apply()
-    public BatchWrite(DataflowRunner runner, Write.Bound<T> transform) {
+    public BatchWrite(DataflowRunner runner, Write<T> transform) {
       this.runner = runner;
       this.transform = transform;
     }
