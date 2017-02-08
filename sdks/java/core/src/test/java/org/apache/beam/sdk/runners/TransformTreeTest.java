@@ -34,8 +34,10 @@ import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.io.Write;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.Sample;
 import org.apache.beam.sdk.util.WindowingStrategy;
@@ -62,7 +64,7 @@ public class TransformTreeTest {
   enum TransformsSeen {
     READ,
     WRITE,
-    SAMPLE_ANY
+    COMBINE_GLOBALLY
   }
 
   /**
@@ -120,7 +122,8 @@ public class TransformTreeTest {
     File outputFile = tmpFolder.newFile();
 
     p.apply("ReadMyFile", TextIO.Read.from(inputFile.getPath()))
-        .apply(Sample.<String>any(10))
+        .apply(Combine.globally(Sample.<String>combineFn(10)))
+        .apply(Flatten.<String>iterables())
         .apply("WriteMyFile", TextIO.Write.to(outputFile.getPath()));
 
     final EnumSet<TransformsSeen> visited =
@@ -132,8 +135,8 @@ public class TransformTreeTest {
       @Override
       public CompositeBehavior enterCompositeTransform(TransformHierarchy.Node node) {
         PTransform<?, ?> transform = node.getTransform();
-        if (transform instanceof Sample.SampleAny) {
-          assertTrue(visited.add(TransformsSeen.SAMPLE_ANY));
+        if (transform instanceof Combine.Globally) {
+          assertTrue(visited.add(TransformsSeen.COMBINE_GLOBALLY));
           assertNotNull(node.getEnclosingNode());
           assertTrue(node.isCompositeNode());
         } else if (transform instanceof Write.Bound) {
@@ -148,8 +151,8 @@ public class TransformTreeTest {
       @Override
       public void leaveCompositeTransform(TransformHierarchy.Node node) {
         PTransform<?, ?> transform = node.getTransform();
-        if (transform instanceof Sample.SampleAny) {
-          assertTrue(left.add(TransformsSeen.SAMPLE_ANY));
+        if (transform instanceof Combine.Globally) {
+          assertTrue(left.add(TransformsSeen.COMBINE_GLOBALLY));
         }
       }
 
@@ -157,7 +160,7 @@ public class TransformTreeTest {
       public void visitPrimitiveTransform(TransformHierarchy.Node node) {
         PTransform<?, ?> transform = node.getTransform();
         // Pick is a composite, should not be visited here.
-        assertThat(transform, not(instanceOf(Sample.SampleAny.class)));
+        assertThat(transform, not(instanceOf(Combine.Globally.class)));
         assertThat(transform, not(instanceOf(Write.Bound.class)));
         if (transform instanceof Read.Bounded
             && node.getEnclosingNode().getTransform() instanceof TextIO.Read.Bound) {
@@ -167,7 +170,7 @@ public class TransformTreeTest {
     });
 
     assertTrue(visited.equals(EnumSet.allOf(TransformsSeen.class)));
-    assertTrue(left.equals(EnumSet.of(TransformsSeen.SAMPLE_ANY)));
+    assertTrue(left.equals(EnumSet.of(TransformsSeen.COMBINE_GLOBALLY)));
   }
 
   @Test(expected = IllegalArgumentException.class)

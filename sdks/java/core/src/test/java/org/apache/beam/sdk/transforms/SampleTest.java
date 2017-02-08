@@ -318,7 +318,7 @@ public class SampleTest {
 
     @Test
     public void testSampleGetName() {
-      assertEquals("Sample.SampleAny", Sample.<String>any(1).getName());
+      assertEquals("Sample.Any", Sample.<String>any(1).getName());
     }
 
     @Test
