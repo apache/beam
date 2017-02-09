@@ -187,7 +187,8 @@ class TestStreamEvaluatorFactory implements TransformEvaluatorFactory {
     static class DirectTestStream<T> extends PTransform<PBegin, PCollection<T>> {
       private final TestStream<T> original;
 
-      private DirectTestStream(TestStream<T> transform) {
+      @VisibleForTesting
+      DirectTestStream(TestStream<T> transform) {
         this.original = transform;
       }
 

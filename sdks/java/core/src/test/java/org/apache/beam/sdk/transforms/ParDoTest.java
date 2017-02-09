@@ -2152,34 +2152,4 @@ public class ParDoTest implements Serializable {
 
     // If it doesn't crash, we made it!
   }
-
-  @Test
-  public void testRejectsSplittableDoFnByDefault() {
-    // ParDo with a splittable DoFn must be overridden by the runner.
-    // Without an override, applying it directly must fail.
-
-    thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage(pipeline.getRunner().getClass().getName());
-    thrown.expectMessage("does not support Splittable DoFn");
-
-    pipeline.apply(Create.of(1, 2, 3)).apply(ParDo.of(new TestSplittableDoFn()));
-  }
-
-  @Test
-  public void testMultiRejectsSplittableDoFnByDefault() {
-    // ParDo with a splittable DoFn must be overridden by the runner.
-    // Without an override, applying it directly must fail.
-
-    thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage(pipeline.getRunner().getClass().getName());
-    thrown.expectMessage("does not support Splittable DoFn");
-
-    pipeline
-        .apply(Create.of(1, 2, 3))
-        .apply(
-            ParDo.of(new TestSplittableDoFn())
-                .withOutputTags(
-                    new TupleTag<String>("main") {},
-                    TupleTagList.of(new TupleTag<String>("side1") {})));
-  }
 }

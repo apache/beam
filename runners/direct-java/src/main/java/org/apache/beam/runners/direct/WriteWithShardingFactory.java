@@ -88,15 +88,19 @@ class WriteWithShardingFactory<InputT>
 
     @Override
     public PDone expand(PCollection<T> input) {
-      checkArgument(IsBounded.BOUNDED == input.isBounded(),
+      checkArgument(
+          IsBounded.BOUNDED == input.isBounded(),
           "%s can only be applied to a Bounded PCollection",
           getClass().getSimpleName());
-      PCollection<T> records = input.apply("RewindowInputs",
-          Window.<T>into(new GlobalWindows()).triggering(DefaultTrigger.of())
-              .withAllowedLateness(Duration.ZERO)
-              .discardingFiredPanes());
-      final PCollectionView<Long> numRecords = records
-          .apply("CountRecords", Count.<T>globally().asSingletonView());
+      PCollection<T> records =
+          input.apply(
+              "RewindowInputs",
+              Window.<T>into(new GlobalWindows())
+                  .triggering(DefaultTrigger.of())
+                  .withAllowedLateness(Duration.ZERO)
+                  .discardingFiredPanes());
+      final PCollectionView<Long> numRecords =
+          records.apply("CountRecords", Count.<T>globally().asSingletonView());
       PCollection<T> resharded =
           records
               .apply(
@@ -113,15 +117,13 @@ class WriteWithShardingFactory<InputT>
       // without adding a new Write Transform Node, which would be overwritten the same way, leading
       // to an infinite recursion. We cannot modify the number of shards, because that is determined
       // at runtime.
-      return original.expand(resharded);
+      return resharded.apply(original);
     }
   }
 
   @VisibleForTesting
   static class KeyBasedOnCountFn<T> extends DoFn<T, KV<Integer, T>> {
-    @VisibleForTesting
-    static final int MIN_SHARDS_FOR_LOG = 3;
-
+    @VisibleForTesting static final int MIN_SHARDS_FOR_LOG = 3;
     private final PCollectionView<Long> numRecords;
     private final int randomExtraShards;
     private int currentShard;

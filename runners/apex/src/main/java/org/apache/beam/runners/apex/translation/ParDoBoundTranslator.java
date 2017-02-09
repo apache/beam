@@ -43,6 +43,10 @@ class ParDoBoundTranslator<InputT, OutputT>
     DoFn<InputT, OutputT> doFn = transform.getFn();
     DoFnSignature signature = DoFnSignatures.getSignature(doFn.getClass());
 
+    if (signature.processElement().isSplittable()) {
+      throw new UnsupportedOperationException(
+          String.format("ApexRunner does not support Splittable DoFn: %s", doFn));
+    }
     if (signature.stateDeclarations().size() > 0) {
       throw new UnsupportedOperationException(
           String.format(
