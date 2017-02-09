@@ -17,3 +17,4 @@
 
 # This file is used from Python to sync versions
 include pom.xml
+target/generated-sources

@@ -47,14 +47,41 @@
           <artifactId>exec-maven-plugin</artifactId>
           <executions>
             <execution>
-              <!-- trick by @aaltay to skip inheritance -->
+              <!-- trick to skip inheritance -->
               <phase>none</phase>
             </execution>
           </executions>
         </plugin>
       </plugins>
     </pluginManagement>
+
     <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-dependency-plugin</artifactId>
+        <executions>
+          <execution>
+            <phase>process-resources</phase>
+            <goals>
+              <goal>unpack</goal>
+            </goals>
+            <configuration>
+              <artifactItems>
+                <artifactItem>
+                  <groupId>org.apache.beam</groupId>
+                  <artifactId>beam-sdks-common-fn-api</artifactId>
+                  <type>test-jar</type>
+                  <classifier>tests</classifier>
+                  <overWrite>true</overWrite>
+                  <outputDirectory>${project.build.directory}/generated-sources</outputDirectory>
+                  <includes>org/apache/beam/**</includes>
+                </artifactItem>
+              </artifactItems>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+
       <plugin>
         <groupId>org.codehaus.mojo</groupId>
         <artifactId>exec-maven-plugin</artifactId>
@@ -73,6 +100,7 @@
               </arguments>
             </configuration>
           </execution>
+
           <execution>
             <id>setuptools-build</id>
             <phase>compile</phase>
@@ -89,6 +117,7 @@
               </arguments>
             </configuration>
           </execution>
+
           <execution>
             <id>setup-test-create-python-base</id>
             <phase>process-test-resources</phase>
@@ -103,6 +132,7 @@
               </arguments>
             </configuration>
           </execution>
+
           <execution>
             <id>setup-test-tox</id>
             <phase>process-test-resources</phase>
@@ -123,6 +153,7 @@
               </environmentVariables>
             </configuration>
           </execution>
+
           <execution>
             <id>setuptools-test</id>
             <phase>test</phase>
@@ -142,6 +173,7 @@
               </environmentVariables>
             </configuration>
           </execution>
+
           <execution>
             <id>setuptools-sdist</id>
             <phase>package</phase>
@@ -166,4 +198,11 @@
     </plugins>
   </build>
 
+  <dependencies>
+    <dependency>
+      <groupId>org.apache.beam</groupId>
+      <artifactId>beam-sdks-common-fn-api</artifactId>
+      <type>test-jar</type>
+    </dependency>
+  </dependencies>
 </project>
