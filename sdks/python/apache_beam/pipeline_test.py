@@ -327,6 +327,13 @@ class DoFnTest(unittest.TestCase):
              | ParDo(TestDoFn()))
     assert_that(pcoll, equal_to([(1, (-5, 5)), (1, (0, 10)),
                                  (7, (0, 10)), (7, (5, 15))]))
+    pcoll2 = pcoll | 'Again' >> ParDo(TestDoFn())
+    assert_that(
+        pcoll2,
+        equal_to([
+            ((1, (-5, 5)), (-5, 5)), ((1, (0, 10)), (0, 10)),
+            ((7, (0, 10)), (0, 10)), ((7, (5, 15)), (5, 15))]),
+        label='doubled windows')
     pipeline.run()
 
   def test_timestamp_param(self):
