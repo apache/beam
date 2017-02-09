@@ -21,7 +21,12 @@ import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.runners.PTransformMatcher;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.ProcessElementMethod;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 
 /**
  * A {@link PTransformMatcher} that matches {@link PTransform PTransforms} based on the class of the
@@ -55,5 +60,83 @@ public class PTransformMatchers {
     public boolean matches(AppliedPTransform<?, ?, ?> application) {
       return application.getTransform().getClass().equals(clazz);
     }
+  }
+
+  /**
+   * A {@link PTransformMatcher} that matches a {@link ParDo.Bound} containing a {@link DoFn} that
+   * is splittable, as signified by {@link ProcessElementMethod#isSplittable()}.
+   */
+  public static PTransformMatcher splittableParDoSingle() {
+    return new PTransformMatcher() {
+      @Override
+      public boolean matches(AppliedPTransform<?, ?, ?> application) {
+        PTransform<?, ?> transform = application.getTransform();
+        if (transform instanceof ParDo.Bound) {
+          DoFn<?, ?> fn = ((ParDo.Bound<?, ?>) transform).getFn();
+          DoFnSignature signature = DoFnSignatures.signatureForDoFn(fn);
+          return signature.processElement().isSplittable();
+        }
+        return false;
+      }
+    };
+  }
+
+  /**
+   * A {@link PTransformMatcher} that matches a {@link ParDo.Bound} containing a {@link DoFn} that
+   * uses state or timers, as specified by {@link DoFnSignature#usesState()} and
+   * {@link DoFnSignature#usesTimers()}.
+   */
+  public static PTransformMatcher stateOrTimerParDoSingle() {
+    return new PTransformMatcher() {
+      @Override
+      public boolean matches(AppliedPTransform<?, ?, ?> application) {
+        PTransform<?, ?> transform = application.getTransform();
+        if (transform instanceof ParDo.Bound) {
+          DoFn<?, ?> fn = ((ParDo.Bound<?, ?>) transform).getFn();
+          DoFnSignature signature = DoFnSignatures.signatureForDoFn(fn);
+          return signature.usesState() || signature.usesTimers();
+        }
+        return false;
+      }
+    };
+  }
+
+  /**
+   * A {@link PTransformMatcher} that matches a {@link ParDo.BoundMulti} containing a {@link DoFn}
+   * that is splittable, as signified by {@link ProcessElementMethod#isSplittable()}.
+   */
+  public static PTransformMatcher splittableParDoMulti() {
+    return new PTransformMatcher() {
+      @Override
+      public boolean matches(AppliedPTransform<?, ?, ?> application) {
+        PTransform<?, ?> transform = application.getTransform();
+        if (transform instanceof ParDo.BoundMulti) {
+          DoFn<?, ?> fn = ((ParDo.BoundMulti<?, ?>) transform).getFn();
+          DoFnSignature signature = DoFnSignatures.signatureForDoFn(fn);
+          return signature.processElement().isSplittable();
+        }
+        return false;
+      }
+    };
+  }
+
+  /**
+   * A {@link PTransformMatcher} that matches a {@link ParDo.BoundMulti} containing a {@link DoFn}
+   * that uses state or timers, as specified by {@link DoFnSignature#usesState()} and
+   * {@link DoFnSignature#usesTimers()}.
+   */
+  public static PTransformMatcher stateOrTimerParDoMulti() {
+    return new PTransformMatcher() {
+      @Override
+      public boolean matches(AppliedPTransform<?, ?, ?> application) {
+        PTransform<?, ?> transform = application.getTransform();
+        if (transform instanceof ParDo.BoundMulti) {
+          DoFn<?, ?> fn = ((ParDo.BoundMulti<?, ?>) transform).getFn();
+          DoFnSignature signature = DoFnSignatures.signatureForDoFn(fn);
+          return signature.usesState() || signature.usesTimers();
+        }
+        return false;
+      }
+    };
   }
 }
