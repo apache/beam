@@ -197,7 +197,13 @@ class DoFnRunner(Receiver):
   def _dofn_simple_invoker(self, element):
     self._process_outputs(element, self.dofn_process(element.value))
 
-  def _dofn_window_invoker(self, element, args, kwargs, window):
+  def _dofn_per_window_invoker(self, element):
+    if self.has_windowed_inputs:
+      window, = element.windows
+      args, kwargs = util.insert_values_in_args(
+          self.args, self.kwargs, [si[window] for si in self.side_inputs])
+    else:
+      args, kwargs = self.args, self.kwargs
     # TODO(sourabhbajaj): Investigate why we can't use `is` instead of ==
     for i, p in self.placeholders:
       if p == core.DoFn.ElementParam:
@@ -218,13 +224,12 @@ class DoFnRunner(Receiver):
     # Call for the process function for each window if has windowed side inputs
     # or if the process accesses the window parameter. We can just call it once
     # otherwise as none of the arguments are changing
-    if self.has_windowed_inputs:
+    if self.has_windowed_inputs and len(element.windows) > 1:
       for w in element.windows:
-        args, kwargs = util.insert_values_in_args(
-            self.args, self.kwargs, [si[w] for si in self.side_inputs])
-        self._dofn_window_invoker(element, args, kwargs, w)
+        self._dofn_per_window_invoker(
+            WindowedValue(element.value, element.timestamp, (w,)))
     else:
-      self._dofn_window_invoker(element, self.args, self.kwargs, None)
+      self._dofn_per_window_invoker(element)
 
   def _invoke_bundle_method(self, method):
     try:

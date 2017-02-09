@@ -50,8 +50,7 @@ cdef class DoFnRunner(Receiver):
   cpdef process(self, WindowedValue element)
   cdef _dofn_invoker(self, WindowedValue element)
   cdef _dofn_simple_invoker(self, WindowedValue element)
-  cdef _dofn_window_invoker(
-      self, WindowedValue element, list args, dict kwargs, object window)
+  cdef _dofn_per_window_invoker(self, WindowedValue element)
 
   @cython.locals(windowed_value=WindowedValue)
   cpdef _process_outputs(self, WindowedValue element, results)
