@@ -153,8 +153,8 @@ public class HadoopInputFormatIOTest {
   public void testReadBuildsCorrectlyIfWithConfigurationIsCalledMoreThanOneTime() {
     SerializableConfiguration diffConf =
         loadTestConfiguration(
-            BadNullCreateReaderInputFormat.class, 
-            Employee.class, 
+            BadNullCreateReaderInputFormat.class,
+            Employee.class,
             Text.class);
     HadoopInputFormatIO.Read<String, String> read = HadoopInputFormatIO.<String, String>read()
         .withConfiguration(serConf.getHadoopConfiguration())
@@ -423,7 +423,7 @@ public class HadoopInputFormatIOTest {
     thrown.expectMessage(expectedMessage);
     read.validate(input);
   }
-  
+
   /**
    * This test validates reading from Hadoop InputFormat if wrong key class is set in
    * configuration.
@@ -445,7 +445,7 @@ public class HadoopInputFormatIOTest {
     p.apply("ReadTest", read);
     p.run();
   }
-  
+
   /**
    * This test validates reading from Hadoop InputFormat if wrong value class is set in
    * configuration.
@@ -467,7 +467,7 @@ public class HadoopInputFormatIOTest {
     p.apply("ReadTest", read);
     p.run();
   }
-  
+
   @Test
   public void testReadingData() throws Exception {
     HadoopInputFormatIO.Read<Text, Employee> read = HadoopInputFormatIO.<Text, Employee>read()
@@ -532,25 +532,25 @@ public class HadoopInputFormatIOTest {
     assertEquals(false, reader.start());
     assertEquals(Double.valueOf(1), reader.getFractionConsumed());
   }
-  
+
   /**
-   * This test validates the method getFractionConsumed()- which indicates the progress of the read 
+   * This test validates the method getFractionConsumed()- which indicates the progress of the read
    * in range of 0 to 1.
    */
   @Test
   public void testReadersGetFractionConsumed() throws Exception {
     List<KV<Text, Employee>> referenceRecords = TestEmployeeDataSet.getEmployeeData();
     HadoopInputFormatBoundedSource<Text, Employee> hifSource = getTestHIFSource(
-       NewObjectsEmployeeInputFormat.class,
-       Text.class,
-       Employee.class,
-       WritableCoder.of(Text.class),
-       AvroCoder.of(Employee.class));
+        NewObjectsEmployeeInputFormat.class,
+        Text.class,
+        Employee.class,
+        WritableCoder.of(Text.class),
+        AvroCoder.of(Employee.class));
     long estimatedSize = hifSource.getEstimatedSizeBytes(p.getOptions());
     // Validate if estimated size is equal to the size of records.
     assertEquals(referenceRecords.size(), estimatedSize);
-    List<BoundedSource<KV<Text, Employee>>> boundedSourceList = hifSource
-            .splitIntoBundles(0, p.getOptions());
+    List<BoundedSource<KV<Text, Employee>>> boundedSourceList =
+        hifSource.splitIntoBundles(0, p.getOptions());
     // Validate if splitIntoBundles() has split correctly.
     assertEquals(TestEmployeeDataSet.NUMBER_OF_SPLITS, boundedSourceList.size());
     List<KV<Text, Employee>> bundleRecords = new ArrayList<>();
@@ -564,23 +564,23 @@ public class HadoopInputFormatIOTest {
       assertEquals(true, start);
       if (start) {
         elements.add(reader.getCurrent());
-        // Validate if getFractionConsumed() returns the correct fraction based on 
+        boolean advance = reader.advance();
+        // Validate if getFractionConsumed() returns the correct fraction based on
         // the number of records read in the split.
         assertEquals(
             Double.valueOf(++recordsRead / TestEmployeeDataSet.NUMBER_OF_RECORDS_IN_EACH_SPLIT),
             reader.getFractionConsumed());
-        boolean advance = reader.advance();
         assertEquals(true, advance);
         while (advance) {
           elements.add(reader.getCurrent());
+          advance = reader.advance();
           assertEquals(
               Double.valueOf(++recordsRead / TestEmployeeDataSet.NUMBER_OF_RECORDS_IN_EACH_SPLIT),
               reader.getFractionConsumed());
-          advance = reader.advance();
         }
         bundleRecords.addAll(elements);
       }
-      // Validate if getFractionConsumed() returns 1 after reading is complete. 
+      // Validate if getFractionConsumed() returns 1 after reading is complete.
       assertEquals(Double.valueOf(1), reader.getFractionConsumed());
       reader.close();
     }
@@ -597,7 +597,7 @@ public class HadoopInputFormatIOTest {
        Text.class,
        Employee.class,
        WritableCoder.of(Text.class),
-       AvroCoder.of(Employee.class)); 
+       AvroCoder.of(Employee.class));
     BoundedReader<KV<Text, Employee>> reader = boundedSourceList.get(0)
         .createReader(p.getOptions());
     SourceTestUtils.assertUnstartedReaderReadsSameAsItsSource(reader, p.getOptions());
@@ -615,7 +615,7 @@ public class HadoopInputFormatIOTest {
         Text.class,
         Employee.class,
         WritableCoder.of(Text.class),
-        AvroCoder.of(Employee.class)); 
+        AvroCoder.of(Employee.class));
     BoundedSource<KV<Text, Employee>> source = boundedSourceList.get(0);
     BoundedReader<KV<Text, Employee>> HIFReader = source.createReader(p.getOptions());
     BoundedSource<KV<Text, Employee>> HIFSource = HIFReader.getCurrentSource();
@@ -634,7 +634,7 @@ public class HadoopInputFormatIOTest {
         Text.class,
         Employee.class,
         WritableCoder.of(Text.class),
-        AvroCoder.of(Employee.class)); 
+        AvroCoder.of(Employee.class));
     thrown.expect(IOException.class);
     thrown.expectMessage(HadoopInputFormatIOConstants.CREATEREADER_UNSPLIT_SOURCE_ERROR_MSG);
     hifSource.createReader(p.getOptions());
@@ -842,7 +842,7 @@ public class HadoopInputFormatIOTest {
     Read<Text, String> read = HadoopInputFormatIO.<Text, String>read().withConfiguration(conf);
     read.getDefaultCoder(typedesc, pipeline.getCoderRegistry());
   }
-  
+
   private static SerializableConfiguration loadTestConfiguration(
       Class<?> inputFormatClassName,
       Class<?> keyClass,
@@ -874,7 +874,7 @@ public class HadoopInputFormatIOTest {
             null, // No key translation required.
             null);// No value translation required.
   }
-  
+
   private <K, V> List<BoundedSource<KV<K, V>>> getBoundedSourceList(
       Class<?> inputFormatClass,
       Class<K> inputFormatKeyClass,
