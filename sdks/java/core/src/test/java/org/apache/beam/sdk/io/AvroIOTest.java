@@ -351,7 +351,7 @@ public class AvroIOTest {
     } else {
       write = write.withoutSharding();
     }
-    p.apply(Create.<String>of(expectedElements)).apply(write);
+    p.apply(Create.of(ImmutableList.copyOf(expectedElements))).apply(write);
     p.run();
 
     String shardNameTemplate = write.getShardNameTemplate();

@@ -443,7 +443,7 @@ public class CombineTest implements Serializable {
   @Category(RunnableOnService.class)
   public void testWindowedCombineEmpty() {
     PCollection<Double> mean = pipeline
-        .apply(Create.<Integer>of().withCoder(BigEndianIntegerCoder.of()))
+        .apply(Create.empty(BigEndianIntegerCoder.of()))
         .apply(Window.<Integer>into(FixedWindows.of(Duration.millis(1))))
         .apply(Combine.globally(new MeanInts()).withoutDefaults());
 
@@ -610,7 +610,7 @@ public class CombineTest implements Serializable {
   @Category(RunnableOnService.class)
   public void testCombineGloballyAsSingletonView() {
     final PCollectionView<Integer> view = pipeline
-        .apply("CreateEmptySideInput", Create.<Integer>of().withCoder(BigEndianIntegerCoder.of()))
+        .apply("CreateEmptySideInput", Create.empty(BigEndianIntegerCoder.of()))
         .apply(Sum.integersGlobally().asSingletonView());
 
     PCollection<Integer> output = pipeline

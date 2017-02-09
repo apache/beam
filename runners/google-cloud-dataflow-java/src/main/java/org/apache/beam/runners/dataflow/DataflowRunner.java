@@ -404,7 +404,12 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       return windowed;
     } else if (Flatten.FlattenPCollectionList.class.equals(transform.getClass())
         && ((PCollectionList<?>) input).size() == 0) {
-      return (OutputT) Pipeline.applyTransform(input.getPipeline().begin(), Create.of());
+      // This can cause downstream coder inference to be screwy. Most of the time, that won't be
+      // hugely impactful, because there will never be any elements encoded with this coder;
+      // the issue stems from flattening this with another PCollection.
+      return (OutputT)
+          Pipeline.applyTransform(
+              input.getPipeline().begin(), Create.empty(VoidCoder.of()));
     } else if (overrides.containsKey(transform.getClass())) {
       // It is the responsibility of whoever constructs overrides to ensure this is type safe.
       @SuppressWarnings("unchecked")

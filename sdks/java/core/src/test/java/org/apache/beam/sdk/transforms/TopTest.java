@@ -23,7 +23,6 @@ import static org.junit.Assert.assertEquals;
 
 import java.io.Serializable;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import org.apache.beam.sdk.Pipeline;
@@ -155,9 +154,7 @@ public class TopTest {
     p.enableAbandonedNodeEnforcement(false);
 
     Bound<String> windowingFn = Window.<String>into(FixedWindows.of(Duration.standardDays(10L)));
-    PCollection<String> input =
-        p.apply(Create.timestamped(Collections.<String>emptyList(), Collections.<Long>emptyList()))
-         .apply(windowingFn);
+    PCollection<String> input = p.apply(Create.empty(StringUtf8Coder.of())).apply(windowingFn);
 
     expectedEx.expect(IllegalStateException.class);
     expectedEx.expectMessage("Top");

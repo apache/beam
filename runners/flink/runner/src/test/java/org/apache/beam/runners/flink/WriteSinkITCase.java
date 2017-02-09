@@ -21,6 +21,7 @@ package org.apache.beam.runners.flink;
 import static org.junit.Assert.assertNotNull;
 
 import com.google.common.base.Joiner;
+import com.google.common.collect.ImmutableList;
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
@@ -78,7 +79,7 @@ public class WriteSinkITCase extends JavaProgramTestBase {
   private static void runProgram(String resultPath) {
     Pipeline p = FlinkTestPipeline.createForBatch();
 
-    p.apply(Create.of(EXPECTED_RESULT)).setCoder(StringUtf8Coder.of())
+    p.apply(Create.of(ImmutableList.copyOf(EXPECTED_RESULT))).setCoder(StringUtf8Coder.of())
       .apply("CustomSink", Write.to(new MyCustomSink(resultPath)));
 
     p.run();

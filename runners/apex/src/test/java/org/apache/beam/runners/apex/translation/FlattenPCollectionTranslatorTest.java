@@ -18,6 +18,7 @@
 
 package org.apache.beam.runners.apex.translation;
 
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Sets;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -61,7 +62,8 @@ public class FlattenPCollectionTranslatorTest {
     Set<String> expected = Sets.newHashSet();
     List<PCollection<String>> pcList = new ArrayList<PCollection<String>>();
     for (String[] collection : collections) {
-      pcList.add(p.apply(Create.of(collection).withCoder(StringUtf8Coder.of())));
+      pcList.add(
+          p.apply(Create.of(ImmutableList.copyOf(collection)).withCoder(StringUtf8Coder.of())));
       expected.addAll(Arrays.asList(collection));
     }
 

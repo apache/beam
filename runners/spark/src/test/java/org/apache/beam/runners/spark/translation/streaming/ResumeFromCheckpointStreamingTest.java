@@ -20,6 +20,7 @@ package org.apache.beam.runners.spark.translation.streaming;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertThat;
 
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.util.concurrent.Uninterruptibles;
 import java.io.IOException;
@@ -171,7 +172,8 @@ public class ResumeFromCheckpointStreamingTest {
 
     Pipeline p = Pipeline.create(options);
 
-    PCollection<String> expectedCol = p.apply(Create.of(EXPECTED).withCoder(StringUtf8Coder.of()));
+    PCollection<String> expectedCol =
+        p.apply(Create.of(ImmutableList.copyOf(EXPECTED)).withCoder(StringUtf8Coder.of()));
     final PCollectionView<List<String>> expectedView = expectedCol.apply(View.<String>asList());
 
     PCollection<String> formattedKV =
