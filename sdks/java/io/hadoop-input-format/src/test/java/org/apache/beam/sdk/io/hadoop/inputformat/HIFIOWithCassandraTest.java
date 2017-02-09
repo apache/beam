@@ -64,7 +64,7 @@ public class HIFIOWithCassandraTest implements Serializable {
   private static transient Cluster cluster;
   private static transient Session session;
   private static long TEST_DATA_ROW_COUNT = 10L;
-  // Setting Cassandra embedded server startup timeout to 2 min
+  // Setting Cassandra embedded server startup timeout to 2 min.
   private static final long CASSANDRA_SERVER_STARTUP_TIMEOUT = 120000L;
 
   @Rule
@@ -154,8 +154,6 @@ public class HIFIOWithCassandraTest implements Serializable {
     return conf;
   }
 
-  public static void dropTable() throws Exception {}
-
   @BeforeClass
   public static void startEmbeddedCassandra() throws Exception {
     EmbeddedCassandraServerHelper.startEmbeddedCassandra("/cassandra.yaml", "target/cassandra",
@@ -164,7 +162,7 @@ public class HIFIOWithCassandraTest implements Serializable {
     session = cluster.connect();
     createCassandraData();
   }
-
+  
   public static void createCassandraData() throws Exception {
     session.execute("CREATE KEYSPACE " + CASSANDRA_KEYSPACE
         + " WITH REPLICATION = {'class':'SimpleStrategy', 'replication_factor':1};");
@@ -183,6 +181,11 @@ public class HIFIOWithCassandraTest implements Serializable {
     EmbeddedCassandraServerHelper.cleanEmbeddedCassandra();
   }
 
+  public static void dropTable() throws Exception {
+    session.execute("Drop TABLE " + CASSANDRA_TABLE);
+    session.execute("Drop KEYSPACE " + CASSANDRA_KEYSPACE);
+  }
+  
   @Table(name = CASSANDRA_TABLE, keyspace = CASSANDRA_KEYSPACE)
   public static class Scientist implements Serializable {
     private static final long serialVersionUID = 1L;

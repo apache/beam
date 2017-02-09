@@ -14,13 +14,9 @@
  */
 package org.apache.beam.sdk.io.hadoop.inputformat.integration.tests;
 
-import static org.hamcrest.MatcherAssert.assertThat;
-
 import java.io.Serializable;
 
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.PipelineResult;
-import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.io.hadoop.inputformat.HadoopInputFormatIO;
 import org.apache.beam.sdk.io.hadoop.inputformat.HadoopInputFormatIOConstants;
 import org.apache.beam.sdk.io.hadoop.inputformat.custom.options.HIFTestOptions;
@@ -36,6 +32,7 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.mapreduce.InputFormat;
+
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -45,7 +42,6 @@ import com.datastax.driver.core.Row;
 
 /**
  * Runs integration test to validate HadoopInputFromatIO for a Cassandra instance.
- *
  * You need to pass Cassandra server IP and port in beamTestPipelineOptions.
  *
  * <p>
@@ -65,7 +61,6 @@ public class HIFIOCassandraIT implements Serializable {
   private static final String CASSANDRA_KEYSPACE_PROPERTY = "cassandra.input.keyspace";
   private static final String CASSANDRA_COLUMNFAMILY_PROPERTY = "cassandra.input.columnfamily";
   private static final String CASSANDRA_PARTITIONER_CLASS_VALUE = "Murmur3Partitioner";
-  private static final String OUTPUT_WRITE_FILE_PATH = "output-cassandra";
   private static HIFTestOptions options;
 
   @BeforeClass
@@ -103,15 +98,12 @@ public class HIFIOCassandraIT implements Serializable {
             .withValueTranslation(myValueTranslate));
     PAssert.thatSingleton(cassandraData.apply("Count", Count.<KV<Long, String>>globally()))
         .isEqualTo(NUM_ROWS);
-
     PCollection<String> textValues = cassandraData.apply(Values.<String>create());
     // Verify the output values using checksum comparison.
     PCollection<String> consolidatedHashcode =
         textValues.apply(Combine.globally(new HashingFn()).withoutDefaults());
     PAssert.that(consolidatedHashcode).containsInAnyOrder(expectedHashCode);
-
     pipeline.run().waitUntilFinish();
-
   }
 
   /**
@@ -120,9 +112,8 @@ public class HIFIOCassandraIT implements Serializable {
    */
   @Test
   public void testHIFReadForCassandraQuery() {
-    String expectedHashCode = "4d5eca54814d73168da6a739ea2bd374831e3fda";
-    Long NUM_ROWS = 1L;
-
+    String expectedHashCode = "af01241837829df46936f9d2639de8df7eb2a2bc";
+    Long expectedNumRows = 1L;
     Pipeline pipeline = TestPipeline.create(options);
     Configuration conf = getConfiguration(options);
     conf.set(
@@ -135,26 +126,31 @@ public class HIFIOCassandraIT implements Serializable {
     SimpleFunction<Row, String> myValueTranslate = new SimpleFunction<Row, String>() {
       @Override
       public String apply(Row input) {
-        return input.getString("y_id");
+        return input.getString("y_id") + "|" + input.getString("field0") + "|"
+            + input.getString("field1") + "|" + input.getString("field2") + "|"
+            + input.getString("field3") + "|" + input.getString("field4") + "|"
+            + input.getString("field5") + "|" + input.getString("field6") + "|"
+            + input.getString("field7") + "|" + input.getString("field8") + "|"
+            + input.getString("field9") + "|" + input.getString("field10") + "|"
+            + input.getString("field11") + "|" + input.getString("field12") + "|"
+            + input.getString("field13") + "|" + input.getString("field14") + "|"
+            + input.getString("field15") + "|" + input.getString("field16");
       }
     };
     PCollection<KV<Long, String>> cassandraData =
         pipeline.apply(HadoopInputFormatIO.<Long, String>read().withConfiguration(conf)
             .withValueTranslation(myValueTranslate));
     PAssert.thatSingleton(cassandraData.apply("Count", Count.<KV<Long, String>>globally()))
-        .isEqualTo(NUM_ROWS);
-
+        .isEqualTo(expectedNumRows);
     PCollection<String> textValues = cassandraData.apply(Values.<String>create());
     // Verify the output values using checksum comparison.
     PCollection<String> consolidatedHashcode =
         textValues.apply(Combine.globally(new HashingFn()).withoutDefaults());
     PAssert.that(consolidatedHashcode).containsInAnyOrder(expectedHashCode);
-
-
     pipeline.run().waitUntilFinish();
   }
 
-  /*
+  /**
    * Returns Hadoop configuration for reading data from Cassandra. To read data from Cassandra using
    * HadoopInputFormatIO, following properties must be set: InputFormat class, InputFormat key
    * class, InputFormat value class, Thrift address, Thrift port, partitioner class, keyspace and

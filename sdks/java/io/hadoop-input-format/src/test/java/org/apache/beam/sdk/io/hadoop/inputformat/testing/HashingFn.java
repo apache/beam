@@ -21,12 +21,14 @@ import java.util.List;
 import javax.annotation.Nonnull;
 
 import org.apache.beam.sdk.coders.AvroCoder;
+import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.coders.StringDelegateCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
+import org.apache.beam.sdk.values.TypeDescriptor;
 
 import com.google.common.collect.Lists;
 import com.google.common.hash.HashCode;
@@ -35,7 +37,6 @@ import com.google.common.hash.Hashing;
 /**
  * Custom Function for Hashing. The combiner will be combineUnordered, and accumulator is a
  * HashCode.
- * 
  */
 public class HashingFn extends CombineFn<String, HashingFn.Accum, String> {
   public static class Accum {
@@ -53,7 +54,6 @@ public class HashingFn extends CombineFn<String, HashingFn.Accum, String> {
   }
 
 
-
   @Override
   public Accum mergeAccumulators(Iterable<Accum> accums) {
     Accum merged = createAccumulator();
@@ -65,29 +65,29 @@ public class HashingFn extends CombineFn<String, HashingFn.Accum, String> {
 
   @Override
   public String extractOutput(Accum accum) {
+    // Return the hash code of the list of elements in the Pcollection.
     return generateHash(accum.pCollElements);
   }
 
   /**
    * This method generates checksum for a list of Strings.
-   * 
    */
   private String generateHash(@Nonnull List<String> inputs) {
     List<HashCode> rowHashes = Lists.newArrayList();
-    for(String input : inputs){
+    for (String input : inputs) {
       rowHashes.add(Hashing.sha1().hashString(input, StandardCharsets.UTF_8));
     }
     return Hashing.combineUnordered(rowHashes).toString();
   }
 
   @Override
-  public Coder getAccumulatorCoder(CoderRegistry registry, Coder<String> inputCoder) {
-    return StringDelegateCoder.of(String.class);
+  public Coder getAccumulatorCoder(CoderRegistry registry, Coder<String> inputCoder)
+      throws CannotProvideCoderException {
+    return registry.getCoder(new TypeDescriptor(Accum.class) {});
   }
 
   @Override
   public Coder getDefaultOutputCoder(CoderRegistry registry, Coder<String> inputCoder) {
-    return StringDelegateCoder.of(String.class);
+    return inputCoder;
   }
-
 }

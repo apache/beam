@@ -87,8 +87,7 @@ public class HIFIOWithElasticTest implements Serializable {
   private static final String ELASTIC_RESOURCE = "/" + ELASTIC_INDEX_NAME + "/" + ELASTIC_TYPE_NAME;
   private static final int TEST_DATA_ROW_COUNT = 10;
   private static final String ELASTIC_TYPE_ID_PREFIX = "s";
-  private static List<String> expectedList = new ArrayList<>();
-
+ 
   @ClassRule
   public static TemporaryFolder elasticTempFolder = new TemporaryFolder();
 
@@ -142,9 +141,18 @@ public class HIFIOWithElasticTest implements Serializable {
     Configuration conf = getConfiguration();
     String fieldValue = ELASTIC_TYPE_ID_PREFIX + "2";
     String query =
-        "{\n" + "  \"query\": {\n" + "  \"match\" : {\n" + "    \"id\" : {\n"
-            + "      \"query\" : \"" + fieldValue + "" + "\",\n" + "      \"type\" : \"boolean\"\n"
-            + "    }\n" + "  }\n" + "  }\n" + "}";
+        "{\n" + "  \"query\": {\n" 
+              + "  \"match\" : {\n" 
+              + "    \"id\" : {\n"
+              + "      \"query\" : \"" 
+              + fieldValue 
+              + "" 
+              + "\",\n" 
+              + "      \"type\" : \"boolean\"\n"
+              + "    }\n" 
+              + "  }\n" 
+              + "  }\n" 
+              + "}";
     conf.set(ConfigurationOptions.ES_QUERY, query);
     PCollection<KV<Text, LinkedMapWritable>> esData =
         pipeline.apply(HadoopInputFormatIO.<Text, LinkedMapWritable>read().withConfiguration(conf));
@@ -166,103 +174,7 @@ public class HIFIOWithElasticTest implements Serializable {
     PAssert.that(consolidatedHashcode).containsInAnyOrder(expectedHashCode);
     pipeline.run().waitUntilFinish();
   }
-
-  public static Map<String, String> createElasticRow(String id, String name) {
-    Map<String, String> data = new HashMap<String, String>();
-    data.put("id", id);
-    data.put("scientist", name);
-    return data;
-  }
-
-  @AfterClass
-  public static void shutdownServer() throws IOException {
-    ElasticEmbeddedServer.shutdown();
-  }
-
-  /**
-   * Class for in memory Elasticsearch server.
-   */
-  static class ElasticEmbeddedServer implements Serializable {
-
-    private static final long serialVersionUID = 1L;
-    private static Node node;
-
-    public static void startElasticEmbeddedServer() throws UnknownHostException,
-        NodeValidationException, InterruptedException {
-
-      Settings settings =
-          Settings.builder().put("node.data", TRUE).put("network.host", ELASTIC_IN_MEM_HOSTNAME)
-              .put("http.port", ELASTIC_IN_MEM_PORT)
-              .put("path.data", elasticTempFolder.getRoot().getPath())
-              .put("path.home", elasticTempFolder.getRoot().getPath())
-              .put("transport.type", "local").put("http.enabled", TRUE).put("node.ingest", TRUE)
-              .build();
-      node = new PluginNode(settings);
-      node.start();
-      LOGGER.info("Elastic in memory server started.");
-      prepareElasticIndex();
-      LOGGER.info("Prepared index " + ELASTIC_INDEX_NAME
-          + "and populated data on elastic in memory server.");
-    }
-
-    private static void prepareElasticIndex() throws InterruptedException {
-      CreateIndexRequest indexRequest = new CreateIndexRequest(ELASTIC_INDEX_NAME);
-      node.client().admin().indices().create(indexRequest).actionGet();
-      for (int i = 0; i < TEST_DATA_ROW_COUNT; i++) {
-        node.client().prepareIndex(ELASTIC_INDEX_NAME, ELASTIC_TYPE_NAME, String.valueOf(i))
-            .setSource(createElasticRow(ELASTIC_TYPE_ID_PREFIX + i, "Faraday" + i)).execute();
-        expectedList.add(ELASTIC_TYPE_ID_PREFIX + i + "|" + "Faraday" + i);
-
-        // Adding data to the elastic server instance sometimes take slight more time which may lead
-        // to assertion error in the test. Hence, added Thread.sleep(100)
-        Thread.sleep(100);
-      }
-      GetResponse response =
-          node.client().prepareGet(ELASTIC_INDEX_NAME, ELASTIC_TYPE_NAME, "1").execute()
-              .actionGet();
-
-    }
-
-    public Client getClient() throws UnknownHostException {
-      return node.client();
-    }
-
-    public static void shutdown() throws IOException {
-      DeleteIndexRequest indexRequest = new DeleteIndexRequest(ELASTIC_INDEX_NAME);
-      node.client().admin().indices().delete(indexRequest).actionGet();
-      LOGGER.info("Deleted index " + ELASTIC_INDEX_NAME + " from elastic in memory server");
-      node.close();
-      LOGGER.info("Closed elastic in memory server node.");
-      deleteElasticDataDirectory();
-    }
-
-    private static void deleteElasticDataDirectory() {
-      try {
-        FileUtils.deleteDirectory(new File(elasticTempFolder.getRoot().getPath()));
-      } catch (IOException e) {
-        throw new RuntimeException("Exception: Could not delete elastic data directory", e);
-      }
-    }
-
-  }
-
-  /**
-   * Class created for handling "http.enabled" property as "true" for Elasticsearch node.
-   */
-  static class PluginNode extends Node implements Serializable {
-
-    private static final long serialVersionUID = 1L;
-    static Collection<Class<? extends Plugin>> list = new ArrayList<Class<? extends Plugin>>();
-    static {
-      list.add(Netty4Plugin.class);
-    }
-
-    public PluginNode(final Settings settings) {
-      super(InternalSettingsPreparer.prepareEnvironment(settings, null), list);
-
-    }
-  }
-
+  
   /**
    * Set the Elasticsearch configuration parameters in the Hadoop configuration object.
    * Configuration object should have InputFormat class, key class and value class set. Mandatory
@@ -284,5 +196,93 @@ public class HIFIOWithElasticTest implements Serializable {
     conf.setClass(HadoopInputFormatIOConstants.KEY_CLASS, Text.class, Object.class);
     conf.setClass(HadoopInputFormatIOConstants.VALUE_CLASS, LinkedMapWritable.class, Object.class);
     return conf;
+  }
+
+  private static Map<String, String> createElasticRow(String id, String name) {
+    Map<String, String> data = new HashMap<String, String>();
+    data.put("id", id);
+    data.put("scientist", name);
+    return data;
+  }
+
+  @AfterClass
+  public static void shutdownServer() throws IOException {
+    ElasticEmbeddedServer.shutdown();
+  }
+
+  /**
+   * Class for in memory Elasticsearch server.
+   */
+  static class ElasticEmbeddedServer implements Serializable {
+    private static final long serialVersionUID = 1L;
+    private static Node node;
+
+    public static void startElasticEmbeddedServer() throws UnknownHostException,
+        NodeValidationException, InterruptedException {
+      Settings settings =
+          Settings.builder()
+                  .put("node.data", TRUE)
+                  .put("network.host", ELASTIC_IN_MEM_HOSTNAME)
+                  .put("http.port", ELASTIC_IN_MEM_PORT)
+                  .put("path.data", elasticTempFolder.getRoot().getPath())
+                  .put("path.home", elasticTempFolder.getRoot().getPath())
+                  .put("transport.type", "local")
+                  .put("http.enabled", TRUE)
+                  .put("node.ingest", TRUE)
+                  .build();
+      node = new PluginNode(settings);
+      node.start();
+      LOGGER.info("Elastic in memory server started.");
+      prepareElasticIndex();
+      LOGGER.info("Prepared index " + ELASTIC_INDEX_NAME
+          + "and populated data on elastic in memory server.");
+    }
+
+    /**
+     * Prepares Elastic index, by adding rows. Adding data to the elastic server instance sometimes
+     * take slight more time which may lead to assertion error in the test. In such a scenario, add
+     * Thread.sleep(100) after executing createElasticRow method.
+     */
+    private static void prepareElasticIndex() throws InterruptedException {
+      CreateIndexRequest indexRequest = new CreateIndexRequest(ELASTIC_INDEX_NAME);
+      node.client().admin().indices().create(indexRequest).actionGet();
+      for (int i = 0; i < TEST_DATA_ROW_COUNT; i++) {
+        node.client().prepareIndex(ELASTIC_INDEX_NAME, ELASTIC_TYPE_NAME, String.valueOf(i))
+            .setSource(createElasticRow(ELASTIC_TYPE_ID_PREFIX + i, "Faraday" + i)).execute();
+      }
+    }
+
+    public static void shutdown() throws IOException {
+      DeleteIndexRequest indexRequest = new DeleteIndexRequest(ELASTIC_INDEX_NAME);
+      node.client().admin().indices().delete(indexRequest).actionGet();
+      LOGGER.info("Deleted index " + ELASTIC_INDEX_NAME + " from elastic in memory server");
+      node.close();
+      LOGGER.info("Closed elastic in memory server node.");
+      deleteElasticDataDirectory();
+    }
+
+    private static void deleteElasticDataDirectory() {
+      try {
+        FileUtils.deleteDirectory(new File(elasticTempFolder.getRoot().getPath()));
+      } catch (IOException e) {
+        throw new RuntimeException("Could not delete elastic data directory: " + e.getMessage(), e);
+      }
+    }
+  }
+
+  /**
+   * Class created for handling "http.enabled" property as "true" for Elasticsearch node.
+   */
+  static class PluginNode extends Node implements Serializable {
+
+    private static final long serialVersionUID = 1L;
+    static Collection<Class<? extends Plugin>> list = new ArrayList<Class<? extends Plugin>>();
+    static {
+      list.add(Netty4Plugin.class);
+    }
+
+    public PluginNode(final Settings settings) {
+      super(InternalSettingsPreparer.prepareEnvironment(settings, null), list);
+    }
   }
 }
