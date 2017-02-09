@@ -15,26 +15,27 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.util.state;
-
-import java.util.Map;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
-import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+package org.apache.beam.sdk.io.fs;
 
 /**
- * Interface for accessing persistent state while windows are merging.
- *
- * <p>For internal use only.
+ * An object that configures {@link ResourceId#resolve}.
  */
-@Experimental(Kind.STATE)
-public interface MergingStateAccessor<K, W extends BoundedWindow>
-    extends StateAccessor<K> {
+public interface ResolveOptions {
+
   /**
-   * Analogous to {@link #access}, but returned as a map from each window which is
-   * about to be merged to the corresponding state. Only includes windows which
-   * are known to have state.
+   * Defines the standard resolve options.
    */
-  <StateT extends State> Map<W, StateT> accessInEachMergingWindow(
-      StateTag<? super K, StateT> address);
+  enum StandardResolveOptions implements ResolveOptions {
+    /**
+     * Resolve a file.
+     */
+    RESOLVE_FILE,
+
+    /**
+     * Resolve a directory.
+     *
+     * <p>This requires {@link ResourceId} implementation to append a delimiter.
+     */
+    RESOLVE_DIRECTORY,
+  }
 }

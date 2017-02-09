@@ -128,8 +128,27 @@ public class Create<T> {
    * Otherwise, use {@link Create.Values#withCoder} to set the coder explicitly.
    */
   @SafeVarargs
-  public static <T> Values<T> of(T... elems) {
-    return of(Arrays.asList(elems));
+  public static <T> Values<T> of(T elem, T... elems) {
+    // This can't be an ImmutableList, as it may accept nulls
+    List<T> input = new ArrayList<>(elems.length + 1);
+    input.add(elem);
+    input.addAll(Arrays.asList(elems));
+    return of(input);
+  }
+
+  /**
+   * Returns a new {@code Create.Values} transform that produces
+   * an empty {@link PCollection}.
+   *
+   * <p>The elements will have a timestamp of negative infinity, see
+   * {@link Create#timestamped} for a way of creating a {@code PCollection}
+   * with timestamped elements.
+   *
+   * <p>Since there are no elements, the {@code Coder} cannot be automatically determined.
+   * Instead, the {@code Coder} is provided via the {@code coder} argument.
+   */
+  public static <T> Values<T> empty(Coder<T> coder) {
+    return new Values<>(new ArrayList<T>(), Optional.of(coder));
   }
 
   /**
@@ -180,8 +199,8 @@ public class Create<T> {
    */
   @SafeVarargs
   public static <T> TimestampedValues<T> timestamped(
-      @SuppressWarnings("unchecked") TimestampedValue<T>... elems) {
-    return timestamped(Arrays.asList(elems));
+      TimestampedValue<T> elem, @SuppressWarnings("unchecked") TimestampedValue<T>... elems) {
+    return timestamped(ImmutableList.<TimestampedValue<T>>builder().add(elem).add(elems).build());
   }
 
   /**
@@ -487,6 +506,11 @@ public class Create<T> {
 
   private static <T> Coder<T> getDefaultCreateCoder(CoderRegistry registry, Iterable<T> elems)
       throws CannotProvideCoderException {
+    checkArgument(
+        !Iterables.isEmpty(elems),
+        "Elements must be provided to construct the default Create Coder. To Create an empty "
+            + "PCollection, either call Create.empty(Coder), or call 'withCoder(Coder)' on the "
+            + "result PTransform");
     // First try to deduce a coder using the types of the elements.
     Class<?> elementClazz = Void.class;
     for (T elem : elems) {

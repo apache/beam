@@ -189,9 +189,7 @@ public class WindowingTest implements Serializable {
   @Test
   @Category(NeedsRunner.class)
   public void testEmptyInput() {
-    PCollection<String> input =
-        p.apply(Create.<String>timestamped()
-            .withCoder(StringUtf8Coder.of()));
+    PCollection<String> input = p.apply(Create.empty(StringUtf8Coder.of()));
 
     PCollection<String> output =
         input

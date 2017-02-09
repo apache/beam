@@ -525,8 +525,7 @@ class PartitionFn(WithTypeHints):
     """Specify which partition will receive this element.
 
     Args:
-      context: A DoFnProcessContext containing an element of the
-        input PCollection.
+      element: An element of the input PCollection.
       num_partitions: Number of partitions, i.e., output PCollections.
       *args: optional parameters and side inputs.
       **kwargs: optional parameters and side inputs.
@@ -559,8 +558,8 @@ class CallableWrapperPartitionFn(PartitionFn):
       raise TypeError('Expected a callable object instead of: %r' % fn)
     self._fn = fn
 
-  def partition_for(self, context, num_partitions, *args, **kwargs):
-    return self._fn(context.element, num_partitions, *args, **kwargs)
+  def partition_for(self, element, num_partitions, *args, **kwargs):
+    return self._fn(element, num_partitions, *args, **kwargs)
 
 
 class ParDo(PTransformWithSideInputs):
@@ -705,12 +704,11 @@ def FlatMap(fn_or_label, *args, **kwargs):  # pylint: disable=invalid-name
   return ParDo(label, CallableWrapperDoFn(fn), *args, **kwargs)
 
 
-def Map(fn_or_label, *args, **kwargs):  # pylint: disable=invalid-name
+def Map(fn, *args, **kwargs):  # pylint: disable=invalid-name
   """Map is like FlatMap except its callable returns only a single element.
 
   Args:
-    fn_or_label: name of this transform instance. Useful while monitoring and
-      debugging a pipeline execution.
+    fn: a callable object.
     *args: positional arguments passed to the transform callable.
     **kwargs: keyword arguments passed to the transform callable.
 
@@ -721,19 +719,16 @@ def Map(fn_or_label, *args, **kwargs):  # pylint: disable=invalid-name
     TypeError: If the fn passed as argument is not a callable. Typical error
       is to pass a DoFn instance which is supported only for ParDo.
   """
-  if isinstance(fn_or_label, str):
-    label, fn, args = fn_or_label, args[0], args[1:]
-  else:
-    label, fn = None, fn_or_label
   if not callable(fn):
     raise TypeError(
         'Map can be used only with callable objects. '
-        'Received %r instead for %s argument.'
-        % (fn, 'first' if label is None else 'second'))
+        'Received %r instead.' % (fn))
   if _fn_takes_side_inputs(fn):
     wrapper = lambda x, *args, **kwargs: [fn(x, *args, **kwargs)]
   else:
     wrapper = lambda x: [fn(x)]
+
+  label = 'Map(%s)' % ptransform.label_from_callable(fn)
 
   # TODO. What about callable classes?
   if hasattr(fn, '__name__'):
@@ -749,18 +744,14 @@ def Map(fn_or_label, *args, **kwargs):  # pylint: disable=invalid-name
   wrapper._argspec_fn = fn
   # pylint: enable=protected-access
 
-  if label is None:
-    label = 'Map(%s)' % ptransform.label_from_callable(fn)
-
   return FlatMap(label, wrapper, *args, **kwargs)
 
 
-def Filter(fn_or_label, *args, **kwargs):  # pylint: disable=invalid-name
+def Filter(fn, *args, **kwargs):  # pylint: disable=invalid-name
   """Filter is a FlatMap with its callable filtering out elements.
 
   Args:
-    fn_or_label: name of this transform instance. Useful while monitoring and
-      debugging a pipeline execution.
+    fn: a callable object.
     *args: positional arguments passed to the transform callable.
     **kwargs: keyword arguments passed to the transform callable.
 
@@ -771,16 +762,13 @@ def Filter(fn_or_label, *args, **kwargs):  # pylint: disable=invalid-name
     TypeError: If the fn passed as argument is not a callable. Typical error
       is to pass a DoFn instance which is supported only for FlatMap.
   """
-  if isinstance(fn_or_label, str):
-    label, fn, args = fn_or_label, args[0], args[1:]
-  else:
-    label, fn = None, fn_or_label
   if not callable(fn):
     raise TypeError(
         'Filter can be used only with callable objects. '
-        'Received %r instead for %s argument.'
-        % (fn, 'first' if label is None else 'second'))
+        'Received %r instead.' % (fn))
   wrapper = lambda x, *args, **kwargs: [x] if fn(x, *args, **kwargs) else []
+
+  label = 'Filter(%s)' % ptransform.label_from_callable(fn)
 
   # TODO: What about callable classes?
   if hasattr(fn, '__name__'):
@@ -798,9 +786,6 @@ def Filter(fn_or_label, *args, **kwargs):  # pylint: disable=invalid-name
   # pylint: disable=protected-access
   wrapper._argspec_fn = fn
   # pylint: enable=protected-access
-
-  if label is None:
-    label = 'Filter(%s)' % ptransform.label_from_callable(fn)
 
   return FlatMap(label, wrapper, *args, **kwargs)
 
@@ -1179,9 +1164,8 @@ class Partition(PTransformWithSideInputs):
   class ApplyPartitionFnFn(DoFn):
     """A DoFn that applies a PartitionFn."""
 
-    def process(self, element, partitionfn, n, context=DoFn.ContextParam,
-                *args, **kwargs):
-      partition = partitionfn.partition_for(context, n, *args, **kwargs)
+    def process(self, element, partitionfn, n, *args, **kwargs):
+      partition = partitionfn.partition_for(element, n, *args, **kwargs)
       if not 0 <= partition < n:
         raise ValueError(
             'PartitionFn specified out-of-bounds partition index: '
@@ -1252,10 +1236,8 @@ class WindowInto(ParDo):
     def __init__(self, windowing):
       self.windowing = windowing
 
-    def process(self, element, context=DoFn.ContextParam):
-      context = WindowFn.AssignContext(context.timestamp,
-                                       element=element,
-                                       existing_windows=context.windows)
+    def process(self, element, timestamp=DoFn.TimestampParam):
+      context = WindowFn.AssignContext(timestamp, element=element)
       new_windows = self.windowing.windowfn.assign(context)
       yield WindowedValue(element, context.timestamp, new_windows)
 

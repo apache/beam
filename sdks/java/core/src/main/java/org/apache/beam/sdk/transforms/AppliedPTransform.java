@@ -30,23 +30,25 @@ import org.apache.beam.sdk.values.TaggedPValue;
  *
  * <p>For internal use.
  *
- * @param <InputT> transform input type
- * @param <OutputT> transform output type
+ * @param <InputT>     transform input type
+ * @param <OutputT>    transform output type
  * @param <TransformT> transform type
  */
 @AutoValue
-public abstract class AppliedPTransform
-    <InputT extends PInput, OutputT extends POutput,
-     TransformT extends PTransform<? super InputT, OutputT>> {
+public abstract class AppliedPTransform<
+    InputT extends PInput, OutputT extends POutput,
+    TransformT extends PTransform<? super InputT, OutputT>> {
 
-  public static <
-          InputT extends PInput,
-          OutputT extends POutput,
+  public static <InputT extends PInput, OutputT extends POutput,
           TransformT extends PTransform<? super InputT, OutputT>>
       AppliedPTransform<InputT, OutputT, TransformT> of(
-          String fullName, InputT input, OutputT output, TransformT transform) {
+          String fullName,
+          List<TaggedPValue> input,
+          List<TaggedPValue> output,
+          TransformT transform,
+          Pipeline p) {
     return new AutoValue_AppliedPTransform<InputT, OutputT, TransformT>(
-        fullName, input.expand(), output.expand(), transform, input.getPipeline());
+        fullName, input, output, transform, p);
   }
 
   public abstract String getFullName();

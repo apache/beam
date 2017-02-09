@@ -22,7 +22,6 @@ import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.util.state.State;
 import org.apache.beam.sdk.util.state.StateContext;
-import org.apache.beam.sdk.util.state.StateTag;
 
 /**
  * {@code StateInternals} describes the functionality a runner needs to provide for the

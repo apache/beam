@@ -21,6 +21,7 @@ from distutils.version import StrictVersion
 
 import os
 import platform
+import shutil
 import warnings
 
 import setuptools
@@ -30,8 +31,7 @@ from pkg_resources import get_distribution, DistributionNotFound
 
 def get_version():
   global_names = {}
-  execfile(os.path.normpath('./apache_beam/version.py'),
-           global_names)
+  exec(open(os.path.normpath('./apache_beam/version.py')).read(), global_names)
   return global_names['__version__']
 
 PACKAGE_NAME = 'apache-beam-sdk'
@@ -81,6 +81,17 @@ else:
     from Cython.Build import cythonize
   except ImportError:
     cythonize = lambda *args, **kwargs: []
+
+# Copy standard_coders.yaml from the common resource location.
+STANDARD_CODER_COMMON_PATH = ("../common/fn-api/src/test/resources/"
+                              "org/apache/beam/fn/v1/standard_coders.yaml")
+STANDARD_CODER_TEST_PATH = "apache_beam/coders/standard_coders.yaml"
+if os.path.exists:
+  try:
+    shutil.copyfile(STANDARD_CODER_COMMON_PATH, STANDARD_CODER_TEST_PATH)
+  except:
+    # do nothing; the test might fail later
+    pass
 
 
 REQUIRED_PACKAGES = [

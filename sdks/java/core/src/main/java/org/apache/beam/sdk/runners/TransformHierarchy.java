@@ -323,7 +323,12 @@ public class TransformHierarchy {
      * Returns the {@link AppliedPTransform} representing this {@link Node}.
      */
     public AppliedPTransform<?, ?, ?> toAppliedPTransform() {
-      return AppliedPTransform.of(getFullName(), input, output, (PTransform) getTransform());
+      return AppliedPTransform.of(
+          getFullName(),
+          input.expand(),
+          output.expand(),
+          (PTransform) getTransform(),
+          input.getPipeline());
     }
 
     /**

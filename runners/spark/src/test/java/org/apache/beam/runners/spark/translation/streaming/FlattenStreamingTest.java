@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.spark.translation.streaming;
 
+import com.google.common.collect.ImmutableList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -91,7 +92,7 @@ public class FlattenStreamingTest {
     PCollection<String> windowedW1 =
         w1.apply(Window.<String>into(FixedWindows.of(Duration.standardSeconds(1))));
     PCollection<String> w2 =
-        p.apply(Create.of(WORDS_ARRAY_2)).setCoder(StringUtf8Coder.of());
+        p.apply(Create.of(ImmutableList.copyOf(WORDS_ARRAY_2)).withCoder(StringUtf8Coder.of()));
     PCollection<String> windowedW2 =
         w2.apply(Window.<String>into(FixedWindows.of(Duration.standardSeconds(1))));
     PCollectionList<String> list = PCollectionList.of(windowedW1).and(windowedW2);

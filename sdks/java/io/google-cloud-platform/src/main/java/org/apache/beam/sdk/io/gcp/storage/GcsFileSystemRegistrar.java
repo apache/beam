@@ -30,6 +30,8 @@ import org.apache.beam.sdk.options.PipelineOptions;
 @AutoService(FileSystemRegistrar.class)
 public class GcsFileSystemRegistrar implements FileSystemRegistrar {
 
+  static final String GCS_SCHEME = "gs";
+
   @Override
   public FileSystem fromOptions(@Nonnull PipelineOptions options) {
     return new GcsFileSystem(options.as(GcsOptions.class));
@@ -37,6 +39,6 @@ public class GcsFileSystemRegistrar implements FileSystemRegistrar {
 
   @Override
   public String getScheme() {
-    return "gs";
+    return GCS_SCHEME;
   }
 }

@@ -24,13 +24,13 @@ import com.google.common.collect.ImmutableMap;
 import java.util.BitSet;
 import java.util.Collection;
 import java.util.Map;
+import org.apache.beam.runners.core.MergingStateAccessor;
+import org.apache.beam.runners.core.StateAccessor;
+import org.apache.beam.runners.core.StateTag;
+import org.apache.beam.runners.core.StateTags;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.BitSetCoder;
 import org.apache.beam.sdk.util.Timers;
-import org.apache.beam.sdk.util.state.MergingStateAccessor;
-import org.apache.beam.sdk.util.state.StateAccessor;
-import org.apache.beam.sdk.util.state.StateTag;
-import org.apache.beam.sdk.util.state.StateTags;
 import org.apache.beam.sdk.util.state.ValueState;
 import org.joda.time.Instant;
 

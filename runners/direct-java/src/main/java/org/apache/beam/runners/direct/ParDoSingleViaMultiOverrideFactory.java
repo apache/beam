@@ -17,12 +17,16 @@
  */
 package org.apache.beam.runners.direct;
 
+import com.google.common.collect.Iterables;
+import java.util.List;
+import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.runners.PTransformOverrideFactory;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.ParDo.Bound;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
+import org.apache.beam.sdk.values.TaggedPValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 
@@ -32,11 +36,17 @@ import org.apache.beam.sdk.values.TupleTagList;
  */
 class ParDoSingleViaMultiOverrideFactory<InputT, OutputT>
     implements PTransformOverrideFactory<
-        PCollection<? extends InputT>, PCollection<OutputT>, Bound<InputT, OutputT>>{
+        PCollection<? extends InputT>, PCollection<OutputT>, Bound<InputT, OutputT>> {
   @Override
   public PTransform<PCollection<? extends InputT>, PCollection<OutputT>> getReplacementTransform(
       Bound<InputT, OutputT> transform) {
     return new ParDoSingleViaMulti<>(transform);
+  }
+
+  @Override
+  public PCollection<? extends InputT> getInput(
+      List<TaggedPValue> inputs, Pipeline p) {
+    return (PCollection<? extends InputT>) Iterables.getOnlyElement(inputs).getValue();
   }
 
   static class ParDoSingleViaMulti<InputT, OutputT>

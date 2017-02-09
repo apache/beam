@@ -398,8 +398,8 @@ class PTransformTest(unittest.TestCase):
 
     class SomePartitionFn(beam.PartitionFn):
 
-      def partition_for(self, context, num_partitions, offset):
-        return (context.element % 3) + offset
+      def partition_for(self, element, num_partitions, offset):
+        return (element % 3) + offset
 
     pipeline = TestPipeline()
     pcoll = pipeline | 'Start' >> beam.Create([0, 1, 2, 3, 4, 5, 6, 7, 8])
@@ -726,6 +726,10 @@ class PTransformLabelsTest(unittest.TestCase):
         pass
 
     self.check_label(beam.ParDo(MyDoFn()), r'ParDo(MyDoFn)')
+
+  def test_lable_propogation(self):
+    self.check_label('TestMap' >> beam.Map(len), r'TestMap')
+    self.check_label('TestFilter' >> beam.Filter(len), r'TestFilter')
 
 
 class PTransformTestDisplayData(unittest.TestCase):

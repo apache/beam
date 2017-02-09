@@ -32,15 +32,15 @@ from apache_beam.coders import coder_impl
 class StandardCodersTest(unittest.TestCase):
 
   _urn_to_coder_class = {
-      'beam:coders:bytes:0.1': coders.BytesCoder,
-      'beam:coders:varint:0.1': coders.VarIntCoder,
-      'beam:coders:kv:0.1': lambda k, v: coders.TupleCoder((k, v))
+      'urn:beam:coders:bytes:0.1': coders.BytesCoder,
+      'urn:beam:coders:varint:0.1': coders.VarIntCoder,
+      'urn:beam:coders:kv:0.1': lambda k, v: coders.TupleCoder((k, v))
   }
 
   _urn_to_json_value_parser = {
-      'beam:coders:bytes:0.1': lambda x: x,
-      'beam:coders:varint:0.1': lambda x: x,
-      'beam:coders:kv:0.1':
+      'urn:beam:coders:bytes:0.1': lambda x: x,
+      'urn:beam:coders:varint:0.1': lambda x: x,
+      'urn:beam:coders:kv:0.1':
           lambda x, key_parser, value_parser: (key_parser(x['key']),
                                                value_parser(x['value']))
   }
@@ -61,6 +61,9 @@ class StandardCodersTest(unittest.TestCase):
   # runner does not execute this method directly as a test.
   @classmethod
   def _create_tests(cls, coder_test_specs):
+    if not os.path.exists(STANDARD_CODERS_YAML):
+      raise ValueError(
+          "Could not find the test spec: %s" % STANDARD_CODERS_YAML)
     for ix, spec in enumerate(yaml.load_all(open(coder_test_specs))):
       spec['index'] = ix
       cls._create_test(spec)
@@ -114,8 +117,7 @@ class StandardCodersTest(unittest.TestCase):
 
 STANDARD_CODERS_YAML = os.path.join(
     os.path.dirname(__file__), 'standard_coders.yaml')
-if os.path.exists(STANDARD_CODERS_YAML):
-  StandardCodersTest._create_tests(STANDARD_CODERS_YAML)
+StandardCodersTest._create_tests(STANDARD_CODERS_YAML)
 
 
 def encode_nested(coder, value, nested=True):

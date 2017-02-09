@@ -306,8 +306,7 @@ class DoFnRunner(Receiver):
         windowed_value = WindowedValue(
             value, timestamp, self.window_fn.assign(assign_context))
       elif isinstance(result, TimestampedValue):
-        assign_context = WindowFn.AssignContext(
-            result.timestamp, result.value, element.windows)
+        assign_context = WindowFn.AssignContext(result.timestamp, result.value)
         windowed_value = WindowedValue(
             result.value, result.timestamp,
             self.window_fn.assign(assign_context))

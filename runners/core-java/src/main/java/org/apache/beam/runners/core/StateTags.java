@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.util.state;
+package org.apache.beam.runners.core;
 
 import com.google.common.base.MoreObjects;
 import java.io.IOException;
@@ -30,6 +30,14 @@ import org.apache.beam.sdk.transforms.Combine.KeyedCombineFn;
 import org.apache.beam.sdk.transforms.CombineWithContext.KeyedCombineFnWithContext;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.OutputTimeFn;
+import org.apache.beam.sdk.util.state.AccumulatorCombiningState;
+import org.apache.beam.sdk.util.state.BagState;
+import org.apache.beam.sdk.util.state.State;
+import org.apache.beam.sdk.util.state.StateBinder;
+import org.apache.beam.sdk.util.state.StateSpec;
+import org.apache.beam.sdk.util.state.StateSpecs;
+import org.apache.beam.sdk.util.state.ValueState;
+import org.apache.beam.sdk.util.state.WatermarkHoldState;
 
 /**
  * Static utility methods for creating {@link StateTag} instances.
@@ -41,6 +49,63 @@ public class StateTags {
 
   static {
     STANDARD_REGISTRY.registerStandardCoders();
+  }
+
+  /** @deprecated for migration purposes only */
+  @Deprecated
+  private static <K> StateBinder<K> adaptTagBinder(final StateTag.StateBinder<K> binder) {
+    return new StateBinder<K>() {
+      @Override
+      public <T> ValueState<T> bindValue(
+          String id, StateSpec<? super K, ValueState<T>> spec, Coder<T> coder) {
+        return binder.bindValue(tagForSpec(id, spec), coder);
+      }
+
+      @Override
+      public <T> BagState<T> bindBag(
+          String id, StateSpec<? super K, BagState<T>> spec, Coder<T> elemCoder) {
+        return binder.bindBag(tagForSpec(id, spec), elemCoder);
+      }
+
+      @Override
+      public <InputT, AccumT, OutputT>
+          AccumulatorCombiningState<InputT, AccumT, OutputT> bindCombiningValue(
+              String id,
+              StateSpec<? super K, AccumulatorCombiningState<InputT, AccumT, OutputT>> spec,
+              Coder<AccumT> accumCoder,
+              CombineFn<InputT, AccumT, OutputT> combineFn) {
+        return binder.bindCombiningValue(tagForSpec(id, spec), accumCoder, combineFn);
+      }
+
+      @Override
+      public <InputT, AccumT, OutputT>
+          AccumulatorCombiningState<InputT, AccumT, OutputT> bindKeyedCombiningValue(
+              String id,
+              StateSpec<? super K, AccumulatorCombiningState<InputT, AccumT, OutputT>> spec,
+              Coder<AccumT> accumCoder,
+              KeyedCombineFn<? super K, InputT, AccumT, OutputT> combineFn) {
+        return binder.bindKeyedCombiningValue(tagForSpec(id, spec), accumCoder, combineFn);
+      }
+
+      @Override
+      public <InputT, AccumT, OutputT>
+          AccumulatorCombiningState<InputT, AccumT, OutputT> bindKeyedCombiningValueWithContext(
+              String id,
+              StateSpec<? super K, AccumulatorCombiningState<InputT, AccumT, OutputT>> spec,
+              Coder<AccumT> accumCoder,
+              KeyedCombineFnWithContext<? super K, InputT, AccumT, OutputT> combineFn) {
+        return binder.bindKeyedCombiningValueWithContext(
+            tagForSpec(id, spec), accumCoder, combineFn);
+      }
+
+      @Override
+      public <W extends BoundedWindow> WatermarkHoldState<W> bindWatermark(
+          String id,
+          StateSpec<? super K, WatermarkHoldState<W>> spec,
+          OutputTimeFn<? super W> outputTimeFn) {
+        return binder.bindWatermark(tagForSpec(id, spec), outputTimeFn);
+      }
+    };
   }
 
   private enum StateKind {
@@ -87,8 +152,7 @@ public class StateTags {
 
   /**
    * Create a state tag for values that use a {@link KeyedCombineFn} to automatically merge
-   * multiple {@code InputT}s into a single {@code OutputT}. The key provided to the
-   * {@link KeyedCombineFn} comes from the keyed {@link StateAccessor}.
+   * multiple {@code InputT}s into a single {@code OutputT}.
    */
   public static <K, InputT, AccumT,
       OutputT> StateTag<K, AccumulatorCombiningState<InputT, AccumT, OutputT>>
@@ -100,9 +164,7 @@ public class StateTags {
 
   /**
    * Create a state tag for values that use a {@link KeyedCombineFnWithContext} to automatically
-   * merge multiple {@code InputT}s into a single {@code OutputT}. The key provided to the
-   * {@link KeyedCombineFn} comes from the keyed {@link StateAccessor}, the context provided comes
-   * from the {@link StateContext}.
+   * merge multiple {@code InputT}s into a single {@code OutputT}.
    */
   public static <K, InputT, AccumT, OutputT>
       StateTag<K, AccumulatorCombiningState<InputT, AccumT, OutputT>>
@@ -241,7 +303,7 @@ public class StateTags {
     @Deprecated
     public StateT bind(StateTag.StateBinder<? extends K> binder) {
       return spec.bind(
-          this.id.getRawId(), StateSpecs.adaptTagBinder(binder));
+          this.id.getRawId(), adaptTagBinder(binder));
     }
 
     @Override

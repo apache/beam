@@ -17,7 +17,9 @@
 
 """A source and a sink for reading from and writing to text files."""
 
+
 from __future__ import absolute_import
+import logging
 
 from apache_beam import coders
 from apache_beam.io import filebasedsource
@@ -31,7 +33,7 @@ __all__ = ['ReadFromText', 'WriteToText']
 
 
 class _TextSource(filebasedsource.FileBasedSource):
-  """A source for reading text files.
+  r"""A source for reading text files.
 
   Parses a text file as newline-delimited elements. Supports newline delimiters
   '\n' and '\r\n.
@@ -71,9 +73,15 @@ class _TextSource(filebasedsource.FileBasedSource):
                          'size of data %d.', value, len(self._data))
       self._position = value
 
-  def __init__(self, file_pattern, min_bundle_size,
-               compression_type, strip_trailing_newlines, coder,
-               buffer_size=DEFAULT_READ_BUFFER_SIZE, validate=True):
+  def __init__(self,
+               file_pattern,
+               min_bundle_size,
+               compression_type,
+               strip_trailing_newlines,
+               coder,
+               buffer_size=DEFAULT_READ_BUFFER_SIZE,
+               validate=True,
+               skip_header_lines=0):
     super(_TextSource, self).__init__(file_pattern, min_bundle_size,
                                       compression_type=compression_type,
                                       validate=validate)
@@ -82,6 +90,14 @@ class _TextSource(filebasedsource.FileBasedSource):
     self._compression_type = compression_type
     self._coder = coder
     self._buffer_size = buffer_size
+    if skip_header_lines < 0:
+      raise ValueError('Cannot skip negative number of header lines: %d',
+                       skip_header_lines)
+    elif skip_header_lines > 10:
+      logging.warning(
+          'Skipping %d header lines. Skipping large number of header '
+          'lines might significantly slow down processing.')
+    self._skip_header_lines = skip_header_lines
 
   def display_data(self):
     parent_dd = super(_TextSource, self).display_data()
@@ -101,13 +117,18 @@ class _TextSource(filebasedsource.FileBasedSource):
     read_buffer = _TextSource.ReadBuffer('', 0)
 
     with self.open_file(file_name) as file_to_read:
-      if start_offset > 0:
+      position_after_skipping_header_lines = self._skip_lines(
+          file_to_read, read_buffer,
+          self._skip_header_lines) if self._skip_header_lines else 0
+      start_offset = max(start_offset, position_after_skipping_header_lines)
+      if start_offset > position_after_skipping_header_lines:
         # Seeking to one position before the start index and ignoring the
         # current line. If start_position is at beginning if the line, that line
         # belongs to the current bundle, hence ignoring that is incorrect.
         # Seeking to one byte before prevents that.
 
         file_to_read.seek(start_offset - 1)
+        read_buffer = _TextSource.ReadBuffer('', 0)
         sep_bounds = self._find_separator_bounds(file_to_read, read_buffer)
         if not sep_bounds:
           # Could not find a separator after (start_offset - 1). This means that
@@ -116,14 +137,13 @@ class _TextSource(filebasedsource.FileBasedSource):
 
         _, sep_end = sep_bounds
         read_buffer.data = read_buffer.data[sep_end:]
-        next_record_start_position = start_offset -1 + sep_end
+        next_record_start_position = start_offset - 1 + sep_end
       else:
-        next_record_start_position = 0
+        next_record_start_position = position_after_skipping_header_lines
 
       while range_tracker.try_claim(next_record_start_position):
         record, num_bytes_to_next_record = self._read_record(file_to_read,
                                                              read_buffer)
-
         # For compressed text files that use an unsplittable OffsetRangeTracker
         # with infinity as the end position, above 'try_claim()' invocation
         # would pass for an empty record at the end of file that is not
@@ -184,6 +204,20 @@ class _TextSource(filebasedsource.FileBasedSource):
 
     return True
 
+  def _skip_lines(self, file_to_read, read_buffer, num_lines):
+    """Skip num_lines from file_to_read, return num_lines+1 start position."""
+    if file_to_read.tell() > 0:
+      file_to_read.seek(0)
+    position = 0
+    for _ in range(num_lines):
+      _, num_bytes_to_next_record = self._read_record(file_to_read, read_buffer)
+      if num_bytes_to_next_record < 0:
+        # We reached end of file. It is OK to just break here
+        # because subsequent _read_record will return same result.
+        break
+      position += num_bytes_to_next_record
+    return position
+
   def _read_record(self, file_to_read, read_buffer):
     # Returns a tuple containing the current_record and number of bytes to the
     # next record starting from 'self._next_position_in_buffer'. If EOF is
@@ -214,9 +248,85 @@ class _TextSource(filebasedsource.FileBasedSource):
               sep_bounds[1] - record_start_position_in_buffer)
 
 
-class _TextSink(fileio.TextFileSink):
-  # TODO: Move code from 'fileio.TextFileSink' to here.
-  pass
+class _TextSink(fileio.FileSink):
+  """A sink to a GCS or local text file or files."""
+
+  def __init__(self,
+               file_path_prefix,
+               file_name_suffix='',
+               append_trailing_newlines=True,
+               num_shards=0,
+               shard_name_template=None,
+               coder=coders.ToStringCoder(),
+               compression_type=fileio.CompressionTypes.AUTO,
+               header=None):
+    """Initialize a _TextSink.
+
+    Args:
+      file_path_prefix: The file path to write to. The files written will begin
+        with this prefix, followed by a shard identifier (see num_shards), and
+        end in a common extension, if given by file_name_suffix. In most cases,
+        only this argument is specified and num_shards, shard_name_template, and
+        file_name_suffix use default values.
+      file_name_suffix: Suffix for the files written.
+      append_trailing_newlines: indicate whether this sink should write an
+        additional newline char after writing each element.
+      num_shards: The number of files (shards) used for output. If not set, the
+        service will decide on the optimal number of shards.
+        Constraining the number of shards is likely to reduce
+        the performance of a pipeline.  Setting this value is not recommended
+        unless you require a specific number of output files.
+      shard_name_template: A template string containing placeholders for
+        the shard number and shard count. Currently only '' and
+        '-SSSSS-of-NNNNN' are patterns accepted by the service.
+        When constructing a filename for a particular shard number, the
+        upper-case letters 'S' and 'N' are replaced with the 0-padded shard
+        number and shard count respectively.  This argument can be '' in which
+        case it behaves as if num_shards was set to 1 and only one file will be
+        generated. The default pattern used is '-SSSSS-of-NNNNN'.
+      coder: Coder used to encode each line.
+      compression_type: Used to handle compressed output files. Typical value
+        is CompressionTypes.AUTO, in which case the final file path's
+        extension (as determined by file_path_prefix, file_name_suffix,
+        num_shards and shard_name_template) will be used to detect the
+        compression.
+      header: String to write at beginning of file as a header. If not None and
+        append_trailing_newlines is set, '\n' will be added.
+
+    Returns:
+      A _TextSink object usable for writing.
+    """
+    super(_TextSink, self).__init__(
+        file_path_prefix,
+        file_name_suffix=file_name_suffix,
+        num_shards=num_shards,
+        shard_name_template=shard_name_template,
+        coder=coder,
+        mime_type='text/plain',
+        compression_type=compression_type)
+    self._append_trailing_newlines = append_trailing_newlines
+    self._header = header
+
+  def open(self, temp_path):
+    file_handle = super(_TextSink, self).open(temp_path)
+    if self._header is not None:
+      file_handle.write(self._header)
+      if self._append_trailing_newlines:
+        file_handle.write('\n')
+    return file_handle
+
+  def display_data(self):
+    dd_parent = super(_TextSink, self).display_data()
+    dd_parent['append_newline'] = DisplayDataItem(
+        self.append_trailing_newlines,
+        label='Append Trailing New Lines')
+    return dd_parent
+
+  def write_encoded_record(self, file_handle, encoded_value):
+    """Writes a single encoded record."""
+    file_handle.write(encoded_value)
+    if self._append_trailing_newlines:
+      file_handle.write('\n')
 
 
 class ReadFromText(PTransform):
@@ -235,6 +345,7 @@ class ReadFromText(PTransform):
       strip_trailing_newlines=True,
       coder=coders.StrUtf8Coder(),
       validate=True,
+      skip_header_lines=0,
       **kwargs):
     """Initialize the ReadFromText transform.
 
@@ -253,14 +364,18 @@ class ReadFromText(PTransform):
                                decoding that line.
       validate: flag to verify that the files exist during the pipeline
                 creation time.
+      skip_header_lines: Number of header lines to skip. Same number is skipped
+                         from each source file. Must be 0 or higher. Large
+                         number of skipped lines might impact performance.
       coder: Coder used to decode each line.
     """
 
     super(ReadFromText, self).__init__(**kwargs)
     self._strip_trailing_newlines = strip_trailing_newlines
-    self._source = _TextSource(file_pattern, min_bundle_size, compression_type,
-                               strip_trailing_newlines, coder,
-                               validate=validate)
+    self._source = _TextSource(
+        file_pattern, min_bundle_size, compression_type,
+        strip_trailing_newlines, coder, validate=validate,
+        skip_header_lines=skip_header_lines)
 
   def expand(self, pvalue):
     return pvalue.pipeline | Read(self._source)
@@ -269,15 +384,15 @@ class ReadFromText(PTransform):
 class WriteToText(PTransform):
   """A PTransform for writing to text files."""
 
-  def __init__(
-      self,
-      file_path_prefix,
-      file_name_suffix='',
-      append_trailing_newlines=True,
-      num_shards=0,
-      shard_name_template=None,
-      coder=coders.ToStringCoder(),
-      compression_type=fileio.CompressionTypes.AUTO):
+  def __init__(self,
+               file_path_prefix,
+               file_name_suffix='',
+               append_trailing_newlines=True,
+               num_shards=0,
+               shard_name_template=None,
+               coder=coders.ToStringCoder(),
+               compression_type=fileio.CompressionTypes.AUTO,
+               header=None):
     """Initialize a WriteToText PTransform.
 
     Args:
@@ -308,11 +423,13 @@ class WriteToText(PTransform):
           extension (as determined by file_path_prefix, file_name_suffix,
           num_shards and shard_name_template) will be used to detect the
           compression.
+      header: String to write at beginning of file as a header. If not None and
+          append_trailing_newlines is set, '\n' will be added.
     """
 
     self._sink = _TextSink(file_path_prefix, file_name_suffix,
                            append_trailing_newlines, num_shards,
-                           shard_name_template, coder, compression_type)
+                           shard_name_template, coder, compression_type, header)
 
   def expand(self, pcoll):
     return pcoll | Write(self._sink)

@@ -120,7 +120,7 @@ class Count(object):
     def expand(self, pcoll):
       paired_with_void_type = KV[pcoll.element_type, Any]
       return (pcoll
-              | (core.Map('%s:PairWithVoid' % self.label, lambda x: (x, None))
+              | ('%s:PairWithVoid' % self.label >> core.Map(lambda x: (x, None))
                  .with_output_types(paired_with_void_type))
               | core.CombinePerKey(CountCombineFn()))
 

@@ -14,24 +14,19 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
+ *
  */
-package org.apache.beam.sdk.util.state;
+package org.apache.beam.sdk.runners;
 
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
+import org.apache.beam.sdk.transforms.AppliedPTransform;
+import org.apache.beam.sdk.transforms.PTransform;
 
 /**
- * Interface for accessing a {@link StateTag} in the current context.
- *
- * <p>For internal use only.
+ * Matches applications of {@link PTransform PTransforms}.
  */
-@Experimental(Kind.STATE)
-public interface StateAccessor<K> {
-  /**
-   * Access the storage for the given {@code address} in the current window.
-   *
-   * <p>Never accounts for merged windows. When windows are merged, any state accessed via
-   * this method must be eagerly combined and written into the result window.
-   */
-  <StateT extends State> StateT access(StateTag<? super K, StateT> address);
+@Experimental(Kind.CORE_RUNNERS_ONLY)
+public interface PTransformMatcher {
+  boolean matches(AppliedPTransform<?, ?, ?> application);
 }
