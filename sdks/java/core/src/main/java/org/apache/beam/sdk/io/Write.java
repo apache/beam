@@ -34,6 +34,8 @@ import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.io.Sink.WriteOperation;
 import org.apache.beam.sdk.io.Sink.Writer;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.ValueProvider;
+import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupByKey;
@@ -158,11 +160,21 @@ public class Write {
      * runner-controlled sharding.
      */
     public Bound<T> withNumShards(int numShards) {
-      if (numShards <= 0) {
-        return new Bound<>(sink, null);
-      } else {
-        return new Bound<>(sink, new ConstantShards<T>(numShards));
+      if (numShards > 0) {
+        return withNumShards(StaticValueProvider.of(numShards));
       }
+      return withRunnerDeterminedSharding();
+    }
+
+    /**
+     * Returns a new {@link Write.Bound} that will write to the current {@link Sink} using the
+     * {@link ValueProvider} specified number of shards.
+     *
+     * <p>This option should be used sparingly as it can hurt performance. See {@link Write} for
+     * more information.
+     */
+    public Bound<T> withNumShards(ValueProvider<Integer> numShards) {
+      return new Bound<>(sink, new ConstantShards<T>(numShards));
     }
 
     /**
@@ -476,25 +488,38 @@ public class Write {
   @VisibleForTesting
   static class ConstantShards<T>
       extends PTransform<PCollection<T>, PCollectionView<Integer>> {
-    private final int numShards;
+    private final ValueProvider<Integer> numShards;
 
-    private ConstantShards(int numShards) {
-      checkArgument(numShards > 0, "NumShards must be greater than zero");
+    private ConstantShards(ValueProvider<Integer> numShards) {
       this.numShards = numShards;
-    }
-
-    public int getNumShards() {
-      return numShards;
     }
 
     @Override
     public PCollectionView<Integer> expand(PCollection<T> input) {
-      return input.getPipeline().apply(Create.of(numShards)).apply(View.<Integer>asSingleton());
+      return input
+          .getPipeline()
+          .apply(Create.of(0))
+          .apply(
+              ParDo.of(
+                  new DoFn<Integer, Integer>() {
+                    @ProcessElement
+                    public void outputNumShards(ProcessContext ctxt) {
+                      checkArgument(
+                          numShards.isAccessible(),
+                          "NumShards must be accessible at runtime to use constant sharding");
+                      ctxt.output(numShards.get());
+                    }
+                  }))
+          .apply(View.<Integer>asSingleton());
     }
 
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
       builder.add(DisplayData.item("numShards", numShards).withLabel("ConstantShards"));
+    }
+
+    public ValueProvider<Integer> getNumShards() {
+      return numShards;
     }
   }
 }

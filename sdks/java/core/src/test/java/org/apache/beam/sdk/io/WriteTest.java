@@ -312,7 +312,7 @@ public class WriteTest {
     PTransform<PCollection<String>, PCollectionView<Integer>> originalSharding =
         write.getSharding();
     assertThat(write.getSharding(), instanceOf(ConstantShards.class));
-    assertThat(((ConstantShards) write.getSharding()).getNumShards(), equalTo(3));
+    assertThat(((ConstantShards<String>) write.getSharding()).getNumShards().get(), equalTo(3));
     assertThat(write.getSharding(), equalTo(originalSharding));
 
     Write.Bound<String> write2 = write.withSharding(SHARDING_TRANSFORM);
