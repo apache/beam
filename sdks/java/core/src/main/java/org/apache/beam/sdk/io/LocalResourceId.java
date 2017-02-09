@@ -49,7 +49,7 @@ class LocalResourceId implements ResourceId {
   }
 
   @Override
-  public ResourceId resolve(String other, ResolveOptions resolveOptions) {
+  public LocalResourceId resolve(String other, ResolveOptions resolveOptions) {
     checkState(
         isDirectory,
         String.format("Expected the path is a directory, but had [%s].", path));
@@ -69,7 +69,7 @@ class LocalResourceId implements ResourceId {
   }
 
   @Override
-  public ResourceId getCurrentDirectory() {
+  public LocalResourceId getCurrentDirectory() {
     if (isDirectory) {
       return this;
     } else {
@@ -108,6 +108,10 @@ class LocalResourceId implements ResourceId {
   @Override
   public String getScheme() {
     return LocalFileSystemRegistrar.LOCAL_FILE_SCHEME;
+  }
+
+  Path getPath() {
+    return path;
   }
 
   @Override
