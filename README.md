@@ -11,7 +11,7 @@ for additional formatting capabilities, this website uses
 [Twitter Bootstrap](http://getbootstrap.com/).
 
 ### Repository Structure
-    
+
 This repository contains:
 
 1. `src/`: the source of the site, including markdown files containing the bulk of the content
@@ -28,11 +28,11 @@ a consistent environment for building the website, even across multiple develope
 
 	$ gem install bundler
 
-Use Bundler to download the versions of each dependency specified in the website's `Gemfile.lock`, 
+Use Bundler to download the versions of each dependency specified in the website's `Gemfile.lock`,
 including [Jekyll](https://jekyllrb.com/):
 
 	$ bundle install --deployment
-	
+
 This will install a number of gems in a local `./vendor` directory.
 
 ### Active development
@@ -55,6 +55,16 @@ get tricky, so please leave this directory out of your commits and pull request 
 	$ git checkout -- content
 
 The committer doing the final merge will generate the `content/` directory at that time.
+
+### Running using Docker
+
+**Note:** This is an optional method if you don't want to install gems locally and just use a container for development. The helper script is written for UNIX systems but should be fairly easy to modify to get it working on Windows.
+
+Prerequisites: Make sure you have Docker installed on your machine.
+
+For building the site, use the command `./run_with_docker.sh server`. This will start the webserver inside a Docker container and port forward to your local machine at `localhost:4000`. We'll use the official Jekyll image to build the site.
+
+For running the website tests, use `./run_with_docker.sh test`.
 
 ## Additional Information
 
