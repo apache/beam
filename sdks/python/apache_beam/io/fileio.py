@@ -95,7 +95,7 @@ class CompressionTypes(object):
 
   @classmethod
   def detect_compression_type(cls, file_path):
-    """Returns the compression type of a file (based on its suffix)"""
+    """Returns the compression type of a file (based on its suffix)."""
     compression_types_by_suffix = {'.bz2': cls.BZIP2, '.gz': cls.GZIP}
     lowercased_path = file_path.lower()
     for suffix, compression_type in compression_types_by_suffix.iteritems():
@@ -326,7 +326,8 @@ class _CompressedFile(object):
                compression_type=CompressionTypes.GZIP,
                read_size=gcsio.DEFAULT_READ_BUFFER_SIZE):
     if not fileobj:
-      raise ValueError('fileobj must be opened file but was %s' % fileobj)
+      raise ValueError('File object must be opened file but was at %s' %
+                       fileobj)
 
     if not CompressionTypes.is_valid_compression_type(compression_type):
       raise TypeError('compression_type must be CompressionType object but '
@@ -338,6 +339,11 @@ class _CompressedFile(object):
 
     self._file = fileobj
     self._compression_type = compression_type
+
+    if self._file.tell() != 0:
+      raise ValueError('File object must be at position 0 but was %d' %
+                       self._file.tell())
+    self._uncompressed_position = 0
 
     if self.readable():
       self._read_size = read_size
@@ -375,6 +381,7 @@ class _CompressedFile(object):
     """Write data to file."""
     if not self._compressor:
       raise ValueError('compressor not initialized')
+    self._uncompressed_position += len(data)
     compressed = self._compressor.compress(data)
     if compressed:
       self._file.write(compressed)
@@ -429,6 +436,7 @@ class _CompressedFile(object):
     self._read_buffer.seek(self._read_position)
     result = read_fn()
     self._read_position += len(result)
+    self._uncompressed_position += len(result)
     self._read_buffer.seek(0, os.SEEK_END)  # Allow future writes.
     return result
 
@@ -477,9 +485,14 @@ class _CompressedFile(object):
       self._file.write(self._compressor.flush())
     self._file.flush()
 
+  @property
   def seekable(self):
     # TODO: Add support for seeking to a file position.
     return False
+
+  def tell(self):
+    """Returns current position in uncompressed file."""
+    return self._uncompressed_position
 
   def __enter__(self):
     return self

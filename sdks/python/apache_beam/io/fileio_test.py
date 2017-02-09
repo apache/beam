@@ -21,6 +21,7 @@
 import glob
 import logging
 import os
+import shutil
 import tempfile
 import unittest
 
@@ -79,6 +80,68 @@ class TestChannelFactory(unittest.TestCase):
     gcsio_mock.size.assert_called_once_with('gs://bucket/file2')
 
 
+# TODO: Refactor code so all io tests are using same library
+# TestCaseWithTempDirCleanup class.
+class _TestCaseWithTempDirCleanUp(unittest.TestCase):
+  """Base class for TestCases that deals with TempDir clean-up.
+
+  Inherited test cases will call self._new_tempdir() to start a temporary dir
+  which will be deleted at the end of the tests (when tearDown() is called).
+  """
+
+  def setUp(self):
+    self._tempdirs = []
+
+  def tearDown(self):
+    for path in self._tempdirs:
+      if os.path.exists(path):
+        shutil.rmtree(path)
+    self._tempdirs = []
+
+  def _new_tempdir(self):
+    result = tempfile.mkdtemp()
+    self._tempdirs.append(result)
+    return result
+
+  def _create_temp_file(self, name='', suffix=''):
+    if not name:
+      name = tempfile.template
+    file_name = tempfile.NamedTemporaryFile(
+        delete=False, prefix=name,
+        dir=self._new_tempdir(), suffix=suffix).name
+    return file_name
+
+
+class TestCompressedFile(_TestCaseWithTempDirCleanUp):
+
+  def test_seekable(self):
+    readable = fileio._CompressedFile(open(self._create_temp_file(), 'r'))
+    self.assertFalse(readable.seekable)
+
+    writeable = fileio._CompressedFile(open(self._create_temp_file(), 'w'))
+    self.assertFalse(writeable.seekable)
+
+  def test_tell(self):
+    lines = ['line%d\n' % i for i in range(10)]
+    tmpfile = self._create_temp_file()
+    writeable = fileio._CompressedFile(open(tmpfile, 'w'))
+    current_offset = 0
+    for line in lines:
+      writeable.write(line)
+      current_offset += len(line)
+      self.assertEqual(current_offset, writeable.tell())
+
+    writeable.close()
+    readable = fileio._CompressedFile(open(tmpfile))
+    current_offset = 0
+    while True:
+      line = readable.readline()
+      current_offset += len(line)
+      self.assertEqual(current_offset, readable.tell())
+      if not line:
+        break
+
+
 class MyFileSink(fileio.FileSink):
 
   def open(self, temp_path):
@@ -100,10 +163,10 @@ class MyFileSink(fileio.FileSink):
     file_handle = fileio.FileSink.close(self, file_handle)
 
 
-class TestFileSink(unittest.TestCase):
+class TestFileSink(_TestCaseWithTempDirCleanUp):
 
   def test_file_sink_writing(self):
-    temp_path = tempfile.NamedTemporaryFile().name
+    temp_path = os.path.join(self._new_tempdir(), 'filesink')
     sink = MyFileSink(
         temp_path, file_name_suffix='.foo', coder=coders.ToStringCoder())
 
@@ -136,7 +199,7 @@ class TestFileSink(unittest.TestCase):
     self.assertItemsEqual([shard1, shard2], glob.glob(temp_path + '*'))
 
   def test_file_sink_display_data(self):
-    temp_path = tempfile.NamedTemporaryFile().name
+    temp_path = os.path.join(self._new_tempdir(), 'display')
     sink = MyFileSink(
         temp_path, file_name_suffix='.foo', coder=coders.ToStringCoder())
     dd = DisplayData.create_from(sink)
@@ -161,7 +224,7 @@ class TestFileSink(unittest.TestCase):
         open(temp_path + '-00000-of-00001.foo').read(), '[start][end]')
 
   def test_fixed_shard_write(self):
-    temp_path = tempfile.NamedTemporaryFile().name
+    temp_path = os.path.join(self._new_tempdir(), 'empty')
     sink = MyFileSink(
         temp_path,
         file_name_suffix='.foo',
@@ -180,7 +243,7 @@ class TestFileSink(unittest.TestCase):
     self.assertTrue('][b][' in concat, concat)
 
   def test_file_sink_multi_shards(self):
-    temp_path = tempfile.NamedTemporaryFile().name
+    temp_path = os.path.join(self._new_tempdir(), 'multishard')
     sink = MyFileSink(
         temp_path, file_name_suffix='.foo', coder=coders.ToStringCoder())
 
@@ -215,7 +278,7 @@ class TestFileSink(unittest.TestCase):
     self.assertItemsEqual(res, glob.glob(temp_path + '*'))
 
   def test_file_sink_io_error(self):
-    temp_path = tempfile.NamedTemporaryFile().name
+    temp_path = os.path.join(self._new_tempdir(), 'ioerror')
     sink = MyFileSink(
         temp_path, file_name_suffix='.foo', coder=coders.ToStringCoder())
 

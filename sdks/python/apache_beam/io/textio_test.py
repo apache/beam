@@ -22,6 +22,7 @@ import glob
 import gzip
 import logging
 import os
+import shutil
 import tempfile
 import unittest
 
@@ -47,7 +48,39 @@ from apache_beam.transforms.util import assert_that
 from apache_beam.transforms.util import equal_to
 
 
-class TextSourceTest(unittest.TestCase):
+# TODO: Refactor code so all io tests are using same library
+# TestCaseWithTempDirCleanup class.
+class _TestCaseWithTempDirCleanUp(unittest.TestCase):
+  """Base class for TestCases that deals with TempDir clean-up.
+
+  Inherited test cases will call self._new_tempdir() to start a temporary dir
+  which will be deleted at the end of the tests (when tearDown() is called).
+  """
+
+  def setUp(self):
+    self._tempdirs = []
+
+  def tearDown(self):
+    for path in self._tempdirs:
+      if os.path.exists(path):
+        shutil.rmtree(path)
+    self._tempdirs = []
+
+  def _new_tempdir(self):
+    result = tempfile.mkdtemp()
+    self._tempdirs.append(result)
+    return result
+
+  def _create_temp_file(self, name='', suffix=''):
+    if not name:
+      name = tempfile.template
+    file_name = tempfile.NamedTemporaryFile(
+        delete=False, prefix=name,
+        dir=self._new_tempdir(), suffix=suffix).name
+    return file_name
+
+
+class TextSourceTest(_TestCaseWithTempDirCleanUp):
 
   # Number of records that will be written by most tests.
   DEFAULT_NUM_RECORDS = 100
@@ -322,8 +355,7 @@ class TextSourceTest(unittest.TestCase):
 
   def test_read_auto_bzip2(self):
     _, lines = write_data(15)
-    file_name = tempfile.NamedTemporaryFile(
-        delete=False, prefix=tempfile.template, suffix='.bz2').name
+    file_name = self._create_temp_file(suffix='.bz2')
     with bz2.BZ2File(file_name, 'wb') as f:
       f.write('\n'.join(lines))
 
@@ -334,8 +366,8 @@ class TextSourceTest(unittest.TestCase):
 
   def test_read_auto_gzip(self):
     _, lines = write_data(15)
-    file_name = tempfile.NamedTemporaryFile(
-        delete=False, prefix=tempfile.template, suffix='.gz').name
+    file_name = self._create_temp_file(suffix='.gz')
+
     with gzip.GzipFile(file_name, 'wb') as f:
       f.write('\n'.join(lines))
 
@@ -346,8 +378,7 @@ class TextSourceTest(unittest.TestCase):
 
   def test_read_bzip2(self):
     _, lines = write_data(15)
-    file_name = tempfile.NamedTemporaryFile(
-        delete=False, prefix=tempfile.template).name
+    file_name = self._create_temp_file()
     with bz2.BZ2File(file_name, 'wb') as f:
       f.write('\n'.join(lines))
 
@@ -360,8 +391,7 @@ class TextSourceTest(unittest.TestCase):
 
   def test_read_gzip(self):
     _, lines = write_data(15)
-    file_name = tempfile.NamedTemporaryFile(
-        delete=False, prefix=tempfile.template).name
+    file_name = self._create_temp_file()
     with gzip.GzipFile(file_name, 'wb') as f:
       f.write('\n'.join(lines))
 
@@ -374,9 +404,9 @@ class TextSourceTest(unittest.TestCase):
     pipeline.run()
 
   def test_read_gzip_large(self):
-    _, lines = write_data(1000)
-    file_name = tempfile.NamedTemporaryFile(
-        delete=False, prefix=tempfile.template).name
+    _, lines = write_data(10000)
+    file_name = self._create_temp_file()
+
     with gzip.GzipFile(file_name, 'wb') as f:
       f.write('\n'.join(lines))
 
@@ -389,9 +419,8 @@ class TextSourceTest(unittest.TestCase):
     pipeline.run()
 
   def test_read_gzip_large_after_splitting(self):
-    _, lines = write_data(1000)
-    file_name = tempfile.NamedTemporaryFile(
-        delete=False, prefix=tempfile.template).name
+    _, lines = write_data(10000)
+    file_name = self._create_temp_file()
     with gzip.GzipFile(file_name, 'wb') as f:
       f.write('\n'.join(lines))
 
@@ -411,26 +440,129 @@ class TextSourceTest(unittest.TestCase):
         reference_source_info, sources_info)
 
   def test_read_gzip_empty_file(self):
-    filename = tempfile.NamedTemporaryFile(
-        delete=False, prefix=tempfile.template).name
+    file_name = self._create_temp_file()
     pipeline = TestPipeline()
     pcoll = pipeline | 'Read' >> ReadFromText(
-        filename,
+        file_name,
         0, CompressionTypes.GZIP,
         True, coders.StrUtf8Coder())
     assert_that(pcoll, equal_to([]))
     pipeline.run()
 
+  def _remove_lines(self, lines, sublist_lengths, num_to_remove):
+    """Utility function to remove num_to_remove lines from each sublist.
 
-class TextSinkTest(unittest.TestCase):
+    Args:
+      lines: list of items.
+      sublist_lengths: list of integers representing length of sublist
+        corresponding to each source file.
+      num_to_remove: number of lines to remove from each sublist.
+    Returns:
+      remaining lines.
+    """
+    curr = 0
+    result = []
+    for offset in sublist_lengths:
+      end = curr + offset
+      start = min(curr + num_to_remove, end)
+      result += lines[start:end]
+      curr += offset
+    return result
+
+  def _read_skip_header_lines(self, file_or_pattern, skip_header_lines):
+    """Simple wrapper function for instantiating TextSource."""
+    source = TextSource(
+        file_or_pattern,
+        0,
+        CompressionTypes.UNCOMPRESSED,
+        True,
+        coders.StrUtf8Coder(),
+        skip_header_lines=skip_header_lines)
+
+    range_tracker = source.get_range_tracker(None, None)
+    return [record for record in source.read(range_tracker)]
+
+  def test_read_skip_header_single(self):
+    file_name, expected_data = write_data(TextSourceTest.DEFAULT_NUM_RECORDS)
+    assert len(expected_data) == TextSourceTest.DEFAULT_NUM_RECORDS
+    skip_header_lines = 1
+    expected_data = self._remove_lines(expected_data,
+                                       [TextSourceTest.DEFAULT_NUM_RECORDS],
+                                       skip_header_lines)
+    read_data = self._read_skip_header_lines(file_name, skip_header_lines)
+    self.assertEqual(len(expected_data), len(read_data))
+    self.assertItemsEqual(expected_data, read_data)
+
+  def test_read_skip_header_pattern(self):
+    line_counts = [
+        TextSourceTest.DEFAULT_NUM_RECORDS * 5,
+        TextSourceTest.DEFAULT_NUM_RECORDS * 3,
+        TextSourceTest.DEFAULT_NUM_RECORDS * 12,
+        TextSourceTest.DEFAULT_NUM_RECORDS * 8,
+        TextSourceTest.DEFAULT_NUM_RECORDS * 8,
+        TextSourceTest.DEFAULT_NUM_RECORDS * 4
+    ]
+    skip_header_lines = 2
+    pattern, data = write_pattern(line_counts)
+
+    expected_data = self._remove_lines(data, line_counts, skip_header_lines)
+    read_data = self._read_skip_header_lines(pattern, skip_header_lines)
+    self.assertEqual(len(expected_data), len(read_data))
+    self.assertItemsEqual(expected_data, read_data)
+
+  def test_read_skip_header_pattern_insufficient_lines(self):
+    line_counts = [
+        5, 3, # Fewer lines in file than we want to skip
+        12, 8, 8, 4
+    ]
+    skip_header_lines = 4
+    pattern, data = write_pattern(line_counts)
+
+    data = self._remove_lines(data, line_counts, skip_header_lines)
+    read_data = self._read_skip_header_lines(pattern, skip_header_lines)
+    self.assertEqual(len(data), len(read_data))
+    self.assertItemsEqual(data, read_data)
+
+  def test_read_gzip_with_skip_lines(self):
+    _, lines = write_data(15)
+    file_name = self._create_temp_file()
+    with gzip.GzipFile(file_name, 'wb') as f:
+      f.write('\n'.join(lines))
+
+    pipeline = beam.Pipeline('DirectRunner')
+    pcoll = pipeline | 'Read' >> ReadFromText(
+        file_name, 0, CompressionTypes.GZIP,
+        True, coders.StrUtf8Coder(), skip_header_lines=2)
+    assert_that(pcoll, equal_to(lines[2:]))
+    pipeline.run()
+
+  def test_read_after_splitting_skip_header(self):
+    file_name, expected_data = write_data(100)
+    assert len(expected_data) == 100
+    source = TextSource(file_name, 0, CompressionTypes.UNCOMPRESSED, True,
+                        coders.StrUtf8Coder(), skip_header_lines=2)
+    splits = [split for split in source.split(desired_bundle_size=33)]
+
+    reference_source_info = (source, None, None)
+    sources_info = ([
+        (split.source, split.start_position, split.stop_position) for
+        split in splits])
+    self.assertGreater(len(sources_info), 1)
+    reference_lines = source_test_utils.readFromSource(*reference_source_info)
+    split_lines = []
+    for source_info in sources_info:
+      split_lines.extend(source_test_utils.readFromSource(*source_info))
+
+    self.assertEqual(expected_data[2:], reference_lines)
+    self.assertEqual(reference_lines, split_lines)
+
+
+class TextSinkTest(_TestCaseWithTempDirCleanUp):
 
   def setUp(self):
+    super(TextSinkTest, self).setUp()
     self.lines = ['Line %d' % d for d in range(100)]
-    self.path = tempfile.NamedTemporaryFile().name
-
-  def tearDown(self):
-    if os.path.exists(self.path):
-      os.remove(self.path)
+    self.path = self._create_temp_file()
 
   def _write_lines(self, sink, lines):
     f = sink.open(self.path)
@@ -461,7 +593,7 @@ class TextSinkTest(unittest.TestCase):
       self.assertEqual(f.read().splitlines(), self.lines)
 
   def test_write_bzip2_file_auto(self):
-    self.path = tempfile.NamedTemporaryFile(suffix='.bz2').name
+    self.path = self._create_temp_file(suffix='.bz2')
     sink = TextSink(self.path)
     self._write_lines(sink, self.lines)
 
@@ -477,7 +609,7 @@ class TextSinkTest(unittest.TestCase):
       self.assertEqual(f.read().splitlines(), self.lines)
 
   def test_write_gzip_file_auto(self):
-    self.path = tempfile.NamedTemporaryFile(suffix='.gz').name
+    self.path = self._create_temp_file(suffix='.gz')
     sink = TextSink(self.path)
     self._write_lines(sink, self.lines)
 
@@ -491,6 +623,22 @@ class TextSinkTest(unittest.TestCase):
 
     with gzip.GzipFile(self.path, 'r') as f:
       self.assertEqual(f.read().splitlines(), [])
+
+  def test_write_text_file_with_header(self):
+    header = 'header1\nheader2'
+    sink = TextSink(self.path, header=header)
+    self._write_lines(sink, self.lines)
+
+    with open(self.path, 'r') as f:
+      self.assertEqual(f.read().splitlines(), header.splitlines() + self.lines)
+
+  def test_write_text_file_empty_with_header(self):
+    header = 'header1\nheader2'
+    sink = TextSink(self.path, header=header)
+    self._write_lines(sink, [])
+
+    with open(self.path, 'r') as f:
+      self.assertEqual(f.read().splitlines(), header.splitlines())
 
   def test_write_dataflow(self):
     pipeline = TestPipeline()
@@ -520,8 +668,11 @@ class TextSinkTest(unittest.TestCase):
 
   def test_write_dataflow_auto_compression_unsharded(self):
     pipeline = TestPipeline()
-    pcoll = pipeline | beam.core.Create(self.lines)
-    pcoll | 'Write' >> WriteToText(self.path + '.gz', shard_name_template='')  # pylint: disable=expression-not-assigned
+    pcoll = pipeline | beam.core.Create('Create', self.lines)
+    pcoll | 'Write' >> WriteToText(  # pylint: disable=expression-not-assigned
+        self.path + '.gz',
+        shard_name_template='')
+
     pipeline.run()
 
     read_result = []
@@ -530,6 +681,23 @@ class TextSinkTest(unittest.TestCase):
         read_result.extend(f.read().splitlines())
 
     self.assertEqual(read_result, self.lines)
+
+  def test_write_dataflow_header(self):
+    pipeline = TestPipeline()
+    pcoll = pipeline | beam.core.Create('Create', self.lines)
+    header_text = 'foo'
+    pcoll | 'Write' >> WriteToText(  # pylint: disable=expression-not-assigned
+        self.path + '.gz',
+        shard_name_template='',
+        header=header_text)
+    pipeline.run()
+
+    read_result = []
+    for file_name in glob.glob(self.path + '*'):
+      with gzip.GzipFile(file_name, 'r') as f:
+        read_result.extend(f.read().splitlines())
+
+    self.assertEqual(read_result, [header_text] + self.lines)
 
 
 if __name__ == '__main__':
