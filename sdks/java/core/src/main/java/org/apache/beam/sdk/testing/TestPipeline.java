@@ -105,7 +105,7 @@ public class TestPipeline extends Pipeline implements TestRule {
       enableAutoRunIfMissing = enable;
     }
 
-    protected void beforePipelineExecution() {
+    protected void afterPipelineExecution() {
       runInvoked = true;
     }
 
@@ -179,9 +179,9 @@ public class TestPipeline extends Pipeline implements TestRule {
     }
 
     @Override
-    protected void beforePipelineExecution() {
-      super.beforePipelineExecution();
+    protected void afterPipelineExecution() {
       runVisitedNodes = recordPipelineNodes(pipeline);
+      super.afterPipelineExecution();
     }
 
     @Override
@@ -253,7 +253,6 @@ public class TestPipeline extends Pipeline implements TestRule {
    */
   @Override
   public PipelineResult run() {
-    enforcement.beforePipelineExecution();
     try {
       return super.run();
     } catch (RuntimeException exc) {
@@ -263,6 +262,8 @@ public class TestPipeline extends Pipeline implements TestRule {
       } else {
         throw exc;
       }
+    } finally {
+      enforcement.afterPipelineExecution();
     }
   }
 
