@@ -57,6 +57,7 @@ import org.apache.spark.SparkEnv$;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.metrics.MetricsSystem;
 import org.apache.spark.streaming.api.java.JavaStreamingContext;
+import org.apache.spark.streaming.api.java.JavaStreamingListener;
 import org.apache.spark.streaming.api.java.JavaStreamingListenerWrapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -173,6 +174,12 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
       jssc.addStreamingListener(
           new JavaStreamingListenerWrapper(
               new AccumulatorSingleton.AccumulatorCheckpointingSparkListener()));
+
+      // register listeners.
+      for (JavaStreamingListener listener: mOptions.as(SparkContextOptions.class).getListeners()) {
+        LOG.info("Registered listener {}." + listener.getClass().getSimpleName());
+        jssc.addStreamingListener(new JavaStreamingListenerWrapper(listener));
+      }
 
       startPipeline = executorService.submit(new Runnable() {
 
