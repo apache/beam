@@ -28,6 +28,7 @@ import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.testing.TestStream.Builder;
+import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.GroupByKey;
@@ -96,7 +97,8 @@ public class TestStreamTest implements Serializable {
         .apply(GroupByKey.<Integer, Integer>create())
         .apply(Values.<Iterable<Integer>>create())
         .apply(Flatten.<Integer>iterables());
-    PCollection<Long> count = windowed.apply(Count.<Integer>globally().withoutDefaults());
+    PCollection<Long> count =
+        windowed.apply(Combine.globally(Count.<Integer>combineFn()).withoutDefaults());
     PCollection<Integer> sum = windowed.apply(Sum.integersGlobally().withoutDefaults());
 
     IntervalWindow window = new IntervalWindow(instant, instant.plus(Duration.standardMinutes(5L)));
