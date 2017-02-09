@@ -106,7 +106,6 @@ class PipelineOptionsValidator(object):
     is_service_runner = (self.runner is not None and
                          type(self.runner).__name__ in [
                              'DataflowRunner',
-                             'BlockingDataflowRunner',
                              'TestDataflowRunner'])
 
     dataflow_endpoint = (
