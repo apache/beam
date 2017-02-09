@@ -26,7 +26,7 @@ import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.mapreduce.lib.db.DBWritable;
 
 /**
- * To access the data from RDBMS using {@link DBInputFormat} you have to create a class to define
+ * To access the data from RDBMS using {@link DBInputFormat}, you have to create a class to define
  * the data which you are going to read. {@link DBInputWritable} is a class to read data from
  * Postgres DB in test {@link HIFIOWithPostgresIT}. {@link DBInputWritable} holds id and name of the
  * scientist.
@@ -35,9 +35,9 @@ public class DBInputWritable implements Writable, DBWritable {
   public String id;
   public String name;
 
-  /* 
-   * Empty constuctor is required for encoding and decoding values in Beam.
-   * Note: missing empty constuctor may result in RuntimeException  java.lang.NoSuchMethodException... <init>()
+  /*
+   * Empty constuctor is required for the Coder. Note: missing empty constuctor may result in
+   * RuntimeException java.lang.NoSuchMethodException... <init>()
    */
   public DBInputWritable() {}
 
@@ -56,7 +56,7 @@ public class DBInputWritable implements Writable, DBWritable {
 
   /*
    * Defines how the data had to be extracted from the DB. Both name and id field values are
-   * extracted inthe form of string.
+   * extracted in the form of string.
    */
   public void readFields(ResultSet rs) throws SQLException {
     name = rs.getString(1);
@@ -69,9 +69,7 @@ public class DBInputWritable implements Writable, DBWritable {
   public void write(PreparedStatement ps) {}
 
   /*
-   * Deserialize the fields {id, name} of this object from in. Note: You must implement this method
-   * for decoding in Beam. Leaving this method empty may result in incompatible value class in
-   * Beam.
+   * Deserialize the fields {id, name} of this object from in. 
    */
   public void readFields(DataInput in) throws IOException {
     name = in.readUTF();
