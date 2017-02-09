@@ -20,6 +20,8 @@ package org.apache.beam.runners.direct;
 import com.google.common.collect.Iterables;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import org.apache.beam.runners.core.ReplacementOutputs;
 import org.apache.beam.runners.direct.CommittedResult.OutputType;
 import org.apache.beam.runners.direct.DirectRunner.PCollectionViewWriter;
 import org.apache.beam.runners.direct.StepTransformResult.Builder;
@@ -36,6 +38,7 @@ import org.apache.beam.sdk.transforms.WithKeys;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TaggedPValue;
 
 /**
@@ -112,6 +115,12 @@ class ViewEvaluatorFactory implements TransformEvaluatorFactory {
     public PCollection<ElemT> getInput(
         List<TaggedPValue> inputs, Pipeline p) {
       return (PCollection<ElemT>) Iterables.getOnlyElement(inputs).getValue();
+    }
+
+    @Override
+    public Map<PValue, ReplacementOutput> mapOutputs(
+        List<TaggedPValue> outputs, PCollectionView<ViewT> newOutput) {
+      return ReplacementOutputs.singleton(outputs, newOutput);
     }
   }
 

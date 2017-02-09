@@ -19,12 +19,15 @@ package org.apache.beam.runners.direct;
 
 import com.google.common.collect.Iterables;
 import java.util.List;
+import java.util.Map;
+import org.apache.beam.runners.core.ReplacementOutputs;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.runners.PTransformOverrideFactory;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TaggedPValue;
 
 /** A {@link PTransformOverrideFactory} for {@link GroupByKey} PTransforms. */
@@ -41,5 +44,11 @@ final class DirectGroupByKeyOverrideFactory<K, V>
   public PCollection<KV<K, V>> getInput(
       List<TaggedPValue> inputs, Pipeline p) {
     return (PCollection<KV<K, V>>) Iterables.getOnlyElement(inputs).getValue();
+  }
+
+  @Override
+  public Map<PValue, ReplacementOutput> mapOutputs(
+      List<TaggedPValue> outputs, PCollection<KV<K, Iterable<V>>> newOutput) {
+    return ReplacementOutputs.singleton(outputs, newOutput);
   }
 }

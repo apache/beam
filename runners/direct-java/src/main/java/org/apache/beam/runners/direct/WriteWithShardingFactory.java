@@ -22,7 +22,9 @@ import static com.google.common.base.Preconditions.checkArgument;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Iterables;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.Write;
@@ -42,6 +44,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PDone;
+import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TaggedPValue;
 import org.joda.time.Duration;
 
@@ -68,6 +71,12 @@ class WriteWithShardingFactory<InputT>
   public PCollection<InputT> getInput(
       List<TaggedPValue> inputs, Pipeline p) {
     return (PCollection<InputT>) Iterables.getOnlyElement(inputs).getValue();
+  }
+
+  @Override
+  public Map<PValue, ReplacementOutput> mapOutputs(
+      List<TaggedPValue> outputs, PDone newOutput) {
+    return Collections.emptyMap();
   }
 
   private static class DynamicallyReshardedWrite<T> extends PTransform<PCollection<T>, PDone> {
