@@ -436,7 +436,9 @@ public class Pipeline {
     getOptions().setStableUniqueNames(CheckEnabled.OFF);
     PTransform<InputT, OutputT> replacement =
         replacementFactory.getReplacementTransform((TransformT) original.getTransform());
-    // if (replacement == original.getTransform()) { return; }
+    if (replacement == original.getTransform()) {
+      return;
+    }
     InputT originalInput = replacementFactory.getInput(original.getInputs(), this);
 
     LOG.debug("Replacing {} with {}", original, replacement);
