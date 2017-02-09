@@ -176,6 +176,23 @@ class WindowTest(unittest.TestCase):
                                   ('key', [5, 6, 7, 8, 9])]))
     p.run()
 
+
+  def test_rewindow(self):
+    p = TestPipeline()
+    result = (p
+              | Create([(k, k) for k in range(10)])
+              | Map(lambda (x, t): TimestampedValue(x, t))
+              | 'window' >> WindowInto(SlidingWindows(period=2, size=6))
+              # Per the model, each element is now duplicated across
+              # three windows. Rewindowing must preserve this duplication.
+              | 'rewindow' >> WindowInto(FixedWindows(5))
+              | 'rewindow2' >> WindowInto(FixedWindows(5))
+              | Map(lambda v: ('key', v))
+              | GroupByKey())
+    assert_that(result, equal_to([('key', sorted([0, 1, 2, 3, 4] * 3)),
+                                  ('key', sorted([5, 6, 7, 8, 9] * 3))]))
+    p.run()
+
   def test_timestamped_with_combiners(self):
     p = TestPipeline()
     result = (p
