@@ -63,9 +63,6 @@ class RunnerTest(unittest.TestCase):
         isinstance(create_runner('DataflowRunner'),
                    DataflowRunner))
     self.assertTrue(
-        isinstance(create_runner('BlockingDataflowRunner'),
-                   DataflowRunner))
-    self.assertTrue(
         isinstance(create_runner('TestDataflowRunner'),
                    TestDataflowRunner))
     self.assertRaises(ValueError, create_runner, 'xyz')
