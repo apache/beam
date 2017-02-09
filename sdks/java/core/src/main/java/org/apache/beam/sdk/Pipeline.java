@@ -27,9 +27,14 @@ import java.util.Set;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.PipelineOptions.CheckEnabled;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.runners.PTransformMatcher;
+import org.apache.beam.sdk.runners.PTransformOverrideFactory;
+import org.apache.beam.sdk.runners.PTransformOverrideFactory.ReplacementOutput;
 import org.apache.beam.sdk.runners.PipelineRunner;
 import org.apache.beam.sdk.runners.TransformHierarchy;
+import org.apache.beam.sdk.runners.TransformHierarchy.Node;
 import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -165,6 +170,33 @@ public class Pipeline {
   public <OutputT extends POutput> OutputT apply(
       String name, PTransform<? super PBegin, OutputT> root) {
     return begin().apply(name, root);
+  }
+
+  public void replace(
+      final PTransformMatcher matcher, PTransformOverrideFactory replacementFactory) {
+    final Collection<Node> matches = new ArrayList<>();
+    transforms.visit(
+        new PipelineVisitor.Defaults() {
+          @Override
+          public CompositeBehavior enterCompositeTransform(Node node) {
+            if (!node.isRootNode() && matcher.matches(node.toAppliedPTransform())) {
+              matches.add(node);
+              // This node has been replaced. It should not be visited.
+              return CompositeBehavior.DO_NOT_ENTER_TRANSFORM;
+            }
+            return CompositeBehavior.ENTER_TRANSFORM;
+          }
+
+          @Override
+          public void visitPrimitiveTransform(Node node) {
+            if (matcher.matches(node.toAppliedPTransform())) {
+              matches.add(node);
+            }
+          }
+        });
+    for (Node match : matches) {
+      applyReplacement(match, replacementFactory);
+    }
   }
 
   /**
@@ -323,7 +355,7 @@ public class Pipeline {
 
   private final PipelineRunner<?> runner;
   private final PipelineOptions options;
-  private final TransformHierarchy transforms = new TransformHierarchy();
+  private final TransformHierarchy transforms = new TransformHierarchy(this);
   private Collection<PValue> values = new ArrayList<>();
   private Set<String> usedFullNames = new HashSet<>();
   private CoderRegistry coderRegistry;
@@ -389,6 +421,33 @@ public class Pipeline {
       transforms.setOutput(output);
 
       return output;
+    } finally {
+      transforms.popNode();
+    }
+  }
+
+  private <InputT extends PInput, OutputT extends POutput,
+          TransformT extends PTransform<? super InputT, OutputT>>
+      void applyReplacement(
+          Node original,
+          PTransformOverrideFactory<InputT, OutputT, TransformT> replacementFactory) {
+    // Names for top-level transforms have been assigned. Any new collisions are within a node
+    // and its replacement.
+    getOptions().setStableUniqueNames(CheckEnabled.OFF);
+    PTransform<InputT, OutputT> replacement =
+        replacementFactory.getReplacementTransform((TransformT) original.getTransform());
+    // if (replacement == original.getTransform()) { return; }
+    InputT originalInput = replacementFactory.getInput(original.getInputs(), this);
+
+    LOG.debug("Replacing {} with {}", original, replacement);
+    transforms.replaceNode(original, originalInput, replacement);
+    try {
+      OutputT newOutput = runner.apply(replacement, originalInput);
+      Map<PValue, ReplacementOutput> originalToReplacement =
+          replacementFactory.mapOutputs(original.getOutputs(), newOutput);
+      // Ensure the internal TransformHierarchy data structures are consistent.
+      transforms.setOutput(newOutput);
+      transforms.replaceOutputs(originalToReplacement);
     } finally {
       transforms.popNode();
     }
