@@ -23,7 +23,6 @@ import static org.junit.Assert.assertEquals;
 
 import java.io.Serializable;
 import java.util.concurrent.atomic.AtomicLong;
-
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.BigEndianLongCoder;
 import org.apache.beam.sdk.coders.Coder;
@@ -37,7 +36,6 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TimestampedValue;
-
 import org.joda.time.Instant;
 import org.junit.Rule;
 import org.junit.Test;
@@ -88,9 +86,7 @@ public class LatestTest implements Serializable {
   @Test
   @Category(NeedsRunner.class)
   public void testGloballyEmptyCollection() {
-    PCollection<Long> emptyInput = p.apply(Create.<Long>of()
-        // Explicitly set coder such that then runner enforces encodability.
-        .withCoder(VarLongCoder.of()));
+    PCollection<Long> emptyInput = p.apply(Create.empty(VarLongCoder.of()));
     PCollection<Long> output = emptyInput.apply(Latest.<Long>globally());
 
     PAssert.that(output).containsInAnyOrder((Long) null);
@@ -130,9 +126,8 @@ public class LatestTest implements Serializable {
   @Category(NeedsRunner.class)
   public void testPerKeyEmptyCollection() {
     PCollection<KV<String, String>> output =
-        p.apply(Create.<KV<String, String>>of().withCoder(KvCoder.of(
-            StringUtf8Coder.of(), StringUtf8Coder.of())))
-         .apply(Latest.<String, String>perKey());
+        p.apply(Create.empty(KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of())))
+            .apply(Latest.<String, String>perKey());
 
     PAssert.that(output).empty();
     p.run();

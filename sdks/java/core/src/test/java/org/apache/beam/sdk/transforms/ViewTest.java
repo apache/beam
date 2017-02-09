@@ -146,7 +146,7 @@ public class ViewTest implements Serializable {
   public void testEmptySingletonSideInput() throws Exception {
 
     final PCollectionView<Integer> view =
-        pipeline.apply("CreateEmptyIntegers", Create.<Integer>of().withCoder(VarIntCoder.of()))
+        pipeline.apply("CreateEmptyIntegers", Create.empty(VarIntCoder.of()))
             .apply(View.<Integer>asSingleton());
 
     pipeline.apply("Create123", Create.of(1, 2, 3))
@@ -261,7 +261,7 @@ public class ViewTest implements Serializable {
   public void testEmptyListSideInput() throws Exception {
 
     final PCollectionView<List<Integer>> view =
-        pipeline.apply("CreateEmptyView", Create.<Integer>of().withCoder(VarIntCoder.of()))
+        pipeline.apply("CreateEmptyView", Create.empty(VarIntCoder.of()))
             .apply(View.<Integer>asList());
 
     PCollection<Integer> results =
@@ -396,7 +396,7 @@ public class ViewTest implements Serializable {
   public void testEmptyIterableSideInput() throws Exception {
 
     final PCollectionView<Iterable<Integer>> view =
-        pipeline.apply("CreateEmptyView", Create.<Integer>of().withCoder(VarIntCoder.of()))
+        pipeline.apply("CreateEmptyView", Create.empty(VarIntCoder.of()))
             .apply(View.<Integer>asIterable());
 
     PCollection<Integer> results =
@@ -678,7 +678,7 @@ public class ViewTest implements Serializable {
   public void testEmptyMultimapSideInput() throws Exception {
 
     final PCollectionView<Map<String, Iterable<Integer>>> view =
-        pipeline.apply("CreateEmptyView", Create.<KV<String, Integer>>of().withCoder(
+        pipeline.apply("CreateEmptyView", Create.empty(
                                               KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of())))
             .apply(View.<String, Integer>asMultimap());
 
@@ -706,9 +706,10 @@ public class ViewTest implements Serializable {
   public void testEmptyMultimapSideInputWithNonDeterministicKeyCoder() throws Exception {
 
     final PCollectionView<Map<String, Iterable<Integer>>> view =
-        pipeline.apply("CreateEmptyView",
-                Create.<KV<String, Integer>>of().withCoder(
-                    KvCoder.of(new NonDeterministicStringCoder(), VarIntCoder.of())))
+        pipeline
+            .apply(
+                "CreateEmptyView",
+                Create.empty(KvCoder.of(new NonDeterministicStringCoder(), VarIntCoder.of())))
             .apply(View.<String, Integer>asMultimap());
 
     PCollection<Integer> results =
@@ -982,8 +983,9 @@ public class ViewTest implements Serializable {
   public void testEmptyMapSideInput() throws Exception {
 
     final PCollectionView<Map<String, Integer>> view =
-        pipeline.apply("CreateEmptyView", Create.<KV<String, Integer>>of().withCoder(
-                KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of())))
+        pipeline
+            .apply(
+                "CreateEmptyView", Create.empty(KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of())))
             .apply(View.<String, Integer>asMap());
 
     PCollection<Integer> results =
@@ -1010,7 +1012,7 @@ public class ViewTest implements Serializable {
   public void testEmptyMapSideInputWithNonDeterministicKeyCoder() throws Exception {
 
     final PCollectionView<Map<String, Integer>> view =
-        pipeline.apply("CreateEmptyView", Create.<KV<String, Integer>>of().withCoder(
+        pipeline.apply("CreateEmptyView", Create.empty(
                 KvCoder.of(new NonDeterministicStringCoder(), VarIntCoder.of())))
             .apply(View.<String, Integer>asMap());
 

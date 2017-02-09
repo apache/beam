@@ -19,6 +19,9 @@ package org.apache.beam.sdk.extensions.joinlibrary;
 
 import java.util.ArrayList;
 import java.util.List;
+import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
@@ -135,21 +138,31 @@ public class OuterRightJoinTest {
   @Test(expected = NullPointerException.class)
   public void testJoinLeftCollectionNull() {
     p.enableAbandonedNodeEnforcement(false);
-    Join.rightOuterJoin(null, p.apply(Create.of(listRightOfKv)), "");
+    Join.rightOuterJoin(
+        null,
+        p.apply(
+            Create.of(listRightOfKv)
+                .withCoder(KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()))),
+        "");
   }
 
   @Test(expected = NullPointerException.class)
   public void testJoinRightCollectionNull() {
     p.enableAbandonedNodeEnforcement(false);
-    Join.rightOuterJoin(p.apply(Create.of(leftListOfKv)), null, -1L);
+    Join.rightOuterJoin(
+        p.apply(
+            Create.of(leftListOfKv).withCoder(KvCoder.of(StringUtf8Coder.of(), VarLongCoder.of()))),
+        null,
+        -1L);
   }
 
   @Test(expected = NullPointerException.class)
   public void testJoinNullValueIsNull() {
     p.enableAbandonedNodeEnforcement(false);
     Join.rightOuterJoin(
-        p.apply("CreateLeft", Create.of(leftListOfKv)),
-        p.apply("CreateRight", Create.of(listRightOfKv)),
+        p.apply("CreateLeft", Create.empty(KvCoder.of(StringUtf8Coder.of(), VarLongCoder.of()))),
+        p.apply(
+            "CreateRight", Create.empty(KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()))),
         null);
   }
 }

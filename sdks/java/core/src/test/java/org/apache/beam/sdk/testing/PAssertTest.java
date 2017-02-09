@@ -350,7 +350,7 @@ public class PAssertTest implements Serializable {
   @Category(RunnableOnService.class)
   public void testEmpty() {
     PCollection<Long> vals =
-        pipeline.apply(Create.<Long>of().withCoder(VarLongCoder.of()));
+        pipeline.apply(Create.empty(VarLongCoder.of()));
 
     PAssert.that(vals).empty();
 

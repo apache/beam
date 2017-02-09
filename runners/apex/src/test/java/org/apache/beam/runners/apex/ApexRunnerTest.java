@@ -22,9 +22,9 @@ import com.datatorrent.api.DAG.OperatorMeta;
 import com.datatorrent.stram.engine.OperatorContext;
 import java.io.File;
 import java.io.FileOutputStream;
-import java.util.Collections;
 import java.util.Properties;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.Create;
 import org.junit.Assert;
@@ -45,7 +45,8 @@ public class ApexRunnerTest {
 
     // default configuration from class path
     Pipeline p = Pipeline.create(options);
-    p.apply(operName, Create.of(Collections.emptyList()));
+    Create.Values<Void> empty = Create.empty(VoidCoder.of());
+    p.apply(operName, empty);
     ApexRunnerResult result = (ApexRunnerResult) p.run();
     result.cancel();
 
