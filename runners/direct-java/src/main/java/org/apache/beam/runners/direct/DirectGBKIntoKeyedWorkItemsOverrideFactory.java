@@ -19,13 +19,16 @@ package org.apache.beam.runners.direct;
 
 import com.google.common.collect.Iterables;
 import java.util.List;
+import java.util.Map;
 import org.apache.beam.runners.core.KeyedWorkItem;
+import org.apache.beam.runners.core.ReplacementOutputs;
 import org.apache.beam.runners.core.SplittableParDo.GBKIntoKeyedWorkItems;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.runners.PTransformOverrideFactory;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TaggedPValue;
 
 /**
@@ -46,5 +49,11 @@ class DirectGBKIntoKeyedWorkItemsOverrideFactory<KeyT, InputT>
   public PCollection<KV<KeyT, InputT>> getInput(
       List<TaggedPValue> inputs, Pipeline p) {
     return (PCollection<KV<KeyT, InputT>>) Iterables.getOnlyElement(inputs).getValue();
+  }
+
+  @Override
+  public Map<PValue, ReplacementOutput> mapOutputs(
+      List<TaggedPValue> outputs, PCollection<KeyedWorkItem<KeyT, InputT>> newOutput) {
+    return ReplacementOutputs.singleton(outputs, newOutput);
   }
 }
