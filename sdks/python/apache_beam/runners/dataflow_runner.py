@@ -66,7 +66,6 @@ class DataflowRunner(PipelineRunner):
     # Cache of CloudWorkflowStep protos generated while the runner
     # "executes" a pipeline.
     self._cache = cache if cache is not None else PValueCache()
-    self.result = None
     self._unique_step_id = 0
 
   def _get_unique_step_name(self):
@@ -172,10 +171,8 @@ class DataflowRunner(PipelineRunner):
         pipeline.options, job_version)
 
     # Create the job
-    self.result = DataflowPipelineResult(
+    return DataflowPipelineResult(
         self.dataflow_client.create_job(self.job), self)
-
-    return self.result
 
   def _get_typehint_based_encoding(self, typehint, window_coder):
     """Returns an encoding based on a typehint object."""
