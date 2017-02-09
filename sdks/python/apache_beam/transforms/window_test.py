@@ -40,8 +40,8 @@ from apache_beam.transforms.window import WindowedValue
 from apache_beam.transforms.window import WindowFn
 
 
-def context(element, timestamp, windows):
-  return WindowFn.AssignContext(timestamp, element, windows)
+def context(element, timestamp):
+  return WindowFn.AssignContext(timestamp, element)
 
 
 sort_values = Map(lambda (k, vs): (k, sorted(vs)))
@@ -67,40 +67,40 @@ class WindowTest(unittest.TestCase):
     # Test windows with offset: 2, 7, 12, 17, ...
     windowfn = FixedWindows(size=5, offset=2)
     self.assertEqual([IntervalWindow(7, 12)],
-                     windowfn.assign(context('v', 7, [])))
+                     windowfn.assign(context('v', 7)))
     self.assertEqual([IntervalWindow(7, 12)],
-                     windowfn.assign(context('v', 11, [])))
+                     windowfn.assign(context('v', 11)))
     self.assertEqual([IntervalWindow(12, 17)],
-                     windowfn.assign(context('v', 12, [])))
+                     windowfn.assign(context('v', 12)))
 
     # Test windows without offset: 0, 5, 10, 15, ...
     windowfn = FixedWindows(size=5)
     self.assertEqual([IntervalWindow(5, 10)],
-                     windowfn.assign(context('v', 5, [])))
+                     windowfn.assign(context('v', 5)))
     self.assertEqual([IntervalWindow(5, 10)],
-                     windowfn.assign(context('v', 9, [])))
+                     windowfn.assign(context('v', 9)))
     self.assertEqual([IntervalWindow(10, 15)],
-                     windowfn.assign(context('v', 10, [])))
+                     windowfn.assign(context('v', 10)))
 
     # Test windows with offset out of range.
     windowfn = FixedWindows(size=5, offset=12)
     self.assertEqual([IntervalWindow(7, 12)],
-                     windowfn.assign(context('v', 11, [])))
+                     windowfn.assign(context('v', 11)))
 
   def test_sliding_windows_assignment(self):
     windowfn = SlidingWindows(size=15, period=5, offset=2)
     expected = [IntervalWindow(7, 22),
                 IntervalWindow(2, 17),
                 IntervalWindow(-3, 12)]
-    self.assertEqual(expected, windowfn.assign(context('v', 7, [])))
-    self.assertEqual(expected, windowfn.assign(context('v', 8, [])))
-    self.assertEqual(expected, windowfn.assign(context('v', 11, [])))
+    self.assertEqual(expected, windowfn.assign(context('v', 7)))
+    self.assertEqual(expected, windowfn.assign(context('v', 8)))
+    self.assertEqual(expected, windowfn.assign(context('v', 11)))
 
   def test_sessions_merging(self):
     windowfn = Sessions(10)
 
     def merge(*timestamps):
-      windows = [windowfn.assign(context(None, t, [])) for t in timestamps]
+      windows = [windowfn.assign(context(None, t)) for t in timestamps]
       running = set()
 
       class TestMergeContext(WindowFn.MergeContext):
