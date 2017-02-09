@@ -19,7 +19,6 @@ package org.apache.beam.sdk.transforms;
 
 import static org.apache.beam.sdk.TestUtils.LINES;
 import static org.apache.beam.sdk.TestUtils.LINES_ARRAY;
-import static org.apache.beam.sdk.TestUtils.NO_LINES;
 import static org.apache.beam.sdk.TestUtils.NO_LINES_ARRAY;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasSize;
@@ -92,22 +91,35 @@ public class CreateTest {
   @Category(RunnableOnService.class)
   public void testCreateEmpty() {
     PCollection<String> output =
-        p.apply(Create.of(NO_LINES)
-            .withCoder(StringUtf8Coder.of()));
+        p.apply(Create.empty(StringUtf8Coder.of()));
 
     PAssert.that(output)
         .containsInAnyOrder(NO_LINES_ARRAY);
+
+    assertEquals(StringUtf8Coder.of(), output.getCoder());
     p.run();
   }
 
   @Test
-  public void testCreateEmptyInfersCoder() {
+  public void testCreateEmptyIterableRequiresCoder() {
     p.enableAbandonedNodeEnforcement(false);
 
-    PCollection<Object> output =
-        p.apply(Create.of());
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("default Create Coder");
+    thrown.expectMessage("Create.empty(Coder)");
+    thrown.expectMessage("withCoder(Coder)");
+    p.apply(Create.of(Collections.emptyList()));
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testCreateEmptyIterableWithCoder() {
+    PCollection<Void> output =
+        p.apply(Create.of(Collections.<Void>emptyList()).withCoder(VoidCoder.of()));
 
     assertEquals(VoidCoder.of(), output.getCoder());
+    PAssert.that(output).empty();
+    p.run();
   }
 
   static class Record implements Serializable {
@@ -250,13 +262,14 @@ public class CreateTest {
   }
 
   @Test
-  public void testCreateTimestampedEmptyInfersCoder() {
+  public void testCreateTimestampedEmptyUnspecifiedCoder() {
     p.enableAbandonedNodeEnforcement(false);
 
-    PCollection<Object> output = p
-        .apply(Create.timestamped());
-
-    assertEquals(VoidCoder.of(), output.getCoder());
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("default Create Coder");
+    thrown.expectMessage("Create.empty(Coder)");
+    thrown.expectMessage("withCoder(Coder)");
+    p.apply(Create.timestamped(new ArrayList<TimestampedValue<Object>>()));
   }
 
   @Test

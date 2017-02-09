@@ -417,9 +417,6 @@ public class ParDoTest implements Serializable {
   @Test
   @Category(RunnableOnService.class)
   public void testParDoEmptyWithSideOutputs() {
-
-    List<Integer> inputs = Arrays.asList();
-
     TupleTag<String> mainOutputTag = new TupleTag<String>("main"){};
     TupleTag<String> sideOutputTag1 = new TupleTag<String>("side1"){};
     TupleTag<String> sideOutputTag2 = new TupleTag<String>("side2"){};
@@ -427,7 +424,7 @@ public class ParDoTest implements Serializable {
     TupleTag<String> sideOutputTagUnwritten = new TupleTag<String>("sideUnwritten"){};
 
     PCollectionTuple outputs = pipeline
-        .apply(Create.of(inputs))
+        .apply(Create.empty(VarIntCoder.of()))
         .apply(ParDo
                .of(new TestDoFn(
                    Arrays.<PCollectionView<Integer>>asList(),
@@ -437,6 +434,7 @@ public class ParDoTest implements Serializable {
                    TupleTagList.of(sideOutputTag3).and(sideOutputTag1)
                    .and(sideOutputTagUnwritten).and(sideOutputTag2)));
 
+    List<Integer> inputs = Collections.emptyList();
     PAssert.that(outputs.get(mainOutputTag))
         .satisfies(ParDoTest.HasExpectedOutput.forInput(inputs));
 
@@ -457,15 +455,12 @@ public class ParDoTest implements Serializable {
   @Test
   @Category(RunnableOnService.class)
   public void testParDoWithEmptySideOutputs() {
-
-    List<Integer> inputs = Arrays.asList();
-
     TupleTag<String> mainOutputTag = new TupleTag<String>("main"){};
     TupleTag<String> sideOutputTag1 = new TupleTag<String>("side1"){};
     TupleTag<String> sideOutputTag2 = new TupleTag<String>("side2"){};
 
     PCollectionTuple outputs = pipeline
-        .apply(Create.of(inputs))
+        .apply(Create.empty(VarIntCoder.of()))
         .apply(ParDo
                .of(new TestNoOutputDoFn())
                .withOutputTags(

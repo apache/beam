@@ -98,6 +98,7 @@ import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.TableRowJsonCoder;
+import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.CountingInput;
@@ -1430,8 +1431,7 @@ public class BigQueryIOTest implements Serializable {
 
     thrown.expect(IllegalStateException.class);
     thrown.expectMessage("must set the table reference");
-    p.apply(Create.<TableRow>of().withCoder(TableRowJsonCoder.of()))
-        .apply(BigQueryIO.Write.withoutValidation());
+    p.apply(Create.empty(TableRowJsonCoder.of())).apply(BigQueryIO.Write.withoutValidation());
   }
 
   @Test
@@ -1571,7 +1571,8 @@ public class BigQueryIOTest implements Serializable {
                       }))
               .setCoder(TableRowJsonCoder.of());
     } else {
-      tableRows = p.apply(Create.<TableRow>of().withCoder(TableRowJsonCoder.of()));
+      tableRows = p
+          .apply(Create.empty(TableRowJsonCoder.of()));
     }
 
     thrown.expect(RuntimeException.class);
@@ -1710,7 +1711,7 @@ public class BigQueryIOTest implements Serializable {
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("no schema was provided");
     p
-        .apply(Create.<TableRow>of())
+        .apply(Create.empty(TableRowJsonCoder.of()))
         .apply(BigQueryIO.Write
             .to("dataset.table")
             .withCreateDisposition(CreateDisposition.CREATE_IF_NEEDED));
@@ -1723,7 +1724,7 @@ public class BigQueryIOTest implements Serializable {
     thrown.expect(IllegalStateException.class);
     thrown.expectMessage("Cannot set both a table reference and a table function");
     p
-        .apply(Create.<TableRow>of())
+        .apply(Create.empty(TableRowJsonCoder.of()))
         .apply(BigQueryIO.Write
             .to("dataset.table")
             .to(new SerializableFunction<BoundedWindow, String>() {
@@ -1741,7 +1742,7 @@ public class BigQueryIOTest implements Serializable {
     thrown.expect(IllegalStateException.class);
     thrown.expectMessage("must set the table reference of a BigQueryIO.Write transform");
     p
-        .apply(Create.<TableRow>of())
+        .apply(Create.empty(TableRowJsonCoder.of()))
         .apply("name", BigQueryIO.Write.withoutValidation());
   }
 
@@ -2084,7 +2085,7 @@ public class BigQueryIOTest implements Serializable {
   @Category(NeedsRunner.class)
   public void testPassThroughThenCleanupExecuted() throws Exception {
 
-    p.apply(Create.<Integer>of())
+    p.apply(Create.empty(VarIntCoder.of()))
         .apply(new PassThroughThenCleanup<Integer>(new CleanupOperation() {
           @Override
           void cleanup(PipelineOptions options) throws Exception {
@@ -2388,7 +2389,7 @@ public class BigQueryIOTest implements Serializable {
             options.getOutputSchema(), new JsonSchemaToTableSchema()))
         .withoutValidation();
     pipeline
-        .apply(Create.<TableRow>of())
+        .apply(Create.empty(TableRowJsonCoder.of()))
         .apply(write);
     // Test that this doesn't throw.
     DisplayData.from(write);
@@ -2490,10 +2491,10 @@ public class BigQueryIOTest implements Serializable {
             options.getOutputSchema(), new JsonSchemaToTableSchema()))
         .withoutValidation();
     pipeline
-        .apply(Create.<TableRow>of())
+        .apply(Create.empty(TableRowJsonCoder.of()))
         .apply(write1);
     pipeline
-        .apply(Create.<TableRow>of())
+        .apply(Create.empty(TableRowJsonCoder.of()))
         .apply(write2);
     assertNotEquals(write1.stepUuid, write2.stepUuid);
     assertNotEquals(write1.jobUuid.get(), write2.jobUuid.get());
