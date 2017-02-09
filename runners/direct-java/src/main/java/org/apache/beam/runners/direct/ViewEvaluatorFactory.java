@@ -23,6 +23,7 @@ import java.util.List;
 import org.apache.beam.runners.direct.CommittedResult.OutputType;
 import org.apache.beam.runners.direct.DirectRunner.PCollectionViewWriter;
 import org.apache.beam.runners.direct.StepTransformResult.Builder;
+import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.runners.PTransformOverrideFactory;
@@ -35,6 +36,7 @@ import org.apache.beam.sdk.transforms.WithKeys;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.sdk.values.TaggedPValue;
 
 /**
  * The {@link DirectRunner} {@link TransformEvaluatorFactory} for the
@@ -104,6 +106,12 @@ class ViewEvaluatorFactory implements TransformEvaluatorFactory {
     public PTransform<PCollection<ElemT>, PCollectionView<ViewT>> getReplacementTransform(
         CreatePCollectionView<ElemT, ViewT> transform) {
       return new DirectCreatePCollectionView<>(transform);
+    }
+
+    @Override
+    public PCollection<ElemT> getInput(
+        List<TaggedPValue> inputs, Pipeline p) {
+      return (PCollection<ElemT>) Iterables.getOnlyElement(inputs).getValue();
     }
   }
 
