@@ -207,7 +207,7 @@
   </Match>
 
   <Match>
-    <Class name="org.apache.beam.sdk.util.state.StateMerging"/>
+    <Class name="org.apache.beam.runners.core.StateMerging"/>
     <Method name="prefetchRead" />
     <Bug pattern="RV_RETURN_VALUE_IGNORED_NO_SIDE_EFFECT"/>
     <!-- prefetch call readLater -->
