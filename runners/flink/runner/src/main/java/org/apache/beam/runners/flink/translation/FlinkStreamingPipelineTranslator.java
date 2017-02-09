@@ -50,7 +50,7 @@ public class FlinkStreamingPipelineTranslator extends FlinkPipelineTranslator {
 
   @Override
   public CompositeBehavior enterCompositeTransform(TransformHierarchy.Node node) {
-    LOG.info(genSpaces(this.depth) + "enterCompositeTransform- " + formatNodeName(node));
+    LOG.info("{} enterCompositeTransform- {}", genSpaces(this.depth), node.getFullName());
     this.depth++;
 
     PTransform<?, ?> transform = node.getTransform();
@@ -60,7 +60,7 @@ public class FlinkStreamingPipelineTranslator extends FlinkPipelineTranslator {
 
       if (translator != null && applyCanTranslate(transform, node, translator)) {
         applyStreamingTransform(transform, node, translator);
-        LOG.info(genSpaces(this.depth) + "translated-" + formatNodeName(node));
+        LOG.info("{} translated- {}", genSpaces(this.depth), node.getFullName());
         return CompositeBehavior.DO_NOT_ENTER_TRANSFORM;
       }
     }
@@ -70,12 +70,12 @@ public class FlinkStreamingPipelineTranslator extends FlinkPipelineTranslator {
   @Override
   public void leaveCompositeTransform(TransformHierarchy.Node node) {
     this.depth--;
-    LOG.info(genSpaces(this.depth) + "leaveCompositeTransform- " + formatNodeName(node));
+    LOG.info("{} leaveCompositeTransform- {}", genSpaces(this.depth), node.getFullName());
   }
 
   @Override
   public void visitPrimitiveTransform(TransformHierarchy.Node node) {
-    LOG.info(genSpaces(this.depth) + "visitPrimitiveTransform- " + formatNodeName(node));
+    LOG.info("{} visitPrimitiveTransform- {}", genSpaces(this.depth), node.getFullName());
     // get the transformation corresponding to hte node we are
     // currently visiting and translate it into its Flink alternative.
 
@@ -146,9 +146,5 @@ public class FlinkStreamingPipelineTranslator extends FlinkPipelineTranslator {
     boolean canTranslate(T transform, FlinkStreamingTranslationContext context) {
       return true;
     }
-  }
-
-  private static String formatNodeName(TransformHierarchy.Node node) {
-    return node.toString().split("@")[1] + node.getTransform();
   }
 }

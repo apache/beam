@@ -21,6 +21,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.MoreObjects;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -384,6 +385,11 @@ public class TransformHierarchy {
         return;
       }
       finishedSpecifying = true;
+    }
+
+    @Override
+    public String toString() {
+      return MoreObjects.toStringHelper(getClass()).add("fullName", fullName).toString();
     }
   }
 }

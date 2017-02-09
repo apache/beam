@@ -63,14 +63,14 @@ public class FlinkBatchPipelineTranslator extends FlinkPipelineTranslator {
 
   @Override
   public CompositeBehavior enterCompositeTransform(TransformHierarchy.Node node) {
-    LOG.info(genSpaces(this.depth) + "enterCompositeTransform- " + formatNodeName(node));
+    LOG.info("{} enterCompositeTransform- {}", genSpaces(this.depth), node.getFullName());
     this.depth++;
 
     BatchTransformTranslator<?> translator = getTranslator(node);
 
     if (translator != null) {
       applyBatchTransform(node.getTransform(), node, translator);
-      LOG.info(genSpaces(this.depth) + "translated-" + formatNodeName(node));
+      LOG.info("{} translated- {}", genSpaces(this.depth), node.getFullName());
       return CompositeBehavior.DO_NOT_ENTER_TRANSFORM;
     } else {
       return CompositeBehavior.ENTER_TRANSFORM;
@@ -80,12 +80,12 @@ public class FlinkBatchPipelineTranslator extends FlinkPipelineTranslator {
   @Override
   public void leaveCompositeTransform(TransformHierarchy.Node node) {
     this.depth--;
-    LOG.info(genSpaces(this.depth) + "leaveCompositeTransform- " + formatNodeName(node));
+    LOG.info("{} leaveCompositeTransform- {}", genSpaces(this.depth), node.getFullName());
   }
 
   @Override
   public void visitPrimitiveTransform(TransformHierarchy.Node node) {
-    LOG.info(genSpaces(this.depth) + "visitPrimitiveTransform- " + formatNodeName(node));
+    LOG.info("{} visitPrimitiveTransform- {}", genSpaces(this.depth), node.getFullName());
 
     // get the transformation corresponding to the node we are
     // currently visiting and translate it into its Flink alternative.
@@ -135,9 +135,5 @@ public class FlinkBatchPipelineTranslator extends FlinkPipelineTranslator {
     }
 
     return FlinkBatchTransformTranslators.getTranslator(transform);
-  }
-
-  private static String formatNodeName(TransformHierarchy.Node node) {
-    return node.toString().split("@")[1] + node.getTransform();
   }
 }
