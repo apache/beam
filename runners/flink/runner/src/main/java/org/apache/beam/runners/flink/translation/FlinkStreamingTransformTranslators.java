@@ -310,6 +310,16 @@ public class FlinkStreamingTransformTranslators {
     }
   }
 
+  private static void rejectSplittable(DoFn<?, ?> doFn) {
+    DoFnSignature signature = DoFnSignatures.getSignature(doFn.getClass());
+    if (signature.processElement().isSplittable()) {
+      throw new UnsupportedOperationException(
+          String.format(
+              "%s does not currently support splittable DoFn: %s",
+              FlinkRunner.class.getSimpleName(), doFn));
+    }
+  }
+
   private static void rejectTimers(DoFn<?, ?> doFn) {
     DoFnSignature signature = DoFnSignatures.getSignature(doFn.getClass());
 
@@ -334,6 +344,7 @@ public class FlinkStreamingTransformTranslators {
         FlinkStreamingTranslationContext context) {
 
       DoFn<InputT, OutputT> doFn = transform.getFn();
+      rejectSplittable(doFn);
       rejectTimers(doFn);
 
       WindowingStrategy<?, ?> windowingStrategy =
@@ -519,6 +530,7 @@ public class FlinkStreamingTransformTranslators {
         FlinkStreamingTranslationContext context) {
 
       DoFn<InputT, OutputT> doFn = transform.getFn();
+      rejectSplittable(doFn);
       rejectTimers(doFn);
 
       // we assume that the transformation does not change the windowing strategy.
