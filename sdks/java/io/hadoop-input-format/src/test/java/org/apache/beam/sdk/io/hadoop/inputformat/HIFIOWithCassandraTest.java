@@ -17,7 +17,7 @@ package org.apache.beam.sdk.io.hadoop.inputformat;
 import java.io.Serializable;
 
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.io.hadoop.inputformat.testing.HashingFn;
+import org.apache.beam.sdk.io.hadoop.inputformat.hashing.HashingFn;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Combine;
