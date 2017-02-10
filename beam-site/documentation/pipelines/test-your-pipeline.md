@@ -40,7 +40,7 @@ The Beam SDK for Java provides a convenient way to test an individual `DoFn` cal
 1.  Create a `DoFnTester`. You'll need to pass an instance of the `DoFn` you want to test to the static factory method for `DoFnTester`.
 2.  Create one or more main test inputs of the appropriate type for your `DoFn`. If your `DoFn` takes side inputs and/or produces side outputs, you should also create the side inputs and the side output tags.
 3.  Call `DoFnTester.processBundle` to process the main inputs.
-4.  Use JUnit's `Assert.assertThat` method to ensure the test outputs returned from `processBatch` match your expected values.
+4.  Use JUnit's `Assert.assertThat` method to ensure the test outputs returned from `processBundle` match your expected values.
 
 ### Creating a DoFnTester
 
@@ -99,9 +99,9 @@ See the `ParDo` documentation on [side inputs]({{ site.baseurl }}/documentation/
 
 ### Processing Test Inputs and Checking Results
 
-To process the inputs (and thus run the test on your `DoFn`), you call the method `DoFnTester.processBatch`. When you call `processBatch`, you pass one or more main test input values for your `DoFn`. If you set side inputs, the side inputs are available to each batch of main inputs that you provide.
+To process the inputs (and thus run the test on your `DoFn`), you call the method `DoFnTester.processBundle`. When you call `processBundle`, you pass one or more main test input values for your `DoFn`. If you set side inputs, the side inputs are available to each batch of main inputs that you provide.
 
-`DoFnTester.processBatch` returns a `List` of outputs—that is, objects of the same type as the `DoFn`'s specified output type. For a `DoFn<String, Integer>`, `processBatch` returns a `List<Integer>`:
+`DoFnTester.processBundle` returns a `List` of outputs—that is, objects of the same type as the `DoFn`'s specified output type. For a `DoFn<String, Integer>`, `processBundle` returns a `List<Integer>`:
 
 ```java  
 static class MyDoFn extends DoFn<String, Integer> { ... }
@@ -109,19 +109,19 @@ MyDoFn myDoFn = ...;
 DoFnTester<String, Integer> fnTester = DoFnTester.of(myDoFn);
 
 String testInput = "test1";
-List<Integer> testOutputs = fnTester.processBatch(testInput);
+List<Integer> testOutputs = fnTester.processBundle(testInput);
 ```
 
-To check the results of `processBatch`, you use JUnit's `Assert.assertThat` method to test if the `List` of outputs contains the values you expect:
+To check the results of `processBundle`, you use JUnit's `Assert.assertThat` method to test if the `List` of outputs contains the values you expect:
 
 ```java  
 String testInput = "test1";
-List<Integer> testOutputs = fnTester.processBatch(testInput);
+List<Integer> testOutputs = fnTester.processBundle(testInput);
 
 Assert.assertThat(testOutputs, Matchers.hasItems(...));
 
 // Process a larger batch in a single step.
-Assert.assertThat(fnTester.processBatch("input1", "input2", "input3"), Matchers.hasItems(...));
+Assert.assertThat(fnTester.processBundle("input1", "input2", "input3"), Matchers.hasItems(...));
 ```
 
 ## Testing Composite Transforms
