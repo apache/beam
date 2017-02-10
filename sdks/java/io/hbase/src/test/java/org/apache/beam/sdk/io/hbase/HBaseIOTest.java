@@ -241,8 +241,10 @@ public class HBaseIOTest {
     public void testReadingWithKeyRange() throws Exception {
         final String table = "TEST-KEY-RANGE-TABLE";
         final int numRows = 1001;
-        final ByteKey startKey = ByteKey.copyFrom("2".getBytes());
-        final ByteKey endKey = ByteKey.copyFrom("9".getBytes());
+        final byte[] startRow = "2".getBytes();
+        final byte[] stopRow = "9".getBytes();
+        final ByteKey startKey = ByteKey.copyFrom(startRow);
+        final ByteKey endKey = ByteKey.copyFrom(stopRow);
 
         createTable(table);
         writeData(table, numRows);
@@ -258,9 +260,9 @@ public class HBaseIOTest {
                 .withKeyRange(suffixRange), 875);
 
         // Test restricted range: [startKey, endKey).
-        final ByteKeyRange middleRange = ByteKeyRange.of(startKey, endKey);
+        // This one tests the second signature of .withKeyRange
         runReadTestLength(HBaseIO.read().withConfiguration(conf).withTableId(table)
-                .withKeyRange(middleRange), 441);
+                .withKeyRange(startRow, stopRow), 441);
     }
 
     @Test

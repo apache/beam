@@ -43,6 +43,7 @@ import org.apache.beam.sdk.io.hbase.coders.HBaseMutationCoder;
 import org.apache.beam.sdk.io.hbase.coders.HBaseResultCoder;
 import org.apache.beam.sdk.io.hbase.coders.SerializableConfiguration;
 import org.apache.beam.sdk.io.hbase.coders.SerializableScan;
+import org.apache.beam.sdk.io.range.ByteKey;
 import org.apache.beam.sdk.io.range.ByteKeyRange;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -231,7 +232,7 @@ public class HBaseIO {
             checkNotNull(keyRange, "keyRange");
             byte[] startRow = keyRange.getStartKey().getBytes();
             byte[] stopRow = keyRange.getEndKey().getBytes();
-            return withKeyRange(startRow, stopRow);
+            return withScan(serializableScan.getScan().setStartRow(startRow).setStopRow(stopRow));
         }
 
         /**
@@ -242,7 +243,9 @@ public class HBaseIO {
         public Read withKeyRange(byte[] startRow, byte[] stopRow) {
             checkNotNull(startRow, "startRow");
             checkNotNull(stopRow, "stopRow");
-            return withScan(serializableScan.getScan().setStartRow(startRow).setStopRow(stopRow));
+            ByteKeyRange keyRange =
+                    ByteKeyRange.of(ByteKey.copyFrom(startRow), ByteKey.copyFrom(stopRow));
+            return withKeyRange(keyRange);
         }
 
         private Read(SerializableConfiguration serializableConfiguration, String tableId,
