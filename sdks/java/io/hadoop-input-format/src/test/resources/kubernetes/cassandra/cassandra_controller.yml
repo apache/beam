@@ -1,0 +1,37 @@
+apiVersion: v1
+kind: ReplicationController
+metadata:
+  labels:
+    name: cassandra1
+  name: cassandra1
+spec:
+  replicas: 1
+  selector:
+    name: cassandra1
+  template:
+    metadata:
+      labels:
+        name: cassandra1
+    spec:
+      containers:
+        - image: cassandra
+          name: cassandra1
+          env:
+            # Feel free to change the following:
+            - name: CASSANDRA_CLUSTER_NAME
+              value: Cassandra
+            - name: CASSANDRA_DC
+              value: DC1
+            - name: CASSANDRA_RACK
+              value: Kubernetes Cluster
+            - name: CASSANDRA_ENDPOINT_SNITCH
+              value: GossipingPropertyFileSnitch
+          ports:
+            - containerPort: 9042
+              name: cql
+          volumeMounts:
+            - mountPath: /var/lib/cassandra/data
+              name: data
+      volumes:
+        - name: data
+          emptyDir: {}
