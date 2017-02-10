@@ -201,7 +201,7 @@
   <li>Create a <code class="highlighter-rouge">DoFnTester</code>. You’ll need to pass an instance of the <code class="highlighter-rouge">DoFn</code> you want to test to the static factory method for <code class="highlighter-rouge">DoFnTester</code>.</li>
   <li>Create one or more main test inputs of the appropriate type for your <code class="highlighter-rouge">DoFn</code>. If your <code class="highlighter-rouge">DoFn</code> takes side inputs and/or produces side outputs, you should also create the side inputs and the side output tags.</li>
   <li>Call <code class="highlighter-rouge">DoFnTester.processBundle</code> to process the main inputs.</li>
-  <li>Use JUnit’s <code class="highlighter-rouge">Assert.assertThat</code> method to ensure the test outputs returned from <code class="highlighter-rouge">processBatch</code> match your expected values.</li>
+  <li>Use JUnit’s <code class="highlighter-rouge">Assert.assertThat</code> method to ensure the test outputs returned from <code class="highlighter-rouge">processBundle</code> match your expected values.</li>
 </ol>
 
 <h3 id="creating-a-dofntester">Creating a DoFnTester</h3>
@@ -261,28 +261,28 @@
 
 <h3 id="processing-test-inputs-and-checking-results">Processing Test Inputs and Checking Results</h3>
 
-<p>To process the inputs (and thus run the test on your <code class="highlighter-rouge">DoFn</code>), you call the method <code class="highlighter-rouge">DoFnTester.processBatch</code>. When you call <code class="highlighter-rouge">processBatch</code>, you pass one or more main test input values for your <code class="highlighter-rouge">DoFn</code>. If you set side inputs, the side inputs are available to each batch of main inputs that you provide.</p>
+<p>To process the inputs (and thus run the test on your <code class="highlighter-rouge">DoFn</code>), you call the method <code class="highlighter-rouge">DoFnTester.processBundle</code>. When you call <code class="highlighter-rouge">processBundle</code>, you pass one or more main test input values for your <code class="highlighter-rouge">DoFn</code>. If you set side inputs, the side inputs are available to each batch of main inputs that you provide.</p>
 
-<p><code class="highlighter-rouge">DoFnTester.processBatch</code> returns a <code class="highlighter-rouge">List</code> of outputs—that is, objects of the same type as the <code class="highlighter-rouge">DoFn</code>’s specified output type. For a <code class="highlighter-rouge">DoFn&lt;String, Integer&gt;</code>, <code class="highlighter-rouge">processBatch</code> returns a <code class="highlighter-rouge">List&lt;Integer&gt;</code>:</p>
+<p><code class="highlighter-rouge">DoFnTester.processBundle</code> returns a <code class="highlighter-rouge">List</code> of outputs—that is, objects of the same type as the <code class="highlighter-rouge">DoFn</code>’s specified output type. For a <code class="highlighter-rouge">DoFn&lt;String, Integer&gt;</code>, <code class="highlighter-rouge">processBundle</code> returns a <code class="highlighter-rouge">List&lt;Integer&gt;</code>:</p>
 
 <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="kd">static</span> <span class="kd">class</span> <span class="nc">MyDoFn</span> <span class="kd">extends</span> <span class="n">DoFn</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">Integer</span><span class="o">&gt;</span> <span class="o">{</span> <span class="o">...</span> <span class="o">}</span>
 <span class="n">MyDoFn</span> <span class="n">myDoFn</span> <span class="o">=</span> <span class="o">...;</span>
 <span class="n">DoFnTester</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">Integer</span><span class="o">&gt;</span> <span class="n">fnTester</span> <span class="o">=</span> <span class="n">DoFnTester</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">myDoFn</span><span class="o">);</span>
 
 <span class="n">String</span> <span class="n">testInput</span> <span class="o">=</span> <span class="s">"test1"</span><span class="o">;</span>
-<span class="n">List</span><span class="o">&lt;</span><span class="n">Integer</span><span class="o">&gt;</span> <span class="n">testOutputs</span> <span class="o">=</span> <span class="n">fnTester</span><span class="o">.</span><span class="na">processBatch</span><span class="o">(</span><span class="n">testInput</span><span class="o">);</span>
+<span class="n">List</span><span class="o">&lt;</span><span class="n">Integer</span><span class="o">&gt;</span> <span class="n">testOutputs</span> <span class="o">=</span> <span class="n">fnTester</span><span class="o">.</span><span class="na">processBundle</span><span class="o">(</span><span class="n">testInput</span><span class="o">);</span>
 </code></pre>
 </div>
 
-<p>To check the results of <code class="highlighter-rouge">processBatch</code>, you use JUnit’s <code class="highlighter-rouge">Assert.assertThat</code> method to test if the <code class="highlighter-rouge">List</code> of outputs contains the values you expect:</p>
+<p>To check the results of <code class="highlighter-rouge">processBundle</code>, you use JUnit’s <code class="highlighter-rouge">Assert.assertThat</code> method to test if the <code class="highlighter-rouge">List</code> of outputs contains the values you expect:</p>
 
 <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">String</span> <span class="n">testInput</span> <span class="o">=</span> <span class="s">"test1"</span><span class="o">;</span>
-<span class="n">List</span><span class="o">&lt;</span><span class="n">Integer</span><span class="o">&gt;</span> <span class="n">testOutputs</span> <span class="o">=</span> <span class="n">fnTester</span><span class="o">.</span><span class="na">processBatch</span><span class="o">(</span><span class="n">testInput</span><span class="o">);</span>
+<span class="n">List</span><span class="o">&lt;</span><span class="n">Integer</span><span class="o">&gt;</span> <span class="n">testOutputs</span> <span class="o">=</span> <span class="n">fnTester</span><span class="o">.</span><span class="na">processBundle</span><span class="o">(</span><span class="n">testInput</span><span class="o">);</span>
 
 <span class="n">Assert</span><span class="o">.</span><span class="na">assertThat</span><span class="o">(</span><span class="n">testOutputs</span><span class="o">,</span> <span class="n">Matchers</span><span class="o">.</span><span class="na">hasItems</span><span class="o">(...));</span>
 
 <span class="c1">// Process a larger batch in a single step.</span>
-<span class="n">Assert</span><span class="o">.</span><span class="na">assertThat</span><span class="o">(</span><span class="n">fnTester</span><span class="o">.</span><span class="na">processBatch</span><span class="o">(</span><span class="s">"input1"</span><span class="o">,</span> <span class="s">"input2"</span><span class="o">,</span> <span class="s">"input3"</span><span class="o">),</span> <span class="n">Matchers</span><span class="o">.</span><span class="na">hasItems</span><span class="o">(...));</span>
+<span class="n">Assert</span><span class="o">.</span><span class="na">assertThat</span><span class="o">(</span><span class="n">fnTester</span><span class="o">.</span><span class="na">processBundle</span><span class="o">(</span><span class="s">"input1"</span><span class="o">,</span> <span class="s">"input2"</span><span class="o">,</span> <span class="s">"input3"</span><span class="o">),</span> <span class="n">Matchers</span><span class="o">.</span><span class="na">hasItems</span><span class="o">(...));</span>
 </code></pre>
 </div>
 
