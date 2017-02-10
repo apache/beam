@@ -224,7 +224,7 @@ class DoFnRunner(Receiver):
     # Call for the process function for each window if has windowed side inputs
     # or if the process accesses the window parameter. We can just call it once
     # otherwise as none of the arguments are changing
-    if self.has_windowed_inputs and len(element.windows) > 1:
+    if self.has_windowed_inputs and len(element.windows) != 1:
       for w in element.windows:
         self._dofn_per_window_invoker(
             WindowedValue(element.value, element.timestamp, (w,)))
