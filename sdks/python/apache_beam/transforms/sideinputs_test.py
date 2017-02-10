@@ -250,8 +250,8 @@ class SideInputsTest(unittest.TestCase):
     side_list = pipeline | 'side list' >> beam.Create(a_list)
     results = main_input | beam.FlatMap(
         lambda x, s1, s2: [[x, s1, s2]],
-        beam.pvalue.AsSingleton('si1', side_list, default_value=2),
-        beam.pvalue.AsSingleton('si2', side_list, default_value=3))
+        beam.pvalue.AsSingleton(side_list, default_value=2, label='si1'),
+        beam.pvalue.AsSingleton(side_list, default_value=3, label='si2'))
 
     def  matcher(expected_elem, expected_singleton1, expected_singleton2):
       def match(actual):
