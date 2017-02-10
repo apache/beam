@@ -25,7 +25,7 @@ import com.google.common.collect.Lists;
 
 public class TestEmployeeDataSet {
   /**
-   * Test Utils used in {@link NewObjectsEmployeeInputFormat} and {@link ReuseObjectsEmployeeInputFormat}
+   * Test Utils used in {@link EmployeeInputFormat} and {@link ReuseObjectsEmployeeInputFormat}
    * for computing splits.
    */
   public static final long NUMBER_OF_RECORDS_IN_EACH_SPLIT = 5L;
@@ -36,7 +36,7 @@ public class TestEmployeeDataSet {
   /**
    * Returns List of employee details. Employee details are available in the form of {@link KV} in
    * which, key indicates employee id and value indicates employee details such as name and address
-   * separated by '_'. This is data input to {@link NewObjectsEmployeeInputFormat} and
+   * separated by '_'. This is data input to {@link EmployeeInputFormat} and
    * {@link ReuseObjectsEmployeeInputFormat}.
    */
   public static List<KV<String, String>> populateEmployeeData() {
@@ -63,7 +63,7 @@ public class TestEmployeeDataSet {
 
   /**
    * This is a helper function used in unit tests for validating data against data read using
-   * {@link NewObjectsEmployeeInputFormat} and {@link ReuseObjectsEmployeeInputFormat}.
+   * {@link EmployeeInputFormat} and {@link ReuseObjectsEmployeeInputFormat}.
    */
   public static List<KV<Text, Employee>> getEmployeeData() {
     return Lists.transform((data.isEmpty() ? populateEmployeeData() : data),
