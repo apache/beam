@@ -224,7 +224,7 @@ class DoFnRunner(Receiver):
     # Call for the process function for each window if has windowed side inputs
     # or if the process accesses the window parameter. We can just call it once
     # otherwise as none of the arguments are changing
-    if self.has_windowed_inputs and len(element.windows) > 1:
+    if self.has_windowed_inputs and len(element.windows) != 1:
       for w in element.windows:
         self._dofn_per_window_invoker(
             WindowedValue(element.value, element.timestamp, (w,)))
@@ -280,7 +280,7 @@ class DoFnRunner(Receiver):
     else:
       raise
 
-  def _process_outputs(self, element, results):
+  def _process_outputs(self, windowed_input_element, results):
     """Dispatch the result of computation to the appropriate receivers.
 
     A value wrapped in a SideOutputValue object will be unwrapped and
@@ -297,7 +297,10 @@ class DoFnRunner(Receiver):
         result = result.value
       if isinstance(result, WindowedValue):
         windowed_value = result
-      elif element is None:
+        if (windowed_input_element is not None
+            and len(windowed_input_element.windows) != 1):
+          windowed_value.windows *= len(windowed_input_element.windows)
+      elif windowed_input_element is None:
         # Start and finish have no element from which to grab context,
         # but may emit elements.
         if isinstance(result, TimestampedValue):
@@ -315,8 +318,10 @@ class DoFnRunner(Receiver):
         windowed_value = WindowedValue(
             result.value, result.timestamp,
             self.window_fn.assign(assign_context))
+        if len(windowed_input_element.windows) != 1:
+          windowed_value.windows *= len(windowed_input_element.windows)
       else:
-        windowed_value = element.with_value(result)
+        windowed_value = windowed_input_element.with_value(result)
       if tag is None:
         self.main_receivers.receive(windowed_value)
       else:
