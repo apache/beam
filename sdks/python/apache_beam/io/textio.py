@@ -318,7 +318,7 @@ class _TextSink(fileio.FileSink):
   def display_data(self):
     dd_parent = super(_TextSink, self).display_data()
     dd_parent['append_newline'] = DisplayDataItem(
-        self.append_trailing_newlines,
+        self._append_trailing_newlines,
         label='Append Trailing New Lines')
     return dd_parent
 
