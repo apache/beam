@@ -320,7 +320,7 @@ public class GcsUtilTest {
     when(mockStorageGet.execute()).thenThrow(expectedException);
 
     thrown.expect(IOException.class);
-    thrown.expectMessage("Unable to match files for pattern");
+    thrown.expectMessage("Unable to get the file object for path");
     gcsUtil.expand(pattern);
   }
 
@@ -381,8 +381,11 @@ public class GcsUtilTest {
             .thenThrow(new SocketTimeoutException("SocketException"))
             .thenReturn(new StorageObject().setSize(BigInteger.valueOf(1000)));
 
-    assertEquals(1000, gcsUtil.fileSize(GcsPath.fromComponents("testbucket", "testobject"),
-            mockBackOff, new FastNanoClockAndSleeper()));
+    assertEquals(1000,
+        gcsUtil.getObject(
+            GcsPath.fromComponents("testbucket", "testobject"),
+            mockBackOff,
+            new FastNanoClockAndSleeper()).getSize().longValue());
     assertEquals(BackOff.STOP, mockBackOff.nextBackOffMillis());
   }
 
@@ -752,7 +755,7 @@ public class GcsUtilTest {
     GcsUtil gcsUtil = gcsOptionsWithTestCredential().getGcsUtil();
 
     // Small number of files fits in 1 batch
-    List<long[]> results = Lists.newArrayList();
+    List<StorageObject[]> results = Lists.newArrayList();
     List<BatchRequest> batches = gcsUtil.makeGetBatches(makeGcsPaths("s", 3), results);
     assertThat(batches.size(), equalTo(1));
     assertThat(sumBatchSizes(batches), equalTo(3));
