@@ -21,7 +21,6 @@ package org.apache.beam.runners.spark.translation.streaming;
 import static com.google.common.base.Preconditions.checkArgument;
 
 import java.io.IOException;
-import org.apache.beam.runners.spark.SparkContextOptions;
 import org.apache.beam.runners.spark.SparkPipelineOptions;
 import org.apache.beam.runners.spark.SparkRunner;
 import org.apache.beam.runners.spark.translation.EvaluationContext;
@@ -35,8 +34,6 @@ import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.streaming.Duration;
 import org.apache.spark.streaming.api.java.JavaStreamingContext;
 import org.apache.spark.streaming.api.java.JavaStreamingContextFactory;
-import org.apache.spark.streaming.api.java.JavaStreamingListener;
-import org.apache.spark.streaming.api.java.JavaStreamingListenerWrapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -86,12 +83,6 @@ public class SparkRunnerStreamingContextFactory implements JavaStreamingContextF
     ctxt.computeOutputs();
 
     checkpoint(jssc);
-
-    // register listeners.
-    for (JavaStreamingListener listener: options.as(SparkContextOptions.class).getListeners()) {
-      LOG.info("Registered listener {}." + listener.getClass().getSimpleName());
-      jssc.addStreamingListener(new JavaStreamingListenerWrapper(listener));
-    }
 
     return jssc;
   }
