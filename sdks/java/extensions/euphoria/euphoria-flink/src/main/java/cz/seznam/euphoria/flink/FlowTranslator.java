@@ -86,7 +86,7 @@ public abstract class FlowTranslator {
    *
    * @return the converted flow as a DAG of flink specific operator nodes
    */
-  protected DAG<FlinkOperator<?>> flowToDag(Flow flow) {
+  protected DAG<FlinkOperator<Operator<?, ?>>> flowToDag(Flow flow) {
     // ~ get acceptors for translation
     Map<Class, Collection<TranslateAcceptor>> acceptors =
         buildAcceptorsIndex(getAcceptors());
@@ -95,7 +95,7 @@ public abstract class FlowTranslator {
       // accept the operator if any of the specified acceptors says so
       Collection<TranslateAcceptor> accs = acceptors.get(operator.getClass());
       if (accs != null && !accs.isEmpty()) {
-        for (TranslateAcceptor acc : accs) {
+        for (TranslateAcceptor<?> acc : accs) {
           if (acc.apply(operator)) {
             return true;
           }

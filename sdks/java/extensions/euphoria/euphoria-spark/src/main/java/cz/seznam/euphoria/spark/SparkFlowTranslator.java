@@ -140,9 +140,8 @@ public class SparkFlowTranslator {
 
 
               try {
-                Configuration conf = DataSinkOutputFormat.configure(
-                        new Configuration(),
-                        (DataSink) sink);
+                Configuration conf =
+                    DataSinkOutputFormat.configure(new Configuration(), sink);
 
                 conf.set(JobContext.OUTPUT_FORMAT_CLASS_ATTR,
                         DataSinkOutputFormat.class.getName());
@@ -211,7 +210,7 @@ public class SparkFlowTranslator {
       // accept the operator if any of the specified acceptors says so
       Collection<TranslateAcceptor> accs = acceptors.get(operator.getClass());
       if (accs != null && !accs.isEmpty()) {
-        for (TranslateAcceptor acc : accs) {
+        for (TranslateAcceptor<?> acc : accs) {
           if (acc.apply(operator)) {
             return true;
           }
@@ -237,6 +236,7 @@ public class SparkFlowTranslator {
     return idx;
   }
 
+  @SuppressWarnings("unchecked")
   protected Collection<TranslateAcceptor> getAcceptors() {
     return translations.entrySet().stream()
             .map(e -> new TranslateAcceptor(e.getKey(), e.getValue().accept))

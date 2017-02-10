@@ -103,7 +103,7 @@ public class ReduceStateByKeyTranslator implements BatchOperatorTranslator<Reduc
                 // "key _and_ window", thus, better utilizing the available resources
                 (WindowedElement<?, Pair> we) -> (Comparable) we.getElement().getFirst(),
                 Comparable.class))
-            .sortGroup((KeySelector) Utils.wrapQueryable(
+            .sortGroup(Utils.wrapQueryable(
                 (KeySelector<WindowedElement<?, ?>, Long>)
                         WindowedElement::getTimestamp, Long.class),
                 Order.ASCENDING)
@@ -136,6 +136,7 @@ public class ReduceStateByKeyTranslator implements BatchOperatorTranslator<Reduc
     private final Windowing windowing;
     private final Trigger trigger;
 
+    @SuppressWarnings("unchecked")
     RSBKReducer(
         ReduceStateByKey operator,
         StorageProvider stateStorageProvider,

@@ -27,10 +27,11 @@ import java.util.Set;
 public interface Windowing<T, W extends Window> extends Serializable {
 
   /**
-   * Assign windows to given input element.
-   * The element will always have assigned old window, which can be reused
-   * by this windowing.
-   * The default windowing assigned on input is derived from batch windowing.
+   * Assign a set of windows to a given input element. The input element
+   * provides its so-far assigned window, i.e. a window the element was
+   * assigned at some point earlier. Note: elements read directly from
+   * an input source are assigned the {@link cz.seznam.euphoria.core.client.dataset.windowing.Batch.BatchWindow}
+   * by default.
    *
    * @param el The element to which windows should be assigned.
    *

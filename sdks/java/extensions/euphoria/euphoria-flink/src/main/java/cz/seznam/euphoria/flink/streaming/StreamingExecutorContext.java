@@ -68,14 +68,14 @@ public class StreamingExecutorContext
    * @return a windowed stream prepared for consumption by {@link MultiWindowedElementWindowFunction}
    */
   public <T, WID extends Window, KEY, VALUE>
-  WindowedStream<MultiWindowedElement<WID, Pair<KEY, VALUE>>,
-      KEY, FlinkWindow<WID>>
+  WindowedStream<MultiWindowedElement<WID, Pair<KEY, VALUE>>, KEY, FlinkWindow<WID>>
   flinkWindow(DataStream<StreamingWindowedElement<?, T>> input,
               UnaryFunction<T, KEY> keyFn,
               UnaryFunction<T, VALUE> valFn,
-              Windowing<T, ? extends Window> windowing,
+              Windowing<T, WID> windowing,
               UnaryFunction<T, Long> eventTimeAssigner) {
-    return windower.window((DataStream) input, keyFn, valFn, windowing, eventTimeAssigner);
+
+    return windower.window(input, keyFn, valFn, windowing, eventTimeAssigner);
   }
 
   /**

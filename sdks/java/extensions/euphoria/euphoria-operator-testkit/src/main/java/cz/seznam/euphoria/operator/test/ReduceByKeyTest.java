@@ -437,6 +437,7 @@ public class ReduceByKeyTest extends AbstractOperatorTest {
             .output();
       }
 
+      @SuppressWarnings("unchecked")
       @Override
       public void validate(Partitions<Pair<String, Long>> partitions) {
         assertEquals(1, partitions.size());

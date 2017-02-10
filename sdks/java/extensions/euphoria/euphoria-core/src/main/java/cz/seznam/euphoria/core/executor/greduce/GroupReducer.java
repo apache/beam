@@ -86,6 +86,7 @@ public class GroupReducer<WID extends Window, KEY, I> {
     this.triggerStorage = new TriggerStorage(stateStorageProvider);
   }
 
+  @SuppressWarnings("unchecked")
   public void process(WindowedElement<WID, Pair<KEY, I>> elem) {
     // ~ make sure we have the key
     updateKey(elem);
@@ -137,6 +138,7 @@ public class GroupReducer<WID extends Window, KEY, I> {
     }
   }
 
+  @SuppressWarnings("unchecked")
   private void onTimerCallback(long stamp, WID window) {
     ElementTriggerContext trgCtx = new ElementTriggerContext(window);
     processTriggerResult(window, trgCtx, trigger.onTimer(stamp, window, trgCtx));
@@ -146,6 +148,7 @@ public class GroupReducer<WID extends Window, KEY, I> {
   // ~ returns the window the new element which derived `newWindow` shall be
   // placed into and a trigger indicating how to react on the window after adding
   // the element
+  @SuppressWarnings("unchecked")
   private Pair<WID, Trigger.TriggerResult> mergeWindows(WID newWindow) {
     if (states.containsKey(newWindow)) {
       // ~ the new window exists ... there's nothing to merge
@@ -224,6 +227,7 @@ public class GroupReducer<WID extends Window, KEY, I> {
     }
   }
 
+  @SuppressWarnings("unchecked")
   private void processTriggerResult(
       WID window, ElementTriggerContext trgCtx, Trigger.TriggerResult tr) {
     if (tr.isFlush() && tr.isPurge()) {
@@ -268,12 +272,14 @@ public class GroupReducer<WID extends Window, KEY, I> {
       this.window = Objects.requireNonNull(window);
     }
 
+    @SuppressWarnings("unchecked")
     @Override
     public boolean registerTimer(long stamp, Window window) {
       clock.registerTimer(stamp, (WID) window);
       return true;
     }
 
+    @SuppressWarnings("unchecked")
     @Override
     public void deleteTimer(long stamp, Window window) {
       clock.deleteTimer(stamp, (WID) window);
@@ -306,6 +312,7 @@ public class GroupReducer<WID extends Window, KEY, I> {
       this.sources = srcs;
     }
 
+    @SuppressWarnings("unchecked")
     @Override
     public void mergeStoredState(StorageDescriptorBase descriptor) {
       if (!(descriptor instanceof MergingStorageDescriptor)) {

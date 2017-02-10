@@ -59,7 +59,7 @@ class ReduceStateByKeyReducer implements Runnable {
 
   private static final Logger LOG = LoggerFactory.getLogger(ReduceStateByKeyReducer.class);
 
-  static final class KeyedElementCollector extends WindowedElementCollector {
+  static final class KeyedElementCollector extends WindowedElementCollector<Object> {
     private final Object key;
 
     KeyedElementCollector(Collector<Datum> wrap, Window window, Object key,
@@ -77,11 +77,11 @@ class ReduceStateByKeyReducer implements Runnable {
 
   final class ClearingValueStorage<T> implements ValueStorage<T> {
     private final ValueStorage<T> wrap;
-    private final KeyedWindow scope;
+    private final KeyedWindow<?, ?> scope;
     private final StorageDescriptorBase descriptor;
 
     ClearingValueStorage(ValueStorage<T> wrap,
-                         KeyedWindow scope,
+                         KeyedWindow<?, ?> scope,
                          StorageDescriptorBase descriptor) {
       this.wrap = wrap;
       this.scope = scope;
@@ -135,13 +135,9 @@ class ReduceStateByKeyReducer implements Runnable {
   } // ~ end of ClearingListStorage
 
   class ElementTriggerContext implements TriggerContext {
-    private KeyedWindow scope;
+    private final KeyedWindow<Window, Object> scope;
 
-    ElementTriggerContext(KeyedWindow scope) {
-      this.scope = scope;
-    }
-
-    void setScope(KeyedWindow scope) {
+    ElementTriggerContext(KeyedWindow<Window, Object> scope) {
       this.scope = scope;
     }
 
@@ -188,13 +184,15 @@ class ReduceStateByKeyReducer implements Runnable {
   class MergingElementTriggerContext
       extends ElementTriggerContext
       implements TriggerContext.TriggerMergeContext {
-    final Collection<KeyedWindow> mergeSources;
+    final Collection<KeyedWindow<Window, Object>> mergeSources;
 
-    MergingElementTriggerContext(KeyedWindow target, Collection<KeyedWindow> sources) {
+    MergingElementTriggerContext(KeyedWindow<Window, Object> target,
+                                 Collection<KeyedWindow<Window, Object>> sources) {
       super(target);
       this.mergeSources = sources;
     }
 
+    @SuppressWarnings("unchecked")
     @Override
     public void mergeStoredState(StorageDescriptorBase storageDescriptor) {
       if (!(storageDescriptor instanceof MergingStorageDescriptor)) {
@@ -214,7 +212,7 @@ class ReduceStateByKeyReducer implements Runnable {
       }
 
       // merge all existing (non null) trigger states
-      for (KeyedWindow w : this.mergeSources) {
+      for (KeyedWindow<?, ?> w : this.mergeSources) {
         Storage s = processing.triggerStorage.getStorage(w, storageDescriptor);
         if (s != null) {
           mergeFn.apply(merged, s);
@@ -228,7 +226,7 @@ class ReduceStateByKeyReducer implements Runnable {
     final Map<Window, Map<Object, State>> windows = new HashMap<>();
     final Map<Object, Set<Window>> keyMap = new HashMap<>();
 
-    State removeWindowState(KeyedWindow kw) {
+    State removeWindowState(KeyedWindow<?, ?> kw) {
       Map<Object, State> keys = windows.get(kw.window());
       if (keys != null) {
         State state = keys.remove(kw.key());
@@ -248,7 +246,7 @@ class ReduceStateByKeyReducer implements Runnable {
       return null;
     }
 
-    void setWindowState(KeyedWindow kw, State state) {
+    void setWindowState(KeyedWindow<?, ?> kw, State state) {
       Map<Object, State> keys = windows.get(kw.window());
       if (keys == null) {
         windows.put(kw.window(), keys = new HashMap<>());
@@ -261,7 +259,7 @@ class ReduceStateByKeyReducer implements Runnable {
       actives.add(kw.window());
     }
 
-    State getWindowState(KeyedWindow kw) {
+    State getWindowState(KeyedWindow<?, ?> kw) {
       return getWindowState(kw.window(), kw.key());
     }
 
@@ -363,6 +361,7 @@ class ReduceStateByKeyReducer implements Runnable {
       return (Storage) store.get(skey);
     }
 
+    @SuppressWarnings("unchecked")
     <T> ValueStorage<T> getValueStorage(
         KeyedWindow scope, ValueStorageDescriptor<T> descriptor)
     {
@@ -374,6 +373,7 @@ class ReduceStateByKeyReducer implements Runnable {
       return (ValueStorage<T>) s;
     }
 
+    @SuppressWarnings("unchecked")
     <T> ListStorage<T> getListStorage(
         KeyedWindow scope, ListStorageDescriptor<T> descriptor) {
       StorageKey skey = storageKey(scope, descriptor);
@@ -397,21 +397,20 @@ class ReduceStateByKeyReducer implements Runnable {
 
     final Collector<Datum> stateOutput;
     final BlockingQueue<Datum> rawOutput;
-    final TriggerScheduler triggering;
-    final StateFactory stateFactory;
-    final CombinableReduceFunction stateCombiner;
+    final TriggerScheduler<Window, Object> triggering;
+    final StateFactory<Object, State> stateFactory;
+    final CombinableReduceFunction<State> stateCombiner;
 
     final ProcessingStats stats = new ProcessingStats(this);
 
     // flushed windows with the time of the flush
     private Map<Window, Long> flushedWindows = new HashMap<>();
 
-    @SuppressWarnings("unchecked")
     private ProcessingState(
         BlockingQueue<Datum> output,
-        TriggerScheduler triggering,
-        StateFactory stateFactory,
-        CombinableReduceFunction stateCombiner,
+        TriggerScheduler<Window, Object> triggering,
+        StateFactory<Object, State> stateFactory,
+        CombinableReduceFunction<State> stateCombiner,
         StorageProvider storageProvider) {
 
       this.triggerStorage = new ScopedStorage(storageProvider);
@@ -444,7 +443,7 @@ class ReduceStateByKeyReducer implements Runnable {
     /**
      * Flushes (emits result) the specified window.
      */
-    void flushWindow(KeyedWindow kw) {
+    void flushWindow(KeyedWindow<?, ?> kw) {
       State state = wRegistry.getWindowState(kw);
       if (state == null) {
         return;
@@ -458,7 +457,7 @@ class ReduceStateByKeyReducer implements Runnable {
     /**
      * Purges the specified window.
      */
-    State purgeWindow(KeyedWindow kw) {
+    State purgeWindow(KeyedWindow<?, ?> kw) {
       State state = wRegistry.removeWindowState(kw);
       if (state == null) {
         return null;
@@ -481,11 +480,11 @@ class ReduceStateByKeyReducer implements Runnable {
       wRegistry.windows.clear();
     }
 
-    State getWindowStateForUpdate(KeyedWindow kw) {
+    State getWindowStateForUpdate(KeyedWindow<?, ?> kw) {
       State state = wRegistry.getWindowState(kw);
       if (state == null) {
         // ~ if no such window yet ... set it up
-        state = (State) stateFactory.apply(
+        state = stateFactory.apply(
                 new KeyedElementCollector(
                     stateOutput, kw.window(), kw.key(),
                     processing.triggering::getCurrentTimestamp),
@@ -508,7 +507,8 @@ class ReduceStateByKeyReducer implements Runnable {
 
     // ~ merges window states for sources and places it on 'target'
     // ~ returns a list of windows which were merged and actually removed
-    Set<KeyedWindow> mergeWindowStates(Collection<Window> sources, KeyedWindow target) {
+    Set<KeyedWindow<Window, Object>>
+    mergeWindowStates(Collection<Window> sources, KeyedWindow<Window, Object> target) {
       // ~ first find the states to be merged
       List<Pair<Window, State>> combine = new ArrayList<>(sources.size() + 1);
       for (Window source : sources) {
@@ -533,7 +533,7 @@ class ReduceStateByKeyReducer implements Runnable {
       }
       // ~ now merge the state and re-assign it to the merge-window
       if (!statesToCombine.isEmpty()) {
-        State newTargetState = (State) stateCombiner.apply(statesToCombine);
+        State newTargetState = stateCombiner.apply(statesToCombine);
         wRegistry.setWindowState(target, newTargetState);
       }
       // ~ finally return a list of windows which were actually merged and removed
@@ -559,9 +559,9 @@ class ReduceStateByKeyReducer implements Runnable {
       }
 
       for (Map.Entry<Object, State> e : ws.entrySet()) {
-        KeyedWindow kw = new KeyedWindow<>(window, e.getKey());
+        KeyedWindow<Window, Object> kw = new KeyedWindow<>(window, e.getKey());
 
-        Triggerable t = guardTriggerable((tstamp, tkw) -> {
+        Triggerable<Window, Object> t = guardTriggerable((tstamp, tkw) -> {
           flushWindow(tkw);
           purgeWindow(tkw);
           trigger.onClear(kw.window(), new ElementTriggerContext(tkw));
@@ -590,20 +590,18 @@ class ReduceStateByKeyReducer implements Runnable {
   private final Windowing windowing;
   private final UnaryFunction keyExtractor;
   private final UnaryFunction valueExtractor;
-  private final StateFactory stateFactory;
-  private final CombinableReduceFunction stateCombiner;
   private final WatermarkEmitStrategy watermarkStrategy;
   private final String name;
 
-  private final Trigger trigger;
+  private final Trigger<Window> trigger;
 
   // ~ both of these are guarded by "processing"
   private final ProcessingState processing;
-  private final TriggerScheduler scheduler;
+  private final TriggerScheduler<Window, Object> scheduler;
 
   private long currentElementTime;
 
-  @SuppressWarnings("rawtypes")
+  @SuppressWarnings("unchecked")
   ReduceStateByKeyReducer(ReduceStateByKey operator,
                           String name,
                           BlockingQueue<Datum> input,
@@ -622,18 +620,17 @@ class ReduceStateByKeyReducer implements Runnable {
         ? AttachedWindowing.INSTANCE : operator.getWindowing();
     this.keyExtractor = requireNonNull(keyExtractor);
     this.valueExtractor = requireNonNull(valueExtractor);
-    this.stateFactory = requireNonNull(operator.getStateFactory());
-    this.stateCombiner = requireNonNull(operator.getStateCombiner());
     this.watermarkStrategy = requireNonNull(watermarkStrategy);
     this.trigger = requireNonNull(windowing.getTrigger());
     this.scheduler = requireNonNull(scheduler);
     this.processing = new ProcessingState(
         output, scheduler,
-        stateFactory, stateCombiner,
+        requireNonNull(operator.getStateFactory()),
+        requireNonNull(operator.getStateCombiner()),
         storageProvider);
   }
 
-  Triggerable guardTriggerable(Triggerable t) {
+  <W extends Window, K> Triggerable<W, K> guardTriggerable(Triggerable<W, K> t) {
     return ((timestamp, kw) -> {
       synchronized (processing) {
         t.fire(timestamp, kw);
@@ -641,7 +638,7 @@ class ReduceStateByKeyReducer implements Runnable {
     });
   }
 
-  Triggerable createTriggerHandler() {
+  Triggerable<Window, Object> createTriggerHandler() {
     return ((timestamp, kw) -> {
       // ~ let trigger know about the time event and process window state
       // according to trigger result
@@ -677,7 +674,6 @@ class ReduceStateByKeyReducer implements Runnable {
     }
   }
 
-  @SuppressWarnings("unchecked")
   @Override
   public void run() {
     LOG.debug("Started ReduceStateByKeyReducer for operator {}", name);
@@ -784,13 +780,13 @@ class ReduceStateByKeyReducer implements Runnable {
         }
 
         // ~ merge window (item) states
-        Set<KeyedWindow> merged =
-            processing.mergeWindowStates(srcs, new KeyedWindow(trgt, itemKey));
+        Set<KeyedWindow<Window, Object>> merged =
+            processing.mergeWindowStates(srcs, new KeyedWindow<>(trgt, itemKey));
 
         // ~ merge window trigger states
         tr = Trigger.TriggerResult.merge(tr, trigger.onMerge(
             trgt,
-            new MergingElementTriggerContext(new KeyedWindow(trgt, itemKey), merged)));
+            new MergingElementTriggerContext(new KeyedWindow<>(trgt, itemKey), merged)));
         // ~ clear window trigger states for the merged winndows
         for (KeyedWindow w : merged) {
           trigger.onClear(w.window(), new ElementTriggerContext(w));

@@ -79,6 +79,7 @@ public class FlinkWindow<WID extends cz.seznam.euphoria.core.client.dataset.wind
   public boolean equals(Object obj) {
     if (obj == this) return true;
     if (!(obj instanceof FlinkWindow)) return false;
+    @SuppressWarnings("unchecked")
     WID thatTindowID = ((FlinkWindow<WID>) obj).getWindowID();
     return thatTindowID.equals(this.getWindowID());
   }

@@ -25,7 +25,6 @@ import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
 
 import java.io.IOException;
-import java.util.Arrays;
 
 class InputTranslator implements SparkOperatorTranslator<FlowUnfolder.InputOperator> {
 
@@ -37,10 +36,9 @@ class InputTranslator implements SparkOperatorTranslator<FlowUnfolder.InputOpera
     DataSource<?> ds = operator.output().getSource();
 
     try {
-      Configuration conf = DataSourceInputFormat.configure(
-              new Configuration(),
-              (DataSource) ds);
+      Configuration conf = DataSourceInputFormat.configure(new Configuration(), ds);
 
+      @SuppressWarnings("unchecked")
       JavaPairRDD<Object, Object> pairs = context.getExecutionEnvironment().newAPIHadoopRDD(
               conf,
               DataSourceInputFormat.class,

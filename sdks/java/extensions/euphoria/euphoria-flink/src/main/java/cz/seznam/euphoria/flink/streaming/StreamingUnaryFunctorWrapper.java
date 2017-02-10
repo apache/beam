@@ -54,6 +54,7 @@ public class StreamingUnaryFunctorWrapper<WID extends Window, IN, OUT>
     });
   }
 
+  @SuppressWarnings("unchecked")
   @Override
   public TypeInformation<StreamingWindowedElement<WID, OUT>> getProducedType() {
     return TypeInformation.of((Class) StreamingWindowedElement.class);

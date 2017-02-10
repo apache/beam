@@ -347,6 +347,7 @@ public class ReduceStateByKeyTest extends AbstractOperatorTest {
 
   private static class AccState<VALUE> extends State<VALUE, VALUE> {
     final ListStorage<VALUE> vals;
+    @SuppressWarnings("unchecked")
     AccState(Context<VALUE> context,
              StorageProvider storageProvider)
     {
@@ -356,7 +357,6 @@ public class ReduceStateByKeyTest extends AbstractOperatorTest {
     }
 
     @Override
-    @SuppressWarnings("unchecked")
     public void add(VALUE element) {
       vals.add(element);
     }
@@ -368,7 +368,7 @@ public class ReduceStateByKeyTest extends AbstractOperatorTest {
       }
     }
 
-    void add(AccState other) {
+    void add(AccState<VALUE> other) {
       this.vals.addAll(other.vals.get());
     }
 

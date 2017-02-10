@@ -58,8 +58,11 @@ public final class Session<T> implements MergingWindowing<T, TimeInterval> {
    *
    * @return this instance (for method chaining purposes)
    */
+  @SuppressWarnings("unchecked")
   public <T> Session<T> earlyTriggering(Duration timeout) {
     this.earlyTriggeringPeriod = Objects.requireNonNull(timeout);
+    // ~ the cast is safe, this windowing implementation is self contained,
+    // i.e. cannot be subclasses, and is not dependent the actual <T> at all
     return (Session) this;
   }
 

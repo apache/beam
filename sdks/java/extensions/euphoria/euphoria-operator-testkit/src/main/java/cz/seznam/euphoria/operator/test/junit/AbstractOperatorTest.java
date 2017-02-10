@@ -148,6 +148,7 @@ public abstract class AbstractOperatorTest implements Serializable {
           .withFinalDelay(finalDelay);
     }
 
+    @SafeVarargs
     public static <T> Builder<T> add(T ... data) {
       return add(Arrays.asList(data));
     }
@@ -168,22 +169,23 @@ public abstract class AbstractOperatorTest implements Serializable {
     public List<List<T>> getAll() {
       return data;
     }
-    
-    public static class Builder<T> { 
+
+    public static class Builder<T> {
       private final ArrayList<List<T>> data = new ArrayList<>();
       private Builder() {}
       public Partitions.Builder<T> add(List<T> data) {
         this.data.add(data);
         return this;
       }
-      public Partitions.Builder<T> add(T ... data) {
+      @SafeVarargs
+      public final Partitions.Builder<T> add(T ... data) {
         return add(Arrays.asList(data));
       }
       public Partitions<T> build() {
         return new Partitions<>(data);
       }
       public Partitions<T> build(Duration readDelay, Duration finalDelay) {
-        return new Partitions<T>(data, readDelay, finalDelay);
+        return new Partitions<>(data, readDelay, finalDelay);
       }
     }
   }

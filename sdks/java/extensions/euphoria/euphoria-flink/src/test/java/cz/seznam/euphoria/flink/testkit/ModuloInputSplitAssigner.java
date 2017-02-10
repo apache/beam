@@ -26,6 +26,7 @@ class ModuloInputSplitAssigner implements InputSplitAssigner {
 
   private final Deque<InputSplit>[] partitions;
 
+  @SuppressWarnings("unchecked")
   public ModuloInputSplitAssigner(InputSplit[] splits, int partitions) {
     this.partitions = IntStream.range(0, partitions)
         .mapToObj(i -> new ArrayDeque<>())

@@ -152,7 +152,8 @@
             <target>1.8</target>
             <encoding>UTF-8</encoding>
             <compilerArgs>
-              <arg>-Xlint</arg>
+              <arg>-Xlint:unchecked</arg>
+              <arg>-Werror</arg>
             </compilerArgs>
           </configuration>
         </plugin>

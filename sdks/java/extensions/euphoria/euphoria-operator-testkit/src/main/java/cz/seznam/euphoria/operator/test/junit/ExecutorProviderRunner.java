@@ -35,15 +35,15 @@ import org.slf4j.LoggerFactory;
 import java.lang.reflect.AnnotatedElement;
 import java.lang.reflect.Modifier;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.stream.Stream;
 
 public class ExecutorProviderRunner extends Suite {
 
-  static final Logger LOG = LoggerFactory.getLogger(ExecutorProviderRunner.class);
+  private static final Logger LOG = LoggerFactory.getLogger(ExecutorProviderRunner.class);
 
   private final List<Runner> runners = new ArrayList<>();
 
@@ -133,7 +133,9 @@ public class ExecutorProviderRunner extends Suite {
         + testClass.getName());
   }
 
-  private static Class<?>[] getAnnotatedClasses(Class<?> klass) throws InitializationError {
+  private static Class<?>[] getAnnotatedClasses(Class<?> klass)
+      throws InitializationError {
+
     SuiteClasses annotation = klass.getAnnotation(SuiteClasses.class);
     if (annotation == null) {
       return new Class[]{klass};
@@ -141,7 +143,9 @@ public class ExecutorProviderRunner extends Suite {
     return annotation.value();
   }
 
-  static ExecutorProvider newExecProvider(Class<?> klass) throws InitializationError {
+  private static ExecutorProvider newExecProvider(Class<?> klass)
+      throws InitializationError {
+
     if (!ExecutorProvider.class.isAssignableFrom(klass)) {
       throw new IllegalArgumentException("Annotated class must implement " + ExecutorProvider.class);
     }
@@ -264,7 +268,7 @@ public class ExecutorProviderRunner extends Suite {
   }
 
   // return defined processing type (bounded, unbounded, any) from annotation
-  static Optional<Processing.Type> getProcessingType(AnnotatedElement element) {
+  private static Optional<Processing.Type> getProcessingType(AnnotatedElement element) {
     if (element.isAnnotationPresent(Processing.class)) {
       Processing proc = (Processing) element.getAnnotation(Processing.class);
       return Optional.of(proc.value());
@@ -272,13 +276,13 @@ public class ExecutorProviderRunner extends Suite {
       return Optional.empty();
     }
   }
-  
-  // merges all processings. Optional.empty represents undefined
-  static Optional<Type> merged(Optional<Type> ... processings) {
-    return Arrays.stream(processings)
+
+  // merges the given processings. Optional.empty represents undefined
+  private static Optional<Type> merged(Optional<Type> x, Optional<Type> y) {
+    return Stream.of(x, y)
         .filter(Optional::isPresent)
         .reduce((acc, next) -> acc.flatMap(a -> a.merge(next.get())))
-        .get();
+        .orElse(Optional.empty());
   }
 
   static boolean isAbstractOperatorTest(Class<?> klass) {

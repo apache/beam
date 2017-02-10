@@ -40,7 +40,7 @@ public class Time<T> implements Windowing<T, TimeInterval> {
     return new Time<>(duration.toMillis());
   }
 
-  Time(long durationMillis) {
+  private Time(long durationMillis) {
     Preconditions.checkArgument(durationMillis > 0, "Windowing with zero duration");
     this.durationMillis = durationMillis;
   }
@@ -54,8 +54,11 @@ public class Time<T> implements Windowing<T, TimeInterval> {
    *
    * @return this instance (for method chaining purposes)
    */
+  @SuppressWarnings("unchecked")
   public <T> Time<T> earlyTriggering(Duration timeout) {
     this.earlyTriggeringPeriod = Objects.requireNonNull(timeout);
+    // ~ the cast is safe, this windowing implementation is self contained,
+    // i.e. cannot be subclasses, and is not dependent the actual <T> at all
     return (Time) this;
   }
 

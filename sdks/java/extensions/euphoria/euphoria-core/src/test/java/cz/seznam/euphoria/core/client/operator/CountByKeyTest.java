@@ -57,6 +57,7 @@ public class CountByKeyTest {
     assertEquals(3, count.getPartitioning().getNumPartitions());
   }
 
+  @SuppressWarnings("unchecked")
   @Test
   public void testBuild_Partitioner() {
     Flow flow = Flow.create("TEST");

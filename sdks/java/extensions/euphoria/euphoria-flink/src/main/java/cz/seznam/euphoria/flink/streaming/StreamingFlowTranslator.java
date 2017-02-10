@@ -46,19 +46,26 @@ import java.util.stream.Collectors;
 public class StreamingFlowTranslator extends FlowTranslator {
 
   // static mapping of Euphoria operators to corresponding Flink transformations
-  private static final Map<Class<? extends Operator<?, ?>>, StreamingOperatorTranslator> TRANSLATORS =
+  private static final Map<Class, StreamingOperatorTranslator> TRANSLATORS =
           new IdentityHashMap<>();
 
   static {
-    // TODO add full support of all operators
-    TRANSLATORS.put((Class) FlowUnfolder.InputOperator.class, new InputTranslator());
-    TRANSLATORS.put((Class) FlatMap.class, new FlatMapTranslator());
-    TRANSLATORS.put((Class) Repartition.class, new RepartitionTranslator());
-    TRANSLATORS.put((Class) ReduceStateByKey.class, new ReduceStateByKeyTranslator());
-    TRANSLATORS.put((Class) Union.class, new UnionTranslator());
-
-    TRANSLATORS.put((Class) ReduceByKey.class, new ReduceByKeyTranslator());
+    defineTranslators();
   }
+
+  @SuppressWarnings("unchecked")
+  private static void defineTranslators() {
+    // TODO add full support of all operators
+    TRANSLATORS.put(FlowUnfolder.InputOperator.class, new InputTranslator());
+    TRANSLATORS.put(FlatMap.class, new FlatMapTranslator());
+    TRANSLATORS.put(Repartition.class, new RepartitionTranslator());
+    TRANSLATORS.put(ReduceStateByKey.class, new ReduceStateByKeyTranslator());
+    TRANSLATORS.put(Union.class, new UnionTranslator());
+
+    TRANSLATORS.put(ReduceByKey.class, new ReduceByKeyTranslator());
+  }
+
+  // ~ ------------------------------------------------------------------------------
 
   private final StreamExecutionEnvironment env;
   private final Duration allowedLateness;
@@ -72,6 +79,7 @@ public class StreamingFlowTranslator extends FlowTranslator {
     this.autoWatermarkInterval = Objects.requireNonNull(autoWatermarkInterval);
   }
 
+  @SuppressWarnings("unchecked")
   @Override
   protected Collection<TranslateAcceptor> getAcceptors() {
     return TRANSLATORS.keySet()
@@ -83,25 +91,25 @@ public class StreamingFlowTranslator extends FlowTranslator {
   @SuppressWarnings("unchecked")
   public List<DataSink<?>> translateInto(Flow flow) {
     // transform flow to acyclic graph of supported operators
-    DAG<FlinkOperator<?>> dag = flowToDag(flow);
+    DAG<FlinkOperator<Operator<?, ?>>> dag = flowToDag(flow);
 
     // we're running exclusively on event time
     env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
     env.getConfig().setAutoWatermarkInterval(autoWatermarkInterval.toMillis());
 
     StreamingExecutorContext executorContext =
-        new StreamingExecutorContext(env, dag, new StreamWindower(allowedLateness));
+        new StreamingExecutorContext(env, (DAG) dag, new StreamWindower(allowedLateness));
 
     // translate each operator to proper Flink transformation
     dag.traverse().map(Node::get).forEach(op -> {
       Operator<?, ?> originalOp = op.getOriginalOperator();
-      StreamingOperatorTranslator translator = TRANSLATORS.get((Class) originalOp.getClass());
+      StreamingOperatorTranslator<Operator> translator = TRANSLATORS.get((Class) originalOp.getClass());
       if (translator == null) {
         throw new UnsupportedOperationException(
                 "Operator " + op.getClass().getSimpleName() + " not supported");
       }
 
-      DataStream<?> out = translator.translate(op, executorContext);
+      DataStream<?> out = translator.translate((FlinkOperator) op, executorContext);
 
       // save output of current operator to context
       executorContext.setOutput(op, out);

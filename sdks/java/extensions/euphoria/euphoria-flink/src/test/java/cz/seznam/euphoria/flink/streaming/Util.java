@@ -23,10 +23,19 @@ import cz.seznam.euphoria.core.client.util.Triple;
 
 class Util {
   static <W, F, S> Dataset<Triple<W, F, S>>
-  extractWindows(Dataset<Pair<F, S>> input, Class<W> windowType) {
+  extractWindows(Dataset<Pair<F, S>> input, Class<W> expectedWindowType) {
     return FlatMap.of(input)
-        .using((UnaryFunctor<Pair<F, S>, Triple<W, F, S>>) (elem, context)
-            -> context.collect(Triple.of((W) context.getWindow(), elem.getFirst(), elem.getSecond())))
+        .using((UnaryFunctor<Pair<F, S>, Triple<W, F, S>>) (elem, context) -> {
+          Object actualWindow = context.getWindow();
+          if (actualWindow != null && !expectedWindowType.isAssignableFrom(actualWindow.getClass())) {
+            throw new IllegalStateException(
+                    "Encountered window of type " + actualWindow.getClass()
+                    + " but expected only " + expectedWindowType);
+          }
+          @SuppressWarnings("unchecked")
+          Triple<W, F, S> out = Triple.of((W) actualWindow, elem.getFirst(), elem.getSecond());
+          context.collect(out);
+        })
         .output();
   }
 }

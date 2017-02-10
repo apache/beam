@@ -109,18 +109,17 @@ public class WindowingTest extends AbstractOperatorTest {
         return 1;
       }
 
+      @SuppressWarnings("unchecked")
       @Override
       public void validate(Partitions partitions) {
         assertEquals(1, partitions.size());
 
         assertEquals(Sets.newHashSet(
-                Triple.of(Instant.parse("2016-12-19T11:00:00.000Z"), Type.FRUIT, 3L),
-                Triple.of(Instant.parse("2016-12-19T11:00:00.000Z"), Type.VEGETABLE, 3L),
-
-                Triple.of(Instant.parse("2016-12-19T12:00:00.000Z"), Type.FRUIT, 2L),
-                Triple.of(Instant.parse("2016-12-19T12:00:00.000Z"), Type.VEGETABLE, 1L)
-                ),
-                Sets.newHashSet(partitions.get(0)));
+            Triple.of(Instant.parse("2016-12-19T11:00:00.000Z"), Type.FRUIT, 3L),
+            Triple.of(Instant.parse("2016-12-19T11:00:00.000Z"), Type.VEGETABLE, 3L),
+            Triple.of(Instant.parse("2016-12-19T12:00:00.000Z"), Type.FRUIT, 2L),
+            Triple.of(Instant.parse("2016-12-19T12:00:00.000Z"), Type.VEGETABLE, 1L)),
+            Sets.newHashSet(partitions.get(0)));
       }
     });
   }
@@ -189,18 +188,17 @@ public class WindowingTest extends AbstractOperatorTest {
         return 1;
       }
 
+      @SuppressWarnings("unchecked")
       @Override
       public void validate(Partitions partitions) {
         assertEquals(1, partitions.size());
 
         assertEquals(Sets.newHashSet(
-                Triple.of(Instant.parse("2016-12-19T11:00:00.000Z"), Type.FRUIT, 3L),
-                Triple.of(Instant.parse("2016-12-19T11:00:00.000Z"), Type.VEGETABLE, 3L),
-
-                Triple.of(Instant.parse("2016-12-19T12:00:00.000Z"), Type.FRUIT, 2L),
-                Triple.of(Instant.parse("2016-12-19T12:00:00.000Z"), Type.VEGETABLE, 1L)
-                ),
-                Sets.newHashSet(partitions.get(0)));
+            Triple.of(Instant.parse("2016-12-19T11:00:00.000Z"), Type.FRUIT, 3L),
+            Triple.of(Instant.parse("2016-12-19T11:00:00.000Z"), Type.VEGETABLE, 3L),
+            Triple.of(Instant.parse("2016-12-19T12:00:00.000Z"), Type.FRUIT, 2L),
+            Triple.of(Instant.parse("2016-12-19T12:00:00.000Z"), Type.VEGETABLE, 1L)),
+            Sets.newHashSet(partitions.get(0)));
       }
     });
   }

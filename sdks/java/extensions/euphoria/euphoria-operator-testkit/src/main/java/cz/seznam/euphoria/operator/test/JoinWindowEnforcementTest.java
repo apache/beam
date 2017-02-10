@@ -91,6 +91,7 @@ public class JoinWindowEnforcementTest extends AbstractOperatorTest {
         // ~ nothing to validate here
       }
 
+      @SuppressWarnings("unchecked")
       @Override
       protected Dataset<Pair<Object, Object>>
       getOutput(Dataset<Object> left, Dataset<Object> right) {

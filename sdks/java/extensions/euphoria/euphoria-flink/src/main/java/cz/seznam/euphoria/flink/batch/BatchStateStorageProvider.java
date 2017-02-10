@@ -57,22 +57,21 @@ class BatchStateStorageProvider implements StorageProvider, Serializable {
 
   private static final Logger LOG = LoggerFactory.getLogger(BatchStateStorageProvider.class);
 
-  @SuppressWarnings("unchecked")
-  static class MemValueStorage implements ValueStorage {
+  static class MemValueStorage<T> implements ValueStorage<T> {
 
-      Object value;
+      T value;
 
-      MemValueStorage(Object defVal) {
+      MemValueStorage(T defVal) {
         this.value = defVal;
       }
 
       @Override
-      public void set(Object value) {
+      public void set(T value) {
         this.value = value;
       }
 
       @Override
-      public Object get() {
+      public T get() {
         return value;
       }
 
@@ -82,22 +81,19 @@ class BatchStateStorageProvider implements StorageProvider, Serializable {
       }
   }
 
-  @SuppressWarnings("unchecked")
-  static class MemListStorage implements ListStorage {
+  static class MemListStorage<T> implements ListStorage<T> {
 
     final int MAX_ELEMENTS_IN_MEMORY;
     final Kryo kryo;
     final LinkedHashMap<Class<?>, ExecutionConfig.SerializableSerializer<?>> serializers;
 
     // the class that we will serialize
-    Class clz;
+    Class<T> clz;
     // serializer for the class
-    Serializer serializer;
-    List data = new ArrayList();
+    Serializer<T> serializer;
+    List<T> data = new ArrayList<>();
     File serializedElements = null;
     Output output = null;
-
-    
 
     MemListStorage(
         int maxElementsInMemory,
@@ -111,16 +107,17 @@ class BatchStateStorageProvider implements StorageProvider, Serializable {
       clear();
     }
 
+    @SuppressWarnings("unchecked")
     @Override
-    public void add(Object element) {
+    public void add(T element) {
       if (clz == null) {
-        clz = element.getClass();
+        clz = (Class<T>) element.getClass();
         ExecutionConfig.SerializableSerializer<?> serializedSerializer = serializers.get(clz);
         if (serializedSerializer == null) {
           LOG.warn("No registered serializer for class {} using kryo default", clz);
           this.serializer = null;
         } else {
-          this.serializer = serializedSerializer.getSerializer();
+          this.serializer = (Serializer<T>) serializedSerializer.getSerializer();
         }
       } else if (element.getClass() != clz) {
         throw new IllegalArgumentException(
@@ -139,7 +136,7 @@ class BatchStateStorageProvider implements StorageProvider, Serializable {
     }
 
     @Override
-    public Iterable get() {
+    public Iterable<T> get() {
 
       Input input;
       try {
@@ -150,32 +147,29 @@ class BatchStateStorageProvider implements StorageProvider, Serializable {
         throw new RuntimeException(ex);
       }
 
-      Iterator dataIterator = data.iterator();
-      return () -> {
-          return new Iterator() {
-            @Override
-            public boolean hasNext() {
-              return  input != null && !input.eof()
-                  || dataIterator.hasNext();
-            }
+      Iterator<T> dataIterator = data.iterator();
+      return () -> new Iterator<T>() {
+        @Override
+        public boolean hasNext() {
+          return  input != null && !input.eof()
+              || dataIterator.hasNext();
+        }
 
-            @Override
-            public Object next() {
-              if (input != null && !input.eof()) {
-                final Object read;
-                if (serializer != null) {
-                  read = serializer.read(kryo, input, clz);
-                } else {
-                  read = kryo.readObject(input, clz);
-                }
-                return read;
-              }
-              if (dataIterator.hasNext())
-                return dataIterator.next();
-              throw new NoSuchElementException();
+        @Override
+        public T next() {
+          if (input != null && !input.eof()) {
+            final T read;
+            if (serializer != null) {
+              read = serializer.read(kryo, input, clz);
+            } else {
+              read = kryo.readObject(input, clz);
             }
-
-          };
+            return read;
+          }
+          if (dataIterator.hasNext())
+            return dataIterator.next();
+          throw new NoSuchElementException();
+        }
       };
     }
 
@@ -199,7 +193,7 @@ class BatchStateStorageProvider implements StorageProvider, Serializable {
       }
 
       try {
-        for (Object o : data) {
+        for (T o : data) {
           if (serializer != null) {
             serializer.write(kryo, output, o);
           } else {
@@ -239,19 +233,17 @@ class BatchStateStorageProvider implements StorageProvider, Serializable {
   }
 
   @Override
-  @SuppressWarnings("uncheced")
   public <T> ValueStorage<T> getValueStorage(ValueStorageDescriptor<T> descriptor) {
     initKryo();
     // this is purely in memory
-    return new MemValueStorage(descriptor.getDefaultValue());
+    return new MemValueStorage<>(descriptor.getDefaultValue());
   }
 
   @Override
-  @SuppressWarnings("unchecked")
   public <T> ListStorage<T> getListStorage(ListStorageDescriptor<T> descriptor) {
     try {
       initKryo();
-      return new MemListStorage(MAX_ELEMENTS_IN_MEMORY, kryo, serializers);
+      return new MemListStorage<>(MAX_ELEMENTS_IN_MEMORY, kryo, serializers);
     } catch (IOException ex) {
       throw new RuntimeException(ex);
     }

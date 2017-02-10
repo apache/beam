@@ -131,7 +131,8 @@ class TriggerStorage {
 
   <T> ValueStorage<T> getValueStorage(Window window, ValueStorageDescriptor<T> desc) {
     Key key = new Key(window, desc);
-    Storage s = store.get(key);
+    @SuppressWarnings("unchecked")
+    Storage<T> s = store.get(key);
     if (s == null) {
       store.put(key, s = storageProvider.getValueStorage(desc));
     }
@@ -140,7 +141,8 @@ class TriggerStorage {
 
   <T> ListStorage<T> getListStorage(Window window, ListStorageDescriptor<T> desc) {
     Key key = new Key(window, desc);
-    Storage s = store.get(key);
+    @SuppressWarnings("unchecked")
+    Storage<T> s = store.get(key);
     if (s == null) {
       store.put(key, s = storageProvider.getListStorage(desc));
     }
