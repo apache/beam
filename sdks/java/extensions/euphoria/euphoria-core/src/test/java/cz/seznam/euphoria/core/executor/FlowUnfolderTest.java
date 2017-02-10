@@ -78,9 +78,7 @@ public class FlowUnfolderTest {
 
     Dataset<Pair<Object, Long>> output = Join.of(mapped, reduced)
         .by(e -> e, Pair::getKey)
-        .using((Object l, Pair<Object, Long> r, Context<Long> c) -> {
-          c.collect(r.getSecond());
-        })
+        .using((Object l, Pair<Object, Long> r, Context<Long> c) -> c.collect(r.getSecond()))
         .windowBy(Time.of(Duration.ofSeconds(1)))
         .output();
 
@@ -169,7 +167,7 @@ public class FlowUnfolderTest {
         .windowBy(Time.of(Duration.ofSeconds(1)))
         .output();
 
-    ListDataSink sink = ListDataSink.get(1);
+    ListDataSink<Pair<Object, Long>> sink = ListDataSink.get(1);
     output.persist(sink);
     reduced.persist(sink);
     FlowUnfolder.unfold(flow, Executor.getBasicOps());

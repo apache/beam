@@ -40,20 +40,22 @@ import java.util.Set;
 class ReduceByKeyTranslator implements SparkOperatorTranslator<ReduceByKey> {
 
   static boolean wantTranslate(ReduceByKey operator) {
-    boolean b = operator.isCombinable()
+    return operator.isCombinable()
             && (operator.getWindowing() == null
                 || (!(operator.getWindowing() instanceof MergingWindowing)
                     && !operator.getWindowing().getTrigger().isStateful()));
-    return b;
   }
 
   @Override
   public JavaRDD<?> translate(ReduceByKey operator, SparkExecutorContext context) {
-    final JavaRDD<WindowedElement> input = (JavaRDD) context.getSingleInput(operator);
-
-    final UnaryFunction<Iterable, Object> reducer = operator.getReducer();
-    final Partitioning partitioning = operator.getPartitioning();
+    @SuppressWarnings("unchecked")
+    final JavaRDD<WindowedElement> input = (JavaRDD<WindowedElement>) context.getSingleInput(operator);
+    @SuppressWarnings("unchecked")
+    final UnaryFunction<Iterable<Object>, Object> reducer = operator.getReducer();
+    @SuppressWarnings("unchecked")
     final UnaryFunction<?, Long> eventTimeAssigner = operator.getEventTimeAssigner();
+
+    final Partitioning partitioning = operator.getPartitioning();
     final Windowing windowing =
             operator.getWindowing() == null
                     ? AttachedWindowing.INSTANCE
@@ -143,12 +145,12 @@ class ReduceByKeyTranslator implements SparkOperatorTranslator<ReduceByKey> {
   private static class Reducer implements
           Function2<TimestampedElement, TimestampedElement, TimestampedElement> {
 
-    private final UnaryFunction<Iterable, Object> reducer;
+    private final UnaryFunction<Iterable<Object>, Object> reducer;
 
     // cached array to avoid repeated allocation
     private Object[] iterable;
 
-    private Reducer(UnaryFunction<Iterable, Object> reducer) {
+    private Reducer(UnaryFunction<Iterable<Object>, Object> reducer) {
       this.reducer = reducer;
       this.iterable = new Object[2];
     }

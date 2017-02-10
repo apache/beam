@@ -42,8 +42,8 @@ public class FlowOptimizer {
     this.maxParallelism = maxParallelism;
   }
 
-  public DAG<FlinkOperator<?>> optimize(DAG<Operator<?, ?>> dag) {
-    DAG<FlinkOperator<?>> flinkDag = convert(dag);
+  public DAG<FlinkOperator<Operator<?, ?>>> optimize(DAG<Operator<?, ?>> dag) {
+    DAG<FlinkOperator<Operator<?, ?>>> flinkDag = convert(dag);
 
     // setup parallelism
     return setParallelism(flinkDag);
@@ -53,19 +53,20 @@ public class FlowOptimizer {
    * Converts DAG of Euphoria {@link Operator} to Flink-layer specific
    * DAG of {@link FlinkOperator}.
    */
-  private DAG<FlinkOperator<?>> convert(DAG<Operator<?, ?>> dag) {
-    DAG<FlinkOperator<?>> output = DAG.of();
+  private DAG<FlinkOperator<Operator<?, ?>>> convert(DAG<Operator<?, ?>> dag) {
+    @SuppressWarnings("unchecked")
+    DAG<FlinkOperator<Operator<?, ?>>> output = DAG.of();
 
     // mapping between original operator and newly created executor
     // specific wrapper
-    final Map<Operator<?, ?>, FlinkOperator<?>> mapping = new HashMap<>();
+    final Map<Operator<?, ?>, FlinkOperator<Operator<?, ?>>> mapping = new HashMap<>();
 
     dag.traverse().forEach(n -> {
       Operator<?, ?> current = n.get();
-      FlinkOperator<?> created = new FlinkOperator<>(current);
+      FlinkOperator<Operator<?, ?>> created = new FlinkOperator<>(current);
       mapping.put(current, created);
 
-      List<FlinkOperator<?>> parents = n.getParents().stream().map(
+      List<FlinkOperator<Operator<?, ?>>> parents = n.getParents().stream().map(
           p -> mapping.get(p.get())).collect(Collectors.toList());
       output.add(created, parents);
     });
@@ -79,7 +80,8 @@ public class FlowOptimizer {
    * @param dag Original DAG
    * @return Modified DAG
    */
-  private DAG<FlinkOperator<?>> setParallelism(DAG<FlinkOperator<?>> dag) {
+  private DAG<FlinkOperator<Operator<?, ?>>>
+  setParallelism(DAG<FlinkOperator<Operator<?, ?>>> dag) {
     dag.traverse().forEach(n -> {
       FlinkOperator flinkOp = n.get();
       Operator<?, ?> op = flinkOp.getOriginalOperator();

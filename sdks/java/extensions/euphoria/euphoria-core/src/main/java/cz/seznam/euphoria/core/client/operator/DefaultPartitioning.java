@@ -33,6 +33,8 @@ public final class DefaultPartitioning<T> implements Partitioning<T> {
     this(1);
   }
 
+  // ~ unchecked cast is safe, DEFAULT_PARTITIONER does not depend on <T>
+  @SuppressWarnings("unchecked")
   public DefaultPartitioning(int numPartitions) {
     this(numPartitions, DEFAULT_PARTITIONER);
   }

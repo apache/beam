@@ -272,8 +272,10 @@ public class ReduceByKey<
       super(context, storageProvider);
       this.reducer = Objects.requireNonNull(reducer);
       this.combinable = combinable;
-      reducableValues = storageProvider.getListStorage(
-          ListStorageDescriptor.of("values", (Class) Object.class));
+      @SuppressWarnings("unchecked")
+      ListStorageDescriptor<VALUE> values =
+          ListStorageDescriptor.of("values", (Class) Object.class);
+      reducableValues = storageProvider.getListStorage(values);
     }
 
     @Override
@@ -290,7 +292,7 @@ public class ReduceByKey<
       getContext().collect(result);
     }
 
-    void add(ReduceState other) {
+    void add(ReduceState<VALUE, OUT> other) {
       this.reducableValues.addAll(other.reducableValues.get());
       combineIfPossible();
     }
@@ -311,6 +313,7 @@ public class ReduceByKey<
 
   }
 
+  @SuppressWarnings("unchecked")
   @Override
   public DAG<Operator<?, ?>> getBasicOps() {
     // this can be implemented using ReduceStateByKey
