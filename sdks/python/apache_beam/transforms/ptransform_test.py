@@ -585,7 +585,7 @@ class PTransformTest(unittest.TestCase):
         keys = reduce(operator.or_, [set(p.keys()) for p in pcoll_dicts])
         res = {}
         for k in keys:
-          res[k] = [p[k] for p in pcoll_dicts if k in p] | beam.Flatten(k)
+          res[k] = [p[k] for p in pcoll_dicts if k in p] | k >> beam.Flatten()
         return res
     res = [{'a': [1, 2, 3]},
            {'a': [4, 5, 6], 'b': ['x', 'y', 'z']},

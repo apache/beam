@@ -52,13 +52,13 @@ class ConsumerTrackingPipelineVisitorTest(unittest.TestCase):
       pass
 
     root_read = Read('read', DummySource())
-    root_flatten = Flatten('flatten', pipeline=self.pipeline)
+    root_flatten = Flatten(pipeline=self.pipeline)
 
     pbegin = pvalue.PBegin(self.pipeline)
     pcoll_create = pbegin | 'create' >> root_create
     pbegin | root_read
     pcoll_create | FlatMap(lambda x: x)
-    [] | root_flatten
+    [] | 'flatten' >> root_flatten
 
     self.pipeline.visit(self.visitor)
 
