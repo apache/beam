@@ -52,6 +52,9 @@ class OutputStream(object):
   def write_bigendian_int64(self, v):
     self.write(struct.pack('>q', v))
 
+  def write_bigendian_uint64(self, v):
+    self.write(struct.pack('>Q', v))
+
   def write_bigendian_int32(self, v):
     self.write(struct.pack('>i', v))
 
@@ -131,6 +134,9 @@ class InputStream(object):
 
   def read_bigendian_int64(self):
     return struct.unpack('>q', self.read(8))[0]
+
+  def read_bigendian_uint64(self):
+    return struct.unpack('>Q', self.read(8))[0]
 
   def read_bigendian_int32(self):
     return struct.unpack('>i', self.read(4))[0]

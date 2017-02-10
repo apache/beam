@@ -629,6 +629,21 @@ class GlobalWindowCoder(SingletonCoder):
     }
 
 
+class IntervalWindowCoder(FastCoder):
+  """Coder for an window defined by a start timestamp and a duration."""
+
+  def _create_impl(self):
+    return coder_impl.IntervalWindowCoderImpl()
+
+  def is_deterministic(self):
+    return True
+
+  def as_cloud_object(self):
+    return {
+        '@type': 'kind:interval_window',
+    }
+
+
 class WindowedValueCoder(FastCoder):
   """Coder for windowed values."""
 
