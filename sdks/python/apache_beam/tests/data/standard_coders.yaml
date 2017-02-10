@@ -96,3 +96,13 @@ nested: true
 examples:
   "\u0003abc\u0003def": {key: abc, value: def}
   "\u0004ab\0c\u0004de\0f": {key: "ab\0c", value: "de\0f"}
+
+---
+
+coder:
+  urn: "urn:beam:coders:intervalwindow:0.1"
+examples:
+  "\x80\x00\x01\x52\x9a\xa4\x9b\x68\x80\xdd\xdb\x01" : {end: 1454293425000, span: 3600000}
+  "\x80\x00\x01\x53\x34\xec\x74\xe8\x80\x90\xfb\xd3\x09" : {end: 1456881825000, span: 2592000000}
+  "\x7f\xdf\x3b\x64\x5a\x1c\xad\x76\xed\x02" : {end: -9223372036854410, span: 365}
+  "\x80\x20\xc4\x9b\xa5\xe3\x53\xf7\x00" : {end: 9223372036854775, span: 0}

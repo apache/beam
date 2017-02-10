@@ -348,8 +348,37 @@ class FloatCoderImpl(StreamCoderImpl):
     return 8
 
 
-class TimestampCoderImpl(StreamCoderImpl):
+class IntervalWindowCoderImpl(StreamCoderImpl):
+  # TODO: Fn Harness only supports millis. Is this important enough to fix?
+  def _to_normal_time(self, value):
+    """Convert "lexicographically ordered unsigned" to signed."""
+    return value - 0x8000000000000000
 
+  def _from_normal_time(self, value):
+    """Convert signed to "lexicographically ordered unsigned"."""
+    return value + 0x8000000000000000
+
+  def encode_to_stream(self, value, out, nested):
+    span_micros = value.end.micros - value.start.micros
+    out.write_bigendian_uint64(self._from_normal_time(value.end.micros / 1000))
+    out.write_var_int64(span_micros / 1000)
+
+  def decode_from_stream(self, in_, nested):
+    end_millis = self._to_normal_time(in_.read_bigendian_uint64())
+    start_millis = end_millis - in_.read_var_int64()
+    from apache_beam.transforms.window import IntervalWindow
+    ret = IntervalWindow(start=Timestamp(micros=start_millis * 1000),
+                         end=Timestamp(micros=end_millis * 1000))
+    return ret
+
+  def estimate_size(self, value, nested=False):
+    # An IntervalWindow is context-insensitive, with a timestamp (8 bytes)
+    # and a varint timespam.
+    span = value.end.micros - value.start.micros
+    return 8 + get_varint_size(span / 1000)
+
+
+class TimestampCoderImpl(StreamCoderImpl):
   def encode_to_stream(self, value, out, nested):
     out.write_bigendian_int64(value.micros)
 
