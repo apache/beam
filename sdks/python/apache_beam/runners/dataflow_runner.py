@@ -46,10 +46,6 @@ from apache_beam.utils.pipeline_options import StandardOptions
 from apache_beam.internal.clients import dataflow as dataflow_api
 
 
-def BlockingDataflowRunner(*args, **kwargs):
-  return DataflowRunner(*args, blocking=True, **kwargs)
-
-
 class DataflowRunner(PipelineRunner):
   """A runner that creates job graphs and submits them for remote execution.
 
@@ -66,12 +62,10 @@ class DataflowRunner(PipelineRunner):
   BATCH_ENVIRONMENT_MAJOR_VERSION = '5'
   STREAMING_ENVIRONMENT_MAJOR_VERSION = '0'
 
-  def __init__(self, cache=None, blocking=False):
+  def __init__(self, cache=None):
     # Cache of CloudWorkflowStep protos generated while the runner
     # "executes" a pipeline.
     self._cache = cache if cache is not None else PValueCache()
-    self.blocking = blocking
-    self.result = None
     self._unique_step_id = 0
 
   def _get_unique_step_name(self):
@@ -177,13 +171,8 @@ class DataflowRunner(PipelineRunner):
         pipeline.options, job_version)
 
     # Create the job
-    self.result = DataflowPipelineResult(
+    return DataflowPipelineResult(
         self.dataflow_client.create_job(self.job), self)
-
-    if self.result.has_job and self.blocking:
-      self.result.wait_until_finish()
-
-    return self.result
 
   def _get_typehint_based_encoding(self, typehint, window_coder):
     """Returns an encoding based on a typehint object."""
