@@ -42,7 +42,7 @@ public final class ToString {
    * element of the input {@link PCollection} to a {@link String} using the
    * {@link Object#toString} method.
    */
-  public static PTransform<PCollection<?>, PCollection<String>> of() {
+  public static PTransform<PCollection<?>, PCollection<String>> elements() {
     return new SimpleToString();
   }
 
@@ -97,7 +97,7 @@ public final class ToString {
    * <p>Example of use:
    * <pre>{@code
    * PCollection<Long> longs = ...;
-   * PCollection<String> strings = longs.apply(ToString.of());
+   * PCollection<String> strings = longs.apply(ToString.elements());
    * }</pre>
    *
    *
