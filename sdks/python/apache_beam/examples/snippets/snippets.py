@@ -775,8 +775,7 @@ def model_custom_sink(simplekv, KVs, final_table_name_no_ptransform,
   # Using the new sink in an example pipeline.
   # [START model_custom_sink_use_new_sink]
   p = beam.Pipeline(options=PipelineOptions())
-  kvs = p | beam.core.Create(
-      'CreateKVs', KVs)
+  kvs = p | 'CreateKVs' >> beam.Create(KVs)
 
   kvs | 'WriteToSimpleKV' >> beam.io.Write(
       SimpleKVSink('http://url_to_simple_kv/', final_table_name))

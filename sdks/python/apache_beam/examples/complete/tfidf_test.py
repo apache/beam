@@ -49,8 +49,7 @@ class TfIdfTest(unittest.TestCase):
 
   def test_tfidf_transform(self):
     p = TestPipeline()
-    uri_to_line = p | beam.Create(
-        'create sample',
+    uri_to_line = p | 'create sample' >> beam.Create(
         [('1.txt', 'abc def ghi'),
          ('2.txt', 'abc def'),
          ('3.txt', 'abc')])
