@@ -39,6 +39,7 @@ The **Beam Programming Guide** is intended for Beam users who want to use the Be
   * [Using Flatten and Partition](#transforms-flatten-partition)
   * [General Requirements for Writing User Code for Beam Transforms](#transforms-usercodereqs)
   * [Side Inputs and Side Outputs](#transforms-sideio)
+* [Composite Transforms](#transforms-composite)
 * [Pipeline I/O](#io)
 * [Running the Pipeline](#running)
 * [Data Encoding and Type Safety](#coders)
@@ -914,6 +915,10 @@ While `ParDo` always produces a main output `PCollection` (as the return value f
 
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets_test.py tag:model_pardo_with_side_outputs_undeclared
 %}```
+
+## <a name="transforms-composite"></a>Composite Transforms
+
+> **Note:** This section is in progress ([BEAM-1452](https://issues.apache.org/jira/browse/BEAM-1452)).
 
 ## <a name="io"></a>Pipeline I/O
 
