@@ -20,7 +20,6 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.apache.beam.sdk.values.KV;
 import org.apache.hadoop.conf.Configurable;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.Text;
@@ -32,19 +31,12 @@ import org.apache.hadoop.mapreduce.RecordReader;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
 
 /**
- * <p>
- * This is a InputFormat for reading employee data which is available in the form of
- * {@code List<KV>} as {@linkplain ConfigurableEmployeeRecordReader#employeeDataList
- * employeeDataList}. {@linkplain ConfigurableEmployeeRecordReader#employeeDataList
- * employeeDataList} is populated using {@linkplain TestEmployeeDataSet#populateEmployeeData()}.
- * <p>
- * This is input to test reading using HadoopInputFormatIO if InputFormat implements Configurable.
- * Known InputFormats which implements Configurable are DBInputFormat, TableInputFormat etc.
+ * This is a dummy input format to test reading using HadoopInputFormatIO if InputFormat implements
+ * Configurable. This validates if setConf() method is called before getSplits(). Known InputFormats
+ * which implement Configurable are DBInputFormat, TableInputFormat etc.
  */
-public class ConfigurableEmployeeInputFormat extends InputFormat<Text, Employee>
-    implements Configurable {
-  private long NUMBER_OF_SPLITS;
-  private long NUMBER_OF_RECORDS_IN_EACH_SPLIT;
+public class ConfigurableEmployeeInputFormat extends InputFormat<Text, Employee> implements
+    Configurable {
   public boolean isConfSet = false;
 
   public ConfigurableEmployeeInputFormat() {}
@@ -59,8 +51,6 @@ public class ConfigurableEmployeeInputFormat extends InputFormat<Text, Employee>
    */
   @Override
   public void setConf(Configuration conf) {
-    NUMBER_OF_SPLITS = conf.getLong("split.count", 3L);
-    NUMBER_OF_RECORDS_IN_EACH_SPLIT = conf.getLong("split.records.count", 5L);
     isConfSet = true;
   }
 
@@ -71,41 +61,30 @@ public class ConfigurableEmployeeInputFormat extends InputFormat<Text, Employee>
   }
 
   /**
-   * Returns InputSPlit list of {@link ConfigurableEmployeeInputSplit}. 
-   * Throws exception if {@link #setConf()} is not called.
+   * Returns InputSPlit list of {@link ConfigurableEmployeeInputSplit}. Throws exception if
+   * {@link #setConf()} is not called.
    */
   @Override
   public List<InputSplit> getSplits(JobContext context) throws IOException, InterruptedException {
     if (!isConfSet) {
       throw new IOException("Configuration is not set.");
     }
-    List<InputSplit> inputSplitList = new ArrayList<InputSplit>();
-    for (int i = 1; i <= NUMBER_OF_SPLITS; i++) {
-      InputSplit inputSplitObj = new ConfigurableEmployeeInputSplit(
-          ((i - 1) * NUMBER_OF_RECORDS_IN_EACH_SPLIT), (i * NUMBER_OF_RECORDS_IN_EACH_SPLIT - 1));
-      inputSplitList.add(inputSplitObj);
-    }
-    return inputSplitList;
+    List<InputSplit> splits = new ArrayList<InputSplit>();
+    splits.add(new ConfigurableEmployeeInputSplit());
+    return splits;
   }
 
   public class ConfigurableEmployeeInputSplit extends InputSplit implements Writable {
-    // Start and end map index of each split of employeeData.
-    private long startIndex;
-    private long endIndex;
 
-    public ConfigurableEmployeeInputSplit() {}
+    @Override
+    public void readFields(DataInput arg0) throws IOException {}
 
-    public ConfigurableEmployeeInputSplit(long startIndex, long endIndex) {
-      this.startIndex = startIndex;
-      this.endIndex = endIndex;
-    }
+    @Override
+    public void write(DataOutput arg0) throws IOException {}
 
-    /**
-     * Returns number of records in each split.
-     */
     @Override
     public long getLength() throws IOException, InterruptedException {
-      return this.endIndex - this.startIndex + 1;
+      return 0;
     }
 
     @Override
@@ -113,77 +92,35 @@ public class ConfigurableEmployeeInputFormat extends InputFormat<Text, Employee>
       return null;
     }
 
-    public long getStartIndex() {
-      return startIndex;
-    }
-
-    public long getEndIndex() {
-      return endIndex;
-    }
-
-    @Override
-    public void readFields(DataInput dataIn) throws IOException {
-      startIndex = dataIn.readLong();
-      endIndex = dataIn.readLong();
-    }
-
-    @Override
-    public void write(DataOutput dataOut) throws IOException {
-      dataOut.writeLong(startIndex);
-      dataOut.writeLong(endIndex);
-    }
   }
 
   public class ConfigurableEmployeeRecordReader extends RecordReader<Text, Employee> {
 
-    private ConfigurableEmployeeInputSplit split;
-    private Text currentKey;
-    private Employee currentValue;
-    private long employeeListIndex = 0L;
-    private long recordsRead = 0L;
-    private List<KV<String, String>> employeeDataList;
-
-    public ConfigurableEmployeeRecordReader() {}
+    @Override
+    public void initialize(InputSplit paramInputSplit, TaskAttemptContext paramTaskAttemptContext)
+        throws IOException, InterruptedException {}
 
     @Override
-    public void close() throws IOException {}
+    public boolean nextKeyValue() throws IOException, InterruptedException {
+      return false;
+    }
 
     @Override
     public Text getCurrentKey() throws IOException, InterruptedException {
-      return currentKey;
+      return null;
     }
 
     @Override
     public Employee getCurrentValue() throws IOException, InterruptedException {
-      return currentValue;
+      return null;
     }
 
     @Override
     public float getProgress() throws IOException, InterruptedException {
-      return (float) recordsRead / split.getLength();
+      return 0;
     }
 
     @Override
-    public void initialize(InputSplit split, TaskAttemptContext context)
-        throws IOException, InterruptedException {
-      this.split = (ConfigurableEmployeeInputSplit) split;
-      employeeListIndex = this.split.getStartIndex() - 1;
-      recordsRead = 0;
-      employeeDataList = TestEmployeeDataSet.populateEmployeeData();
-      currentValue = new Employee(null, null);
-    }
-
-    @Override
-    public boolean nextKeyValue() throws IOException, InterruptedException {
-      if ((recordsRead++) >= split.getLength()) {
-        return false;
-      }
-      employeeListIndex++;
-      KV<String, String> employeeDetails = employeeDataList.get((int) employeeListIndex);
-      String empData[] = employeeDetails.getValue().split("_");
-      currentKey = new Text(employeeDetails.getKey());
-      currentValue = new Employee(empData[0], empData[1]);
-      return true;
-    }
+    public void close() throws IOException {}
   }
 }

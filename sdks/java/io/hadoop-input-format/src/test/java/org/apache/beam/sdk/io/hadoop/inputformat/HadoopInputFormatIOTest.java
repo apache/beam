@@ -803,14 +803,11 @@ public class HadoopInputFormatIOTest {
       @SuppressWarnings("unchecked")
       HadoopInputFormatBoundedSource<Text, Employee> hifSource =
           (HadoopInputFormatBoundedSource<Text, Employee>) source;
-      List<KV<Text, Employee>> elems = SourceTestUtils.readFromSource(source, p.getOptions());
+      hifSource.createInputFormatInstance();
       ConfigurableEmployeeInputFormat inputFormatObj =
           (ConfigurableEmployeeInputFormat) hifSource.getInputFormat();
       assertEquals(true, inputFormatObj.isConfSet);
-      bundleRecords.addAll(elems);
     }
-    List<KV<Text, Employee>> referenceRecords = TestEmployeeDataSet.getEmployeeData();
-    assertThat(bundleRecords, containsInAnyOrder(referenceRecords.toArray()));
   }
 
   /**
