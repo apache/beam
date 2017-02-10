@@ -55,6 +55,7 @@ public class UnaryFunctorWrapper<WID extends Window, IN, OUT>
     });
   }
 
+  @SuppressWarnings("unchecked")
   @Override
   public TypeInformation<WindowedElement<WID, OUT>> getProducedType() {
     return TypeInformation.of((Class) WindowedElement.class);

@@ -130,6 +130,7 @@ class ReduceStateByKeyTranslator implements StreamingOperatorTranslator<ReduceSt
       WID wid = window.getWindowID();
       long emissionWatermark = window.getEmissionWatermark();
 
+      @SuppressWarnings("unchecked")
       State<VALUEIN, VALUEOUT> state = stateFactory.apply(
           new Context() {
             @Override

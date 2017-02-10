@@ -27,7 +27,9 @@ public interface Partitioning<T> extends Serializable {
   Partitioner DEFAULT_PARTITIONER = new DefaultPartitioner();
 
   /** @return the actual partitioner */
+  @SuppressWarnings("unchecked")
   default Partitioner<T> getPartitioner() {
+    // ~ unchecked cast is safe here, DEFAULT_PARTITIONER is not dependent on <T>
     return DEFAULT_PARTITIONER;
   }
 

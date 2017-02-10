@@ -122,7 +122,7 @@ public class DistinctTest extends AbstractOperatorTest {
       }
 
       @Override
-      public void validate(Partitions partitions) {
+      public void validate(Partitions<Integer> partitions) {
         assertEquals(2, partitions.size());
         List<Integer> first = partitions.get(0);
         assertUnorderedEquals("Array should be equals to [2], got " + first,

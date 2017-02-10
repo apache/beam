@@ -85,7 +85,7 @@ public class DataSourceInputFormat<V> extends InputFormat<NullWritable, V> {
 
     }
 
-    SourceSplit(Partition partition) {
+    SourceSplit(Partition<V> partition) {
       this.partition = partition;
     }
 
@@ -138,6 +138,7 @@ public class DataSourceInputFormat<V> extends InputFormat<NullWritable, V> {
       InputSplit is, TaskAttemptContext tac) throws IOException, InterruptedException {
     
     initialize(tac.getConfiguration());
+    @SuppressWarnings("unchecked")
     SourceSplit<V> split = (SourceSplit<V>) is;
     Reader<V> reader = split.partition.openReader();
     return new RecordReader<NullWritable, V>() {

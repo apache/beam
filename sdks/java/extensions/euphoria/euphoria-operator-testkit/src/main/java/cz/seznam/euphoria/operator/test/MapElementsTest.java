@@ -56,6 +56,7 @@ public class MapElementsTest extends AbstractOperatorTest {
         return 2;
       }
 
+      @SuppressWarnings("unchecked")
       @Override
       public void validate(Partitions<String> partitions) {
         assertEquals(2, partitions.size());
