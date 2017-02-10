@@ -40,7 +40,8 @@ import com.google.common.hash.Hashing;
  */
 public class HashingFn extends CombineFn<String, HashingFn.Accum, String> {
   public static class Accum {
-    List<String> pCollElements = new ArrayList<String>();
+    HashCode hashCode = null;
+
   }
 
   public Accum createAccumulator() {
@@ -49,7 +50,13 @@ public class HashingFn extends CombineFn<String, HashingFn.Accum, String> {
 
   @Override
   public Accum addInput(Accum accum, String input) {
-    accum.pCollElements.add(input);
+    List<HashCode> elementHashes = Lists.newArrayList();
+    if (accum.hashCode != null) {
+      elementHashes.add(accum.hashCode);
+     }
+    HashCode inputHashCode = Hashing.sha1().hashString(input, StandardCharsets.UTF_8);
+    elementHashes.add(inputHashCode);
+    accum.hashCode = Hashing.combineUnordered(elementHashes);
     return accum;
   }
 
@@ -57,28 +64,26 @@ public class HashingFn extends CombineFn<String, HashingFn.Accum, String> {
   @Override
   public Accum mergeAccumulators(Iterable<Accum> accums) {
     Accum merged = createAccumulator();
+    List<HashCode> elementHashes = Lists.newArrayList();
     for (Accum accum : accums) {
-      merged.pCollElements = accum.pCollElements;
+      if (accum.hashCode != null) {
+        elementHashes.add(accum.hashCode);
+      }
     }
+    merged.hashCode = Hashing.combineUnordered(elementHashes);
     return merged;
   }
 
   @Override
   public String extractOutput(Accum accum) {
-    // Return the hash code of the list of elements in the Pcollection.
-    return generateHash(accum.pCollElements);
+    // Return the combined hash code of list of elements in the Pcollection.
+    String consolidatedHash = "";
+    if (accum.hashCode != null) {
+      consolidatedHash = accum.hashCode.toString();
+    }
+    return consolidatedHash;
   }
 
-  /**
-   * This method generates checksum for a list of Strings.
-   */
-  private String generateHash(@Nonnull List<String> inputs) {
-    List<HashCode> rowHashes = Lists.newArrayList();
-    for (String input : inputs) {
-      rowHashes.add(Hashing.sha1().hashString(input, StandardCharsets.UTF_8));
-    }
-    return Hashing.combineUnordered(rowHashes).toString();
-  }
 
   @Override
   public Coder getAccumulatorCoder(CoderRegistry registry, Coder<String> inputCoder)
