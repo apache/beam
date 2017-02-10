@@ -578,7 +578,7 @@ class ParDo(PTransformWithSideInputs):
 
   Args:
       pcoll: a PCollection to be processed.
-      dofn: a DoFn object to be applied to each element of pcoll argument.
+      fn: a DoFn object to be applied to each element of pcoll argument.
       *args: positional arguments passed to the dofn object.
       **kwargs:  keyword arguments passed to the dofn object.
 

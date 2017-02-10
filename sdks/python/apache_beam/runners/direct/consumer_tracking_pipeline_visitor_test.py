@@ -64,10 +64,7 @@ class ConsumerTrackingPipelineVisitorTest(unittest.TestCase):
 
     root_transforms = sorted(
         [t.transform for t in self.visitor.root_transforms])
-    print root_transforms
-    print root_read
-    print root_create
-    print root_flatten
+
     self.assertEqual(root_transforms, sorted(
         [root_read, root_create, root_flatten]))
 

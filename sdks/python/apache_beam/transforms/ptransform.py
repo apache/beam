@@ -574,9 +574,9 @@ class CallablePTransform(PTransform):
     return res
 
   def __call__(self, *args, **kwargs):
+    super(CallablePTransform, self).__init__()
     self._args = args
     self._kwargs = kwargs
-    super(CallablePTransform, self).__init__()
     return self
 
   def expand(self, pcoll):
