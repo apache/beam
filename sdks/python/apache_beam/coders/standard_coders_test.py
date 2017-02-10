@@ -116,7 +116,7 @@ class StandardCodersTest(unittest.TestCase):
 
 
 STANDARD_CODERS_YAML = os.path.join(
-    os.path.dirname(__file__), '..', 'tests/data/standard_coders.yaml')
+    os.path.dirname(__file__), '..', 'tests', 'data', 'standard_coders.yaml')
 StandardCodersTest._create_tests(STANDARD_CODERS_YAML)
 
 
