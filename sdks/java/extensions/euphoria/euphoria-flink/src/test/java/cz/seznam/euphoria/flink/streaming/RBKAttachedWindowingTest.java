@@ -33,6 +33,7 @@ import cz.seznam.euphoria.flink.TestFlinkExecutor;
 import org.junit.Test;
 
 import java.time.Duration;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
@@ -101,7 +102,7 @@ public class RBKAttachedWindowingTest {
     // ~ we had two windows
     assertEquals(3, output.getOutput(0).size());
     assertEquals(
-        Lists.newArrayList(
+        Arrays.asList(
             Pair.of(new TimeInterval(0, 10),
                 toMap(Pair.of("one", 2L), Pair.of("two", 2L), Pair.of("three", 1L))),
             Pair.of(new TimeInterval(10, 20),
@@ -177,7 +178,7 @@ public class RBKAttachedWindowingTest {
     // ~ we had two windows
     assertEquals(3, output.getOutput(0).size());
     assertEquals(
-        Lists.newArrayList(
+        Arrays.asList(
             Pair.of(new TimeInterval(0, 10),
                 toMap(Pair.of("one", 2L), Pair.of("two", 2L), Pair.of("three", 1L))),
             Pair.of(new TimeInterval(10, 20),
@@ -190,6 +191,7 @@ public class RBKAttachedWindowingTest {
             .collect(Collectors.toList()));
   }
 
+  @SafeVarargs
   static <K, V> HashMap<K, V> toMap(Pair<K, V> ... ps) {
     HashMap<K, V> m = new HashMap<>();
     for (Pair<K, V> p : ps) {
@@ -336,7 +338,7 @@ public class RBKAttachedWindowingTest {
         .get();
 
     assertEquals(
-        Lists.newArrayList(
+        Arrays.asList(
             Pair.of(new TimeInterval(0, 5),
                 toMap(Pair.of("one", 2L), Pair.of("two", 4L), Pair.of("three", 1L))),
             Pair.of(new TimeInterval(10, 15),
@@ -346,7 +348,7 @@ public class RBKAttachedWindowingTest {
             .map(wp -> Pair.of(wp.getFirst(), wp.getThird()))
             .collect(Collectors.toList()));
     assertEquals(
-        Lists.newArrayList(
+        Arrays.asList(
             Pair.of(new TimeInterval(5, 10), toMap(Pair.of("one", 3L), Pair.of("two", 2L)))),
         output.getOutput(1)
             .stream()

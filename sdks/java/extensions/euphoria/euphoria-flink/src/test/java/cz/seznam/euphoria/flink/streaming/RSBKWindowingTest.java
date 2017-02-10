@@ -47,6 +47,7 @@ public class RSBKWindowingTest {
 
   private static class AccState<VALUE> extends State<VALUE, VALUE> {
     final ListStorage<VALUE> reducableValues;
+    @SuppressWarnings("unchecked")
     AccState(Context<VALUE> context,
              StorageProvider storageProvider)
     {
@@ -68,7 +69,7 @@ public class RSBKWindowingTest {
       }
     }
 
-    void add(AccState other) {
+    void add(AccState<VALUE> other) {
       this.reducableValues.addAll(other.reducableValues.get());
     }
 
@@ -173,7 +174,7 @@ public class RSBKWindowingTest {
             .output();
 
     Dataset<Pair<String, Integer>> secondStep =
-        MapElements.of(firstStep).using(p -> p.getSecond()).output();
+        MapElements.of(firstStep).using(Pair::getSecond).output();
 
     Dataset<Pair<String, Pair<String, Integer>>> reduced =
         ReduceStateByKey.of(secondStep)

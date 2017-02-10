@@ -57,9 +57,9 @@ public class ListDataSource<T> implements DataSource<T> {
     return new ListDataSource<>(bounded, partitions);
   }
 
-  final boolean bounded;
-  long sleepMs = 0;
-  long finalSleepMs = 0;
+  private final boolean bounded;
+  private long sleepMs = 0;
+  private long finalSleepMs = 0;
 
   private final int id = System.identityHashCode(this);
 
@@ -135,7 +135,7 @@ public class ListDataSource<T> implements DataSource<T> {
               } catch (InterruptedException ex) {
                 Thread.currentThread().interrupt();
               }
-              return (T) data.get(pos++);
+              return data.get(pos++);
             }
 
           };
@@ -150,20 +150,34 @@ public class ListDataSource<T> implements DataSource<T> {
   public boolean isBounded() {
     return bounded;
   }
-  
+
+  /**
+   * Converts this list data source into a bounded data source.
+   *
+   * @return this instance if it is already bounded, otherwise this source's data
+   *          as a bounded list data source
+   */
+  @SuppressWarnings("unchecked")
   public ListDataSource<T> toBounded() {
     if (bounded) {
       return this;
     }
-    List<List<?>> list = (List<List<?>>) storage.get(this);
+    List<List<?>> list = storage.get(this);
     return ListDataSource.bounded(list.toArray(new List[list.size()]));
   }
-  
+
+  /**
+   * Convert this list data source to an unbouded source unless it is already unbounded.
+   *
+   * @return this instance if it is an unbounded source, otherwise this source's data
+   *          in a new, unbouded list data source
+   */
+  @SuppressWarnings("unchecked")
   public ListDataSource<T> toUnbounded() {
     if (!bounded) {
       return this;
     }
-    List<List<?>> list = (List<List<?>>) storage.get(this);
+    List<List<?>> list = storage.get(this);
     return ListDataSource.unbounded(list.toArray(new List[list.size()]));
   }
 

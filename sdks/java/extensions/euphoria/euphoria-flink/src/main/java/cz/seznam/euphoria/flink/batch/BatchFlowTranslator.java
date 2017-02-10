@@ -107,6 +107,7 @@ public class BatchFlowTranslator extends FlowTranslator {
         ReduceByKeyTranslator::wantTranslate);
   }
 
+  @SuppressWarnings("unchecked")
   @Override
   protected Collection<TranslateAcceptor> getAcceptors() {
     return translations.entrySet().stream()
@@ -125,14 +126,14 @@ public class BatchFlowTranslator extends FlowTranslator {
   @SuppressWarnings("unchecked")
   public List<DataSink<?>> translateInto(Flow flow) {
     // transform flow to acyclic graph of supported operators
-    DAG<FlinkOperator<?>> dag = flowToDag(flow);
+    DAG<FlinkOperator<Operator<?, ?>>> dag = flowToDag(flow);
 
-    BatchExecutorContext executorContext = new BatchExecutorContext(env, dag);
+    BatchExecutorContext executorContext = new BatchExecutorContext(env, (DAG) dag);
 
     // translate each operator to proper Flink transformation
     dag.traverse().map(Node::get).forEach(op -> {
       Operator<?, ?> originalOp = op.getOriginalOperator();
-      Translation tx = translations.get(originalOp.getClass());
+      Translation<Operator<?, ?>> tx = translations.get(originalOp.getClass());
       if (tx == null) {
         throw new UnsupportedOperationException(
                 "Operator " + op.getClass().getSimpleName() + " not supported");

@@ -45,6 +45,7 @@ public class AttachedWindowAssigner<WID extends Window, T>
     return new AttachedWindowTrigger<>();
   }
 
+  @SuppressWarnings("unchecked")
   @Override
   public TypeSerializer<AttachedWindow<WID>> getWindowSerializer(ExecutionConfig executionConfig) {
     return new KryoSerializer<>((Class) AttachedWindow.class, executionConfig);

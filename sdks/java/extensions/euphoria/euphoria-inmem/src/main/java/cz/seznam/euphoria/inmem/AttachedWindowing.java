@@ -28,6 +28,7 @@ class AttachedWindowing<T, W extends Window> implements Windowing<T, W> {
 
   static final AttachedWindowing INSTANCE = new AttachedWindowing();
 
+  @SuppressWarnings("unchecked")
   @Override
   public Set<W> assignWindowsToElement(WindowedElement<?, T> input) {
     return Collections.singleton((W) input.getWindow());

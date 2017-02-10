@@ -17,16 +17,12 @@ package cz.seznam.euphoria.flink.streaming;
 
 import cz.seznam.euphoria.core.client.operator.Operator;
 import cz.seznam.euphoria.flink.FlinkOperator;
+import cz.seznam.euphoria.flink.OperatorTranslator;
 import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 
-interface StreamingOperatorTranslator<T extends Operator> {
+interface StreamingOperatorTranslator<T extends Operator>
+    extends OperatorTranslator<T, FlinkOperator<T>,
+            StreamExecutionEnvironment, DataStream<?>, StreamingExecutorContext> {
 
-  /**
-   * Translates Euphoria {@code FlinkOperator} to Flink transformation
-   *
-   * @param operator    Euphoria operator
-   * @param context     Processing context aware of all inputs of given operator
-   * @return Output of transformation in Flink API
-   */
-  DataStream translate(FlinkOperator<T> operator, StreamingExecutorContext context);
 }

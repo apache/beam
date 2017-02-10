@@ -20,6 +20,7 @@ import cz.seznam.euphoria.core.client.util.Pair;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Deque;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -44,6 +45,17 @@ public class DAG<T> {
 
   private DAG() {
 
+  }
+
+  /**
+   * Constructs a new, empty DAG.
+   *
+   * @param <T> the type of nodes to be stored in the new DAG
+   *
+   * @return a new, empty dag
+   */
+  public static <T> DAG<T> empty() {
+    return of(Collections.emptyList());
   }
 
   /**
@@ -111,7 +123,7 @@ public class DAG<T> {
       List<Node<T>> parentNodes = parents.stream()
           .map(this::getNode).collect(Collectors.toList());
       node = new Node<>(elem, parentNodes);
-      parentNodes.stream().forEach(p -> p.children.add(node));
+      parentNodes.forEach(p -> p.children.add(node));
     }
     if (nodeMap.containsKey(elem)) {
       throw new IllegalArgumentException(
@@ -246,7 +258,7 @@ public class DAG<T> {
     // iterate the DAG DFS and write it to string
     StringBuilder sb = new StringBuilder();
     Deque<Pair<Integer, Node<T>>> open = new LinkedList<>();
-    this.roots.stream().forEach(r -> open.add(Pair.of(0, r)));
+    this.roots.forEach(r -> open.add(Pair.of(0, r)));
     while (!open.isEmpty()) {
       Pair<Integer, Node<T>> poll = open.removeFirst();
       for (int i = 0; i < poll.getFirst(); i++) {
@@ -254,7 +266,7 @@ public class DAG<T> {
       }
       sb.append(poll.getSecond().get());
       sb.append("\n");
-      poll.getSecond().children.stream()
+      poll.getSecond().children
           .forEach(n -> open.addFirst(Pair.of(poll.getFirst() + 1, n)));
     }
     return sb.toString();

@@ -25,6 +25,7 @@ import org.apache.flink.api.java.DataSet;
 
 class RepartitionTranslator implements BatchOperatorTranslator<Repartition> {
 
+  @SuppressWarnings("unchecked")
   @Override
   public DataSet translate(FlinkOperator<Repartition> operator,
       BatchExecutorContext context) {
