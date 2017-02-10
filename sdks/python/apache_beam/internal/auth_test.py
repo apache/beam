@@ -31,8 +31,8 @@ class AuthTest(unittest.TestCase):
     try:
       test_args = [
           'test', '--service_account_name', 'abc', '--service_account_key_file',
-          os.path.join(
-              os.path.dirname(__file__), '..', 'tests/data/privatekey.p12')]
+          os.path.join(os.path.dirname(__file__), '..', 'tests',
+                       'data', 'privatekey.p12')]
       with mock.patch.object(sys, 'argv', test_args):
         credentials = auth.get_service_credentials()
         self.assertIsNotNone(credentials)
