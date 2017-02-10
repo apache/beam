@@ -793,8 +793,8 @@ def model_custom_sink(simplekv, KVs, final_table_name_no_ptransform,
   # [START model_custom_sink_new_ptransform]
   class WriteToKVSink(PTransform):
 
-    def __init__(self, label, url, final_table_name, **kwargs):
-      super(WriteToKVSink, self).__init__(label, **kwargs)
+    def __init__(self, url, final_table_name, **kwargs):
+      super(WriteToKVSink, self).__init__(**kwargs)
       self._url = url
       self._final_table_name = final_table_name
 
@@ -808,8 +808,8 @@ def model_custom_sink(simplekv, KVs, final_table_name_no_ptransform,
   # [START model_custom_sink_use_ptransform]
   p = beam.Pipeline(options=PipelineOptions())
   kvs = p | 'CreateKVs' >> beam.core.Create(KVs)
-  kvs | WriteToKVSink('WriteToSimpleKV',
-                      'http://url_to_simple_kv/', final_table_name)
+  kvs | 'WriteToSimpleKV' >> WriteToKVSink(
+      'http://url_to_simple_kv/', final_table_name)
   # [END model_custom_sink_use_ptransform]
 
   p.run().wait_until_finish()
@@ -903,24 +903,21 @@ def model_bigqueryio():
 
   # [START model_bigqueryio_read]
   p = beam.Pipeline(options=PipelineOptions())
-  weather_data = p | beam.io.Read(
-      'ReadWeatherStations',
+  weather_data = p | 'ReadWeatherStations' >> beam.io.Read(
       beam.io.BigQuerySource(
           'clouddataflow-readonly:samples.weather_stations'))
   # [END model_bigqueryio_read]
 
   # [START model_bigqueryio_query]
   p = beam.Pipeline(options=PipelineOptions())
-  weather_data = p | beam.io.Read(
-      'ReadYearAndTemp',
+  weather_data = p | 'ReadYearAndTemp' >> beam.io.Read(
       beam.io.BigQuerySource(
           query='SELECT year, mean_temp FROM samples.weather_stations'))
   # [END model_bigqueryio_query]
 
   # [START model_bigqueryio_query_standard_sql]
   p = beam.Pipeline(options=PipelineOptions())
-  weather_data = p | beam.io.Read(
-      'ReadYearAndTemp',
+  weather_data = p | 'ReadYearAndTemp' >> beam.io.Read(
       beam.io.BigQuerySource(
           query='SELECT year, mean_temp FROM `samples.weather_stations`',
           use_standard_sql=True))
@@ -933,8 +930,8 @@ def model_bigqueryio():
   # [START model_bigqueryio_write]
   quotes = p | beam.Create(
       [{'source': 'Mahatma Ghandi', 'quote': 'My life is my message.'}])
-  quotes | beam.io.Write(
-      'Write', beam.io.BigQuerySink(
+  quotes | 'Write' >> beam.io.Write(
+      beam.io.BigQuerySink(
           'my-project:output.output_table',
           schema=schema,
           write_disposition=beam.io.BigQueryDisposition.WRITE_TRUNCATE,

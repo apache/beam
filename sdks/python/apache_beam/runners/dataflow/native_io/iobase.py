@@ -293,17 +293,13 @@ class _NativeWrite(ptransform.PTransform):
   Applying this transform results in a ``pvalue.PDone``.
   """
 
-  def __init__(self, *args, **kwargs):
+  def __init__(self, sink):
     """Initializes a Write transform.
 
     Args:
-      *args: A tuple of position arguments.
-      **kwargs: A dictionary of keyword arguments.
-
-    The *args, **kwargs are expected to be (label, sink) or (sink).
+      sink: Sink to use for the write
     """
-    label, sink = self.parse_label_and_arg(args, kwargs, 'sink')
-    super(_NativeWrite, self).__init__(label)
+    super(_NativeWrite, self).__init__()
     self.sink = sink
 
   def expand(self, pcoll):
