@@ -1321,17 +1321,13 @@ class Flatten(PTransform):
 class Create(PTransform):
   """A transform that creates a PCollection from an iterable."""
 
-  def __init__(self, *args, **kwargs):
+  def __init__(self, value):
     """Initializes a Create transform.
 
     Args:
-      *args: A tuple of position arguments.
-      **kwargs: A dictionary of keyword arguments.
-
-    The *args, **kwargs are expected to be (label, value) or (value).
+      value: An object of values for the PCollection
     """
-    label, value = self.parse_label_and_arg(args, kwargs, 'value')
-    super(Create, self).__init__(label)
+    super(Create, self).__init__()
     if isinstance(value, basestring):
       raise TypeError('PTransform Create: Refusing to treat string as '
                       'an iterable. (string=%r)' % value)

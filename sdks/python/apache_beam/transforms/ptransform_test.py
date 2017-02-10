@@ -81,30 +81,6 @@ class PTransformTest(unittest.TestCase):
         """inputs=('ci',) side_inputs=('cs',)>""",
         str(inputs_tr))
 
-  def test_parse_label_and_arg(self):
-
-    def fun(*args, **kwargs):
-      return PTransform().parse_label_and_arg(args, kwargs, 'name')
-
-    self.assertEqual(('PTransform', 'value'), fun('value'))
-    self.assertEqual(('PTransform', 'value'), fun(name='value'))
-    self.assertEqual(('label', 'value'), fun('label', 'value'))
-    self.assertEqual(('label', 'value'), fun('label', name='value'))
-    self.assertEqual(('label', 'value'), fun('value', label='label'))
-    self.assertEqual(('label', 'value'), fun(name='value', label='label'))
-
-    self.assertRaises(ValueError, fun)
-    self.assertRaises(ValueError, fun, 0, 'value')
-    self.assertRaises(ValueError, fun, label=0, name='value')
-    self.assertRaises(ValueError, fun, other='value')
-
-    with self.assertRaises(ValueError) as cm:
-      fun(0, name='value')
-    self.assertEqual(
-        cm.exception.message,
-        'PTransform expects a (label, name) or (name) argument list '
-        'instead of args=(0,), kwargs={\'name\': \'value\'}')
-
   def test_do_with_do_fn(self):
     class AddNDoFn(beam.DoFn):
 
@@ -386,8 +362,8 @@ class PTransformTest(unittest.TestCase):
 
   def test_group_by_key(self):
     pipeline = TestPipeline()
-    pcoll = pipeline | beam.Create(
-        'start', [(1, 1), (2, 1), (3, 1), (1, 2), (2, 2), (1, 3)])
+    pcoll = pipeline | 'start' >> beam.Create(
+        [(1, 1), (2, 1), (3, 1), (1, 2), (2, 2), (1, 3)])
     result = pcoll | 'Group' >> beam.GroupByKey()
     assert_that(result, equal_to([(1, [1, 2, 3]), (2, [1, 2]), (3, [1])]))
     pipeline.run()
