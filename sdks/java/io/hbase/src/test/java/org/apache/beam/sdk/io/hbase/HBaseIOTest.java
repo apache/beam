@@ -110,8 +110,14 @@ public class HBaseIOTest {
 
     @AfterClass
     public static void afterClass() throws Exception {
-        admin.close();
-        htu.shutdownMiniCluster();
+        if (admin != null) {
+            admin.close();
+            admin = null;
+        }
+        if (htu != null) {
+            htu.shutdownMiniCluster();
+            htu = null;
+        }
     }
 
     @Test
