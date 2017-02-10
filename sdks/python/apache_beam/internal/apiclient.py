@@ -628,8 +628,9 @@ class CounterUpdateSetters(object):
   def set_scalar_mean_float(accumulator, metric_update_proto):
     if accumulator.count:
       metric_update_proto.floatingPointMean = dataflow.FloatingPointMean()
-      metric_update_proto.integerMean.sum = accumulator.sum
-      metric_update_proto.integerMean.count = to_split_int(accumulator.count)
+      metric_update_proto.floatingPointMean.sum = accumulator.sum
+      metric_update_proto.floatingPointMean.count = to_split_int(
+          accumulator.count)
     else:
       metric_update_proto.nameAndKind.kind = None
 
