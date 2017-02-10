@@ -47,14 +47,6 @@ def create_runner(runner_name):
     RuntimeError: if an invalid runner name is used.
   """
 
-  # TODO(BEAM-1185): Remove when all references to PipelineRunners are gone.
-  if 'PipelineRunner' in runner_name:
-    new_runner_name = runner_name.replace('PipelineRunner', 'Runner')
-    if new_runner_name in _ALL_KNOWN_RUNNERS:
-      logging.warning(
-          '%s is deprecated, use %s instead.', runner_name, new_runner_name)
-      runner_name = new_runner_name
-
   if runner_name in _KNOWN_DIRECT_RUNNERS:
     runner_name = 'apache_beam.runners.direct.direct_runner.' + runner_name
   elif runner_name in _KNOWN_DATAFLOW_RUNNERS:
