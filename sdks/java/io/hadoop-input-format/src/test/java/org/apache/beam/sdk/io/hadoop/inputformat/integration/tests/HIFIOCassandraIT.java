@@ -46,8 +46,13 @@ import com.datastax.driver.core.Row;
  * <p>
  * You can run just this test by doing the following: mvn test-compile compile
  * failsafe:integration-test -D beamTestPipelineOptions='[ "--serverIp=1.2.3.4",
- * "--serverPort=<port>" ]' -Dit.test=HIFIOCassandraIT -DskipITs=false
+ * "--serverPort=<port>" ,"--userName=<user_name>" ,"--password=<password>"]' 
+ * -Dit.test=HIFIOCassandraIT -DskipITs=false
+ * Setting username and password is optional, set these only if security is 
+ * configured on Cassandra server. 
+ * </p>
  */
+
 @RunWith(JUnit4.class)
 public class HIFIOCassandraIT implements Serializable {
 
@@ -60,6 +65,10 @@ public class HIFIOCassandraIT implements Serializable {
   private static final String CASSANDRA_KEYSPACE_PROPERTY = "cassandra.input.keyspace";
   private static final String CASSANDRA_COLUMNFAMILY_PROPERTY = "cassandra.input.columnfamily";
   private static final String CASSANDRA_PARTITIONER_CLASS_VALUE = "Murmur3Partitioner";
+  private static final String USERNAME = "cassandra.username";
+  private static final String PASSWORD  = "cassandra.password";
+  private static final String INPUT_KEYSPACE_USERNAME_CONFIG = "cassandra.input.keyspace.username";
+  private static final String INPUT_KEYSPACE_PASSWD_CONFIG = "cassandra.input.keyspace.passwd";
   private static HIFTestOptions options;
 
   @BeforeClass
@@ -162,6 +171,11 @@ public class HIFIOCassandraIT implements Serializable {
     conf.set(CASSANDRA_PARTITIONER_CLASS_PROPERTY, CASSANDRA_PARTITIONER_CLASS_VALUE);
     conf.set(CASSANDRA_KEYSPACE_PROPERTY, CASSANDRA_KEYSPACE);
     conf.set(CASSANDRA_COLUMNFAMILY_PROPERTY, CASSANDRA_TABLE);
+    // Set username and password if Cassandra instance has security configured.
+    conf.set(USERNAME, options.getUserName());
+    conf.set(PASSWORD, options.getPassword());
+    conf.set(INPUT_KEYSPACE_USERNAME_CONFIG, options.getUserName());
+    conf.set(INPUT_KEYSPACE_PASSWD_CONFIG, options.getPassword()); 
     conf.setClass(HadoopInputFormatIOConstants.INPUTFORMAT_CLASSNAME,
         org.apache.cassandra.hadoop.cql3.CqlInputFormat.class, InputFormat.class);
     conf.setClass(HadoopInputFormatIOConstants.KEY_CLASS, java.lang.Long.class, Object.class);
