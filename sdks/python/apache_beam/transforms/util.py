@@ -87,8 +87,8 @@ class CoGroupByKey(PTransform):
       to provide pipeline information, and should be considered mandatory.
   """
 
-  def __init__(self, label=None, **kwargs):
-    super(CoGroupByKey, self).__init__(label)
+  def __init__(self, **kwargs):
+    super(CoGroupByKey, self).__init__()
     self.pipeline = kwargs.pop('pipeline', None)
     if kwargs:
       raise ValueError('Unexpected keyword arguments: %s' % kwargs.keys())

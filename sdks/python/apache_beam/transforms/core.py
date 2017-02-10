@@ -578,7 +578,7 @@ class ParDo(PTransformWithSideInputs):
 
   Args:
       pcoll: a PCollection to be processed.
-      dofn: a DoFn object to be applied to each element of pcoll argument.
+      fn: a DoFn object to be applied to each element of pcoll argument.
       *args: positional arguments passed to the dofn object.
       **kwargs:  keyword arguments passed to the dofn object.
 
@@ -1126,8 +1126,8 @@ class GroupByKey(PTransform):
 class GroupByKeyOnly(PTransform):
   """A group by key transform, ignoring windows."""
 
-  def __init__(self, label=None):
-    super(GroupByKeyOnly, self).__init__(label)
+  def __init__(self):
+    super(GroupByKeyOnly, self).__init__()
 
   def infer_output_type(self, input_type):
     key_type, value_type = trivial_inference.key_value_types(input_type)
@@ -1235,25 +1235,19 @@ class WindowInto(ParDo):
       new_windows = self.windowing.windowfn.assign(context)
       yield WindowedValue(element, context.timestamp, new_windows)
 
-  def __init__(self, *args, **kwargs):
+  def __init__(self, windowfn, *args, **kwargs):
     """Initializes a WindowInto transform.
 
     Args:
-      *args: A tuple of position arguments.
-      **kwargs: A dictionary of keyword arguments.
-
-    The *args, **kwargs are expected to be (label, windowfn) or (windowfn).
-    The optional trigger and accumulation_mode kwargs may also be provided.
+      windowfn: Function to be used for windowing
     """
     triggerfn = kwargs.pop('trigger', None)
     accumulation_mode = kwargs.pop('accumulation_mode', None)
     output_time_fn = kwargs.pop('output_time_fn', None)
-    label, windowfn = self.parse_label_and_arg(args, kwargs, 'windowfn')
     self.windowing = Windowing(windowfn, triggerfn, accumulation_mode,
                                output_time_fn)
     dofn = self.WindowIntoFn(self.windowing)
     super(WindowInto, self).__init__(dofn)
-    self.label = label
 
   def get_windowing(self, unused_inputs):
     return self.windowing

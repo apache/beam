@@ -51,12 +51,12 @@ class ConsumerTrackingPipelineVisitorTest(unittest.TestCase):
     class DummySource(iobase.BoundedSource):
       pass
 
-    root_read = Read('read', DummySource())
+    root_read = Read(DummySource())
     root_flatten = Flatten(pipeline=self.pipeline)
 
     pbegin = pvalue.PBegin(self.pipeline)
     pcoll_create = pbegin | 'create' >> root_create
-    pbegin | root_read
+    pbegin | 'read' >> root_read
     pcoll_create | FlatMap(lambda x: x)
     [] | 'flatten' >> root_flatten
 
@@ -64,10 +64,7 @@ class ConsumerTrackingPipelineVisitorTest(unittest.TestCase):
 
     root_transforms = sorted(
         [t.transform for t in self.visitor.root_transforms])
-    print root_transforms
-    print root_read
-    print root_create
-    print root_flatten
+
     self.assertEqual(root_transforms, sorted(
         [root_read, root_create, root_flatten]))
 

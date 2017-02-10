@@ -49,10 +49,10 @@ class PValueTest(unittest.TestCase):
     value2 = pipeline | 'create2' >> Create([(1, 1), (2, 2), (3, 3)])
     value3 = pipeline | 'create3' >> Create([(1, 1), (2, 2), (3, 3)])
     self.assertEqual(AsSingleton(value), AsSingleton(value))
-    self.assertEqual(AsSingleton('new', value, default_value=1),
-                     AsSingleton('new', value, default_value=1))
+    self.assertEqual(AsSingleton(value, default_value=1, label='new'),
+                     AsSingleton(value, default_value=1, label='new'))
     self.assertNotEqual(AsSingleton(value),
-                        AsSingleton('new', value, default_value=1))
+                        AsSingleton(value, default_value=1, label='new'))
     self.assertEqual(AsIter(value), AsIter(value))
     self.assertEqual(AsList(value), AsList(value))
     self.assertEqual(AsDict(value2), AsDict(value2))
