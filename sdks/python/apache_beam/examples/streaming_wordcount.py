@@ -47,8 +47,8 @@ def run(argv=None):
   p = beam.Pipeline(argv=pipeline_args)
 
   # Read the text file[pattern] into a PCollection.
-  lines = p | beam.io.Read(
-      'read', beam.io.PubSubSource(known_args.input_topic))
+  lines = p | 'read' >> beam.io.Read(
+      beam.io.PubSubSource(known_args.input_topic))
 
   # Capitalize the characters in each line.
   transformed = (lines
@@ -63,8 +63,8 @@ def run(argv=None):
 
   # Write to PubSub.
   # pylint: disable=expression-not-assigned
-  transformed | beam.io.Write(
-      'pubsub_write', beam.io.PubSubSink(known_args.output_topic))
+  transformed | 'pubsub_write' >> beam.io.Write(
+      beam.io.PubSubSink(known_args.output_topic))
 
   p.run().wait_until_finish()
 

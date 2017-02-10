@@ -82,8 +82,7 @@ def run(argv=None):
 
   # Write the output using a "Write" transform that has side effects.
   # pylint: disable=expression-not-assigned
-  counts | beam.io.Write(
-      'write',
+  counts | 'write' >> beam.io.Write(
       beam.io.BigQuerySink(
           known_args.output,
           schema='month:INTEGER, tornado_count:INTEGER',
