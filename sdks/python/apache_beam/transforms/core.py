@@ -1283,8 +1283,6 @@ class Flatten(PTransform):
   will be empty (but see also kwargs below).
 
   Args:
-    label: name of this transform instance. Useful while monitoring and
-      debugging a pipeline execution.
     **kwargs: Accepts a single named argument "pipeline", which specifies the
       pipeline that "owns" this PTransform. Ordinarily Flatten can obtain this
       information from one of the input PCollections, but if there are none (or
@@ -1292,8 +1290,8 @@ class Flatten(PTransform):
       provide pipeline information and should be considered mandatory.
   """
 
-  def __init__(self, label=None, **kwargs):
-    super(Flatten, self).__init__(label)
+  def __init__(self, **kwargs):
+    super(Flatten, self).__init__()
     self.pipeline = kwargs.pop('pipeline', None)
     if kwargs:
       raise ValueError('Unexpected keyword arguments: %s' % kwargs.keys())
