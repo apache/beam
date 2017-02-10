@@ -176,7 +176,6 @@ class WindowTest(unittest.TestCase):
                                   ('key', [5, 6, 7, 8, 9])]))
     p.run()
 
-
   def test_rewindow(self):
     p = TestPipeline()
     result = (p
