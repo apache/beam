@@ -489,8 +489,8 @@ public class HadoopInputFormatIO {
     private final SerializableSplit inputSplit;
     private transient List<SerializableSplit> inputSplits;
     private long boundedSourceEstimatedSize = 0;
-    private InputFormat<?, ?> inputFormatObj;
-    private TaskAttemptContext taskAttemptContext;
+    private transient InputFormat<?, ?> inputFormatObj;
+    private transient TaskAttemptContext taskAttemptContext;
     private transient Class<?> expectedKeyClass;
     private transient Class<?> expectedValueClass;
 
@@ -505,8 +505,6 @@ public class HadoopInputFormatIO {
           valueCoder,
           keyTranslationFunction,
           valueTranslationFunction,
-          null,
-          null,
           null);
     }
 
@@ -516,17 +514,13 @@ public class HadoopInputFormatIO {
         Coder<V> valueCoder,
         SimpleFunction<?, K> keyTranslationFunction,
         SimpleFunction<?, V> valueTranslationFunction,
-        InputFormat<?, ?> inputFormatObj,
-        SerializableSplit inputSplit,
-        TaskAttemptContext taskAttemptContext) {
+        SerializableSplit inputSplit) {
       this.conf = conf;
       this.inputSplit = inputSplit;
       this.keyCoder = keyCoder;
       this.valueCoder = valueCoder;
       this.keyTranslationFunction = keyTranslationFunction;
       this.valueTranslationFunction = valueTranslationFunction;
-      this.inputFormatObj = inputFormatObj;
-      this.taskAttemptContext = taskAttemptContext;
     }
 
     public SerializableConfiguration getConfiguration() {
@@ -553,8 +547,8 @@ public class HadoopInputFormatIO {
               public BoundedSource<KV<K, V>> apply(SerializableSplit serializableInputSplit) {
                 HadoopInputFormatBoundedSource<K, V> hifBoundedSource =
                     new HadoopInputFormatBoundedSource<K, V>(conf, keyCoder, valueCoder,
-                        keyTranslationFunction, valueTranslationFunction, inputFormatObj,
-                        serializableInputSplit,taskAttemptContext);
+                        keyTranslationFunction, valueTranslationFunction,
+                        serializableInputSplit);
                 return hifBoundedSource;
               }
             });
@@ -608,7 +602,7 @@ public class HadoopInputFormatIO {
     /**
      * Creates instance of InputFormat class provided in class.
      */
-    private void createInputFormatInstance() throws IOException, InterruptedException {
+    private void createInputFormatInstance() throws IOException {
       if (inputFormatObj == null) {
         try {
           taskAttemptContext =
@@ -826,12 +820,13 @@ public class HadoopInputFormatIO {
       if (inputSplit == null) {
           throw new IOException(HadoopInputFormatIOConstants.CREATEREADER_UNSPLIT_SOURCE_ERROR_MSG);
       } else {
+        createInputFormatInstance();
         return new HadoopInputFormatReader<>(
             this,
             keyTranslationFunction,
             valueTranslationFunction,
+            inputSplit,
             inputFormatObj,
-            inputSplit.getSplit(),
             taskAttemptContext);
       }
     }
@@ -842,31 +837,31 @@ public class HadoopInputFormatIO {
      * @param <K> Type of keys RecordReader emits.
      * @param <V> Type of values RecordReader emits.
      */
-    class HadoopInputFormatReader<K1, V1> extends BoundedSource.BoundedReader<KV<K, V>> {
+    class HadoopInputFormatReader<T1, T2> extends BoundedSource.BoundedReader<KV<K, V>> {
 
       private final HadoopInputFormatBoundedSource<K, V> source;
-      @Nullable private final SimpleFunction<K1, K> keyTranslationFunction;
-      @Nullable private final SimpleFunction<V1, V> valueTranslationFunction;
-      private final InputFormat<?, ?> inputFormatObj;
-      private final InputSplit split;
-      private final TaskAttemptContext taskAttemptContext;
-      private RecordReader<K1, V1> currentReader;
+      @Nullable private final SimpleFunction<T1, K> keyTranslationFunction;
+      @Nullable private final SimpleFunction<T2, V> valueTranslationFunction;
+      private final SerializableSplit split;
+      private RecordReader<T1, T2> currentReader;
       private volatile boolean doneReading = false;
       private long recordsReturned = 0L;
       // Variable added to track the progress of the RecordReader.
       private AtomicDouble progressValue = new AtomicDouble();
+      private transient InputFormat<T1, T2> inputFormatObj;
+      private transient TaskAttemptContext taskAttemptContext;
 
       private HadoopInputFormatReader(HadoopInputFormatBoundedSource<K, V> source,
           @Nullable SimpleFunction keyTranslationFunction,
           @Nullable SimpleFunction valueTranslationFunction,
-          InputFormat<?,?> inputFormatObj,
-          InputSplit split,
+          SerializableSplit split,
+          InputFormat inputFormatObj,
           TaskAttemptContext taskAttemptContext) {
         this.source = source;
         this.keyTranslationFunction = keyTranslationFunction;
         this.valueTranslationFunction = valueTranslationFunction;
-        this.inputFormatObj = inputFormatObj;
         this.split = split;
+        this.inputFormatObj = inputFormatObj;
         this.taskAttemptContext = taskAttemptContext;
       }
 
@@ -880,14 +875,14 @@ public class HadoopInputFormatIO {
         try {
           recordsReturned = 0;
           currentReader =
-              (RecordReader<K1, V1>) inputFormatObj.createRecordReader(split, taskAttemptContext);
+              (RecordReader<T1, T2>) inputFormatObj.createRecordReader(split.getSplit(), taskAttemptContext);
           if (currentReader != null) {
             /*
              * CurrentReader object could be accessed concurrently by multiple sources. Hence, to be
              * on safer side, it has been added in synchronized block.
              */
             synchronized (currentReader) {
-              currentReader.initialize(split, taskAttemptContext);
+              currentReader.initialize(split.getSplit(), taskAttemptContext);
               if (currentReader.nextKeyValue()) {
                 recordsReturned++;
                 return true;
@@ -932,11 +927,11 @@ public class HadoopInputFormatIO {
         try {
           // Transform key if translation function is provided.
           key =
-              transformKeyOrValue((K1) currentReader.getCurrentKey(), keyTranslationFunction,
+              transformKeyOrValue((T1) currentReader.getCurrentKey(), keyTranslationFunction,
                   keyCoder);
           // Transform value if if translation function is provided.
           value =
-              transformKeyOrValue((V1) currentReader.getCurrentValue(), valueTranslationFunction,
+              transformKeyOrValue((T2) currentReader.getCurrentValue(), valueTranslationFunction,
                   valueCoder);
         } catch (IOException | InterruptedException e) {
           LOG.error(HadoopInputFormatIOConstants.GET_CURRENT_ERROR_MSG + e);
@@ -953,16 +948,16 @@ public class HadoopInputFormatIO {
        * @throws ClassCastException
        * @throws CoderException
        */
-      private <T, T1> T1 transformKeyOrValue(T input,
-          @Nullable SimpleFunction<T, T1> simpleFunction, Coder<T1> coder) throws CoderException,
+      private <T, T3> T3 transformKeyOrValue(T input,
+          @Nullable SimpleFunction<T, T3> simpleFunction, Coder<T3> coder) throws CoderException,
           ClassCastException {
-        T1 output;
+        T3 output;
         if (null != simpleFunction) {
           output = simpleFunction.apply(input);
         } else {
-          output = (T1) input;
+          output = (T3) input;
         }
-        return cloneIfPossiblyMutable((T1) output, coder);
+        return cloneIfPossiblyMutable((T3) output, coder);
       }
 
       /**
@@ -1085,7 +1080,6 @@ public class HadoopInputFormatIO {
     public boolean producesSortedKeys(PipelineOptions arg0) throws Exception {
       return false;
     }
-
   }
 
   /**
