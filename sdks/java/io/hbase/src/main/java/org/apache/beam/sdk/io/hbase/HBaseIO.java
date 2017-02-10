@@ -263,10 +263,8 @@ public class HBaseIO {
             checkArgument(serializableConfiguration != null,
                     "Configuration not provided");
             checkArgument(!tableId.isEmpty(), "Table ID not specified");
-            try {
-                Connection connection =
-                        ConnectionFactory.createConnection(
-                                serializableConfiguration.getConfiguration());
+            try (Connection connection = ConnectionFactory.createConnection(
+                    serializableConfiguration.getConfiguration())) {
                 Admin admin = connection.getAdmin();
                 checkArgument(admin.tableExists(TableName.valueOf(tableId)),
                         "Table %s does not exist", tableId);
@@ -465,6 +463,7 @@ public class HBaseIO {
 
     private static class HBaseReader extends BoundedSource.BoundedReader<Result> {
         private final HBaseSource source;
+        private Connection connection;
         private ResultScanner scanner;
         Iterator<Result> iter;
         private Result result;
@@ -478,7 +477,7 @@ public class HBaseIO {
         public boolean start() throws IOException {
             Configuration configuration = source.read.serializableConfiguration.getConfiguration();
             String tableId = source.read.tableId;
-            Connection connection = ConnectionFactory.createConnection(configuration);
+            connection = ConnectionFactory.createConnection(configuration);
             TableName tableName = TableName.valueOf(tableId);
             Table table = connection.getTable(tableName);
             Scan scan = source.read.serializableScan.getScan();
@@ -508,6 +507,10 @@ public class HBaseIO {
             if (scanner != null) {
                 scanner.close();
                 scanner = null;
+            }
+            if (connection != null && !connection.isClosed()) {
+                connection.close();
+                connection = null;
             }
         }
 
@@ -573,10 +576,8 @@ public class HBaseIO {
         public void validate(PCollection<KV<ByteString, Iterable<Mutation>>> input) {
             checkArgument(serializableConfiguration != null, "Configuration not specified");
             checkArgument(!tableId.isEmpty(), "Table ID not specified");
-            try {
-                Connection connection =
-                        ConnectionFactory.createConnection(
-                                serializableConfiguration.getConfiguration());
+            try (Connection connection = ConnectionFactory.createConnection(
+                    serializableConfiguration.getConfiguration())) {
                 Admin admin = connection.getAdmin();
                 checkArgument(admin.tableExists(TableName.valueOf(tableId)),
                         "Table %s does not exist", tableId);
