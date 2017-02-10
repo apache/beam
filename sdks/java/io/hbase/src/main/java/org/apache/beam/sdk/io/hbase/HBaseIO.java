@@ -148,7 +148,7 @@ import org.slf4j.LoggerFactory;
  *
  * <h3>Experimental</h3>
  *
- * <p>The design of the API for HBaseIO is currently related to the BigTableIO one,
+ * <p>The design of the API for HBaseIO is currently related to the BigtableIO one,
  * it can evolve or be different in some aspects, but the idea is that users can easily migrate
  * from one to the other</p>.
  */
@@ -254,7 +254,7 @@ public class HBaseIO {
 
         @Override
         public PCollection<Result> expand(PBegin input) {
-            HBaseSource source = new HBaseSource(this, null);
+            HBaseSource source = new HBaseSource(this, null /* estimatedSizeBytes */);
             return input.getPipeline().apply(org.apache.beam.sdk.io.Read.from(source));
         }
 
@@ -311,7 +311,8 @@ public class HBaseIO {
         public long getEstimatedSizeBytes(PipelineOptions pipelineOptions) throws Exception {
             if (estimatedSizeBytes == null) {
                 estimatedSizeBytes = estimateSizeBytes(pipelineOptions);
-                LOG.debug("estimatedSize {} bytes", estimatedSizeBytes);
+                LOG.debug("Estimated size {} bytes for table {} and scan {}", estimatedSizeBytes,
+                        read.tableId, read.serializableScan.getScan());
             }
             return estimatedSizeBytes;
         }
@@ -352,8 +353,7 @@ public class HBaseIO {
             return estimatedSizeBytes;
         }
 
-        private List<HRegionLocation> getRegionLocations()
-                throws Exception {
+        private List<HRegionLocation> getRegionLocations() throws Exception {
             final Scan scan = read.serializableScan.getScan();
             byte[] startRow = scan.getStartRow();
             byte[] stopRow = scan.getStopRow();
@@ -571,8 +571,7 @@ public class HBaseIO {
 
         @Override
         public void validate(PCollection<KV<ByteString, Iterable<Mutation>>> input) {
-            checkArgument(serializableConfiguration != null,
-                    "Configuration not specified");
+            checkArgument(serializableConfiguration != null, "Configuration not specified");
             checkArgument(!tableId.isEmpty(), "Table ID not specified");
             try {
                 Connection connection =

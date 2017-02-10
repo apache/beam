@@ -122,32 +122,28 @@ public class HBaseIOTest {
 
     @Test
     public void testReadBuildsCorrectly() {
-        HBaseIO.Read read =
-                HBaseIO.read().withConfiguration(conf).withTableId("table");
+        HBaseIO.Read read = HBaseIO.read().withConfiguration(conf).withTableId("table");
         assertEquals("table", read.getTableId());
         assertNotNull("configuration", read.getConfiguration());
     }
 
     @Test
     public void testReadBuildsCorrectlyInDifferentOrder() {
-        HBaseIO.Read read =
-                HBaseIO.read().withTableId("table").withConfiguration(conf);
+        HBaseIO.Read read = HBaseIO.read().withTableId("table").withConfiguration(conf);
         assertEquals("table", read.getTableId());
         assertNotNull("configuration", read.getConfiguration());
     }
 
     @Test
     public void testWriteBuildsCorrectly() {
-        HBaseIO.Write write =
-                HBaseIO.write().withConfiguration(conf).withTableId("table");
+        HBaseIO.Write write = HBaseIO.write().withConfiguration(conf).withTableId("table");
         assertEquals("table", write.getTableId());
         assertNotNull("configuration", write.getConfiguration());
     }
 
     @Test
     public void testWriteBuildsCorrectlyInDifferentOrder() {
-        HBaseIO.Write write =
-                HBaseIO.write().withTableId("table").withConfiguration(conf);
+        HBaseIO.Write write = HBaseIO.write().withTableId("table").withConfiguration(conf);
         assertEquals("table", write.getTableId());
         assertNotNull("configuration", write.getConfiguration());
     }
@@ -156,14 +152,14 @@ public class HBaseIOTest {
     public void testWriteValidationFailsMissingTable() {
         HBaseIO.Write write = HBaseIO.write().withConfiguration(conf);
         thrown.expect(IllegalArgumentException.class);
-        write.validate(null);
+        write.validate(null /* input */);
     }
 
     @Test
     public void testWriteValidationFailsMissingConfiguration() {
         HBaseIO.Write write = HBaseIO.write().withTableId("table");
         thrown.expect(IllegalArgumentException.class);
-        write.validate(null);
+        write.validate(null /* input */);
     }
 
     /** Tests that when reading from a non-existent table, the read fails. */
@@ -193,8 +189,7 @@ public class HBaseIOTest {
         final int numRows = 1001;
         createTable(table);
         writeData(table, numRows);
-        runReadTestLength(HBaseIO.read().withConfiguration(conf).withTableId(table),
-                1001);
+        runReadTestLength(HBaseIO.read().withConfiguration(conf).withTableId(table), 1001);
     }
 
     /** Tests reading all rows from a split table. */
@@ -210,7 +205,7 @@ public class HBaseIOTest {
         writeData(table, numRows);
 
         HBaseIO.Read read = HBaseIO.read().withConfiguration(conf).withTableId(table);
-        HBaseSource source = new HBaseSource(read, null);
+        HBaseSource source = new HBaseSource(read, null /* estimatedSizeBytes */);
         List<? extends BoundedSource<Result>> splits =
                 source.splitIntoBundles(numRows * bytesPerRow / numRegions,
                         null /* options */);
@@ -328,10 +323,7 @@ public class HBaseIOTest {
 
     @Test
     public void testWritingDisplayData() {
-        HBaseIO.Write write = HBaseIO.write()
-                .withTableId("fooTable")
-                .withConfiguration(conf);
-
+        HBaseIO.Write write = HBaseIO.write().withTableId("fooTable").withConfiguration(conf);
         DisplayData displayData = DisplayData.from(write);
         assertThat(displayData, hasDisplayItem("tableId", "fooTable"));
     }
