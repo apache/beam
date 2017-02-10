@@ -1235,7 +1235,7 @@ class WindowInto(ParDo):
       new_windows = self.windowing.windowfn.assign(context)
       yield WindowedValue(element, context.timestamp, new_windows)
 
-  def __init__(self, *args, **kwargs):
+  def __init__(self, windowfn, *args, **kwargs):
     """Initializes a WindowInto transform.
 
     Args:
@@ -1248,12 +1248,10 @@ class WindowInto(ParDo):
     triggerfn = kwargs.pop('trigger', None)
     accumulation_mode = kwargs.pop('accumulation_mode', None)
     output_time_fn = kwargs.pop('output_time_fn', None)
-    label, windowfn = self.parse_label_and_arg(args, kwargs, 'windowfn')
     self.windowing = Windowing(windowfn, triggerfn, accumulation_mode,
                                output_time_fn)
     dofn = self.WindowIntoFn(self.windowing)
     super(WindowInto, self).__init__(dofn)
-    self.label = label
 
   def get_windowing(self, unused_inputs):
     return self.windowing
