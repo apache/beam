@@ -26,9 +26,22 @@ import shutil
 import tempfile
 
 
+_path_generator = lambda rs, p: {r.lower(): p + r for r in rs}
+
+_DIRECT_RUNNER_PATH = 'apache_beam.runners.direct.direct_runner.'
+_DATAFLOW_RUNNER_PATH = 'apache_beam.runners.dataflow_runner.'
+_TEST_RUNNER_PATH = 'apache_beam.runners.test.'
+
 _KNOWN_DIRECT_RUNNERS = ('DirectRunner', 'EagerRunner')
 _KNOWN_DATAFLOW_RUNNERS = ('DataflowRunner',)
 _KNOWN_TEST_RUNNERS = ('TestDataflowRunner',)
+
+_RUNNER_MAP = {}
+_RUNNER_MAP.update(_path_generator(_KNOWN_DIRECT_RUNNERS, _DIRECT_RUNNER_PATH))
+_RUNNER_MAP.update(_path_generator(_KNOWN_DATAFLOW_RUNNERS,
+                                   _DATAFLOW_RUNNER_PATH))
+_RUNNER_MAP.update(_path_generator(_KNOWN_TEST_RUNNERS, _TEST_RUNNER_PATH))
+
 _ALL_KNOWN_RUNNERS = (
     _KNOWN_DIRECT_RUNNERS + _KNOWN_DATAFLOW_RUNNERS + _KNOWN_TEST_RUNNERS)
 
@@ -47,12 +60,11 @@ def create_runner(runner_name):
     RuntimeError: if an invalid runner name is used.
   """
 
-  if runner_name in _KNOWN_DIRECT_RUNNERS:
-    runner_name = 'apache_beam.runners.direct.direct_runner.' + runner_name
-  elif runner_name in _KNOWN_DATAFLOW_RUNNERS:
-    runner_name = 'apache_beam.runners.dataflow_runner.' + runner_name
-  elif runner_name in _KNOWN_TEST_RUNNERS:
-    runner_name = 'apache_beam.runners.test.' + runner_name
+  # Get the qualified runner name by matching the lower case of the name first
+  # After that try appending the name with 'runner' and check if it matches
+  runner_name = _RUNNER_MAP.get(
+      runner_name.lower(),
+      _RUNNER_MAP.get(runner_name.lower() + 'runner', runner_name))
 
   if '.' in runner_name:
     module, runner = runner_name.rsplit('.', 1)
