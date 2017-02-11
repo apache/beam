@@ -33,7 +33,7 @@ import org.apache.beam.sdk.options.GcsOptions;
 /**
  * {@link FileSystem} implementation for Google Cloud Storage.
  */
-public class GcsFileSystem extends FileSystem<GcsResourceId> {
+class GcsFileSystem extends FileSystem<GcsResourceId> {
   private final GcsOptions options;
 
   GcsFileSystem(GcsOptions options) {
