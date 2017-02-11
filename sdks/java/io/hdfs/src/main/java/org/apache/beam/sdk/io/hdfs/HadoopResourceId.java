@@ -15,35 +15,28 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io.gcp.storage;
+package org.apache.beam.sdk.io.hdfs;
 
-import static com.google.common.base.Preconditions.checkNotNull;
-
-import com.google.auto.service.AutoService;
-import javax.annotation.Nonnull;
-import org.apache.beam.sdk.io.FileSystem;
-import org.apache.beam.sdk.io.FileSystemRegistrar;
-import org.apache.beam.sdk.options.GcsOptions;
-import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.io.fs.ResolveOptions;
+import org.apache.beam.sdk.io.fs.ResourceId;
 
 /**
- * {@link AutoService} registrar for the {@link GcsFileSystem}.
+ * {@link ResourceId} implementation for the {@link HadoopFileSystem}.
  */
-@AutoService(FileSystemRegistrar.class)
-public class GcsFileSystemRegistrar implements FileSystemRegistrar {
-
-  static final String GCS_SCHEME = "gs";
+public class HadoopResourceId implements ResourceId {
 
   @Override
-  public FileSystem fromOptions(@Nonnull PipelineOptions options) {
-    checkNotNull(
-        options,
-        "Expect the runner have called FileSystems.setDefaultConfigInWorkers().");
-    return new GcsFileSystem(options.as(GcsOptions.class));
+  public ResourceId resolve(String other, ResolveOptions resolveOptions) {
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
+  public ResourceId getCurrentDirectory() {
+    throw new UnsupportedOperationException();
   }
 
   @Override
   public String getScheme() {
-    return GCS_SCHEME;
+    throw new UnsupportedOperationException();
   }
 }
