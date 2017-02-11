@@ -26,7 +26,13 @@ import shutil
 import tempfile
 
 
-_path_generator = lambda rs, p: {r.lower(): p + r for r in rs}
+def _get_runner_map(runner_names, module_path):
+  """Create a map of runner name in lower case to full import path to the
+  runner class.
+  """
+  return {runner_name.lower(): module_path + runner_name
+          for runner_name in runner_names}
+
 
 _DIRECT_RUNNER_PATH = 'apache_beam.runners.direct.direct_runner.'
 _DATAFLOW_RUNNER_PATH = 'apache_beam.runners.dataflow_runner.'
@@ -37,10 +43,12 @@ _KNOWN_DATAFLOW_RUNNERS = ('DataflowRunner',)
 _KNOWN_TEST_RUNNERS = ('TestDataflowRunner',)
 
 _RUNNER_MAP = {}
-_RUNNER_MAP.update(_path_generator(_KNOWN_DIRECT_RUNNERS, _DIRECT_RUNNER_PATH))
-_RUNNER_MAP.update(_path_generator(_KNOWN_DATAFLOW_RUNNERS,
+_RUNNER_MAP.update(_get_runner_map(_KNOWN_DIRECT_RUNNERS,
+                                   _DIRECT_RUNNER_PATH))
+_RUNNER_MAP.update(_get_runner_map(_KNOWN_DATAFLOW_RUNNERS,
                                    _DATAFLOW_RUNNER_PATH))
-_RUNNER_MAP.update(_path_generator(_KNOWN_TEST_RUNNERS, _TEST_RUNNER_PATH))
+_RUNNER_MAP.update(_get_runner_map(_KNOWN_TEST_RUNNERS,
+                                   _TEST_RUNNER_PATH))
 
 _ALL_KNOWN_RUNNERS = (
     _KNOWN_DIRECT_RUNNERS + _KNOWN_DATAFLOW_RUNNERS + _KNOWN_TEST_RUNNERS)
@@ -60,8 +68,9 @@ def create_runner(runner_name):
     RuntimeError: if an invalid runner name is used.
   """
 
-  # Get the qualified runner name by matching the lower case of the name first
-  # After that try appending the name with 'runner' and check if it matches
+  # Get the qualified runner name by using the lower case runner name. If that
+  # fails try appending the name with 'runner' and check if it matches.
+  # If that also fails, use the given runner name as is.
   runner_name = _RUNNER_MAP.get(
       runner_name.lower(),
       _RUNNER_MAP.get(runner_name.lower() + 'runner', runner_name))
