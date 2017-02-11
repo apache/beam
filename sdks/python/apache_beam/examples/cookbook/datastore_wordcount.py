@@ -66,8 +66,8 @@ import logging
 import re
 import uuid
 
-from google.datastore.v1 import entity_pb2
-from google.datastore.v1 import query_pb2
+from google.cloud.proto.datastore.v1 import entity_pb2
+from google.cloud.proto.datastore.v1 import query_pb2
 from googledatastore import helper as datastore_helper, PropertyFilter
 
 import apache_beam as beam

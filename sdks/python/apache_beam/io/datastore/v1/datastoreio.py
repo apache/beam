@@ -19,7 +19,7 @@
 
 import logging
 
-from google.datastore.v1 import datastore_pb2
+from google.cloud.proto.datastore.v1 import datastore_pb2
 from googledatastore import helper as datastore_helper
 
 from apache_beam.io.datastore.v1 import helper

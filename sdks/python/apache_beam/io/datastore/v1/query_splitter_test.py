@@ -25,9 +25,9 @@ from mock import call
 from apache_beam.io.datastore.v1 import fake_datastore
 from apache_beam.io.datastore.v1 import query_splitter
 
-from google.datastore.v1 import datastore_pb2
-from google.datastore.v1 import query_pb2
-from google.datastore.v1.query_pb2 import PropertyFilter
+from google.cloud.proto.datastore.v1 import datastore_pb2
+from google.cloud.proto.datastore.v1 import query_pb2
+from google.cloud.proto.datastore.v1.query_pb2 import PropertyFilter
 
 
 class QuerySplitterTest(unittest.TestCase):
