@@ -35,7 +35,7 @@ from apache_beam.io.tfrecordio import _TFRecordSource
 from apache_beam.io.tfrecordio import _TFRecordUtil
 from apache_beam.io.tfrecordio import ReadFromTFRecord
 from apache_beam.io.tfrecordio import WriteToTFRecord
-from apache_beam.runners import DirectRunner
+from apache_beam.test_pipeline import TestPipeline
 import crcmod
 
 
@@ -202,7 +202,7 @@ class TestWriteToTFRecord(TestTFRecordSink):
 
   def test_write_record_gzip(self):
     file_path_prefix = os.path.join(self._new_tempdir(), 'result')
-    with beam.Pipeline(DirectRunner()) as p:
+    with TestPipeline() as p:
       input_data = ['foo', 'bar']
       _ = p | beam.Create(input_data) | WriteToTFRecord(
           file_path_prefix, compression_type=fileio.CompressionTypes.GZIP)
@@ -217,7 +217,7 @@ class TestWriteToTFRecord(TestTFRecordSink):
 
   def test_write_record_auto(self):
     file_path_prefix = os.path.join(self._new_tempdir(), 'result')
-    with beam.Pipeline(DirectRunner()) as p:
+    with TestPipeline() as p:
       input_data = ['foo', 'bar']
       _ = p | beam.Create(input_data) | WriteToTFRecord(
           file_path_prefix, file_name_suffix='.gz')
@@ -246,7 +246,7 @@ class TestTFRecordSource(_TestCaseWithTempDirCleanUp):
   def test_process_single(self):
     path = os.path.join(self._new_tempdir(), 'result')
     self._write_file(path, FOO_RECORD_BASE64)
-    with beam.Pipeline(DirectRunner()) as p:
+    with TestPipeline() as p:
       result = (p
                 | beam.Read(
                     _TFRecordSource(
@@ -258,7 +258,7 @@ class TestTFRecordSource(_TestCaseWithTempDirCleanUp):
   def test_process_multiple(self):
     path = os.path.join(self._new_tempdir(), 'result')
     self._write_file(path, FOO_BAR_RECORD_BASE64)
-    with beam.Pipeline(DirectRunner()) as p:
+    with TestPipeline() as p:
       result = (p
                 | beam.Read(
                     _TFRecordSource(
@@ -270,7 +270,7 @@ class TestTFRecordSource(_TestCaseWithTempDirCleanUp):
   def test_process_gzip(self):
     path = os.path.join(self._new_tempdir(), 'result')
     self._write_file_gzip(path, FOO_BAR_RECORD_BASE64)
-    with beam.Pipeline(DirectRunner()) as p:
+    with TestPipeline() as p:
       result = (p
                 | beam.Read(
                     _TFRecordSource(
@@ -282,7 +282,7 @@ class TestTFRecordSource(_TestCaseWithTempDirCleanUp):
   def test_process_auto(self):
     path = os.path.join(self._new_tempdir(), 'result.gz')
     self._write_file_gzip(path, FOO_BAR_RECORD_BASE64)
-    with beam.Pipeline(DirectRunner()) as p:
+    with TestPipeline() as p:
       result = (p
                 | beam.Read(
                     _TFRecordSource(
@@ -297,7 +297,7 @@ class TestReadFromTFRecordSource(TestTFRecordSource):
   def test_process_gzip(self):
     path = os.path.join(self._new_tempdir(), 'result')
     self._write_file_gzip(path, FOO_BAR_RECORD_BASE64)
-    with beam.Pipeline(DirectRunner()) as p:
+    with TestPipeline() as p:
       result = (p
                 | ReadFromTFRecord(
                     path, compression_type=fileio.CompressionTypes.GZIP))
@@ -306,7 +306,7 @@ class TestReadFromTFRecordSource(TestTFRecordSource):
   def test_process_gzip_auto(self):
     path = os.path.join(self._new_tempdir(), 'result.gz')
     self._write_file_gzip(path, FOO_BAR_RECORD_BASE64)
-    with beam.Pipeline(DirectRunner()) as p:
+    with TestPipeline() as p:
       result = (p
                 | ReadFromTFRecord(
                     path, compression_type=fileio.CompressionTypes.AUTO))
@@ -326,12 +326,12 @@ class TestEnd2EndWriteAndRead(_TestCaseWithTempDirCleanUp):
     file_path_prefix = os.path.join(self._new_tempdir(), 'result')
 
     # Generate a TFRecord file.
-    with beam.Pipeline(DirectRunner()) as p:
+    with TestPipeline() as p:
       expected_data = [self.create_inputs() for _ in range(0, 10)]
       _ = p | beam.Create(expected_data) | WriteToTFRecord(file_path_prefix)
 
     # Read the file back and compare.
-    with beam.Pipeline(DirectRunner()) as p:
+    with TestPipeline() as p:
       actual_data = p | ReadFromTFRecord(file_path_prefix + '-*')
       beam.assert_that(actual_data, beam.equal_to(expected_data))
 
@@ -339,13 +339,13 @@ class TestEnd2EndWriteAndRead(_TestCaseWithTempDirCleanUp):
     file_path_prefix = os.path.join(self._new_tempdir(), 'result')
 
     # Generate a TFRecord file.
-    with beam.Pipeline(DirectRunner()) as p:
+    with TestPipeline() as p:
       expected_data = [self.create_inputs() for _ in range(0, 10)]
       _ = p | beam.Create(expected_data) | WriteToTFRecord(
           file_path_prefix, file_name_suffix='.gz')
 
     # Read the file back and compare.
-    with beam.Pipeline(DirectRunner()) as p:
+    with TestPipeline() as p:
       actual_data = p | ReadFromTFRecord(file_path_prefix + '-*')
       beam.assert_that(actual_data, beam.equal_to(expected_data))
 
@@ -353,13 +353,13 @@ class TestEnd2EndWriteAndRead(_TestCaseWithTempDirCleanUp):
     file_path_prefix = os.path.join(self._new_tempdir(), 'result')
 
     # Generate a TFRecord file.
-    with beam.Pipeline(DirectRunner()) as p:
+    with TestPipeline() as p:
       expected_data = [self.create_inputs() for _ in range(0, 10)]
       _ = p | beam.Create(expected_data) | WriteToTFRecord(
           file_path_prefix + '.gz', shard_name_template='')
 
     # Read the file back and compare.
-    with beam.Pipeline(DirectRunner()) as p:
+    with TestPipeline() as p:
       actual_data = p | ReadFromTFRecord(file_path_prefix + '.gz')
       beam.assert_that(actual_data, beam.equal_to(expected_data))
 
@@ -372,12 +372,12 @@ class TestEnd2EndWriteAndRead(_TestCaseWithTempDirCleanUp):
     example.features.feature['bytes'].bytes_list.value.extend(
         [b'foo', b'bar'])
 
-    with beam.Pipeline(DirectRunner()) as p:
+    with TestPipeline() as p:
       _ = p | beam.Create([example]) | WriteToTFRecord(
           file_path_prefix, coder=beam.coders.ProtoCoder(example.__class__))
 
     # Read the file back and compare.
-    with beam.Pipeline(DirectRunner()) as p:
+    with TestPipeline() as p:
       actual_data = (p | ReadFromTFRecord(
           file_path_prefix + '-*',
           coder=beam.coders.ProtoCoder(example.__class__)))

@@ -229,7 +229,7 @@ class PipelineTest(unittest.TestCase):
     num_elements = 10
     num_maps = 100
 
-    pipeline = TestPipeline(runner='DirectRunner')
+    pipeline = TestPipeline()
 
     # Consumed memory should not be proportional to the number of maps.
     memory_threshold = (

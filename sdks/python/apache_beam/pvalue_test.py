@@ -25,6 +25,7 @@ from apache_beam.pvalue import AsIter
 from apache_beam.pvalue import AsList
 from apache_beam.pvalue import AsSingleton
 from apache_beam.pvalue import PValue
+from apache_beam.test_pipeline import TestPipeline
 from apache_beam.transforms import Create
 
 
@@ -39,12 +40,12 @@ class FakePipeline(Pipeline):
 class PValueTest(unittest.TestCase):
 
   def test_pvalue_expected_arguments(self):
-    pipeline = Pipeline('DirectRunner')
+    pipeline = TestPipeline()
     value = PValue(pipeline)
     self.assertEqual(pipeline, value.pipeline)
 
   def test_pcollectionview_not_recreated(self):
-    pipeline = Pipeline('DirectRunner')
+    pipeline = TestPipeline()
     value = pipeline | 'create1' >> Create([1, 2, 3])
     value2 = pipeline | 'create2' >> Create([(1, 1), (2, 2), (3, 3)])
     value3 = pipeline | 'create3' >> Create([(1, 1), (2, 2), (3, 3)])
