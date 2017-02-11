@@ -35,7 +35,7 @@ The following options must be provided to run this pipeline in read-only mode:
 --project YOUR_PROJECT_ID
 --kind YOUR_DATASTORE_KIND
 --output [YOUR_LOCAL_FILE *or* gs://YOUR_OUTPUT_PATH]
---read-only
+--read_only
 ``
 
 Read-write Mode: In this mode, this example reads words from an input file,
@@ -66,8 +66,8 @@ import logging
 import re
 import uuid
 
-from google.datastore.v1 import entity_pb2
-from google.datastore.v1 import query_pb2
+from google.cloud.proto.datastore.v1 import entity_pb2
+from google.cloud.proto.datastore.v1 import query_pb2
 from googledatastore import helper as datastore_helper, PropertyFilter
 
 import apache_beam as beam

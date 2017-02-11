@@ -19,10 +19,10 @@
 import sys
 import unittest
 
-from google.datastore.v1 import datastore_pb2
-from google.datastore.v1 import entity_pb2
-from google.datastore.v1 import query_pb2
-from google.datastore.v1.entity_pb2 import Key
+from google.cloud.proto.datastore.v1 import datastore_pb2
+from google.cloud.proto.datastore.v1 import entity_pb2
+from google.cloud.proto.datastore.v1 import query_pb2
+from google.cloud.proto.datastore.v1.entity_pb2 import Key
 from googledatastore.connection import RPCError
 from googledatastore import helper as datastore_helper
 from mock import MagicMock

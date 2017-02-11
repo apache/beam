@@ -18,10 +18,10 @@
 """Implements a Cloud Datastore query splitter."""
 
 from apache_beam.io.datastore.v1 import helper
-from google.datastore.v1 import datastore_pb2
-from google.datastore.v1 import query_pb2
-from google.datastore.v1.query_pb2 import PropertyFilter
-from google.datastore.v1.query_pb2 import CompositeFilter
+from google.cloud.proto.datastore.v1 import datastore_pb2
+from google.cloud.proto.datastore.v1 import query_pb2
+from google.cloud.proto.datastore.v1.query_pb2 import PropertyFilter
+from google.cloud.proto.datastore.v1.query_pb2 import CompositeFilter
 from googledatastore import helper as datastore_helper
 
 
