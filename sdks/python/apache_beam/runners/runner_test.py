@@ -67,6 +67,18 @@ class RunnerTest(unittest.TestCase):
                    TestDataflowRunner))
     self.assertRaises(ValueError, create_runner, 'xyz')
 
+  def test_create_runner_shorthand(self):
+    self.assertTrue(
+        isinstance(create_runner('DiReCtRuNnEr'), DirectRunner))
+    self.assertTrue(
+        isinstance(create_runner('directrunner'), DirectRunner))
+    self.assertTrue(
+        isinstance(create_runner('direct'), DirectRunner))
+    self.assertTrue(
+        isinstance(create_runner('DiReCt'), DirectRunner))
+    self.assertTrue(
+        isinstance(create_runner('Direct'), DirectRunner))
+
   def test_remote_runner_translation(self):
     remote_runner = DataflowRunner()
     p = Pipeline(remote_runner,
