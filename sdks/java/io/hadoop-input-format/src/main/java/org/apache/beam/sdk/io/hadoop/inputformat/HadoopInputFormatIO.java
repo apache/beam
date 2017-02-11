@@ -706,17 +706,17 @@ public class HadoopInputFormatIO {
       final RecordReader<?, ?> reader;
       reader = fetchFirstRecord();
       if (property.contains("key")) {
-        boolean isKeyClassValide = checkEncodingAndDecoding(coder, (T) reader.getCurrentKey());
-        if (!isKeyClassValide) {
+        boolean isKeyClassValid = checkEncodingAndDecoding(coder, (T) reader.getCurrentKey());
+        if (!isKeyClassValid) {
           this.setExpectedKeyClass(reader.getCurrentKey().getClass());
         }
-        return isKeyClassValide;
+        return isKeyClassValid;
       } else {
-        boolean isValueClassValide = checkEncodingAndDecoding(coder, (T) reader.getCurrentValue());
-        if (!isValueClassValide) {
+        boolean isValueClassValid = checkEncodingAndDecoding(coder, (T) reader.getCurrentValue());
+        if (!isValueClassValid) {
           this.setExpectedValueClass(reader.getCurrentValue().getClass());
         }
-        return isValueClassValide;
+        return isValueClassValid;
       }
     }
 
@@ -1014,15 +1014,19 @@ public class HadoopInputFormatIO {
 
       /**
        * Returns RecordReader's progress.
+       *
+       * @throws IOException
        */
-      private Double getProgress() {
-        try {
-          synchronized (currentReader) {
+      private Double getProgress() throws IOException {
+        synchronized (currentReader) {
+          try {
             return (double) currentReader.getProgress();
+          } catch (IOException | InterruptedException e) {
+            LOG.error(HadoopInputFormatIOConstants.GETFRACTIONSCONSUMED_ERROR_MSG + e.getMessage(),
+                e);
+            throw new IOException(HadoopInputFormatIOConstants.GETFRACTIONSCONSUMED_ERROR_MSG
+                + e.getMessage(), e);
           }
-        } catch (IOException | InterruptedException e) {
-          LOG.error(HadoopInputFormatIOConstants.GETFRACTIONSCONSUMED_ERROR_MSG + e.getMessage(), e);
-          return 0.0;
         }
       }
 
@@ -1041,7 +1045,7 @@ public class HadoopInputFormatIO {
 
     /**
      * A wrapper to allow Hadoop {@link org.apache.hadoop.mapreduce.InputSplit} to be serialized
-     * using Java's standard serialization mechanisms. Note that the InputSplit has to be Writable.
+     * using Java's standard serialization mechanisms. Note that the InputSplit is always Writable.
      */
     public static class SerializableSplit implements Externalizable {
 
