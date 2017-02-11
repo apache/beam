@@ -30,15 +30,21 @@ import com.google.common.io.Files;
 import com.google.common.io.LineReader;
 import java.io.File;
 import java.io.FileNotFoundException;
+import java.io.IOException;
 import java.io.Reader;
 import java.io.Writer;
 import java.nio.channels.Channels;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Arrays;
 import java.util.List;
 import org.apache.beam.sdk.io.fs.CreateOptions.StandardCreateOptions;
+import org.apache.beam.sdk.io.fs.MatchResult;
+import org.apache.beam.sdk.io.fs.MatchResult.Metadata;
+import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
 import org.apache.beam.sdk.util.MimeTypes;
+import org.hamcrest.Matchers;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -147,6 +153,122 @@ public class LocalFileSystemTest {
     }
   }
 
+  @Test
+  public void testMatchExact() throws Exception {
+    List<String> expected = ImmutableList.of(temporaryFolder.newFile("a").toString());
+    temporaryFolder.newFile("aa");
+    temporaryFolder.newFile("ab");
+
+    List<MatchResult> matchResults = localFileSystem.match(
+        ImmutableList.of(temporaryFolder.getRoot().toPath().resolve("a").toString()));
+    assertThat(
+        toFilenames(matchResults),
+        containsInAnyOrder(expected.toArray(new String[expected.size()])));
+  }
+
+  @Test
+  public void testMatchPatternNone() throws Exception {
+    List<String> expected = ImmutableList.of();
+    temporaryFolder.newFile("a");
+    temporaryFolder.newFile("aa");
+    temporaryFolder.newFile("ab");
+
+    List<MatchResult> matchResults =
+        matchGlobWithPathPrefix(temporaryFolder.getRoot().toPath().resolve("b"), "*");
+    assertThat(
+        toFilenames(matchResults),
+        containsInAnyOrder(expected.toArray(new String[expected.size()])));
+  }
+
+  @Test
+  public void testMatchForNonExistentFile() throws Exception {
+    List<String> expected = ImmutableList.of();
+    temporaryFolder.newFile("aa");
+
+    List<MatchResult> matchResults = localFileSystem.match(
+        ImmutableList.of(temporaryFolder.getRoot().toPath().resolve("a").toString()));
+    assertThat(
+        toFilenames(matchResults),
+        containsInAnyOrder(expected.toArray(new String[expected.size()])));
+  }
+
+  @Test
+  public void testMatchMultipleWithFileExtension() throws Exception {
+    List<String> expected = ImmutableList.of(
+        temporaryFolder.newFile("a.txt").toString(),
+        temporaryFolder.newFile("aa.txt").toString(),
+        temporaryFolder.newFile("ab.txt").toString());
+    temporaryFolder.newFile("a.avro");
+    temporaryFolder.newFile("ab.avro");
+
+    List<MatchResult> matchResults =
+        matchGlobWithPathPrefix(temporaryFolder.getRoot().toPath().resolve("a"), "*.txt");
+    assertThat(
+        toFilenames(matchResults),
+        containsInAnyOrder(expected.toArray(new String[expected.size()])));
+  }
+
+  @Test
+  public void testMatchMultipleWithoutSubdirectoryExpansion() throws Exception {
+    File unmatchedSubDir = temporaryFolder.newFolder("aaa");
+    File unmatchedSubDirFile = File.createTempFile("sub-dir-file", "", unmatchedSubDir);
+    unmatchedSubDirFile.deleteOnExit();
+    List<String> expected = ImmutableList.of(temporaryFolder.newFile("a").toString(),
+        temporaryFolder.newFile("aa").toString(), temporaryFolder.newFile("ab").toString());
+    temporaryFolder.newFile("ba");
+    temporaryFolder.newFile("bb");
+
+    List<MatchResult> matchResults =
+        matchGlobWithPathPrefix(temporaryFolder.getRoot().toPath().resolve("a"), "*");
+    assertThat(
+        toFilenames(matchResults),
+        containsInAnyOrder(expected.toArray(new String[expected.size()])));
+  }
+
+  @Test
+  public void testMatchMultipleWithSubdirectoryExpansion() throws Exception {
+    File matchedSubDir = temporaryFolder.newFolder("a");
+    File matchedSubDirFile = File.createTempFile("sub-dir-file", "", matchedSubDir);
+    matchedSubDirFile.deleteOnExit();
+    File unmatchedSubDir = temporaryFolder.newFolder("b");
+    File unmatchedSubDirFile = File.createTempFile("sub-dir-file", "", unmatchedSubDir);
+    unmatchedSubDirFile.deleteOnExit();
+
+    List<String> expected = ImmutableList.of(matchedSubDirFile.toString(),
+        temporaryFolder.newFile("aa").toString(), temporaryFolder.newFile("ab").toString());
+    temporaryFolder.newFile("ba");
+    temporaryFolder.newFile("bb");
+
+    List<MatchResult> matchResults =
+        matchGlobWithPathPrefix(temporaryFolder.getRoot().toPath().resolve("a"), "**");
+    assertThat(
+        toFilenames(matchResults),
+        Matchers.hasItems(expected.toArray(new String[expected.size()])));
+  }
+
+  @Test
+  public void testMatchWithDirectoryFiltersOutDirectory() throws Exception {
+    List<String> expected = ImmutableList.of(temporaryFolder.newFile("a").toString());
+    temporaryFolder.newFolder("a_dir_that_should_not_be_matched");
+
+    List<MatchResult> matchResults =
+        matchGlobWithPathPrefix(temporaryFolder.getRoot().toPath().resolve("a"), "*");
+    assertThat(
+        toFilenames(matchResults),
+        containsInAnyOrder(expected.toArray(new String[expected.size()])));
+  }
+
+  @Test
+  public void testMatchWithoutParentDirectory() throws Exception {
+    Path pattern = LocalResourceId
+        .fromPath(temporaryFolder.getRoot().toPath(), true /* isDirectory */)
+        .resolve("non_existing_dir", StandardResolveOptions.RESOLVE_DIRECTORY)
+        .resolve("*", StandardResolveOptions.RESOLVE_FILE)
+        .getPath();
+    assertTrue(
+        toFilenames(localFileSystem.match(ImmutableList.of(pattern.toString()))).isEmpty());
+  }
+
   private void createFileWithContent(Path path, String content) throws Exception {
     try (Writer writer = Channels.newWriter(
         localFileSystem.create(
@@ -157,6 +279,12 @@ public class LocalFileSystemTest {
     }
   }
 
+  private List<MatchResult> matchGlobWithPathPrefix(Path pathPrefix, String glob)
+      throws IOException {
+    // Windows doesn't like resolving paths with * in glob, so the glob is concatenated as String.
+    return localFileSystem.match(ImmutableList.of(pathPrefix + glob));
+  }
+
   private List<LocalResourceId> toLocalResourceIds(List<Path> paths, final boolean isDirectory) {
     return FluentIterable
         .from(paths)
@@ -164,6 +292,26 @@ public class LocalFileSystemTest {
           @Override
           public LocalResourceId apply(Path path) {
             return LocalResourceId.fromPath(path, isDirectory);
+          }})
+        .toList();
+  }
+
+  private List<String> toFilenames(List<MatchResult> matchResults) {
+    return FluentIterable
+        .from(matchResults)
+        .transformAndConcat(new Function<MatchResult, Iterable<Metadata>>() {
+          @Override
+          public Iterable<Metadata> apply(MatchResult matchResult) {
+            try {
+              return Arrays.asList(matchResult.metadata());
+            } catch (IOException e) {
+              throw new RuntimeException(e);
+            }
+          }})
+        .transform(new Function<Metadata, String>() {
+          @Override
+          public String apply(Metadata metadata) {
+            return ((LocalResourceId) metadata.resourceId()).getPath().toString();
           }})
         .toList();
   }
