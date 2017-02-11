@@ -1073,7 +1073,9 @@ class BigQueryWrapper(object):
         result[field.name] = [self._convert_cell_value_to_dict(x['v'], field)
                               for x in value]
       elif value is None:
-        assert field.mode == 'NULLABLE'
+        if not field.mode == 'NULLABLE':
+          raise ValueError('Received \'None\' as the value for the field %s '
+                           'but the field is not NULLABLE.', field.name)
         result[field.name] = None
       else:
         result[field.name] = self._convert_cell_value_to_dict(value, field)
