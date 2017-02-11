@@ -28,6 +28,7 @@ import java.util.Collection;
 import java.util.List;
 import org.apache.beam.sdk.io.FileSystem;
 import org.apache.beam.sdk.io.fs.CreateOptions;
+import org.apache.beam.sdk.io.fs.MatchResult;
 import org.apache.beam.sdk.options.GcsOptions;
 
 /**
@@ -38,6 +39,11 @@ class GcsFileSystem extends FileSystem<GcsResourceId> {
 
   GcsFileSystem(GcsOptions options) {
     this.options = checkNotNull(options, "options");
+  }
+
+  @Override
+  protected List<MatchResult> match(List<String> specs) throws IOException {
+    throw new UnsupportedOperationException();
   }
 
   @Override

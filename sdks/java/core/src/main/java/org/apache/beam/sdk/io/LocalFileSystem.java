@@ -19,6 +19,11 @@ package org.apache.beam.sdk.io;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
+import com.google.common.base.Predicate;
+import com.google.common.base.Predicates;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Iterables;
+import com.google.common.collect.Lists;
 import java.io.BufferedOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
@@ -29,10 +34,16 @@ import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.WritableByteChannel;
 import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
+import java.nio.file.PathMatcher;
+import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.util.Collection;
 import java.util.List;
+import java.util.regex.Matcher;
 import org.apache.beam.sdk.io.fs.CreateOptions;
+import org.apache.beam.sdk.io.fs.MatchResult;
+import org.apache.beam.sdk.io.fs.MatchResult.Metadata;
+import org.apache.beam.sdk.io.fs.MatchResult.Status;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -43,7 +54,18 @@ class LocalFileSystem extends FileSystem<LocalResourceId> {
 
   private static final Logger LOG = LoggerFactory.getLogger(LocalFileSystem.class);
 
+  private static final Metadata[] EMPTY_METADATA = new Metadata[0];
+
   LocalFileSystem() {
+  }
+
+  @Override
+  protected List<MatchResult> match(List<String> specs) throws IOException {
+    ImmutableList.Builder<MatchResult> ret = ImmutableList.builder();
+    for (String spec : specs) {
+      ret.add(matchOne(spec));
+    }
+    return ret.build();
   }
 
   @Override
@@ -142,5 +164,48 @@ class LocalFileSystem extends FileSystem<LocalResourceId> {
         LOG.debug("Tried to delete {}, but it did not exist", resourceId);
       }
     }
+  }
+
+  private MatchResult matchOne(String spec) throws IOException {
+    File file = Paths.get(spec).toFile();
+
+    File parent = file.getAbsoluteFile().getParentFile();
+    if (!parent.exists()) {
+      return MatchResult.create(Status.NOT_FOUND, EMPTY_METADATA);
+    }
+
+    // Method getAbsolutePath() on Windows platform may return something like
+    // "c:\temp\file.txt". FileSystem.getPathMatcher() call below will treat
+    // '\' (backslash) as an escape character, instead of a directory
+    // separator. Replacing backslash with double-backslash solves the problem.
+    // We perform the replacement on all platforms, even those that allow
+    // backslash as a part of the filename, because Globs.toRegexPattern will
+    // eat one backslash.
+    String pathToMatch = file.getAbsolutePath().replaceAll(Matcher.quoteReplacement("\\"),
+        Matcher.quoteReplacement("\\\\"));
+
+    final PathMatcher matcher =
+        java.nio.file.FileSystems.getDefault().getPathMatcher("glob:" + pathToMatch);
+
+    Iterable<File> files = com.google.common.io.Files.fileTreeTraverser().preOrderTraversal(parent);
+    Iterable<File> matchedFiles = Iterables.filter(files,
+        Predicates.and(
+            com.google.common.io.Files.isFile(),
+            new Predicate<File>() {
+              @Override
+              public boolean apply(File input) {
+                return matcher.matches(input.toPath());
+              }
+            }));
+
+    List<Metadata> result = Lists.newLinkedList();
+    for (File match : matchedFiles) {
+      result.add(Metadata.builder()
+          .setResourceId(LocalResourceId.fromPath(match.toPath(), match.isDirectory()))
+          .setIsReadSeekEfficient(true)
+          .setSizeBytes(match.length())
+          .build());
+    }
+    return MatchResult.create(Status.OK, result.toArray(new Metadata[result.size()]));
   }
 }
