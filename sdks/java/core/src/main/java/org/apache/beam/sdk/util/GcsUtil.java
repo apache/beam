@@ -220,8 +220,6 @@ public class GcsUtil {
     List<GcsPath> results = new LinkedList<>();
     do {
       Objects objects = listObjects(gcsPattern.getBucket(), prefix, pageToken);
-      checkNotNull(objects);
-
       if (objects.getItems() == null) {
         break;
       }

@@ -320,7 +320,7 @@ public class GcsUtilTest {
     when(mockStorageGet.execute()).thenThrow(expectedException);
 
     thrown.expect(IOException.class);
-    thrown.expectMessage("Unable to match files for pattern");
+    thrown.expectMessage("Unable to get the file object for path");
     gcsUtil.expand(pattern);
   }
 
