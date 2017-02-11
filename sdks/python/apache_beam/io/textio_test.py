@@ -529,7 +529,7 @@ class TextSourceTest(_TestCaseWithTempDirCleanUp):
     with gzip.GzipFile(file_name, 'wb') as f:
       f.write('\n'.join(lines))
 
-    pipeline = beam.Pipeline('DirectRunner')
+    pipeline = TestPipeline()
     pcoll = pipeline | 'Read' >> ReadFromText(
         file_name, 0, CompressionTypes.GZIP,
         True, coders.StrUtf8Coder(), skip_header_lines=2)
