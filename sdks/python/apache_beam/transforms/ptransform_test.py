@@ -81,30 +81,6 @@ class PTransformTest(unittest.TestCase):
         """inputs=('ci',) side_inputs=('cs',)>""",
         str(inputs_tr))
 
-  def test_parse_label_and_arg(self):
-
-    def fun(*args, **kwargs):
-      return PTransform().parse_label_and_arg(args, kwargs, 'name')
-
-    self.assertEqual(('PTransform', 'value'), fun('value'))
-    self.assertEqual(('PTransform', 'value'), fun(name='value'))
-    self.assertEqual(('label', 'value'), fun('label', 'value'))
-    self.assertEqual(('label', 'value'), fun('label', name='value'))
-    self.assertEqual(('label', 'value'), fun('value', label='label'))
-    self.assertEqual(('label', 'value'), fun(name='value', label='label'))
-
-    self.assertRaises(ValueError, fun)
-    self.assertRaises(ValueError, fun, 0, 'value')
-    self.assertRaises(ValueError, fun, label=0, name='value')
-    self.assertRaises(ValueError, fun, other='value')
-
-    with self.assertRaises(ValueError) as cm:
-      fun(0, name='value')
-    self.assertEqual(
-        cm.exception.message,
-        'PTransform expects a (label, name) or (name) argument list '
-        'instead of args=(0,), kwargs={\'name\': \'value\'}')
-
   def test_do_with_do_fn(self):
     class AddNDoFn(beam.DoFn):
 
@@ -204,8 +180,8 @@ class PTransformTest(unittest.TestCase):
 
     pipeline = TestPipeline()
     nums = pipeline | 'Some Numbers' >> beam.Create([1, 2, 3, 4])
-    results = nums | beam.ParDo(
-        'ClassifyNumbers', SomeDoFn()).with_outputs('odd', 'even', main='main')
+    results = nums | 'ClassifyNumbers' >> beam.ParDo(
+        SomeDoFn()).with_outputs('odd', 'even', main='main')
     assert_that(results.main, equal_to([1, 2, 3, 4]))
     assert_that(results.odd, equal_to([1, 3]), label='assert:odd')
     assert_that(results.even, equal_to([2, 4]), label='assert:even')
@@ -221,8 +197,8 @@ class PTransformTest(unittest.TestCase):
 
     pipeline = TestPipeline()
     nums = pipeline | 'Some Numbers' >> beam.Create([1, 2, 3, 4])
-    results = nums | beam.FlatMap(
-        'ClassifyNumbers', some_fn).with_outputs('odd', 'even', main='main')
+    results = nums | 'ClassifyNumbers' >> beam.FlatMap(
+        some_fn).with_outputs('odd', 'even', main='main')
     assert_that(results.main, equal_to([1, 2, 3, 4]))
     assert_that(results.odd, equal_to([1, 3]), label='assert:odd')
     assert_that(results.even, equal_to([2, 4]), label='assert:even')
@@ -232,8 +208,7 @@ class PTransformTest(unittest.TestCase):
   def test_undeclared_side_outputs(self):
     pipeline = TestPipeline()
     nums = pipeline | 'Some Numbers' >> beam.Create([1, 2, 3, 4])
-    results = nums | beam.FlatMap(
-        'ClassifyNumbers',
+    results = nums | 'ClassifyNumbers' >> beam.FlatMap(
         lambda x: [x,
                    pvalue.SideOutputValue('even' if x % 2 == 0 else 'odd', x)]
     ).with_outputs()
@@ -246,8 +221,7 @@ class PTransformTest(unittest.TestCase):
   def test_empty_side_outputs(self):
     pipeline = TestPipeline()
     nums = pipeline | 'Some Numbers' >> beam.Create([1, 3, 5])
-    results = nums | beam.FlatMap(
-        'ClassifyNumbers',
+    results = nums | 'ClassifyNumbers' >> beam.FlatMap(
         lambda x: [x,
                    pvalue.SideOutputValue('even' if x % 2 == 0 else 'odd', x)]
     ).with_outputs()
@@ -388,8 +362,8 @@ class PTransformTest(unittest.TestCase):
 
   def test_group_by_key(self):
     pipeline = TestPipeline()
-    pcoll = pipeline | beam.Create(
-        'start', [(1, 1), (2, 1), (3, 1), (1, 2), (2, 2), (1, 3)])
+    pcoll = pipeline | 'start' >> beam.Create(
+        [(1, 1), (2, 1), (3, 1), (1, 2), (2, 2), (1, 3)])
     result = pcoll | 'Group' >> beam.GroupByKey()
     assert_that(result, equal_to([(1, [1, 2, 3]), (2, [1, 2]), (3, [1])]))
     pipeline.run()
@@ -423,8 +397,7 @@ class PTransformTest(unittest.TestCase):
     pipeline = TestPipeline()
     pcoll = pipeline | 'Start' >> beam.Create([0, 1, 2, 3, 4, 5, 6, 7, 8])
     partitions = (
-        pcoll | beam.Partition(
-            'part',
+        pcoll | 'part' >> beam.Partition(
             lambda e, n, offset: (e % 3) + offset, 4,
             1))
     assert_that(partitions[0], equal_to([]))
@@ -544,8 +517,8 @@ class PTransformTest(unittest.TestCase):
     pipeline = TestPipeline()
     pcoll = pipeline | 'Start' >> beam.Create(
         [(3, 1), (2, 1), (1, 1), (3, 2), (2, 2), (3, 3)])
-    keys = pcoll.apply('keys', beam.Keys())
-    vals = pcoll.apply('vals', beam.Values())
+    keys = pcoll.apply(beam.Keys('keys'))
+    vals = pcoll.apply(beam.Values('vals'))
     assert_that(keys, equal_to([1, 2, 2, 3, 3, 3]), label='assert:keys')
     assert_that(vals, equal_to([1, 1, 1, 2, 2, 3]), label='assert:vals')
     pipeline.run()
@@ -554,7 +527,7 @@ class PTransformTest(unittest.TestCase):
     pipeline = TestPipeline()
     pcoll = pipeline | 'Start' >> beam.Create(
         [(6, 3), (1, 2), (7, 1), (5, 2), (3, 2)])
-    result = pcoll.apply('swap', beam.KvSwap())
+    result = pcoll.apply(beam.KvSwap(), label='swap')
     assert_that(result, equal_to([(1, 7), (2, 1), (2, 3), (2, 5), (3, 6)]))
     pipeline.run()
 
@@ -562,7 +535,7 @@ class PTransformTest(unittest.TestCase):
     pipeline = TestPipeline()
     pcoll = pipeline | 'Start' >> beam.Create(
         [6, 3, 1, 1, 9, 'pleat', 'pleat', 'kazoo', 'navel'])
-    result = pcoll.apply('nodupes', beam.RemoveDuplicates())
+    result = pcoll.apply(beam.RemoveDuplicates())
     assert_that(result, equal_to([1, 3, 6, 9, 'pleat', 'kazoo', 'navel']))
     pipeline.run()
 
@@ -612,7 +585,7 @@ class PTransformTest(unittest.TestCase):
         keys = reduce(operator.or_, [set(p.keys()) for p in pcoll_dicts])
         res = {}
         for k in keys:
-          res[k] = [p[k] for p in pcoll_dicts if k in p] | beam.Flatten(k)
+          res[k] = [p[k] for p in pcoll_dicts if k in p] | k >> beam.Flatten()
         return res
     res = [{'a': [1, 2, 3]},
            {'a': [4, 5, 6], 'b': ['x', 'y', 'z']},
@@ -689,8 +662,7 @@ class PTransformLabelsTest(unittest.TestCase):
   def test_apply_ptransform_using_decorator(self):
     pipeline = TestPipeline()
     pcoll = pipeline | 'PColl' >> beam.Create([1, 2, 3])
-    sample = SamplePTransform('*Sample*')
-    _ = pcoll | sample
+    _ = pcoll | '*Sample*' >> SamplePTransform()
     self.assertTrue('*Sample*' in pipeline.applied_labels)
     self.assertTrue('*Sample*/ToPairs' in pipeline.applied_labels)
     self.assertTrue('*Sample*/Group' in pipeline.applied_labels)
@@ -729,7 +701,17 @@ class PTransformLabelsTest(unittest.TestCase):
 
   def test_lable_propogation(self):
     self.check_label('TestMap' >> beam.Map(len), r'TestMap')
-    self.check_label('TestFilter' >> beam.Filter(len), r'TestFilter')
+    self.check_label('TestLambda' >> beam.Map(lambda x: x), r'TestLambda')
+    self.check_label('TestFlatMap' >> beam.FlatMap(list), r'TestFlatMap')
+    self.check_label('TestFilter' >> beam.Filter(sum), r'TestFilter')
+    self.check_label('TestCG' >> beam.CombineGlobally(sum), r'TestCG')
+    self.check_label('TestCPK' >> beam.CombinePerKey(sum), r'TestCPK')
+
+    class MyDoFn(beam.DoFn):
+      def process(self):
+        pass
+
+    self.check_label('TestParDo' >> beam.ParDo(MyDoFn()), r'TestParDo')
 
 
 class PTransformTestDisplayData(unittest.TestCase):

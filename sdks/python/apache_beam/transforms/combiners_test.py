@@ -78,12 +78,10 @@ class CombineTest(unittest.TestCase):
     result_top = pcoll | 'top' >> combine.Top.Largest(5)
     result_bot = pcoll | 'bot' >> combine.Top.Smallest(4)
     result_cmp = pcoll | 'cmp' >> combine.Top.Of(
-        'cmp',
         6,
         lambda a, b, names: len(names[a]) < len(names[b]),
         names)  # Note parameter passed to comparator.
     result_cmp_rev = pcoll | 'cmp_rev' >> combine.Top.Of(
-        'cmp',
         3,
         lambda a, b, names: len(names[a]) < len(names[b]),
         names,  # Note parameter passed to comparator.
@@ -227,7 +225,7 @@ class CombineTest(unittest.TestCase):
       pcoll = pipeline | 'start' >> Create([1, 1, 2, 2])
       for ix in xrange(9):
         assert_that(
-            pcoll | combine.Sample.FixedSizeGlobally('sample-%d' % ix, 3),
+            pcoll | 'sample-%d' % ix >> combine.Sample.FixedSizeGlobally(3),
             is_good_sample,
             label='check-%d' % ix)
 

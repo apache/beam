@@ -476,7 +476,7 @@ class ToList(ptransform.PTransform):
     super(ToList, self).__init__(label)
 
   def expand(self, pcoll):
-    return pcoll | core.CombineGlobally(self.label, ToListCombineFn())
+    return pcoll | self.label >> core.CombineGlobally(ToListCombineFn())
 
 
 @with_input_types(T)
@@ -510,7 +510,7 @@ class ToDict(ptransform.PTransform):
     super(ToDict, self).__init__(label)
 
   def expand(self, pcoll):
-    return pcoll | core.CombineGlobally(self.label, ToDictCombineFn())
+    return pcoll | self.label >> core.CombineGlobally(ToDictCombineFn())
 
 
 @with_input_types(Tuple[K, V])
