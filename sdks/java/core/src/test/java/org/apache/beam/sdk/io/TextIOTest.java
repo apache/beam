@@ -480,8 +480,8 @@ public class TextIOTest {
 
     final List<String> drunkElems = new ArrayList<>(LINES2_ARRAY.length * 2 + 2);
     for (String elem : LINES2_ARRAY) {
-      drunkElems.add(elem + elem);
-      drunkElems.add("");
+      drunkElems.add(elem);
+      drunkElems.add(elem);
     }
     assertOutputFiles(drunkElems.toArray(new String[0]), null, null, 1, baseDir,
         outputName + writableByteChannelFactory.getFilenameSuffix(), write.getShardNameTemplate());

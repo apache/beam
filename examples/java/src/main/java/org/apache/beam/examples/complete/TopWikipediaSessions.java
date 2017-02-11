@@ -17,8 +17,6 @@
  */
 package org.apache.beam.examples.complete;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
 import com.google.api.services.bigquery.model.TableRow;
 import java.io.IOException;
 import java.util.List;
@@ -42,6 +40,7 @@ import org.apache.beam.sdk.transforms.windowing.CalendarWindows;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.Sessions;
 import org.apache.beam.sdk.transforms.windowing.Window;
+import org.apache.beam.sdk.util.Transport;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
@@ -142,13 +141,10 @@ public class TopWikipediaSessions {
   }
 
   static class ParseTableRowJson implements SerializableFunction<String, TableRow> {
-    private final ObjectMapper mapper =
-        new ObjectMapper().disable(SerializationFeature.FAIL_ON_EMPTY_BEANS);
-
     @Override
     public TableRow apply(String input) {
       try {
-        return mapper.readValue(input, TableRow.class);
+        return Transport.getJsonFactory().fromString(input, TableRow.class);
       } catch (IOException e) {
         throw new RuntimeException("Failed parsing table row json", e);
       }

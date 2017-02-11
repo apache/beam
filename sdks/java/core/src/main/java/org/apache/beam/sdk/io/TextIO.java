@@ -26,7 +26,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.protobuf.ByteString;
 
 import java.io.IOException;
-import java.io.OutputStream;
+import java.io.OutputStreamWriter;
 import java.nio.ByteBuffer;
 import java.nio.channels.Channels;
 import java.nio.channels.ReadableByteChannel;
@@ -39,7 +39,6 @@ import java.util.regex.Pattern;
 import javax.annotation.Nullable;
 
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.Coder.Context;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.io.FileBasedSink.WritableByteChannelFactory;
@@ -66,7 +65,8 @@ import org.apache.beam.sdk.values.PDone;
  * {@code "gs://<bucket>/<filepath>"}).
  *
  * <p>{@link TextIO.Read} returns a {@link PCollection} of {@link String Strings},
- * each corresponding to one line of an input UTF-8 text file.
+ * each corresponding to one line of an input UTF-8 text file (split into lines delimited by '\n',
+ * '\r', or '\r\n').
  *
  * <p>Example:
  *
@@ -981,7 +981,7 @@ public class TextIO {
        */
       private void decodeCurrentElement() throws IOException {
         ByteString dataToDecode = buffer.substring(0, startOfSeparatorInBuffer);
-        currentValue = DEFAULT_TEXT_CODER.decode(dataToDecode.newInput(), Context.OUTER);
+        currentValue = dataToDecode.toStringUtf8();
         elementIsPresent = true;
         buffer = buffer.substring(endOfSeparatorInBuffer);
       }
@@ -1058,10 +1058,10 @@ public class TextIO {
      * for text files.
      */
     private static class TextWriter extends FileBasedWriter<String> {
-      private static final byte[] NEWLINE = "\n".getBytes(StandardCharsets.UTF_8);
+      private static final String NEWLINE = "\n";
       @Nullable private final String header;
       @Nullable private final String footer;
-      private OutputStream out;
+      private OutputStreamWriter out;
 
       public TextWriter(
           FileBasedWriteOperation<String> writeOperation,
@@ -1074,18 +1074,25 @@ public class TextIO {
       }
 
       /**
-       * Writes {@code value} followed by a newline if {@code value} is not null.
+       * Writes {@code value} followed by a newline character if {@code value} is not null.
        */
       private void writeIfNotNull(@Nullable String value) throws IOException {
         if (value != null) {
-          out.write(value.getBytes(StandardCharsets.UTF_8));
-          out.write(NEWLINE);
+          writeLine(value);
         }
+      }
+
+      /**
+       * Writes {@code value} followed by newline character.
+       */
+      private void writeLine(String value) throws IOException {
+        out.write(value);
+        out.write(NEWLINE);
       }
 
       @Override
       protected void prepareWrite(WritableByteChannel channel) throws Exception {
-        out = Channels.newOutputStream(channel);
+        out = new OutputStreamWriter(Channels.newOutputStream(channel), StandardCharsets.UTF_8);
       }
 
       @Override
@@ -1096,12 +1103,13 @@ public class TextIO {
       @Override
       protected void writeFooter() throws Exception {
         writeIfNotNull(footer);
+        // Flush here because there is currently no other natural place to do this. [BEAM-1465]
+        out.flush();
       }
 
       @Override
       public void write(String value) throws Exception {
-        DEFAULT_TEXT_CODER.encode(value, out, Context.OUTER);
-        out.write(NEWLINE);
+        writeLine(value);
       }
     }
   }
