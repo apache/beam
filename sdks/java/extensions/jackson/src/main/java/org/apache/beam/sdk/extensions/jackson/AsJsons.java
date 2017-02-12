@@ -37,7 +37,9 @@ public class AsJsons<InputT> extends PTransform<PCollection<InputT>, PCollection
   private ObjectMapper customMapper;
 
   /**
-   * Creates an {@link AsJsons} for given output class.
+   * Creates a {@link AsJsons} {@link PTransform} that will transform a {@code PCollection<InputT>}
+   * into a {@link PCollection} of JSON {@link String Strings} representing those objects using a
+   * Jackson {@link ObjectMapper}.
    */
   public static <OutputT> AsJsons<OutputT> of(Class<? extends OutputT> outputClass) {
     return new AsJsons<>(outputClass);
@@ -47,6 +49,9 @@ public class AsJsons<InputT> extends PTransform<PCollection<InputT>, PCollection
     this.inputClass = outputClass;
   }
 
+  /**
+   * Use custom Jackson {@link ObjectMapper} instead of the default one.
+   */
   public AsJsons<InputT> withMapper(ObjectMapper mapper) {
     AsJsons<InputT> newTransform = new AsJsons<>(inputClass);
     newTransform.customMapper = mapper;

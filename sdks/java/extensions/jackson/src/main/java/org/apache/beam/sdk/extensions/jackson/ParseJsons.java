@@ -38,7 +38,7 @@ public class ParseJsons<OutputT> extends PTransform<PCollection<String>, PCollec
 
   /**
    * Creates a {@link ParseJsons} {@link PTransform} that will parse JSON {@link String Strings}
-   * into a {@code PCollection<OutputT>}.
+   * into a {@code PCollection<OutputT>} using a Jackson {@link ObjectMapper}.
    */
   public static <OutputT> ParseJsons<OutputT> of(Class<? extends OutputT> outputClass) {
     return new ParseJsons<>(outputClass);
@@ -48,6 +48,9 @@ public class ParseJsons<OutputT> extends PTransform<PCollection<String>, PCollec
     this.outputClass = outputClass;
   }
 
+  /**
+   * Use custom Jackson {@link ObjectMapper} instead of the default one.
+   */
   public ParseJsons<OutputT> withMapper(ObjectMapper mapper) {
     ParseJsons<OutputT> newTransform = new ParseJsons<>(outputClass);
     newTransform.customMapper = mapper;
