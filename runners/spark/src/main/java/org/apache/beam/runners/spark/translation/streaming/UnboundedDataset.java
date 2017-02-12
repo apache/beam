@@ -18,6 +18,7 @@
 
 package org.apache.beam.runners.spark.translation.streaming;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Iterables;
 
 import java.util.ArrayList;
@@ -70,6 +71,11 @@ public class UnboundedDataset<T> implements Dataset {
     this.coder = coder;
     // QueuedStream will have a negative (decreasing) unique id.
     this.streamingSources.add(queuedStreamIds.decrementAndGet());
+  }
+
+  @VisibleForTesting
+  public static void resetQueuedStreamIds() {
+    queuedStreamIds.set(0);
   }
 
   @SuppressWarnings("ConstantConditions")
