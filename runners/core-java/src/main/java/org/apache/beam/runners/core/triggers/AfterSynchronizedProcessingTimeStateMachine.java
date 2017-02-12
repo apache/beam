@@ -25,6 +25,7 @@ import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.util.TimeDomain;
 import org.joda.time.Instant;
 
+// This should not really have the superclass https://issues.apache.org/jira/browse/BEAM-1486
 class AfterSynchronizedProcessingTimeStateMachine extends AfterDelayFromFirstElementStateMachine {
 
   @Override
