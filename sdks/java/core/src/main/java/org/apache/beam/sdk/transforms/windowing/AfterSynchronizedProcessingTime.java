@@ -23,8 +23,8 @@ import org.apache.beam.sdk.transforms.windowing.Trigger.OnceTrigger;
 import org.joda.time.Instant;
 
 /**
- * A trigger that fires after synchronized processing time has reached the processing time of the
- * first element's arrival.
+ * <i><b>FOR INTERNAL USE ONLY</b></i>. A trigger that fires after synchronized processing time has
+ * reached the processing time of the first element's arrival.
  *
  * <p>This is for internal, primarily as a "continuation trigger" for {@link AfterProcessingTime}
  * triggers. In that use, this trigger is ready as soon as all upstream workers processing time
@@ -32,7 +32,11 @@ import org.joda.time.Instant;
  */
 public class AfterSynchronizedProcessingTime extends OnceTrigger {
 
-  public AfterSynchronizedProcessingTime() {
+  public static AfterSynchronizedProcessingTime ofFirstElement() {
+    return new AfterSynchronizedProcessingTime();
+  }
+
+  private AfterSynchronizedProcessingTime() {
     super(null);
   }
 
