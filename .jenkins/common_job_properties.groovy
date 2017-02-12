@@ -166,6 +166,10 @@ class common_job_properties {
     context.mavenInstallation('Maven 3.3.3')
     context.mavenOpts('-Dorg.slf4j.simpleLogger.showDateTime=true')
     context.mavenOpts('-Dorg.slf4j.simpleLogger.dateTimeFormat=yyyy-MM-dd\\\'T\\\'HH:mm:ss.SSS')
+    // The -XX:+TieredCompilation -XX:TieredStopAtLevel=1 JVM options enable
+    // tiered compilation to make the JVM startup times faster during the tests.
+    context.mavenOpts('-XX:+TieredCompilation')
+    context.mavenOpts('-XX:TieredStopAtLevel=1')
     context.rootPOM('pom.xml')
     // Use a repository local to the workspace for better isolation of jobs.
     context.localRepository(LocalRepositoryLocation.LOCAL_TO_WORKSPACE)
