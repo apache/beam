@@ -183,6 +183,11 @@
 
   <dependencies>
     <dependency>
+      <groupId>org.apache.beam</groupId>
+      <artifactId>beam-sdks-common-runner-api</artifactId>
+    </dependency>
+
+    <dependency>
       <groupId>io.grpc</groupId>
       <artifactId>grpc-auth</artifactId>
     </dependency>
