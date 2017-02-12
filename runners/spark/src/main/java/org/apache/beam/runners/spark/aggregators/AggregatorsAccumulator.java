@@ -89,7 +89,7 @@ public class AggregatorsAccumulator {
   }
 
   @VisibleForTesting
-  static void clear() {
+  public static void clear() {
     synchronized (AggregatorsAccumulator.class) {
       instance = null;
     }
