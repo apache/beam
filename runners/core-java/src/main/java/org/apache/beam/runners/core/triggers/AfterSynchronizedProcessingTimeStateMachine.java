@@ -28,13 +28,17 @@ import org.joda.time.Instant;
 // This should not really have the superclass https://issues.apache.org/jira/browse/BEAM-1486
 class AfterSynchronizedProcessingTimeStateMachine extends AfterDelayFromFirstElementStateMachine {
 
+  public static AfterSynchronizedProcessingTimeStateMachine ofFirstElement() {
+    return new AfterSynchronizedProcessingTimeStateMachine();
+  }
+
   @Override
   @Nullable
   public Instant getCurrentTime(TriggerStateMachine.TriggerContext context) {
     return context.currentSynchronizedProcessingTime();
   }
 
-  public AfterSynchronizedProcessingTimeStateMachine() {
+  private AfterSynchronizedProcessingTimeStateMachine() {
     super(TimeDomain.SYNCHRONIZED_PROCESSING_TIME,
         Collections.<SerializableFunction<Instant, Instant>>emptyList());
   }

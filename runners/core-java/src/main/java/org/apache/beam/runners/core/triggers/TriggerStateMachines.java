@@ -116,7 +116,7 @@ public class TriggerStateMachines {
     }
 
     private OnceTriggerStateMachine evaluateSpecific(AfterSynchronizedProcessingTime v) {
-      return new AfterSynchronizedProcessingTimeStateMachine();
+      return AfterSynchronizedProcessingTimeStateMachine.ofFirstElement();
     }
 
     private OnceTriggerStateMachine evaluateSpecific(AfterFirst v) {
