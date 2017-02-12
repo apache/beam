@@ -65,10 +65,7 @@ import org.junit.rules.TemporaryFolder;
 /**
  * Tests DStream recovery from checkpoint - recreate the job and continue (from checkpoint).
  *
- * <p>Tests Aggregators, which rely on Accumulators - Aggregators should be available, though
- * state is not preserved (Spark issue), so they start from initial value.
- * //TODO: after the runner supports recovering the state of Aggregators, update this test's
- * expected values for the recovered (second) run.
+ * <p>Tests Aggregators, which rely on Accumulators - Aggregators should be available.
  */
 public class ResumeFromCheckpointStreamingTest {
   private static final EmbeddedKafkaCluster.EmbeddedZookeeper EMBEDDED_ZOOKEEPER =
