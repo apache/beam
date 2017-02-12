@@ -1310,7 +1310,7 @@
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-shade-plugin</artifactId>
-          <version>2.4.3</version>
+          <version>3.0.0</version>
         </plugin>
 
         <plugin>
@@ -1448,7 +1448,7 @@
                   <version>[1.7,)</version>
                 </requireJavaVersion>
                 <requireMavenVersion>
-                  <!-- Keep aligned with preqrequisite section below. -->
+                  <!-- Keep aligned with prerequisite section below. -->
                   <version>[3.2,)</version>
                 </requireMavenVersion>
               </rules>
@@ -1483,7 +1483,6 @@
       </plugin>
     </plugins>
   </reporting>
-
   <prerequisites>
     <!-- Keep aligned with requireMavenVersion section above. -->
     <maven>3.2</maven>
