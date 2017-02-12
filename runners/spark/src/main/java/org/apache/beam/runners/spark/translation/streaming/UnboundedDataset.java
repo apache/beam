@@ -20,7 +20,6 @@ package org.apache.beam.runners.spark.translation.streaming;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Iterables;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Queue;
