@@ -34,6 +34,7 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableComparator;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.transforms.Top;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.CalendarWindows;
@@ -140,7 +141,7 @@ public class TopWikipediaSessions {
     }
   }
 
-  static class ParseTableRowJson implements SerializableFunction<String, TableRow> {
+  static class ParseTableRowJson extends SimpleFunction<String,TableRow> {
     @Override
     public TableRow apply(String input) {
       try {
@@ -209,8 +210,7 @@ public class TopWikipediaSessions {
     double samplingThreshold = 0.1;
 
     p.apply(TextIO.Read.from(options.getInput()))
-        .apply(MapElements.via(new ParseTableRowJson())
-            .withOutputType(TypeDescriptor.of(TableRow.class)))
+        .apply(MapElements.via(new ParseTableRowJson()))
         .apply(new ComputeTopSessions(samplingThreshold))
         .apply("Write", TextIO.Write.withoutSharding().to(options.getOutput()));
 
