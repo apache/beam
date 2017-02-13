@@ -21,7 +21,6 @@ package org.apache.beam.runners.core;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
-import com.google.protobuf.BytesValue;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.Map;
@@ -31,6 +30,7 @@ import org.apache.beam.fn.harness.data.BeamFnDataClient;
 import org.apache.beam.fn.harness.fn.ThrowingConsumer;
 import org.apache.beam.fn.v1.BeamFnApi;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.common.runner.v1.RunnerApi;
 import org.apache.beam.sdk.util.Serializer;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
@@ -59,26 +59,27 @@ public class BeamFnDataReadRunner<OutputT> {
   private CompletableFuture<Void> readFuture;
 
   public BeamFnDataReadRunner(
-      BeamFnApi.FunctionSpec functionSpec,
+      RunnerApi.FunctionSpec functionSpec,
       Supplier<Long> processBundleInstructionIdSupplier,
       BeamFnApi.Target inputTarget,
-      BeamFnApi.Coder coderSpec,
+      RunnerApi.FunctionSpec coderSpec,
       BeamFnDataClient beamFnDataClientFactory,
       Map<String, Collection<ThrowingConsumer<WindowedValue<OutputT>>>> outputMap)
           throws IOException {
-    this.apiServiceDescriptor = functionSpec.getData().unpack(BeamFnApi.RemoteGrpcPort.class)
-        .getApiServiceDescriptor();
+    this.apiServiceDescriptor =
+        BeamFnApi.RemoteGrpcPort.parseFrom(functionSpec.getSdkFnSpec().getData())
+            .getApiServiceDescriptor();
     this.inputTarget = inputTarget;
     this.processBundleInstructionIdSupplier = processBundleInstructionIdSupplier;
     this.beamFnDataClientFactory = beamFnDataClientFactory;
     this.consumers = ImmutableList.copyOf(FluentIterable.concat(outputMap.values()));
 
     @SuppressWarnings("unchecked")
-    Coder<WindowedValue<OutputT>> coder = Serializer.deserialize(
-        OBJECT_MAPPER.readValue(
-            coderSpec.getFunctionSpec().getData().unpack(BytesValue.class).getValue().newInput(),
-            Map.class),
-        Coder.class);
+    Coder<WindowedValue<OutputT>> coder =
+        Serializer.deserialize(
+            OBJECT_MAPPER.readValue(
+                coderSpec.getSdkFnSpec().getData().newInput(), Map.class),
+            Coder.class);
     this.coder = coder;
   }
 
