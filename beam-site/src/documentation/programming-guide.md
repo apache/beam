@@ -338,7 +338,7 @@ static class ComputeWordLengthFn extends DoFn<String, Integer> { ... }
 Inside your `DoFn` subclass, you'll write a method annotated with `@ProcessElement` where you provide the actual processing logic. You don't need to manually extract the elements from the input collection; the Beam SDKs handle that for you. Your `@ProcessElement` method should accept an object of type `ProcessContext`. The `ProcessContext` object gives you access to an input element and a method for emitting an output element:
 
 {:.language-py}
-Inside your `DoFn` subclass, you'll write a method `process` where you provide the actual processing logic. You don't need to manually extract the elements from the input collection; the Beam SDKs handle that for you. Your `process` method should accept an object of type `context`. The `context` object gives you access to an input element and output is emitted by using `yield` or `return` statement inside `process` method.
+Inside your `DoFn` subclass, you'll write a method `process` where you provide the actual processing logic. You don't need to manually extract the elements from the input collection; the Beam SDKs handle that for you. Your `process` method should accept an object of type `element`. This is the input element and output is emitted by using `yield` or `return` statement inside `process` method.
 
 ```java
 static class ComputeWordLengthFn extends DoFn<String, Integer> {
@@ -429,11 +429,11 @@ words = ...
 
 #### <a name="transforms-gbk"></a>Using GroupByKey
 
-`GroupByKey` is a Beam transform for processing collections of key/value pairs. It's a parallel reduction operation, analagous to the Shuffle phase of a Map/Shuffle/Reduce-style algorithm. The input to `GroupByKey` is a collection of key/value pairs that represents a *multimap*, where the collection contains multiple pairs that have the same key, but different values. Given such a collection, you use `GroupByKey` to collect all of the values associated with each unique key.
+`GroupByKey` is a Beam transform for processing collections of key/value pairs. It's a parallel reduction operation, analogous to the Shuffle phase of a Map/Shuffle/Reduce-style algorithm. The input to `GroupByKey` is a collection of key/value pairs that represents a *multimap*, where the collection contains multiple pairs that have the same key, but different values. Given such a collection, you use `GroupByKey` to collect all of the values associated with each unique key.
 
 `GroupByKey` is a good way to aggregate data that has something in common. For example, if you have a collection that stores records of customer orders, you might want to group together all the orders from the same postal code (wherein the "key" of the key/value pair is the postal code field, and the "value" is the remainder of the record).
 
-Let's examine the mechanics of `GroupByKey` with a simple xample case, where our data set consists of words from a text file and the line number on which they appear. We want to group together all the line numbers (values) that share the same word (key), letting us see all the places in the text where a particular word appears.
+Let's examine the mechanics of `GroupByKey` with a simple example case, where our data set consists of words from a text file and the line number on which they appear. We want to group together all the line numbers (values) that share the same word (key), letting us see all the places in the text where a particular word appears.
 
 Our input is a `PCollection` of key/value pairs where each word is a key, and the value is a line number in the file where the word appears. Here's a list of the key/value pairs in the input collection:
 
@@ -790,12 +790,11 @@ Side inputs are useful if your `ParDo` needs to inject additional data when proc
 %}
 
 # We can also pass side inputs to a ParDo transform, which will get passed to its process method.
-# The only change is that the first arguments are self and a context, rather than the PCollection element itself.
+# The first two arguments for the process method would be self and element.
 
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets_test.py tag:model_pardo_side_input_dofn
 %}
 ...
-
 ```
 
 ##### Side inputs and windowing:
