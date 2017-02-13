@@ -19,7 +19,7 @@ import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 import cz.seznam.euphoria.core.client.operator.state.ListStorage;
 import cz.seznam.euphoria.core.client.operator.state.ListStorageDescriptor;
 import cz.seznam.euphoria.core.client.operator.state.Storage;
-import cz.seznam.euphoria.core.client.operator.state.StorageDescriptorBase;
+import cz.seznam.euphoria.core.client.operator.state.StorageDescriptor;
 import cz.seznam.euphoria.core.client.operator.state.StorageProvider;
 import cz.seznam.euphoria.core.client.operator.state.ValueStorage;
 import cz.seznam.euphoria.core.client.operator.state.ValueStorageDescriptor;
@@ -37,7 +37,7 @@ class TriggerStorage {
     private final Window window;
     private final String storeId;
 
-    Key(Window window, StorageDescriptorBase desc) {
+    Key(Window window, StorageDescriptor desc) {
       this.window = window;
       this.storeId = desc.getName();
     }
@@ -125,7 +125,7 @@ class TriggerStorage {
     this.storageProvider = Objects.requireNonNull(storageProvider);
   }
 
-  Storage<?> getStorage(Window window, StorageDescriptorBase desc) {
+  Storage<?> getStorage(Window window, StorageDescriptor desc) {
     return store.get(new Key(window, desc));
   }
 

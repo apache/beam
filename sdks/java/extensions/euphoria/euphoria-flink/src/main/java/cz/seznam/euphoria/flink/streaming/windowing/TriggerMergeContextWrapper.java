@@ -16,7 +16,7 @@
 package cz.seznam.euphoria.flink.streaming.windowing;
 
 import cz.seznam.euphoria.core.client.operator.state.MergingStorageDescriptor;
-import cz.seznam.euphoria.core.client.operator.state.StorageDescriptorBase;
+import cz.seznam.euphoria.core.client.operator.state.StorageDescriptor;
 import cz.seznam.euphoria.core.client.operator.state.ValueStorageDescriptor;
 import cz.seznam.euphoria.core.client.triggers.TriggerContext;
 import cz.seznam.euphoria.flink.storage.Descriptors;
@@ -32,7 +32,7 @@ public class TriggerMergeContextWrapper
 
   @SuppressWarnings("unchecked")
   @Override
-  public void mergeStoredState(StorageDescriptorBase descriptor) {
+  public void mergeStoredState(StorageDescriptor descriptor) {
     if (!(descriptor instanceof MergingStorageDescriptor)) {
       throw new IllegalStateException(
           "Storage descriptor '" + descriptor.getName() + "' must support merging!");
