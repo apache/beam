@@ -52,7 +52,7 @@ import org.joda.time.Instant;
  * An implementation of {@link GroupAlsoByWindowViaOutputBufferDoFn}
  * for the Spark runner.
  */
-public class SparkGroupAlsoByWindowFn<K, InputT, W extends BoundedWindow>
+public class SparkGroupAlsoByWindowViaOutputBufferFn<K, InputT, W extends BoundedWindow>
     implements FlatMapFunction<WindowedValue<KV<K, Iterable<WindowedValue<InputT>>>>,
         WindowedValue<KV<K, Iterable<InputT>>>> {
 
@@ -63,7 +63,7 @@ public class SparkGroupAlsoByWindowFn<K, InputT, W extends BoundedWindow>
   private final Aggregator<Long, Long> droppedDueToClosedWindow;
 
 
-  public SparkGroupAlsoByWindowFn(
+  public SparkGroupAlsoByWindowViaOutputBufferFn(
       WindowingStrategy<?, W> windowingStrategy,
       StateInternalsFactory<K> stateInternalsFactory,
       SystemReduceFn<K, InputT, Iterable<InputT>, Iterable<InputT>, W> reduceFn,
