@@ -504,11 +504,10 @@ public class HadoopInputFormatIO {
       return inputSplit.getSplit().getLength();
     }
 
-
     /**
      * This is a helper function to compute splits. This method will also calculate size of the data
-     * being read. Note: This method is called exactly once, the splits are retrieved and cached
-     * for further use by splitIntoBundles() and getEstimatesSizeBytes().
+     * being read. Note: The splits are retrieved and cached for further use by splitIntoBundles()
+     * and getEstimatesSizeBytes().
      */
     @VisibleForTesting
     void computeSplitsIfNecessary() throws IOException, InterruptedException {
@@ -537,7 +536,8 @@ public class HadoopInputFormatIO {
     }
 
     /**
-     * Creates instance of InputFormat class provided in class.
+     * Creates instance of InputFormat class. The InputFormat class name is specified in the Hadoop
+     * configuration.
      */
     protected void createInputFormatInstance() throws IOException {
       if (inputFormatObj == null) {
@@ -560,11 +560,7 @@ public class HadoopInputFormatIO {
           if (Configurable.class.isAssignableFrom(inputFormatObj.getClass())) {
             ((Configurable) inputFormatObj).setConf(conf.getHadoopConfiguration());
           }
-        } catch (InstantiationException e) {
-          throw new IOException("Unable to create InputFormat object: ", e);
-        } catch (IllegalAccessException e) {
-          throw new IOException("Unable to create InputFormat object: ", e);
-        } catch (ClassNotFoundException e) {
+        } catch (InstantiationException | IllegalAccessException | ClassNotFoundException e) {
           throw new IOException("Unable to create InputFormat object: ", e);
         }
       }
@@ -610,12 +606,12 @@ public class HadoopInputFormatIO {
      * RecordReader.
      */
     private <T> boolean validateClasses(
-        String inputFormatGenericType,
+        String inputFormatGenericClassName,
         Coder<T> coder,
         String property) throws IOException, InterruptedException {
       Class<?> inputClass = null;
       try {
-        inputClass = Class.forName(inputFormatGenericType);
+        inputClass = Class.forName(inputFormatGenericClassName);
       } catch (Exception e) {
         /*
          * Given inputFormatGenericType is a type parameter i.e. T, K, V, etc. In such cases class
@@ -635,25 +631,30 @@ public class HadoopInputFormatIO {
     }
 
     /**
-     * Returns true if first record's key/value encodes and decodes successfully. Also sets
+     * Returns true if first record's key/value encodes and decodes successfully. This validates the
+     * key/value classes set by the user in the configuration. Also sets
      * expectedKeyClass/expectedValueClass if cloning of key/value fails.
      */
     private <T> boolean validateClassUsingCoder(String property, Coder<T> coder)
         throws IOException, InterruptedException {
-      final RecordReader<?, ?> reader;
-      reader = fetchFirstRecord();
-      if (property.contains("key")) {
-        boolean isKeyClassValid = checkEncodingAndDecoding(coder, (T) reader.getCurrentKey());
-        if (!isKeyClassValid) {
-          this.setExpectedKeyClass(reader.getCurrentKey().getClass());
+      RecordReader<?, ?> reader = null;
+      try {
+        reader = fetchFirstRecordReader();
+        if (property.contains("key")) {
+          boolean isKeyClassValid = checkEncodingAndDecoding(coder, (T) reader.getCurrentKey());
+          if (!isKeyClassValid) {
+            this.setExpectedKeyClass(reader.getCurrentKey().getClass());
+          }
+          return isKeyClassValid;
+        } else {
+          boolean isValueClassValid = checkEncodingAndDecoding(coder, (T) reader.getCurrentValue());
+          if (!isValueClassValid) {
+            this.setExpectedValueClass(reader.getCurrentValue().getClass());
+          }
+          return isValueClassValid;
         }
-        return isKeyClassValid;
-      } else {
-        boolean isValueClassValid = checkEncodingAndDecoding(coder, (T) reader.getCurrentValue());
-        if (!isValueClassValid) {
-          this.setExpectedValueClass(reader.getCurrentValue().getClass());
-        }
-        return isValueClassValid;
+      } finally {
+        reader.close();
       }
     }
 
@@ -675,13 +676,12 @@ public class HadoopInputFormatIO {
     }
 
     /**
-     * Returns false if exception occurs while encoding and decoding the given value with the given
-     * coder.
+     * Validates whether the input gets encoded or decoded correctly using the provided coder.
      */
-    private <T> boolean checkEncodingAndDecoding(Coder<T> coder, T value) {
+    private <T> boolean checkEncodingAndDecoding(Coder<T> coder, T input) {
       try {
-        CoderUtils.clone(coder, value);
-      } catch (Exception e) {
+        CoderUtils.clone(coder, input);
+      } catch (CoderException e) {
         return false;
       }
       return true;
@@ -706,7 +706,7 @@ public class HadoopInputFormatIO {
      * Returns RecordReader object of the first split to read first record for validating key/value
      * classes.
      */
-    private RecordReader fetchFirstRecord() throws IOException, InterruptedException {
+    private RecordReader fetchFirstRecordReader() throws IOException, InterruptedException {
       RecordReader<?, ?> reader =
           inputFormatObj.createRecordReader(inputSplits.get(0).getSplit(), taskAttemptContext);
       if (reader == null) {
@@ -783,7 +783,7 @@ public class HadoopInputFormatIO {
       private RecordReader<T1, T2> currentReader;
       private volatile boolean doneReading = false;
       private long recordsReturned = 0L;
-      // Variable added to track the progress of the RecordReader.
+      // Tracks the progress of the RecordReader.
       private AtomicDouble progressValue = new AtomicDouble();
       private transient InputFormat<T1, T2> inputFormatObj;
       private transient TaskAttemptContext taskAttemptContext;
@@ -834,7 +834,9 @@ public class HadoopInputFormatIO {
             currentReader = null;
           }
         } catch (InterruptedException e) {
-          throw new IOException("Unable to read data: ", e);
+          throw new IOException(
+              "Could not read because the thread got interrupted while reading the records with an exception: ",
+              e);
         }
         doneReading = true;
         return false;
@@ -951,19 +953,15 @@ public class HadoopInputFormatIO {
 
       /**
        * Returns RecordReader's progress.
-       *
        * @throws IOException
        */
       private Double getProgress() throws IOException {
-        synchronized (currentReader) {
-          try {
-            return (double) currentReader.getProgress();
-          } catch (IOException | InterruptedException e) {
-            LOG.error(HadoopInputFormatIOConstants.GETFRACTIONSCONSUMED_ERROR_MSG + e.getMessage(),
-                e);
-            throw new IOException(HadoopInputFormatIOConstants.GETFRACTIONSCONSUMED_ERROR_MSG
-                + e.getMessage(), e);
-          }
+        try {
+          return (double) currentReader.getProgress();
+        } catch (IOException | InterruptedException e) {
+          LOG.error(HadoopInputFormatIOConstants.GETFRACTIONSCONSUMED_ERROR_MSG + e.getMessage(), e);
+          throw new IOException(HadoopInputFormatIOConstants.GETFRACTIONSCONSUMED_ERROR_MSG
+              + e.getMessage(), e);
         }
       }
 
