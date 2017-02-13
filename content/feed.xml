@@ -9,6 +9,580 @@
     <generator>Jekyll v3.2.0</generator>
     
       <item>
+        <title>Stateful processing with Apache Beam</title>
+        <description>&lt;p&gt;Beam lets you process unbounded, out-of-order, global-scale data with portable
+high-level pipelines. Stateful processing is a new feature of the Beam model
+that expands the capabilities of Beam, unlocking new use cases and new
+efficiencies. In this post, I will guide you through stateful processing in
+Beam: how it works, how it fits in with the other features of the Beam model,
+what you might use it for, and what it looks like in code.&lt;/p&gt;
+
+&lt;!--more--&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;&lt;strong&gt;Warning: new features ahead!&lt;/strong&gt;: This is a very new aspect of the Beam
+model. Runners are still adding support. You can try it out today on multiple
+runners, but do check the &lt;a href=&quot;/documentation/runners/capability-matrix/&quot;&gt;runner capability
+matrix&lt;/a&gt; for
+the current status in each runner.&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;First, a quick recap: In Beam, a big data processing &lt;em&gt;pipeline&lt;/em&gt; is a directed,
+acyclic graph of parallel operations called &lt;em&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;PTransforms&lt;/code&gt;&lt;/em&gt; processing data
+from &lt;em&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;PCollections&lt;/code&gt;&lt;/em&gt; I’ll expand on that by walking through this illustration:&lt;/p&gt;
+
+&lt;p&gt;&lt;img class=&quot;center-block&quot; src=&quot;/images/blog/stateful-processing/pipeline.png&quot; alt=&quot;A Beam Pipeline - PTransforms are boxes - PCollections are arrows&quot; width=&quot;300&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;The boxes are &lt;code class=&quot;highlighter-rouge&quot;&gt;PTransforms&lt;/code&gt; and the edges represent the data in &lt;code class=&quot;highlighter-rouge&quot;&gt;PCollections&lt;/code&gt;
+flowing from one &lt;code class=&quot;highlighter-rouge&quot;&gt;PTransform&lt;/code&gt; to the next. A &lt;code class=&quot;highlighter-rouge&quot;&gt;PCollection&lt;/code&gt; may be &lt;em&gt;bounded&lt;/em&gt; (which
+means it is finite and you know it) or &lt;em&gt;unbounded&lt;/em&gt; (which means you don’t know if
+it is finite or not - basically, it is like an incoming stream of data that may
+or may not ever terminate). The cylinders are the data sources and sinks at the
+edges of your pipeline, such as bounded collections of log files or unbounded
+data streaming over a Kafka topic. This blog post isn’t about sources or sinks,
+but about what happens in between - your data processing.&lt;/p&gt;
+
+&lt;p&gt;There are two main building blocks for processing your data in Beam: &lt;em&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;ParDo&lt;/code&gt;&lt;/em&gt;,
+for performing an operation in parallel across all elements, and &lt;em&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;GroupByKey&lt;/code&gt;&lt;/em&gt;
+(and the closely related &lt;code class=&quot;highlighter-rouge&quot;&gt;CombinePerKey&lt;/code&gt; that I will talk about quite soon)
+for aggregating elements to which you have assigned the same key. In the
+picture below (featured in many of our presentations) the color indicates the
+key of the element. Thus the &lt;code class=&quot;highlighter-rouge&quot;&gt;GroupByKey&lt;/code&gt;/&lt;code class=&quot;highlighter-rouge&quot;&gt;CombinePerKey&lt;/code&gt; transform gathers all the
+green squares to produce a single output element.&lt;/p&gt;
+
+&lt;p&gt;&lt;img class=&quot;center-block&quot; src=&quot;/images/blog/stateful-processing/pardo-and-gbk.png&quot; alt=&quot;ParDo and GroupByKey/CombinePerKey:          Elementwise versus aggregating computations&quot; width=&quot;400&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;But not all use cases are easily expressed as pipelines of simple &lt;code class=&quot;highlighter-rouge&quot;&gt;ParDo&lt;/code&gt;/&lt;code class=&quot;highlighter-rouge&quot;&gt;Map&lt;/code&gt; and
+&lt;code class=&quot;highlighter-rouge&quot;&gt;GroupByKey&lt;/code&gt;/&lt;code class=&quot;highlighter-rouge&quot;&gt;CombinePerKey&lt;/code&gt; transforms. The topic of this blog post is a new
+extension to the Beam programming model: &lt;strong&gt;per-element operation augmented with
+mutable state&lt;/strong&gt;.&lt;/p&gt;
+
+&lt;p&gt;&lt;img class=&quot;center-block&quot; src=&quot;/images/blog/stateful-processing/stateful-pardo.png&quot; alt=&quot;Stateful ParDo - sequential per-key processing with persistent state&quot; width=&quot;300&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;In the illustration above, ParDo now has a bit of durable, consistent state on
+the side, which can be read and written during the processing of each element.
+The state is partitioned by key, so it is drawn as having disjoint sections for
+each color. It is also partitioned per window, but I thought plaid 
+&lt;img src=&quot;/images/blog/stateful-processing/plaid.png&quot; alt=&quot;A plaid storage cylinder&quot; width=&quot;20&quot; /&gt; 
+would be a bit much  :-). I’ll talk about
+why state is partitioned this way a bit later, via my first example.&lt;/p&gt;
+
+&lt;p&gt;For the rest of this post, I will describe this new feature of Beam in detail -
+how it works at a high level, how it differs from existing features, how to
+make sure it is still massively scalable. After that introduction at the model
+level, I’ll walk through a simple example of how you use it in the Beam Java
+SDK.&lt;/p&gt;
+
+&lt;h2 id=&quot;how-does-stateful-processing-in-beam-work&quot;&gt;How does stateful processing in Beam work?&lt;/h2&gt;
+
+&lt;p&gt;The processing logic of your &lt;code class=&quot;highlighter-rouge&quot;&gt;ParDo&lt;/code&gt; transform is expressed through the &lt;code class=&quot;highlighter-rouge&quot;&gt;DoFn&lt;/code&gt;
+that it applies to each element.  Without stateful augmentations, a &lt;code class=&quot;highlighter-rouge&quot;&gt;DoFn&lt;/code&gt; is a
+mostly-pure function from inputs to one or more outputs, corresponding to the
+Mapper in a MapReduce.  With state, a &lt;code class=&quot;highlighter-rouge&quot;&gt;DoFn&lt;/code&gt; has the ability to access
+persistent mutable state while processing each input element. Consider this
+illustration:&lt;/p&gt;
+
+&lt;p&gt;&lt;img class=&quot;center-block&quot; src=&quot;/images/blog/stateful-processing/stateful-dofn.png&quot; alt=&quot;Stateful DoFn -          the runner controls input but the DoFn controls storage and output&quot; width=&quot;300&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;The first thing to note is that all the data - the little squares, circles, and
+triangles - are red. This is to illustrate that stateful processing occurs in
+the context of a single key - all of the elements are key-value pairs with the
+same key. Calls from your chosen Beam runner to the &lt;code class=&quot;highlighter-rouge&quot;&gt;DoFn&lt;/code&gt; are colored in
+yellow, while calls from the &lt;code class=&quot;highlighter-rouge&quot;&gt;DoFn&lt;/code&gt; to the runner are in purple:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;The runner invokes the &lt;code class=&quot;highlighter-rouge&quot;&gt;DoFn&lt;/code&gt;’s &lt;code class=&quot;highlighter-rouge&quot;&gt;@ProcessElement&lt;/code&gt; method on each element for a
+key+window.&lt;/li&gt;
+  &lt;li&gt;The &lt;code class=&quot;highlighter-rouge&quot;&gt;DoFn&lt;/code&gt; reads and writes state - the curved arrows to/from the storage on
+the side.&lt;/li&gt;
+  &lt;li&gt;The &lt;code class=&quot;highlighter-rouge&quot;&gt;DoFn&lt;/code&gt; emits output (or side output) to the runner as usual via
+&lt;code class=&quot;highlighter-rouge&quot;&gt;ProcessContext.output&lt;/code&gt; (resp. &lt;code class=&quot;highlighter-rouge&quot;&gt;ProcessContext.sideOutput&lt;/code&gt;).&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;At this very high level, it is pretty intuitive: In your programming
+experience, you have probably at some point written a loop over elements that
+updates some mutable variables while performing other actions. The interesting
+question is how does this fit into the Beam model: how does it relate with
+other features? How does it scale, since state implies some synchronization?
+When should it be used versus other features?&lt;/p&gt;
+
+&lt;h2 id=&quot;how-does-stateful-processing-fit-into-the-beam-model&quot;&gt;How does stateful processing fit into the Beam model?&lt;/h2&gt;
+
+&lt;p&gt;To see where stateful processing fits in the Beam model, consider another
+way that you can keep some “state” while processing many elements: CombineFn. In
+Beam, you can write &lt;code class=&quot;highlighter-rouge&quot;&gt;Combine.perKey(CombineFn)&lt;/code&gt; in Java or Python to apply an
+associative, commutative accumulating operation across all the elements with a
+common key (and window).&lt;/p&gt;
+
+&lt;p&gt;Here is a diagram illustrating the basics of a &lt;code class=&quot;highlighter-rouge&quot;&gt;CombineFn&lt;/code&gt;, the simplest way
+that a runner might invoke it on a per-key basis to build an accumulator and
+extract an output from the final accumulator:&lt;/p&gt;
+
+&lt;p&gt;&lt;img class=&quot;center-block&quot; src=&quot;/images/blog/stateful-processing/combinefn.png&quot; alt=&quot;CombineFn - the runner controls input, storage, and output&quot; width=&quot;300&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;As with the illustration of stateful &lt;code class=&quot;highlighter-rouge&quot;&gt;DoFn&lt;/code&gt;, all the data is colored red, since
+this is the processing of Combine for a single key. The illustrated method
+calls are colored yellow, since they are all controlled by the runner: The
+runner invokes &lt;code class=&quot;highlighter-rouge&quot;&gt;addInput&lt;/code&gt; on each method to add it to the current accumulator.&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;The runner persists the accumulator when it chooses.&lt;/li&gt;
+  &lt;li&gt;The runner calls &lt;code class=&quot;highlighter-rouge&quot;&gt;extractOutput&lt;/code&gt; when ready to emit an output element.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;At this point, the diagram for &lt;code class=&quot;highlighter-rouge&quot;&gt;CombineFn&lt;/code&gt; looks a whole lot like the diagram
+for stateful &lt;code class=&quot;highlighter-rouge&quot;&gt;DoFn&lt;/code&gt;. In practice, the flow of data is, indeed, quite similar.
+But there are important differences, even so:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;The runner controls all invocations and storage here. You do not decide when
+or how state is persisted, when an accumulator is discarded (based on
+triggering) or when output is extracted from an accumulator.&lt;/li&gt;
+  &lt;li&gt;You can only have one piece of state - the accumulator. In a stateful DoFn
+you can read only what you need to know and write only what has changed.&lt;/li&gt;
+  &lt;li&gt;You don’t have the extended features of &lt;code class=&quot;highlighter-rouge&quot;&gt;DoFn&lt;/code&gt;, such as multiple outputs per
+input or side outputs. (These could be simulated by a sufficient complex
+accumulator, but it would not be natural or efficient. Some other features of
+&lt;code class=&quot;highlighter-rouge&quot;&gt;DoFn&lt;/code&gt; such as side inputs and access to the window make perfect sense for
+&lt;code class=&quot;highlighter-rouge&quot;&gt;CombineFn&lt;/code&gt;)&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;But the main thing that &lt;code class=&quot;highlighter-rouge&quot;&gt;CombineFn&lt;/code&gt; allows a runner to do is to
+&lt;code class=&quot;highlighter-rouge&quot;&gt;mergeAccumulators&lt;/code&gt;, the concrete expression of the &lt;code class=&quot;highlighter-rouge&quot;&gt;CombineFn&lt;/code&gt;’s associativity.
+This unlocks some huge optimizations: the runner can invoke multiple instances
+of a &lt;code class=&quot;highlighter-rouge&quot;&gt;CombineFn&lt;/code&gt; on a number of inputs and later combine them in a classic
+divide-and-conquer architecture, as in this picture:&lt;/p&gt;
+
+&lt;p&gt;&lt;img class=&quot;center-block&quot; src=&quot;/images/blog/stateful-processing/combiner-lifting.png&quot; alt=&quot;Divide-and-conquer aggregation with a CombineFn&quot; width=&quot;600&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;The contract of a &lt;code class=&quot;highlighter-rouge&quot;&gt;CombineFn&lt;/code&gt; is that the result should be exactly the same,
+whether or not the runner decides to actually do such a thing, or even more
+complex trees with hot-key fanout, etc.&lt;/p&gt;
+
+&lt;p&gt;This merge operation is not (necessarily) provided by a stateful &lt;code class=&quot;highlighter-rouge&quot;&gt;DoFn&lt;/code&gt;: the
+runner cannot freely branch its execution and recombine the states. Note that
+the input elements are still received in an arbitrary order, so the &lt;code class=&quot;highlighter-rouge&quot;&gt;DoFn&lt;/code&gt; should
+be insensitive to ordering and bundling but it doesn’t mean the output must be
+exactly equal. (fun and easy fact: if the outputs are actually always equal,
+then the &lt;code class=&quot;highlighter-rouge&quot;&gt;DoFn&lt;/code&gt; is an associative and commutative operator)&lt;/p&gt;
+
+&lt;p&gt;So now you can see how a stateful &lt;code class=&quot;highlighter-rouge&quot;&gt;DoFn&lt;/code&gt; differs from &lt;code class=&quot;highlighter-rouge&quot;&gt;CombineFn&lt;/code&gt;, but I want to
+step back and extrapolate this to a high level picture of how state in Beam
+relates to using other features to achieve the same or similar goals: In a lot
+of cases, what stateful processing represents is a chance to “get under the
+hood” of the highly abstract mostly-deterministic functional paradigm of Beam
+and do potentially-nondeterministic imperative-style programming that is hard
+to express any other way.&lt;/p&gt;
+
+&lt;h2 id=&quot;example-arbitrary-but-consistent-index-assignment&quot;&gt;Example: arbitrary-but-consistent index assignment&lt;/h2&gt;
+
+&lt;p&gt;Suppose that you want to give an index to every incoming element for a
+key-and-window. You don’t care what the indices are, just as long as they are
+unique and consistent. Before diving into the code for how to do this in a Beam
+SDK, I’ll go over this example from the level of the model. In pictures, you
+want to write a transform that maps input to output like this:&lt;/p&gt;
+
+&lt;p&gt;&lt;img class=&quot;center-block&quot; src=&quot;/images/blog/stateful-processing/assign-indices.png&quot; alt=&quot;Assigning arbitrary but unique indices to each element&quot; width=&quot;100&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;The order of the elements A, B, C, D, E is arbitrary, hence their assigned
+indices are arbitrary, but downstream transforms just need to be OK with this.
+There is no associativity or commutativity as far as the actual values are
+concerned. The order-insensitivity of this transform only extends to the point
+of ensuring the necessary properties of the output: no duplicated indices, no
+gaps, and every element gets an index.&lt;/p&gt;
+
+&lt;p&gt;Conceptually expressing this as a stateful loop is as trivial as you can
+imagine: The state you should store is the next index.&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;As an element comes in, output it along with the next index.&lt;/li&gt;
+  &lt;li&gt;Increment the index.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;This presents a good opportunity to talk about big data and parallelism,
+because the algorithm in those bullet points is not parallelizable at all! If
+you wanted to apply this logic over an entire &lt;code class=&quot;highlighter-rouge&quot;&gt;PCollection&lt;/code&gt;, you would have to
+process each element of the &lt;code class=&quot;highlighter-rouge&quot;&gt;PCollection&lt;/code&gt; one-at-a-time… this is obvious a
+bad idea.  State in Beam is tightly scoped so that most of the time a stateful
+&lt;code class=&quot;highlighter-rouge&quot;&gt;ParDo&lt;/code&gt; transform should still be possible for a runner to execute in parallel,
+though you still have to be thoughtful about it.&lt;/p&gt;
+
+&lt;p&gt;A state cell in Beam is scoped to a key+window pair. When your DoFn reads or
+writes state by the name of &lt;code class=&quot;highlighter-rouge&quot;&gt;&quot;index&quot;&lt;/code&gt;, it is actually accessing a mutable cell
+specified by &lt;code class=&quot;highlighter-rouge&quot;&gt;&quot;index&quot;&lt;/code&gt; &lt;em&gt;along with&lt;/em&gt; the key and window currently being
+processed.  So, when thinking about a state cell, it may be helpful to consider
+the full state of your transform as a table, where the rows are named according
+to names you use in your program, like &lt;code class=&quot;highlighter-rouge&quot;&gt;&quot;index&quot;&lt;/code&gt;, and the columns are
+key+window pairs, like this:&lt;/p&gt;
+
+&lt;table class=&quot;table&quot;&gt;
+  &lt;thead&gt;
+    &lt;tr&gt;
+      &lt;th&gt; &lt;/th&gt;
+      &lt;th&gt;(key, window)&lt;sub&gt;1&lt;/sub&gt;&lt;/th&gt;
+      &lt;th&gt;(key, window)&lt;sub&gt;2&lt;/sub&gt;&lt;/th&gt;
+      &lt;th&gt;(key, window)&lt;sub&gt;3&lt;/sub&gt;&lt;/th&gt;
+      &lt;th&gt;…&lt;/th&gt;
+    &lt;/tr&gt;
+  &lt;/thead&gt;
+  &lt;tbody&gt;
+    &lt;tr&gt;
+      &lt;td&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;&quot;index&quot;&lt;/code&gt;&lt;/td&gt;
+      &lt;td&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;3&lt;/code&gt;&lt;/td&gt;
+      &lt;td&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;7&lt;/code&gt;&lt;/td&gt;
+      &lt;td&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;15&lt;/code&gt;&lt;/td&gt;
+      &lt;td&gt;…&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;&quot;fizzOrBuzz?&quot;&lt;/code&gt;&lt;/td&gt;
+      &lt;td&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;&quot;fizz&quot;&lt;/code&gt;&lt;/td&gt;
+      &lt;td&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;&quot;7&quot;&lt;/code&gt;&lt;/td&gt;
+      &lt;td&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;&quot;fizzbuzz&quot;&lt;/code&gt;&lt;/td&gt;
+      &lt;td&gt;…&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;…&lt;/td&gt;
+      &lt;td&gt;…&lt;/td&gt;
+      &lt;td&gt;…&lt;/td&gt;
+      &lt;td&gt;…&lt;/td&gt;
+      &lt;td&gt;…&lt;/td&gt;
+    &lt;/tr&gt;
+  &lt;/tbody&gt;
+&lt;/table&gt;
+
+&lt;p&gt;(if you have a superb spatial sense, feel free to imagine this as a cube where
+keys and windows are independent dimensions)&lt;/p&gt;
+
+&lt;p&gt;You can provide the opportunity for parallelism by making sure that table has
+enough columns, either via many keys in few windows - for example, a globally
+windowed stateful computation keyed by user ID - or via many windows over few
+keys - for example, a fixed windowed stateful computation over a global key.
+Caveat: all Beam runners today parallelize only over the key.&lt;/p&gt;
+
+&lt;p&gt;Most often your mental model of state can be focused on only a single column of
+the table, a single key+window pair. Cross-column interactions do not occur
+directly, by design.&lt;/p&gt;
+
+&lt;h2 id=&quot;state-in-beams-java-sdk&quot;&gt;State in Beam’s Java SDK&lt;/h2&gt;
+
+&lt;p&gt;Now that I have talked a bit about stateful processing in the Beam model and
+worked through an abstract example, I’d like to show you what it looks like to
+write stateful processing code using Beam’s Java SDK.  Here is the code for a
+stateful &lt;code class=&quot;highlighter-rouge&quot;&gt;DoFn&lt;/code&gt; that assigns an arbitrary-but-consistent index to each element
+on a per key-and-window basis:&lt;/p&gt;
+
+&lt;div class=&quot;language-java highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;k&quot;&gt;new&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;DoFn&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;KV&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;MyKey&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;MyValue&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;KV&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Integer&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;KV&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;MyKey&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;MyValue&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&amp;gt;&amp;gt;()&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
+
+  &lt;span class=&quot;c1&quot;&gt;// A state cell holding a single Integer per key+window&lt;/span&gt;
+  &lt;span class=&quot;nd&quot;&gt;@StateId&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;index&quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt;
+  &lt;span class=&quot;kd&quot;&gt;private&lt;/span&gt; &lt;span class=&quot;kd&quot;&gt;final&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;StateSpec&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Object&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;ValueState&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Integer&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;indexSpec&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; 
+      &lt;span class=&quot;n&quot;&gt;StateSpecs&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;value&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;VarIntCoder&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;of&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;());&lt;/span&gt;
+
+  &lt;span class=&quot;nd&quot;&gt;@ProcessElement&lt;/span&gt;
+  &lt;span class=&quot;kd&quot;&gt;public&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;void&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;processElement&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;
+      &lt;span class=&quot;n&quot;&gt;ProcessContext&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;context&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;,&lt;/span&gt;
+      &lt;span class=&quot;nd&quot;&gt;@StateId&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;index&quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;ValueState&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Integer&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;index&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
+    &lt;span class=&quot;kt&quot;&gt;int&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;current&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;firstNonNull&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;index&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;read&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(),&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;);&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;context&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;output&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;KV&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;of&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;current&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;context&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;element&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;()));&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;index&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;write&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;current&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;+&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;);&lt;/span&gt;
+  &lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
+&lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+
+&lt;div class=&quot;language-py highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;c&quot;&gt;# State and timers are not yet supported in Beam's Python SDK.&lt;/span&gt;
+&lt;span class=&quot;c&quot;&gt;# Watch this space!&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+
+&lt;p&gt;Let’s dissect this:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;The first thing to look at is the presence of a couple of &lt;code class=&quot;highlighter-rouge&quot;&gt;@StateId(&quot;index&quot;)&lt;/code&gt;
+annotations. This calls out that you are using a mutable state cell named
+“index” in this &lt;code class=&quot;highlighter-rouge&quot;&gt;DoFn&lt;/code&gt;. The Beam Java SDK, and from there your chosen runner,
+will also note these annotations and use them to wire up your DoFn correctly.&lt;/li&gt;
+  &lt;li&gt;The first &lt;code class=&quot;highlighter-rouge&quot;&gt;@StateId(&quot;index&quot;)&lt;/code&gt; is annotated on a field of type &lt;code class=&quot;highlighter-rouge&quot;&gt;StateSpec&lt;/code&gt; (for
+“state specification”). This declares and configures the state cell. The
+type parameter &lt;code class=&quot;highlighter-rouge&quot;&gt;ValueState&lt;/code&gt; describes the kind of state you can get out of this
+cell - &lt;code class=&quot;highlighter-rouge&quot;&gt;ValueState&lt;/code&gt; stores just a single value. Note that the spec itself is not
+a usable state cell - you need the runner to provide that during pipeline
+execution.&lt;/li&gt;
+  &lt;li&gt;To fully specify a &lt;code class=&quot;highlighter-rouge&quot;&gt;ValueState&lt;/code&gt; cell, you need to provide the coder
+that the runner will use (as necessary) to serialize the value
+you will be storing. This is the invocation &lt;code class=&quot;highlighter-rouge&quot;&gt;StateSpecs.value(VarIntCoder.of())&lt;/code&gt;.&lt;/li&gt;
+  &lt;li&gt;The second &lt;code class=&quot;highlighter-rouge&quot;&gt;@StateId(&quot;index&quot;)&lt;/code&gt; annotation is on a parameter to your
+&lt;code class=&quot;highlighter-rouge&quot;&gt;@ProcessElement&lt;/code&gt; method. This indicates access to the ValueState cell that
+was specified earlier.&lt;/li&gt;
+  &lt;li&gt;The state is accessed in the simplest way: &lt;code class=&quot;highlighter-rouge&quot;&gt;read()&lt;/code&gt; to read it, and
+&lt;code class=&quot;highlighter-rouge&quot;&gt;write(newvalue)&lt;/code&gt; to write it.&lt;/li&gt;
+  &lt;li&gt;The other features of &lt;code class=&quot;highlighter-rouge&quot;&gt;DoFn&lt;/code&gt; are available in the usual way - such as
+&lt;code class=&quot;highlighter-rouge&quot;&gt;context.output(...)&lt;/code&gt;. You can also use side inputs, side outputs, gain access
+to the window, etc.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;A few notes on how the SDK and runners see this DoFn:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Your state cells are all explicitly declared so a Beam SDK or runner can
+reason about them, for example to clear them out when a window expires.&lt;/li&gt;
+  &lt;li&gt;If you declare a state cell and then use it with the wrong type, the Beam
+Java SDK will catch that error for you.&lt;/li&gt;
+  &lt;li&gt;If you declare two state cells with the same ID, the SDK will catch that,
+too.&lt;/li&gt;
+  &lt;li&gt;The runner knows that this is a stateful &lt;code class=&quot;highlighter-rouge&quot;&gt;DoFn&lt;/code&gt; and may run it quite
+differently, for example by additional data shuffling and synchronization in
+order to avoid concurrent access to state cells.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;Let’s look at one more example of how to use this API, this time a bit more real-world.&lt;/p&gt;
+
+&lt;h2 id=&quot;example-anomaly-detection&quot;&gt;Example: anomaly detection&lt;/h2&gt;
+
+&lt;p&gt;Suppose you are feeding a stream of actions by your user into some complex
+model to predict some quantitative expression of the sorts of actions they
+take, for example to detect fraudulent activity. You will build up the model
+from events, and also compare incoming events against the latest model to
+determine if something has changed.&lt;/p&gt;
+
+&lt;p&gt;If you try to express the building of your model as a &lt;code class=&quot;highlighter-rouge&quot;&gt;CombineFn&lt;/code&gt;, you may have
+trouble with &lt;code class=&quot;highlighter-rouge&quot;&gt;mergeAccumulators&lt;/code&gt;. Assuming you could express that, it might
+look something like this:&lt;/p&gt;
+
+&lt;div class=&quot;language-java highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;kd&quot;&gt;class&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;ModelFromEventsFn&lt;/span&gt; &lt;span class=&quot;kd&quot;&gt;extends&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;CombineFn&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Event&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Model&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Model&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
+    &lt;span class=&quot;nd&quot;&gt;@Override&lt;/span&gt;
+    &lt;span class=&quot;kd&quot;&gt;public&lt;/span&gt; &lt;span class=&quot;kd&quot;&gt;abstract&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Model&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;createAccumulator&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;()&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
+      &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Model&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;empty&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;();&lt;/span&gt;
+    &lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
+
+    &lt;span class=&quot;nd&quot;&gt;@Override&lt;/span&gt;
+    &lt;span class=&quot;kd&quot;&gt;public&lt;/span&gt; &lt;span class=&quot;kd&quot;&gt;abstract&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Model&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;addInput&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Model&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;accumulator&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Event&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;input&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
+      &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;accumulator&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;update&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;input&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;);&lt;/span&gt; &lt;span class=&quot;c1&quot;&gt;// this is encouraged to mutate, for efficiency&lt;/span&gt;
+    &lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
+
+    &lt;span class=&quot;nd&quot;&gt;@Override&lt;/span&gt;
+    &lt;span class=&quot;kd&quot;&gt;public&lt;/span&gt; &lt;span class=&quot;kd&quot;&gt;abstract&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Model&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;mergeAccumulators&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Iterable&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Model&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;accumulators&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
+      &lt;span class=&quot;c1&quot;&gt;// ?? can you write this ??&lt;/span&gt;
+    &lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
+
+    &lt;span class=&quot;nd&quot;&gt;@Override&lt;/span&gt;
+    &lt;span class=&quot;kd&quot;&gt;public&lt;/span&gt; &lt;span class=&quot;kd&quot;&gt;abstract&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Model&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;extractOutput&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Model&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;accumulator&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
+      &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;accumulator&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;;&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
+&lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+
+&lt;div class=&quot;language-py highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;c&quot;&gt;# State and timers are not yet supported in Beam's Python SDK.&lt;/span&gt;
+&lt;span class=&quot;c&quot;&gt;# Watch this space!&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+
+&lt;p&gt;Now you have a way to compute the model of a particular user for a window as
+&lt;code class=&quot;highlighter-rouge&quot;&gt;Combine.perKey(new ModelFromEventsFn())&lt;/code&gt;. How would you apply this model to
+the same stream of events from which it is calculated? A standard way to do
+take the result of a &lt;code class=&quot;highlighter-rouge&quot;&gt;Combine&lt;/code&gt; transform and use it while processing the
+elements of a &lt;code class=&quot;highlighter-rouge&quot;&gt;PCollection&lt;/code&gt; is to read it as a side input to a &lt;code class=&quot;highlighter-rouge&quot;&gt;ParDo&lt;/code&gt;
+transform. So you could side input the model and check the stream of events
+against it, outputting the prediction, like so:&lt;/p&gt;
+
+&lt;div class=&quot;language-java highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;n&quot;&gt;PCollection&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;KV&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;UserId&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Event&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;events&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;...&lt;/span&gt;
+
+&lt;span class=&quot;kd&quot;&gt;final&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;PCollectionView&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Map&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;UserId&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Model&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;userModels&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;events&lt;/span&gt;
+    &lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;apply&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Combine&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;perKey&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;new&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;ModelFromEventsFn&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;()))&lt;/span&gt;
+    &lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;apply&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;View&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;asMap&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;());&lt;/span&gt;
+
+&lt;span class=&quot;n&quot;&gt;PCollection&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;KV&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;UserId&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Prediction&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;predictions&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;events&lt;/span&gt;
+    &lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;apply&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ParDo&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;of&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;new&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;DoFn&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;KV&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;UserId&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Event&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&amp;gt;()&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
+
+      &lt;span class=&quot;nd&quot;&gt;@ProcessElement&lt;/span&gt;
+      &lt;span class=&quot;kd&quot;&gt;public&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;void&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;processElement&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ProcessContext&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;ctx&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;UserId&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;userId&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;ctx&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;element&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;().&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;getKey&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;();&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;Event&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;event&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;ctx&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;element&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;().&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;getValue&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;();&lt;/span&gt;
+
+        &lt;span class=&quot;n&quot;&gt;Model&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;model&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;ctx&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;sideinput&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;userModels&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;).&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;get&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;userId&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;);&lt;/span&gt;
+
+        &lt;span class=&quot;c1&quot;&gt;// Perhaps some logic around when to output a new prediction&lt;/span&gt;
+        &lt;span class=&quot;err&quot;&gt;…&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;c&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;output&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;KV&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;of&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;userId&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;model&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;prediction&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;event&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)))&lt;/span&gt; &lt;span class=&quot;err&quot;&gt;…&lt;/span&gt; 
+      &lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
+    &lt;span class=&quot;o&quot;&gt;}));&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+
+&lt;div class=&quot;language-py highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;c&quot;&gt;# State and timers are not yet supported in Beam's Python SDK.&lt;/span&gt;
+&lt;span class=&quot;c&quot;&gt;# Watch this space!&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+
+&lt;p&gt;In this pipeline, there is just one model emitted by the &lt;code class=&quot;highlighter-rouge&quot;&gt;Combine.perKey(...)&lt;/code&gt;
+per user, per window, which is then prepared for side input by the &lt;code class=&quot;highlighter-rouge&quot;&gt;View.asMap()&lt;/code&gt;
+transform. The processing of the &lt;code class=&quot;highlighter-rouge&quot;&gt;ParDo&lt;/code&gt; over events will block until that side
+input is ready, buffering events, and will then check each event against the
+model. This is a high latency, high completeness solution: The model takes into
+account all user behavior in the window, but there can be no output until the
+window is complete.&lt;/p&gt;
+
+&lt;p&gt;Suppose you want to get some results earlier, or don’t even have any
+natural windowing, but just want continuous analysis with the “model so far”,
+even though your model may not be as complete. How can you control the updates
+to the model against which you are checking your events? Triggers are the
+generic Beam feature for managing completeness versus latency tradeoffs. So here
+is the same pipeline with an added trigger that outputs a new model one second
+after input arrives:&lt;/p&gt;
+
+&lt;div class=&quot;language-java highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;n&quot;&gt;PCollection&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;KV&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;UserId&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Event&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;events&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;...&lt;/span&gt;
+
+&lt;span class=&quot;n&quot;&gt;PCollectionView&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Map&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;UserId&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Model&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;userModels&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;events&lt;/span&gt;
+
+    &lt;span class=&quot;c1&quot;&gt;// A tradeoff between latency and cost&lt;/span&gt;
+    &lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;apply&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Window&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;triggering&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;AfterProcessingTime&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;pastFirstElementInPane&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Duration&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;standardSeconds&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)))&lt;/span&gt;
+
+    &lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;apply&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Combine&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;perKey&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;new&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;ModelFromEventsFn&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;()))&lt;/span&gt;
+    &lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;apply&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;View&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;asMap&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;());&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+
+&lt;div class=&quot;language-py highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;c&quot;&gt;# State and timers are not yet supported in Beam's Python SDK.&lt;/span&gt;
+&lt;span class=&quot;c&quot;&gt;# Watch this space!&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+
+&lt;p&gt;This is often a pretty nice tradeoff between latency and cost: If a huge flood
+of events comes in a second, then you will only emit one new model, so you
+won’t be flooded with model outputs that you cannot even use before they are
+obsolete. In practice, the new model may not be present on the side input
+channel until many more seconds have passed, due to caches and processing
+delays preparing the side input. Many events (maybe an entire batch of
+activity) will have passed through the &lt;code class=&quot;highlighter-rouge&quot;&gt;ParDo&lt;/code&gt; and had their predictions
+calculated according to the prior model. If the runner gave a tight enough
+bound on cache expirations and you used a more aggressive trigger, you might be
+able to improve latency at additional cost.&lt;/p&gt;
+
+&lt;p&gt;But there is another cost to consider: you are outputting many uninteresting
+outputs from the &lt;code class=&quot;highlighter-rouge&quot;&gt;ParDo&lt;/code&gt; that will be processed downstream. If the
+“interestingness” of the output is only well-defined relative to the prior
+output, then you cannot use a &lt;code class=&quot;highlighter-rouge&quot;&gt;Filter&lt;/code&gt; transform to reduce data volume downstream.&lt;/p&gt;
+
+&lt;p&gt;Stateful processing lets you address both the latency problem of side inputs
+and the cost problem of excessive uninterseting output. Here is the code, using
+only features I have already introduced:&lt;/p&gt;
+
+&lt;div class=&quot;language-java highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;k&quot;&gt;new&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;DoFn&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;KV&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;UserId&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Event&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;KV&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;UserId&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Prediction&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&amp;gt;()&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
+
+  &lt;span class=&quot;nd&quot;&gt;@StateId&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;model&quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt;
+  &lt;span class=&quot;kd&quot;&gt;private&lt;/span&gt; &lt;span class=&quot;kd&quot;&gt;final&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;StateSpec&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Object&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;ValueState&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Model&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;modelSpec&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;
+      &lt;span class=&quot;n&quot;&gt;StateSpecs&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;value&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Model&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;coder&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;());&lt;/span&gt;
+
+  &lt;span class=&quot;nd&quot;&gt;@StateId&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;previousPrediction&quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt;
+  &lt;span class=&quot;kd&quot;&gt;private&lt;/span&gt; &lt;span class=&quot;kd&quot;&gt;final&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;StateSpec&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Object&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;ValueState&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Prediction&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;previousPredictionSpec&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;
+      &lt;span class=&quot;n&quot;&gt;StateSpecs&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;value&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Prediction&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;coder&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;());&lt;/span&gt;
+
+  &lt;span class=&quot;nd&quot;&gt;@ProcessElement&lt;/span&gt;
+  &lt;span class=&quot;kd&quot;&gt;public&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;void&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;processElement&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;
+      &lt;span class=&quot;n&quot;&gt;ProcessContext&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;c&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;,&lt;/span&gt;
+      &lt;span class=&quot;nd&quot;&gt;@StateId&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;previousPrediction&quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;ValueState&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Prediction&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;previousPredictionState&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;,&lt;/span&gt;
+      &lt;span class=&quot;nd&quot;&gt;@StateId&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;model&quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;ValueState&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Model&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;modelState&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;UserId&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;userId&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;c&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;element&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;().&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;getKey&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;();&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;Event&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;event&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;c&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;element&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;().&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;getValue&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;()&lt;/span&gt;
+
+    &lt;span class=&quot;n&quot;&gt;Model&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;model&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;modelState&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;read&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;();&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;Prediction&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;previousPrediction&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;previousPredictionState&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;read&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;();&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;Prediction&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;newPrediction&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;model&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;prediction&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;event&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;);&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;model&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;add&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;event&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;);&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;modelState&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;write&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;model&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;);&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;previousPrediction&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;==&lt;/span&gt; &lt;span class=&quot;kc&quot;&gt;null&lt;/span&gt; 
+        &lt;span class=&quot;o&quot;&gt;||&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;shouldOutputNewPrediction&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;previousPrediction&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;newPrediction&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;))&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
+      &lt;span class=&quot;n&quot;&gt;c&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;output&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;KV&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;of&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;userId&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;newPrediction&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;));&lt;/span&gt;
+      &lt;span class=&quot;n&quot;&gt;previousPredictionState&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;write&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;newPrediction&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;);&lt;/span&gt;
+    &lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
+  &lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
+&lt;span class=&quot;o&quot;&gt;};&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+
+&lt;div class=&quot;language-py highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;c&quot;&gt;# State and timers are not yet supported in Beam's Python SDK.&lt;/span&gt;
+&lt;span class=&quot;c&quot;&gt;# Watch this space!&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+
+&lt;p&gt;Let’s walk through it,&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;You have two state cells declared, &lt;code class=&quot;highlighter-rouge&quot;&gt;@StateId(&quot;model&quot;)&lt;/code&gt; to hold the current
+state of the model for a user and &lt;code class=&quot;highlighter-rouge&quot;&gt;@StateId(&quot;previousPrediction&quot;)&lt;/code&gt; to hold
+the prediction output previously.&lt;/li&gt;
+  &lt;li&gt;Access to the two state cells by annotation in the &lt;code class=&quot;highlighter-rouge&quot;&gt;@ProcessElement&lt;/code&gt; method
+is as before.&lt;/li&gt;
+  &lt;li&gt;You read the current model via &lt;code class=&quot;highlighter-rouge&quot;&gt;modelState.read()&lt;/code&gt;. Because state is also
+per-key-and-window, this is a model just for the UserId of the Event
+currently being processed.&lt;/li&gt;
+  &lt;li&gt;You derive a new prediction &lt;code class=&quot;highlighter-rouge&quot;&gt;model.prediction(event)&lt;/code&gt; and compare it against
+the last one you output, accessed via &lt;code class=&quot;highlighter-rouge&quot;&gt;previousPredicationState.read()&lt;/code&gt;.&lt;/li&gt;
+  &lt;li&gt;You then update the model &lt;code class=&quot;highlighter-rouge&quot;&gt;model.update()&lt;/code&gt; and write it via
+&lt;code class=&quot;highlighter-rouge&quot;&gt;modelState.write(...)&lt;/code&gt;. It is perfectly fine to mutate the value you pulled
+out of state as long as you also remember to write the mutated value, in the
+same way you are encouraged to mutate &lt;code class=&quot;highlighter-rouge&quot;&gt;CombineFn&lt;/code&gt; accumulators.&lt;/li&gt;
+  &lt;li&gt;If the prediction has changed a significant amount since the last time you
+output, you emit it via &lt;code class=&quot;highlighter-rouge&quot;&gt;context.output(...)&lt;/code&gt; and save the prediction using
+&lt;code class=&quot;highlighter-rouge&quot;&gt;previousPredictionState.write(...)&lt;/code&gt;. Here the decision is relative to the
+prior prediction output, not the last one computed - realistically you might
+have some complex conditions here.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;Most of the above is just talking through Java! But before you go out and
+convert all of your pipelines to use stateful processing, I want to go over
+some considerations as to whether it is a good fit for your use case.&lt;/p&gt;
+
+&lt;h2 id=&quot;performance-considerations&quot;&gt;Performance considerations&lt;/h2&gt;
+
+&lt;p&gt;To decide whether to use per-key-and-window state, you need to consider how it
+executes. You can dig into how a particular runner manages state, but there are
+some general things to keep in mind:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Partitioning per-key-and-window: perhaps the most important thing to
+consider is that the runner may have to shuffle your data to colocate all
+the data for a particular key+window. If the data is already shuffled
+correctly, the runner may take advantage of this.&lt;/li&gt;
+  &lt;li&gt;Synchronization overhead: the API is designed so the runner takes care of
+concurrency control, but this means that the runner cannot parallelize
+processing of elements for a particular key+window even when it would otherwise
+be advantageous.&lt;/li&gt;
+  &lt;li&gt;Storage and fault tolerance of state: since state is per-key-and-window, the
+more keys and windows you expect to process simultaneously, the more storage
+you will incur. Because state benefits from all the fault tolerance /
+consistency properties of your other data in Beam, it also adds to the cost of
+committing the results of processing.&lt;/li&gt;
+  &lt;li&gt;Expiration of state: also since state is per-window, the runner can reclaim
+the resources when a window expires (when the watermark exceeds its allowed
+lateness) but this could mean that the runner is tracking an additional timer
+per key and window to cause reclamation code to execute.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&quot;go-use-it&quot;&gt;Go use it!&lt;/h2&gt;
+
+&lt;p&gt;If you are new to Beam, I hope you are now interested in seeing if Beam with
+stateful processing addresses your use case.  If you are already using Beam, I
+hope this new addition to the model unlocks new use cases for you.  Do check
+the &lt;a href=&quot;/documentation/runners/capability-matrix/&quot;&gt;capability
+matrix&lt;/a&gt; to
+see the level of support for this new model feature on your favorite
+backend(s).&lt;/p&gt;
+
+&lt;p&gt;And please do join the community at
+&lt;a href=&quot;/get-started/support&quot;&gt;user@beam.apache.org&lt;/a&gt;. We’d love to
+hear from you.&lt;/p&gt;
+</description>
+        <pubDate>Mon, 13 Feb 2017 00:00:01 -0800</pubDate>
+        <link>https://beam.apache.org/blog/2017/02/13/stateful-processing.html</link>
+        <guid isPermaLink="true">https://beam.apache.org/blog/2017/02/13/stateful-processing.html</guid>
+        
+        
+        <category>blog</category>
+        
+      </item>
+    
+      <item>
         <title>Media recap of the Apache Beam graduation</title>
         <description>&lt;p&gt;One year ago today Apache Beam was accepted into incubation at the Apache
 Software Foundation. The community’s work over the past year culminated, just
@@ -738,25 +1312,6 @@ PCollection&amp;lt;O&amp;gt; output = input
         <pubDate>Fri, 27 May 2016 09:00:00 -0700</pubDate>
         <link>https://beam.apache.org/blog/2016/05/27/where-is-my-pcollection-dot-map.html</link>
         <guid isPermaLink="true">https://beam.apache.org/blog/2016/05/27/where-is-my-pcollection-dot-map.html</guid>
-        
-        
-        <category>blog</category>
-        
-      </item>
-    
-      <item>
-        <title>Dynamic work rebalancing for Beam</title>
-        <description>&lt;p&gt;This morning, Eugene and Malo from the Google Cloud Dataflow team posted &lt;a href=&quot;https://cloud.google.com/blog/big-data/2016/05/no-shard-left-behind-dynamic-work-rebalancing-in-google-cloud-dataflow&quot;&gt;&lt;em&gt;No shard left behind: dynamic work rebalancing in Google Cloud Dataflow&lt;/em&gt;&lt;/a&gt;. This article discusses Cloud Dataflow’s solution to the well-known straggler problem.&lt;/p&gt;
-
-&lt;!--more--&gt;
-
-&lt;p&gt;In a large batch processing job with many tasks executing in parallel, some of the tasks – the stragglers – can take a much longer time to complete than others, perhaps due to imperfect splitting of the work into parallel chunks when issuing the job. Typically, waiting for stragglers means that the overall job completes later than it should, and may also reserve too many machines that may be underutilized at the end. Cloud Dataflow’s dynamic work rebalancing can mitigate stragglers in most cases.&lt;/p&gt;
-
-&lt;p&gt;What I’d like to highlight for the Apache Beam (incubating) community is that Cloud Dataflow’s dynamic work rebalancing is implemented using &lt;em&gt;runner-specific&lt;/em&gt; control logic on top of Beam’s &lt;em&gt;runner-independent&lt;/em&gt; &lt;a href=&quot;https://github.com/apache/beam/blob/9fa97fb2491bc784df53fb0f044409dbbc2af3d7/sdks/java/core/src/main/java/org/apache/beam/sdk/io/BoundedSource.java&quot;&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;BoundedSource API&lt;/code&gt;&lt;/a&gt;. Specifically, to steal work from a straggler, a runner need only call the reader’s &lt;a href=&quot;https://github.com/apache/beam/blob/3edae9b8b4d7afefb5c803c19bb0a1c21ebba89d/sdks/java/core/src/main/java/org/apache/beam/sdk/io/BoundedSource.java#L266&quot;&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;splitAtFraction method&lt;/code&gt;&lt;/a&gt;. This will generate a new source containing leftover work, and then the runner can pass that source off to another idle worker. As Beam matures, I hope that other runners are interested in figuring out whether these APIs can help them improve performance, implementing dynamic work rebalancing, and collaborating on API changes that will help solve other pain points.&lt;/p&gt;
-</description>
-        <pubDate>Wed, 18 May 2016 11:00:00 -0700</pubDate>
-        <link>https://beam.apache.org/blog/2016/05/18/splitAtFraction-method.html</link>
-        <guid isPermaLink="true">https://beam.apache.org/blog/2016/05/18/splitAtFraction-method.html</guid>
         
         
         <category>blog</category>
