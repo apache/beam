@@ -19,6 +19,8 @@ package org.apache.beam.runners.direct;
 
 import com.google.common.collect.Iterables;
 import java.util.List;
+import java.util.Map;
+import org.apache.beam.runners.core.ReplacementOutputs;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.runners.PTransformOverrideFactory;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -26,6 +28,7 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.ParDo.Bound;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
+import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TaggedPValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
@@ -47,6 +50,12 @@ class ParDoSingleViaMultiOverrideFactory<InputT, OutputT>
   public PCollection<? extends InputT> getInput(
       List<TaggedPValue> inputs, Pipeline p) {
     return (PCollection<? extends InputT>) Iterables.getOnlyElement(inputs).getValue();
+  }
+
+  @Override
+  public Map<PValue, ReplacementOutput> mapOutputs(
+      List<TaggedPValue> outputs, PCollection<OutputT> newOutput) {
+    return ReplacementOutputs.singleton(outputs, newOutput);
   }
 
   static class ParDoSingleViaMulti<InputT, OutputT>

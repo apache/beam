@@ -21,9 +21,11 @@ import static com.google.common.base.Preconditions.checkState;
 
 import com.google.common.collect.Iterables;
 import java.util.List;
+import java.util.Map;
 import org.apache.beam.runners.core.KeyedWorkItem;
 import org.apache.beam.runners.core.KeyedWorkItemCoder;
 import org.apache.beam.runners.core.KeyedWorkItems;
+import org.apache.beam.runners.core.ReplacementOutputs;
 import org.apache.beam.runners.core.SplittableParDo;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
@@ -47,6 +49,7 @@ import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
+import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TaggedPValue;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.TypedPValue;
@@ -85,6 +88,12 @@ class ParDoMultiOverrideFactory<InputT, OutputT>
   public PCollection<? extends InputT> getInput(
       List<TaggedPValue> inputs, Pipeline p) {
     return (PCollection<? extends InputT>) Iterables.getOnlyElement(inputs).getValue();
+  }
+
+  @Override
+  public Map<PValue, ReplacementOutput> mapOutputs(
+      List<TaggedPValue> outputs, PCollectionTuple newOutput) {
+    return ReplacementOutputs.tagged(outputs, newOutput);
   }
 
   static class GbkThenStatefulParDo<K, InputT, OutputT>
