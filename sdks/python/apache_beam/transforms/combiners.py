@@ -472,11 +472,11 @@ class SingleInputTupleCombineFn(_TupleCombineFnBase):
 class ToList(ptransform.PTransform):
   """A global CombineFn that condenses a PCollection into a single list."""
 
-  def __init__(self, label='ToList'):
-    super(ToList, self).__init__(label)
+  def __init__(self):
+    super(ToList, self).__init__()
 
   def expand(self, pcoll):
-    return pcoll | self.label >> core.CombineGlobally(ToListCombineFn())
+    return pcoll | core.CombineGlobally(ToListCombineFn())
 
 
 @with_input_types(T)
@@ -506,11 +506,11 @@ class ToDict(ptransform.PTransform):
   will be present in the resulting dict.
   """
 
-  def __init__(self, label='ToDict'):
-    super(ToDict, self).__init__(label)
+  def __init__(self):
+    super(ToDict, self).__init__()
 
   def expand(self, pcoll):
-    return pcoll | self.label >> core.CombineGlobally(ToDictCombineFn())
+    return pcoll | core.CombineGlobally(ToDictCombineFn())
 
 
 @with_input_types(Tuple[K, V])
