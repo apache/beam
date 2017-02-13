@@ -20,12 +20,11 @@ import java.io.Serializable;
 /**
  * Descriptor of storage.
  */
-// FIXME rename to a mere 'StorageDescriptor'
-public abstract class StorageDescriptorBase implements Serializable {
+public abstract class StorageDescriptor implements Serializable {
 
   final String name;
 
-  protected StorageDescriptorBase(String name) {
+  protected StorageDescriptor(String name) {
     this.name = name;
   }
 
