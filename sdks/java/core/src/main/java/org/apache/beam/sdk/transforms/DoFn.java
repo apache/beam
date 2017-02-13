@@ -808,7 +808,8 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
    * Finalize the {@link DoFn} construction to prepare for processing.
    * This method should be called by runners before any processing methods.
    */
-  public void prepareForProcessing() {
+  @Deprecated
+  public final void prepareForProcessing() {
     aggregatorsAreFinal = true;
   }
 
