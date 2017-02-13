@@ -89,7 +89,7 @@ public class FileBasedSourceTest {
     final String splitHeader;
 
     public TestFileBasedSource(String fileOrPattern, long minBundleSize, String splitHeader) {
-      super(fileOrPattern, minBundleSize);
+      super(fileOrPattern, /* TODO */ true, minBundleSize);
       this.splitHeader = splitHeader;
     }
 

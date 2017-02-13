@@ -63,8 +63,8 @@ public abstract class BlockBasedSource<T> extends FileBasedSource<T> {
    * constructor when creating a {@code BlockBasedSource} for a file pattern. See
    * {@link FileBasedSource} for more information.
    */
-  public BlockBasedSource(String fileOrPatternSpec, long minBundleSize) {
-    super(fileOrPatternSpec, minBundleSize);
+  public BlockBasedSource(String fileOrPatternSpec, boolean failOnEmptyInput, long minBundleSize) {
+    super(fileOrPatternSpec, failOnEmptyInput, minBundleSize);
   }
 
   /**

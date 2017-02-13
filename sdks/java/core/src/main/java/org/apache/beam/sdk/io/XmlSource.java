@@ -135,6 +135,15 @@ public class XmlSource<T> extends FileBasedSource<T> {
   }
 
   /**
+   * Configures the source to succeed if the specified {@code fileOrPatternSpec} does not match any
+   * files. The default behavior is to fail on empty input.
+   */
+  public XmlSource<T> withAllowedEmptyInput() {
+    // TODO
+    return this;
+  }
+
+  /**
    * Sets name of the root element of the XML document. This will be used to create a valid starting
    * root element when initiating a bundle of records created from an XML document. This is a
    * required parameter.
@@ -175,7 +184,7 @@ public class XmlSource<T> extends FileBasedSource<T> {
 
   private XmlSource(String fileOrPattern, long minBundleSize, String rootElement,
       String recordElement, Class<T> recordClass) {
-    super(fileOrPattern, minBundleSize);
+    super(fileOrPattern, /* TODO */ true, minBundleSize);
     this.rootElement = rootElement;
     this.recordElement = recordElement;
     this.recordClass = recordClass;

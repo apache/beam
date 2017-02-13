@@ -280,6 +280,15 @@ public class AvroIO {
         return new Bound<>(name, filepattern, type, schema, false);
       }
 
+      /**
+       * Configures the source to succeed if the specified {@code fileOrPatternSpec} does not match any
+       * files. The default behavior is to fail on empty input.
+       */
+      public Bound<T> withAllowedEmptyInput() {
+        // TODO
+        return this;
+      }
+
       @Override
       public PCollection<T> expand(PBegin input) {
         if (filepattern == null) {

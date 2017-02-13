@@ -229,7 +229,7 @@ public class AvroSource<T> extends BlockBasedSource<T> {
 
   private AvroSource(String fileNameOrPattern, long minBundleSize, String schema, Class<T> type,
       String codec, byte[] syncMarker) {
-    super(fileNameOrPattern, minBundleSize);
+    super(fileNameOrPattern, /* TODO */ true, minBundleSize);
     this.readSchemaString = internSchemaString(schema);
     this.codec = codec;
     this.syncMarker = syncMarker;

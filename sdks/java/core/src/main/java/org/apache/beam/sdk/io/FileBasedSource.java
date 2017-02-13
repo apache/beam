@@ -98,21 +98,28 @@ public abstract class FileBasedSource<T> extends OffsetBasedSource<T> {
    *
    * @param fileOrPatternSpec {@link IOChannelFactory} specification of file or file pattern
    *        represented by the {@link FileBasedSource}.
+   * @param failOnEmptyInput whether to throw if {@code fileOrPatternSpec} does not match any
+   *        files.
    * @param minBundleSize minimum bundle size in bytes.
    */
-  public FileBasedSource(String fileOrPatternSpec, long minBundleSize) {
-    this(StaticValueProvider.of(fileOrPatternSpec), minBundleSize);
+  public FileBasedSource(String fileOrPatternSpec, boolean failOnEmptyInput, long minBundleSize) {
+    this(StaticValueProvider.of(fileOrPatternSpec), failOnEmptyInput, minBundleSize);
   }
 
   /**
    * Create a {@code FileBaseSource} based on a file or a file pattern specification.
    * Same as the {@code String} constructor, but accepting a {@link ValueProvider}
    * to allow for runtime configuration of the source.
+   *
+   * @param failOnEmptyInput whether to throw if {@code fileOrPatternSpec} does not match any
+   *        files.
    */
-  public FileBasedSource(ValueProvider<String> fileOrPatternSpec, long minBundleSize) {
+  public FileBasedSource(ValueProvider<String> fileOrPatternSpec, boolean failOnEmptyInput,
+      long minBundleSize) {
     super(0, Long.MAX_VALUE, minBundleSize);
     mode = Mode.FILEPATTERN;
     this.fileOrPatternSpec = fileOrPatternSpec;
+    // TODO: Implement logic for failOnEmptyInput
   }
 
   /**
