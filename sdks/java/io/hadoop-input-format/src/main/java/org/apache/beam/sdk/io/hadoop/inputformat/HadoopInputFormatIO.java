@@ -320,7 +320,6 @@ public class HadoopInputFormatIO {
     /**
      * Returns a new {@link HadoopInputFormatIO.Read} that will read from the source using the
      * options provided by the given configuration.
-     *
      * <p>
      * Does not modify this object.
      */
@@ -561,6 +560,7 @@ public class HadoopInputFormatIO {
     @Override
     public long getEstimatedSizeBytes(PipelineOptions po) throws Exception {
       if (inputSplit == null) {
+        // If there are no splits computed yet, then retrieve the splits.
         computeSplitsIfNecessary();
         return boundedSourceEstimatedSize;
       }
@@ -569,8 +569,8 @@ public class HadoopInputFormatIO {
 
     /**
      * This is a helper function to compute splits. This method will also calculate size of the data
-     * being read. Note: The splits are retrieved and cached for further use by splitIntoBundles()
-     * and getEstimatesSizeBytes().
+     * being read. Note: This method is executed exactly once, the splits are retrieved and cached for
+     * further use by splitIntoBundles() and getEstimatesSizeBytes().
      */
     @VisibleForTesting
     void computeSplitsIfNecessary() throws IOException, InterruptedException {
@@ -677,10 +677,10 @@ public class HadoopInputFormatIO {
         inputClass = Class.forName(inputFormatGenericClassName);
       } catch (Exception e) {
         /*
-         * Given inputFormatGenericType is a type parameter i.e. T, K, V, etc. In such cases class
-         * validation for user provided input key/value will not work correctly. Therefore the need
-         * to validate key/value classes by encoding and decoding key/value object with the given
-         * coder.
+         * Given inputFormatGenericClassName is a type parameter i.e. T, K, V, etc. In such cases
+         * class validation for user provided input key/value will not work correctly. Therefore the
+         * need to validate key/value classes by encoding and decoding key/value object with the
+         * given coder.
          */
         return validateClassUsingCoder(property, coder);
       }
@@ -1043,7 +1043,7 @@ public class HadoopInputFormatIO {
 
     /**
      * A wrapper to allow Hadoop {@link org.apache.hadoop.mapreduce.InputSplit} to be serialized
-     * using Java's standard serialization mechanisms. Note that the InputSplit is always Writable.
+     * using Java's standard serialization mechanisms.
      */
     public static class SerializableSplit implements Externalizable {
 
