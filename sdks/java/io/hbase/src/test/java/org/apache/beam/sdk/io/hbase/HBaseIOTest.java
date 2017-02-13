@@ -26,9 +26,12 @@ import static org.junit.Assert.assertThat;
 
 import com.google.protobuf.ByteString;
 
+import java.io.BufferedReader;
+import java.io.FileReader;
 import java.util.ArrayList;
 import java.util.List;
 
+import java.util.Map;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.hbase.HBaseIO.HBaseSource;
@@ -96,9 +99,32 @@ public class HBaseIOTest {
 
     @BeforeClass
     public static void beforeClass() throws Exception {
+        LOG.info("Starting HBase Embedded Server (HBaseTestUtility)");
         conf.setInt(HConstants.HBASE_CLIENT_RETRIES_NUMBER, 1);
         htu = new HBaseTestingUtility(conf);
         htu.startMiniCluster(1, 4);
+
+        LOG.info("HBase server configuration:");
+        Configuration configuration = htu.getConfiguration();
+        for (Map.Entry<String, String> entry : configuration) {
+            LOG.info("{}: {}", entry.getKey(), entry.getValue());
+        }
+
+        LOG.info("Printing /etc/hosts file");
+        try (BufferedReader br = new BufferedReader(new FileReader("/etc/hosts"))) {
+            String line = null;
+            while ((line = br.readLine()) != null) {
+                LOG.info(line);
+            }
+        }
+
+        // https://issues.apache.org/jira/browse/HBASE-11711
+        htu.getConfiguration().setInt("hbase.master.info.port", -1);
+
+        // Make sure the zookeeper quorum value contains the right port number (varies per run).
+        htu.getConfiguration().set("hbase.zookeeper.quorum",
+                "localhost:" + htu.getZkCluster().getClientPort());
+
         admin = htu.getHBaseAdmin();
         LOG.info("Started HBase Embedded Server (HBaseTestUtility)");
     }
