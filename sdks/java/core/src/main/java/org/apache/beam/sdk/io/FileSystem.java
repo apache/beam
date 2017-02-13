@@ -37,18 +37,22 @@ import org.apache.beam.sdk.io.fs.ResourceId;
  */
 public abstract class FileSystem<ResourceIdT extends ResourceId> {
   /**
-   * This is the entry point to convert users provided specs to {@link ResourceIdT ResourceIds}.
+   * This is the entry point to convert user-provided specs to {@link ResourceIdT ResourceIds}.
    * Callers should use {@link #match} to resolve users specs ambiguities before
    * calling other methods.
    *
-   * <p>Implementation should handle the following ambiguities of a user provided spec:
-   * 1). spec could be a glob or a uri. {@link #match} should be able to tell and
-   *     choose efficient implementations.
-   * 2). spec does not end with a path delimiter, such as ‘/’, may refer to files or directories:
-   *     For example, directory "file:/home/dir/" should be returned for spec “file:/home/dir”.
-   *     (However, spec ends with a path delimiter always refers to directories.)
-   * Note: File systems glob support is different. However, it is required to
-   * support glob in the final component of a path (eg file:/foo/bar/*.txt).
+   * <p>Implementation should handle the following ambiguities of a user-provided spec:
+   * <ul>
+   * <li>1). spec could be a glob or a uri. {@link #match} should be able to tell and
+   * choose efficient implementations.
+   * <li>2). spec does not end with a path delimiter may refer to files or directories:
+   * For example, local directory "/home/dir/" should be returned for spec “/home/dir”.
+   * (However, spec ends with a path delimiter always refers to directories.)
+   * </ul>
+   *
+   * <p>All {@link FileSystem} implementations should support glob in the final hierarchical path
+   * component of {@link ResourceIdT}. This allows SDK libraries to construct file system agnostic
+   * spec. {@link FileSystem FileSystems} can support additional patterns for user-provided specs.
    *
    * @return {@code List<MatchResult>} in the same order of the input specs.
    *

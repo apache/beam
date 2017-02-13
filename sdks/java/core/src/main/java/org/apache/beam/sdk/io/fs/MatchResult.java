@@ -62,7 +62,7 @@ public abstract class MatchResult {
   }
 
   /**
-   * Returns a {@link MatchResult} with UNKNOWN {@link Status}.
+   * Returns a {@link MatchResult} with {@link Status#UNKNOWN}.
    */
   public static MatchResult unknown() {
     return new MatchResult() {

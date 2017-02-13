@@ -167,39 +167,42 @@ public class LocalFileSystemTest {
   }
 
   @Test
-  public void testMatchNone() throws Exception {
+  public void testMatchPatternNone() throws Exception {
     List<String> expected = ImmutableList.of();
     temporaryFolder.newFile("a");
     temporaryFolder.newFile("aa");
     temporaryFolder.newFile("ab");
 
-    // Windows doesn't like resolving paths with * in them, so the * is appended after resolve.
-    List<MatchResult> matchResults = localFileSystem.match(
-        ImmutableList.of(temporaryFolder.getRoot().toPath().resolve("b") + "*"));
+    List<MatchResult> matchResults =
+        matchGlobWithPathPrefix(temporaryFolder.getRoot().toPath().resolve("b"), "*");
     assertThat(
         toFilenames(matchResults),
         containsInAnyOrder(expected.toArray(new String[expected.size()])));
   }
 
   @Test
-  public void testMatchUsingExplicitPath() throws Exception {
-    List<String> expected = ImmutableList.of(temporaryFolder.newFile("a").toString());
-    temporaryFolder.newFile("aa");
-
-    List<MatchResult> matchResults = localFileSystem.match(
-        ImmutableList.of(temporaryFolder.getRoot().toPath().resolve("a").toString()));
-    assertThat(
-        toFilenames(matchResults),
-        containsInAnyOrder(expected.toArray(new String[expected.size()])));
-  }
-
-  @Test
-  public void testMatchUsingExplicitPathForNonExistentFile() throws Exception {
+  public void testMatchForNonExistentFile() throws Exception {
     List<String> expected = ImmutableList.of();
     temporaryFolder.newFile("aa");
 
     List<MatchResult> matchResults = localFileSystem.match(
         ImmutableList.of(temporaryFolder.getRoot().toPath().resolve("a").toString()));
+    assertThat(
+        toFilenames(matchResults),
+        containsInAnyOrder(expected.toArray(new String[expected.size()])));
+  }
+
+  @Test
+  public void testMatchMultipleWithFileExtension() throws Exception {
+    List<String> expected = ImmutableList.of(
+        temporaryFolder.newFile("a.txt").toString(),
+        temporaryFolder.newFile("aa.txt").toString(),
+        temporaryFolder.newFile("ab.txt").toString());
+    temporaryFolder.newFile("a.avro");
+    temporaryFolder.newFile("ab.avro");
+
+    List<MatchResult> matchResults =
+        matchGlobWithPathPrefix(temporaryFolder.getRoot().toPath().resolve("a"), "*.txt");
     assertThat(
         toFilenames(matchResults),
         containsInAnyOrder(expected.toArray(new String[expected.size()])));
@@ -215,9 +218,8 @@ public class LocalFileSystemTest {
     temporaryFolder.newFile("ba");
     temporaryFolder.newFile("bb");
 
-    // Windows doesn't like resolving paths with * in them, so the * is appended after resolve.
-    List<MatchResult> matchResults = localFileSystem.match(
-        ImmutableList.of(temporaryFolder.getRoot().toPath().resolve("a") + "*"));
+    List<MatchResult> matchResults =
+        matchGlobWithPathPrefix(temporaryFolder.getRoot().toPath().resolve("a"), "*");
     assertThat(
         toFilenames(matchResults),
         containsInAnyOrder(expected.toArray(new String[expected.size()])));
@@ -237,9 +239,8 @@ public class LocalFileSystemTest {
     temporaryFolder.newFile("ba");
     temporaryFolder.newFile("bb");
 
-    // Windows doesn't like resolving paths with * in them, so the ** is appended after resolve.
-    List<MatchResult> matchResults = localFileSystem.match(
-        ImmutableList.of(temporaryFolder.getRoot().toPath().resolve("a") + "**"));
+    List<MatchResult> matchResults =
+        matchGlobWithPathPrefix(temporaryFolder.getRoot().toPath().resolve("a"), "**");
     assertThat(
         toFilenames(matchResults),
         Matchers.hasItems(expected.toArray(new String[expected.size()])));
@@ -250,9 +251,8 @@ public class LocalFileSystemTest {
     List<String> expected = ImmutableList.of(temporaryFolder.newFile("a").toString());
     temporaryFolder.newFolder("a_dir_that_should_not_be_matched");
 
-    // Windows doesn't like resolving paths with * in them, so the * is appended after resolve.
-    List<MatchResult> matchResults = localFileSystem.match(
-        ImmutableList.of(temporaryFolder.getRoot().toPath().resolve("a") + "*"));
+    List<MatchResult> matchResults =
+        matchGlobWithPathPrefix(temporaryFolder.getRoot().toPath().resolve("a"), "*");
     assertThat(
         toFilenames(matchResults),
         containsInAnyOrder(expected.toArray(new String[expected.size()])));
@@ -277,6 +277,12 @@ public class LocalFileSystemTest {
         StandardCharsets.UTF_8.name())) {
       writer.write(content);
     }
+  }
+
+  private List<MatchResult> matchGlobWithPathPrefix(Path pathPrefix, String glob)
+      throws IOException {
+    // Windows doesn't like resolving paths with * in glob, so the glob is concatenated as String.
+    return localFileSystem.match(ImmutableList.of(pathPrefix + glob));
   }
 
   private List<LocalResourceId> toLocalResourceIds(List<Path> paths, final boolean isDirectory) {

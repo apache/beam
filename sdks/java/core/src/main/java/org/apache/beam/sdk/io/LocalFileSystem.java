@@ -169,6 +169,10 @@ class LocalFileSystem extends FileSystem<LocalResourceId> {
   private MatchResult matchOne(String spec) throws IOException {
     File file = Paths.get(spec).toFile();
 
+    if (file.exists()) {
+      return MatchResult.create(Status.OK, new Metadata[]{toMetadata(file)});
+    }
+
     File parent = file.getAbsoluteFile().getParentFile();
     if (!parent.exists()) {
       return MatchResult.create(Status.NOT_FOUND, EMPTY_METADATA);
@@ -187,6 +191,7 @@ class LocalFileSystem extends FileSystem<LocalResourceId> {
     final PathMatcher matcher =
         java.nio.file.FileSystems.getDefault().getPathMatcher("glob:" + pathToMatch);
 
+    // TODO: Avoid iterating all files: https://issues.apache.org/jira/browse/BEAM-1309
     Iterable<File> files = com.google.common.io.Files.fileTreeTraverser().preOrderTraversal(parent);
     Iterable<File> matchedFiles = Iterables.filter(files,
         Predicates.and(
@@ -200,12 +205,16 @@ class LocalFileSystem extends FileSystem<LocalResourceId> {
 
     List<Metadata> result = Lists.newLinkedList();
     for (File match : matchedFiles) {
-      result.add(Metadata.builder()
-          .setResourceId(LocalResourceId.fromPath(match.toPath(), match.isDirectory()))
-          .setIsReadSeekEfficient(true)
-          .setSizeBytes(match.length())
-          .build());
+      result.add(toMetadata(match));
     }
     return MatchResult.create(Status.OK, result.toArray(new Metadata[result.size()]));
+  }
+
+  private Metadata toMetadata(File file) {
+    return Metadata.builder()
+        .setResourceId(LocalResourceId.fromPath(file.toPath(), file.isDirectory()))
+        .setIsReadSeekEfficient(true)
+        .setSizeBytes(file.length())
+        .build();
   }
 }
