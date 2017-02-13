@@ -456,8 +456,8 @@ Figure 1: The pipeline data flow.</p>
   <span class="k">def</span> <span class="nf">expand</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pcoll</span><span class="p">):</span>
     <span class="k">return</span> <span class="p">(</span><span class="n">pcoll</span>
             <span class="c"># Convert lines of text into individual words.</span>
-            <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">FlatMap</span><span class="p">(</span>
-                <span class="s">'ExtractWords'</span><span class="p">,</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">re</span><span class="o">.</span><span class="n">findall</span><span class="p">(</span><span class="s">r'[A-Za-z</span><span class="se">\'</span><span class="s">]+'</span><span class="p">,</span> <span class="n">x</span><span class="p">))</span>
+            <span class="o">|</span> <span class="s">'ExtractWords'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">FlatMap</span><span class="p">(</span>
+                <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">re</span><span class="o">.</span><span class="n">findall</span><span class="p">(</span><span class="s">r'[A-Za-z</span><span class="se">\'</span><span class="s">]+'</span><span class="p">,</span> <span class="n">x</span><span class="p">))</span>
 
             <span class="c"># Count the number of times each word occurs.</span>
             <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">combiners</span><span class="o">.</span><span class="n">Count</span><span class="o">.</span><span class="n">PerElement</span><span class="p">())</span>
