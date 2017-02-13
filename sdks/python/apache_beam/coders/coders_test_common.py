@@ -62,7 +62,8 @@ class CodersTest(unittest.TestCase):
                      coders.FastCoder,
                      coders.ProtoCoder,
                      coders.ToStringCoder,
-                     coders.WindowCoder])
+                     coders.WindowCoder,
+                     coders.IntervalWindowCoder])
     assert not standard - cls.seen, standard - cls.seen
     assert not standard - cls.seen_nested, standard - cls.seen_nested
 
@@ -165,6 +166,12 @@ class CodersTest(unittest.TestCase):
     self.check_coder(coders.SingletonCoder(b), b)
     self.check_coder(coders.TupleCoder((coders.SingletonCoder(a),
                                         coders.SingletonCoder(b))), (a, b))
+
+  def test_interval_window_coder(self):
+    self.check_coder(coders.IntervalWindowCoder(),
+                     *[window.IntervalWindow(x, y)
+                       for x in [-2**52, 0, 2**52]
+                       for y in range(-100, 100)])
 
   def test_timestamp_coder(self):
     self.check_coder(coders.TimestampCoder(),
