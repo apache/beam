@@ -300,8 +300,7 @@ public class HBaseIO {
 
     static class HBaseSource extends BoundedSource<Result> {
         private Read read;
-        @Nullable
-        private Long estimatedSizeBytes;
+        @Nullable private Long estimatedSizeBytes;
 
         HBaseSource(Read read, @Nullable Long estimatedSizeBytes) {
             this.read = read;
@@ -328,7 +327,7 @@ public class HBaseIO {
             Configuration configuration = this.read.serializableConfiguration.getConfiguration();
             try (Connection connection = ConnectionFactory.createConnection(configuration)) {
                 // filter regions for the given table/scan
-                List<HRegionLocation> regionLocations = getRegionLocations();
+                List<HRegionLocation> regionLocations = getRegionLocations(connection);
 
                 // builds set of regions who are part of the table scan
                 Set<byte[]> tableRegions = new TreeSet<>(Bytes.BYTES_COMPARATOR);
@@ -354,7 +353,7 @@ public class HBaseIO {
             return estimatedSizeBytes;
         }
 
-        private List<HRegionLocation> getRegionLocations() throws Exception {
+        private List<HRegionLocation> getRegionLocations(Connection connection) throws Exception {
             final Scan scan = read.serializableScan.getScan();
             byte[] startRow = scan.getStartRow();
             byte[] stopRow = scan.getStopRow();
@@ -363,23 +362,22 @@ public class HBaseIO {
 
             final boolean scanWithNoLowerBound = startRow.length == 0;
             final boolean scanWithNoUpperBound = stopRow.length == 0;
-            Configuration configuration = this.read.serializableConfiguration.getConfiguration();
-            try (Connection connection = ConnectionFactory.createConnection(configuration)) {
-                TableName tableName = TableName.valueOf(read.tableId);
-                RegionLocator regionLocator = connection.getRegionLocator(tableName);
-                List<HRegionLocation> tableRegionInfos = regionLocator.getAllRegionLocations();
-                for (HRegionLocation regionLocation : tableRegionInfos) {
-                    final byte[] startKey = regionLocation.getRegionInfo().getStartKey();
-                    final byte[] endKey = regionLocation.getRegionInfo().getEndKey();
-                    boolean isLastRegion = endKey.length == 0;
-                    // filters regions who are part of the scan
-                    if ((scanWithNoLowerBound
-                            || isLastRegion || Bytes.compareTo(startRow, endKey) < 0)
-                            && (scanWithNoUpperBound || Bytes.compareTo(stopRow, startKey) > 0)) {
-                        regionLocations.add(regionLocation);
-                    }
+
+            TableName tableName = TableName.valueOf(read.tableId);
+            RegionLocator regionLocator = connection.getRegionLocator(tableName);
+            List<HRegionLocation> tableRegionInfos = regionLocator.getAllRegionLocations();
+            for (HRegionLocation regionLocation : tableRegionInfos) {
+                final byte[] startKey = regionLocation.getRegionInfo().getStartKey();
+                final byte[] endKey = regionLocation.getRegionInfo().getEndKey();
+                boolean isLastRegion = endKey.length == 0;
+                // filters regions who are part of the scan
+                if ((scanWithNoLowerBound
+                        || isLastRegion || Bytes.compareTo(startRow, endKey) < 0)
+                        && (scanWithNoUpperBound || Bytes.compareTo(stopRow, startKey) > 0)) {
+                    regionLocations.add(regionLocation);
                 }
             }
+
             return regionLocations;
         }
 
@@ -429,28 +427,33 @@ public class HBaseIO {
                 numSplits = (int) Math.ceil((double) estimatedSizeBytes / desiredBundleSizeBytes);
             }
 
-            List<HRegionLocation> regionLocations = getRegionLocations();
-            int realNumSplits =
-                    numSplits < regionLocations.size() ? regionLocations.size() : numSplits;
-            LOG.debug("Suggested {} bundle(s) based on size", numSplits);
-            LOG.debug("Suggested {} bundle(s) based on number of regions", regionLocations.size());
-            final List<HBaseSource> sources = splitBasedOnRegions(regionLocations, realNumSplits);
-            LOG.debug("Split into {} bundle(s)", sources.size());
-            if (numSplits >= 1) {
-                return sources;
+            try (Connection connection = ConnectionFactory.createConnection(
+                    read.getConfiguration())) {
+                List<HRegionLocation> regionLocations = getRegionLocations(connection);
+                int realNumSplits =
+                        numSplits < regionLocations.size() ? regionLocations.size() : numSplits;
+                LOG.debug("Suggested {} bundle(s) based on size", numSplits);
+                LOG.debug("Suggested {} bundle(s) based on number of regions",
+                        regionLocations.size());
+                final List<HBaseSource> sources = splitBasedOnRegions(regionLocations,
+                        realNumSplits);
+                LOG.debug("Split into {} bundle(s)", sources.size());
+                if (numSplits >= 1) {
+                    return sources;
+                }
+                return Collections.singletonList(this);
             }
-            return Collections.singletonList(this);
         }
 
         @Override
-        public BoundedReader<Result>
-            createReader(PipelineOptions pipelineOptions) throws IOException {
+        public BoundedReader<Result> createReader(PipelineOptions pipelineOptions)
+                throws IOException {
             return new HBaseReader(this);
         }
 
         @Override
         public void validate() {
-            read.validate(null);
+            read.validate(null /* input */);
         }
 
         @Override
@@ -511,7 +514,7 @@ public class HBaseIO {
                 scanner.close();
                 scanner = null;
             }
-            if (connection != null && !connection.isClosed()) {
+            if (connection != null) {
                 connection.close();
                 connection = null;
             }
@@ -531,7 +534,7 @@ public class HBaseIO {
      * that specifies which table to write.
      */
     public static Write write() {
-        return new Write((SerializableConfiguration) null, "");
+        return new Write(null /* SerializableConfiguration */, "");
     }
 
     /**
