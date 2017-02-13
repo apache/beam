@@ -162,11 +162,10 @@ public class HBaseIOTest {
     public void testReadingFailsTableDoesNotExist() throws Exception {
         final String table = "TEST-TABLE-INVALID";
         // Exception will be thrown by read.validate() when read is applied.
-        TestPipeline p = TestPipeline.create();
-        // Exception will be thrown by write.validate() when write is applied.
         thrown.expect(IllegalArgumentException.class);
         thrown.expectMessage(String.format("Table %s does not exist", table));
-        p.apply("read", HBaseIO.read().withConfiguration(conf).withTableId(table));
+        runReadTest(HBaseIO.read().withConfiguration(conf).withTableId(table),
+                new ArrayList<Result>());
     }
 
     /** Tests that when reading from an empty table, the read succeeds. */
