@@ -30,10 +30,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.hbase.HBaseIO.HBaseSource;
-import org.apache.beam.sdk.io.hbase.coders.HBaseMutationCoder;
 import org.apache.beam.sdk.io.range.ByteKey;
 import org.apache.beam.sdk.io.range.ByteKeyRange;
 import org.apache.beam.sdk.testing.ExpectedLogs;
@@ -103,9 +101,6 @@ public class HBaseIOTest {
         htu.startMiniCluster(1, 4);
         admin = htu.getHBaseAdmin();
         LOG.info("Started HBase Embedded Server (HBaseTestUtility)");
-
-        CoderRegistry cr = TestPipeline.create().getCoderRegistry();
-        cr.registerCoder(Mutation.class, HBaseMutationCoder.class);
     }
 
     @AfterClass
@@ -372,18 +367,6 @@ public class HBaseIOTest {
             mutations.add(new Put(rowKey).addColumn(COLUMN_FAMILY, COLUMN_EMAIL, valueEmail));
         }
         return mutations;
-    }
-
-    private static boolean tableExists(String tableId) throws Exception {
-        return admin.tableExists(TableName.valueOf(tableId));
-    }
-
-    private static void deleteTable(String tableId) throws Exception {
-        if (tableExists(tableId)) {
-            TableName tableName = TableName.valueOf(tableId);
-            admin.disableTable(tableName);
-            admin.deleteTable(tableName);
-        }
     }
 
     private static ResultScanner scanTable(String tableId, Scan scan) throws Exception {
