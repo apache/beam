@@ -55,6 +55,7 @@ import org.apache.beam.runners.core.DoFnRunner;
 import org.apache.beam.runners.core.DoFnRunners;
 import org.apache.beam.runners.core.DoFnRunners.OutputManager;
 import org.apache.beam.runners.dataflow.util.DoFnInfo;
+import org.apache.beam.sdk.common.runner.v1.RunnerApi;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -68,12 +69,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Processes {@link org.apache.beam.fn.v1.BeamFnApi.ProcessBundleRequest}s by materializing
- * the set of required runners for each {@link org.apache.beam.fn.v1.BeamFnApi.FunctionSpec},
+ * Processes {@link org.apache.beam.fn.v1.BeamFnApi.ProcessBundleRequest}s by materializing the set
+ * of required runners for each {@link org.apache.beam.sdk.common.runner.v1.RunnerApi.FunctionSpec},
  * wiring them together based upon the {@code input} and {@code output} map definitions.
  *
- * <p>Finally executes the DAG based graph by starting all runners in reverse topological order,
- * and finishing all runners in forward topological order.
+ * <p>Finally executes the DAG based graph by starting all runners in reverse topological order, and
+ * finishing all runners in forward topological order.
  */
 public class ProcessBundleHandler {
   // TODO: What should the initial set of URNs be?
@@ -105,7 +106,7 @@ public class ProcessBundleHandler {
       Consumer<ThrowingRunnable> addStartFunction,
       Consumer<ThrowingRunnable> addFinishFunction) throws IOException {
 
-    BeamFnApi.FunctionSpec functionSpec = primitiveTransform.getFunctionSpec();
+    RunnerApi.FunctionSpec functionSpec = primitiveTransform.getFunctionSpec();
 
     // For every output PCollection, create a map from output name to Consumer
     ImmutableMap.Builder<String, Collection<ThrowingConsumer<WindowedValue<OutputT>>>>
@@ -125,7 +126,7 @@ public class ProcessBundleHandler {
 
     // Based upon the function spec, populate the start/finish/consumer information.
     ThrowingConsumer<WindowedValue<InputT>> consumer;
-    switch (functionSpec.getUrn()) {
+    switch (functionSpec.getSpec().getUrn()) {
       default:
         BeamFnApi.Target target;
         BeamFnApi.Coder coderSpec;
@@ -248,14 +249,16 @@ public class ProcessBundleHandler {
   }
 
   /**
-   * Converts a {@link org.apache.beam.fn.v1.BeamFnApi.FunctionSpec} into a {@link DoFnRunner}.
+   * Converts a {@link org.apache.beam.sdk.runner.v1.RunnerApi.FunctionSpec} into a {@link
+   *
+   * DoFnRunner}.
    */
   private <InputT, OutputT> DoFnRunner<InputT, OutputT> createDoFnRunner(
-      BeamFnApi.FunctionSpec functionSpec,
+      RunnerApi.FunctionSpec functionSpec,
       Map<String, Collection<ThrowingConsumer<WindowedValue<OutputT>>>> outputMap) {
     ByteString serializedFn;
     try {
-      serializedFn = functionSpec.getData().unpack(BytesValue.class).getValue();
+      serializedFn = functionSpec.getSdkFnSpec().getData().unpack(BytesValue.class).getValue();
     } catch (InvalidProtocolBufferException e) {
       throw new IllegalArgumentException(
           String.format("Unable to unwrap DoFn %s", functionSpec), e);
@@ -323,7 +326,7 @@ public class ProcessBundleHandler {
 
   private <InputT extends BoundedSource<OutputT>, OutputT>
       BoundedSourceRunner<InputT, OutputT> createBoundedSourceRunner(
-          BeamFnApi.FunctionSpec functionSpec,
+          RunnerApi.FunctionSpec functionSpec,
           Map<String, Collection<ThrowingConsumer<WindowedValue<OutputT>>>> outputMap) {
 
     @SuppressWarnings({"rawtypes", "unchecked"})

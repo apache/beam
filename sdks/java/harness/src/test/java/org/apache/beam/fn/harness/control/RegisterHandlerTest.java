@@ -27,6 +27,7 @@ import org.apache.beam.fn.harness.test.TestExecutors;
 import org.apache.beam.fn.harness.test.TestExecutors.TestExecutorService;
 import org.apache.beam.fn.v1.BeamFnApi;
 import org.apache.beam.fn.v1.BeamFnApi.RegisterResponse;
+import org.apache.beam.sdk.common.runner.v1.RunnerApi;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -42,11 +43,11 @@ public class RegisterHandlerTest {
       .setInstructionId(1L)
       .setRegister(BeamFnApi.RegisterRequest.newBuilder()
           .addProcessBundleDescriptor(BeamFnApi.ProcessBundleDescriptor.newBuilder().setId(1L)
-              .addCoders(BeamFnApi.Coder.newBuilder().setFunctionSpec(
-                  BeamFnApi.FunctionSpec.newBuilder().setId(10L)).build()))
+              .addCoders(BeamFnApi.Coder.newBuilder().setId(10L).setFunctionSpec(
+                  RunnerApi.FunctionSpec.newBuilder()).build()))
           .addProcessBundleDescriptor(BeamFnApi.ProcessBundleDescriptor.newBuilder().setId(2L)
-              .addCoders(BeamFnApi.Coder.newBuilder().setFunctionSpec(
-                  BeamFnApi.FunctionSpec.newBuilder().setId(20L)).build()))
+              .addCoders(BeamFnApi.Coder.newBuilder().setId(20L).setFunctionSpec(
+                  RunnerApi.FunctionSpec.newBuilder()).build()))
           .build())
       .build();
   private static final BeamFnApi.InstructionResponse REGISTER_RESPONSE =
