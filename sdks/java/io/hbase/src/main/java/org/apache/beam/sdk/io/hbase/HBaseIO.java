@@ -137,9 +137,9 @@ import org.slf4j.LoggerFactory;
  * to identify the HBase instance, for example:
  *
  * <pre>{@code
- * Configuration configuration = ...
+ * Configuration configuration = ...;
  * PCollection<KV<ByteString, Iterable<Mutation>>> data = ...;
- * data.setCoder(HBaseIO.WRITE_CODER)
+ * data.setCoder(HBaseIO.WRITE_CODER);
  *
  * data.apply("write",
  *     HBaseIO.write()
