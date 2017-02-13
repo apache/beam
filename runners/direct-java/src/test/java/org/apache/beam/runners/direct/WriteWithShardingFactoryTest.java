@@ -86,7 +86,7 @@ public class WriteWithShardingFactoryTest {
     String targetLocation = IOChannelUtils.resolve(outputPath, fileName);
     // TextIO is implemented in terms of the Write PTransform. When sharding is not specified,
     // resharding should be automatically applied
-    p.apply(Create.of(strs)).apply(TextIO.Write.to(targetLocation));
+    p.apply(Create.of(strs)).apply(TextIO.writeStrings().to(targetLocation));
 
     p.run();
 

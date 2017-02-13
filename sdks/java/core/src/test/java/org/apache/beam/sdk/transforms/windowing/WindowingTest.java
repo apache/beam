@@ -215,7 +215,7 @@ public class WindowingTest implements Serializable {
     }
 
     PCollection<String> output = p.begin()
-        .apply("ReadLines", TextIO.Read.from(filename))
+        .apply("ReadLines", TextIO.readStrings().from(filename))
         .apply(ParDo.of(new ExtractWordsWithTimestampsFn()))
         .apply(new WindowedCount(FixedWindows.of(Duration.millis(10))));
 

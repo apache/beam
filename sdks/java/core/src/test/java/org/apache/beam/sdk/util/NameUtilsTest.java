@@ -20,7 +20,6 @@ package org.apache.beam.sdk.util;
 
 import static org.junit.Assert.assertEquals;
 
-import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.util.NameUtils.NameOverride;
 import org.apache.beam.sdk.values.PBegin;
@@ -133,7 +132,6 @@ public class NameUtilsTest {
     assertEquals(
         "NameUtilsTest.EmbeddedPTransform",
         NameUtils.approximatePTransformName(transform.getBound().getClass()));
-    assertEquals("TextIO.Write", NameUtils.approximatePTransformName(TextIO.Write.Bound.class));
   }
 
   @Test

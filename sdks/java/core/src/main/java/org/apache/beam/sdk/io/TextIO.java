@@ -123,357 +123,378 @@ public class TextIO {
   /** The default coder, which returns each line of the input file as a string. */
   public static final Coder<String> DEFAULT_TEXT_CODER = StringUtf8Coder.of();
 
-  /**
-   * A {@link PTransform} that reads from a text file (or multiple text
-   * files matching a pattern) and returns a {@link PCollection} containing
-   * the decoding of each of the lines of the text file(s). The
-   * default decoding just returns each line as a {@link String}, but you may call
-   * {@link #withCoder(Coder)} to change the return type.
-   */
-  public static class Read {
+  public static <T> Read<T> read() {
+    return new Read<>();
+  }
 
-    /**
-     * Returns a transform for reading text files that reads from the file(s)
-     * with the given filename or filename pattern. This can be a local path (if running locally),
-     * or a Google Cloud Storage filename or filename pattern of the form
-     * {@code "gs://<bucket>/<filepath>"} (if running locally or via the Google Cloud Dataflow
-     * service). Standard <a href="http://docs.oracle.com/javase/tutorial/essential/io/find.html"
-     * >Java Filesystem glob patterns</a> ("*", "?", "[..]") are supported.
+  public static Read<String> readStrings() {
+    return new Read<String>().withCoder(DEFAULT_TEXT_CODER);
+  }
+
+  public static <T> Write<T> write() {
+    return new Write<>();
+  }
+
+  public static Write<String> writeStrings() {
+    return new Write<String>().withCoder(DEFAULT_TEXT_CODER);
+  }
+
+  /**
+   * A {@link PTransform} that reads from one or more text files and returns a bounded
+   * {@link PCollection} containing one element for each line of the input files.
+   *
+   * @param <T> the type of each of the elements of the resulting
+   * {@link PCollection}. By default, each line is returned as a {@link String}, however you
+   * may use {@link #withCoder(Coder)} to supply a {@code Coder<T>} to produce a
+   * {@code PCollection<T>} instead.
+   */
+  public static class Read<T> extends PTransform<PBegin, PCollection<T>> {
+    /** The filepattern to read from. */
+    @Nullable private final ValueProvider<String> filepattern;
+
+    /** The Coder to use to decode each line. */
+    private final Coder<T> coder;
+
+    /** An option to indicate if input validation is desired. Default is true. */
+    private final boolean validate;
+
+    /** Option to indicate the input source's compression type. Default is AUTO. */
+    private final TextIO.CompressionType compressionType;
+
+    Read() {
+      this(null, null, null, true, TextIO.CompressionType.AUTO);
+    }
+
+    private Read(@Nullable String name, @Nullable ValueProvider<String> filepattern,
+        Coder<T> coder, boolean validate, TextIO.CompressionType compressionType) {
+      super(name);
+      this.coder = coder;
+      this.filepattern = filepattern;
+      this.validate = validate;
+      this.compressionType = compressionType;
+    }
+
+    /**    * Returns a transform for reading text files that reads from the file(s) 
+     * with the given filename or filename pattern. This can be a local path (if running locally), 
+     * or a Google Cloud Storage filename or filename pattern of the form 
+     * {@code "gs://<bucket>/<filepath>"} (if running locally or via the Google Cloud Dataflow 
+     * service). Standard <a href="http://docs.oracle.com/javase/tutorial/essential/io/find.html" 
+     * >Java Filesystem glob patterns</a> ("*", "?", "[..]") are supported. 
      */
-    public static Bound<String> from(String filepattern) {
-      return new Bound<>(DEFAULT_TEXT_CODER).from(filepattern);
+    public Read<T> from(String filepattern) {
+      checkNotNull(filepattern, "Filepattern cannot be empty.");
+      return new Read<>(name, StaticValueProvider.of(filepattern), coder, validate,
+                         compressionType);
     }
 
     /**
      * Same as {@code from(filepattern)}, but accepting a {@link ValueProvider}.
      */
-    public static Bound<String> from(ValueProvider<String> filepattern) {
-      return new Bound<>(DEFAULT_TEXT_CODER).from(filepattern);
+    public Read<T> from(ValueProvider<String> filepattern) {
+      checkNotNull(filepattern, "Filepattern cannot be empty.");
+      return new Read<>(name, filepattern, coder, validate, compressionType);
     }
 
     /**
-     * Returns a transform for reading text files that uses the given
-     * {@code Coder<T>} to decode each of the lines of the file into a
-     * value of type {@code T}.
+     * Returns a new transform for reading from text files that's like this one but
+     * that uses the given {@link Coder Coder&lt;X&gt;} to decode each of the
+     * lines of the file into a value of type {@code T}.
      *
-     * <p>By default, uses {@link StringUtf8Coder}, which just
-     * returns the text lines as Java strings.
-     *
-     * @param <T> the type of the decoded elements, and the elements
-     * of the resulting PCollection
+     * <p>Does not modify this object.
      */
-    public static <T> Bound<T> withCoder(Coder<T> coder) {
-      return new Bound<>(coder);
+    public  Read<T> withCoder(Coder<T> coder) {
+      return new Read<>(name, filepattern, coder, validate, compressionType);
     }
 
     /**
-     * Returns a transform for reading text files that has GCS path validation on
-     * pipeline creation disabled.
+     * Returns a new transform for reading from text files that's like this one but
+     * that has GCS path validation on pipeline creation disabled.
      *
      * <p>This can be useful in the case where the GCS input does not
      * exist at the pipeline creation time, but is expected to be
      * available at execution time.
-     */
-    public static Bound<String> withoutValidation() {
-      return new Bound<>(DEFAULT_TEXT_CODER).withoutValidation();
-    }
-
-    /**
-     * Returns a transform for reading text files that decompresses all input files
-     * using the specified compression type.
      *
-     * <p>If no compression type is specified, the default is {@link TextIO.CompressionType#AUTO}.
-     * In this mode, the compression type of the file is determined by its extension
-     * (e.g., {@code *.gz} is gzipped, {@code *.bz2} is bzipped, and all other extensions are
-     * uncompressed).
+     * <p>Does not modify this object.
      */
-    public static Bound<String> withCompressionType(TextIO.CompressionType compressionType) {
-      return new Bound<>(DEFAULT_TEXT_CODER).withCompressionType(compressionType);
+    public Read<T> withoutValidation() {
+      return new Read<>(name, filepattern, coder, false, compressionType);
     }
 
-    // TODO: strippingNewlines, etc.
-
-    /**
-     * A {@link PTransform} that reads from one or more text files and returns a bounded
-     * {@link PCollection} containing one element for each line of the input files.
-     *
-     * @param <T> the type of each of the elements of the resulting
-     * {@link PCollection}. By default, each line is returned as a {@link String}, however you
-     * may use {@link #withCoder(Coder)} to supply a {@code Coder<T>} to produce a
-     * {@code PCollection<T>} instead.
+    /** 
+     * Returns a transform for reading text files that decompresses all input files 
+     * using the specified compression type. 
+     * 
+     * <p>If no compression type is specified, the default is {@link TextIO.CompressionType#AUTO}. 
+     * In this mode, the compression type of the file is determined by its extension 
+     * (e.g., {@code *.gz} is gzipped, {@code *.bz2} is bzipped, and all other extensions are 
+     * uncompressed). 
      */
-    public static class Bound<T> extends PTransform<PBegin, PCollection<T>> {
-      /** The filepattern to read from. */
-      @Nullable private final ValueProvider<String> filepattern;
+    public Read<T> withCompressionType(TextIO.CompressionType compressionType) {
+      return new Read<>(name, filepattern, coder, validate, compressionType);
+    }
 
-      /** The Coder to use to decode each line. */
-      private final Coder<T> coder;
-
-      /** An option to indicate if input validation is desired. Default is true. */
-      private final boolean validate;
-
-      /** Option to indicate the input source's compression type. Default is AUTO. */
-      private final TextIO.CompressionType compressionType;
-
-      Bound(Coder<T> coder) {
-        this(null, null, coder, true, TextIO.CompressionType.AUTO);
+    @Override
+    public PCollection<T> expand(PBegin input) {
+      if (filepattern == null) {
+        throw new IllegalStateException("need to set the filepattern of a TextIO.Read transform");
       }
 
-      private Bound(@Nullable String name, @Nullable ValueProvider<String> filepattern,
-          Coder<T> coder, boolean validate, TextIO.CompressionType compressionType) {
-        super(name);
-        this.coder = coder;
-        this.filepattern = filepattern;
-        this.validate = validate;
-        this.compressionType = compressionType;
-      }
-
-      /**
-       * Returns a new transform for reading from text files that's like this one but
-       * that reads from the file(s) with the given name or pattern. See {@link TextIO.Read#from}
-       * for a description of filepatterns.
-       *
-       * <p>Does not modify this object.
-
-       */
-      public Bound<T> from(String filepattern) {
-        checkNotNull(filepattern, "Filepattern cannot be empty.");
-        return new Bound<>(name, StaticValueProvider.of(filepattern), coder, validate,
-                           compressionType);
-      }
-
-      /**
-       * Same as {@code from(filepattern)}, but accepting a {@link ValueProvider}.
-       */
-      public Bound<T> from(ValueProvider<String> filepattern) {
-        checkNotNull(filepattern, "Filepattern cannot be empty.");
-        return new Bound<>(name, filepattern, coder, validate, compressionType);
-      }
-
-      /**
-       * Returns a new transform for reading from text files that's like this one but
-       * that uses the given {@link Coder Coder&lt;X&gt;} to decode each of the
-       * lines of the file into a value of type {@code X}.
-       *
-       * <p>Does not modify this object.
-       *
-       * @param <X> the type of the decoded elements, and the
-       * elements of the resulting PCollection
-       */
-      public <X> Bound<X> withCoder(Coder<X> coder) {
-        return new Bound<>(name, filepattern, coder, validate, compressionType);
-      }
-
-      /**
-       * Returns a new transform for reading from text files that's like this one but
-       * that has GCS path validation on pipeline creation disabled.
-       *
-       * <p>This can be useful in the case where the GCS input does not
-       * exist at the pipeline creation time, but is expected to be
-       * available at execution time.
-       *
-       * <p>Does not modify this object.
-       */
-      public Bound<T> withoutValidation() {
-        return new Bound<>(name, filepattern, coder, false, compressionType);
-      }
-
-      /**
-       * Returns a new transform for reading from text files that's like this one but
-       * reads from input sources using the specified compression type.
-       *
-       * <p>If no compression type is specified, the default is {@link TextIO.CompressionType#AUTO}.
-       * See {@link TextIO.Read#withCompressionType} for more details.
-       *
-       * <p>Does not modify this object.
-       */
-      public Bound<T> withCompressionType(TextIO.CompressionType compressionType) {
-        return new Bound<>(name, filepattern, coder, validate, compressionType);
-      }
-
-      @Override
-      public PCollection<T> expand(PBegin input) {
-        if (filepattern == null) {
-          throw new IllegalStateException("need to set the filepattern of a TextIO.Read transform");
-        }
-
-        if (validate) {
-          checkState(filepattern.isAccessible(), "Cannot validate with a RVP.");
-          try {
-            checkState(
-              !IOChannelUtils.getFactory(filepattern.get()).match(filepattern.get()).isEmpty(),
-                "Unable to find any files matching %s",
-                filepattern);
-          } catch (IOException e) {
-            throw new IllegalStateException(
-              String.format("Failed to validate %s", filepattern.get()), e);
-          }
-        }
-
-        final Bounded<T> read = org.apache.beam.sdk.io.Read.from(getSource());
-        PCollection<T> pcol = input.getPipeline().apply("Read", read);
-        // Honor the default output coder that would have been used by this PTransform.
-        pcol.setCoder(getDefaultOutputCoder());
-        return pcol;
-      }
-
-      // Helper to create a source specific to the requested compression type.
-      protected FileBasedSource<T> getSource() {
-        switch (compressionType) {
-          case UNCOMPRESSED:
-            return new TextSource<T>(filepattern, coder);
-          case AUTO:
-            return CompressedSource.from(new TextSource<T>(filepattern, coder));
-          case BZIP2:
-            return
-                CompressedSource.from(new TextSource<T>(filepattern, coder))
-                    .withDecompression(CompressedSource.CompressionMode.BZIP2);
-          case GZIP:
-            return
-                CompressedSource.from(new TextSource<T>(filepattern, coder))
-                    .withDecompression(CompressedSource.CompressionMode.GZIP);
-          case ZIP:
-            return
-                CompressedSource.from(new TextSource<T>(filepattern, coder))
-                    .withDecompression(CompressedSource.CompressionMode.ZIP);
-          default:
-            throw new IllegalArgumentException("Unknown compression type: " + compressionType);
+      if (validate) {
+        checkState(filepattern.isAccessible(), "Cannot validate with a RVP.");
+        try {
+          checkState(
+            !IOChannelUtils.getFactory(filepattern.get()).match(filepattern.get()).isEmpty(),
+              "Unable to find any files matching %s",
+              filepattern);
+        } catch (IOException e) {
+          throw new IllegalStateException(
+            String.format("Failed to validate %s", filepattern.get()), e);
         }
       }
 
-      @Override
-      public void populateDisplayData(DisplayData.Builder builder) {
-        super.populateDisplayData(builder);
+      final Bounded<T> read = org.apache.beam.sdk.io.Read.from(getSource());
+      PCollection<T> pcol = input.getPipeline().apply("Read", read);
+      // Honor the default output coder that would have been used by this PTransform.
+      pcol.setCoder(getDefaultOutputCoder());
+      return pcol;
+    }
 
-        String filepatternDisplay = filepattern.isAccessible()
-          ? filepattern.get() : filepattern.toString();
-        builder
-            .add(DisplayData.item("compressionType", compressionType.toString())
-              .withLabel("Compression Type"))
-            .addIfNotDefault(DisplayData.item("validation", validate)
-              .withLabel("Validation Enabled"), true)
-            .addIfNotNull(DisplayData.item("filePattern", filepatternDisplay)
-              .withLabel("File Pattern"));
-      }
-
-      @Override
-      protected Coder<T> getDefaultOutputCoder() {
-        return coder;
-      }
-
-      public String getFilepattern() {
-        return filepattern.get();
-      }
-
-      public boolean needsValidation() {
-        return validate;
-      }
-
-      public TextIO.CompressionType getCompressionType() {
-        return compressionType;
+    // Helper to create a source specific to the requested compression type.
+    protected FileBasedSource<T> getSource() {
+      switch (compressionType) {
+        case UNCOMPRESSED:
+          return new TextSource<T>(filepattern, coder);
+        case AUTO:
+          return CompressedSource.from(new TextSource<T>(filepattern, coder));
+        case BZIP2:
+          return
+              CompressedSource.from(new TextSource<T>(filepattern, coder))
+                  .withDecompression(CompressedSource.CompressionMode.BZIP2);
+        case GZIP:
+          return
+              CompressedSource.from(new TextSource<T>(filepattern, coder))
+                  .withDecompression(CompressedSource.CompressionMode.GZIP);
+        case ZIP:
+          return
+              CompressedSource.from(new TextSource<T>(filepattern, coder))
+                  .withDecompression(CompressedSource.CompressionMode.ZIP);
+        default:
+          throw new IllegalArgumentException("Unknown compression type: " + compressionType);
       }
     }
 
-    /** Disallow construction of utility classes. */
-    private Read() {}
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      super.populateDisplayData(builder);
+
+      String filepatternDisplay = filepattern.isAccessible()
+        ? filepattern.get() : filepattern.toString();
+      builder
+          .add(DisplayData.item("compressionType", compressionType.toString())
+            .withLabel("Compression Type"))
+          .addIfNotDefault(DisplayData.item("validation", validate)
+            .withLabel("Validation Enabled"), true)
+          .addIfNotNull(DisplayData.item("filePattern", filepatternDisplay)
+            .withLabel("File Pattern"));
+    }
+
+    @Override
+    protected Coder<T> getDefaultOutputCoder() {
+      return coder;
+    }
+
+    public String getFilepattern() {
+      return filepattern.get();
+    }
+
+    public boolean needsValidation() {
+      return validate;
+    }
+
+    public TextIO.CompressionType getCompressionType() {
+      return compressionType;
+    }
   }
-
 
   /////////////////////////////////////////////////////////////////////////////
 
   /**
-   * A {@link PTransform} that writes a {@link PCollection} to text file (or
+   * A PTransform that writes a bounded PCollection to a text file (or
    * multiple text files matching a sharding pattern), with each
-   * element of the input collection encoded into its own line.
+   * PCollection element being encoded into its own line.
+   *
+   * @param <T> the type of the elements of the input PCollection
    */
-  public static class Write {
+  public static class Write<T> extends PTransform<PCollection<T>, PDone> {
+    private static final String DEFAULT_SHARD_TEMPLATE = ShardNameTemplate.INDEX_OF_MAX;
+
+    /** The prefix of each file written, combined with suffix and shardTemplate. */
+    private final ValueProvider<String> filenamePrefix;
+    /** The suffix of each file written, combined with prefix and shardTemplate. */
+    private final String filenameSuffix;
+
+    /** An optional header to add to each file. */
+    @Nullable private final String header;
+
+    /** An optional footer to add to each file. */
+    @Nullable private final String footer;
+
+    /** The Coder to use to decode each line. */
+    private final Coder<T> coder;
+
+    /** Requested number of shards. 0 for automatic. */
+    private final int numShards;
+
+    /** The shard template of each file written, combined with prefix and suffix. */
+    private final String shardTemplate;
+
+    /** An option to indicate if output validation is desired. Default is true. */
+    private final boolean validate;
 
     /**
-     * Returns a transform for writing to text files that writes to the file(s)
-     * with the given prefix. This can be a local filename
-     * (if running locally), or a Google Cloud Storage filename of
-     * the form {@code "gs://<bucket>/<filepath>"}
-     * (if running locally or via the Google Cloud Dataflow service).
-     *
-     * <p>The files written will begin with this prefix, followed by
-     * a shard identifier (see {@link Bound#withNumShards(int)}, and end
-     * in a common extension, if given by {@link Bound#withSuffix(String)}.
+     * The {@link WritableByteChannelFactory} to be used by the {@link FileBasedSink}. Default is
+     * {@link FileBasedSink.CompressionType#UNCOMPRESSED}.
      */
-    public static Bound<String> to(String prefix) {
-      return new Bound<>(DEFAULT_TEXT_CODER).to(prefix);
+    private final WritableByteChannelFactory writableByteChannelFactory;
+
+    Write() {
+      this(null, null, "", null, null, null, 0, DEFAULT_SHARD_TEMPLATE, true,
+          FileBasedSink.CompressionType.UNCOMPRESSED);
+    }
+
+    private Write(String name, ValueProvider<String> filenamePrefix, String filenameSuffix,
+        @Nullable String header, @Nullable String footer, Coder<T> coder, int numShards,
+        String shardTemplate, boolean validate,
+        WritableByteChannelFactory writableByteChannelFactory) {
+      super(name);
+      this.header = header;
+      this.footer = footer;
+      this.coder = coder;
+      this.filenamePrefix = filenamePrefix;
+      this.filenameSuffix = filenameSuffix;
+      this.numShards = numShards;
+      this.shardTemplate = shardTemplate;
+      this.validate = validate;
+      this.writableByteChannelFactory =
+          firstNonNull(writableByteChannelFactory, FileBasedSink.CompressionType.UNCOMPRESSED);
+    }
+
+    /** 
+     * Returns a transform for writing to text files that writes to the file(s) 
+     * with the given prefix. This can be a local filename 
+     * (if running locally), or a Google Cloud Storage filename of 
+     * the form {@code "gs://<bucket>/<filepath>"} 
+     * (if running locally or via the Google Cloud Dataflow service). 
+     * 
+     * <p>The files written will begin with this prefix, followed by 
+     * a shard identifier (see {@link Write#withNumShards(int)}, and end 
+     * in a common extension, if given by {@link Write#withSuffix(String)}. 
+     *
+     */
+    public Write<T> to(String filenamePrefix) {
+      validateOutputComponent(filenamePrefix);
+      return new Write<>(name, StaticValueProvider.of(filenamePrefix), filenameSuffix,
+          header, footer, coder, numShards, shardTemplate, validate,
+          writableByteChannelFactory);
     }
 
     /**
      * Like {@link #to(String)}, but with a {@link ValueProvider}.
      */
-    public static Bound<String> to(ValueProvider<String> prefix) {
-      return new Bound<>(DEFAULT_TEXT_CODER).to(prefix);
+    public Write<T> to(ValueProvider<String> filenamePrefix) {
+      return new Write<>(name, filenamePrefix, filenameSuffix, header, footer, coder, numShards,
+          shardTemplate, validate, writableByteChannelFactory);
     }
 
     /**
-     * Returns a transform for writing to text files that appends the specified suffix
-     * to the created files.
+     * Returns a transform for writing to text files that that's like this one but
+     * that writes to the file(s) with the given filename suffix.
+     *
+     * <p>Does not modify this object.
+     *
+     * @see ShardNameTemplate
      */
-    public static Bound<String> withSuffix(String nameExtension) {
-      return new Bound<>(DEFAULT_TEXT_CODER).withSuffix(nameExtension);
+    public Write<T> withSuffix(String nameExtension) {
+      validateOutputComponent(nameExtension);
+      return new Write<>(name, filenamePrefix, nameExtension, header, footer, coder, numShards,
+          shardTemplate, validate, writableByteChannelFactory);
     }
 
     /**
-     * Returns a transform for writing to text files that uses the provided shard count.
+     * Returns a transform for writing to text files that's like this one but
+     * that uses the provided shard count.
      *
      * <p>Constraining the number of shards is likely to reduce
      * the performance of a pipeline. Setting this value is not recommended
      * unless you require a specific number of output files.
      *
+     * <p>Does not modify this object.
+     *
      * @param numShards the number of shards to use, or 0 to let the system
      *                  decide.
+     * @see ShardNameTemplate
      */
-    public static Bound<String> withNumShards(int numShards) {
-      return new Bound<>(DEFAULT_TEXT_CODER).withNumShards(numShards);
+    public Write<T> withNumShards(int numShards) {
+      checkArgument(numShards >= 0);
+      return new Write<>(name, filenamePrefix, filenameSuffix, header, footer, coder, numShards,
+          shardTemplate, validate, writableByteChannelFactory);
     }
 
     /**
-     * Returns a transform for writing to text files that uses the given shard name
-     * template.
+     * Returns a transform for writing to text files that's like this one but
+     * that uses the given shard name template.
      *
-     * <p>See {@link ShardNameTemplate} for a description of shard templates.
-     */
-    public static Bound<String> withShardNameTemplate(String shardTemplate) {
-      return new Bound<>(DEFAULT_TEXT_CODER).withShardNameTemplate(shardTemplate);
-    }
-
-    /**
-     * Returns a transform for writing to text files that forces a single file as
-     * output.
-     */
-    public static Bound<String> withoutSharding() {
-      return new Bound<>(DEFAULT_TEXT_CODER).withoutSharding();
-    }
-
-    /**
-     * Returns a transform for writing to text files that uses the given
-     * {@link Coder} to encode each of the elements of the input
-     * {@link PCollection} into an output text line.
+     * <p>Does not modify this object.
      *
-     * <p>By default, uses {@link StringUtf8Coder}, which writes input
-     * Java strings directly as output lines.
-     *
-     * @param <T> the type of the elements of the input {@link PCollection}
+     * @see ShardNameTemplate
      */
-    public static <T> Bound<T> withCoder(Coder<T> coder) {
-      return new Bound<>(coder);
+    public Write<T> withShardNameTemplate(String shardTemplate) {
+      return new Write<>(name, filenamePrefix, filenameSuffix, header, footer, coder, numShards,
+          shardTemplate, validate, writableByteChannelFactory);
     }
 
     /**
-     * Returns a transform for writing to text files that has GCS path validation on
-     * pipeline creation disabled.
+     * Returns a transform for writing to text files that's like this one but
+     * that forces a single file as output.
+     *
+     * <p>Constraining the number of shards is likely to reduce
+     * the performance of a pipeline. Using this setting is not recommended
+     * unless you truly require a single output file.
+     *
+     * <p>This is a shortcut for
+     * {@code .withNumShards(1).withShardNameTemplate("")}
+     *
+     * <p>Does not modify this object.
+     */
+    public Write<T> withoutSharding() {
+      return new Write<>(name, filenamePrefix, filenameSuffix, header, footer, coder, 1, "",
+          validate, writableByteChannelFactory);
+    }
+
+    /**
+     * Returns a transform for writing to text files that's like this one
+     * but that uses the given {@link Coder Coder&lt;T&gt;} to encode each of
+     * the elements of the input {@link PCollection PCollection&lt;T&gt;} into an
+     * output text line. Does not modify this object.
+     */
+    public Write<T> withCoder(Coder<T> coder) {
+      return new Write<>(name, filenamePrefix, filenameSuffix, header, footer, coder, numShards,
+          shardTemplate, validate, writableByteChannelFactory);
+    }
+
+    /**
+     * Returns a transform for writing to text files that's like this one but
+     * that has GCS output path validation on pipeline creation disabled.
      *
      * <p>This can be useful in the case where the GCS output location does
-     * not exist at the pipeline creation time, but is expected to be available
-     * at execution time.
+     * not exist at the pipeline creation time, but is expected to be
+     * available at execution time.
+     *
+     * <p>Does not modify this object.
      */
-    public static Bound<String> withoutValidation() {
-      return new Bound<>(DEFAULT_TEXT_CODER).withoutValidation();
+    public Write<T> withoutValidation() {
+      return new Write<>(name, filenamePrefix, filenameSuffix, header, footer, coder, numShards,
+          shardTemplate, false, writableByteChannelFactory);
     }
 
     /**
@@ -482,10 +503,13 @@ public class TextIO {
      *
      * <p>A {@code null} value will clear any previously configured header.
      *
+     * <p>Does not modify this object.
+     *
      * @param header the string to be added as file header
      */
-    public static Bound<String> withHeader(@Nullable String header) {
-      return new Bound<>(DEFAULT_TEXT_CODER).withHeader(header);
+    public Write<T> withHeader(@Nullable String header) {
+      return new Write<>(name, filenamePrefix, filenameSuffix, header, footer, coder, numShards,
+          shardTemplate, validate, writableByteChannelFactory);
     }
 
     /**
@@ -494,341 +518,119 @@ public class TextIO {
      *
      * <p>A {@code null} value will clear any previously configured footer.
      *
+     * <p>Does not modify this object.
+     *
      * @param footer the string to be added as file footer
      */
-    public static Bound<String> withFooter(@Nullable String footer) {
-      return new Bound<>(DEFAULT_TEXT_CODER).withFooter(footer);
+    public Write<T> withFooter(@Nullable String footer) {
+      return new Write<>(name, filenamePrefix, filenameSuffix, header, footer, coder, numShards,
+          shardTemplate, validate, writableByteChannelFactory);
     }
 
     /**
      * Returns a transform for writing to text files like this one but that has the given
-     * {@link WritableByteChannelFactory} to be used by the {@link FileBasedSink} during output. The
-     * default is value is {@link FileBasedSink.CompressionType#UNCOMPRESSED}.
+     * {@link WritableByteChannelFactory} to be used by the {@link FileBasedSink} during output.
+     * The default is value is {@link FileBasedSink.CompressionType#UNCOMPRESSED}.
      *
      * <p>A {@code null} value will reset the value to the default value mentioned above.
      *
+     * <p>Does not modify this object.
+     *
      * @param writableByteChannelFactory the factory to be used during output
      */
-    public static Bound<String> withWritableByteChannelFactory(
+    public Write<T> withWritableByteChannelFactory(
         WritableByteChannelFactory writableByteChannelFactory) {
-      return new Bound<>(DEFAULT_TEXT_CODER)
-          .withWritableByteChannelFactory(writableByteChannelFactory);
+      return new Write<>(name, filenamePrefix, filenameSuffix, header, footer, coder, numShards,
+          shardTemplate, validate, writableByteChannelFactory);
     }
 
-    // TODO: appendingNewlines, etc.
+    @Override
+    public PDone expand(PCollection<T> input) {
+      if (filenamePrefix == null) {
+        throw new IllegalStateException(
+            "need to set the filename prefix of a TextIO.Write transform");
+      }
+      org.apache.beam.sdk.io.Write.Bound<T> write =
+          org.apache.beam.sdk.io.Write.to(
+              new TextSink<>(filenamePrefix, filenameSuffix, header, footer, shardTemplate,
+                  coder, writableByteChannelFactory));
+      if (getNumShards() > 0) {
+        write = write.withNumShards(getNumShards());
+      }
+      return input.apply("Write", write);
+    }
+
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      super.populateDisplayData(builder);
+
+      String prefixString = filenamePrefix.isAccessible()
+          ? filenamePrefix.get() : filenamePrefix.toString();
+      builder
+          .addIfNotNull(DisplayData.item("filePrefix", prefixString)
+            .withLabel("Output File Prefix"))
+          .addIfNotDefault(DisplayData.item("fileSuffix", filenameSuffix)
+            .withLabel("Output Fix Suffix"), "")
+          .addIfNotDefault(DisplayData.item("shardNameTemplate", shardTemplate)
+            .withLabel("Output Shard Name Template"),
+              DEFAULT_SHARD_TEMPLATE)
+          .addIfNotDefault(DisplayData.item("validation", validate)
+            .withLabel("Validation Enabled"), true)
+          .addIfNotDefault(DisplayData.item("numShards", numShards)
+            .withLabel("Maximum Output Shards"), 0)
+          .addIfNotNull(DisplayData.item("fileHeader", header)
+            .withLabel("File Header"))
+          .addIfNotNull(DisplayData.item("fileFooter", footer)
+              .withLabel("File Footer"))
+          .add(DisplayData
+              .item("writableByteChannelFactory", writableByteChannelFactory.toString())
+              .withLabel("Compression/Transformation Type"));
+    }
 
     /**
-     * A PTransform that writes a bounded PCollection to a text file (or
-     * multiple text files matching a sharding pattern), with each
-     * PCollection element being encoded into its own line.
-     *
-     * @param <T> the type of the elements of the input PCollection
+     * Returns the current shard name template string.
      */
-    public static class Bound<T> extends PTransform<PCollection<T>, PDone> {
-      private static final String DEFAULT_SHARD_TEMPLATE = ShardNameTemplate.INDEX_OF_MAX;
+    public String getShardNameTemplate() {
+      return shardTemplate;
+    }
 
-      /** The prefix of each file written, combined with suffix and shardTemplate. */
-      private final ValueProvider<String> filenamePrefix;
-      /** The suffix of each file written, combined with prefix and shardTemplate. */
-      private final String filenameSuffix;
+    @Override
+    protected Coder<Void> getDefaultOutputCoder() {
+      return VoidCoder.of();
+    }
 
-      /** An optional header to add to each file. */
-      @Nullable private final String header;
+    public String getFilenamePrefix() {
+      return filenamePrefix.get();
+    }
 
-      /** An optional footer to add to each file. */
-      @Nullable private final String footer;
+    public String getShardTemplate() {
+      return shardTemplate;
+    }
 
-      /** The Coder to use to decode each line. */
-      private final Coder<T> coder;
+    public int getNumShards() {
+      return numShards;
+    }
 
-      /** Requested number of shards. 0 for automatic. */
-      private final int numShards;
+    public String getFilenameSuffix() {
+      return filenameSuffix;
+    }
 
-      /** The shard template of each file written, combined with prefix and suffix. */
-      private final String shardTemplate;
+    public Coder<T> getCoder() {
+      return coder;
+    }
 
-      /** An option to indicate if output validation is desired. Default is true. */
-      private final boolean validate;
+    @Nullable
+    public String getHeader() {
+      return header;
+    }
 
-      /**
-       * The {@link WritableByteChannelFactory} to be used by the {@link FileBasedSink}. Default is
-       * {@link FileBasedSink.CompressionType#UNCOMPRESSED}.
-       */
-      private final WritableByteChannelFactory writableByteChannelFactory;
+    @Nullable
+    public String getFooter() {
+      return footer;
+    }
 
-      Bound(Coder<T> coder) {
-        this(null, null, "", null, null, coder, 0, DEFAULT_SHARD_TEMPLATE, true,
-            FileBasedSink.CompressionType.UNCOMPRESSED);
-      }
-
-      private Bound(String name, ValueProvider<String> filenamePrefix, String filenameSuffix,
-          @Nullable String header, @Nullable String footer, Coder<T> coder, int numShards,
-          String shardTemplate, boolean validate,
-          WritableByteChannelFactory writableByteChannelFactory) {
-        super(name);
-        this.header = header;
-        this.footer = footer;
-        this.coder = coder;
-        this.filenamePrefix = filenamePrefix;
-        this.filenameSuffix = filenameSuffix;
-        this.numShards = numShards;
-        this.shardTemplate = shardTemplate;
-        this.validate = validate;
-        this.writableByteChannelFactory =
-            firstNonNull(writableByteChannelFactory, FileBasedSink.CompressionType.UNCOMPRESSED);
-      }
-
-      /**
-       * Returns a transform for writing to text files that's like this one but
-       * that writes to the file(s) with the given filename prefix.
-       *
-       * <p>See {@link TextIO.Write#to(String) Write.to(String)} for more information.
-       *
-       * <p>Does not modify this object.
-       */
-      public Bound<T> to(String filenamePrefix) {
-        validateOutputComponent(filenamePrefix);
-        return new Bound<>(name, StaticValueProvider.of(filenamePrefix), filenameSuffix,
-            header, footer, coder, numShards, shardTemplate, validate,
-            writableByteChannelFactory);
-      }
-
-      /**
-       * Like {@link #to(String)}, but with a {@link ValueProvider}.
-       */
-      public Bound<T> to(ValueProvider<String> filenamePrefix) {
-        return new Bound<>(name, filenamePrefix, filenameSuffix, header, footer, coder, numShards,
-            shardTemplate, validate, writableByteChannelFactory);
-      }
-
-      /**
-       * Returns a transform for writing to text files that that's like this one but
-       * that writes to the file(s) with the given filename suffix.
-       *
-       * <p>Does not modify this object.
-       *
-       * @see ShardNameTemplate
-       */
-      public Bound<T> withSuffix(String nameExtension) {
-        validateOutputComponent(nameExtension);
-        return new Bound<>(name, filenamePrefix, nameExtension, header, footer, coder, numShards,
-            shardTemplate, validate, writableByteChannelFactory);
-      }
-
-      /**
-       * Returns a transform for writing to text files that's like this one but
-       * that uses the provided shard count.
-       *
-       * <p>Constraining the number of shards is likely to reduce
-       * the performance of a pipeline. Setting this value is not recommended
-       * unless you require a specific number of output files.
-       *
-       * <p>Does not modify this object.
-       *
-       * @param numShards the number of shards to use, or 0 to let the system
-       *                  decide.
-       * @see ShardNameTemplate
-       */
-      public Bound<T> withNumShards(int numShards) {
-        checkArgument(numShards >= 0);
-        return new Bound<>(name, filenamePrefix, filenameSuffix, header, footer, coder, numShards,
-            shardTemplate, validate, writableByteChannelFactory);
-      }
-
-      /**
-       * Returns a transform for writing to text files that's like this one but
-       * that uses the given shard name template.
-       *
-       * <p>Does not modify this object.
-       *
-       * @see ShardNameTemplate
-       */
-      public Bound<T> withShardNameTemplate(String shardTemplate) {
-        return new Bound<>(name, filenamePrefix, filenameSuffix, header, footer, coder, numShards,
-            shardTemplate, validate, writableByteChannelFactory);
-      }
-
-      /**
-       * Returns a transform for writing to text files that's like this one but
-       * that forces a single file as output.
-       *
-       * <p>Constraining the number of shards is likely to reduce
-       * the performance of a pipeline. Using this setting is not recommended
-       * unless you truly require a single output file.
-       *
-       * <p>This is a shortcut for
-       * {@code .withNumShards(1).withShardNameTemplate("")}
-       *
-       * <p>Does not modify this object.
-       */
-      public Bound<T> withoutSharding() {
-        return new Bound<>(name, filenamePrefix, filenameSuffix, header, footer, coder, 1, "",
-            validate, writableByteChannelFactory);
-      }
-
-      /**
-       * Returns a transform for writing to text files that's like this one
-       * but that uses the given {@link Coder Coder&lt;X&gt;} to encode each of
-       * the elements of the input {@link PCollection PCollection&lt;X&gt;} into an
-       * output text line. Does not modify this object.
-       *
-       * @param <X> the type of the elements of the input {@link PCollection}
-       */
-      public <X> Bound<X> withCoder(Coder<X> coder) {
-        return new Bound<>(name, filenamePrefix, filenameSuffix, header, footer, coder, numShards,
-            shardTemplate, validate, writableByteChannelFactory);
-      }
-
-      /**
-       * Returns a transform for writing to text files that's like this one but
-       * that has GCS output path validation on pipeline creation disabled.
-       *
-       * <p>This can be useful in the case where the GCS output location does
-       * not exist at the pipeline creation time, but is expected to be
-       * available at execution time.
-       *
-       * <p>Does not modify this object.
-       */
-      public Bound<T> withoutValidation() {
-        return new Bound<>(name, filenamePrefix, filenameSuffix, header, footer, coder, numShards,
-            shardTemplate, false, writableByteChannelFactory);
-      }
-
-      /**
-       * Returns a transform for writing to text files that adds a header string to the files
-       * it writes. Note that a newline character will be added after the header.
-       *
-       * <p>A {@code null} value will clear any previously configured header.
-       *
-       * <p>Does not modify this object.
-       *
-       * @param header the string to be added as file header
-       */
-      public Bound<T> withHeader(@Nullable String header) {
-        return new Bound<>(name, filenamePrefix, filenameSuffix, header, footer, coder, numShards,
-            shardTemplate, validate, writableByteChannelFactory);
-      }
-
-      /**
-       * Returns a transform for writing to text files that adds a footer string to the files
-       * it writes. Note that a newline character will be added after the header.
-       *
-       * <p>A {@code null} value will clear any previously configured footer.
-       *
-       * <p>Does not modify this object.
-       *
-       * @param footer the string to be added as file footer
-       */
-      public Bound<T> withFooter(@Nullable String footer) {
-        return new Bound<>(name, filenamePrefix, filenameSuffix, header, footer, coder, numShards,
-            shardTemplate, validate, writableByteChannelFactory);
-      }
-
-      /**
-       * Returns a transform for writing to text files like this one but that has the given
-       * {@link WritableByteChannelFactory} to be used by the {@link FileBasedSink} during output.
-       * The default is value is {@link FileBasedSink.CompressionType#UNCOMPRESSED}.
-       *
-       * <p>A {@code null} value will reset the value to the default value mentioned above.
-       *
-       * <p>Does not modify this object.
-       *
-       * @param writableByteChannelFactory the factory to be used during output
-       */
-      public Bound<T> withWritableByteChannelFactory(
-          WritableByteChannelFactory writableByteChannelFactory) {
-        return new Bound<>(name, filenamePrefix, filenameSuffix, header, footer, coder, numShards,
-            shardTemplate, validate, writableByteChannelFactory);
-      }
-
-      @Override
-      public PDone expand(PCollection<T> input) {
-        if (filenamePrefix == null) {
-          throw new IllegalStateException(
-              "need to set the filename prefix of a TextIO.Write transform");
-        }
-        org.apache.beam.sdk.io.Write.Bound<T> write =
-            org.apache.beam.sdk.io.Write.to(
-                new TextSink<>(filenamePrefix, filenameSuffix, header, footer, shardTemplate,
-                    coder, writableByteChannelFactory));
-        if (getNumShards() > 0) {
-          write = write.withNumShards(getNumShards());
-        }
-        return input.apply("Write", write);
-      }
-
-      @Override
-      public void populateDisplayData(DisplayData.Builder builder) {
-        super.populateDisplayData(builder);
-
-        String prefixString = filenamePrefix.isAccessible()
-            ? filenamePrefix.get() : filenamePrefix.toString();
-        builder
-            .addIfNotNull(DisplayData.item("filePrefix", prefixString)
-              .withLabel("Output File Prefix"))
-            .addIfNotDefault(DisplayData.item("fileSuffix", filenameSuffix)
-              .withLabel("Output Fix Suffix"), "")
-            .addIfNotDefault(DisplayData.item("shardNameTemplate", shardTemplate)
-              .withLabel("Output Shard Name Template"),
-                DEFAULT_SHARD_TEMPLATE)
-            .addIfNotDefault(DisplayData.item("validation", validate)
-              .withLabel("Validation Enabled"), true)
-            .addIfNotDefault(DisplayData.item("numShards", numShards)
-              .withLabel("Maximum Output Shards"), 0)
-            .addIfNotNull(DisplayData.item("fileHeader", header)
-              .withLabel("File Header"))
-            .addIfNotNull(DisplayData.item("fileFooter", footer)
-                .withLabel("File Footer"))
-            .add(DisplayData
-                .item("writableByteChannelFactory", writableByteChannelFactory.toString())
-                .withLabel("Compression/Transformation Type"));
-      }
-
-      /**
-       * Returns the current shard name template string.
-       */
-      public String getShardNameTemplate() {
-        return shardTemplate;
-      }
-
-      @Override
-      protected Coder<Void> getDefaultOutputCoder() {
-        return VoidCoder.of();
-      }
-
-      public String getFilenamePrefix() {
-        return filenamePrefix.get();
-      }
-
-      public String getShardTemplate() {
-        return shardTemplate;
-      }
-
-      public int getNumShards() {
-        return numShards;
-      }
-
-      public String getFilenameSuffix() {
-        return filenameSuffix;
-      }
-
-      public Coder<T> getCoder() {
-        return coder;
-      }
-
-      @Nullable
-      public String getHeader() {
-        return header;
-      }
-
-      @Nullable
-      public String getFooter() {
-        return footer;
-      }
-
-      public boolean needsValidation() {
-        return validate;
-      }
+    public boolean needsValidation() {
+      return validate;
     }
   }
 

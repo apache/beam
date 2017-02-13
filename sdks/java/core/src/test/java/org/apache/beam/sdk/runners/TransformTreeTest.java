@@ -119,9 +119,9 @@ public class TransformTreeTest {
     File inputFile = tmpFolder.newFile();
     File outputFile = tmpFolder.newFile();
 
-    p.apply("ReadMyFile", TextIO.Read.from(inputFile.getPath()))
+    p.apply("ReadMyFile", TextIO.readStrings().from(inputFile.getPath()))
         .apply(Sample.<String>any(10))
-        .apply("WriteMyFile", TextIO.Write.to(outputFile.getPath()));
+        .apply("WriteMyFile", TextIO.writeStrings().to(outputFile.getPath()));
 
     final EnumSet<TransformsSeen> visited =
         EnumSet.noneOf(TransformsSeen.class);
@@ -160,7 +160,7 @@ public class TransformTreeTest {
         assertThat(transform, not(instanceOf(Sample.SampleAny.class)));
         assertThat(transform, not(instanceOf(Write.Bound.class)));
         if (transform instanceof Read.Bounded
-            && node.getEnclosingNode().getTransform() instanceof TextIO.Read.Bound) {
+            && node.getEnclosingNode().getTransform() instanceof TextIO.Read) {
           assertTrue(visited.add(TransformsSeen.READ));
         }
       }
