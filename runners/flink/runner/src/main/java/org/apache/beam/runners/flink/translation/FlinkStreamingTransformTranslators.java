@@ -144,19 +144,18 @@ public class FlinkStreamingTransformTranslators {
   //  Transformation Implementations
   // --------------------------------------------------------------------------------------------
 
-  private static class TextIOWriteBoundStreamingTranslator<T>
-      extends FlinkStreamingPipelineTranslator.StreamTransformTranslator<
-        TextIO.Write.Bound<T>> {
+  private static class TextIOWriteBoundStreamingTranslator
+      extends FlinkStreamingPipelineTranslator.StreamTransformTranslator<TextIO.Write.Bound> {
 
     private static final Logger LOG =
         LoggerFactory.getLogger(TextIOWriteBoundStreamingTranslator.class);
 
     @Override
     public void translateNode(
-        TextIO.Write.Bound<T> transform,
+        TextIO.Write.Bound transform,
         FlinkStreamingTranslationContext context) {
       PValue input = context.getInput(transform);
-      DataStream<WindowedValue<T>> inputDataStream = context.getInputDataStream(input);
+      DataStream<WindowedValue<String>> inputDataStream = context.getInputDataStream(input);
 
       String filenamePrefix = transform.getFilenamePrefix();
       String filenameSuffix = transform.getFilenameSuffix();
@@ -176,10 +175,13 @@ public class FlinkStreamingTransformTranslators {
           shardNameTemplate);
 
       DataStream<String> dataSink = inputDataStream
-          .flatMap(new FlatMapFunction<WindowedValue<T>, String>() {
+          .flatMap(new FlatMapFunction<WindowedValue<String>, String>() {
             @Override
-            public void flatMap(WindowedValue<T> value, Collector<String> out) throws Exception {
-              out.collect(value.getValue().toString());
+            public void flatMap(
+                WindowedValue<String> value,
+                Collector<String> out)
+                throws Exception {
+              out.collect(value.getValue());
             }
           });
       DataStreamSink<String> output =

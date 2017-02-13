@@ -293,10 +293,10 @@ public final class TransformTranslator {
   }
 
 
-  private static <T> TransformEvaluator<TextIO.Read.Bound<T>> readText() {
-    return new TransformEvaluator<TextIO.Read.Bound<T>>() {
+  private static <T> TransformEvaluator<TextIO.Read.Bound> readText() {
+    return new TransformEvaluator<TextIO.Read.Bound>() {
       @Override
-      public void evaluate(TextIO.Read.Bound<T> transform, EvaluationContext context) {
+      public void evaluate(TextIO.Read.Bound transform, EvaluationContext context) {
         String pattern = transform.getFilepattern();
         JavaRDD<WindowedValue<String>> rdd = context.getSparkContext().textFile(pattern)
             .map(WindowingHelpers.<String>windowFunction());
@@ -305,10 +305,10 @@ public final class TransformTranslator {
     };
   }
 
-  private static <T> TransformEvaluator<TextIO.Write.Bound<T>> writeText() {
-    return new TransformEvaluator<TextIO.Write.Bound<T>>() {
+  private static <T> TransformEvaluator<TextIO.Write.Bound> writeText() {
+    return new TransformEvaluator<TextIO.Write.Bound>() {
       @Override
-      public void evaluate(TextIO.Write.Bound<T> transform, EvaluationContext context) {
+      public void evaluate(TextIO.Write.Bound transform, EvaluationContext context) {
         @SuppressWarnings("unchecked")
         JavaPairRDD<T, Void> last =
             ((BoundedDataset<T>) context.borrowDataset(transform)).getRDD()
