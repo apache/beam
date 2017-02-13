@@ -84,7 +84,7 @@ public class GroupCombineFunctions {
     //--- now group also by window.
     // GroupAlsoByWindow currently uses a dummy in-memory StateInternals
     return groupedByKey.flatMap(
-        new SparkGroupAlsoByWindowFn<>(
+        new SparkGroupAlsoByWindowViaOutputBufferFn<>(
             windowingStrategy,
             new TranslationUtils.InMemoryStateInternalsFactory<K>(),
             SystemReduceFn.<K, V, W>buffering(valueCoder),

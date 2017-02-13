@@ -129,7 +129,7 @@ public final class TranslationUtils {
   }
 
   /** {@link KV} to pair function. */
-  static <K, V> PairFunction<KV<K, V>, K, V> toPairFunction() {
+  public static <K, V> PairFunction<KV<K, V>, K, V> toPairFunction() {
     return new PairFunction<KV<K, V>, K, V>() {
       @Override
       public Tuple2<K, V> call(KV<K, V> kv) {
