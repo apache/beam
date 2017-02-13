@@ -16,7 +16,7 @@
 package cz.seznam.euphoria.core.client.triggers;
 
 import cz.seznam.euphoria.core.client.dataset.windowing.Window;
-import cz.seznam.euphoria.core.client.operator.state.StorageDescriptorBase;
+import cz.seznam.euphoria.core.client.operator.state.StorageDescriptor;
 import cz.seznam.euphoria.core.client.operator.state.StorageProvider;
 
 /**
@@ -58,6 +58,6 @@ public interface TriggerContext extends StorageProvider {
    * {@link Trigger#onMerge} as an argument.
    */
   interface TriggerMergeContext extends TriggerContext {
-    void mergeStoredState(StorageDescriptorBase storageDescriptor);
+    void mergeStoredState(StorageDescriptor storageDescriptor);
   }
 }

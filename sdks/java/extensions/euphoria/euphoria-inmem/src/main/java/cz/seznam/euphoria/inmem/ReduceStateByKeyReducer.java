@@ -30,7 +30,7 @@ import cz.seznam.euphoria.core.client.operator.state.ListStorageDescriptor;
 import cz.seznam.euphoria.core.client.operator.state.MergingStorageDescriptor;
 import cz.seznam.euphoria.core.client.operator.state.State;
 import cz.seznam.euphoria.core.client.operator.state.Storage;
-import cz.seznam.euphoria.core.client.operator.state.StorageDescriptorBase;
+import cz.seznam.euphoria.core.client.operator.state.StorageDescriptor;
 import cz.seznam.euphoria.core.client.operator.state.StorageProvider;
 import cz.seznam.euphoria.core.client.operator.state.ValueStorage;
 import cz.seznam.euphoria.core.client.operator.state.ValueStorageDescriptor;
@@ -78,11 +78,11 @@ class ReduceStateByKeyReducer implements Runnable {
   final class ClearingValueStorage<T> implements ValueStorage<T> {
     private final ValueStorage<T> wrap;
     private final KeyedWindow<?, ?> scope;
-    private final StorageDescriptorBase descriptor;
+    private final StorageDescriptor descriptor;
 
     ClearingValueStorage(ValueStorage<T> wrap,
                          KeyedWindow<?, ?> scope,
-                         StorageDescriptorBase descriptor) {
+                         StorageDescriptor descriptor) {
       this.wrap = wrap;
       this.scope = scope;
       this.descriptor = descriptor;
@@ -108,10 +108,10 @@ class ReduceStateByKeyReducer implements Runnable {
   final class ClearingListStorage<T> implements ListStorage<T> {
     private final ListStorage<T> wrap;
     private final KeyedWindow scope;
-    private final StorageDescriptorBase descriptor;
+    private final StorageDescriptor descriptor;
 
     public ClearingListStorage(ListStorage<T> wrap, KeyedWindow scope,
-                               StorageDescriptorBase descriptor) {
+                               StorageDescriptor descriptor) {
       this.wrap = wrap;
       this.scope = scope;
       this.descriptor = descriptor;
@@ -194,7 +194,7 @@ class ReduceStateByKeyReducer implements Runnable {
 
     @SuppressWarnings("unchecked")
     @Override
-    public void mergeStoredState(StorageDescriptorBase storageDescriptor) {
+    public void mergeStoredState(StorageDescriptor storageDescriptor) {
       if (!(storageDescriptor instanceof MergingStorageDescriptor)) {
         throw new IllegalStateException("Storage descriptor must support merging!");
       }
@@ -351,12 +351,12 @@ class ReduceStateByKeyReducer implements Runnable {
       this.storageProvider = storageProvider;
     }
 
-    Storage removeStorage(KeyedWindow scope, StorageDescriptorBase descriptor) {
+    Storage removeStorage(KeyedWindow scope, StorageDescriptor descriptor) {
       StorageKey skey = storageKey(scope, descriptor);
       return (Storage) store.remove(skey);
     }
 
-    Storage getStorage(KeyedWindow scope, StorageDescriptorBase descriptor) {
+    Storage getStorage(KeyedWindow scope, StorageDescriptor descriptor) {
       StorageKey skey = storageKey(scope, descriptor);
       return (Storage) store.get(skey);
     }
@@ -384,7 +384,7 @@ class ReduceStateByKeyReducer implements Runnable {
       return (ListStorage<T>) s;
     }
 
-    private StorageKey storageKey(KeyedWindow kw, StorageDescriptorBase desc) {
+    private StorageKey storageKey(KeyedWindow kw, StorageDescriptor desc) {
       return new StorageKey(kw.key(), kw.window(), desc.getName());
     }
   } // ~ end of ScopedStorage

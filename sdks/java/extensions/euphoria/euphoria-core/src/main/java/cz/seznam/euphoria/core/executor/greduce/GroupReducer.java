@@ -30,7 +30,7 @@ import cz.seznam.euphoria.core.client.operator.state.ListStorageDescriptor;
 import cz.seznam.euphoria.core.client.operator.state.MergingStorageDescriptor;
 import cz.seznam.euphoria.core.client.operator.state.State;
 import cz.seznam.euphoria.core.client.operator.state.Storage;
-import cz.seznam.euphoria.core.client.operator.state.StorageDescriptorBase;
+import cz.seznam.euphoria.core.client.operator.state.StorageDescriptor;
 import cz.seznam.euphoria.core.client.operator.state.StorageProvider;
 import cz.seznam.euphoria.core.client.operator.state.ValueStorage;
 import cz.seznam.euphoria.core.client.operator.state.ValueStorageDescriptor;
@@ -314,7 +314,7 @@ public class GroupReducer<WID extends Window, KEY, I> {
 
     @SuppressWarnings("unchecked")
     @Override
-    public void mergeStoredState(StorageDescriptorBase descriptor) {
+    public void mergeStoredState(StorageDescriptor descriptor) {
       if (!(descriptor instanceof MergingStorageDescriptor)) {
         throw new IllegalStateException("Storage descriptor must support merging!");
       }
