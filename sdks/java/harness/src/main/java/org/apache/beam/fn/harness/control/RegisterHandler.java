@@ -37,13 +37,13 @@ import org.slf4j.LoggerFactory;
  */
 public class RegisterHandler {
   private static final Logger LOG = LoggerFactory.getLogger(RegisterHandler.class);
-  private final ConcurrentMap<Long, CompletableFuture<Message>> idToObject;
+  private final ConcurrentMap<String, CompletableFuture<Message>> idToObject;
 
   public RegisterHandler() {
     idToObject = new ConcurrentHashMap<>();
   }
 
-  public <T extends Message> T getById(long id) {
+  public <T extends Message> T getById(String id) {
     try {
       @SuppressWarnings("unchecked")
       CompletableFuture<T> returnValue = (CompletableFuture<T>) computeIfAbsent(id);
@@ -86,7 +86,7 @@ public class RegisterHandler {
     return response;
   }
 
-  private CompletableFuture<Message> computeIfAbsent(long id) {
-    return idToObject.computeIfAbsent(id, (Long ignored) -> new CompletableFuture<>());
+  private CompletableFuture<Message> computeIfAbsent(String id) {
+    return idToObject.computeIfAbsent(id, (String ignored) -> new CompletableFuture<>());
   }
 }

@@ -48,12 +48,12 @@ import org.junit.runners.JUnit4;
 public class FnHarnessTest {
   private static final BeamFnApi.InstructionRequest INSTRUCTION_REQUEST =
       BeamFnApi.InstructionRequest.newBuilder()
-      .setInstructionId(999L)
+      .setInstructionId("999L")
       .setRegister(BeamFnApi.RegisterRequest.getDefaultInstance())
       .build();
   private static final BeamFnApi.InstructionResponse INSTRUCTION_RESPONSE =
       BeamFnApi.InstructionResponse.newBuilder()
-      .setInstructionId(999L)
+      .setInstructionId("999L")
       .setRegister(BeamFnApi.RegisterResponse.getDefaultInstance())
       .build();
 
@@ -108,12 +108,12 @@ public class FnHarnessTest {
       try {
         BeamFnApi.ApiServiceDescriptor loggingDescriptor = BeamFnApi.ApiServiceDescriptor
             .newBuilder()
-            .setId(1L)
+            .setId("1L")
             .setUrl("localhost:" + loggingServer.getPort())
             .build();
         BeamFnApi.ApiServiceDescriptor controlDescriptor = BeamFnApi.ApiServiceDescriptor
             .newBuilder()
-            .setId(2L)
+            .setId("2L")
             .setUrl("localhost:" + controlServer.getPort())
             .build();
 

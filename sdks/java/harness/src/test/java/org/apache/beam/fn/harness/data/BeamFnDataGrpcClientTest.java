@@ -66,12 +66,21 @@ public class BeamFnDataGrpcClientTest {
       LengthPrefixCoder.of(
           WindowedValue.getFullCoder(StringUtf8Coder.of(),
               GlobalWindow.Coder.INSTANCE));
-  private static final KV<Long, BeamFnApi.Target> KEY_A = KV.of(
-      12L,
-      BeamFnApi.Target.newBuilder().setPrimitiveTransformReference(34L).setName("targetA").build());
-  private static final KV<Long, BeamFnApi.Target> KEY_B = KV.of(
-      56L,
-      BeamFnApi.Target.newBuilder().setPrimitiveTransformReference(78L).setName("targetB").build());
+  private static final KV<String, BeamFnApi.Target> KEY_A =
+      KV.of(
+          "12L",
+          BeamFnApi.Target.newBuilder()
+              .setPrimitiveTransformReference("34L")
+              .setName("targetA")
+              .build());
+
+  private static final KV<String, BeamFnApi.Target> KEY_B =
+      KV.of(
+          "56L",
+          BeamFnApi.Target.newBuilder()
+              .setPrimitiveTransformReference("78L")
+              .setName("targetB")
+              .build());
 
   private static final BeamFnApi.Elements ELEMENTS_A_1;
   private static final BeamFnApi.Elements ELEMENTS_A_2;

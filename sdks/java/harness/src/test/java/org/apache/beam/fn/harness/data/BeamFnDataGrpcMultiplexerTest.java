@@ -39,11 +39,13 @@ import org.junit.Test;
 public class BeamFnDataGrpcMultiplexerTest {
   private static final BeamFnApi.ApiServiceDescriptor DESCRIPTOR =
       BeamFnApi.ApiServiceDescriptor.newBuilder().setUrl("test").build();
-  private static final KV<Long, BeamFnApi.Target> OUTPUT_LOCATION = KV.of(777L,
-      BeamFnApi.Target.newBuilder()
-      .setName("name")
-      .setPrimitiveTransformReference(888L)
-      .build());
+  private static final KV<String, BeamFnApi.Target> OUTPUT_LOCATION =
+      KV.of(
+          "777L",
+          BeamFnApi.Target.newBuilder()
+              .setName("name")
+              .setPrimitiveTransformReference("888L")
+              .build());
   private static final BeamFnApi.Elements ELEMENTS = BeamFnApi.Elements.newBuilder()
       .addData(BeamFnApi.Elements.Data.newBuilder()
           .setInstructionReference(OUTPUT_LOCATION.getKey())

@@ -85,12 +85,12 @@ public class ProcessBundleHandler {
   private static final Logger LOG = LoggerFactory.getLogger(ProcessBundleHandler.class);
 
   private final PipelineOptions options;
-  private final Function<Long, Message> fnApiRegistry;
+  private final Function<String, Message> fnApiRegistry;
   private final BeamFnDataClient beamFnDataClient;
 
   public ProcessBundleHandler(
       PipelineOptions options,
-      Function<Long, Message> fnApiRegistry,
+      Function<String, Message> fnApiRegistry,
       BeamFnDataClient beamFnDataClient) {
     this.options = options;
     this.fnApiRegistry = fnApiRegistry;
@@ -99,7 +99,7 @@ public class ProcessBundleHandler {
 
   protected <InputT, OutputT> void createConsumersForPrimitiveTransform(
       BeamFnApi.PrimitiveTransform primitiveTransform,
-      Supplier<Long> processBundleInstructionId,
+      Supplier<String> processBundleInstructionId,
       Function<BeamFnApi.Target, Collection<ThrowingConsumer<WindowedValue<OutputT>>>> consumers,
       BiConsumer<BeamFnApi.Target, ThrowingConsumer<WindowedValue<InputT>>> addConsumer,
       Consumer<ThrowingRunnable> addStartFunction,
@@ -209,7 +209,7 @@ public class ProcessBundleHandler {
         BeamFnApi.InstructionResponse.newBuilder()
             .setProcessBundle(BeamFnApi.ProcessBundleResponse.getDefaultInstance());
 
-    long bundleId = request.getProcessBundle().getProcessBundleDescriptorReference();
+    String bundleId = request.getProcessBundle().getProcessBundleDescriptorReference();
     BeamFnApi.ProcessBundleDescriptor bundleDescriptor =
         (BeamFnApi.ProcessBundleDescriptor) fnApiRegistry.apply(bundleId);
 

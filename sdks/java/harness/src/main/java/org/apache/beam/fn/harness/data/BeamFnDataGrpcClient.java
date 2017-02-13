@@ -75,7 +75,7 @@ public class BeamFnDataGrpcClient implements BeamFnDataClient {
   @Override
   public <T> CompletableFuture<Void> forInboundConsumer(
       BeamFnApi.ApiServiceDescriptor apiServiceDescriptor,
-      KV<Long, BeamFnApi.Target> inputLocation,
+      KV<String, BeamFnApi.Target> inputLocation,
       Coder<WindowedValue<T>> coder,
       ThrowingConsumer<WindowedValue<T>> consumer) {
     LOG.debug("Registering consumer instruction {} for target {}",
@@ -102,7 +102,7 @@ public class BeamFnDataGrpcClient implements BeamFnDataClient {
   @Override
   public <T> CloseableThrowingConsumer<WindowedValue<T>> forOutboundConsumer(
       BeamFnApi.ApiServiceDescriptor apiServiceDescriptor,
-      KV<Long, BeamFnApi.Target> outputLocation,
+      KV<String, BeamFnApi.Target> outputLocation,
       Coder<WindowedValue<T>> coder) {
     BeamFnDataGrpcMultiplexer client = getClientFor(apiServiceDescriptor);
 

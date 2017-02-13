@@ -50,8 +50,9 @@ public class BeamFnDataGrpcMultiplexer {
   private final StreamObserver<BeamFnApi.Elements> inboundObserver;
   private final StreamObserver<BeamFnApi.Elements> outboundObserver;
   @VisibleForTesting
-  final ConcurrentMap<KV<Long, BeamFnApi.Target>,
-                              CompletableFuture<Consumer<BeamFnApi.Elements.Data>>> consumers;
+  final ConcurrentMap<
+          KV<String, BeamFnApi.Target>, CompletableFuture<Consumer<BeamFnApi.Elements.Data>>>
+      consumers;
 
   public BeamFnDataGrpcMultiplexer(
       BeamFnApi.ApiServiceDescriptor apiServiceDescriptor,
@@ -80,10 +81,10 @@ public class BeamFnDataGrpcMultiplexer {
   }
 
   public CompletableFuture<Consumer<BeamFnApi.Elements.Data>> futureForKey(
-      KV<Long, BeamFnApi.Target> key) {
+      KV<String, BeamFnApi.Target> key) {
     return consumers.computeIfAbsent(
         key,
-        (KV<Long, BeamFnApi.Target> providedKey) -> new CompletableFuture<>());
+        (KV<String, BeamFnApi.Target> providedKey) -> new CompletableFuture<>());
   }
 
   /**
@@ -99,7 +100,7 @@ public class BeamFnDataGrpcMultiplexer {
     public void onNext(BeamFnApi.Elements value) {
       for (BeamFnApi.Elements.Data data : value.getDataList()) {
         try {
-          KV<Long, BeamFnApi.Target> key =
+          KV<String, BeamFnApi.Target> key =
               KV.of(data.getInstructionReference(), data.getTarget());
           futureForKey(key).get().accept(data);
           if (data.getData().isEmpty()) {

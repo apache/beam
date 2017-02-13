@@ -44,7 +44,7 @@ public interface BeamFnDataClient {
    */
   <T> CompletableFuture<Void> forInboundConsumer(
       BeamFnApi.ApiServiceDescriptor apiServiceDescriptor,
-      KV<Long, BeamFnApi.Target> inputLocation,
+      KV<String, BeamFnApi.Target> inputLocation,
       Coder<WindowedValue<T>> coder,
       ThrowingConsumer<WindowedValue<T>> consumer);
 
@@ -59,6 +59,6 @@ public interface BeamFnDataClient {
    */
   <T> CloseableThrowingConsumer<WindowedValue<T>> forOutboundConsumer(
       BeamFnApi.ApiServiceDescriptor apiServiceDescriptor,
-      KV<Long, BeamFnApi.Target> outputLocation,
+      KV<String, BeamFnApi.Target> outputLocation,
       Coder<WindowedValue<T>> coder);
 }

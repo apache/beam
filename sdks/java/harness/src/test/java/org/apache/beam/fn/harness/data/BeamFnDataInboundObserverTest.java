@@ -102,9 +102,9 @@ public class BeamFnDataInboundObserverTest {
 
   private BeamFnApi.Elements.Data dataWith(String ... values) throws Exception {
     BeamFnApi.Elements.Data.Builder builder = BeamFnApi.Elements.Data.newBuilder()
-        .setInstructionReference(777L)
+        .setInstructionReference("777L")
         .setTarget(BeamFnApi.Target.newBuilder()
-            .setPrimitiveTransformReference(999L)
+            .setPrimitiveTransformReference("999L")
             .setName("Test"));
     ByteString.Output output = ByteString.newOutput();
     for (String value : values) {

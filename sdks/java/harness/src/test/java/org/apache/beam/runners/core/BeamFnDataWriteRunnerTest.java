@@ -34,7 +34,7 @@ import com.google.protobuf.ByteString;
 import com.google.protobuf.BytesValue;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 import org.apache.beam.fn.harness.data.BeamFnDataClient;
 import org.apache.beam.fn.harness.fn.CloseableThrowingConsumer;
 import org.apache.beam.fn.v1.BeamFnApi;
@@ -73,7 +73,7 @@ public class BeamFnDataWriteRunnerTest {
     }
   }
   private static final BeamFnApi.Target OUTPUT_TARGET = BeamFnApi.Target.newBuilder()
-      .setPrimitiveTransformReference(1)
+      .setPrimitiveTransformReference("1")
       .setName("out")
       .build();
 
@@ -92,7 +92,7 @@ public class BeamFnDataWriteRunnerTest {
         any(),
         any(),
         Matchers.<Coder<WindowedValue<String>>>any())).thenReturn(valuesA).thenReturn(valuesB);
-    AtomicLong bundleId = new AtomicLong(0);
+    AtomicReference<String> bundleId = new AtomicReference<>("0");
     BeamFnDataWriteRunner<String> writeRunner = new BeamFnDataWriteRunner<>(
         FUNCTION_SPEC,
         bundleId::get,
@@ -116,7 +116,7 @@ public class BeamFnDataWriteRunnerTest {
     assertThat(valuesA, contains(valueInGlobalWindow("ABC"), valueInGlobalWindow("DEF")));
 
     // Process for bundle id 1
-    bundleId.incrementAndGet();
+    bundleId.set("1");
     valuesA.clear();
     valuesB.clear();
     writeRunner.registerForOutput();
