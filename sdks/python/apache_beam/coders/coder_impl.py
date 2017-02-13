@@ -352,11 +352,11 @@ class IntervalWindowCoderImpl(StreamCoderImpl):
   # TODO: Fn Harness only supports millis. Is this important enough to fix?
   def _to_normal_time(self, value):
     """Convert "lexicographically ordered unsigned" to signed."""
-    return value - 0x8000000000000000
+    return value - (1 << 63)
 
   def _from_normal_time(self, value):
     """Convert signed to "lexicographically ordered unsigned"."""
-    return value + 0x8000000000000000
+    return value + (1 << 63)
 
   def encode_to_stream(self, value, out, nested):
     span_micros = value.end.micros - value.start.micros

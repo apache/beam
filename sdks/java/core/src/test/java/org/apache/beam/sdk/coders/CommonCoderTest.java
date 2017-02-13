@@ -26,6 +26,8 @@ import static org.junit.Assert.fail;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.core.JsonGenerator;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.google.auto.value.AutoValue;
@@ -237,10 +239,12 @@ public class CommonCoderTest {
   private static <T> String jsonByteString(Coder<T> coder, T value, Context context)
       throws CoderException {
     byte[] bytes = CoderUtils.encodeToByteArray(coder, value, context);
-    StringBuilder sb = new StringBuilder();
-    for (byte b : bytes) {
-      sb.append(String.format("\\x%02x", b & 0xff));
+    ObjectMapper mapper = new ObjectMapper();
+    mapper.configure(JsonGenerator.Feature.ESCAPE_NON_ASCII, true);
+    try {
+      return mapper.writeValueAsString(new String(bytes, StandardCharsets.ISO_8859_1));
+    } catch (JsonProcessingException e) {
+      throw new CoderException(String.format("Unable to encode %s with coder %s", value, coder), e);
     }
-    return sb.toString();
   }
 }
