@@ -64,12 +64,7 @@ import org.junit.rules.TemporaryFolder;
 
 
 /**
- * Tests DStream recovery from checkpoint - recreate the job and continue (from checkpoint).
- *
- * <p>Tests Aggregators, which rely on Accumulators - Aggregators should be available, though
- * state is not preserved (Spark issue), so they start from initial value.
- * //TODO: after the runner supports recovering the state of Aggregators, update this test's
- * expected values for the recovered (second) run.
+ * Test pipelines which are resumed from checkpoint.
  */
 public class ResumeFromCheckpointStreamingTest {
   private static final EmbeddedKafkaCluster.EmbeddedZookeeper EMBEDDED_ZOOKEEPER =
@@ -118,6 +113,10 @@ public class ResumeFromCheckpointStreamingTest {
         }
   }
 
+  /**
+   * Tests DStream recovery from checkpoint - recreate the job and continue (from checkpoint).
+   * <p>Also test Aggregator values, which should be resorted upon recovery from checkpoint.</p>
+   */
   @Test
   public void testRun() throws Exception {
     Duration batchIntervalDuration = Duration.standardSeconds(5);
