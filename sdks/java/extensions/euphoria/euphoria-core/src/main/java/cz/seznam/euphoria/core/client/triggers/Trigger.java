@@ -17,7 +17,7 @@ package cz.seznam.euphoria.core.client.triggers;
 
 import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 import cz.seznam.euphoria.core.client.operator.state.ListStorageDescriptor;
-import cz.seznam.euphoria.core.client.operator.state.StorageDescriptorBase;
+import cz.seznam.euphoria.core.client.operator.state.StorageDescriptor;
 import cz.seznam.euphoria.core.client.operator.state.ValueStorageDescriptor;
 
 import java.io.Serializable;
@@ -37,7 +37,7 @@ public interface Trigger<W extends Window> extends Serializable {
    * Note that if this method returns {@code false} invocations to
    * {@link TriggerContext#getListStorage(ListStorageDescriptor)},
    * {@link TriggerContext#getValueStorage(ValueStorageDescriptor)},
-   * or {@link TriggerContext.TriggerMergeContext#mergeStoredState(StorageDescriptorBase)}
+   * or {@link TriggerContext.TriggerMergeContext#mergeStoredState(StorageDescriptor)}
    * may fail with an exception.
    *
    * <p>The default implementation always return {@code true}.

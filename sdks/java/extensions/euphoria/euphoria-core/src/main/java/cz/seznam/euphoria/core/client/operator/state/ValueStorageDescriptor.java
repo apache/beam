@@ -22,7 +22,7 @@ import cz.seznam.euphoria.core.client.functional.BinaryFunction;
  *
  * @param <T> the type of value referred to through this descriptor
  */
-public class ValueStorageDescriptor<T> extends StorageDescriptorBase {
+public class ValueStorageDescriptor<T> extends StorageDescriptor {
 
   public static final class MergingValueStorageDescriptor<T>
       extends ValueStorageDescriptor<T>
