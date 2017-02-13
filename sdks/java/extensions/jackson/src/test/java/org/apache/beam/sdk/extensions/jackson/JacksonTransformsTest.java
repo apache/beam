@@ -19,6 +19,7 @@ package org.apache.beam.sdk.extensions.jackson;
 
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
 import com.google.common.collect.Iterables;
 import java.io.Serializable;
 import java.util.Arrays;
@@ -50,6 +51,13 @@ public class JacksonTransformsTest {
           ""
       );
 
+  private static final List<String> EMPTY_JSONS =
+      Arrays.asList(
+          "{}",
+          "{}"
+      );
+
+
   private static final List<String> EXTRA_PROPERTIES_JSONS =
       Arrays.asList(
           "{\"myString\":\"abc\",\"myInt\":3,\"other\":1}",
@@ -60,6 +68,12 @@ public class JacksonTransformsTest {
       Arrays.asList(
           new MyPojo("abc", 3),
           new MyPojo("def", 4)
+      );
+
+  private static final List<MyEmptyBean> EMPTY_BEANS =
+      Arrays.asList(
+          new MyEmptyBean("abc", 3),
+          new MyEmptyBean("def", 4)
       );
 
   @Rule
@@ -96,7 +110,7 @@ public class JacksonTransformsTest {
             .apply(Create.of(EXTRA_PROPERTIES_JSONS))
             .apply(ParseJsons.of(MyPojo.class)).setCoder(SerializableCoder.of(MyPojo.class));
 
-    PAssert.that(output).containsInAnyOrder(POJOS);
+    PAssert.that(output).empty();
 
     pipeline.run();
   }
@@ -125,6 +139,33 @@ public class JacksonTransformsTest {
             .apply(AsJsons.of(MyPojo.class)).setCoder(StringUtf8Coder.of());
 
     PAssert.that(output).containsInAnyOrder(VALID_JSONS);
+
+    pipeline.run();
+  }
+
+  @Test(expected = Pipeline.PipelineExecutionException.class)
+  public void failWritingWithoutCustomMapper() {
+    PCollection<String> output =
+        pipeline
+            .apply(Create.of(EMPTY_BEANS))
+            .apply(AsJsons.of(MyEmptyBean.class)).setCoder(StringUtf8Coder.of());
+
+    pipeline.run();
+  }
+
+
+  @Test
+  public void writeUsingCustomMapper() {
+    ObjectMapper customMapper =
+        new ObjectMapper().configure(SerializationFeature.FAIL_ON_EMPTY_BEANS, false);
+
+    PCollection<String> output =
+        pipeline
+            .apply(Create.of(EMPTY_BEANS))
+            .apply(AsJsons.of(MyEmptyBean.class)
+                .withMapper(customMapper)).setCoder(StringUtf8Coder.of());
+
+    PAssert.that(output).containsInAnyOrder(EMPTY_JSONS);
 
     pipeline.run();
   }
@@ -182,6 +223,20 @@ public class JacksonTransformsTest {
       int result = myString != null ? myString.hashCode() : 0;
       result = 31 * result + myInt;
       return result;
+    }
+  }
+
+  /**
+   * Pojo for tests.
+   */
+  @SuppressWarnings({"WeakerAccess", "unused"})
+  public static class MyEmptyBean implements Serializable {
+    private String myString;
+    private int myInt;
+
+    public MyEmptyBean(String myString, int myInt) {
+      this.myString = myString;
+      this.myInt = myInt;
     }
   }
 }
