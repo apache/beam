@@ -3,14 +3,13 @@ package beam
 import (
 	"fmt"
 	"github.com/apache/beam/sdks/go/pkg/beam/graph"
-	"github.com/apache/beam/sdks/go/pkg/beam/model"
 	"log"
 )
 
 // TODO(herohde): we could also just leave Pipeline a value-type here.
 
 // Pipeline represents the Beam deferred execution Graph as it is being
-// constructed. It is thus essentially an encapsulated low-level Graph Graph
+// constructed. It is thus essentially an encapsulated low-level Graph
 // that maintains a scoped insertion point for composite transforms.
 type Pipeline struct {
 	parent *graph.Scope
@@ -35,7 +34,7 @@ func (p *Pipeline) Composite(name string) *Pipeline {
 	return &Pipeline{scope, p.real, p.errs}
 }
 
-func (p *Pipeline) Build() (*model.Pipeline, error) {
+func (p *Pipeline) Build() ([]*graph.MultiEdge, error) {
 	return p.real.Build()
 }
 

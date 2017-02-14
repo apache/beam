@@ -2,7 +2,6 @@ package graph
 
 import (
 	"fmt"
-	"github.com/apache/beam/sdks/go/pkg/beam/model"
 	"github.com/apache/beam/sdks/go/pkg/beam/reflectx"
 	"log"
 	"reflect"
@@ -50,10 +49,10 @@ func (b *Graph) NewNode(t reflect.Type) *Node {
 	return n
 }
 
-func (b *Graph) Build() (*model.Pipeline, error) {
+func (b *Graph) Build() ([]*MultiEdge, error) {
 	// TODO: cycles, typecheck, connectedness, etc.
 
-	return nil, nil
+	return b.edges, nil
 }
 
 // TODO(herohde): remove FakeBuild and Build + Parse instead. Used for quicker
