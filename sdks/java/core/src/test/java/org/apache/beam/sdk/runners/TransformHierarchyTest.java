@@ -131,7 +131,7 @@ public class TransformHierarchyTest implements Serializable {
     hierarchy.popNode();
     assertThat(hierarchy.getProducer(created), equalTo(node));
     assertThat(
-        "A Transform that produces non-primtive output should be composite",
+        "A Transform that produces non-primitive output should be composite",
         emptyTransform.isCompositeNode(),
         is(true));
   }
