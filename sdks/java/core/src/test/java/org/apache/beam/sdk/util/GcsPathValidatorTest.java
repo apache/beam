@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.util;
 
 import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyString;
 import static org.mockito.Mockito.when;
 
 import org.apache.beam.sdk.options.GcsOptions;
@@ -45,7 +44,6 @@ public class GcsPathValidatorTest {
   public void setUp() throws Exception {
     MockitoAnnotations.initMocks(this);
     when(mockGcsUtil.bucketAccessible(any(GcsPath.class))).thenReturn(true);
-    when(mockGcsUtil.isGcsPatternSupported(anyString())).thenCallRealMethod();
     GcsOptions options = PipelineOptionsFactory.as(GcsOptions.class);
     options.setGcpCredential(new TestCredential());
     options.setGcsUtil(mockGcsUtil);
