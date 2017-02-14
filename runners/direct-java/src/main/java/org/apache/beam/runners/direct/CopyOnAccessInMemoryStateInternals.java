@@ -27,6 +27,8 @@ import java.util.Map;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.core.InMemoryStateInternals.InMemoryBag;
 import org.apache.beam.runners.core.InMemoryStateInternals.InMemoryCombiningValue;
+import org.apache.beam.runners.core.InMemoryStateInternals.InMemoryMap;
+import org.apache.beam.runners.core.InMemoryStateInternals.InMemorySet;
 import org.apache.beam.runners.core.InMemoryStateInternals.InMemoryState;
 import org.apache.beam.runners.core.InMemoryStateInternals.InMemoryStateBinder;
 import org.apache.beam.runners.core.InMemoryStateInternals.InMemoryValue;
@@ -45,6 +47,8 @@ import org.apache.beam.sdk.transforms.windowing.OutputTimeFn;
 import org.apache.beam.sdk.util.CombineFnUtil;
 import org.apache.beam.sdk.util.state.AccumulatorCombiningState;
 import org.apache.beam.sdk.util.state.BagState;
+import org.apache.beam.sdk.util.state.MapState;
+import org.apache.beam.sdk.util.state.SetState;
 import org.apache.beam.sdk.util.state.State;
 import org.apache.beam.sdk.util.state.StateContext;
 import org.apache.beam.sdk.util.state.StateContexts;
@@ -334,6 +338,35 @@ public class CopyOnAccessInMemoryStateInternals<K> implements StateInternals<K> 
           }
 
           @Override
+          public <T> SetState<T> bindSet(
+              StateTag<? super K, SetState<T>> address, Coder<T> elemCoder) {
+            if (containedInUnderlying(namespace, address)) {
+              @SuppressWarnings("unchecked")
+              InMemoryState<? extends SetState<T>> existingState =
+                  (InMemoryState<? extends SetState<T>>)
+                      underlying.get().get(namespace, address, c);
+              return existingState.copy();
+            } else {
+              return new InMemorySet<>();
+            }
+          }
+
+          @Override
+          public <KeyT, ValueT> MapState<KeyT, ValueT> bindMap(
+              StateTag<? super K, MapState<KeyT, ValueT>> address,
+              Coder<KeyT> mapKeyCoder, Coder<ValueT> mapValueCoder) {
+            if (containedInUnderlying(namespace, address)) {
+              @SuppressWarnings("unchecked")
+              InMemoryState<? extends MapState<KeyT, ValueT>> existingState =
+                  (InMemoryState<? extends MapState<KeyT, ValueT>>)
+                      underlying.get().get(namespace, address, c);
+              return existingState.copy();
+            } else {
+              return new InMemoryMap<>();
+            }
+          }
+
+          @Override
           public <InputT, AccumT, OutputT> AccumulatorCombiningState<InputT, AccumT, OutputT>
               bindKeyedCombiningValue(
                   StateTag<? super K, AccumulatorCombiningState<InputT, AccumT, OutputT>> address,
@@ -426,6 +459,19 @@ public class CopyOnAccessInMemoryStateInternals<K> implements StateInternals<K> 
           @Override
           public <T> BagState<T> bindBag(
               StateTag<? super K, BagState<T>> address, Coder<T> elemCoder) {
+            return underlying.get(namespace, address, c);
+          }
+
+          @Override
+          public <T> SetState<T> bindSet(
+              StateTag<? super K, SetState<T>> address, Coder<T> elemCoder) {
+            return underlying.get(namespace, address, c);
+          }
+
+          @Override
+          public <KeyT, ValueT> MapState<KeyT, ValueT> bindMap(
+              StateTag<? super K, MapState<KeyT, ValueT>> address,
+              Coder<KeyT> mapKeyCoder, Coder<ValueT> mapValueCoder) {
             return underlying.get(namespace, address, c);
           }
 

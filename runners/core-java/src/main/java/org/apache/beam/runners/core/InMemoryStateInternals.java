@@ -17,10 +17,16 @@
  */
 package org.apache.beam.runners.core;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.core.StateTag.StateBinder;
 import org.apache.beam.sdk.annotations.Experimental;
@@ -34,7 +40,9 @@ import org.apache.beam.sdk.transforms.windowing.OutputTimeFn;
 import org.apache.beam.sdk.util.CombineFnUtil;
 import org.apache.beam.sdk.util.state.AccumulatorCombiningState;
 import org.apache.beam.sdk.util.state.BagState;
+import org.apache.beam.sdk.util.state.MapState;
 import org.apache.beam.sdk.util.state.ReadableState;
+import org.apache.beam.sdk.util.state.SetState;
 import org.apache.beam.sdk.util.state.State;
 import org.apache.beam.sdk.util.state.StateContext;
 import org.apache.beam.sdk.util.state.StateContexts;
@@ -125,6 +133,18 @@ public class InMemoryStateInternals<K> implements StateInternals<K> {
     public <T> BagState<T> bindBag(
         final StateTag<? super K, BagState<T>> address, Coder<T> elemCoder) {
       return new InMemoryBag<T>();
+    }
+
+    @Override
+    public <T> SetState<T> bindSet(StateTag<? super K, SetState<T>> spec, Coder<T> elemCoder) {
+      return new InMemorySet<>();
+    }
+
+    @Override
+    public <KeyT, ValueT> MapState<KeyT, ValueT> bindMap(
+        StateTag<? super K, MapState<KeyT, ValueT>> spec,
+        Coder<KeyT> mapKeyCoder, Coder<ValueT> mapValueCoder) {
+      return new InMemoryMap<>();
     }
 
     @Override
@@ -432,6 +452,191 @@ public class InMemoryStateInternals<K> implements StateInternals<K> {
     public InMemoryBag<T> copy() {
       InMemoryBag<T> that = new InMemoryBag<>();
       that.contents.addAll(this.contents);
+      return that;
+    }
+  }
+
+  /**
+   * An {@link InMemoryState} implementation of {@link SetState}.
+   */
+  public static final class InMemorySet<T> implements SetState<T>, InMemoryState<InMemorySet<T>> {
+    private Set<T> contents = new HashSet<>();
+
+    @Override
+    public void clear() {
+      contents = new HashSet<>();
+    }
+
+    @Override
+    public boolean contains(T t) {
+      return contents.contains(t);
+    }
+
+    @Override
+    public boolean addIfAbsent(T t) {
+      return contents.add(t);
+    }
+
+    @Override
+    public void remove(T t) {
+      contents.remove(t);
+    }
+
+    @Override
+    public SetState<T> readLater(Iterable<T> elements) {
+      return this;
+    }
+
+    @Override
+    public boolean containsAny(Iterable<T> elements) {
+      elements = checkNotNull(elements);
+      for (T t : elements) {
+        if (contents.contains(t)) {
+          return true;
+        }
+      }
+      return false;
+    }
+
+    @Override
+    public boolean containsAll(Iterable<T> elements) {
+      elements = checkNotNull(elements);
+      for (T t : elements) {
+        if (!contents.contains(t)) {
+          return false;
+        }
+      }
+      return true;
+    }
+
+    @Override
+    public InMemorySet<T> readLater() {
+      return this;
+    }
+
+    @Override
+    public Iterable<T> read() {
+      return contents;
+    }
+
+    @Override
+    public void add(T input) {
+      contents.add(input);
+    }
+
+    @Override
+    public boolean isCleared() {
+      return contents.isEmpty();
+    }
+
+    @Override
+    public ReadableState<Boolean> isEmpty() {
+      return new ReadableState<Boolean>() {
+        @Override
+        public ReadableState<Boolean> readLater() {
+          return this;
+        }
+
+        @Override
+        public Boolean read() {
+          return contents.isEmpty();
+        }
+      };
+    }
+
+    @Override
+    public InMemorySet<T> copy() {
+      InMemorySet<T> that = new InMemorySet<>();
+      that.contents.addAll(this.contents);
+      return that;
+    }
+  }
+
+  /**
+   * An {@link InMemoryState} implementation of {@link MapState}.
+   */
+  public static final class InMemoryMap<K, V> implements
+      MapState<K, V>, InMemoryState<InMemoryMap<K, V>> {
+    private Map<K, V> contents = new HashMap<>();
+
+    @Override
+    public void clear() {
+      contents = new HashMap<>();
+    }
+
+    @Override
+    public V get(K key) {
+      return contents.get(key);
+    }
+
+    @Override
+    public void put(K key, V value) {
+      contents.put(key, value);
+    }
+
+    @Override
+    public V putIfAbsent(K key, V value) {
+      V v = contents.get(key);
+      if (v == null) {
+        v = contents.put(key, value);
+      }
+
+      return v;
+    }
+
+    @Override
+    public void remove(K key) {
+      contents.remove(key);
+    }
+
+    @Override
+    public Iterable<V> get(Iterable<K> keys) {
+      List<V> values = new ArrayList<>();
+      for (K k : keys) {
+        values.add(contents.get(k));
+      }
+      return values;
+    }
+
+    @Override
+    public MapState<K, V> getLater(K k) {
+      return this;
+    }
+
+    @Override
+    public MapState<K, V> getLater(Iterable<K> keys) {
+      return this;
+    }
+
+    @Override
+    public Iterable<K> keys() {
+      return contents.keySet();
+    }
+
+    @Override
+    public Iterable<V> values() {
+      return contents.values();
+    }
+
+    @Override
+    public MapState<K, V> iterateLater() {
+      return this;
+    }
+
+    @Override
+    public Iterable<Map.Entry<K, V>> iterate() {
+      return contents.entrySet();
+    }
+
+    @Override
+    public boolean isCleared() {
+      return contents.isEmpty();
+    }
+
+    @Override
+    public InMemoryMap<K, V> copy() {
+      InMemoryMap<K, V> that = new InMemoryMap<>();
+      that.contents.putAll(this.contents);
       return that;
     }
   }

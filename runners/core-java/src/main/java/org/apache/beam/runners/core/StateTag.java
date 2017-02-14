@@ -30,6 +30,8 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.OutputTimeFn;
 import org.apache.beam.sdk.util.state.AccumulatorCombiningState;
 import org.apache.beam.sdk.util.state.BagState;
+import org.apache.beam.sdk.util.state.MapState;
+import org.apache.beam.sdk.util.state.SetState;
 import org.apache.beam.sdk.util.state.State;
 import org.apache.beam.sdk.util.state.StateSpec;
 import org.apache.beam.sdk.util.state.ValueState;
@@ -85,6 +87,12 @@ public interface StateTag<K, StateT extends State> extends Serializable {
     <T> ValueState<T> bindValue(StateTag<? super K, ValueState<T>> spec, Coder<T> coder);
 
     <T> BagState<T> bindBag(StateTag<? super K, BagState<T>> spec, Coder<T> elemCoder);
+
+    <T> SetState<T> bindSet(StateTag<? super K, SetState<T>> spec, Coder<T> elemCoder);
+
+    <KeyT, ValueT> MapState<KeyT, ValueT> bindMap(
+        StateTag<? super K, MapState<KeyT, ValueT>> spec,
+        Coder<KeyT> mapKeyCoder, Coder<ValueT> mapValueCoder);
 
     <InputT, AccumT, OutputT> AccumulatorCombiningState<InputT, AccumT, OutputT> bindCombiningValue(
         StateTag<? super K, AccumulatorCombiningState<InputT, AccumT, OutputT>> spec,

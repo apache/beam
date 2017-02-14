@@ -28,6 +28,7 @@ import org.apache.beam.sdk.util.state.AccumulatorCombiningState;
 import org.apache.beam.sdk.util.state.BagState;
 import org.apache.beam.sdk.util.state.CombiningState;
 import org.apache.beam.sdk.util.state.ReadableState;
+import org.apache.beam.sdk.util.state.SetState;
 import org.apache.beam.sdk.util.state.State;
 import org.apache.beam.sdk.util.state.WatermarkHoldState;
 import org.joda.time.Instant;
@@ -105,6 +106,49 @@ public class StateMerging {
     }
     // Clear sources except for result.
     for (BagState<T> source : sources) {
+      if (!source.equals(result)) {
+        source.clear();
+      }
+    }
+  }
+
+  /**
+   * Merge all set state in {@code address} across all windows under merge.
+   */
+  public static <K, T, W extends BoundedWindow> void mergeSets(
+      MergingStateAccessor<K, W> context, StateTag<? super K, SetState<T>> address) {
+    mergeSets(context.accessInEachMergingWindow(address).values(), context.access(address));
+  }
+
+  /**
+   * Merge all set state in {@code sources} (which may include {@code result}) into {@code result}.
+   */
+  public static <T, W extends BoundedWindow> void mergeSets(
+      Collection<SetState<T>> sources, SetState<T> result) {
+    if (sources.isEmpty()) {
+      // Nothing to merge.
+      return;
+    }
+    // Prefetch everything except what's already in result.
+    List<ReadableState<Iterable<T>>> futures = new ArrayList<>(sources.size());
+    for (SetState<T> source : sources) {
+      if (!source.equals(result)) {
+        prefetchRead(source);
+        futures.add(source);
+      }
+    }
+    if (futures.isEmpty()) {
+      // Result already holds all the values.
+      return;
+    }
+    // Transfer from sources to result.
+    for (ReadableState<Iterable<T>> future : futures) {
+      for (T element : future.read()) {
+        result.add(element);
+      }
+    }
+    // Clear sources except for result.
+    for (SetState<T> source : sources) {
       if (!source.equals(result)) {
         source.clear();
       }
