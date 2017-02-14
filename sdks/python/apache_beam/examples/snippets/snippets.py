@@ -862,8 +862,8 @@ def model_datastoreio():
   """Using a Read and Write transform to read/write to Cloud Datastore."""
 
   import uuid
-  from google.datastore.v1 import entity_pb2
-  from google.datastore.v1 import query_pb2
+  from google.cloud.proto.datastore.v1 import entity_pb2
+  from google.cloud.proto.datastore.v1 import query_pb2
   import googledatastore
   import apache_beam as beam
   from apache_beam.utils.pipeline_options import PipelineOptions

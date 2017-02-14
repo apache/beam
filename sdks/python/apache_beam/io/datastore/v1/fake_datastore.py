@@ -18,8 +18,8 @@
 """Fake datastore used for unit testing."""
 import uuid
 
-from google.datastore.v1 import datastore_pb2
-from google.datastore.v1 import query_pb2
+from google.cloud.proto.datastore.v1 import datastore_pb2
+from google.cloud.proto.datastore.v1 import query_pb2
 
 
 def create_run_query(entities, batch_size):
