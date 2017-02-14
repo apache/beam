@@ -604,19 +604,15 @@ class DataflowApplicationClient(object):
     return response.jobMessages, response.nextPageToken
 
 
-def set_scalar(accumulator, metric_update):
-  metric_update.scalar = to_json_value(accumulator.value, with_type=True)
-
-
-class CounterUpdateSetters(object):
-  """Setters for translating between accumulators and dataflow counters."""
+class MetricUpdateTranslators(object):
+  """Translators between  accumulators and dataflow metric updates."""
 
   @staticmethod
-  def set_boolean(accumulator, metric_update_proto):
+  def translate_boolean(accumulator, metric_update_proto):
     metric_update_proto.boolean = accumulator.value
 
   @staticmethod
-  def set_scalar_mean_int(accumulator, metric_update_proto):
+  def translate_scalar_mean_int(accumulator, metric_update_proto):
     if accumulator.count:
       metric_update_proto.integerMean = dataflow.IntegerMean()
       metric_update_proto.integerMean.sum = to_split_int(accumulator.sum)
@@ -625,7 +621,7 @@ class CounterUpdateSetters(object):
       metric_update_proto.nameAndKind.kind = None
 
   @staticmethod
-  def set_scalar_mean_float(accumulator, metric_update_proto):
+  def translate_scalar_mean_float(accumulator, metric_update_proto):
     if accumulator.count:
       metric_update_proto.floatingPointMean = dataflow.FloatingPointMean()
       metric_update_proto.floatingPointMean.sum = accumulator.sum
@@ -635,11 +631,11 @@ class CounterUpdateSetters(object):
       metric_update_proto.nameAndKind.kind = None
 
   @staticmethod
-  def set_scalar_counter_int(accumulator, metric_update_proto):
+  def translate_scalar_counter_int(accumulator, metric_update_proto):
     metric_update_proto.integer = to_split_int(accumulator.value)
 
   @staticmethod
-  def set_scalar_counter_float(accumulator, metric_update_proto):
+  def translate_scalar_counter_float(accumulator, metric_update_proto):
     metric_update_proto.floatingPoint = accumulator.value
 
 
@@ -660,11 +656,15 @@ def distribution_updater(distribution_update, metric_update_proto):
   metric_update_proto.distribution = dist_update_proto
 
 
-def set_value(counter_update, metric_update_proto):
+def translate_value(counter_update, metric_update_proto):
   metric_update_proto.integer = to_split_int(counter_update)
 
 
-def set_mean(accumulator, metric_update):
+def translate_scalar(accumulator, metric_update):
+  metric_update.scalar = to_json_value(accumulator.value, with_type=True)
+
+
+def translate_mean(accumulator, metric_update):
   if accumulator.count:
     metric_update.meanSum = to_json_value(accumulator.sum, with_type=True)
     metric_update.meanCount = to_json_value(accumulator.count, with_type=True)
@@ -676,51 +676,51 @@ def set_mean(accumulator, metric_update):
 
 # To enable a counter on the service, add it to this dictionary.
 metric_translations = {
-    cy_combiners.CountCombineFn: ('sum', set_scalar),
-    cy_combiners.SumInt64Fn: ('sum', set_scalar),
-    cy_combiners.MinInt64Fn: ('min', set_scalar),
-    cy_combiners.MaxInt64Fn: ('max', set_scalar),
-    cy_combiners.MeanInt64Fn: ('mean', set_mean),
-    cy_combiners.SumFloatFn: ('sum', set_scalar),
-    cy_combiners.MinFloatFn: ('min', set_scalar),
-    cy_combiners.MaxFloatFn: ('max', set_scalar),
-    cy_combiners.MeanFloatFn: ('mean', set_mean),
-    cy_combiners.AllCombineFn: ('and', set_scalar),
-    cy_combiners.AnyCombineFn: ('or', set_scalar),
+    cy_combiners.CountCombineFn: ('sum', translate_scalar),
+    cy_combiners.SumInt64Fn: ('sum', translate_scalar),
+    cy_combiners.MinInt64Fn: ('min', translate_scalar),
+    cy_combiners.MaxInt64Fn: ('max', translate_scalar),
+    cy_combiners.MeanInt64Fn: ('mean', translate_mean),
+    cy_combiners.SumFloatFn: ('sum', translate_scalar),
+    cy_combiners.MinFloatFn: ('min', translate_scalar),
+    cy_combiners.MaxFloatFn: ('max', translate_scalar),
+    cy_combiners.MeanFloatFn: ('mean', translate_mean),
+    cy_combiners.AllCombineFn: ('and', translate_scalar),
+    cy_combiners.AnyCombineFn: ('or', translate_scalar),
 }
 
 counter_translations = {
     cy_combiners.CountCombineFn: (
         dataflow.NameAndKind.KindValueValuesEnum.SUM,
-        CounterUpdateSetters.set_scalar_counter_int),
+        MetricUpdateTranslators.translate_scalar_counter_int),
     cy_combiners.SumInt64Fn: (
         dataflow.NameAndKind.KindValueValuesEnum.SUM,
-        CounterUpdateSetters.set_scalar_counter_int),
+        MetricUpdateTranslators.translate_scalar_counter_int),
     cy_combiners.MinInt64Fn: (
         dataflow.NameAndKind.KindValueValuesEnum.MIN,
-        CounterUpdateSetters.set_scalar_counter_int),
+        MetricUpdateTranslators.translate_scalar_counter_int),
     cy_combiners.MaxInt64Fn: (
         dataflow.NameAndKind.KindValueValuesEnum.MAX,
-        CounterUpdateSetters.set_scalar_counter_int),
+        MetricUpdateTranslators.translate_scalar_counter_int),
     cy_combiners.MeanInt64Fn: (
         dataflow.NameAndKind.KindValueValuesEnum.MEAN,
-        CounterUpdateSetters.set_scalar_mean_int),
+        MetricUpdateTranslators.translate_scalar_mean_int),
     cy_combiners.SumFloatFn: (
         dataflow.NameAndKind.KindValueValuesEnum.SUM,
-        CounterUpdateSetters.set_scalar_counter_float),
+        MetricUpdateTranslators.translate_scalar_counter_float),
     cy_combiners.MinFloatFn: (
         dataflow.NameAndKind.KindValueValuesEnum.MIN,
-        CounterUpdateSetters.set_scalar_counter_float),
+        MetricUpdateTranslators.translate_scalar_counter_float),
     cy_combiners.MaxFloatFn: (
         dataflow.NameAndKind.KindValueValuesEnum.MAX,
-        CounterUpdateSetters.set_scalar_counter_float),
+        MetricUpdateTranslators.translate_scalar_counter_float),
     cy_combiners.MeanFloatFn: (
         dataflow.NameAndKind.KindValueValuesEnum.MEAN,
-        CounterUpdateSetters.set_scalar_mean_float),
+        MetricUpdateTranslators.translate_scalar_mean_float),
     cy_combiners.AllCombineFn: (
         dataflow.NameAndKind.KindValueValuesEnum.AND,
-        CounterUpdateSetters.set_boolean),
+        MetricUpdateTranslators.translate_boolean),
     cy_combiners.AnyCombineFn: (
         dataflow.NameAndKind.KindValueValuesEnum.OR,
-        CounterUpdateSetters.set_boolean),
+        MetricUpdateTranslators.translate_boolean),
 }
