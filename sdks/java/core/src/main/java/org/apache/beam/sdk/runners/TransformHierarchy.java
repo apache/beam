@@ -88,6 +88,7 @@ public class TransformHierarchy {
     checkNotNull(
         input, "An input must be provided for all %s Nodes", PTransform.class.getSimpleName());
     Node node = new Node(current, transform, name, input);
+    unexpandedInputs.put(node, input);
     current.addComposite(node);
     current = node;
     return current;
@@ -97,6 +98,9 @@ public class TransformHierarchy {
     checkNotNull(existing);
     checkNotNull(input);
     checkNotNull(transform);
+    checkState(
+        unexpandedInputs.isEmpty(),
+        "Replacing a node when the graph has an unexpanded input. This is an SDK bug.");
     Node replacement =
         new Node(existing.getEnclosingNode(), transform, existing.getFullName(), input);
     existing.getEnclosingNode().replaceChild(existing, replacement);
@@ -166,6 +170,7 @@ public class TransformHierarchy {
    */
   public void popNode() {
     current.finishSpecifying();
+    unexpandedInputs.remove(current);
     current = current.getEnclosingNode();
     checkState(current != null, "Can't pop the root node of a TransformHierarchy");
   }
@@ -244,7 +249,6 @@ public class TransformHierarchy {
       this.transform = transform;
       this.fullName = fullName;
       this.inputs = input == null ? Collections.<TaggedPValue>emptyList() : input.expand();
-      unexpandedInputs.put(this, input);
     }
 
     /**
@@ -485,6 +489,9 @@ public class TransformHierarchy {
 
     @Override
     public String toString() {
+      if (isRootNode()) {
+        return "RootNode";
+      }
       return MoreObjects.toStringHelper(getClass()).add("fullName", fullName).toString();
     }
   }
