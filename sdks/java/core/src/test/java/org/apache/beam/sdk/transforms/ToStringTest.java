@@ -48,7 +48,7 @@ public class ToStringTest {
     Integer[] ints = {1, 2, 3, 4, 5};
     String[] strings = {"1", "2", "3", "4", "5"};
     PCollection<Integer> input = p.apply(Create.of(Arrays.asList(ints)));
-    PCollection<String> output = input.apply(ToString.of());
+    PCollection<String> output = input.apply(ToString.elements());
     PAssert.that(output).containsInAnyOrder(strings);
     p.run();
   }
