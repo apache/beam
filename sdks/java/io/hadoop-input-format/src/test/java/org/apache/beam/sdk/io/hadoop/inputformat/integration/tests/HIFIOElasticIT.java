@@ -62,8 +62,7 @@ public class HIFIOElasticIT implements Serializable {
   private static final String ELASTIC_TYPE_NAME = "test_type";
   private static final String ELASTIC_RESOURCE = "/" + ELASTIC_INDEX_NAME + "/" + ELASTIC_TYPE_NAME;
   private static HIFTestOptions options;
-  private static final long TEST_DATA_ROW_COUNT = 1000L;
-
+  
   @BeforeClass
   public static void setUp() {
     PipelineOptionsFactory.register(HIFTestOptions.class);
@@ -79,6 +78,7 @@ public class HIFIOElasticIT implements Serializable {
   @Test
   public void testHifIOWithElastic() throws SecurityException, IOException {
     // Expected hashcode is evaluated during insertion time one time and hardcoded here.
+    final long expectedRowCount = 1000L;
     String expectedHashCode = "7373697a12faa08be32104f67cf7ec2be2e20a1f";
     Pipeline pipeline = TestPipeline.create(options);
     Configuration conf = getConfiguration(options);
@@ -86,7 +86,7 @@ public class HIFIOElasticIT implements Serializable {
         pipeline.apply(HadoopInputFormatIO.<Text, LinkedMapWritable>read().withConfiguration(conf));
     // Verify that the count of objects fetched using HIFInputFormat IO is correct.
     PCollection<Long> count = esData.apply(Count.<KV<Text, LinkedMapWritable>>globally());
-    PAssert.thatSingleton(count).isEqualTo(TEST_DATA_ROW_COUNT);
+    PAssert.thatSingleton(count).isEqualTo(expectedRowCount);
     PCollection<LinkedMapWritable> values = esData.apply(Values.<LinkedMapWritable>create());
     MapElements<LinkedMapWritable, String> transformFunc =
         MapElements.<LinkedMapWritable, String>via(new SimpleFunction<LinkedMapWritable, String>() {
@@ -147,7 +147,7 @@ public class HIFIOElasticIT implements Serializable {
   @Test
   public void testHifIOWithElasticQuery() {
     String expectedHashCode = "abfc29069634f6e9d02a10129ae476e114f15448";
-    Long expectedRecords=1L;
+    Long expectedRecordsCount=1L;
     Pipeline pipeline = TestPipeline.create(options);
     Configuration conf = getConfiguration(options);
     String query =
@@ -165,7 +165,7 @@ public class HIFIOElasticIT implements Serializable {
         pipeline.apply(HadoopInputFormatIO.<Text, LinkedMapWritable>read().withConfiguration(conf));
     PCollection<Long> count = esData.apply(Count.<KV<Text, LinkedMapWritable>>globally());
     // Verify that the count of objects fetched using HIFInputFormat IO is correct.
-    PAssert.thatSingleton(count).isEqualTo(expectedRecords);
+    PAssert.thatSingleton(count).isEqualTo(expectedRecordsCount);
     PCollection<LinkedMapWritable> values = esData.apply(Values.<LinkedMapWritable>create());
     MapElements<LinkedMapWritable, String> transformFunc =
         MapElements.<LinkedMapWritable, String>via(new SimpleFunction<LinkedMapWritable, String>() {

@@ -83,7 +83,7 @@ public class HIFIOCassandraIT implements Serializable {
   public void testHIFReadForCassandra() {
     // Expected hashcode is evaluated during insertion time one time and hardcoded here.
     String expectedHashCode = "a26b01ae5fe64cce653624df8f6ff761bc87c23a";
-    Long NUM_ROWS = 1000L;
+    Long expectedRecordsCount = 1000L;
     Pipeline pipeline = TestPipeline.create(options);
     Configuration conf = getConfiguration(options);
     SimpleFunction<Row, String> myValueTranslate = new SimpleFunction<Row, String>() {
@@ -104,7 +104,7 @@ public class HIFIOCassandraIT implements Serializable {
         pipeline.apply(HadoopInputFormatIO.<Long, String>read().withConfiguration(conf)
             .withValueTranslation(myValueTranslate));
     PAssert.thatSingleton(cassandraData.apply("Count", Count.<KV<Long, String>>globally()))
-        .isEqualTo(NUM_ROWS);
+        .isEqualTo(expectedRecordsCount);
     PCollection<String> textValues = cassandraData.apply(Values.<String>create());
     // Verify the output values using checksum comparison.
     PCollection<String> consolidatedHashcode =
