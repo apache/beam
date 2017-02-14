@@ -33,6 +33,12 @@ public interface StateBinder<K> {
 
   <T> BagState<T> bindBag(String id, StateSpec<? super K, BagState<T>> spec, Coder<T> elemCoder);
 
+  <T> SetState<T> bindSet(String id, StateSpec<? super K, SetState<T>> spec, Coder<T> elemCoder);
+
+  <KeyT, ValueT> MapState<KeyT, ValueT> bindMap(
+      String id, StateSpec<? super K, MapState<KeyT, ValueT>> spec,
+      Coder<KeyT> mapKeyCoder, Coder<ValueT> mapValueCoder);
+
   <InputT, AccumT, OutputT> AccumulatorCombiningState<InputT, AccumT, OutputT> bindCombiningValue(
       String id,
       StateSpec<? super K, AccumulatorCombiningState<InputT, AccumT, OutputT>> spec,
