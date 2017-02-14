@@ -45,7 +45,7 @@ public abstract class FileSystem<ResourceIdT extends ResourceId> {
    * <ol>
    * <li>{@code spec} could be a glob or a uri. {@link #match} should be able to tell and
    * choose efficient implementations.
-   * <li>The user-provided {@code spec} might refer to files or a directories. It is common that
+   * <li>The user-provided {@code spec} might refer to files or directories. It is common that
    * users that wish to indicate a directory will omit the trailing {@code /}, such as in a spec of
    * {@code "/tmp/dir"}. The {@link FileSystem} should be able to recognize a directory with
    * the trailing {@code /} omitted, but should always return a correct {@link ResourceIdT}
