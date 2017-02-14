@@ -605,7 +605,7 @@ class DataflowApplicationClient(object):
 
 
 class MetricUpdateTranslators(object):
-  """Translators between  accumulators and dataflow metric updates."""
+  """Translators between accumulators and dataflow metric updates."""
 
   @staticmethod
   def translate_boolean(accumulator, metric_update_proto):
@@ -656,8 +656,8 @@ def distribution_updater(distribution_update, metric_update_proto):
   metric_update_proto.distribution = dist_update_proto
 
 
-def translate_value(counter_update, metric_update_proto):
-  metric_update_proto.integer = to_split_int(counter_update)
+def translate_value(value, metric_update_proto):
+  metric_update_proto.integer = to_split_int(value)
 
 
 def translate_scalar(accumulator, metric_update):
