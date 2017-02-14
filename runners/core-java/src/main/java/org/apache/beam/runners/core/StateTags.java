@@ -32,6 +32,8 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.OutputTimeFn;
 import org.apache.beam.sdk.util.state.AccumulatorCombiningState;
 import org.apache.beam.sdk.util.state.BagState;
+import org.apache.beam.sdk.util.state.MapState;
+import org.apache.beam.sdk.util.state.SetState;
 import org.apache.beam.sdk.util.state.State;
 import org.apache.beam.sdk.util.state.StateBinder;
 import org.apache.beam.sdk.util.state.StateSpec;
@@ -65,6 +67,19 @@ public class StateTags {
       public <T> BagState<T> bindBag(
           String id, StateSpec<? super K, BagState<T>> spec, Coder<T> elemCoder) {
         return binder.bindBag(tagForSpec(id, spec), elemCoder);
+      }
+
+      @Override
+      public <T> SetState<T> bindSet(
+          String id, StateSpec<? super K, SetState<T>> spec, Coder<T> elemCoder) {
+        return binder.bindSet(tagForSpec(id, spec), elemCoder);
+      }
+
+      @Override
+      public <KeyT, ValueT> MapState<KeyT, ValueT> bindMap(
+          String id, StateSpec<? super K, MapState<KeyT, ValueT>> spec,
+          Coder<KeyT> mapKeyCoder, Coder<ValueT> mapValueCoder) {
+        return binder.bindMap(tagForSpec(id, spec), mapKeyCoder, mapValueCoder);
       }
 
       @Override
@@ -197,6 +212,21 @@ public class StateTags {
    */
   public static <T> StateTag<Object, BagState<T>> bag(String id, Coder<T> elemCoder) {
     return new SimpleStateTag<>(new StructuredId(id), StateSpecs.bag(elemCoder));
+  }
+
+  /**
+   * Create a state spec that supporting for {@link java.util.Set} like access patterns.
+   */
+  public static <T> StateTag<Object, SetState<T>> set(String id, Coder<T> elemCoder) {
+    return new SimpleStateTag<>(new StructuredId(id), StateSpecs.set(elemCoder));
+  }
+
+  /**
+   * Create a state spec that supporting for {@link java.util.Map} like access patterns.
+   */
+  public static <K, V> StateTag<Object, MapState<K, V>> map(
+      String id, Coder<K> keyCoder, Coder<V> valueCoder) {
+    return new SimpleStateTag<>(new StructuredId(id), StateSpecs.map(keyCoder, valueCoder));
   }
 
   /**
