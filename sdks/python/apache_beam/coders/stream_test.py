@@ -145,6 +145,8 @@ class StreamTest(unittest.TestCase):
     self.assertEquals(22, bc_s.get_count())
     bc_s.write_bigendian_double(6.25)
     self.assertEquals(30, bc_s.get_count())
+    bc_s.write_bigendian_uint64(47)
+    self.assertEquals(38, bc_s.get_count())
 
 
 try:
