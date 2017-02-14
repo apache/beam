@@ -25,7 +25,7 @@ syntax = "proto3";
 
 package org.apache.beam.runner_api.v1;
 
-option java_package = "org.apache.beam.sdk.common.runner_api.v1";
+option java_package = "org.apache.beam.sdk.common.runner.v1";
 option java_outer_classname = "RunnerApi";
 
 import "google/protobuf/any.proto";
