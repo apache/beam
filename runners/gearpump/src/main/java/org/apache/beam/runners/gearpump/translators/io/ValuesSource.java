@@ -33,6 +33,7 @@ import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.options.PipelineOptions;
 
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.values.TimestampedValue;
 import org.joda.time.Instant;
 
 /**
@@ -40,6 +41,7 @@ import org.joda.time.Instant;
  */
 public class ValuesSource<T> extends UnboundedSource<T, UnboundedSource.CheckpointMark> {
 
+  private static final long serialVersionUID = 9113026175795235710L;
   private final byte[] values;
   private final IterableCoder<T> iterableCoder;
 
@@ -135,7 +137,7 @@ public class ValuesSource<T> extends UnboundedSource<T, UnboundedSource.Checkpoi
 
     @Override
     public Instant getCurrentTimestamp() throws NoSuchElementException {
-      return Instant.now();
+      return getTimestamp(current);
     }
 
     @Override
@@ -145,7 +147,7 @@ public class ValuesSource<T> extends UnboundedSource<T, UnboundedSource.Checkpoi
     @Override
     public Instant getWatermark() {
       if (iterator.hasNext()) {
-        return Instant.now();
+        return getTimestamp(current);
       } else {
         return BoundedWindow.TIMESTAMP_MAX_VALUE;
       }
@@ -159,6 +161,14 @@ public class ValuesSource<T> extends UnboundedSource<T, UnboundedSource.Checkpoi
     @Override
     public UnboundedSource<T, ?> getCurrentSource() {
       return source;
+    }
+
+    private Instant getTimestamp(Object value) {
+      if (value instanceof TimestampedValue) {
+        return ((TimestampedValue) value).getTimestamp();
+      } else {
+        return Instant.now();
+      }
     }
   }
 }

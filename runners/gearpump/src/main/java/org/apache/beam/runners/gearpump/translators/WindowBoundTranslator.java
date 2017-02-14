@@ -20,7 +20,10 @@ package org.apache.beam.runners.gearpump.translators;
 
 import com.google.common.collect.Iterables;
 
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Iterator;
+import java.util.List;
 
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.Window;
@@ -28,8 +31,8 @@ import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.gearpump.streaming.dsl.api.functions.MapFunction;
 import org.apache.gearpump.streaming.dsl.javaapi.JavaStream;
+import org.apache.gearpump.streaming.dsl.javaapi.functions.FlatMapFunction;
 import org.joda.time.Instant;
 
 /**
@@ -37,6 +40,8 @@ import org.joda.time.Instant;
  */
 @SuppressWarnings("unchecked")
 public class WindowBoundTranslator<T> implements  TransformTranslator<Window.Bound<T>> {
+
+  private static final long serialVersionUID = -964887482120489061L;
 
   @Override
   public void translate(Window.Bound<T> transform, TranslationContext context) {
@@ -47,14 +52,15 @@ public class WindowBoundTranslator<T> implements  TransformTranslator<Window.Bou
     WindowFn<T, BoundedWindow> windowFn = (WindowFn<T, BoundedWindow>) outputStrategy.getWindowFn();
     JavaStream<WindowedValue<T>> outputStream =
         inputStream
-            .map(new AssignWindows(windowFn), "assign_windows");
+            .flatMap(new AssignWindows(windowFn), "assign_windows");
 
     context.setOutputStream(context.getOutput(transform), outputStream);
   }
 
   private static class AssignWindows<T> extends
-      MapFunction<WindowedValue<T>, WindowedValue<T>> {
+      FlatMapFunction<WindowedValue<T>, WindowedValue<T>> {
 
+    private static final long serialVersionUID = 7284565861938681360L;
     private final WindowFn<T, BoundedWindow> windowFn;
 
     AssignWindows(WindowFn<T, BoundedWindow> windowFn) {
@@ -62,7 +68,7 @@ public class WindowBoundTranslator<T> implements  TransformTranslator<Window.Bou
     }
 
     @Override
-    public WindowedValue<T> apply(final WindowedValue<T> value) {
+    public Iterator<WindowedValue<T>> flatMap(final WindowedValue<T> value) {
       try {
         Collection<BoundedWindow> windows = windowFn.assignWindows(windowFn.new AssignContext() {
           @Override
@@ -80,7 +86,12 @@ public class WindowBoundTranslator<T> implements  TransformTranslator<Window.Bou
             return Iterables.getOnlyElement(value.getWindows());
           }
         });
-        return WindowedValue.of(value.getValue(), value.getTimestamp(), windows, value.getPane());
+        List<WindowedValue<T>> values = new ArrayList<>(windows.size());
+        for (BoundedWindow win: windows) {
+          values.add(
+              WindowedValue.of(value.getValue(), value.getTimestamp(), win, value.getPane()));
+        }
+        return values.iterator();
       } catch (Exception e) {
         throw new RuntimeException(e);
       }
