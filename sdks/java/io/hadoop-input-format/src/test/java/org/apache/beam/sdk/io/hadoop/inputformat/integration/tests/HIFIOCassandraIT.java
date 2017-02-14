@@ -42,11 +42,10 @@ import com.datastax.driver.core.Row;
 /**
  * Runs integration test to validate HadoopInputFromatIO for a Cassandra instance.
  * You need to pass Cassandra server IP and port in beamTestPipelineOptions.
- *
  * <p>
  * You can run just this test by doing the following: mvn test-compile compile
- * failsafe:integration-test -D beamTestPipelineOptions='[ "--serverIp=1.2.3.4",
- * "--serverPort=<port>" ,"--userName=<user_name>" ,"--password=<password>"]' 
+ * failsafe:integration-test -D beamTestPipelineOptions='[ "--serverIp=1.2.3.4", 
+ * "--serverPort=<port>", "--userName=<user_name>", "--password=<password>"]' 
  * -Dit.test=HIFIOCassandraIT -DskipITs=false
  * Setting username and password is optional, set these only if security is 
  * configured on Cassandra server. 

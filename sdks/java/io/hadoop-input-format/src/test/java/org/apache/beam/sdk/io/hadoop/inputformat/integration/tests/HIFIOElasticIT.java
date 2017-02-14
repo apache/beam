@@ -45,13 +45,13 @@ import org.junit.runners.JUnit4;
 
 /**
  * Runs integration test to validate HadoopInputFromatIO for an Elasticsearch instance.
- *
  * You need to pass Elasticsearch server IP and port in beamTestPipelineOptions.
- *
- * <p>
- * You can run just this test by doing the following: mvn test-compile compile
- * failsafe:integration-test -D beamTestPipelineOptions='[ "--serverIp=1.2.3.4",
- * "--serverPort=<port>" ]' -Dit.test=HIFIOElasticIT -DskipITs=false
+ * <p>You can run just this test by doing the following: mvn test-compile compile
+ * failsafe:integration-test -D beamTestPipelineOptions='[ "--serverIp=1.2.3.4", 
+ * "--serverPort=<port>", "--userName=<user_name>", "--password=<password>"]' 
+ * -Dit.test=HIFIOElasticIT -DskipITs=false
+ * Setting username and password is optional, set these only if security is 
+ * configured on Elasticsearch server.</p>
  */
 @RunWith(JUnit4.class)
 public class HIFIOElasticIT implements Serializable {
@@ -196,6 +196,9 @@ public class HIFIOElasticIT implements Serializable {
     conf.set(ConfigurationOptions.ES_NODES, options.getServerIp());
     conf.set(ConfigurationOptions.ES_PORT, options.getServerPort().toString());
     conf.set(ConfigurationOptions.ES_NODES_WAN_ONLY, TRUE);
+    // Set username and password if Elasticsearch is configured with security.
+    conf.set(ConfigurationOptions.ES_NET_HTTP_AUTH_USER, options.getUserName());
+    conf.set(ConfigurationOptions.ES_NET_HTTP_AUTH_PASS, options.getPassword());
     conf.set(ConfigurationOptions.ES_RESOURCE, ELASTIC_RESOURCE);
     conf.set("es.internal.es.version", ELASTIC_INTERNAL_VERSION);
     conf.set(ConfigurationOptions.ES_INDEX_AUTO_CREATE, TRUE);
