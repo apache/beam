@@ -72,7 +72,7 @@ public class FlinkBroadcastStateInternalsTest {
     try {
       OperatorStateBackend operatorStateBackend =
           backend.createOperatorStateBackend(new DummyEnvironment("test", 1, 0), "");
-      underTest = new FlinkBroadcastStateInternals<>(operatorStateBackend);
+      underTest = new FlinkBroadcastStateInternals<>(1, operatorStateBackend);
 
     } catch (Exception e) {
       throw new RuntimeException(e);

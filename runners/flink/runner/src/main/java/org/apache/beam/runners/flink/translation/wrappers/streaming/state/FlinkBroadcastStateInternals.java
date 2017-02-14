@@ -55,17 +55,25 @@ import org.apache.flink.runtime.state.OperatorStateBackend;
  * {@link StateInternals} that uses a Flink {@link DefaultOperatorStateBackend}
  * to manage the broadcast state.
  * The state is the same on all parallel instances of the operator.
+ * So we just need store state of operator-0 in OperatorStateBackend.
  *
  * <p>Note: Ignore index of key.
  * Mainly for SideInputs.
  */
 public class FlinkBroadcastStateInternals<K> implements StateInternals<K> {
 
+  private int indexInSubtaskGroup;
   private final DefaultOperatorStateBackend stateBackend;
+  // stateName -> <namespace, state>
+  private Map<String, Map<String, ?>> stateForNonZeroOperator;
 
-  public FlinkBroadcastStateInternals(OperatorStateBackend stateBackend) {
+  public FlinkBroadcastStateInternals(int indexInSubtaskGroup, OperatorStateBackend stateBackend) {
     //TODO flink do not yet expose through public API
     this.stateBackend = (DefaultOperatorStateBackend) stateBackend;
+    this.indexInSubtaskGroup = indexInSubtaskGroup;
+    if (indexInSubtaskGroup != 0) {
+      stateForNonZeroOperator = new HashMap<>();
+    }
   }
 
   @Override
@@ -166,8 +174,9 @@ public class FlinkBroadcastStateInternals<K> implements StateInternals<K> {
    *
    * <p>2. Use map to support namespace.
    */
-  private abstract static class AbstractBroadcastState<T> {
+  private abstract class AbstractBroadcastState<T> {
 
+    private String name;
     private final StateNamespace namespace;
     private final ListStateDescriptor<Map<String, T>> flinkStateDescriptor;
     private final DefaultOperatorStateBackend flinkStateBackend;
@@ -177,6 +186,7 @@ public class FlinkBroadcastStateInternals<K> implements StateInternals<K> {
         String name,
         StateNamespace namespace,
         Coder<T> coder) {
+      this.name = name;
 
       this.namespace = namespace;
       this.flinkStateBackend = flinkStateBackend;
@@ -192,6 +202,25 @@ public class FlinkBroadcastStateInternals<K> implements StateInternals<K> {
      * Get map(namespce->T) from index 0.
      */
     Map<String, T> getMap() throws Exception {
+      if (indexInSubtaskGroup == 0) {
+        return getMapFromBroadcastState();
+      } else {
+        Map<String, T> result = (Map<String, T>) stateForNonZeroOperator.get(name);
+        // maybe restore from BroadcastState of Operator-0
+        if (result == null) {
+          result = getMapFromBroadcastState();
+          if (result != null) {
+            stateForNonZeroOperator.put(name, result);
+            // we don't need it anymore, must clear it.
+            flinkStateBackend.getBroadcastOperatorState(
+                flinkStateDescriptor).clear();
+          }
+        }
+        return result;
+      }
+    }
+
+    Map<String, T> getMapFromBroadcastState() throws Exception {
       ListState<Map<String, T>> state = flinkStateBackend.getBroadcastOperatorState(
           flinkStateDescriptor);
       Iterable<Map<String, T>> iterable = state.get();
@@ -210,11 +239,22 @@ public class FlinkBroadcastStateInternals<K> implements StateInternals<K> {
      * Update map(namespce->T) from index 0.
      */
     void updateMap(Map<String, T> map) throws Exception {
-      ListState<Map<String, T>> state = flinkStateBackend.getBroadcastOperatorState(
-          flinkStateDescriptor);
-      state.clear();
-      if (map.size() > 0) {
-        state.add(map);
+      if (indexInSubtaskGroup == 0) {
+        ListState<Map<String, T>> state = flinkStateBackend.getBroadcastOperatorState(
+            flinkStateDescriptor);
+        state.clear();
+        if (map.size() > 0) {
+          state.add(map);
+        }
+      } else {
+        if (map.size() == 0) {
+          stateForNonZeroOperator.remove(name);
+          // updateMap is always behind getMap,
+          // getMap will clear map in BroadcastOperatorState,
+          // we don't need clear here.
+        } else {
+          stateForNonZeroOperator.put(name, map);
+        }
       }
     }
 
@@ -258,7 +298,7 @@ public class FlinkBroadcastStateInternals<K> implements StateInternals<K> {
 
   }
 
-  private static class FlinkBroadcastValueState<K, T>
+  private class FlinkBroadcastValueState<K, T>
       extends AbstractBroadcastState<T> implements ValueState<T> {
 
     private final StateNamespace namespace;
@@ -319,7 +359,7 @@ public class FlinkBroadcastStateInternals<K> implements StateInternals<K> {
     }
   }
 
-  private static class FlinkBroadcastBagState<K, T> extends AbstractBroadcastState<List<T>>
+  private class FlinkBroadcastBagState<K, T> extends AbstractBroadcastState<List<T>>
       implements BagState<T> {
 
     private final StateNamespace namespace;
@@ -406,7 +446,7 @@ public class FlinkBroadcastStateInternals<K> implements StateInternals<K> {
     }
   }
 
-  private static class FlinkAccumulatorCombiningState<K, InputT, AccumT, OutputT>
+  private class FlinkAccumulatorCombiningState<K, InputT, AccumT, OutputT>
       extends AbstractBroadcastState<AccumT>
       implements AccumulatorCombiningState<InputT, AccumT, OutputT> {
 
@@ -523,7 +563,7 @@ public class FlinkBroadcastStateInternals<K> implements StateInternals<K> {
     }
   }
 
-  private static class FlinkKeyedAccumulatorCombiningState<K, InputT, AccumT, OutputT>
+  private class FlinkKeyedAccumulatorCombiningState<K, InputT, AccumT, OutputT>
       extends AbstractBroadcastState<AccumT>
       implements AccumulatorCombiningState<InputT, AccumT, OutputT> {
 
@@ -663,7 +703,7 @@ public class FlinkBroadcastStateInternals<K> implements StateInternals<K> {
     }
   }
 
-  private static class FlinkAccumulatorCombiningStateWithContext<K, InputT, AccumT, OutputT>
+  private class FlinkAccumulatorCombiningStateWithContext<K, InputT, AccumT, OutputT>
       extends AbstractBroadcastState<AccumT>
       implements AccumulatorCombiningState<InputT, AccumT, OutputT> {
 

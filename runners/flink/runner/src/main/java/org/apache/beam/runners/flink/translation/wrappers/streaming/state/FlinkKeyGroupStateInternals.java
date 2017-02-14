@@ -49,10 +49,9 @@ import org.apache.beam.sdk.util.state.StateContexts;
 import org.apache.beam.sdk.util.state.ValueState;
 import org.apache.beam.sdk.util.state.WatermarkHoldState;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.runtime.state.KeyGroupsList;
+import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.streaming.api.operators.HeapInternalTimerService;
-import org.apache.flink.streaming.api.operators.KeyContext;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.Preconditions;
 
@@ -69,9 +68,8 @@ import org.apache.flink.util.Preconditions;
 public class FlinkKeyGroupStateInternals<K> implements StateInternals<K> {
 
   private final Coder<K> keyCoder;
-  private final int totalKeyGroups;
   private final KeyGroupsList localKeyGroupRange;
-  private final KeyContext keyContext;
+  private KeyedStateBackend keyedStateBackend;
   private final int localKeyGroupRangeStartIdx;
 
   // stateName -> namespace -> (valueCoder, value)
@@ -79,13 +77,10 @@ public class FlinkKeyGroupStateInternals<K> implements StateInternals<K> {
 
   public FlinkKeyGroupStateInternals(
       Coder<K> keyCoder,
-      int totalKeyGroups,
-      KeyGroupsList localKeyGroupRange,
-      KeyContext keyContext) {
+      KeyedStateBackend keyedStateBackend) {
     this.keyCoder = keyCoder;
-    this.totalKeyGroups = totalKeyGroups;
-    this.localKeyGroupRange = localKeyGroupRange;
-    this.keyContext = keyContext;
+    this.keyedStateBackend = keyedStateBackend;
+    this.localKeyGroupRange = keyedStateBackend.getKeyGroupRange();
     // find the starting index of the local key-group range
     int startIdx = Integer.MAX_VALUE;
     for (Integer keyGroupIdx : localKeyGroupRange) {
@@ -101,7 +96,7 @@ public class FlinkKeyGroupStateInternals<K> implements StateInternals<K> {
 
   @Override
   public K getKey() {
-    ByteBuffer keyBytes = (ByteBuffer) keyContext.getCurrentKey();
+    ByteBuffer keyBytes = (ByteBuffer) keyedStateBackend.getCurrentKey();
     try {
       return CoderUtils.decodeFromByteArray(keyCoder, keyBytes.array());
     } catch (CoderException e) {
@@ -231,8 +226,7 @@ public class FlinkKeyGroupStateInternals<K> implements StateInternals<K> {
      * Choose keyGroup of input and addInput to accumulator.
      */
     void addInput(InputT input) {
-      int keyGroupIdx = KeyGroupRangeAssignment.assignToKeyGroup(
-          keyContext.getCurrentKey(), totalKeyGroups);
+      int keyGroupIdx = keyedStateBackend.getCurrentKeyGroupIndex();
       int localIdx = getIndexForKeyGroup(keyGroupIdx);
       Map<String, Tuple2<Coder<?>, Map<String, ?>>> stateTable = stateTables[localIdx];
       Tuple2<Coder<?>, Map<String, ?>> tuple2 = stateTable.get(stateName);

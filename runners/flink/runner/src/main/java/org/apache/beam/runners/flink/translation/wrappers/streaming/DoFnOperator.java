@@ -224,7 +224,8 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
       pushedBackTag = StateTags.bag("pushed-back-values", inputCoder);
 
       FlinkBroadcastStateInternals sideInputStateInternals =
-          new FlinkBroadcastStateInternals<>(getOperatorStateBackend());
+          new FlinkBroadcastStateInternals<>(
+              getContainingTask().getIndexInSubtaskGroup(), getOperatorStateBackend());
 
       sideInputHandler = new SideInputHandler(sideInputs, sideInputStateInternals);
       sideInputReader = sideInputHandler;
@@ -232,11 +233,8 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
       // maybe init by initializeState
       if (pushbackStateInternals == null) {
         if (keyCoder != null) {
-          pushbackStateInternals = new FlinkKeyGroupStateInternals<>(
-              keyCoder,
-              getKeyedStateBackend().getNumberOfKeyGroups(),
-              getKeyedStateBackend().getKeyGroupRange(),
-              this);
+          pushbackStateInternals = new FlinkKeyGroupStateInternals<>(keyCoder,
+              getKeyedStateBackend());
         } else {
           pushbackStateInternals =
               new FlinkSplitStateInternals<Object>(getOperatorStateBackend());
@@ -522,11 +520,8 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
   public void restoreKeyGroupState(int keyGroupIndex, DataInputStream in) throws Exception {
     if (!sideInputs.isEmpty() && keyCoder != null) {
       if (pushbackStateInternals == null) {
-        pushbackStateInternals = new FlinkKeyGroupStateInternals<>(
-            keyCoder,
-            getKeyedStateBackend().getNumberOfKeyGroups(),
-            getKeyedStateBackend().getKeyGroupRange(),
-            this);
+        pushbackStateInternals = new FlinkKeyGroupStateInternals<>(keyCoder,
+            getKeyedStateBackend());
       }
       ((FlinkKeyGroupStateInternals) pushbackStateInternals)
           .restoreKeyGroupState(keyGroupIndex, in, getUserCodeClassloader());
