@@ -235,6 +235,9 @@ class PipelineTest(unittest.TestCase):
     memory_threshold = (
         get_memory_usage_in_bytes() + (3 * len_elements * num_elements))
 
+    # Plus small additional slack for memory fluctuations during the test.
+    memory_threshold += 10 * (2 ** 20)
+
     biglist = pipeline | 'oom:create' >> Create(
         ['x' * len_elements] * num_elements)
     for i in range(num_maps):
