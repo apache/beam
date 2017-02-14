@@ -806,27 +806,20 @@ public class HadoopInputFormatIO {
         try {
           recordsReturned = 0;
           currentReader =
-              (RecordReader<T1, T2>) inputFormatObj.createRecordReader(split.getSplit(), taskAttemptContext);
+              (RecordReader<T1, T2>) inputFormatObj.createRecordReader(split.getSplit(),
+                  taskAttemptContext);
           if (currentReader != null) {
-            /*
-             * CurrentReader object could be accessed concurrently by multiple sources. Hence, to be
-             * on safer side, it has been added in synchronized block.
-             */
-            synchronized (currentReader) {
-              currentReader.initialize(split.getSplit(), taskAttemptContext);
-              if (currentReader.nextKeyValue()) {
-                recordsReturned++;
-                return true;
-              }
+            currentReader.initialize(split.getSplit(), taskAttemptContext);
+            if (currentReader.nextKeyValue()) {
+              recordsReturned++;
+              return true;
             }
           } else {
             throw new IOException(String.format(
                 HadoopInputFormatIOConstants.NULL_CREATE_RECORDREADER_ERROR_MSG,
                 inputFormatObj.getClass()));
           }
-          synchronized (currentReader) {
-            currentReader = null;
-          }
+          currentReader = null;
         } catch (InterruptedException e) {
           throw new IOException(
               "Could not read because the thread got interrupted while reading the records with an exception: ",
@@ -839,12 +832,10 @@ public class HadoopInputFormatIO {
       @Override
       public boolean advance() throws IOException {
         try {
-          synchronized (currentReader) {
-            progressValue = new AtomicDouble(getProgress());
-            if (currentReader != null && currentReader.nextKeyValue()) {
-              recordsReturned++;
-              return true;
-            }
+          progressValue = new AtomicDouble(getProgress());
+          if (currentReader != null && currentReader.nextKeyValue()) {
+            recordsReturned++;
+            return true;
           }
           doneReading = true;
         } catch (InterruptedException e) {
