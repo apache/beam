@@ -25,6 +25,7 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.ProcessElementMethod;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 
 /**
@@ -61,6 +62,10 @@ public class PTransformMatchers {
     }
   }
 
+  /**
+   * A {@link PTransformMatcher} that matches a {@link ParDo.Bound} containing a {@link DoFn} that
+   * is splittable, as signified by {@link ProcessElementMethod#isSplittable()}.
+   */
   public static PTransformMatcher splittableParDoSingle() {
     return new PTransformMatcher() {
       @Override
@@ -76,6 +81,11 @@ public class PTransformMatchers {
     };
   }
 
+  /**
+   * A {@link PTransformMatcher} that matches a {@link ParDo.Bound} containing a {@link DoFn} that
+   * uses state or timers, as specified by {@link DoFnSignature#usesState()} and
+   * {@link DoFnSignature#usesTimers()}.
+   */
   public static PTransformMatcher stateOrTimerParDoSingle() {
     return new PTransformMatcher() {
       @Override
@@ -91,6 +101,10 @@ public class PTransformMatchers {
     };
   }
 
+  /**
+   * A {@link PTransformMatcher} that matches a {@link ParDo.BoundMulti} containing a {@link DoFn}
+   * that is splittable, as signified by {@link ProcessElementMethod#isSplittable()}.
+   */
   public static PTransformMatcher splittableParDoMulti() {
     return new PTransformMatcher() {
       @Override
@@ -106,6 +120,11 @@ public class PTransformMatchers {
     };
   }
 
+  /**
+   * A {@link PTransformMatcher} that matches a {@link ParDo.BoundMulti} containing a {@link DoFn}
+   * that uses state or timers, as specified by {@link DoFnSignature#usesState()} and
+   * {@link DoFnSignature#usesTimers()}.
+   */
   public static PTransformMatcher stateOrTimerParDoMulti() {
     return new PTransformMatcher() {
       @Override
