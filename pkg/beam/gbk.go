@@ -56,6 +56,6 @@ func GroupByKey(p *Pipeline, a PCollection) PCollection {
 	return ret
 }
 
-func CoGroupByKey(p *Pipeline, cols ...PCollection) (PCollection, error) {
-	return PCollection{}, nil
+func CoGroupByKey(p *Pipeline, cols ...PCollection) PCollection {
+	return PCollection{}
 }
