@@ -31,6 +31,7 @@ import javax.annotation.Nullable;
 import org.apache.beam.runners.flink.FlinkPipelineOptions;
 import org.apache.beam.runners.flink.translation.types.CoderTypeInformation;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.DoFnOperator;
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PCollectionViewTesting;
@@ -96,7 +97,7 @@ public class DoFnOperatorTest {
 
     DoFnOperator<String, String, String> doFnOperator = new DoFnOperator<>(
         new IdentityDoFn<String>(),
-        coderTypeInfo,
+        windowedValueCoder,
         outputTag,
         Collections.<TupleTag<?>>emptyList(),
         new DoFnOperator.DefaultOutputManagerFactory(),
@@ -141,7 +142,7 @@ public class DoFnOperatorTest {
 
     DoFnOperator<String, String, RawUnionValue> doFnOperator = new DoFnOperator<>(
         new MultiOutputDoFn(sideOutput1, sideOutput2),
-        coderTypeInfo,
+        windowedValueCoder,
         mainOutput,
         ImmutableList.<TupleTag<?>>of(sideOutput1, sideOutput2),
         new DoFnOperator.MultiOutputOutputManagerFactory(outputMapping),
@@ -172,25 +173,10 @@ public class DoFnOperatorTest {
     testHarness.close();
   }
 
-  /**
-   * For now, this test doesn't work because {@link TwoInputStreamOperatorTestHarness} is not
-   * sufficiently well equipped to handle more complex operators that require a state backend.
-   * We have to revisit this once we update to a newer version of Flink and also add some more
-   * tests that verify pushback behaviour and watermark hold behaviour.
-   *
-   * <p>The behaviour that we would test here is also exercised by the
-   * {@link org.apache.beam.sdk.testing.RunnableOnService} tests, so the code is not untested.
-   */
-  @Test
-  @Ignore
-  @SuppressWarnings("unchecked")
-  public void testSideInputs() throws Exception {
+  public void testSideInputs(boolean keyed) throws Exception {
 
     WindowedValue.ValueOnlyWindowedValueCoder<String> windowedValueCoder =
         WindowedValue.getValueOnlyCoder(StringUtf8Coder.of());
-
-    CoderTypeInformation<WindowedValue<String>> coderTypeInfo =
-        new CoderTypeInformation<>(windowedValueCoder);
 
     TupleTag<String> outputTag = new TupleTag<>("main-output");
 
@@ -200,9 +186,13 @@ public class DoFnOperatorTest {
             .put(2, view2)
             .build();
 
+    Coder<String> keyCoder = null;
+    if (keyed) {
+      keyCoder = StringUtf8Coder.of();
+    }
     DoFnOperator<String, String, String> doFnOperator = new DoFnOperator<>(
         new IdentityDoFn<String>(),
-        coderTypeInfo,
+        windowedValueCoder,
         outputTag,
         Collections.<TupleTag<?>>emptyList(),
         new DoFnOperator.DefaultOutputManagerFactory(),
@@ -210,7 +200,7 @@ public class DoFnOperatorTest {
         sideInputMapping, /* side-input mapping */
         ImmutableList.<PCollectionView<?>>of(view1, view2), /* side inputs */
         PipelineOptionsFactory.as(FlinkPipelineOptions.class),
-        null);
+        keyCoder);
 
     TwoInputStreamOperatorTestHarness<WindowedValue<String>, RawUnionValue, String> testHarness =
         new TwoInputStreamOperatorTestHarness<>(doFnOperator);
@@ -218,28 +208,61 @@ public class DoFnOperatorTest {
     testHarness.open();
 
     IntervalWindow firstWindow = new IntervalWindow(new Instant(0), new Instant(100));
+    IntervalWindow secondWindow = new IntervalWindow(new Instant(0), new Instant(500));
 
-    // push in some side-input elements
+    // test the keep of sideInputs events
     testHarness.processElement2(
         new StreamRecord<>(
             new RawUnionValue(
                 1,
                 valuesInWindow(ImmutableList.of("hello", "ciao"), new Instant(0), firstWindow))));
-
     testHarness.processElement2(
         new StreamRecord<>(
             new RawUnionValue(
                 2,
-                valuesInWindow(ImmutableList.of("foo", "bar"), new Instant(0), firstWindow))));
+                valuesInWindow(ImmutableList.of("foo", "bar"), new Instant(0), secondWindow))));
 
     // push in a regular elements
-    testHarness.processElement1(new StreamRecord<>(WindowedValue.valueInGlobalWindow("Hello")));
+    WindowedValue<String> helloElement = valueInWindow("Hello", new Instant(0), firstWindow);
+    WindowedValue<String> worldElement = valueInWindow("World", new Instant(1000), firstWindow);
+    testHarness.processElement1(new StreamRecord<>(helloElement));
+    testHarness.processElement1(new StreamRecord<>(worldElement));
+
+    // test the keep of pushed-back events
+    testHarness.processElement2(
+        new StreamRecord<>(
+            new RawUnionValue(
+                1,
+                valuesInWindow(ImmutableList.of("hello", "ciao"),
+                    new Instant(1000), firstWindow))));
+    testHarness.processElement2(
+        new StreamRecord<>(
+            new RawUnionValue(
+                2,
+                valuesInWindow(ImmutableList.of("foo", "bar"), new Instant(1000), secondWindow))));
 
     assertThat(
         this.<String>stripStreamRecordFromWindowedValue(testHarness.getOutput()),
-        contains(WindowedValue.valueInGlobalWindow("Hello")));
+        contains(helloElement, worldElement));
 
     testHarness.close();
+
+  }
+
+  /**
+   * {@link TwoInputStreamOperatorTestHarness} support OperatorStateBackend,
+   * but don't support KeyedStateBackend. So we just test sideInput of normal ParDo.
+   */
+  @Test
+  @SuppressWarnings("unchecked")
+  public void testNormalParDoSideInputs() throws Exception {
+    testSideInputs(false);
+  }
+
+  @Test
+  @Ignore
+  public void testKeyedSideInputs() throws Exception {
+    testSideInputs(true);
   }
 
   private <T> Iterable<WindowedValue<T>> stripStreamRecordFromWindowedValue(

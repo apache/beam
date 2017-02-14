@@ -44,8 +44,10 @@ import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
+import org.apache.flink.streaming.runtime.tasks.TestProcessingTimeService;
 import org.apache.flink.util.InstantiationUtil;
 import org.junit.Test;
 import org.junit.experimental.runners.Enclosed;
@@ -123,6 +125,10 @@ public class UnboundedSourceWrapperTest {
               }
 
               @Override
+              public void emitLatencyMarker(LatencyMarker latencyMarker) {
+              }
+
+              @Override
               public void collect(
                   StreamRecord<WindowedValue<KV<Integer, Integer>>> windowedValueStreamRecord) {
 
@@ -191,6 +197,10 @@ public class UnboundedSourceWrapperTest {
               }
 
               @Override
+              public void emitLatencyMarker(LatencyMarker latencyMarker) {
+              }
+
+              @Override
               public void collect(
                   StreamRecord<WindowedValue<KV<Integer, Integer>>> windowedValueStreamRecord) {
 
@@ -256,6 +266,10 @@ public class UnboundedSourceWrapperTest {
               }
 
               @Override
+              public void emitLatencyMarker(LatencyMarker latencyMarker) {
+              }
+
+              @Override
               public void collect(
                   StreamRecord<WindowedValue<KV<Integer, Integer>>> windowedValueStreamRecord) {
                 emittedElements.add(windowedValueStreamRecord.getValue().getValue());
@@ -300,6 +314,8 @@ public class UnboundedSourceWrapperTest {
       when(mockTask.getExecutionConfig()).thenReturn(executionConfig);
       when(mockTask.getAccumulatorMap())
           .thenReturn(Collections.<String, Accumulator<?, ?>>emptyMap());
+      TestProcessingTimeService testProcessingTimeService = new TestProcessingTimeService();
+      when(mockTask.getProcessingTimeService()).thenReturn(testProcessingTimeService);
 
       operator.setup(mockTask, cfg, (Output<StreamRecord<T>>) mock(Output.class));
     }

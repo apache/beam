@@ -26,6 +26,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import org.apache.beam.runners.flink.translation.utils.SerializedPipelineOptions;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.DoFnOperator;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -110,12 +111,12 @@ public class PipelineOptionsTest {
 
   @Test(expected = Exception.class)
   public void parDoBaseClassPipelineOptionsNullTest() {
-    DoFnOperator<Object, Object, Object> doFnOperator = new DoFnOperator<>(
+    DoFnOperator<String, String, String> doFnOperator = new DoFnOperator<>(
         new TestDoFn(),
-        TypeInformation.of(new TypeHint<WindowedValue<Object>>() {}),
-        new TupleTag<>("main-output"),
+        WindowedValue.getValueOnlyCoder(StringUtf8Coder.of()),
+        new TupleTag<String>("main-output"),
         Collections.<TupleTag<?>>emptyList(),
-        new DoFnOperator.DefaultOutputManagerFactory<>(),
+        new DoFnOperator.DefaultOutputManagerFactory<String>(),
         WindowingStrategy.globalDefault(),
         new HashMap<Integer, PCollectionView<?>>(),
         Collections.<PCollectionView<?>>emptyList(),
@@ -130,12 +131,12 @@ public class PipelineOptionsTest {
   @Test
   public void parDoBaseClassPipelineOptionsSerializationTest() throws Exception {
 
-    DoFnOperator<Object, Object, Object> doFnOperator = new DoFnOperator<>(
+    DoFnOperator<String, String, String> doFnOperator = new DoFnOperator<>(
         new TestDoFn(),
-        TypeInformation.of(new TypeHint<WindowedValue<Object>>() {}),
-        new TupleTag<>("main-output"),
+        WindowedValue.getValueOnlyCoder(StringUtf8Coder.of()),
+        new TupleTag<String>("main-output"),
         Collections.<TupleTag<?>>emptyList(),
-        new DoFnOperator.DefaultOutputManagerFactory<>(),
+        new DoFnOperator.DefaultOutputManagerFactory<String>(),
         WindowingStrategy.globalDefault(),
         new HashMap<Integer, PCollectionView<?>>(),
         Collections.<PCollectionView<?>>emptyList(),
@@ -148,8 +149,12 @@ public class PipelineOptionsTest {
     DoFnOperator<Object, Object, Object> deserialized =
         (DoFnOperator<Object, Object, Object>) SerializationUtils.deserialize(serialized);
 
+    TypeInformation<WindowedValue<Object>> typeInformation = TypeInformation.of(
+        new TypeHint<WindowedValue<Object>>() {});
+
     OneInputStreamOperatorTestHarness<WindowedValue<Object>, Object> testHarness =
-        new OneInputStreamOperatorTestHarness<>(deserialized, new ExecutionConfig());
+        new OneInputStreamOperatorTestHarness<>(deserialized,
+            typeInformation.createSerializer(new ExecutionConfig()));
 
     testHarness.open();
 
@@ -166,7 +171,7 @@ public class PipelineOptionsTest {
   }
 
 
-  private static class TestDoFn extends DoFn<Object, Object> {
+  private static class TestDoFn extends DoFn<String, String> {
 
     @ProcessElement
     public void processElement(ProcessContext c) throws Exception {

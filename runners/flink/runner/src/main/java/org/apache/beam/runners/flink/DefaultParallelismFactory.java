@@ -33,6 +33,7 @@ import org.apache.flink.configuration.GlobalConfiguration;
 public class DefaultParallelismFactory implements DefaultValueFactory<Integer> {
   @Override
   public Integer create(PipelineOptions options) {
-    return GlobalConfiguration.getInteger(ConfigConstants.DEFAULT_PARALLELISM_KEY, 1);
+    return GlobalConfiguration.loadConfiguration()
+        .getInteger(ConfigConstants.DEFAULT_PARALLELISM_KEY, 1);
   }
 }
