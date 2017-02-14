@@ -106,6 +106,15 @@ class StreamTest(unittest.TestCase):
     for v in values:
       self.assertEquals(v, in_s.read_bigendian_int64())
 
+  def test_read_write_bigendian_uint64(self):
+    values = 0, 1, 2**64-1, int(2**61 * math.pi)
+    out_s = self.OutputStream()
+    for v in values:
+      out_s.write_bigendian_uint64(v)
+    in_s = self.InputStream(out_s.get())
+    for v in values:
+      self.assertEquals(v, in_s.read_bigendian_uint64())
+
   def test_read_write_bigendian_int32(self):
     values = 0, 1, -1, 2**31-1, -2**31, int(2**29 * math.pi)
     out_s = self.OutputStream()
