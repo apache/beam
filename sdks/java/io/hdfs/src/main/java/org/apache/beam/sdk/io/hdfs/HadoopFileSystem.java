@@ -24,6 +24,7 @@ import java.util.Collection;
 import java.util.List;
 import org.apache.beam.sdk.io.FileSystem;
 import org.apache.beam.sdk.io.fs.CreateOptions;
+import org.apache.beam.sdk.io.fs.MatchResult;
 
 /**
  * Adapts {@link org.apache.hadoop.fs.FileSystem} connectors to be used as
@@ -32,6 +33,11 @@ import org.apache.beam.sdk.io.fs.CreateOptions;
 class HadoopFileSystem extends FileSystem<HadoopResourceId> {
 
   HadoopFileSystem() {}
+
+  @Override
+  protected List<MatchResult> match(List<String> specs) throws IOException {
+    throw new UnsupportedOperationException();
+  }
 
   @Override
   protected WritableByteChannel create(HadoopResourceId resourceId, CreateOptions createOptions)

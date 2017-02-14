@@ -24,6 +24,7 @@ import java.nio.channels.WritableByteChannel;
 import java.util.Collection;
 import java.util.List;
 import org.apache.beam.sdk.io.fs.CreateOptions;
+import org.apache.beam.sdk.io.fs.MatchResult;
 import org.apache.beam.sdk.io.fs.ResourceId;
 
 /**
@@ -35,6 +36,35 @@ import org.apache.beam.sdk.io.fs.ResourceId;
  * Clients should use {@link FileSystems} utility.
  */
 public abstract class FileSystem<ResourceIdT extends ResourceId> {
+  /**
+   * This is the entry point to convert user-provided specs to {@link ResourceIdT ResourceIds}.
+   * Callers should use {@link #match} to resolve users specs ambiguities before
+   * calling other methods.
+   *
+   * <p>Implementation should handle the following ambiguities of a user-provided spec:
+   * <ol>
+   * <li>{@code spec} could be a glob or a uri. {@link #match} should be able to tell and
+   * choose efficient implementations.
+   * <li>The user-provided {@code spec} might refer to files or directories. It is common that
+   * users that wish to indicate a directory will omit the trailing {@code /}, such as in a spec of
+   * {@code "/tmp/dir"}. The {@link FileSystem} should be able to recognize a directory with
+   * the trailing {@code /} omitted, but should always return a correct {@link ResourceIdT}
+   * (e.g., {@code "/tmp/dir/"} inside the returned {@link MatchResult}.
+   * </ol>
+   *
+   * <p>All {@link FileSystem} implementations should support glob in the final hierarchical path
+   * component of {@link ResourceIdT}. This allows SDK libraries to construct file system agnostic
+   * spec. {@link FileSystem FileSystems} can support additional patterns for user-provided specs.
+   *
+   * @return {@code List<MatchResult>} in the same order of the input specs.
+   *
+   * @throws IllegalArgumentException if specs are invalid.
+   * @throws IOException if all specs failed to match due to issues like:
+   * network connection, authorization.
+   * Exception for individual spec need to be deferred until callers retrieve
+   * metadata with {@link MatchResult#metadata()}.
+   */
+  protected abstract List<MatchResult> match(List<String> specs) throws IOException;
 
   /**
    * Returns a write channel for the given {@link ResourceIdT}.
