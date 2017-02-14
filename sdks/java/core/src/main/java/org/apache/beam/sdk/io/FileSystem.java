@@ -42,13 +42,15 @@ public abstract class FileSystem<ResourceIdT extends ResourceId> {
    * calling other methods.
    *
    * <p>Implementation should handle the following ambiguities of a user-provided spec:
-   * <ul>
-   * <li>1). spec could be a glob or a uri. {@link #match} should be able to tell and
+   * <ol>
+   * <li>{@code spec} could be a glob or a uri. {@link #match} should be able to tell and
    * choose efficient implementations.
-   * <li>2). spec does not end with a path delimiter may refer to files or directories:
-   * For example, local directory "/home/dir/" should be returned for spec “/home/dir”.
-   * (However, spec ends with a path delimiter always refers to directories.)
-   * </ul>
+   * <li>The user-provided {@code spec} might refer to files or a directories. It is common that
+   * users that wish to indicate a directory will omit the trailing {@code /}, such as in a spec of
+   * {@code "/tmp/dir"}. The {@link FileSystem} should be able to recognize a directory with
+   * the trailing {@code /} omitted, but should always return a correct {@link ResourceIdT}
+   * (e.g., {@code "/tmp/dir/"} inside the returned {@link MatchResult}.
+   * </ol>
    *
    * <p>All {@link FileSystem} implementations should support glob in the final hierarchical path
    * component of {@link ResourceIdT}. This allows SDK libraries to construct file system agnostic
