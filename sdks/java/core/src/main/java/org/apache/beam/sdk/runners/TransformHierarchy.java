@@ -99,7 +99,7 @@ public class TransformHierarchy {
     checkNotNull(transform);
     Node replacement =
         new Node(existing.getEnclosingNode(), transform, existing.getFullName(), input);
-    existing.getEnclosingNode().replace(existing, replacement);
+    existing.getEnclosingNode().replaceChild(existing, replacement);
     unexpandedInputs.remove(existing);
     current = replacement;
     return replacement;
@@ -277,7 +277,7 @@ public class TransformHierarchy {
      * <p>The existing {@link Node} must be a direct child of this {@link Node}. The replacement
      * node need not be fully specified.
      */
-    public void replace(Node existing, Node replacement) {
+    public void replaceChild(Node existing, Node replacement) {
       checkNotNull(existing);
       checkNotNull(replacement);
       int existingIndex = parts.indexOf(existing);

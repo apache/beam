@@ -181,7 +181,7 @@ public class Pipeline {
           public CompositeBehavior enterCompositeTransform(Node node) {
             if (!node.isRootNode() && matcher.matches(node.toAppliedPTransform())) {
               matches.add(node);
-              // This node has been replaced. It should not be visited.
+              // This node will be replaced. It should not be visited.
               return CompositeBehavior.DO_NOT_ENTER_TRANSFORM;
             }
             return CompositeBehavior.ENTER_TRANSFORM;
