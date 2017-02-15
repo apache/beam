@@ -320,12 +320,20 @@
         <artifactId>beam-sdks-common-fn-api</artifactId>
         <version>${project.version}</version>
       </dependency>
+
       <dependency>
         <groupId>org.apache.beam</groupId>
         <artifactId>beam-sdks-common-fn-api</artifactId>
         <version>${project.version}</version>
         <type>test-jar</type>
       </dependency>
+
+      <dependency>
+        <groupId>org.apache.beam</groupId>
+        <artifactId>beam-sdks-common-runner-api</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+
 
       <dependency>
         <groupId>org.apache.beam</groupId>
