@@ -62,9 +62,8 @@ public abstract class GearpumpSource<T> implements DataSource {
       this.reader = createReader(options);
       this.available = reader.start();
     } catch (Exception e) {
-      throw new RuntimeException(e);
-    } finally {
       close();
+      throw new RuntimeException(e);
     }
   }
 
@@ -81,9 +80,8 @@ public abstract class GearpumpSource<T> implements DataSource {
             timestamp.getMillis());
       }
     } catch (Exception e) {
-      throw new RuntimeException(e);
-    } finally {
       close();
+      throw new RuntimeException(e);
     }
     return message;
   }

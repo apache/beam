@@ -29,13 +29,8 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsValidator;
 import org.apache.beam.sdk.runners.PipelineRunner;
 import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.windowing.Window;
-import org.apache.beam.sdk.transforms.windowing.WindowFn;
-import org.apache.beam.sdk.util.IdentityWindowFn;
 import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
@@ -74,11 +69,7 @@ public class GearpumpRunner extends PipelineRunner<GearpumpPipelineResult> {
 
   public <OutputT extends POutput, InputT extends PInput> OutputT apply(
       PTransform<InputT, OutputT> transform, InputT input) {
-    if (Window.Bound.class.equals(transform.getClass())
-        && isNullOrIdentityWindowFn(((Window.Bound) transform).getWindowFn())) {
-      return (OutputT) super.apply(
-              ParDo.of(new IdentityFn()), input);
-    } else if (Flatten.FlattenPCollectionList.class.equals(transform.getClass())
+    if (Flatten.FlattenPCollectionList.class.equals(transform.getClass())
             && ((PCollectionList<?>) input).size() == 0) {
       return (OutputT) Pipeline.applyTransform(input.getPipeline().begin(), Create.of());
     } else if (Create.Values.class.equals(transform.getClass())) {
@@ -108,7 +99,7 @@ public class GearpumpRunner extends PipelineRunner<GearpumpPipelineResult> {
     TranslationContext translationContext = new TranslationContext(streamApp, options);
     GearpumpPipelineTranslator translator = new GearpumpPipelineTranslator(translationContext);
     translator.translate(pipeline);
-    int appId = streamApp.submit();
+    int appId = streamApp.submit().appId();
 
     return new GearpumpPipelineResult(clientContext, appId);
   }
@@ -140,15 +131,4 @@ public class GearpumpRunner extends PipelineRunner<GearpumpPipelineResult> {
     return config.withValue(GEARPUMP_SERIALIZERS, ConfigValueFactory.fromMap(serializers));
   }
 
-  private static class IdentityFn<T> extends DoFn<T, T> {
-
-    @ProcessElement
-    public void process(ProcessContext c) {
-      c.output(c.element());
-    }
-  }
-
-  private boolean isNullOrIdentityWindowFn(WindowFn windowFn) {
-    return windowFn == null || windowFn.getClass().equals(IdentityWindowFn.class);
-  }
 }
