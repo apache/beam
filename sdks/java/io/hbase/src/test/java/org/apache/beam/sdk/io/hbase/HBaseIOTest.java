@@ -76,15 +76,15 @@ import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+//import org.slf4j.Logger;
+//import org.slf4j.LoggerFactory;
 
 /**
  * Test HBaseIO.
  */
 @RunWith(JUnit4.class)
 public class HBaseIOTest {
-    private static final Logger LOG = LoggerFactory.getLogger(HBaseIOTest.class);
+//    private static final Logger LOG = LoggerFactory.getLogger(HBaseIOTest.class);
 
     @Rule public ExpectedException thrown = ExpectedException.none();
     @Rule public transient ExpectedLogs logged = ExpectedLogs.none(HBaseIO.class);
@@ -99,21 +99,21 @@ public class HBaseIOTest {
 
     @BeforeClass
     public static void beforeClass() throws Exception {
-        LOG.info("Starting HBase Embedded Server (HBaseTestUtility)");
+        System.out.println("Starting HBase Embedded Server (HBaseTestUtility)");
         conf.setInt(HConstants.HBASE_CLIENT_RETRIES_NUMBER, 1);
-        LOG.info("Printing /etc/hosts file");
+        System.out.println("Printing /etc/hosts file");
         try (BufferedReader br = new BufferedReader(new FileReader("/etc/hosts"))) {
             String line = null;
             while ((line = br.readLine()) != null) {
-                LOG.info(line);
+                System.out.println(line);
             }
         }
 
         htu = new HBaseTestingUtility(conf);
-        LOG.info("HBase server configuration:");
+        System.out.println("HBase server configuration:");
         Configuration configuration = htu.getConfiguration();
         for (Map.Entry<String, String> entry : configuration) {
-            LOG.info("{}: {}", entry.getKey(), entry.getValue());
+            System.out.println(entry.getKey() + ": " + entry.getValue());
         }
 
         htu.startMiniCluster(1, 4);
@@ -126,7 +126,7 @@ public class HBaseIOTest {
                 "localhost:" + htu.getZkCluster().getClientPort());
 
         admin = htu.getHBaseAdmin();
-        LOG.info("Started HBase Embedded Server (HBaseTestUtility)");
+        System.out.println("Started HBase Embedded Server (HBaseTestUtility)");
     }
 
     @AfterClass
