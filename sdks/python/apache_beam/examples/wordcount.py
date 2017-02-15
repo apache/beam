@@ -27,6 +27,7 @@ import apache_beam as beam
 from apache_beam.io import ReadFromText
 from apache_beam.io import WriteToText
 from apache_beam.metrics import Metrics
+from apache_beam.metrics.metric import MetricsFilter
 from apache_beam.utils.pipeline_options import PipelineOptions
 from apache_beam.utils.pipeline_options import SetupOptions
 
@@ -38,6 +39,8 @@ class WordExtractingDoFn(beam.DoFn):
     super(WordExtractingDoFn, self).__init__()
     self.words_counter = Metrics.counter(self.__class__, 'words')
     self.word_lengths_counter = Metrics.counter(self.__class__, 'word_lengths')
+    self.word_lengths_dist = Metrics.distribution(
+        self.__class__, 'word_len_dist')
     self.empty_line_counter = Metrics.counter(self.__class__, 'empty_lines')
 
   def process(self, element):
@@ -58,6 +61,7 @@ class WordExtractingDoFn(beam.DoFn):
     for w in words:
       self.words_counter.inc()
       self.word_lengths_counter.inc(len(w))
+      self.word_lengths_dist.update(len(w))
     return words
 
 
@@ -100,7 +104,12 @@ def run(argv=None):
   # Actually run the pipeline (all operations above are deferred).
   result = p.run()
   result.wait_until_finish()
-  #TODO(pabloem)(BEAM-1366) Add querying of metrics once they are queriable.
+  empty_lines_filter = MetricsFilter().with_name('empty_lines')
+  query_result = result.metrics().query(empty_lines_filter)
+  if query_result['counters']:
+    empty_lines_counter = query_result['counters'][0]
+    logging.info('number of empty lines: %d', empty_lines_counter.committed)
+  # TODO(pabloem)(BEAM-1366): Add querying of MEAN metrics.
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)

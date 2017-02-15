@@ -55,11 +55,6 @@ class DataflowRunnerTest(unittest.TestCase):
       '--temp_location=/dev/null',
       '--no_auth=True']
 
-  def test_dataflow_runner_has_metrics(self):
-    df_result = DataflowPipelineResult('somejob', 'somerunner')
-    self.assertTrue(df_result.metrics())
-    self.assertTrue(df_result.metrics().query())
-
   @mock.patch('time.sleep', return_value=None)
   def test_wait_until_finish(self, patched_time_sleep):
     values_enum = dataflow_api.Job.CurrentStateValueValuesEnum

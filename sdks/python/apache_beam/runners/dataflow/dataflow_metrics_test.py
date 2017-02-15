@@ -18,3 +18,119 @@
 Tests corresponding to the DataflowRunner implementation of MetricsResult,
 the DataflowMetrics class.
 """
+import unittest
+
+import mock
+
+from apache_beam.metrics.execution import MetricKey
+from apache_beam.metrics.execution import MetricResult
+from apache_beam.metrics.metricbase import MetricName
+from apache_beam.runners.dataflow import dataflow_metrics
+
+
+class DictToObject(object):
+  """Translate from a dict(list()) structure to an object structure"""
+  def __init__(self, data):
+    for name, value in data.iteritems():
+      setattr(self, name, self._wrap(value))
+
+  def _wrap(self, value):
+    if isinstance(value, (tuple, list, set, frozenset)):
+      return type(value)([self._wrap(v) for v in value])
+    else:
+      return DictToObject(value) if isinstance(value, dict) else value
+
+
+class TestDataflowMetrics(unittest.TestCase):
+
+  BASIC_COUNTER_LIST = {"metrics": [
+      {"name": {"context":
+                {"additionalProperties":[
+                    {"key": "original_name",
+                     "value": "user-split-split/__main__.WordExtractingDoFn/"
+                              "empty_lines_TentativeAggregateValue"},
+                    {"key": "step", "value": "split"}]},
+                "name": "split/__main__.WordExtractingDoFn/empty_lines",
+                "origin": "user"},
+       "scalar": {"integer_value": 1080},
+       "updateTime": "2017-02-23T01:13:36.659Z"},
+      {"name": {"context":
+                {"additionalProperties": [
+                    {"key": "original_name",
+                     "value": "user-split-split/__main__.WordExtractingDoFn/"
+                              "empty_lines_TentativeAggregateValue"},
+                    {"key": "step", "value": "split"},
+                    {"key": "tentative", "value": "true"}]},
+                "name": "split/__main__.WordExtractingDoFn/empty_lines",
+                "origin": "user"},
+       "scalar": {"integer_value": 1080},
+       "updateTime": "2017-02-23T01:13:36.659Z"},
+      {"name": {"context":
+                {"additionalProperties": [
+                    {"key": "original_name",
+                     "value": "user-split-split/__main__.WordExtractingDoFn/"
+                              "words_TentativeAggregateValue"},
+                    {"key": "step", "value": "split"}]},
+                "name": "split/__main__.WordExtractingDoFn/words",
+                "origin": "user"},
+       "scalar": {"integer_value": 26181},
+       "updateTime": "2017-02-23T01:13:36.659Z"},
+      {"name": {"context":
+                {"additionalProperties": [
+                    {"key": "original_name",
+                     "value": "user-split-split/__main__.WordExtractingDoFn/"
+                              "words_TentativeAggregateValue"},
+                    {"key": "step", "value": "split"},
+                    {"key": "tentative", "value": "true"}]},
+                "name": "split/__main__.WordExtractingDoFn/words",
+                "origin": "user"},
+       "scalar": {"integer_value": 26185},
+       "updateTime": "2017-02-23T01:13:36.659Z"}
+  ]}
+
+  def setup_mock_client_result(self):
+    mock_client = mock.Mock()
+    mock_query_result = DictToObject(self.BASIC_COUNTER_LIST)
+    mock_client.get_job_metrics.return_value = mock_query_result
+    mock_job_result = mock.Mock()
+    mock_job_result.job_id.return_value = 1
+    mock_job_result._is_in_terminal_state.return_value = False
+    return mock_client, mock_job_result
+
+  def test_cache_functions(self):
+    mock_client, mock_job_result = self.setup_mock_client_result()
+    dm = dataflow_metrics.DataflowMetrics(mock_client, mock_job_result)
+
+    # At first creation, we should always query dataflow.
+    self.assertTrue(dm._cached_metrics is None)
+
+    # Right after querying, we still query again.
+    dm.query()
+    self.assertTrue(dm._cached_metrics is None)
+
+    # The job has ended. The query should not run again after this.
+    mock_job_result._is_in_terminal_state.return_value = True
+    dm.query()
+    self.assertTrue(dm._cached_metrics)
+
+  def test_query_counters(self):
+    mock_client, mock_job_result = self.setup_mock_client_result()
+    dm = dataflow_metrics.DataflowMetrics(mock_client, mock_job_result)
+    query_result = dm.query()
+    expected_counters = [
+        MetricResult(
+            MetricKey('split',
+                      MetricName('__main__.WordExtractingDoFn', 'empty_lines')),
+            1080, 1080),
+        MetricResult(
+            MetricKey('split',
+                      MetricName('__main__.WordExtractingDoFn', 'words')),
+            26181, 26185),
+        ]
+    self.assertEqual(sorted(query_result['counters'],
+                            key=lambda x: x.key.metric.name),
+                     sorted(expected_counters,
+                            key=lambda x: x.key.metric.name))
+
+if __name__ == '__main__':
+  unittest.main()

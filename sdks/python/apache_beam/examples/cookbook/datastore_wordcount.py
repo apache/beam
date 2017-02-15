@@ -75,6 +75,7 @@ from apache_beam.io import ReadFromText
 from apache_beam.io.gcp.datastore.v1.datastoreio import ReadFromDatastore
 from apache_beam.io.gcp.datastore.v1.datastoreio import WriteToDatastore
 from apache_beam.metrics import Metrics
+from apache_beam.metrics.metric import MetricsFilter
 from apache_beam.utils.pipeline_options import GoogleCloudOptions
 from apache_beam.utils.pipeline_options import PipelineOptions
 from apache_beam.utils.pipeline_options import SetupOptions
@@ -247,8 +248,12 @@ def run(argv=None):
   result = read_from_datastore(gcloud_options.project, known_args,
                                pipeline_options)
 
-  result.metrics().query()
-  #TODO(pabloem)(BEAM-1366) Fix these once metrics are 100% queriable.
+  empty_lines_filter = MetricsFilter().with_name('empty_lines')
+  query_result = result.metrics().query(empty_lines_filter)
+  if query_result['counters']:
+    empty_lines_counter = query_result['counters'][0]
+    logging.info('number of empty lines: %d', empty_lines_counter.committed)
+  # TODO(pabloem)(BEAM-1366): Add querying of MEAN metrics.
 
 
 if __name__ == '__main__':

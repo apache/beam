@@ -21,6 +21,9 @@ import logging
 import platform
 import unittest
 
+from nose.plugins.attrib import attr
+
+from apache_beam.metrics import Metrics
 from apache_beam.pipeline import Pipeline
 from apache_beam.pipeline import PipelineOptions
 from apache_beam.pipeline import PipelineVisitor
@@ -50,6 +53,7 @@ class FakeSource(NativeSource):
 
     def __init__(self, vals):
       self._vals = vals
+      self._output_counter = Metrics.counter('main', 'outputs')
 
     def __enter__(self):
       return self
@@ -59,6 +63,7 @@ class FakeSource(NativeSource):
 
     def __iter__(self):
       for v in self._vals:
+        self._output_counter.inc()
         yield v
 
   def __init__(self, vals):
@@ -131,6 +136,18 @@ class PipelineTest(unittest.TestCase):
     pcoll = pipeline | 'label' >> Create([[1, 2, 3]])
     assert_that(pcoll, equal_to([[1, 2, 3]]))
     pipeline.run()
+
+  @attr('ValidatesRunner')
+  def test_metrics_in_source(self):
+    pipeline = TestPipeline()
+    pcoll = pipeline | 'read' >> Read(FakeSource([1, 2, 3, 4, 5, 6]))
+    assert_that(pcoll, equal_to([1, 2, 3, 4, 5, 6]))
+    res = pipeline.run()
+    metric_results = res.metrics().query()
+    outputs_counter = metric_results['counters'][0]
+    self.assertEqual(outputs_counter.key.step, 'read')
+    self.assertEqual(outputs_counter.key.metric.name, 'outputs')
+    self.assertEqual(outputs_counter.committed, 6)
 
   def test_read(self):
     pipeline = TestPipeline()
