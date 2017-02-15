@@ -29,7 +29,7 @@ the current status in each runner.&lt;/p&gt;
 
 &lt;p&gt;First, a quick recap: In Beam, a big data processing &lt;em&gt;pipeline&lt;/em&gt; is a directed,
 acyclic graph of parallel operations called &lt;em&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;PTransforms&lt;/code&gt;&lt;/em&gt; processing data
-from &lt;em&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;PCollections&lt;/code&gt;&lt;/em&gt; I’ll expand on that by walking through this illustration:&lt;/p&gt;
+from &lt;em&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;PCollections&lt;/code&gt;&lt;/em&gt;. I’ll expand on that by walking through this illustration:&lt;/p&gt;
 
 &lt;p&gt;&lt;img class=&quot;center-block&quot; src=&quot;/images/blog/stateful-processing/pipeline.png&quot; alt=&quot;A Beam Pipeline - PTransforms are boxes - PCollections are arrows&quot; width=&quot;300&quot; /&gt;&lt;/p&gt;
 
