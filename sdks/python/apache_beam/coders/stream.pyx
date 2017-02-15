@@ -63,7 +63,9 @@ cdef class OutputStream(object):
         break
 
   cpdef write_bigendian_int64(self, libc.stdint.int64_t signed_v):
-    cdef libc.stdint.uint64_t v = signed_v
+    self.write_bigendian_uint64(signed_v)
+
+  cpdef write_bigendian_uint64(self, libc.stdint.uint64_t v):
     if  self.size < self.pos + 8:
       self.extend(8)
     self.data[self.pos    ] = <unsigned char>(v >> 56)
@@ -124,6 +126,9 @@ cdef class ByteCountingOutputStream(OutputStream):
   cpdef write_bigendian_int64(self, libc.stdint.int64_t _):
     self.count += 8
 
+  cpdef write_bigendian_uint64(self, libc.stdint.uint64_t _):
+    self.count += 8
+
   cpdef write_bigendian_int32(self, libc.stdint.int32_t _):
     self.count += 4
 
@@ -182,6 +187,9 @@ cdef class InputStream(object):
     return result
 
   cpdef libc.stdint.int64_t read_bigendian_int64(self) except? -1:
+    return self.read_bigendian_uint64()
+
+  cpdef libc.stdint.uint64_t read_bigendian_uint64(self) except? -1:
     self.pos += 8
     return (<unsigned char>self.allc[self.pos - 1]
       | <libc.stdint.uint64_t><unsigned char>self.allc[self.pos - 2] <<  8
