@@ -23,7 +23,7 @@ import com.codahale.metrics.MetricRegistry;
 import com.google.common.base.Predicates;
 import com.google.common.collect.Iterables;
 import java.util.Properties;
-import org.apache.beam.runners.spark.aggregators.metrics.WithNamedAggregatorsSupport;
+import org.apache.beam.runners.spark.metrics.WithMetricsSupport;
 import org.apache.spark.metrics.sink.Sink;
 
 
@@ -32,17 +32,18 @@ import org.apache.spark.metrics.sink.Sink;
  */
 public class InMemoryMetrics implements Sink {
 
-  private static WithNamedAggregatorsSupport extendedMetricsRegistry;
+  private static WithMetricsSupport extendedMetricsRegistry;
   private static MetricRegistry internalMetricRegistry;
 
+  @SuppressWarnings("UnusedParameters")
   public InMemoryMetrics(final Properties properties,
                          final MetricRegistry metricRegistry,
                          final org.apache.spark.SecurityManager securityMgr) {
-    extendedMetricsRegistry = WithNamedAggregatorsSupport.forRegistry(metricRegistry);
+    extendedMetricsRegistry = WithMetricsSupport.forRegistry(metricRegistry);
     internalMetricRegistry = metricRegistry;
   }
 
-  @SuppressWarnings("unchecked")
+  @SuppressWarnings({"unchecked", "WeakerAccess"})
   public static <T> T valueOf(final String name) {
     final T retVal;
 
@@ -62,6 +63,7 @@ public class InMemoryMetrics implements Sink {
     return retVal;
   }
 
+  @SuppressWarnings("WeakerAccess")
   public static void clearAll() {
     if (internalMetricRegistry != null) {
       internalMetricRegistry.removeMatching(MetricFilter.ALL);

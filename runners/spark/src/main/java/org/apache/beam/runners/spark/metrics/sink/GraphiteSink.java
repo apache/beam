@@ -16,23 +16,23 @@
  * limitations under the License.
  */
 
-package org.apache.beam.runners.spark.aggregators;
+package org.apache.beam.runners.spark.metrics.sink;
 
-import org.junit.rules.ExternalResource;
+import com.codahale.metrics.MetricRegistry;
+import java.util.Properties;
+import org.apache.beam.runners.spark.metrics.AggregatorMetric;
+import org.apache.beam.runners.spark.metrics.WithMetricsSupport;
+import org.apache.spark.metrics.sink.Sink;
 
 
 /**
- * A rule that clears the {@link AggregatorsAccumulator}
- * which represents the Beam {@link org.apache.beam.sdk.transforms.Aggregator}s.
+ * A Spark {@link Sink} that is tailored to report {@link AggregatorMetric} metrics
+ * to Graphite.
  */
-public class ClearAggregatorsRule extends ExternalResource {
-
-  @Override
-  protected void before() throws Throwable {
-    clearNamedAggregators();
-  }
-
-  public void clearNamedAggregators() {
-    AggregatorsAccumulator.clear();
+public class GraphiteSink extends org.apache.spark.metrics.sink.GraphiteSink {
+  public GraphiteSink(final Properties properties,
+                      final MetricRegistry metricRegistry,
+                      final org.apache.spark.SecurityManager securityMgr) {
+    super(properties, WithMetricsSupport.forRegistry(metricRegistry), securityMgr);
   }
 }

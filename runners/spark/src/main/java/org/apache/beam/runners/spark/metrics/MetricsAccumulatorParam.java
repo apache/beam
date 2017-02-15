@@ -16,29 +16,27 @@
  * limitations under the License.
  */
 
-package org.apache.beam.runners.spark.aggregators.metrics;
+package org.apache.beam.runners.spark.metrics;
 
-import com.codahale.metrics.Metric;
+import org.apache.spark.AccumulatorParam;
 
-import org.apache.beam.runners.spark.aggregators.NamedAggregators;
 
 /**
- * An adapter between the {@link NamedAggregators} and codahale's {@link Metric}
- * interface.
+ * Metrics accumulator param.
  */
-public class AggregatorMetric implements Metric {
-
-  private final NamedAggregators namedAggregators;
-
-  private AggregatorMetric(final NamedAggregators namedAggregators) {
-    this.namedAggregators = namedAggregators;
+class MetricsAccumulatorParam implements AccumulatorParam<SparkMetricsContainer> {
+  @Override
+  public SparkMetricsContainer addAccumulator(SparkMetricsContainer c1, SparkMetricsContainer c2) {
+    return c1.update(c2);
   }
 
-  public static AggregatorMetric of(final NamedAggregators namedAggregators) {
-    return new AggregatorMetric(namedAggregators);
+  @Override
+  public SparkMetricsContainer addInPlace(SparkMetricsContainer c1, SparkMetricsContainer c2) {
+    return c1.update(c2);
   }
 
-  NamedAggregators getNamedAggregators() {
-    return namedAggregators;
+  @Override
+  public SparkMetricsContainer zero(SparkMetricsContainer initialValue) {
+    return new SparkMetricsContainer();
   }
 }
