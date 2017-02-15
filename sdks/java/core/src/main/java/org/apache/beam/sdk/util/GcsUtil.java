@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.util;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.api.client.googleapis.batch.BatchRequest;
 import com.google.api.client.googleapis.batch.json.JsonBatchCallback;
@@ -31,6 +32,7 @@ import com.google.api.services.storage.Storage;
 import com.google.api.services.storage.model.Bucket;
 import com.google.api.services.storage.model.Objects;
 import com.google.api.services.storage.model.StorageObject;
+import com.google.auto.value.AutoValue;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageReadChannel;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageWriteChannel;
 import com.google.cloud.hadoop.gcsio.ObjectWriteConditions;
@@ -336,6 +338,21 @@ public class GcsUtil {
   }
 
   /**
+   * Returns {@link StorageObjectOrIOException StorageObjectOrIOExceptions} for the given
+   * {@link GcsPath GcsPaths}.
+   */
+  public List<StorageObjectOrIOException> getObjects(List<GcsPath> gcsPaths)
+      throws IOException {
+    List<StorageObjectOrIOException[]> results = Lists.newArrayList();
+    executeBatches(makeGetBatches(gcsPaths, results));
+    ImmutableList.Builder<StorageObjectOrIOException> ret = ImmutableList.builder();
+    for (StorageObjectOrIOException[] result : results) {
+      ret.add(result[0]);
+    }
+    return ret.build();
+  }
+
+  /**
    * Lists {@link Objects} given the {@code bucket}, {@code prefix}, {@code pageToken}.
    */
   public Objects listObjects(String bucket, String prefix, @Nullable String pageToken)
@@ -367,15 +384,23 @@ public class GcsUtil {
    * if the resource does not exist.
    */
   @VisibleForTesting
-  List<Long> fileSizes(Collection<GcsPath> paths) throws IOException {
-    List<StorageObject[]> results = Lists.newArrayList();
-    executeBatches(makeGetBatches(paths, results));
+  List<Long> fileSizes(List<GcsPath> paths) throws IOException {
+    List<StorageObjectOrIOException> results = getObjects(paths);
 
     ImmutableList.Builder<Long> ret = ImmutableList.builder();
-    for (StorageObject[] result : results) {
-      ret.add(result[0].getSize().longValue());
+    for (StorageObjectOrIOException result : results) {
+      ret.add(toFileSize(result));
     }
     return ret.build();
+  }
+
+  private Long toFileSize(StorageObjectOrIOException storageObjectOrIOException)
+      throws IOException {
+    if (storageObjectOrIOException.ioException() != null) {
+      throw storageObjectOrIOException.ioException();
+    }
+    return checkNotNull(storageObjectOrIOException.storageObject(), "storageObject")
+        .getSize().longValue();
   }
 
   /**
@@ -589,7 +614,7 @@ public class GcsUtil {
   @VisibleForTesting
   List<BatchRequest> makeGetBatches(
       Collection<GcsPath> paths,
-      List<StorageObject[]> results) throws IOException {
+      List<StorageObjectOrIOException[]> results) throws IOException {
     List<BatchRequest> batches = new LinkedList<>();
     for (List<GcsPath> filesToGet :
         Lists.partition(Lists.newArrayList(paths), MAX_REQUESTS_PER_BATCH)) {
@@ -648,28 +673,64 @@ public class GcsUtil {
     executeBatches(makeRemoveBatches(filenames));
   }
 
-  private StorageObject[] enqueueGetFileSize(final GcsPath path, BatchRequest batch)
+  private StorageObjectOrIOException[] enqueueGetFileSize(final GcsPath path, BatchRequest batch)
       throws IOException {
-    final StorageObject[] storageObject = new StorageObject[1];
+    final StorageObjectOrIOException[] ret = new StorageObjectOrIOException[1];
 
     Storage.Objects.Get getRequest = storageClient.objects()
         .get(path.getBucket(), path.getObject());
     getRequest.queue(batch, new JsonBatchCallback<StorageObject>() {
       @Override
       public void onSuccess(StorageObject response, HttpHeaders httpHeaders) throws IOException {
-        storageObject[0] = response;
+        ret[0] = StorageObjectOrIOException.builder()
+            .setStorageObject(response)
+            .build();
       }
 
       @Override
       public void onFailure(GoogleJsonError e, HttpHeaders httpHeaders) throws IOException {
+        IOException ioException;
         if (errorExtractor.itemNotFound(e)) {
-          throw new FileNotFoundException(path.toString());
+          ioException = new FileNotFoundException(path.toString());
         } else {
-          throw new IOException(String.format("Error trying to get %s: %s", path, e));
+          ioException = new IOException(String.format("Error trying to get %s: %s", path, e));
         }
+        ret[0] = StorageObjectOrIOException.builder()
+            .setIoException(ioException)
+            .build();
       }
     });
-    return storageObject;
+    return ret;
+  }
+
+  /**
+   * A class that holds either a {@link StorageObject} or an {@link IOException}.
+   */
+  @AutoValue
+  public abstract static class StorageObjectOrIOException {
+
+    /**
+     * Returns the {@link StorageObject}.
+     */
+    @Nullable
+    public abstract StorageObject storageObject();
+
+    /**
+     * Returns the {@link IOException}.
+     */
+    @Nullable
+    public abstract IOException ioException();
+
+    static Builder builder() {
+      return new AutoValue_GcsUtil_StorageObjectOrIOException.Builder();
+    }
+
+    @AutoValue.Builder
+    abstract static class Builder {
+      abstract Builder setStorageObject(StorageObject value);
+      abstract Builder setIoException(IOException value);
+      abstract StorageObjectOrIOException build();
+    }
   }
 
   private void enqueueCopy(final GcsPath from, final GcsPath to, BatchRequest batch)

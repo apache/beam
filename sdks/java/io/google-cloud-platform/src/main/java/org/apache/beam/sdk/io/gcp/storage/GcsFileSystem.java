@@ -24,6 +24,7 @@ import com.google.api.services.storage.model.StorageObject;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
 import com.google.common.collect.FluentIterable;
+import com.google.common.collect.ImmutableList;
 import java.io.IOException;
 import java.math.BigInteger;
 import java.nio.channels.ReadableByteChannel;
@@ -39,6 +40,7 @@ import org.apache.beam.sdk.io.fs.MatchResult.Metadata;
 import org.apache.beam.sdk.io.fs.MatchResult.Status;
 import org.apache.beam.sdk.options.GcsOptions;
 import org.apache.beam.sdk.util.GcsUtil;
+import org.apache.beam.sdk.util.GcsUtil.StorageObjectOrIOException;
 import org.apache.beam.sdk.util.gcsfs.GcsPath;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -125,15 +127,24 @@ class GcsFileSystem extends FileSystem<GcsResourceId> {
     return MatchResult.create(Status.OK, results.toArray(new Metadata[results.size()]));
   }
 
-  private List<String> toFilenames(Collection<GcsResourceId> resources) {
-    return FluentIterable.from(resources)
-        .transform(
-            new Function<GcsResourceId, String>() {
-              @Override
-              public String apply(GcsResourceId resource) {
-                return resource.getGcsPath().toString();
-              }})
-        .toList();
+  @VisibleForTesting
+  List<MatchResult> matchNonGlobs(List<GcsPath> gcsPaths) throws IOException {
+    List<StorageObjectOrIOException> results = options.getGcsUtil().getObjects(gcsPaths);
+
+    ImmutableList.Builder<MatchResult> ret = ImmutableList.builder();
+    for (StorageObjectOrIOException result : results) {
+      ret.add(toMatchResult(result));
+    }
+    return ret.build();
+  }
+
+  private MatchResult toMatchResult(StorageObjectOrIOException objectOrException) {
+    if (objectOrException.ioException() != null) {
+      return MatchResult.create(Status.ERROR, objectOrException.ioException());
+    } else {
+      return MatchResult.create(
+          Status.OK, new Metadata[]{toMetadata(objectOrException.storageObject())});
+    }
   }
 
   private Metadata toMetadata(StorageObject storageObject) {
@@ -147,5 +158,16 @@ class GcsFileSystem extends FileSystem<GcsResourceId> {
       ret.setSizeBytes(size.longValue());
     }
     return ret.build();
+  }
+
+  private List<String> toFilenames(Collection<GcsResourceId> resources) {
+    return FluentIterable.from(resources)
+        .transform(
+            new Function<GcsResourceId, String>() {
+              @Override
+              public String apply(GcsResourceId resource) {
+                return resource.getGcsPath().toString();
+              }})
+        .toList();
   }
 }

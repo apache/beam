@@ -357,4 +357,9 @@
     <Bug pattern="EQ_DOESNT_OVERRIDE_EQUALS"/>
     <!--[BEAM-421] Class doesn't override equals in superclass-->
   </Match>
+  <Match>
+    <Class name="org.apache.beam.sdk.util.AutoValue_GcsUtil_StorageObjectOrIOException"/>
+    <Bug pattern="NM_CLASS_NOT_EXCEPTION"/>
+    <!-- It is clear from the name that this class holds either StorageObject or IOException. -->
+  </Match>
 </FindBugsFilter>
