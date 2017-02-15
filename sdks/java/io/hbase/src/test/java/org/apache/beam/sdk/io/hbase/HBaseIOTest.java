@@ -340,7 +340,7 @@ public class HBaseIOTest {
         thrown.expect(Pipeline.PipelineExecutionException.class);
         thrown.expectCause(Matchers.<Throwable>instanceOf(IllegalArgumentException.class));
         thrown.expectMessage("No columns to insert");
-        p.run();
+        p.run().waitUntilFinish();
     }
 
     @Test
@@ -444,7 +444,7 @@ public class HBaseIOTest {
         TestPipeline p = TestPipeline.create();
         PCollection<Result> rows = p.apply(read);
         PAssert.that(rows).containsInAnyOrder(expected);
-        p.run();
+        p.run().waitUntilFinish();
     }
 
     private static void runReadTestLength(HBaseIO.Read read, long numElements) {
@@ -452,6 +452,6 @@ public class HBaseIOTest {
         PCollection<Result> rows = p.apply(read);
         PAssert.thatSingleton(rows.apply("Count",
                 Count.<Result>globally())).isEqualTo(numElements);
-        p.run();
+        p.run().waitUntilFinish();
     }
 }
