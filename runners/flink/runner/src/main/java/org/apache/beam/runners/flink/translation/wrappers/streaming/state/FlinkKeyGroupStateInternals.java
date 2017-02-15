@@ -406,8 +406,9 @@ public class FlinkKeyGroupStateInternals<K> implements StateInternals<K> {
   }
 
   /**
-   * Snapshots the state (stateName -> (valueCoder && (namespace -> value)))
-   * for a given {@code keyGroupIdx}.
+   * Snapshots the state {@code (stateName -> (valueCoder && (namespace -> value)))} for a given
+   * {@code keyGroupIdx}.
+   * 
    * @param keyGroupIdx the id of the key-group to be put in the snapshot.
    * @param out the stream to write to.
    */
@@ -432,8 +433,9 @@ public class FlinkKeyGroupStateInternals<K> implements StateInternals<K> {
   }
 
   /**
-   * Restore the state (stateName -> (valueCoder && (namespace -> value)))
+   * Restore the state {@code (stateName -> (valueCoder && (namespace -> value)))}
    * for a given {@code keyGroupIdx}.
+   * 
    * @param keyGroupIdx the id of the key-group to be put in the snapshot.
    * @param in the stream to read from.
    * @param userCodeClassLoader the class loader that will be used to deserialize
