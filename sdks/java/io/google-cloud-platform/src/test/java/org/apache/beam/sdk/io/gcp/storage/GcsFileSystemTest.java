@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.gcp.storage;
 
 import static org.hamcrest.Matchers.contains;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 import static org.mockito.Matchers.anyString;
 import static org.mockito.Matchers.eq;
@@ -29,15 +30,18 @@ import com.google.api.services.storage.model.StorageObject;
 import com.google.common.base.Function;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.beam.sdk.io.fs.MatchResult;
 import org.apache.beam.sdk.io.fs.MatchResult.Metadata;
+import org.apache.beam.sdk.io.fs.MatchResult.Status;
 import org.apache.beam.sdk.options.GcsOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.util.GcsUtil;
+import org.apache.beam.sdk.util.GcsUtil.StorageObjectOrIOException;
 import org.apache.beam.sdk.util.gcsfs.GcsPath;
 import org.junit.Before;
 import org.junit.Rule;
@@ -166,6 +170,37 @@ public class GcsFileSystemTest {
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("Unsupported wildcard usage");
     gcsFileSystem.expand(GcsPath.fromUri("gs://testbucket/test**"));
+  }
+
+  @Test
+  public void testMatchNonGlobs() throws Exception {
+    List<StorageObjectOrIOException> items = new ArrayList<>();
+    // Files within the directory
+    items.add(StorageObjectOrIOException.create(
+        createStorageObject("gs://testbucket/testdirectory/file1name", 1L /* fileSize */)));
+    items.add(StorageObjectOrIOException.create(new FileNotFoundException()));
+    items.add(StorageObjectOrIOException.create(new IOException()));
+    items.add(StorageObjectOrIOException.create(
+        createStorageObject("gs://testbucket/testdirectory/file4name", 4L /* fileSize */)));
+
+    List<GcsPath> gcsPaths = ImmutableList.of(
+        GcsPath.fromUri("gs://testbucket/testdirectory/file1name"),
+        GcsPath.fromUri("gs://testbucket/testdirectory/file2name"),
+        GcsPath.fromUri("gs://testbucket/testdirectory/file3name"),
+        GcsPath.fromUri("gs://testbucket/testdirectory/file4name"));
+
+    when(mockGcsUtil.getObjects(eq(gcsPaths))).thenReturn(items);
+    List<MatchResult> matchResults = gcsFileSystem.matchNonGlobs(gcsPaths);
+
+    assertEquals(4, matchResults.size());
+    assertThat(
+        ImmutableList.of("gs://testbucket/testdirectory/file1name"),
+        contains(toFilenames(matchResults.get(0)).toArray()));
+    assertEquals(Status.NOT_FOUND, matchResults.get(1).status());
+    assertEquals(Status.ERROR, matchResults.get(2).status());
+    assertThat(
+        ImmutableList.of("gs://testbucket/testdirectory/file4name"),
+        contains(toFilenames(matchResults.get(3)).toArray()));
   }
 
   private StorageObject createStorageObject(String gcsFilename, long fileSize) {
