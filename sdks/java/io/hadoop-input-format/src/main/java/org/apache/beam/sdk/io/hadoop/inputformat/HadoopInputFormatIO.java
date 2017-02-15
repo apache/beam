@@ -594,9 +594,10 @@ public class HadoopInputFormatIO {
 
     /**
      * Returns true if key/value class set by the user is compatible with the key/value class of a
-     * pair returned by RecordReader. User provided key and value classes are validated against
-     * parameterized type of InputFormat. If parameterized type has any type parameter such as T, K,
-     * V, etc then validation is done by encoding and decoding first pair returned by RecordReader.
+     * pair returned by RecordReader. User provided key and value classes are validated against the
+     * parameterized type's type arguments of InputFormat. If parameterized type has any type
+     * arguments such as T, K, V, etc then validation is done by encoding and decoding first pair
+     * returned by RecordReader.
      * @throws InterruptedException
      * @throws IOException
      */
