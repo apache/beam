@@ -328,7 +328,7 @@ unique and consistent. Before diving into the code for how to do this in a Beam
 SDK, I’ll go over this example from the level of the model. In pictures, you
 want to write a transform that maps input to output like this:</p>
 
-<p><img class="center-block" src="/images/blog/stateful-processing/assign-indices.png" alt="Assigning arbitrary but unique indices to each element" width="100" /></p>
+<p><img class="center-block" src="/images/blog/stateful-processing/assign-indices.png" alt="Assigning arbitrary but unique indices to each element" width="180" /></p>
 
 <p>The order of the elements A, B, C, D, E is arbitrary, hence their assigned
 indices are arbitrary, but downstream transforms just need to be OK with this.
@@ -400,10 +400,17 @@ key+window pairs, like this:</p>
 keys and windows are independent dimensions)</p>
 
 <p>You can provide the opportunity for parallelism by making sure that table has
-enough columns, either via many keys in few windows - for example, a globally
-windowed stateful computation keyed by user ID - or via many windows over few
-keys - for example, a fixed windowed stateful computation over a global key.
-Caveat: all Beam runners today parallelize only over the key.</p>
+enough columns. You might have many keys and many windows, or you might have
+many of just one or the other:</p>
+
+<ul>
+  <li>Many keys in few windows, for example a globally windowed stateful computation
+keyed by user ID.</li>
+  <li>Many windows over few keys, for example a fixed windowed stateful computation
+over a global key.</li>
+</ul>
+
+<p>Caveat: all Beam runners today parallelize only over the key.</p>
 
 <p>Most often your mental model of state can be focused on only a single column of
 the table, a single key+window pair. Cross-column interactions do not occur
@@ -610,7 +617,7 @@ outputs from the <code class="highlighter-rouge">ParDo</code> that will be proce
 output, then you cannot use a <code class="highlighter-rouge">Filter</code> transform to reduce data volume downstream.</p>
 
 <p>Stateful processing lets you address both the latency problem of side inputs
-and the cost problem of excessive uninterseting output. Here is the code, using
+and the cost problem of excessive uninteresting output. Here is the code, using
 only features I have already introduced:</p>
 
 <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="k">new</span> <span class="n">DoFn</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">UserId</span><span class="o">,</span> <span class="n">Event</span><span class="o">&gt;,</span> <span class="n">KV</span><span class="o">&lt;</span><span class="n">UserId</span><span class="o">,</span> <span class="n">Prediction</span><span class="o">&gt;&gt;()</span> <span class="o">{</span>

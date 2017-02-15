@@ -182,7 +182,7 @@ unique and consistent. Before diving into the code for how to do this in a Beam
 SDK, I’ll go over this example from the level of the model. In pictures, you
 want to write a transform that maps input to output like this:&lt;/p&gt;
 
-&lt;p&gt;&lt;img class=&quot;center-block&quot; src=&quot;/images/blog/stateful-processing/assign-indices.png&quot; alt=&quot;Assigning arbitrary but unique indices to each element&quot; width=&quot;100&quot; /&gt;&lt;/p&gt;
+&lt;p&gt;&lt;img class=&quot;center-block&quot; src=&quot;/images/blog/stateful-processing/assign-indices.png&quot; alt=&quot;Assigning arbitrary but unique indices to each element&quot; width=&quot;180&quot; /&gt;&lt;/p&gt;
 
 &lt;p&gt;The order of the elements A, B, C, D, E is arbitrary, hence their assigned
 indices are arbitrary, but downstream transforms just need to be OK with this.
@@ -254,10 +254,17 @@ key+window pairs, like this:&lt;/p&gt;
 keys and windows are independent dimensions)&lt;/p&gt;
 
 &lt;p&gt;You can provide the opportunity for parallelism by making sure that table has
-enough columns, either via many keys in few windows - for example, a globally
-windowed stateful computation keyed by user ID - or via many windows over few
-keys - for example, a fixed windowed stateful computation over a global key.
-Caveat: all Beam runners today parallelize only over the key.&lt;/p&gt;
+enough columns. You might have many keys and many windows, or you might have
+many of just one or the other:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Many keys in few windows, for example a globally windowed stateful computation
+keyed by user ID.&lt;/li&gt;
+  &lt;li&gt;Many windows over few keys, for example a fixed windowed stateful computation
+over a global key.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;Caveat: all Beam runners today parallelize only over the key.&lt;/p&gt;
 
 &lt;p&gt;Most often your mental model of state can be focused on only a single column of
 the table, a single key+window pair. Cross-column interactions do not occur
@@ -464,7 +471,7 @@ outputs from the &lt;code class=&quot;highlighter-rouge&quot;&gt;ParDo&lt;/code&
 output, then you cannot use a &lt;code class=&quot;highlighter-rouge&quot;&gt;Filter&lt;/code&gt; transform to reduce data volume downstream.&lt;/p&gt;
 
 &lt;p&gt;Stateful processing lets you address both the latency problem of side inputs
-and the cost problem of excessive uninterseting output. Here is the code, using
+and the cost problem of excessive uninteresting output. Here is the code, using
 only features I have already introduced:&lt;/p&gt;
 
 &lt;div class=&quot;language-java highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;k&quot;&gt;new&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;DoFn&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;KV&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;UserId&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Event&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;KV&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;UserId&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Prediction&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&amp;gt;()&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
