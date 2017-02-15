@@ -25,7 +25,6 @@ import org.apache.beam.runners.direct.DirectRunner.UncommittedBundle;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.Window.Bound;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
@@ -91,7 +90,7 @@ class WindowEvaluatorFactory implements TransformEvaluatorFactory {
         Collection<? extends BoundedWindow> windows = assignWindows(windowFn, element);
         outputBundle.add(
             WindowedValue.<InputT>of(
-                element.getValue(), element.getTimestamp(), windows, PaneInfo.NO_FIRING));
+                element.getValue(), element.getTimestamp(), windows, element.getPane()));
       }
     }
 
