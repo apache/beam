@@ -101,15 +101,6 @@ public class HBaseIOTest {
     public static void beforeClass() throws Exception {
         LOG.info("Starting HBase Embedded Server (HBaseTestUtility)");
         conf.setInt(HConstants.HBASE_CLIENT_RETRIES_NUMBER, 1);
-        htu = new HBaseTestingUtility(conf);
-        htu.startMiniCluster(1, 4);
-
-        LOG.info("HBase server configuration:");
-        Configuration configuration = htu.getConfiguration();
-        for (Map.Entry<String, String> entry : configuration) {
-            LOG.info("{}: {}", entry.getKey(), entry.getValue());
-        }
-
         LOG.info("Printing /etc/hosts file");
         try (BufferedReader br = new BufferedReader(new FileReader("/etc/hosts"))) {
             String line = null;
@@ -117,6 +108,15 @@ public class HBaseIOTest {
                 LOG.info(line);
             }
         }
+
+        LOG.info("HBase server configuration:");
+        Configuration configuration = htu.getConfiguration();
+        for (Map.Entry<String, String> entry : configuration) {
+            LOG.info("{}: {}", entry.getKey(), entry.getValue());
+        }
+
+        htu = new HBaseTestingUtility(conf);
+        htu.startMiniCluster(1, 4);
 
         // https://issues.apache.org/jira/browse/HBASE-11711
         htu.getConfiguration().setInt("hbase.master.info.port", -1);
