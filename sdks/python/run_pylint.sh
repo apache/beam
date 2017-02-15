@@ -28,8 +28,6 @@ set -o pipefail
 
 # Following generated files are excluded from lint checks.
 EXCLUDED_GENERATED_FILES=(
-"apache_beam/internal/windmill_pb2.py"
-"apache_beam/internal/windmill_service_pb2.py"
 "apache_beam/internal/clients/bigquery/bigquery_v2_client.py"
 "apache_beam/internal/clients/bigquery/bigquery_v2_messages.py"
 "apache_beam/internal/clients/dataflow/dataflow_v1b3_client.py"
