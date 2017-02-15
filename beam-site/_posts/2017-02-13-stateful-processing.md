@@ -238,11 +238,12 @@ key+window pairs, like this:
 keys and windows are independent dimensions)
 
 You can provide the opportunity for parallelism by making sure that table has
-enough columns, either via:
+enough columns. You might have many keys and many windows, or you might have
+many of just one or the other:
 
-- Many keys in few windows for example, a globally windowed stateful computation
+- Many keys in few windows, for example a globally windowed stateful computation
   keyed by user ID.
-- Many windows over few keys for example, a fixed windowed stateful computation
+- Many windows over few keys, for example a fixed windowed stateful computation
   over a global key.
 
 Caveat: all Beam runners today parallelize only over the key.
