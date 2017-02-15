@@ -16,8 +16,34 @@
  * limitations under the License.
  */
 
+package org.apache.beam.runners.spark.metrics;
+
+import com.codahale.metrics.MetricRegistry;
+import org.apache.spark.metrics.source.Source;
+
+
 /**
- * Spark sinks that support
- * the {@link org.apache.beam.runners.spark.aggregators.metrics.AggregatorMetric}.
+ * Composite source made up of several {@link MetricRegistry} instances.
  */
-package org.apache.beam.runners.spark.aggregators.metrics.sink;
+public class CompositeSource implements Source {
+  private final String name;
+  private final MetricRegistry metricRegistry;
+
+  public CompositeSource(final String name, MetricRegistry... metricRegistries) {
+    this.name = name;
+    this.metricRegistry = new MetricRegistry();
+    for (MetricRegistry metricRegistry : metricRegistries) {
+      this.metricRegistry.registerAll(metricRegistry);
+    }
+  }
+
+  @Override
+  public String sourceName() {
+    return name;
+  }
+
+  @Override
+  public MetricRegistry metricRegistry() {
+    return metricRegistry;
+  }
+}

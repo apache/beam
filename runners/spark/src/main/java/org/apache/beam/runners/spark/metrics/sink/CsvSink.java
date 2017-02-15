@@ -16,35 +16,23 @@
  * limitations under the License.
  */
 
-package org.apache.beam.runners.spark.aggregators.metrics;
+package org.apache.beam.runners.spark.metrics.sink;
 
 import com.codahale.metrics.MetricRegistry;
+import java.util.Properties;
+import org.apache.beam.runners.spark.metrics.AggregatorMetric;
+import org.apache.beam.runners.spark.metrics.WithMetricsSupport;
+import org.apache.spark.metrics.sink.Sink;
 
-import org.apache.beam.runners.spark.aggregators.NamedAggregators;
-import org.apache.spark.metrics.source.Source;
 
 /**
- * A Spark {@link Source} that is tailored to expose an {@link AggregatorMetric},
- * wrapping an underlying {@link NamedAggregators} instance.
+ * A Spark {@link Sink} that is tailored to report {@link AggregatorMetric} metrics
+ * to a CSV file.
  */
-public class AggregatorMetricSource implements Source {
-
-  private final String sourceName;
-
-  private final MetricRegistry metricRegistry = new MetricRegistry();
-
-  public AggregatorMetricSource(final String appName, final NamedAggregators aggregators) {
-    sourceName = appName;
-    metricRegistry.register("Beam", AggregatorMetric.of(aggregators));
-  }
-
-  @Override
-  public String sourceName() {
-    return sourceName;
-  }
-
-  @Override
-  public MetricRegistry metricRegistry() {
-    return metricRegistry;
+public class CsvSink extends org.apache.spark.metrics.sink.CsvSink {
+  public CsvSink(final Properties properties,
+                 final MetricRegistry metricRegistry,
+                 final org.apache.spark.SecurityManager securityMgr) {
+    super(properties, WithMetricsSupport.forRegistry(metricRegistry), securityMgr);
   }
 }

@@ -16,23 +16,5 @@
  * limitations under the License.
  */
 
-package org.apache.beam.runners.spark.aggregators;
-
-import org.junit.rules.ExternalResource;
-
-
-/**
- * A rule that clears the {@link AggregatorsAccumulator}
- * which represents the Beam {@link org.apache.beam.sdk.transforms.Aggregator}s.
- */
-public class ClearAggregatorsRule extends ExternalResource {
-
-  @Override
-  protected void before() throws Throwable {
-    clearNamedAggregators();
-  }
-
-  public void clearNamedAggregators() {
-    AggregatorsAccumulator.clear();
-  }
-}
+/** Provides internal utilities for implementing Beam metrics using Spark accumulators. */
+package org.apache.beam.runners.spark.metrics;

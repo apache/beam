@@ -165,6 +165,102 @@ public class MetricMatchers {
     };
   }
 
+  static Matcher<MetricResult<DistributionResult>> distributionAttemptedMinMax(
+      final String namespace, final String name, final String step,
+      final Long attemptedMin, final Long attemptedMax) {
+    return new TypeSafeMatcher<MetricResult<DistributionResult>>() {
+      @Override
+      protected boolean matchesSafely(MetricResult<DistributionResult> item) {
+        return Objects.equals(namespace, item.name().namespace())
+            && Objects.equals(name, item.name().name())
+            && item.step().contains(step)
+            && Objects.equals(attemptedMin, item.attempted().min())
+            && Objects.equals(attemptedMax, item.attempted().max());
+      }
+
+      @Override
+      public void describeTo(Description description) {
+        description
+            .appendText("MetricResult{inNamespace=").appendValue(namespace)
+            .appendText(", name=").appendValue(name)
+            .appendText(", step=").appendValue(step)
+            .appendText(", attemptedMin=").appendValue(attemptedMin)
+            .appendText(", attemptedMax=").appendValue(attemptedMax)
+            .appendText("}");
+      }
+
+      @Override
+      protected void describeMismatchSafely(MetricResult<DistributionResult> item,
+          Description mismatchDescription) {
+        mismatchDescription.appendText("MetricResult{");
+
+        describeMetricsResultMembersMismatch(item, mismatchDescription, namespace, name, step);
+
+        if (!Objects.equals(attemptedMin, item.attempted())) {
+          mismatchDescription
+              .appendText("attemptedMin: ").appendValue(attemptedMin)
+              .appendText(" != ").appendValue(item.attempted());
+        }
+
+        if (!Objects.equals(attemptedMax, item.attempted())) {
+          mismatchDescription
+              .appendText("attemptedMax: ").appendValue(attemptedMax)
+              .appendText(" != ").appendValue(item.attempted());
+        }
+
+        mismatchDescription.appendText("}");
+      }
+    };
+  }
+
+  static Matcher<MetricResult<DistributionResult>> distributionCommittedMinMax(
+      final String namespace, final String name, final String step,
+      final Long committedMin, final Long committedMax) {
+    return new TypeSafeMatcher<MetricResult<DistributionResult>>() {
+      @Override
+      protected boolean matchesSafely(MetricResult<DistributionResult> item) {
+        return Objects.equals(namespace, item.name().namespace())
+            && Objects.equals(name, item.name().name())
+            && item.step().contains(step)
+            && Objects.equals(committedMin, item.committed().min())
+            && Objects.equals(committedMax, item.committed().max());
+      }
+
+      @Override
+      public void describeTo(Description description) {
+        description
+            .appendText("MetricResult{inNamespace=").appendValue(namespace)
+            .appendText(", name=").appendValue(name)
+            .appendText(", step=").appendValue(step)
+            .appendText(", committedMin=").appendValue(committedMin)
+            .appendText(", committedMax=").appendValue(committedMax)
+            .appendText("}");
+      }
+
+      @Override
+      protected void describeMismatchSafely(MetricResult<DistributionResult> item,
+          Description mismatchDescription) {
+        mismatchDescription.appendText("MetricResult{");
+
+        describeMetricsResultMembersMismatch(item, mismatchDescription, namespace, name, step);
+
+        if (!Objects.equals(committedMin, item.committed())) {
+          mismatchDescription
+              .appendText("committedMin: ").appendValue(committedMin)
+              .appendText(" != ").appendValue(item.committed());
+        }
+
+        if (!Objects.equals(committedMax, item.committed())) {
+          mismatchDescription
+              .appendText("committedMax: ").appendValue(committedMax)
+              .appendText(" != ").appendValue(item.committed());
+        }
+
+        mismatchDescription.appendText("}");
+      }
+    };
+  }
+
   private static <T> void describeMetricsResultMembersMismatch(
       MetricResult<T> item,
       Description mismatchDescription,

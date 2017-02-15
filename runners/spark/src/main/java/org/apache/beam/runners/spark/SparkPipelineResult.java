@@ -24,6 +24,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import org.apache.beam.runners.spark.aggregators.SparkAggregators;
+import org.apache.beam.runners.spark.metrics.SparkMetricResults;
 import org.apache.beam.runners.spark.translation.SparkContextFactory;
 import org.apache.beam.sdk.AggregatorRetrievalException;
 import org.apache.beam.sdk.AggregatorValues;
@@ -44,8 +45,8 @@ public abstract class SparkPipelineResult implements PipelineResult {
 
   protected final Future pipelineExecution;
   protected JavaSparkContext javaSparkContext;
-
   protected PipelineResult.State state;
+  private final SparkMetricResults metricResults = new SparkMetricResults();
 
   SparkPipelineResult(final Future<?> pipelineExecution,
                       final JavaSparkContext javaSparkContext) {
@@ -122,7 +123,7 @@ public abstract class SparkPipelineResult implements PipelineResult {
 
   @Override
   public MetricResults metrics() {
-    throw new UnsupportedOperationException("The SparkRunner does not currently support metrics.");
+    return metricResults;
   }
 
   @Override

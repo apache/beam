@@ -128,7 +128,7 @@ public class NamedAggregators implements Serializable {
   public String toString() {
     StringBuilder sb = new StringBuilder();
     for (Map.Entry<String, State<?, ?, ?>> e : mNamedAggregators.entrySet()) {
-      sb.append(e.getKey()).append(": ").append(e.getValue().render());
+      sb.append(e.getKey()).append(": ").append(e.getValue().render()).append(" ");
     }
     return sb.toString();
   }

@@ -17,7 +17,9 @@
  */
 package org.apache.beam.runners.spark.translation.streaming;
 
+import static org.apache.beam.sdk.metrics.MetricMatchers.attemptedMetricsResult;
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.hasItem;
 import static org.junit.Assert.assertThat;
 
 import com.google.common.collect.ImmutableList;
@@ -39,6 +41,10 @@ import org.apache.beam.runners.spark.translation.streaming.utils.SparkTestPipeli
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.kafka.KafkaIO;
+import org.apache.beam.sdk.metrics.Counter;
+import org.apache.beam.sdk.metrics.MetricNameFilter;
+import org.apache.beam.sdk.metrics.Metrics;
+import org.apache.beam.sdk.metrics.MetricsFilter;
 import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -77,7 +83,9 @@ public class ResumeFromCheckpointStreamingTest {
   );
   private static final String[] EXPECTED = {"k1,v1", "k2,v2", "k3,v3", "k4,v4"};
   private static final long EXPECTED_AGG_FIRST = 4L;
+  private static final long EXPECTED_COUNTER_FIRST = 4L;
   private static final long EXPECTED_AGG_SECOND = 8L;
+  private static final long EXPECTED_COUNTER_SECOND = 8L;
 
   @Rule
   public TemporaryFolder checkpointParentDir = new TemporaryFolder();
@@ -131,12 +139,20 @@ public class ResumeFromCheckpointStreamingTest {
     // checkpoint after first (and only) interval.
     options.setCheckpointDurationMillis(options.getBatchIntervalMillis());
 
+    MetricsFilter metricsFilter =
+        MetricsFilter.builder()
+            .addNameFilter(MetricNameFilter.inNamespace(ResumeFromCheckpointStreamingTest.class))
+            .build();
+
     // first run will read from Kafka backlog - "auto.offset.reset=smallest"
     SparkPipelineResult res = run(options);
     long processedMessages1 = res.getAggregatorValue("processedMessages", Long.class);
     assertThat(String.format("Expected %d processed messages count but "
         + "found %d", EXPECTED_AGG_FIRST, processedMessages1), processedMessages1,
             equalTo(EXPECTED_AGG_FIRST));
+    assertThat(res.metrics().queryMetrics(metricsFilter).counters(),
+        hasItem(attemptedMetricsResult(ResumeFromCheckpointStreamingTest.class.getName(),
+            "aCounter", "formatKV", EXPECTED_COUNTER_FIRST)));
 
     // recovery should resume from last read offset, and read the second batch of input.
     res = runAgain(options);
@@ -144,6 +160,9 @@ public class ResumeFromCheckpointStreamingTest {
     assertThat(String.format("Expected %d processed messages count but "
         + "found %d", EXPECTED_AGG_SECOND, processedMessages2), processedMessages2,
             equalTo(EXPECTED_AGG_SECOND));
+    assertThat(res.metrics().queryMetrics(metricsFilter).counters(),
+        hasItem(attemptedMetricsResult(ResumeFromCheckpointStreamingTest.class.getName(),
+            "aCounter", "formatKV", EXPECTED_COUNTER_SECOND)));
   }
 
   private SparkPipelineResult runAgain(SparkPipelineOptions options) {
@@ -177,16 +196,20 @@ public class ResumeFromCheckpointStreamingTest {
 
     PCollection<String> formattedKV =
         p.apply(read.withoutMetadata())
-          .apply(ParDo.of(new DoFn<KV<String, String>, KV<String, String>>() {
-               @ProcessElement
-               public void process(ProcessContext c) {
-                  // Check side input is passed correctly also after resuming from checkpoint
-                  Assert.assertEquals(c.sideInput(expectedView), Arrays.asList(EXPECTED));
-                  c.output(c.element());
-                }
-          }).withSideInputs(expectedView))
-        .apply(Window.<KV<String, String>>into(FixedWindows.of(windowDuration)))
-        .apply(ParDo.of(new FormatAsText()));
+            .apply("formatKV", ParDo.of(new DoFn<KV<String, String>, KV<String, String>>() {
+              Counter counter =
+                  Metrics.counter(ResumeFromCheckpointStreamingTest.class, "aCounter");
+
+              @ProcessElement
+              public void process(ProcessContext c) {
+                // Check side input is passed correctly also after resuming from checkpoint
+                Assert.assertEquals(c.sideInput(expectedView), Arrays.asList(EXPECTED));
+                counter.inc();
+                c.output(c.element());
+              }
+            }).withSideInputs(expectedView))
+            .apply(Window.<KV<String, String>>into(FixedWindows.of(windowDuration)))
+            .apply(ParDo.of(new FormatAsText()));
 
     // graceful shutdown will make sure first batch (at least) will finish.
     Duration timeout = Duration.standardSeconds(1L);

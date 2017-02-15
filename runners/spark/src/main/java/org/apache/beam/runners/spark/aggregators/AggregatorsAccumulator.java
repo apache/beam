@@ -21,11 +21,8 @@ package org.apache.beam.runners.spark.aggregators;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
 import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
-import org.apache.beam.runners.spark.translation.streaming.CheckpointDir;
-import org.apache.hadoop.fs.FSDataInputStream;
-import org.apache.hadoop.fs.FSDataOutputStream;
+import org.apache.beam.runners.spark.translation.streaming.Checkpoint;
+import org.apache.beam.runners.spark.translation.streaming.Checkpoint.CheckpointDir;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.spark.Accumulator;
@@ -40,23 +37,21 @@ import org.slf4j.LoggerFactory;
  * For resilience, {@link Accumulator}s are required to be wrapped in a Singleton.
  * @see <a href="https://spark.apache.org/docs/1.6.3/streaming-programming-guide.html#accumulators-and-broadcast-variables">accumulators</a>
  */
-public class AccumulatorSingleton {
-  private static final Logger LOG = LoggerFactory.getLogger(AccumulatorSingleton.class);
+public class AggregatorsAccumulator {
+  private static final Logger LOG = LoggerFactory.getLogger(AggregatorsAccumulator.class);
 
-  private static final String ACCUMULATOR_CHECKPOINT_FILENAME = "beam_aggregators";
+  private static final String ACCUMULATOR_CHECKPOINT_FILENAME = "aggregators";
 
   private static volatile Accumulator<NamedAggregators> instance;
   private static volatile FileSystem fileSystem;
-  private static volatile Path checkpointPath;
-  private static volatile Path tempCheckpointPath;
-  private static volatile Path backupCheckpointPath;
+  private static volatile Path checkpointFilePath;
 
   @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
   static Accumulator<NamedAggregators> getInstance(
       JavaSparkContext jsc,
       Optional<CheckpointDir> checkpointDir) {
     if (instance == null) {
-      synchronized (AccumulatorSingleton.class) {
+      synchronized (AggregatorsAccumulator.class) {
         if (instance == null) {
           instance = jsc.sc().accumulator(new NamedAggregators(), new AggAccumParam());
           if (checkpointDir.isPresent()) {
@@ -71,23 +66,12 @@ public class AccumulatorSingleton {
   private static void recoverValueFromCheckpoint(
       JavaSparkContext jsc,
       CheckpointDir checkpointDir) {
-    FSDataInputStream is = null;
     try {
       Path beamCheckpointPath = checkpointDir.getBeamCheckpointDir();
-      checkpointPath = new Path(beamCheckpointPath, ACCUMULATOR_CHECKPOINT_FILENAME);
-      tempCheckpointPath = checkpointPath.suffix(".tmp");
-      backupCheckpointPath = checkpointPath.suffix(".bak");
-      fileSystem = checkpointPath.getFileSystem(jsc.hadoopConfiguration());
-      if (fileSystem.exists(checkpointPath)) {
-        is = fileSystem.open(checkpointPath);
-      } else if (fileSystem.exists(backupCheckpointPath)) {
-        is = fileSystem.open(backupCheckpointPath);
-      }
-      if (is != null) {
-        ObjectInputStream objectInputStream = new ObjectInputStream(is);
-        NamedAggregators recoveredValue =
-            (NamedAggregators) objectInputStream.readObject();
-        objectInputStream.close();
+      checkpointFilePath = new Path(beamCheckpointPath, ACCUMULATOR_CHECKPOINT_FILENAME);
+      fileSystem = checkpointFilePath.getFileSystem(jsc.hadoopConfiguration());
+      NamedAggregators recoveredValue = Checkpoint.readObject(fileSystem, checkpointFilePath);
+      if (recoveredValue != null) {
         LOG.info("Recovered accumulators from checkpoint: " + recoveredValue);
         instance.setValue(recoveredValue);
       } else {
@@ -99,24 +83,14 @@ public class AccumulatorSingleton {
   }
 
   private static void checkpoint() throws IOException {
-    if (checkpointPath != null) {
-      if (fileSystem.exists(checkpointPath)) {
-        if (fileSystem.exists(backupCheckpointPath)) {
-          fileSystem.delete(backupCheckpointPath, false);
-        }
-        fileSystem.rename(checkpointPath, backupCheckpointPath);
-      }
-      FSDataOutputStream os = fileSystem.create(tempCheckpointPath, true);
-      ObjectOutputStream oos = new ObjectOutputStream(os);
-      oos.writeObject(instance.value());
-      oos.close();
-      fileSystem.rename(tempCheckpointPath, checkpointPath);
+    if (checkpointFilePath != null) {
+      Checkpoint.writeObject(fileSystem, checkpointFilePath, instance.value());
     }
   }
 
   @VisibleForTesting
   static void clear() {
-    synchronized (AccumulatorSingleton.class) {
+    synchronized (AggregatorsAccumulator.class) {
       instance = null;
     }
   }

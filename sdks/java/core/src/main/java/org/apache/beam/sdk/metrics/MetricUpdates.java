@@ -19,6 +19,7 @@ package org.apache.beam.sdk.metrics;
 
 import com.google.auto.value.AutoValue;
 import com.google.common.collect.Iterables;
+import java.io.Serializable;
 import java.util.Collections;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
@@ -39,7 +40,7 @@ public abstract class MetricUpdates {
    * @param <T> The type of value representing the update.
    */
   @AutoValue
-  public abstract static class MetricUpdate<T> {
+  public abstract static class MetricUpdate<T> implements Serializable {
 
     /** The key being updated. */
     public abstract MetricKey getKey();
