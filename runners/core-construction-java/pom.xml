@@ -87,13 +87,13 @@
                 <relocation>
                   <pattern>com.google.common</pattern>
                   <shadedPattern>
-                    org.apache.beam.runners.core.pipeline.repackaged.com.google.common
+                    org.apache.beam.runners.core.construction.repackaged.com.google.common
                   </shadedPattern>
                 </relocation>
                 <relocation>
                   <pattern>com.google.thirdparty</pattern>
                   <shadedPattern>
-                    org.apache.beam.runners.core.pipeline.repackaged.com.google.thirdparty
+                    org.apache.beam.runners.core.construction.repackaged.com.google.thirdparty
                   </shadedPattern>
                 </relocation>
               </relocations>
@@ -114,10 +114,12 @@
       <groupId>joda-time</groupId>
       <artifactId>joda-time</artifactId>
     </dependency>
+
     <dependency>
       <groupId>com.google.guava</groupId>
       <artifactId>guava</artifactId>
     </dependency>
+
     <!-- test dependencies -->
 
     <dependency>

@@ -19,4 +19,4 @@
 /**
  * Provides utilities for Beam runner authors, prior to execution.
  */
-package org.apache.beam.runners.core.pipeline;
+package org.apache.beam.runners.core.construction;
