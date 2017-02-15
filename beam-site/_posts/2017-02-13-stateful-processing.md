@@ -25,7 +25,7 @@ what you might use it for, and what it looks like in code.
 
 First, a quick recap: In Beam, a big data processing _pipeline_ is a directed,
 acyclic graph of parallel operations called _`PTransforms`_ processing data
-from _`PCollections`_ I'll expand on that by walking through this illustration:
+from _`PCollections`_. I'll expand on that by walking through this illustration:
 
 <img class="center-block" 
     src="{{ site.baseurl }}/images/blog/stateful-processing/pipeline.png" 
