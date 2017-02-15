@@ -441,7 +441,7 @@
   </tr>
   
   <tr class="cap-summary">
-    <th class="cap-summary color-capability format-capability" style="color:#ec3">Keyed State</th>
+    <th class="cap-summary color-capability format-capability" style="color:#ec3">Stateful Processing</th>
     
     
 
@@ -1353,7 +1353,7 @@
   </tr>
   
   <tr class="cap">
-    <th class="cap color-capability format-capability" style="color:#ec3">Keyed State</th>
+    <th class="cap color-capability format-capability" style="color:#ec3">Stateful Processing</th>
     
     
 
@@ -1362,22 +1362,22 @@
     
     
 
-    <td width="25%" class="cap" style="background-color:#fe5;border-color:#ca1"><center><b>Partially: non-merging windows</b></center><br />Keyed state is fully supported for non-merging windows.
+    <td width="25%" class="cap" style="background-color:#fe5;border-color:#ca1"><center><b>Partially: non-merging windows</b></center><br />State is supported for non-merging windows. SetState and MapState are not yet supported.
 </td>
     
     
 
-    <td width="25%" class="cap" style="background-color:#fe5;border-color:#ca1"><center><b>Partially: streaming, non-merging windows</b></center><br />Keyed state is supported in streaming mode for non-merging windows.
+    <td width="25%" class="cap" style="background-color:#fe5;border-color:#ca1"><center><b>Partially: streaming, non-merging windows</b></center><br />State is supported in streaming mode for non-merging windows. SetState and MapState are not yet supported.
 </td>
     
     
 
-    <td width="25%" class="cap" style="background-color:#ddd;border-color:#ca1"><center><b>No: not implemented</b></center><br />Spark supports keyed state with mapWithState() so support shuold be straight forward.
+    <td width="25%" class="cap" style="background-color:#ddd;border-color:#ca1"><center><b>No: not implemented</b></center><br />Spark supports per-key state with <tt>mapWithState()</tt> so support should be straightforward.
 </td>
     
     
 
-    <td width="25%" class="cap" style="background-color:#ddd;border-color:#ca1"><center><b>No: not implemented</b></center><br />Apex supports keyed state, so adding support for this should be easy.
+    <td width="25%" class="cap" style="background-color:#ddd;border-color:#ca1"><center><b>No: not implemented</b></center><br />Apex supports per-key state, so adding support for this should be easy.
 </td>
     
   </tr>
