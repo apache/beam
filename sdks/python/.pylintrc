@@ -17,7 +17,7 @@
 
 [MASTER]
 # Ignore auto-generated files.
-ignore=clients,windmill_pb2.py,windmill_service_pb2.py
+ignore=clients
 
 [BASIC]
 # Regular expression which should only match the name
