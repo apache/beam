@@ -82,6 +82,8 @@ public class GcsFileSystemTest {
     items.add(createStorageObject("gs://testbucket/testdirectory/file3name", 3L /* fileSize */));
     items.add(createStorageObject("gs://testbucket/testdirectory/otherfile", 4L /* fileSize */));
     items.add(createStorageObject("gs://testbucket/testdirectory/anotherfile", 5L /* fileSize */));
+    items.add(createStorageObject(
+        "gs://testbucket/testotherdirectory/file4name", 6L /* fileSize */));
 
     modelObjects.setItems(items);
 
@@ -89,6 +91,18 @@ public class GcsFileSystemTest {
         .thenReturn(modelObjects);
 
     // Test patterns.
+    {
+      GcsPath pattern = GcsPath.fromUri("gs://testbucket/testdirectory/file*");
+      List<String> expectedFiles = ImmutableList.of(
+          "gs://testbucket/testdirectory/file1name",
+          "gs://testbucket/testdirectory/file2name",
+          "gs://testbucket/testdirectory/file3name");
+
+      assertThat(
+          expectedFiles,
+          contains(toFilenames(gcsFileSystem.expand(pattern)).toArray()));
+    }
+
     {
       GcsPath pattern = GcsPath.fromUri("gs://testbucket/testdirectory/file*");
       List<String> expectedFiles = ImmutableList.of(
@@ -130,7 +144,8 @@ public class GcsFileSystemTest {
       List<String> expectedFiles = ImmutableList.of(
           "gs://testbucket/testdirectory/file1name",
           "gs://testbucket/testdirectory/file2name",
-          "gs://testbucket/testdirectory/file3name");
+          "gs://testbucket/testdirectory/file3name",
+          "gs://testbucket/testotherdirectory/file4name");
 
       assertThat(
           expectedFiles,

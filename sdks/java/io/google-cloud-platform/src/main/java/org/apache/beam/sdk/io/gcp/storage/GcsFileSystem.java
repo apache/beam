@@ -93,7 +93,7 @@ class GcsFileSystem extends FileSystem<GcsResourceId> {
   /**
    * Expands a pattern into {@link MatchResult}.
    *
-   * <p>{@code gcsPattern} is expected to contain globs.
+   * @throws IllegalArgumentException if {@code gcsPattern} does not contain globs.
    */
   @VisibleForTesting
   MatchResult expand(GcsPath gcsPattern) throws IOException {
@@ -137,7 +137,8 @@ class GcsFileSystem extends FileSystem<GcsResourceId> {
   }
 
   private Metadata toMetadata(StorageObject storageObject) {
-    // TODO It is incorrect to return true here for files with content encoding set to gzip.
+    // TODO: Address https://issues.apache.org/jira/browse/BEAM-1494
+    // It is incorrect to set IsReadSeekEfficient true for files with content encoding set to gzip.
     Metadata.Builder ret = Metadata.builder()
         .setIsReadSeekEfficient(true)
         .setResourceId(GcsResourceId.fromGcsPath(GcsPath.fromObject(storageObject)));
