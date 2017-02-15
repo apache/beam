@@ -109,13 +109,13 @@ public class HBaseIOTest {
             }
         }
 
+        htu = new HBaseTestingUtility(conf);
         LOG.info("HBase server configuration:");
         Configuration configuration = htu.getConfiguration();
         for (Map.Entry<String, String> entry : configuration) {
             LOG.info("{}: {}", entry.getKey(), entry.getValue());
         }
 
-        htu = new HBaseTestingUtility(conf);
         htu.startMiniCluster(1, 4);
 
         // https://issues.apache.org/jira/browse/HBASE-11711
