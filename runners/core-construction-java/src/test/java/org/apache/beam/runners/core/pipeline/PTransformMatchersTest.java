@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.beam.runners.core;
+package org.apache.beam.runners.core.pipeline;
 
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.is;

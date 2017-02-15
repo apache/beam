@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.beam.runners.core;
+package org.apache.beam.runners.core.pipeline;
 
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertThat;

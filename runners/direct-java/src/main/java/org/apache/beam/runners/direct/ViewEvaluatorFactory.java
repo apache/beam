@@ -21,7 +21,7 @@ import com.google.common.collect.Iterables;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import org.apache.beam.runners.core.ReplacementOutputs;
+import org.apache.beam.runners.core.pipeline.ReplacementOutputs;
 import org.apache.beam.runners.direct.CommittedResult.OutputType;
 import org.apache.beam.runners.direct.DirectRunner.PCollectionViewWriter;
 import org.apache.beam.runners.direct.StepTransformResult.Builder;

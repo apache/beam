@@ -20,7 +20,7 @@ package org.apache.beam.runners.direct;
 import com.google.common.collect.Iterables;
 import java.util.List;
 import java.util.Map;
-import org.apache.beam.runners.core.ReplacementOutputs;
+import org.apache.beam.runners.core.pipeline.ReplacementOutputs;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.runners.PTransformOverrideFactory;
 import org.apache.beam.sdk.transforms.PTransform;

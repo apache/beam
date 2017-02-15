@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.core;
+package org.apache.beam.runners.core.pipeline;
 
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
@@ -38,6 +38,25 @@ import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 @Experimental(Kind.CORE_RUNNERS_ONLY)
 public class PTransformMatchers {
   private PTransformMatchers() {}
+
+  /**
+   * Returns a {@link PTransformMatcher} which matches a {@link PTransform} if any of the provided
+   * matchers match the {@link PTransform}.
+   */
+  public static PTransformMatcher anyOf(
+      final PTransformMatcher matcher, final PTransformMatcher... matchers) {
+    return new PTransformMatcher() {
+      @Override
+      public boolean matches(AppliedPTransform<?, ?, ?> application) {
+        for (PTransformMatcher component : matchers) {
+          if (component.matches(application)) {
+            return true;
+          }
+        }
+        return matcher.matches(application);
+      }
+    };
+  }
 
   /**
    * Returns a {@link PTransformMatcher} that matches a {@link PTransform} if the class of the
