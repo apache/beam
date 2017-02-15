@@ -196,7 +196,7 @@ want to write a transform that maps input to output like this:
 <img class="center-block" 
     src="{{ site.baseurl }}/images/blog/stateful-processing/assign-indices.png"
     alt="Assigning arbitrary but unique indices to each element"
-    width="100">
+    width="180">
 
 The order of the elements A, B, C, D, E is arbitrary, hence their assigned
 indices are arbitrary, but downstream transforms just need to be OK with this.
@@ -238,9 +238,13 @@ key+window pairs, like this:
 keys and windows are independent dimensions)
 
 You can provide the opportunity for parallelism by making sure that table has
-enough columns, either via many keys in few windows - for example, a globally
-windowed stateful computation keyed by user ID - or via many windows over few
-keys - for example, a fixed windowed stateful computation over a global key.
+enough columns, either via:
+
+- Many keys in few windows for example, a globally windowed stateful computation
+  keyed by user ID.
+- Many windows over few keys for example, a fixed windowed stateful computation
+  over a global key.
+
 Caveat: all Beam runners today parallelize only over the key.
 
 Most often your mental model of state can be focused on only a single column of
@@ -444,7 +448,7 @@ outputs from the `ParDo` that will be processed downstream. If the
 output, then you cannot use a `Filter` transform to reduce data volume downstream.
 
 Stateful processing lets you address both the latency problem of side inputs
-and the cost problem of excessive uninterseting output. Here is the code, using
+and the cost problem of excessive uninteresting output. Here is the code, using
 only features I have already introduced:
 
 ```java
