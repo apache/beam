@@ -29,8 +29,8 @@ import time
 
 from apache_beam import utils
 from apache_beam.internal.auth import get_service_credentials
+from apache_beam.internal.clients import dataflow
 from apache_beam.internal.clients import storage
-import apache_beam.internal.clients.dataflow as dataflow
 from apache_beam.internal.json_value import to_json_value
 from apache_beam.transforms import cy_combiners
 from apache_beam.transforms.display import DisplayData
