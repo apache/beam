@@ -196,7 +196,7 @@ categories:
             l2: Not implemented in runner.
             l3: 
 
-      - name: Keyed State
+      - name: Stateful Processing
         values:
           - class: model
             l1: 'Yes'
@@ -205,19 +205,19 @@ categories:
           - class: dataflow
             l1: 'Partially'
             l2: non-merging windows
-            l3: Keyed state is fully supported for non-merging windows.
+            l3: State is supported for non-merging windows. SetState and MapState are not yet supported.
           - class: flink
             l1: 'Partially'
             l2: streaming, non-merging windows
-            l3: Keyed state is supported in streaming mode for non-merging windows.
+            l3: State is supported in streaming mode for non-merging windows. SetState and MapState are not yet supported.
           - class: spark
             l1: 'No'
             l2: not implemented
-            l3: Spark supports keyed state with mapWithState() so support shuold be straight forward.
+            l3: Spark supports per-key state with <tt>mapWithState()</tt> so support should be straightforward.
           - class: apex
             l1: 'No'
             l2: not implemented
-            l3: Apex supports keyed state, so adding support for this should be easy.
+            l3: Apex supports per-key state, so adding support for this should be easy.
 
   - description: Where in event time?
     anchor: where
