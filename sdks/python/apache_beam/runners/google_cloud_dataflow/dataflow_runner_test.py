@@ -21,9 +21,9 @@ import unittest
 
 import mock
 
-from apache_beam.internal.clients import dataflow as dataflow_api
 from apache_beam.runners.google_cloud_dataflow.dataflow_runner import DataflowPipelineResult
 from apache_beam.runners.google_cloud_dataflow.dataflow_runner import DataflowRuntimeException
+from apache_beam.runners.google_cloud_dataflow.internal.clients import dataflow as dataflow_api
 
 
 class DataflowRunnerTest(unittest.TestCase):

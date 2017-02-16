@@ -18,20 +18,23 @@
 """Dataflow client utility functions."""
 
 import codecs
-from datetime import datetime
 import getpass
 import json
 import logging
 import os
 import re
-from StringIO import StringIO
 import time
+from StringIO import StringIO
+from datetime import datetime
+
+from apitools.base.py import encoding
+from apitools.base.py import exceptions
 
 from apache_beam import utils
 from apache_beam.internal.auth import get_service_credentials
-from apache_beam.internal.clients import dataflow
 from apache_beam.internal.clients import storage
 from apache_beam.internal.json_value import to_json_value
+from apache_beam.runners.google_cloud_dataflow.internal.clients import dataflow
 from apache_beam.transforms import cy_combiners
 from apache_beam.transforms.display import DisplayData
 from apache_beam.utils import dependency
@@ -43,9 +46,6 @@ from apache_beam.utils.pipeline_options import DebugOptions
 from apache_beam.utils.pipeline_options import GoogleCloudOptions
 from apache_beam.utils.pipeline_options import StandardOptions
 from apache_beam.utils.pipeline_options import WorkerOptions
-
-from apitools.base.py import encoding
-from apitools.base.py import exceptions
 
 
 class Step(object):

@@ -22,29 +22,27 @@ the other unit tests. In this file we choose to test only aspects related to
 caching and clearing values that are not tested elsewhere.
 """
 
-from datetime import datetime
 import json
 import unittest
+from datetime import datetime
 
 import hamcrest as hc
 
 import apache_beam as beam
-
-from apache_beam.internal import apiclient
+import apache_beam.transforms as ptransform
+from apache_beam.metrics.cells import DistributionData
+from apache_beam.metrics.cells import DistributionResult
+from apache_beam.metrics.execution import MetricKey
+from apache_beam.metrics.execution import MetricResult
+from apache_beam.metrics.metricbase import MetricName
 from apache_beam.pipeline import Pipeline
-from apache_beam.runners import create_runner
 from apache_beam.runners import DataflowRunner
 from apache_beam.runners import DirectRunner
 from apache_beam.runners import TestDataflowRunner
-import apache_beam.transforms as ptransform
+from apache_beam.runners import create_runner
+from apache_beam.runners.google_cloud_dataflow.internal import apiclient
 from apache_beam.transforms.display import DisplayDataItem
 from apache_beam.utils.pipeline_options import PipelineOptions
-
-from apache_beam.metrics.cells import DistributionData
-from apache_beam.metrics.cells import DistributionResult
-from apache_beam.metrics.execution import MetricResult
-from apache_beam.metrics.execution import MetricKey
-from apache_beam.metrics.metricbase import MetricName
 
 
 class RunnerTest(unittest.TestCase):
