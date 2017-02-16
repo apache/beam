@@ -33,17 +33,17 @@ from apache_beam.internal import json_value
 from apache_beam.internal import pickler
 from apache_beam.pvalue import PCollectionView
 from apache_beam.runners.google_cloud_dataflow.dataflow_metrics import DataflowMetrics
+from apache_beam.runners.google_cloud_dataflow.internal.clients import dataflow as dataflow_api
+from apache_beam.runners.runner import PValueCache
 from apache_beam.runners.runner import PipelineResult
 from apache_beam.runners.runner import PipelineRunner
 from apache_beam.runners.runner import PipelineState
-from apache_beam.runners.runner import PValueCache
 from apache_beam.transforms.display import DisplayData
 from apache_beam.typehints import typehints
 from apache_beam.utils import names
 from apache_beam.utils.names import PropertyNames
 from apache_beam.utils.names import TransformNames
 from apache_beam.utils.pipeline_options import StandardOptions
-from apache_beam.internal.clients import dataflow as dataflow_api
 
 
 class DataflowRunner(PipelineRunner):
@@ -154,7 +154,7 @@ class DataflowRunner(PipelineRunner):
     """Remotely executes entire pipeline or parts reachable from node."""
     # Import here to avoid adding the dependency for local running scenarios.
     # pylint: disable=wrong-import-order, wrong-import-position
-    from apache_beam.internal import apiclient
+    from apache_beam.runners.google_cloud_dataflow.internal import apiclient
     self.job = apiclient.Job(pipeline.options)
 
     # The superclass's run will trigger a traversal of all reachable nodes.
@@ -235,7 +235,7 @@ class DataflowRunner(PipelineRunner):
     """Creates a Step object and adds it to the cache."""
     # Import here to avoid adding the dependency for local running scenarios.
     # pylint: disable=wrong-import-order, wrong-import-position
-    from apache_beam.internal import apiclient
+    from apache_beam.runners.google_cloud_dataflow.internal import apiclient
     step = apiclient.Step(step_kind, self._get_unique_step_name())
     self.job.proto.steps.append(step.proto)
     step.add_property(PropertyNames.USER_NAME, step_label)
