@@ -45,9 +45,13 @@ import java.util.List;
 import java.util.Map;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.Coder.Context;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow.IntervalWindowCoder;
+import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.CoderUtils;
+import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -69,8 +73,10 @@ public class CommonCoderTest {
       .put("urn:beam:coders:bytes:0.1", ByteCoder.class)
       .put("urn:beam:coders:kv:0.1", KvCoder.class)
       .put("urn:beam:coders:varint:0.1", VarLongCoder.class)
-      .put("urn:beam:coders:intervalwindow:0.1", IntervalWindowCoder.class)
+      .put("urn:beam:coders:interval_window:0.1", IntervalWindowCoder.class)
       .put("urn:beam:coders:stream:0.1", IterableCoder.class)
+      .put("urn:beam:coders:global_window:0.1", GlobalWindow.Coder.class)
+      .put("urn:beam:coders:windowed_value:0.1", WindowedValue.FullWindowedValueCoder.class)
       .build();
 
   @AutoValue
@@ -193,7 +199,7 @@ public class CommonCoderTest {
       }
       case "urn:beam:coders:varint:0.1":
         return ((Number) value).longValue();
-      case "urn:beam:coders:intervalwindow:0.1": {
+      case "urn:beam:coders:interval_window:0.1": {
         Map<String, Object> kvMap = (Map<String, Object>) value;
         Instant end = new Instant(((Number) kvMap.get("end")).longValue());
         Duration span = Duration.millis(((Number) kvMap.get("span")).longValue());
@@ -208,6 +214,22 @@ public class CommonCoderTest {
               convertValue(element, coderSpec.getComponents().get(0), elementCoder));
         }
         return convertedElements;
+      case "urn:beam:coders:global_window:0.1":
+        return GlobalWindow.INSTANCE;
+      case "urn:beam:coders:windowed_value:0.1":
+        Map<String, Object> kvMap = (Map<String, Object>) value;
+        Coder valueCoder = ((WindowedValue.FullWindowedValueCoder) coder).getValueCoder();
+        Coder windowCoder = ((WindowedValue.FullWindowedValueCoder) coder).getWindowCoder();
+        Object window_value = convertValue(
+            kvMap.get("value"), coderSpec.getComponents().get(0), valueCoder);
+        Instant timestamp = new Instant(((Number) kvMap.get("timestamp")).longValue());
+        List<BoundedWindow> windows = new LinkedList<>();
+        for(Object window: ((List<Object>) kvMap.get("windows"))) {
+          windows.add((BoundedWindow) convertValue(window, coderSpec.getComponents().get(1),
+              windowCoder));
+        }
+        // Note: Until Python SDK supports PaneInfo, we default to PaneInfo.NO_FIRING.
+        return WindowedValue.of(window_value, timestamp, windows, PaneInfo.NO_FIRING);
       default:
         throw new IllegalStateException("Unknown coder URN: " + coderSpec.getUrn());
     }
@@ -225,10 +247,15 @@ public class CommonCoderTest {
         return KvCoder.of(components.get(0), components.get(1));
       case "urn:beam:coders:varint:0.1":
         return VarLongCoder.of();
-      case "urn:beam:coders:intervalwindow:0.1":
+      case "urn:beam:coders:interval_window:0.1":
         return IntervalWindowCoder.of();
       case "urn:beam:coders:stream:0.1":
         return IterableCoder.of(components.get(0));
+      case "urn:beam:coders:global_window:0.1":
+        return GlobalWindow.Coder.INSTANCE;
+      case "urn:beam:coders:windowed_value:0.1":
+        return WindowedValue.FullWindowedValueCoder.of(components.get(0),
+            (Coder<BoundedWindow>) components.get(1));
       default:
         throw new IllegalStateException("Unknown coder URN: " + coder.getUrn());
     }
