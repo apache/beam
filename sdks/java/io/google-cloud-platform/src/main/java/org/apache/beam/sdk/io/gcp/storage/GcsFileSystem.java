@@ -129,6 +129,7 @@ class GcsFileSystem extends FileSystem<GcsResourceId> {
   }
 
   private List<MatchResult> matchGlobs(List<GcsPath> globs) {
+    // TODO: Executes in parallel, address https://issues.apache.org/jira/browse/BEAM-1503.
     return FluentIterable.from(globs)
         .transform(new Function<GcsPath, MatchResult>() {
           @Override
