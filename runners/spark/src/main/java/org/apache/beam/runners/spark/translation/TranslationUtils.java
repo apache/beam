@@ -21,7 +21,6 @@ package org.apache.beam.runners.spark.translation;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import java.io.Serializable;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.runners.core.InMemoryStateInternals;
@@ -42,11 +41,11 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.spark.api.java.JavaSparkContext;
-import org.apache.spark.api.java.function.FlatMapFunction;
 import org.apache.spark.api.java.function.Function;
 import org.apache.spark.api.java.function.PairFunction;
 import org.apache.spark.streaming.api.java.JavaDStream;
 import org.apache.spark.streaming.api.java.JavaPairDStream;
+
 import scala.Tuple2;
 
 /**
@@ -148,20 +147,17 @@ public final class TranslationUtils {
     };
   }
 
-  /** A Flatmap iterator function, flattening iterators into their elements. */
-  public static <T> FlatMapFunction<Iterator<T>, T> flattenIter() {
-    return new FlatMapFunction<Iterator<T>, T>() {
-      @Override
-      public Iterable<T> call(final Iterator<T> t) throws Exception {
-        return new Iterable<T>() {
+  /** Extract key from a {@link WindowedValue} {@link KV} into a pair. */
+  public static <K, V> PairFunction<WindowedValue<KV<K, V>>, K, WindowedValue<KV<K, V>>>
+      toPairByKeyInWindowedValue() {
+        return new PairFunction<WindowedValue<KV<K, V>>, K, WindowedValue<KV<K, V>>>() {
           @Override
-          public Iterator<T> iterator() {
-            return t;
-          }
+          public Tuple2<K, WindowedValue<KV<K, V>>> call(
+              WindowedValue<KV<K, V>> windowedKv) throws Exception {
+                return new Tuple2<>(windowedKv.getValue().getKey(), windowedKv);
+              }
         };
       }
-    };
-  }
 
   /**
    * A utility class to filter {@link TupleTag}s.

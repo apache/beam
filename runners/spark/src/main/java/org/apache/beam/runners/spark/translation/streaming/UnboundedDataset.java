@@ -56,11 +56,11 @@ public class UnboundedDataset<T> implements Dataset {
   // should be greater > 1 in case of Flatten for example.
   // when using GlobalWatermarkHolder this information helps to take only the relevant watermarks
   // and reason about them accordingly.
-  private final List<Integer> streamingSources = new ArrayList<>();
+  private final List<Integer> streamSources = new ArrayList<>();
 
-  public UnboundedDataset(JavaDStream<WindowedValue<T>> dStream, List<Integer> streamingSources) {
+  public UnboundedDataset(JavaDStream<WindowedValue<T>> dStream, List<Integer> streamSources) {
     this.dStream = dStream;
-    this.streamingSources.addAll(streamingSources);
+    this.streamSources.addAll(streamSources);
   }
 
   public UnboundedDataset(Iterable<Iterable<T>> values, JavaStreamingContext jssc, Coder<T> coder) {
@@ -68,7 +68,7 @@ public class UnboundedDataset<T> implements Dataset {
     this.jssc = jssc;
     this.coder = coder;
     // QueuedStream will have a negative (decreasing) unique id.
-    this.streamingSources.add(queuedStreamIds.decrementAndGet());
+    this.streamSources.add(queuedStreamIds.decrementAndGet());
   }
 
   @VisibleForTesting
@@ -97,8 +97,8 @@ public class UnboundedDataset<T> implements Dataset {
     return dStream;
   }
 
-  public List<Integer> getStreamingSources() {
-    return streamingSources;
+  public List<Integer> getStreamSources() {
+    return streamSources;
   }
 
   public void cache() {

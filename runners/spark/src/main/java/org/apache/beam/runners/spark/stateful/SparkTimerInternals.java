@@ -27,9 +27,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import javax.annotation.Nullable;
-import org.apache.beam.runners.spark.util.GlobalWatermarkHolder.SparkWatermarks;
 import org.apache.beam.runners.core.StateNamespace;
 import org.apache.beam.runners.core.TimerInternals;
+import org.apache.beam.runners.spark.util.GlobalWatermarkHolder.SparkWatermarks;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.TimeDomain;
 import org.apache.spark.broadcast.Broadcast;
@@ -145,7 +145,7 @@ class SparkTimerInternals implements TimerInternals {
     return inputWatermark;
   }
 
-  /** Advances the watermark - since */
+  /** Advances the watermark. */
   public void advanceWatermark() {
     inputWatermark = highWatermark;
   }

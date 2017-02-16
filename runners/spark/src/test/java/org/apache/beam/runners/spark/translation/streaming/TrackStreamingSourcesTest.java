@@ -157,7 +157,7 @@ public class TrackStreamingSourcesTest {
         ctxt.setCurrentTransform(appliedTransform);
         //noinspection unchecked
         Dataset dataset = ctxt.borrowDataset((PTransform<? extends PValue, ?>) transform);
-        assertSourceIds(((UnboundedDataset<?>) dataset).getStreamingSources());
+        assertSourceIds(((UnboundedDataset<?>) dataset).getStreamSources());
         ctxt.setCurrentTransform(null);
       } else {
         evaluator.visitPrimitiveTransform(node);
