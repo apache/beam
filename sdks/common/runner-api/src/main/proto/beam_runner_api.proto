@@ -682,7 +682,7 @@ message SdkFunctionSpec {
   // (Required) The raw data of the function that the SDK knows how to
   // deserialize, but need not be comprehensible to any other runner, SDK, or
   // other entity.
-  google.protobuf.Any data = 4;
+  bytes data = 4;
 }
 
 // TODO: transfer javadoc here
