@@ -646,7 +646,7 @@ def to_split_int(n):
   return res
 
 
-def distribution_updater(distribution_update, metric_update_proto):
+def translate_distribution(distribution_update, metric_update_proto):
   """Translate metrics DistributionUpdate to dataflow distribution update."""
   dist_update_proto = dataflow.DistributionUpdate()
   dist_update_proto.min = to_split_int(distribution_update.min)
