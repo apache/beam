@@ -398,9 +398,9 @@ public class GcsUtil {
       throws IOException {
     if (storageObjectOrIOException.ioException() != null) {
       throw storageObjectOrIOException.ioException();
+    } else {
+      return storageObjectOrIOException.storageObject().getSize().longValue();
     }
-    return checkNotNull(storageObjectOrIOException.storageObject(), "storageObject")
-        .getSize().longValue();
   }
 
   /**
@@ -682,9 +682,7 @@ public class GcsUtil {
     getRequest.queue(batch, new JsonBatchCallback<StorageObject>() {
       @Override
       public void onSuccess(StorageObject response, HttpHeaders httpHeaders) throws IOException {
-        ret[0] = StorageObjectOrIOException.builder()
-            .setStorageObject(response)
-            .build();
+        ret[0] = StorageObjectOrIOException.create(response);
       }
 
       @Override
@@ -695,9 +693,7 @@ public class GcsUtil {
         } else {
           ioException = new IOException(String.format("Error trying to get %s: %s", path, e));
         }
-        ret[0] = StorageObjectOrIOException.builder()
-            .setIoException(ioException)
-            .build();
+        ret[0] = StorageObjectOrIOException.create(ioException);
       }
     });
     return ret;
@@ -721,8 +717,16 @@ public class GcsUtil {
     @Nullable
     public abstract IOException ioException();
 
-    static Builder builder() {
-      return new AutoValue_GcsUtil_StorageObjectOrIOException.Builder();
+    static StorageObjectOrIOException create(StorageObject storageObject) {
+      return new AutoValue_GcsUtil_StorageObjectOrIOException.Builder()
+          .setStorageObject(checkNotNull(storageObject, "storageObject"))
+          .build();
+    }
+
+    static StorageObjectOrIOException create(IOException ioException) {
+      return new AutoValue_GcsUtil_StorageObjectOrIOException.Builder()
+          .setIoException(checkNotNull(ioException, "ioException"))
+          .build();
     }
 
     @AutoValue.Builder
