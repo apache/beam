@@ -589,13 +589,12 @@ class WindowedValueCoderImpl(StreamCoderImpl):
   def encode_to_stream(self, value, out, nested):
     wv = value  # type cast
     # Avoid creation of Timestamp object.
-    restore_sign = -1 if wv.timestamp_micros < 0 else 1
     out.write_bigendian_uint64(
-        # Convert to postive number and divide, since python rounds off to the
-        # lower negative number. For ex: -3 / 2 = -2, but we expect it to be -1,
-        # to be consistent across SDKs.
-        self._from_normal_time(
-            restore_sign * (abs(wv.timestamp_micros) / 1000)))
+        # Since python integer division rounds off to the lower negative number,
+        # we used float division and converting back to int.
+        # For ex: -3 / 2 = -2, but we expect it to be -1, to be consistent
+        # across SDKs.
+        self._from_normal_time(int(wv.timestamp_micros / 1000.0)))
     self._windows_coder.encode_to_stream(wv.windows, out, True)
     # Default PaneInfo encoded byte representing NO_FIRING.
     # TODO(vikasrk): Remove the hard coding here once PaneInfo is supported.
@@ -610,9 +609,9 @@ class WindowedValueCoderImpl(StreamCoderImpl):
     # were indeed MIN/MAX timestamps.
     # TODO(vikasrk): Clean this up once we have a BEAM wide consensus on
     # precision of timestamps.
-    if timestamp == -(abs(MIN_TIMESTAMP.micros) / 1000):
+    if timestamp == int(MIN_TIMESTAMP.micros / 1000.0):
       timestamp = MIN_TIMESTAMP.micros
-    elif timestamp == (MAX_TIMESTAMP.micros / 1000):
+    elif timestamp == int(MAX_TIMESTAMP.micros / 1000.0):
       timestamp = MAX_TIMESTAMP.micros
     else:
       timestamp *= 1000
