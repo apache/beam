@@ -28,7 +28,6 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
 
 import java.io.Serializable;
-import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.testing.RunnableOnService;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -41,6 +40,7 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.hamcrest.CoreMatchers;
 import org.junit.After;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 
@@ -52,6 +52,9 @@ public class MetricsTest implements Serializable {
   private static final String NS = "test";
   private static final String NAME = "name";
   private static final MetricName METRIC_NAME = MetricName.named(NS, NAME);
+
+  @Rule
+  public final transient TestPipeline pipeline = TestPipeline.create();
 
   @After
   public void tearDown() {
@@ -168,7 +171,6 @@ public class MetricsTest implements Serializable {
 
   private PipelineResult runPipelineWithMetrics() {
     final Counter count = Metrics.counter(MetricsTest.class, "count");
-    Pipeline pipeline = TestPipeline.create();
     final TupleTag<Integer> output1 = new TupleTag<Integer>(){};
     final TupleTag<Integer> output2 = new TupleTag<Integer>(){};
     pipeline
