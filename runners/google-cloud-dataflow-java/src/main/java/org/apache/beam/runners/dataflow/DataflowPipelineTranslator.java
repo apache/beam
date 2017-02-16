@@ -58,6 +58,7 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.dataflow.BatchViewOverrides.GroupByKeyAndSortValuesOnly;
+import org.apache.beam.runners.dataflow.DataflowRunner.CombineGroupedValues;
 import org.apache.beam.runners.dataflow.TransformTranslator.StepTranslationContext;
 import org.apache.beam.runners.dataflow.TransformTranslator.TranslationContext;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
@@ -72,7 +73,6 @@ import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.Combine;
-import org.apache.beam.sdk.transforms.Combine.GroupedValues;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.GroupByKey;
@@ -405,20 +405,12 @@ public class DataflowPipelineTranslator {
       return currentTransform;
     }
 
-
-    @Override
-    public void leaveCompositeTransform(TransformHierarchy.Node node) {
-    }
-
     @Override
     public void visitPrimitiveTransform(TransformHierarchy.Node node) {
       PTransform<?, ?> transform = node.getTransform();
-      TransformTranslator translator =
-          getTransformTranslator(transform.getClass());
-      if (translator == null) {
-        throw new IllegalStateException(
-            "no translator registered for " + transform);
-      }
+      TransformTranslator translator = getTransformTranslator(transform.getClass());
+      checkState(
+          translator != null, "no translator registered for primitive transform %s", transform);
       LOG.debug("Translating {}", transform);
       currentTransform = node.toAppliedPTransform();
       translator.translate(transform, this);
@@ -718,32 +710,36 @@ public class DataflowPipelineTranslator {
         });
 
     DataflowPipelineTranslator.registerTransformTranslator(
-        Combine.GroupedValues.class,
-        new TransformTranslator<GroupedValues>() {
+        DataflowRunner.CombineGroupedValues.class,
+        new TransformTranslator<CombineGroupedValues>() {
           @Override
-          public void translate(
-              Combine.GroupedValues transform,
-              TranslationContext context) {
+          public void translate(CombineGroupedValues transform, TranslationContext context) {
             translateHelper(transform, context);
           }
 
           private <K, InputT, OutputT> void translateHelper(
-              final Combine.GroupedValues<K, InputT, OutputT> transform,
+              final CombineGroupedValues<K, InputT, OutputT> primitiveTransform,
               TranslationContext context) {
-            StepTranslationContext stepContext = context.addStep(transform, "CombineValues");
+            Combine.GroupedValues<K, InputT, OutputT> originalTransform =
+                primitiveTransform.getOriginalCombine();
+            StepTranslationContext stepContext =
+                context.addStep(primitiveTransform, "CombineValues");
             translateInputs(
-                stepContext, context.getInput(transform), transform.getSideInputs(), context);
+                stepContext,
+                context.getInput(primitiveTransform),
+                originalTransform.getSideInputs(),
+                context);
 
             AppliedCombineFn<? super K, ? super InputT, ?, OutputT> fn =
-                transform.getAppliedFn(
-                    context.getInput(transform).getPipeline().getCoderRegistry(),
-                    context.getInput(transform).getCoder(),
-                    context.getInput(transform).getWindowingStrategy());
+                originalTransform.getAppliedFn(
+                    context.getInput(primitiveTransform).getPipeline().getCoderRegistry(),
+                    context.getInput(primitiveTransform).getCoder(),
+                    context.getInput(primitiveTransform).getWindowingStrategy());
 
             stepContext.addEncodingInput(fn.getAccumulatorCoder());
             stepContext.addInput(
                 PropertyNames.SERIALIZED_FN, byteArrayToJsonString(serializeToByteArray(fn)));
-            stepContext.addOutput(context.getOutput(transform));
+            stepContext.addOutput(context.getOutput(primitiveTransform));
           }
         });
 
