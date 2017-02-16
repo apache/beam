@@ -23,7 +23,7 @@ pipelines, during remote execution.
 from __future__ import absolute_import
 
 from apache_beam import coders
-from apache_beam.runners.dataflow.native_io import iobase as dataflow_io
+from apache_beam.runners.google_cloud_dataflow.native_io import iobase as dataflow_io
 from apache_beam.transforms.display import DisplayDataItem
 
 
