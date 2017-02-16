@@ -30,17 +30,9 @@ option java_outer_classname = "RunnerApi";
 
 import "google/protobuf/any.proto";
 
-// A Pipeline is a hierarchical graph of PTransforms, linked
-// by PCollections.
-//
-// This is represented by a number of by-reference maps to nodes,
-// PCollections, SDK environments, UDF, etc., for
-// supporting compact reuse and arbitrary graph structure.
-//
-// All of the keys in the maps here are arbitrary strings that are only
-// required to be internally consistent within this proto message.
-message Pipeline {
-
+// A set of mappings from id to message. This is included as an optional field
+// on any proto message that may contain references needing resolution.
+message Components {
   // (Required) A map from pipeline-scoped id to GraphNode<PTransform, PCollection>
   //
   // Each node is required to contain a PTransform specification.
@@ -61,9 +53,58 @@ message Pipeline {
   // (Required) A map from pipeline-scoped id to FunctionSpec,
   // a record for a particular user-defined function.
   map<string, FunctionSpec> function_specs = 6;
+}
+
+// A disjoint union of all the things that may contain references
+// that require Components to resolve.
+message MessageWithComponents {
+
+  // (Optional) The by-reference components of the root message,
+  // enabling a standalone message.
+  //
+  // If this is absent, it is expected that there are no
+  // references.
+  Components components = 1;
+
+  // (Required) The root message that may contain pointers
+  // that should be resolved by looking inside components.
+  oneof root {
+    Coder coder = 2;
+    CombinePayload combine_payload = 3;
+    FunctionSpec function_spec = 4;
+    GraphNode graph_node = 5;
+    ParDoPayload par_do_payload = 6;
+    PTransform ptransform = 7;
+    PCollection pcollection = 8;
+    ReadPayload read_payload = 9;
+    SdkFunctionSpec sdk_function_spec = 10;
+    SideInput side_input = 11;
+    WindowIntoPayload window_into_payload = 12;
+    WindowingStrategy windowing_strategy = 13;
+    UrnWithParameter urn_with_parameter = 14;
+  }
+}
+
+// A Pipeline is a hierarchical graph of PTransforms, linked
+// by PCollections.
+//
+// This is represented by a number of by-reference maps to nodes,
+// PCollections, SDK environments, UDF, etc., for
+// supporting compact reuse and arbitrary graph structure.
+//
+// All of the keys in the maps here are arbitrary strings that are only
+// required to be internally consistent within this proto message.
+message Pipeline {
+
+  // (Required) The coders, UDFs, graph nodes, etc, that make up
+  // this pipeline.
+  Components components = 1;
+
+  // (Required) The graph node that is the root of the graph.
+  string root_graph_node = 2;
 
   // (Required) Static display data for the pipeline.
-  DisplayData display_data = 7;
+  DisplayData display_data = 3;
 }
 
 // A generic node in a bipartite directed hierarchical graph.
@@ -270,6 +311,7 @@ message ReadPayload {
 
 // The payload for the WindowInto transform.
 message WindowIntoPayload {
+
   // (Required) The pipeline-scoped id for the FunctionSpec of the WindowFn.
   string fn_id = 1;
 }
