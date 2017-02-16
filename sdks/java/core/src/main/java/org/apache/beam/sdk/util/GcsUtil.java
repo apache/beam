@@ -54,6 +54,7 @@ import java.nio.channels.SeekableByteChannel;
 import java.nio.channels.WritableByteChannel;
 import java.nio.file.AccessDeniedException;
 import java.nio.file.FileAlreadyExistsException;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedList;
@@ -343,7 +344,7 @@ public class GcsUtil {
    */
   public List<StorageObjectOrIOException> getObjects(List<GcsPath> gcsPaths)
       throws IOException {
-    List<StorageObjectOrIOException[]> results = Lists.newArrayList();
+    List<StorageObjectOrIOException[]> results = new ArrayList<>();
     executeBatches(makeGetBatches(gcsPaths, results));
     ImmutableList.Builder<StorageObjectOrIOException> ret = ImmutableList.builder();
     for (StorageObjectOrIOException[] result : results) {
