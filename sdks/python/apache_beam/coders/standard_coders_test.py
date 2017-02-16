@@ -32,7 +32,6 @@ from apache_beam.utils.timestamp import Timestamp
 from apache_beam.transforms.window import IntervalWindow
 from apache_beam.transforms import window
 
-
 from nose_parameterized import parameterized
 
 STANDARD_CODERS_YAML = os.path.join(

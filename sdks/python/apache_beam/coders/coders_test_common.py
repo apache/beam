@@ -264,7 +264,7 @@ class CodersTest(unittest.TestCase):
         },
         coder.as_cloud_object())
     # Test binary representation
-    self.assertEqual('\x7f\xdf;dZ\x1c\xac\t\x0f\x00\x00\x00\x01\x01',
+    self.assertEqual('\x7f\xdf;dZ\x1c\xac\t\x00\x00\x00\x01\x0f\x01',
                      coder.encode(window.GlobalWindows.windowed_value(1)))
     # Test unnested
     self.check_coder(

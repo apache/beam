@@ -590,30 +590,33 @@ class WindowedValueCoderImpl(StreamCoderImpl):
     wv = value  # type cast
     # Avoid creation of Timestamp object.
     out.write_bigendian_uint64(
-        # Convert to postive number and divide since python rounds off the lower
-        # negative number. For ex: -3 / 2 = -2, but we expect it to be -1, to be
-        # consistent across SDKs.
+        # Convert to postive number and divide, since python rounds off to the
+        # lower negative number. For ex: -3 / 2 = -2, but we expect it to be -1,
+        # to be consistent across SDKs.
         self._from_normal_time(-(-wv.timestamp_micros / 1000)))
     self._windows_coder.encode_to_stream(wv.windows, out, True)
     # Default PaneInfo encoded byte representing NO_FIRING.
-    # TODO(vikasrk): Remove the hard coding here and add support for PaneInfo.
+    # TODO(vikasrk): Remove the hard coding here once PaneInfo is supported.
     out.write_byte(0xF)
     self._value_coder.encode_to_stream(wv.value, out, nested)
 
-
   def decode_from_stream(self, in_stream, nested):
     timestamp = self._to_normal_time(in_stream.read_bigendian_uint64())
-    # Restore MIN/MAX timestamps manually as encoding incurs loss
+    # Restore MIN/MAX timestamps to their actual values as encoding incurs loss
     # of precision while converting to millis.
+    # Note: This is only a best effort here as there is no way to know if these
+    # were indeed MIN/MAX timestamps.
+    # TODO(vikasrk): Clean this up once we have a BEAM wide consensus on
+    # precision of timestamps.
     if timestamp == -(-MIN_TIMESTAMP.micros / 1000):
       timestamp = MIN_TIMESTAMP.micros
-    elif timestamp == -(- MAX_TIMESTAMP.micros / 1000):
+    elif timestamp == -(-MAX_TIMESTAMP.micros / 1000):
       timestamp = MAX_TIMESTAMP.micros
     else:
       timestamp *= 1000
 
     windows = self._windows_coder.decode_from_stream(in_stream, True)
-    # Read and discard PaneInfo.
+    # Read PaneInfo encoded byte.
     in_stream.read_byte()
     value = self._value_coder.decode_from_stream(in_stream, nested)
     return windowed_value.create(

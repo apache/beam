@@ -220,16 +220,16 @@ public class CommonCoderTest {
         Map<String, Object> kvMap = (Map<String, Object>) value;
         Coder valueCoder = ((WindowedValue.FullWindowedValueCoder) coder).getValueCoder();
         Coder windowCoder = ((WindowedValue.FullWindowedValueCoder) coder).getWindowCoder();
-        Object window_value = convertValue(
+        Object windowValue = convertValue(
             kvMap.get("value"), coderSpec.getComponents().get(0), valueCoder);
         Instant timestamp = new Instant(((Number) kvMap.get("timestamp")).longValue());
         List<BoundedWindow> windows = new LinkedList<>();
-        for(Object window: ((List<Object>) kvMap.get("windows"))) {
+        for (Object window: ((List<Object>) kvMap.get("windows"))) {
           windows.add((BoundedWindow) convertValue(window, coderSpec.getComponents().get(1),
               windowCoder));
         }
         // Note: Until Python SDK supports PaneInfo, we default to PaneInfo.NO_FIRING.
-        return WindowedValue.of(window_value, timestamp, windows, PaneInfo.NO_FIRING);
+        return WindowedValue.of(windowValue, timestamp, windows, PaneInfo.NO_FIRING);
       default:
         throw new IllegalStateException("Unknown coder URN: " + coderSpec.getUrn());
     }
