@@ -160,13 +160,66 @@ public class GcsUtil {
    * Returns true if the given GCS pattern is supported otherwise fails with an
    * exception.
    */
-  public boolean isGcsPatternSupported(String gcsPattern) {
+  public static boolean isGcsPatternSupported(String gcsPattern) {
     if (RECURSIVE_GCS_PATTERN.matcher(gcsPattern).matches()) {
       throw new IllegalArgumentException("Unsupported wildcard usage in \"" + gcsPattern + "\": "
           + " recursive wildcards are not supported.");
     }
-
     return true;
+  }
+
+  /**
+   * Returns the prefix portion of the glob that doesn't contain wildcards.
+   */
+  public static String getGlobPrefix(String globExp) {
+    checkArgument(isGcsPatternSupported(globExp));
+    Matcher m = GLOB_PREFIX.matcher(globExp);
+    checkArgument(
+        m.matches(),
+        String.format("Glob expression: [%s] is not expandable.", globExp));
+    return m.group("PREFIX");
+  }
+
+  /**
+   * Expands glob expressions to regular expressions.
+   *
+   * @param globExp the glob expression to expand
+   * @return a string with the regular expression this glob expands to
+   */
+  public static String globToRegexp(String globExp) {
+    StringBuilder dst = new StringBuilder();
+    char[] src = globExp.toCharArray();
+    int i = 0;
+    while (i < src.length) {
+      char c = src[i++];
+      switch (c) {
+        case '*':
+          dst.append("[^/]*");
+          break;
+        case '?':
+          dst.append("[^/]");
+          break;
+        case '.':
+        case '+':
+        case '{':
+        case '}':
+        case '(':
+        case ')':
+        case '|':
+        case '^':
+        case '$':
+          // These need to be escaped in regular expressions
+          dst.append('\\').append(c);
+          break;
+        case '\\':
+          i = doubleSlashes(dst, src, i);
+          break;
+        default:
+          dst.append(c);
+          break;
+      }
+    }
+    return dst.toString();
   }
 
   private GcsUtil(
@@ -192,10 +245,9 @@ public class GcsUtil {
    */
   public List<GcsPath> expand(GcsPath gcsPattern) throws IOException {
     checkArgument(isGcsPatternSupported(gcsPattern.getObject()));
-    Matcher m = GLOB_PREFIX.matcher(gcsPattern.getObject());
     Pattern p = null;
     String prefix = null;
-    if (!m.matches()) {
+    if (!GLOB_PREFIX.matcher(gcsPattern.getObject()).matches()) {
       // Not a glob.
       try {
         // Use a get request to fetch the metadata of the object, and ignore the return value.
@@ -208,7 +260,7 @@ public class GcsUtil {
       }
     } else {
       // Part before the first wildcard character.
-      prefix = m.group("PREFIX");
+      prefix = getGlobPrefix(gcsPattern.getObject());
       p = Pattern.compile(globToRegexp(gcsPattern.getObject()));
     }
 
@@ -666,48 +718,6 @@ public class GcsUtil {
 
   private BatchRequest createBatchRequest() {
     return storageClient.batch(httpRequestInitializer);
-  }
-
-  /**
-   * Expands glob expressions to regular expressions.
-   *
-   * @param globExp the glob expression to expand
-   * @return a string with the regular expression this glob expands to
-   */
-  static String globToRegexp(String globExp) {
-    StringBuilder dst = new StringBuilder();
-    char[] src = globExp.toCharArray();
-    int i = 0;
-    while (i < src.length) {
-      char c = src[i++];
-      switch (c) {
-        case '*':
-          dst.append("[^/]*");
-          break;
-        case '?':
-          dst.append("[^/]");
-          break;
-        case '.':
-        case '+':
-        case '{':
-        case '}':
-        case '(':
-        case ')':
-        case '|':
-        case '^':
-        case '$':
-          // These need to be escaped in regular expressions
-          dst.append('\\').append(c);
-          break;
-        case '\\':
-          i = doubleSlashes(dst, src, i);
-          break;
-        default:
-          dst.append(c);
-          break;
-      }
-    }
-    return dst.toString();
   }
 
   private static int doubleSlashes(StringBuilder dst, char[] src, int i) {
