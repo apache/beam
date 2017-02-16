@@ -560,11 +560,12 @@ public class DataflowRunnerTest {
   public void testNonGcsFilePathInWriteFailure() throws IOException {
     Pipeline p = buildDataflowPipeline(buildPipelineOptions());
 
-    PCollection<String> pc = p.apply("ReadMyGcsFile", TextIO.Read.from("gs://bucket/object"));
+    p.apply("ReadMyGcsFile", TextIO.Read.from("gs://bucket/object"))
+        .apply("WriteMyNonGcsFile", TextIO.Write.to("/tmp/file"));
 
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage(containsString("Expected a valid 'gs://' path but was given"));
-    pc.apply("WriteMyNonGcsFile", TextIO.Write.to("/tmp/file"));
+    p.run();
   }
 
   @Test
@@ -586,10 +587,11 @@ public class DataflowRunnerTest {
   public void testMultiSlashGcsFileWritePath() throws IOException {
     Pipeline p = buildDataflowPipeline(buildPipelineOptions());
     PCollection<String> pc = p.apply("ReadMyGcsFile", TextIO.Read.from("gs://bucket/object"));
+    pc.apply("WriteInvalidGcsFile", TextIO.Write.to("gs://bucket/tmp//file"));
 
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("consecutive slashes");
-    pc.apply("WriteInvalidGcsFile", TextIO.Write.to("gs://bucket/tmp//file"));
+    p.run();
   }
 
   @Test
