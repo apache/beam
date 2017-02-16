@@ -720,23 +720,16 @@ public class GcsUtil {
 
     @VisibleForTesting
     public static StorageObjectOrIOException create(StorageObject storageObject) {
-      return new AutoValue_GcsUtil_StorageObjectOrIOException.Builder()
-          .setStorageObject(checkNotNull(storageObject, "storageObject"))
-          .build();
+      return new AutoValue_GcsUtil_StorageObjectOrIOException(
+          checkNotNull(storageObject, "storageObject"),
+          null /* ioException */);
     }
 
     @VisibleForTesting
     public static StorageObjectOrIOException create(IOException ioException) {
-      return new AutoValue_GcsUtil_StorageObjectOrIOException.Builder()
-          .setIoException(checkNotNull(ioException, "ioException"))
-          .build();
-    }
-
-    @AutoValue.Builder
-    abstract static class Builder {
-      abstract Builder setStorageObject(StorageObject value);
-      abstract Builder setIoException(IOException value);
-      abstract StorageObjectOrIOException build();
+      return new AutoValue_GcsUtil_StorageObjectOrIOException(
+          null /* storageObject */,
+          checkNotNull(ioException, "ioException"));
     }
   }
 
