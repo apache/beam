@@ -313,7 +313,7 @@ class ReduceStateByKeyReducer implements Runnable {
   } // ~ end of ProcessingStats
 
   static final class ScopedStorage {
-    final class StorageKey {
+    static final class StorageKey {
       private final Object itemKey;
       private final Window itemWindow;
       private final String storeId;

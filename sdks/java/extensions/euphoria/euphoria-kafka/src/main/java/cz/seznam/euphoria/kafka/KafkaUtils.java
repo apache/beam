@@ -99,7 +99,7 @@ class KafkaUtils {
     for (String seed : servers) {
 
       String[] parsedServer = seed.split(":");
-      int port = new Integer(parsedServer[1]);
+      int port = Integer.parseInt(parsedServer[1]);
       String server = parsedServer[0];
       SimpleConsumer consumer = null;
 
