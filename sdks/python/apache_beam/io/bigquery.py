@@ -116,7 +116,7 @@ from apache_beam import coders
 from apache_beam.internal import auth
 from apache_beam.internal.json_value import from_json_value
 from apache_beam.internal.json_value import to_json_value
-from apache_beam.runners.dataflow.native_io import iobase as dataflow_io
+from apache_beam.runners.google_cloud_dataflow.native_io import iobase as dataflow_io
 from apache_beam.transforms.display import DisplayDataItem
 from apache_beam.utils import retry
 from apache_beam.utils.pipeline_options import GoogleCloudOptions

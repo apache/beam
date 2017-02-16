@@ -18,11 +18,12 @@
 """Unit tests for the DataflowRunner class."""
 
 import unittest
+
 import mock
 
 from apache_beam.internal.clients import dataflow as dataflow_api
-from apache_beam.runners.dataflow_runner import DataflowRuntimeException
-from apache_beam.runners.dataflow_runner import DataflowPipelineResult
+from apache_beam.runners.google_cloud_dataflow.dataflow_runner import DataflowPipelineResult
+from apache_beam.runners.google_cloud_dataflow.dataflow_runner import DataflowRuntimeException
 
 
 class DataflowRunnerTest(unittest.TestCase):
