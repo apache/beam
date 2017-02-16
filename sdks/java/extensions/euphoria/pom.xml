@@ -402,6 +402,28 @@
         </executions>
       </plugin>
 
+      <!-- static analysis of the code using FindBugs -->
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>findbugs-maven-plugin</artifactId>
+        <version>3.0.4</version>
+        <configuration>
+          <effort>max</effort>
+          <!-- check only for 'troubling' bugs and worse -->
+          <maxRank>14</maxRank>
+          <xmlOutput>false</xmlOutput>
+          <includeTests>true</includeTests>
+        </configuration>
+        <executions>
+          <execution>
+            <phase>compile</phase>
+            <goals>
+              <goal>check</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+
     </plugins>
   </build>
 
