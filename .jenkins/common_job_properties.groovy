@@ -98,10 +98,10 @@ class common_job_properties {
 
   // Sets the pull request build trigger. Accessed through precommit methods
   // below to insulate callers from internal parameter defaults.
-  private static def setPullRequestBuildTrigger(context,
-                                                String commitStatusContext,
-                                                String successComment = '--none--',
-                                                String prTriggerPhrase = '') {
+  private static void setPullRequestBuildTrigger(context,
+                                                 String commitStatusContext,
+                                                 String successComment = '--none--',
+                                                 String prTriggerPhrase = '') {
     context.triggers {
       githubPullRequest {
         admins(['asfbot'])
@@ -160,7 +160,7 @@ class common_job_properties {
   }
 
   // Sets common config for Maven jobs.
-  static def setMavenConfig(context) {
+  static void setMavenConfig(context) {
     context.mavenInstallation('Maven 3.3.3')
     context.mavenOpts('-Dorg.slf4j.simpleLogger.showDateTime=true')
     context.mavenOpts('-Dorg.slf4j.simpleLogger.dateTimeFormat=yyyy-MM-dd\\\'T\\\'HH:mm:ss.SSS')
@@ -174,9 +174,9 @@ class common_job_properties {
   }
 
   // Sets common config for PreCommit jobs.
-  static def setPreCommit(context,
-                          String commitStatusName,
-                          String successComment = '--none--') {
+  static void setPreCommit(context,
+                           String commitStatusName,
+                           String successComment = '--none--') {
     // Set pull request build trigger.
     setPullRequestBuildTrigger(context, commitStatusName, successComment)
   }
@@ -184,9 +184,9 @@ class common_job_properties {
   // Enable triggering postcommit runs against pull requests. Users can comment the trigger phrase
   // specified in the postcommit job and have the job run against their PR to run
   // tests not in the presubmit suite for additional confidence.
-  static def enablePhraseTriggeringFromPullRequest(context,
-                                                   String commitStatusName,
-                                                   String prTriggerPhrase) {
+  static void enablePhraseTriggeringFromPullRequest(context,
+                                                    String commitStatusName,
+                                                    String prTriggerPhrase) {
     setPullRequestBuildTrigger(
       context,
       commitStatusName,
@@ -195,10 +195,10 @@ class common_job_properties {
   }
 
   // Sets common config for PostCommit jobs.
-  static def setPostCommit(context,
-                           String buildSchedule = '0 */6 * * *',
-                           boolean triggerEveryPush = true,
-                           String notifyAddress = 'commits@beam.apache.org') {
+  static void setPostCommit(context,
+                            String buildSchedule = '0 */6 * * *',
+                            boolean triggerEveryPush = true,
+                            String notifyAddress = 'commits@beam.apache.org') {
     // Set build triggers
     context.triggers {
       // By default runs every 6 hours.
