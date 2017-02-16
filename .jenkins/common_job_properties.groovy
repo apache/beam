@@ -38,7 +38,7 @@ class common_job_properties {
   private static void setTopLevelJobProperties(context,
                                                String repositoryName,
                                                String defaultBranch,
-                                               String defaultTimeout) {
+                                               int defaultTimeout) {
 
     // GitHub project.
     context.properties {
