@@ -33,8 +33,8 @@ class common_job_properties {
     setTopLevelJobProperties(context, 'beam', defaultBranch, 100)
   }
 
-  // Sets common top-level job properties. Should be accessed through one of the
-  // above methods to protect jobs from internal details of param defaults.
+  // Sets common top-level job properties. Accessed through one of the above
+  // methods to protect jobs from internal details of param defaults.
   private static void setTopLevelJobProperties(context,
                                                String repositoryName,
                                                String defaultBranch,
@@ -42,7 +42,7 @@ class common_job_properties {
 
     // GitHub project.
     context.properties {
-      githubProjectUrl('https://github.com/apache/' + repositoryName + '/')
+      githubProjectUrl('https://github.com/apache/{$repositoryName}/')
     }
 
     // Set JDK version.
@@ -61,7 +61,7 @@ class common_job_properties {
     context.scm {
       git {
         remote {
-          url('https://github.com/apache/' + repositoryName + '.git')
+          url('https://github.com/apache/{$repositoryName}.git')
           refspec('+refs/heads/*:refs/remotes/origin/* ' +
                   '+refs/pull/*:refs/remotes/origin/pr/*')
         }
@@ -116,7 +116,7 @@ class common_job_properties {
         // overrides the default trigger phrase with the new one. Setting this
         // will disable automatic invocation of this build; the phrase will be
         // required to start it.
-        if (prTriggerPhrase != '') {
+        if (prTriggerPhrase) {
           triggerPhrase(prTriggerPhrase)
           onlyTriggerPhrase()
         }
