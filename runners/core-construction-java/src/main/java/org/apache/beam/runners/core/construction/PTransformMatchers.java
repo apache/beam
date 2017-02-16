@@ -162,6 +162,27 @@ public class PTransformMatchers {
   }
 
   /**
+   * A {@link PTransformMatcher} which matches a {@link ParDo.Bound} or {@link ParDo.BoundMulti}
+   * where the {@link DoFn} is of the provided type.
+   */
+  public static PTransformMatcher parDoWithFnType(final Class<? extends DoFn> fnType) {
+    return new PTransformMatcher() {
+      @Override
+      public boolean matches(AppliedPTransform<?, ?, ?> application) {
+        DoFn<?, ?> fn;
+        if (application.getTransform() instanceof ParDo.Bound) {
+          fn = ((ParDo.Bound) application.getTransform()).getFn();
+        } else if (application.getTransform() instanceof ParDo.BoundMulti) {
+          fn = ((ParDo.BoundMulti) application.getTransform()).getFn();
+        } else {
+          return false;
+        }
+        return fnType.equals(fn.getClass());
+      }
+    };
+  }
+
+  /**
    * A {@link PTransformMatcher} which matches a {@link Flatten.FlattenPCollectionList} which
    * consumes no input {@link PCollection PCollections}.
    */
