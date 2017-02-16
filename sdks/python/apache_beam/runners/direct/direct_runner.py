@@ -26,12 +26,13 @@ from __future__ import absolute_import
 import collections
 import logging
 
-from apache_beam.runners.direct.bundle_factory import BundleFactory
 from apache_beam.metrics.execution import MetricsEnvironment
+from apache_beam.runners.direct.bundle_factory import BundleFactory
 from apache_beam.runners.runner import PipelineResult
 from apache_beam.runners.runner import PipelineRunner
 from apache_beam.runners.runner import PipelineState
 from apache_beam.runners.runner import PValueCache
+from apache_beam.utils.pipeline_options import DirectOptions
 
 
 class DirectRunner(PipelineRunner):
@@ -71,7 +72,8 @@ class DirectRunner(PipelineRunner):
 
     evaluation_context = EvaluationContext(
         pipeline.options,
-        BundleFactory(),
+        BundleFactory(stacked=pipeline.options.view_as(DirectOptions)
+                      .direct_runner_use_stacked_bundle),
         self.visitor.root_transforms,
         self.visitor.value_to_consumers,
         self.visitor.step_names,

@@ -38,6 +38,8 @@ from apache_beam.runners import DirectRunner
 from apache_beam.runners import TestDataflowRunner
 import apache_beam.transforms as ptransform
 from apache_beam.transforms.display import DisplayDataItem
+from apache_beam.transforms.util import assert_that
+from apache_beam.transforms.util import equal_to
 from apache_beam.utils.pipeline_options import PipelineOptions
 
 from apache_beam.metrics.cells import DistributionData
@@ -165,11 +167,11 @@ class RunnerTest(unittest.TestCase):
     runner = DirectRunner()
     p = Pipeline(runner,
                  options=PipelineOptions(self.default_properties))
-    # pylint: disable=expression-not-assigned
-    (p | ptransform.Create([1, 2, 3, 4, 5])
-     | 'Do' >> beam.ParDo(MyDoFn()))
+    pcoll = (p | ptransform.Create([1, 2, 3, 4, 5])
+             | 'Do' >> beam.ParDo(MyDoFn()))
     result = p.run()
     result.wait_until_finish()
+    assert_that(pcoll, equal_to([1, 2, 3, 4, 5]))
     metrics = result.metrics().query()
     namespace = '{}.{}'.format(MyDoFn.__module__,
                                MyDoFn.__name__)

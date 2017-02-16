@@ -228,6 +228,20 @@ class TypeOptions(PipelineOptions):
                         'DirectRunner')
 
 
+class DirectOptions(PipelineOptions):
+  """DirectRunner-specific execution options."""
+
+  @classmethod
+  def _add_argparse_args(cls, parser):
+    parser.add_argument(
+        '--no_direct_runner_use_stacked_bundle',
+        action='store_false',
+        dest='direct_runner_use_stacked_bundle',
+        help='DirectRunner uses stacked WindowedValues within a Bundle for '
+        'memory optimization. Set --no_direct_runner_use_stacked_bundle to '
+        'avoid it.')
+
+
 class GoogleCloudOptions(PipelineOptions):
   """Google Cloud Dataflow service execution options."""
 
