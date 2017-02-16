@@ -18,9 +18,13 @@
 
 import unittest
 
-from apache_beam.utils.pipeline_options import PipelineOptions
-from apache_beam.runners.dataflow_runner import DataflowRunner
+from mock import Mock
+
 from apache_beam.internal import apiclient
+from apache_beam.internal.clients import dataflow
+from apache_beam.metrics.cells import DistributionData
+from apache_beam.runners.dataflow_runner import DataflowRunner
+from apache_beam.utils.pipeline_options import PipelineOptions
 
 
 class UtilTest(unittest.TestCase):
@@ -36,6 +40,47 @@ class UtilTest(unittest.TestCase):
     job_name = apiclient.Job.default_job_name(None)
     regexp = 'beamapp-.*-[0-9]{10}-[0-9]{6}'
     self.assertRegexpMatches(job_name, regexp)
+
+  def test_split_int(self):
+    number = 12345
+    split_number = apiclient.to_split_int(number)
+    self.assertEqual((split_number.lowBits, split_number.highBits),
+                     (number, 0))
+    shift_number = number << 32
+    split_number = apiclient.to_split_int(shift_number)
+    self.assertEqual((split_number.lowBits, split_number.highBits),
+                     (0, number))
+
+  def test_translate_distribution(self):
+    metric_update = dataflow.CounterUpdate()
+    distribution_update = DistributionData(16, 2, 1, 15)
+    apiclient.translate_distribution(distribution_update, metric_update)
+    self.assertEqual(metric_update.distribution.min.lowBits,
+                     distribution_update.min)
+    self.assertEqual(metric_update.distribution.max.lowBits,
+                     distribution_update.max)
+    self.assertEqual(metric_update.distribution.sum.lowBits,
+                     distribution_update.sum)
+    self.assertEqual(metric_update.distribution.count.lowBits,
+                     distribution_update.count)
+
+  def test_translate_means(self):
+    metric_update = dataflow.CounterUpdate()
+    accumulator = Mock()
+    accumulator.sum = 16
+    accumulator.count = 2
+    apiclient.MetricUpdateTranslators.translate_scalar_mean_int(accumulator,
+                                                                metric_update)
+    self.assertEqual(metric_update.integerMean.sum.lowBits, accumulator.sum)
+    self.assertEqual(metric_update.integerMean.count.lowBits, accumulator.count)
+
+    accumulator.sum = 16.0
+    accumulator.count = 2
+    apiclient.MetricUpdateTranslators.translate_scalar_mean_float(accumulator,
+                                                                  metric_update)
+    self.assertEqual(metric_update.floatingPointMean.sum, accumulator.sum)
+    self.assertEqual(
+        metric_update.floatingPointMean.count.lowBits, accumulator.count)
 
 
 if __name__ == '__main__':
