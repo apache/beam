@@ -17,8 +17,8 @@
  */
 package org.apache.beam.runners.spark.stateful;
 
-import com.google.common.collect.Table;
 import com.google.common.collect.AbstractIterator;
+import com.google.common.collect.Table;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -84,7 +84,8 @@ import scala.runtime.AbstractFunction1;
  * in the following steps.
  */
 public class SparkGroupAlsoByWindowViaWindowSet {
-  private static final Logger LOG = LoggerFactory.getLogger(SparkGroupAlsoByWindowViaWindowSet.class);
+  private static final Logger LOG = LoggerFactory.getLogger(
+      SparkGroupAlsoByWindowViaWindowSet.class);
 
   /**
    * A helper class that is essentially a {@link Serializable} {@link AbstractFunction1}.
@@ -101,7 +102,7 @@ public class SparkGroupAlsoByWindowViaWindowSet {
           final SparkRuntimeContext runtimeContext,
           final List<Integer> sourceIds) {
 
-    Long checkpointDuration =
+    long checkpointDurationMillis =
         runtimeContext.getPipelineOptions().as(SparkPipelineOptions.class)
             .getCheckpointDurationMillis();
 
@@ -271,8 +272,11 @@ public class SparkGroupAlsoByWindowViaWindowSet {
         return scala.collection.JavaConversions.asScalaIterator(outIter);
       }
     }, partitioner, true, JavaSparkContext$.MODULE$.<Tuple2<StateAndTimers,
-        List<WindowedValue<KV<K, Iterable<InputT>>>>>>fakeClassTag())
-            .checkpoint(new Duration(checkpointDuration));
+        List<WindowedValue<KV<K, Iterable<InputT>>>>>>fakeClassTag());
+
+    if (checkpointDurationMillis > 0) {
+      firedStream.checkpoint(new Duration(checkpointDurationMillis));
+    }
 
     // go back to Java now.
     JavaPairDStream<K, Tuple2<StateAndTimers, List<WindowedValue<KV<K, Iterable<InputT>>>>>>
