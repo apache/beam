@@ -25,6 +25,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.math.BigInteger;
 import java.nio.channels.ReadableByteChannel;
@@ -139,7 +140,9 @@ class GcsFileSystem extends FileSystem<GcsResourceId> {
   }
 
   private MatchResult toMatchResult(StorageObjectOrIOException objectOrException) {
-    if (objectOrException.ioException() != null) {
+    if (objectOrException.ioException() instanceof FileNotFoundException) {
+      return MatchResult.create(Status.NOT_FOUND, objectOrException.ioException());
+    } else if (objectOrException.ioException() != null) {
       return MatchResult.create(Status.ERROR, objectOrException.ioException());
     } else {
       return MatchResult.create(

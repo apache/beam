@@ -717,13 +717,15 @@ public class GcsUtil {
     @Nullable
     public abstract IOException ioException();
 
-    static StorageObjectOrIOException create(StorageObject storageObject) {
+    @VisibleForTesting
+    public static StorageObjectOrIOException create(StorageObject storageObject) {
       return new AutoValue_GcsUtil_StorageObjectOrIOException.Builder()
           .setStorageObject(checkNotNull(storageObject, "storageObject"))
           .build();
     }
 
-    static StorageObjectOrIOException create(IOException ioException) {
+    @VisibleForTesting
+    public static StorageObjectOrIOException create(IOException ioException) {
       return new AutoValue_GcsUtil_StorageObjectOrIOException.Builder()
           .setIoException(checkNotNull(ioException, "ioException"))
           .build();
