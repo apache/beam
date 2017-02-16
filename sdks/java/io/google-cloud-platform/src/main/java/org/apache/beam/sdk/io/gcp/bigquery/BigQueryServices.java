@@ -57,8 +57,7 @@ interface BigQueryServices extends Serializable {
    * Returns a real, mock, or fake {@link BigQueryJsonReader} to query tables.
    */
   BigQueryJsonReader getReaderFromQuery(
-      BigQueryOptions bqOptions, String query, String projectId, @Nullable Boolean flatten,
-      @Nullable Boolean useLegacySql);
+      BigQueryOptions bqOptions, String projectId, JobConfigurationQuery queryConfig);
 
   /**
    * An interface for the Cloud BigQuery load service.
@@ -166,6 +165,10 @@ interface BigQueryServices extends Serializable {
      * <p>Returns the total bytes count of {@link TableRow TableRows}.
      */
     long insertAll(TableReference ref, List<TableRow> rowList, @Nullable List<String> insertIdList)
+        throws IOException, InterruptedException;
+
+    /** Patch BigQuery {@link Table} description. */
+    Table patchTableDescription(TableReference tableReference, @Nullable String tableDescription)
         throws IOException, InterruptedException;
   }
 

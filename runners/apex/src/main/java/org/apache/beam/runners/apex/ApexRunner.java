@@ -22,10 +22,16 @@ import com.datatorrent.api.Context.DAGContext;
 import com.datatorrent.api.DAG;
 import com.datatorrent.api.StreamingApplication;
 import com.google.common.base.Throwables;
+
+import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Properties;
 import java.util.concurrent.atomic.AtomicReference;
 import org.apache.apex.api.EmbeddedAppLauncher;
 import org.apache.apex.api.Launcher;
@@ -64,6 +70,7 @@ import org.apache.hadoop.conf.Configuration;
 public class ApexRunner extends PipelineRunner<ApexRunnerResult> {
 
   private final ApexPipelineOptions options;
+  public static final String CLASSPATH_SCHEME = "classpath";
 
   /**
    * TODO: this isn't thread safe and may cause issues when tests run in parallel
@@ -126,6 +133,31 @@ public class ApexRunner extends PipelineRunner<ApexRunnerResult> {
       }
     };
 
+    Properties configProperties = new Properties();
+    try {
+      if (options.getConfigFile() != null) {
+        URI configURL = new URI(options.getConfigFile());
+        if (CLASSPATH_SCHEME.equals(configURL.getScheme())) {
+          InputStream is = this.getClass().getResourceAsStream(configURL.getPath());
+          if (is != null) {
+            configProperties.load(is);
+            is.close();
+          }
+        } else {
+          if (!configURL.isAbsolute()) {
+            // resolve as local file name
+            File f = new File(options.getConfigFile());
+            configURL = f.toURI();
+          }
+          try (InputStream is = configURL.toURL().openStream()) {
+            configProperties.load(is);
+          }
+        }
+      }
+    } catch (IOException | URISyntaxException ex) {
+      throw new RuntimeException("Error loading properties", ex);
+    }
+
     if (options.isEmbeddedExecution()) {
       Launcher<AppHandle> launcher = Launcher.getLauncher(LaunchMode.EMBEDDED);
       Attribute.AttributeMap launchAttributes = new Attribute.AttributeMap.DefaultAttributeMap();
@@ -135,6 +167,7 @@ public class ApexRunner extends PipelineRunner<ApexRunnerResult> {
         launchAttributes.put(EmbeddedAppLauncher.HEARTBEAT_MONITORING, false);
       }
       Configuration conf = new Configuration(false);
+      ApexYarnLauncher.addProperties(conf, configProperties);
       try {
         ApexRunner.ASSERTION_ERROR.set(null);
         AppHandle apexAppResult = launcher.launchApp(apexApp, conf, launchAttributes);
@@ -146,21 +179,13 @@ public class ApexRunner extends PipelineRunner<ApexRunnerResult> {
     } else {
       try {
         ApexYarnLauncher yarnLauncher = new ApexYarnLauncher();
-        AppHandle apexAppResult = yarnLauncher.launchApp(apexApp);
+        AppHandle apexAppResult = yarnLauncher.launchApp(apexApp, configProperties);
         return new ApexRunnerResult(apexDAG.get(), apexAppResult);
       } catch (IOException e) {
         throw new RuntimeException("Failed to launch the application on YARN.", e);
       }
     }
 
-  }
-
-  private static class IdentityFn<T> extends DoFn<T, T> {
-    private static final long serialVersionUID = 1L;
-    @ProcessElement
-    public void processElement(ProcessContext c) {
-      c.output(c.element());
-    }
   }
 
 ////////////////////////////////////////////

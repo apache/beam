@@ -21,8 +21,6 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFn.FinishBundle;
-import org.apache.beam.sdk.transforms.DoFn.InputProvider;
-import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
 import org.apache.beam.sdk.transforms.DoFn.ProcessElement;
 import org.apache.beam.sdk.transforms.DoFn.StartBundle;
 import org.apache.beam.sdk.transforms.DoFn.StateId;
@@ -113,17 +111,11 @@ public interface DoFnInvoker<InputT, OutputT> {
     /** Provide a {@link DoFn.OnTimerContext} to use with the given {@link DoFn}. */
     DoFn<InputT, OutputT>.OnTimerContext onTimerContext(DoFn<InputT, OutputT> doFn);
 
-    /** A placeholder for testing purposes. */
-    InputProvider<InputT> inputProvider();
-
-    /** A placeholder for testing purposes. */
-    OutputReceiver<OutputT> outputReceiver();
-
     /**
      * If this is a splittable {@link DoFn}, returns the {@link RestrictionTracker} associated with
      * the current {@link ProcessElement} call.
      */
-    <RestrictionT> RestrictionTracker<RestrictionT> restrictionTracker();
+    RestrictionTracker<?> restrictionTracker();
 
     /** Returns the state cell for the given {@link StateId}. */
     State state(String stateId);
@@ -155,16 +147,6 @@ public interface DoFnInvoker<InputT, OutputT> {
     }
 
     @Override
-    public InputProvider<InputT> inputProvider() {
-      return null;
-    }
-
-    @Override
-    public OutputReceiver<OutputT> outputReceiver() {
-      return null;
-    }
-
-    @Override
     public State state(String stateId) {
       return null;
     }
@@ -174,7 +156,7 @@ public interface DoFnInvoker<InputT, OutputT> {
       return null;
     }
 
-    public <RestrictionT> RestrictionTracker<RestrictionT> restrictionTracker() {
+    public RestrictionTracker<?> restrictionTracker() {
       return null;
     }
   }

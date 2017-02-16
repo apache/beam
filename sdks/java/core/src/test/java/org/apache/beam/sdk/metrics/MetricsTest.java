@@ -18,7 +18,10 @@
 
 package org.apache.beam.sdk.metrics;
 
-import static org.apache.beam.sdk.metrics.MetricMatchers.metricResult;
+import static org.apache.beam.sdk.metrics.MetricMatchers.attemptedMetricsResult;
+import static org.apache.beam.sdk.metrics.MetricMatchers.committedMetricsResult;
+import static org.apache.beam.sdk.metrics.MetricMatchers.distributionAttemptedMinMax;
+import static org.apache.beam.sdk.metrics.MetricMatchers.distributionCommittedMinMax;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasItem;
 import static org.junit.Assert.assertNull;
@@ -29,10 +32,13 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.testing.RunnableOnService;
 import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.sdk.testing.UsesMetrics;
+import org.apache.beam.sdk.testing.UsesAttemptedMetrics;
+import org.apache.beam.sdk.testing.UsesCommittedMetrics;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.TupleTagList;
 import org.hamcrest.CoreMatchers;
 import org.junit.After;
 import org.junit.Test;
@@ -108,52 +114,104 @@ public class MetricsTest implements Serializable {
     assertThat(cell.getCumulative(), CoreMatchers.equalTo(42L));
   }
 
-  @Category({RunnableOnService.class, UsesMetrics.class})
+  @Category({RunnableOnService.class, UsesCommittedMetrics.class})
   @Test
-  public void metricsReportToQuery() {
-    final Counter count = Metrics.counter(MetricsTest.class, "count");
-    Pipeline pipeline = TestPipeline.create();
-    pipeline
-        .apply(Create.of(5, 8, 13))
-        .apply("MyStep1", ParDo.of(new DoFn<Integer, Integer>() {
-          @ProcessElement
-          public void processElement(ProcessContext c) {
-            Distribution values = Metrics.distribution(MetricsTest.class, "input");
-            count.inc();
-            values.update(c.element());
-
-            c.output(c.element());
-            c.output(c.element());
-          }
-        }))
-        .apply("MyStep2", ParDo.of(new DoFn<Integer, Integer>() {
-          @ProcessElement
-          public void processElement(ProcessContext c) {
-            Distribution values = Metrics.distribution(MetricsTest.class, "input");
-            count.inc();
-            values.update(c.element());
-          }
-        }));
-    PipelineResult result = pipeline.run();
-
-    result.waitUntilFinish();
+  public void committedMetricsReportToQuery() {
+    PipelineResult result = runPipelineWithMetrics();
 
     MetricQueryResults metrics = result.metrics().queryMetrics(MetricsFilter.builder()
-      .addNameFilter(MetricNameFilter.inNamespace(MetricsTest.class))
-      .build());
-    // TODO: BEAM-1169: Metrics shouldn't verify the physical values tightly.
+        .addNameFilter(MetricNameFilter.inNamespace(MetricsTest.class))
+        .build());
+
     assertThat(metrics.counters(), hasItem(
-        metricResult(MetricsTest.class.getName(), "count", "MyStep1", 3L, 3L)));
+        committedMetricsResult(MetricsTest.class.getName(), "count", "MyStep1", 3L)));
     assertThat(metrics.distributions(), hasItem(
-        metricResult(MetricsTest.class.getName(), "input", "MyStep1",
-            DistributionResult.create(26L, 3L, 5L, 13L),
+        committedMetricsResult(MetricsTest.class.getName(), "input", "MyStep1",
             DistributionResult.create(26L, 3L, 5L, 13L))));
 
     assertThat(metrics.counters(), hasItem(
-        metricResult(MetricsTest.class.getName(), "count", "MyStep2", 6L, 6L)));
+        committedMetricsResult(MetricsTest.class.getName(), "count", "MyStep2", 6L)));
     assertThat(metrics.distributions(), hasItem(
-        metricResult(MetricsTest.class.getName(), "input", "MyStep2",
-            DistributionResult.create(52L, 6L, 5L, 13L),
+        committedMetricsResult(MetricsTest.class.getName(), "input", "MyStep2",
             DistributionResult.create(52L, 6L, 5L, 13L))));
+
+    assertThat(metrics.distributions(), hasItem(
+        distributionCommittedMinMax(MetricsTest.class.getName(), "bundle", "MyStep1", 10L, 40L)));
+  }
+
+
+  @Category({RunnableOnService.class, UsesAttemptedMetrics.class})
+  @Test
+  public void attemptedMetricsReportToQuery() {
+    PipelineResult result = runPipelineWithMetrics();
+
+    MetricQueryResults metrics = result.metrics().queryMetrics(MetricsFilter.builder()
+        .addNameFilter(MetricNameFilter.inNamespace(MetricsTest.class))
+        .build());
+
+    // TODO: BEAM-1169: Metrics shouldn't verify the physical values tightly.
+    assertThat(metrics.counters(), hasItem(
+        attemptedMetricsResult(MetricsTest.class.getName(), "count", "MyStep1", 3L)));
+    assertThat(metrics.distributions(), hasItem(
+        attemptedMetricsResult(MetricsTest.class.getName(), "input", "MyStep1",
+            DistributionResult.create(26L, 3L, 5L, 13L))));
+
+    assertThat(metrics.counters(), hasItem(
+        attemptedMetricsResult(MetricsTest.class.getName(), "count", "MyStep2", 6L)));
+    assertThat(metrics.distributions(), hasItem(
+        attemptedMetricsResult(MetricsTest.class.getName(), "input", "MyStep2",
+            DistributionResult.create(52L, 6L, 5L, 13L))));
+
+    assertThat(metrics.distributions(), hasItem(
+        distributionAttemptedMinMax(MetricsTest.class.getName(), "bundle", "MyStep1", 10L, 40L)));
+  }
+
+  private PipelineResult runPipelineWithMetrics() {
+    final Counter count = Metrics.counter(MetricsTest.class, "count");
+    Pipeline pipeline = TestPipeline.create();
+    final TupleTag<Integer> output1 = new TupleTag<Integer>(){};
+    final TupleTag<Integer> output2 = new TupleTag<Integer>(){};
+    pipeline
+        .apply(Create.of(5, 8, 13))
+        .apply("MyStep1", ParDo.of(new DoFn<Integer, Integer>() {
+          Distribution bundleDist = Metrics.distribution(MetricsTest.class, "bundle");
+
+          @StartBundle
+          public void startBundle(Context c) {
+            bundleDist.update(10L);
+          }
+
+          @SuppressWarnings("unused")
+          @ProcessElement
+          public void processElement(ProcessContext c) {
+            Distribution values = Metrics.distribution(MetricsTest.class, "input");
+            count.inc();
+            values.update(c.element());
+
+            c.output(c.element());
+            c.output(c.element());
+          }
+
+          @DoFn.FinishBundle
+          public void finishBundle(Context c) {
+            bundleDist.update(40L);
+          }
+        }))
+        .apply("MyStep2", ParDo.withOutputTags(output1, TupleTagList.of(output2))
+            .of(new DoFn<Integer, Integer>() {
+              @SuppressWarnings("unused")
+              @ProcessElement
+              public void processElement(ProcessContext c) {
+                Distribution values = Metrics.distribution(MetricsTest.class, "input");
+                count.inc();
+                values.update(c.element());
+                c.output(c.element());
+                c.sideOutput(output2, c.element());
+              }
+            }));
+    PipelineResult result = pipeline.run();
+
+    result.waitUntilFinish();
+    return result;
   }
 }

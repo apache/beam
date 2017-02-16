@@ -116,7 +116,7 @@ public class KafkaStreamingTest {
         "auto.offset.reset", "earliest"
     );
 
-    KafkaIO.Read<String, String> read = KafkaIO.read()
+    KafkaIO.Read<String, String> read = KafkaIO.<String, String>read()
         .withBootstrapServers(EMBEDDED_KAFKA_CLUSTER.getBrokerList())
         .withTopics(Arrays.asList(topic1, topic2))
         .withKeyCoder(StringUtf8Coder.of())
@@ -168,7 +168,7 @@ public class KafkaStreamingTest {
         "auto.offset.reset", "latest"
     );
 
-    KafkaIO.Read<String, String> read = KafkaIO.read()
+    KafkaIO.Read<String, String> read = KafkaIO.<String, String>read()
         .withBootstrapServers(EMBEDDED_KAFKA_CLUSTER.getBrokerList())
         .withTopics(Collections.singletonList(topic))
         .withKeyCoder(StringUtf8Coder.of())

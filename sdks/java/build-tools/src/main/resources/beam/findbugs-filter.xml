@@ -34,12 +34,42 @@
           unapproved artifact license.
         -->
   <Match>
+    <Class name="org.apache.beam.fn.harness.control.BeamFnControlClient$InboundObserver"/>
+    <Method name="onCompleted"/>
+    <Bug pattern="NP_NONNULL_PARAM_VIOLATION"/>
+    <!--
+    Findbugs limitation when using Void typed CompletableFuture. This is a limitation of FindBugs as discussed here:
+    https://github.com/findbugsproject/findbugs/issues/79
+    -->
+  </Match>
+
+  <Match>
+    <Class name="org.apache.beam.fn.harness.data.BeamFnDataInboundObserver"/>
+    <Method name="accept"/>
+    <Bug pattern="NP_NONNULL_PARAM_VIOLATION"/>
+    <!--
+    Findbugs limitation when using Void typed CompletableFuture. This is a limitation of FindBugs as discussed here:
+    https://github.com/findbugsproject/findbugs/issues/79
+    -->
+  </Match>
+
+  <Match>
+    <Class name="org.apache.beam.fn.harness.logging.BeamFnLoggingClient$LogControlObserver"/>
+    <Method name="onCompleted"/>
+    <Bug pattern="NP_NONNULL_PARAM_VIOLATION"/>
+    <!--
+    Findbugs limitation when using Void typed CompletableFuture. This is a limitation of FindBugs as discussed here:
+    https://github.com/findbugsproject/findbugs/issues/79
+    -->
+  </Match>
+
+  <Match>
     <Class name="org.apache.beam.sdk.coders.AvroCoder$SerializableSchemaSupplier"/>
     <Field name="schema"/>
     <Bug pattern="SE_BAD_FIELD"/>
     <!--
     writeReplace makes this object serializable. This is a limitation of FindBugs as discussed here:
-     http://stackoverflow.com/questions/26156523/is-writeobject-not-neccesary-using-the-serialization-proxy-pattern
+    http://stackoverflow.com/questions/26156523/is-writeobject-not-neccesary-using-the-serialization-proxy-pattern
     -->
   </Match>
 
@@ -125,15 +155,33 @@
   </Match>
 
   <Match>
-    <Class name="org.apache.beam.runners.spark.aggregators.metrics.sink.CsvSink"/>
+    <Class name="org.apache.beam.runners.spark.metrics.sink.CsvSink"/>
     <Bug pattern="NM_SAME_SIMPLE_NAME_AS_SUPERCLASS"/>
     <!-- Intentionally overriding parent name because inheritors should replace the parent. -->
   </Match>
 
   <Match>
-    <Class name="org.apache.beam.runners.spark.aggregators.metrics.sink.GraphiteSink"/>
+    <Class name="org.apache.beam.runners.spark.metrics.sink.GraphiteSink"/>
     <Bug pattern="NM_SAME_SIMPLE_NAME_AS_SUPERCLASS"/>
     <!-- Intentionally overriding parent name because inheritors should replace the parent. -->
+  </Match>
+
+  <Match>
+    <Class name="org.apache.beam.sdk.io.LocalResourceId"/>
+    <Method name="getCurrentDirectory" />
+    <Bug pattern="NP_NULL_PARAM_DEREF"/>
+    <!--
+      Path.getParent() could return null. However, we check the returned Path is not null.
+    -->
+  </Match>
+
+  <Match>
+    <Class name="org.apache.beam.sdk.io.gcp.storage.GcsResourceId"/>
+    <Method name="getCurrentDirectory" />
+    <Bug pattern="NP_NULL_ON_SOME_PATH_FROM_RETURN_VALUE"/>
+    <!--
+      GcsPath.getParent() could return null. However, we check the returned Path is not null.
+    -->
   </Match>
 
   <Match>
@@ -159,7 +207,7 @@
   </Match>
 
   <Match>
-    <Class name="org.apache.beam.sdk.util.state.StateMerging"/>
+    <Class name="org.apache.beam.runners.core.StateMerging"/>
     <Method name="prefetchRead" />
     <Bug pattern="RV_RETURN_VALUE_IGNORED_NO_SIDE_EFFECT"/>
     <!-- prefetch call readLater -->

@@ -80,9 +80,7 @@ public class DoFnSignatures {
           Parameter.ProcessContextParameter.class,
           Parameter.WindowParameter.class,
           Parameter.TimerParameter.class,
-          Parameter.StateParameter.class,
-          Parameter.InputProviderParameter.class,
-          Parameter.OutputReceiverParameter.class);
+          Parameter.StateParameter.class);
 
   private static final Collection<Class<? extends Parameter>>
       ALLOWED_SPLITTABLE_PROCESS_ELEMENT_PARAMETERS =
@@ -617,25 +615,6 @@ public class DoFnSignatures {
         .where(new TypeParameter<OutputT>() {}, outputT);
   }
 
-  /**
-   * Generates a {@link TypeDescriptor} for {@code DoFn.InputProvider<InputT>} given {@code InputT}.
-   */
-  private static <InputT> TypeDescriptor<DoFn.InputProvider<InputT>> inputProviderTypeOf(
-      TypeDescriptor<InputT> inputT) {
-    return new TypeDescriptor<DoFn.InputProvider<InputT>>() {}.where(
-        new TypeParameter<InputT>() {}, inputT);
-  }
-
-  /**
-   * Generates a {@link TypeDescriptor} for {@code DoFn.OutputReceiver<OutputT>} given {@code
-   * OutputT}.
-   */
-  private static <OutputT> TypeDescriptor<DoFn.OutputReceiver<OutputT>> outputReceiverTypeOf(
-      TypeDescriptor<OutputT> inputT) {
-    return new TypeDescriptor<DoFn.OutputReceiver<OutputT>>() {}.where(
-        new TypeParameter<OutputT>() {}, inputT);
-  }
-
   @VisibleForTesting
   static DoFnSignature.OnTimerMethod analyzeOnTimerMethod(
       ErrorReporter errors,
@@ -767,8 +746,6 @@ public class DoFnSignatures {
     TypeDescriptor<?> expectedProcessContextT = doFnProcessContextTypeOf(inputT, outputT);
     TypeDescriptor<?> expectedContextT = doFnContextTypeOf(inputT, outputT);
     TypeDescriptor<?> expectedOnTimerContextT = doFnOnTimerContextTypeOf(inputT, outputT);
-    TypeDescriptor<?> expectedInputProviderT = inputProviderTypeOf(inputT);
-    TypeDescriptor<?> expectedOutputReceiverT = outputReceiverTypeOf(outputT);
 
     TypeDescriptor<?> paramT = param.getType();
     Class<?> rawType = paramT.getRawType();
@@ -776,51 +753,27 @@ public class DoFnSignatures {
     ErrorReporter paramErrors = methodErrors.forParameter(param);
 
     if (rawType.equals(DoFn.ProcessContext.class)) {
-      methodErrors.checkArgument(paramT.equals(expectedProcessContextT),
-        "Must take %s as the ProcessContext argument",
+      paramErrors.checkArgument(paramT.equals(expectedProcessContextT),
+        "ProcessContext argument must have type %s",
         formatType(expectedProcessContextT));
       return Parameter.processContext();
     } else if (rawType.equals(DoFn.Context.class)) {
-      methodErrors.checkArgument(paramT.equals(expectedContextT),
-          "Must take %s as the Context argument",
+      paramErrors.checkArgument(paramT.equals(expectedContextT),
+          "Context argument must have type %s",
           formatType(expectedContextT));
       return Parameter.context();
     } else if (rawType.equals(DoFn.OnTimerContext.class)) {
-        methodErrors.checkArgument(paramT.equals(expectedOnTimerContextT),
-            "Must take %s as the OnTimerContext argument",
-            formatType(expectedOnTimerContextT));
-        return Parameter.onTimerContext();
+      paramErrors.checkArgument(
+          paramT.equals(expectedOnTimerContextT),
+          "OnTimerContext argument must have type %s",
+          formatType(expectedOnTimerContextT));
+      return Parameter.onTimerContext();
     } else if (BoundedWindow.class.isAssignableFrom(rawType)) {
       methodErrors.checkArgument(
           !methodContext.hasWindowParameter(),
           "Multiple %s parameters",
           BoundedWindow.class.getSimpleName());
       return Parameter.boundedWindow((TypeDescriptor<? extends BoundedWindow>) paramT);
-    } else if (rawType.equals(DoFn.InputProvider.class)) {
-      methodErrors.checkArgument(
-          !methodContext.getExtraParameters().contains(Parameter.inputProvider()),
-          "Multiple %s parameters",
-          DoFn.InputProvider.class.getSimpleName());
-      paramErrors.checkArgument(
-          paramT.equals(expectedInputProviderT),
-          "%s is for %s when it should be %s",
-          DoFn.InputProvider.class.getSimpleName(),
-          formatType(paramT),
-          formatType(expectedInputProviderT));
-      return Parameter.inputProvider();
-    } else if (rawType.equals(DoFn.OutputReceiver.class)) {
-      methodErrors.checkArgument(
-          !methodContext.getExtraParameters().contains(Parameter.outputReceiver()),
-          "Multiple %s parameters",
-          DoFn.OutputReceiver.class.getSimpleName());
-      paramErrors.checkArgument(
-          paramT.equals(expectedOutputReceiverT),
-          "%s is for %s when it should be %s",
-          DoFn.OutputReceiver.class.getSimpleName(),
-          formatType(paramT),
-          formatType(expectedOutputReceiverT));
-      return Parameter.outputReceiver();
-
     } else if (RestrictionTracker.class.isAssignableFrom(rawType)) {
       methodErrors.checkArgument(
           !methodContext.hasRestrictionTrackerParameter(),
@@ -890,7 +843,7 @@ public class DoFnSignatures {
           "reference to %s %s with different type %s",
           StateId.class.getSimpleName(),
           id,
-          stateDecl.stateType());
+          formatType(stateDecl.stateType()));
 
       paramErrors.checkArgument(
           stateDecl.field().getDeclaringClass().equals(param.getMethod().getDeclaringClass()),
@@ -1001,9 +954,14 @@ public class DoFnSignatures {
         m, fnT.resolveType(m.getGenericReturnType()));
   }
 
-  /** Generates a {@link TypeDescriptor} for {@code List<T>} given {@code T}. */
-  private static <T> TypeDescriptor<List<T>> listTypeOf(TypeDescriptor<T> elementT) {
-    return new TypeDescriptor<List<T>>() {}.where(new TypeParameter<T>() {}, elementT);
+  /**
+   * Generates a {@link TypeDescriptor} for {@code DoFn.OutputReceiver<OutputT>} given {@code
+   * OutputT}.
+   */
+  private static <OutputT> TypeDescriptor<DoFn.OutputReceiver<OutputT>> outputReceiverTypeOf(
+      TypeDescriptor<OutputT> inputT) {
+    return new TypeDescriptor<DoFn.OutputReceiver<OutputT>>() {}.where(
+        new TypeParameter<OutputT>() {}, inputT);
   }
 
   @VisibleForTesting
@@ -1317,7 +1275,7 @@ public class DoFnSignatures {
           this,
           String.format(
               "parameter of type %s at index %s",
-              param.getType(), param.getIndex()));
+              formatType(param.getType()), param.getIndex()));
     }
 
     void throwIllegalArgument(String message, Object... args) {

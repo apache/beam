@@ -20,11 +20,10 @@ package org.apache.beam.sdk.io;
 import static org.junit.Assert.assertTrue;
 
 import com.google.common.collect.Sets;
-import java.net.URI;
+import java.nio.file.Paths;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.junit.Before;
+import org.apache.commons.lang3.SystemUtils;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -40,21 +39,16 @@ public class FileSystemsTest {
   @Rule
   public ExpectedException thrown = ExpectedException.none();
 
-  @Before
-  public void setup() {
-    FileSystems.setDefaultConfigInWorkers(PipelineOptionsFactory.create());
-  }
-
   @Test
   public void testGetLocalFileSystem() throws Exception {
-    assertTrue(
-        FileSystems.getFileSystemInternal(URI.create("~/home/")) instanceof LocalFileSystem);
-    assertTrue(
-        FileSystems.getFileSystemInternal(URI.create("file://home")) instanceof LocalFileSystem);
-    assertTrue(
-        FileSystems.getFileSystemInternal(URI.create("FILE://home")) instanceof LocalFileSystem);
-    assertTrue(
-        FileSystems.getFileSystemInternal(URI.create("File://home")) instanceof LocalFileSystem);
+    assertTrue(FileSystems.getFileSystemInternal(toLocalResourceId("~/home/"))
+        instanceof LocalFileSystem);
+    assertTrue(FileSystems.getFileSystemInternal(toLocalResourceId("file://home"))
+        instanceof LocalFileSystem);
+    assertTrue(FileSystems.getFileSystemInternal(toLocalResourceId("FILE://home"))
+        instanceof LocalFileSystem);
+    assertTrue(FileSystems.getFileSystemInternal(toLocalResourceId("File://home"))
+        instanceof LocalFileSystem);
   }
 
   @Test
@@ -75,5 +69,15 @@ public class FileSystemsTest {
                 return "FILE";
               }
             }));
+  }
+
+  private LocalResourceId toLocalResourceId(String str) throws Exception {
+    boolean isDirectory;
+    if (SystemUtils.IS_OS_WINDOWS) {
+      isDirectory = str.endsWith("\\");
+    } else {
+      isDirectory = str.endsWith("/");
+    }
+    return LocalResourceId.fromPath(Paths.get(str), isDirectory);
   }
 }

@@ -100,9 +100,8 @@ class BigQueryServicesImpl implements BigQueryServices {
 
   @Override
   public BigQueryJsonReader getReaderFromQuery(
-      BigQueryOptions bqOptions, String query, String projectId, @Nullable Boolean flatten,
-      @Nullable Boolean useLegacySql) {
-    return BigQueryJsonReaderImpl.fromQuery(bqOptions, query, projectId, flatten, useLegacySql);
+      BigQueryOptions bqOptions, String projectId, JobConfigurationQuery queryConfig) {
+    return BigQueryJsonReaderImpl.fromQuery(bqOptions, projectId, queryConfig);
   }
 
   @VisibleForTesting
@@ -214,6 +213,7 @@ class BigQueryServicesImpl implements BigQueryServices {
       do {
         try {
           client.jobs().insert(jobRef.getProjectId(), job).execute();
+          LOG.info("Started BigQuery job: {}.", jobRef);
           return; // SUCCEEDED
         } catch (GoogleJsonResponseException e) {
           if (errorExtractor.itemAlreadyExists(e)) {
@@ -789,6 +789,31 @@ class BigQueryServicesImpl implements BigQueryServices {
       return insertAll(
           ref, rowList, insertIdList, INSERT_BACKOFF_FACTORY.backoff(), Sleeper.DEFAULT);
     }
+
+
+    @Override
+    public Table patchTableDescription(TableReference tableReference,
+                                       @Nullable String tableDescription)
+        throws IOException, InterruptedException {
+      Table table = new Table();
+      table.setDescription(tableDescription);
+
+      BackOff backoff =
+          FluentBackoff.DEFAULT
+              .withMaxRetries(MAX_RPC_RETRIES).withInitialBackoff(INITIAL_RPC_BACKOFF).backoff();
+      return executeWithRetries(
+          client.tables().patch(
+              tableReference.getProjectId(),
+              tableReference.getDatasetId(),
+              tableReference.getTableId(),
+              table),
+          String.format(
+              "Unable to patch table description: %s, aborting after %d retries.",
+              tableReference, MAX_RPC_RETRIES),
+          Sleeper.DEFAULT,
+          backoff,
+          ALWAYS_RETRY);
+    }
   }
 
   private static class BigQueryJsonReaderImpl implements BigQueryJsonReader {
@@ -799,20 +824,14 @@ class BigQueryServicesImpl implements BigQueryServices {
     }
 
     private static BigQueryJsonReader fromQuery(
-        BigQueryOptions bqOptions,
-        String query,
-        String projectId,
-        @Nullable Boolean flattenResults,
-        @Nullable Boolean useLegacySql) {
+        BigQueryOptions bqOptions, String projectId, JobConfigurationQuery queryConfig) {
       return new BigQueryJsonReaderImpl(
           BigQueryTableRowIterator.fromQuery(
-              query, projectId, Transport.newBigQueryClient(bqOptions).build(), flattenResults,
-              useLegacySql));
+              queryConfig, projectId, Transport.newBigQueryClient(bqOptions).build()));
     }
 
     private static BigQueryJsonReader fromTable(
-        BigQueryOptions bqOptions,
-        TableReference tableRef) {
+        BigQueryOptions bqOptions, TableReference tableRef) {
       return new BigQueryJsonReaderImpl(BigQueryTableRowIterator.fromTable(
           tableRef, Transport.newBigQueryClient(bqOptions).build()));
     }

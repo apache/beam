@@ -73,16 +73,12 @@ public class DoFnInvokersTest {
 
   @Mock private DoFn<String, String>.ProcessContext mockProcessContext;
   @Mock private IntervalWindow mockWindow;
-  @Mock private DoFn.InputProvider<String> mockInputProvider;
-  @Mock private DoFn.OutputReceiver<String> mockOutputReceiver;
   @Mock private DoFnInvoker.ArgumentProvider<String, String> mockArgumentProvider;
 
   @Before
   public void setUp() {
     MockitoAnnotations.initMocks(this);
     when(mockArgumentProvider.window()).thenReturn(mockWindow);
-    when(mockArgumentProvider.inputProvider()).thenReturn(mockInputProvider);
-    when(mockArgumentProvider.outputReceiver()).thenReturn(mockOutputReceiver);
     when(mockArgumentProvider.processContext(Matchers.<DoFn>any())).thenReturn(mockProcessContext);
   }
 
@@ -228,28 +224,6 @@ public class DoFnInvokersTest {
     MockFn fn = mock(MockFn.class);
     assertEquals(ProcessContinuation.stop(), invokeProcessElement(fn));
     verify(fn).processElement(mockProcessContext, mockTimer);
-  }
-
-  @Test
-  public void testDoFnWithOutputReceiver() throws Exception {
-    class MockFn extends DoFn<String, String> {
-      @DoFn.ProcessElement
-      public void processElement(ProcessContext c, OutputReceiver<String> o) throws Exception {}
-    }
-    MockFn fn = mock(MockFn.class);
-    assertEquals(ProcessContinuation.stop(), invokeProcessElement(fn));
-    verify(fn).processElement(mockProcessContext, mockOutputReceiver);
-  }
-
-  @Test
-  public void testDoFnWithInputProvider() throws Exception {
-    class MockFn extends DoFn<String, String> {
-      @DoFn.ProcessElement
-      public void processElement(ProcessContext c, InputProvider<String> o) throws Exception {}
-    }
-    MockFn fn = mock(MockFn.class);
-    assertEquals(ProcessContinuation.stop(), invokeProcessElement(fn));
-    verify(fn).processElement(mockProcessContext, mockInputProvider);
   }
 
   @Test
@@ -411,7 +385,7 @@ public class DoFnInvokersTest {
               }
 
               @Override
-              public RestrictionTracker restrictionTracker() {
+              public RestrictionTracker<?> restrictionTracker() {
                 return tracker;
               }
             }));

@@ -18,12 +18,14 @@
 
 package org.apache.beam.runners.spark.aggregators;
 
+import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableList;
 import java.util.Collection;
 import java.util.Map;
 import org.apache.beam.runners.core.AggregatorFactory;
 import org.apache.beam.runners.core.ExecutionContext;
 import org.apache.beam.runners.spark.translation.SparkRuntimeContext;
+import org.apache.beam.runners.spark.translation.streaming.Checkpoint.CheckpointDir;
 import org.apache.beam.sdk.AggregatorValues;
 import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.transforms.Combine;
@@ -66,10 +68,24 @@ public class SparkAggregators {
    *
    * @param jsc a Spark context to be used in order to retrieve the name
    * {@link NamedAggregators} instance
-   * @return a {@link NamedAggregators} instance
    */
   public static Accumulator<NamedAggregators> getNamedAggregators(JavaSparkContext jsc) {
-    return AccumulatorSingleton.getInstance(jsc);
+    return getOrCreateNamedAggregators(jsc, Optional.<CheckpointDir>absent());
+  }
+
+  /**
+   * Retrieves or creates the {@link NamedAggregators} instance using the provided Spark context.
+   *
+   * @param jsc a Spark context to be used in order to retrieve the name
+   * {@link NamedAggregators} instance
+   * @param checkpointDir checkpoint dir (optional, for streaming pipelines)
+   * @return a {@link NamedAggregators} instance
+   */
+  @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
+  public static Accumulator<NamedAggregators> getOrCreateNamedAggregators(
+      JavaSparkContext jsc,
+      Optional<CheckpointDir> checkpointDir) {
+    return AggregatorsAccumulator.getInstance(jsc, checkpointDir);
   }
 
   /**

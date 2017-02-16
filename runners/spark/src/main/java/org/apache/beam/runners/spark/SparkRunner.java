@@ -18,23 +18,30 @@
 
 package org.apache.beam.runners.spark;
 
+import com.google.common.base.Optional;
 import com.google.common.collect.Iterables;
 import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import org.apache.beam.runners.spark.aggregators.AggregatorsAccumulator;
 import org.apache.beam.runners.spark.aggregators.NamedAggregators;
 import org.apache.beam.runners.spark.aggregators.SparkAggregators;
-import org.apache.beam.runners.spark.aggregators.metrics.AggregatorMetricSource;
+import org.apache.beam.runners.spark.metrics.AggregatorMetricSource;
+import org.apache.beam.runners.spark.metrics.CompositeSource;
+import org.apache.beam.runners.spark.metrics.MetricsAccumulator;
+import org.apache.beam.runners.spark.metrics.SparkBeamMetricSource;
 import org.apache.beam.runners.spark.translation.EvaluationContext;
 import org.apache.beam.runners.spark.translation.SparkContextFactory;
 import org.apache.beam.runners.spark.translation.SparkPipelineTranslator;
 import org.apache.beam.runners.spark.translation.TransformEvaluator;
 import org.apache.beam.runners.spark.translation.TransformTranslator;
+import org.apache.beam.runners.spark.translation.streaming.Checkpoint.CheckpointDir;
 import org.apache.beam.runners.spark.translation.streaming.SparkRunnerStreamingContextFactory;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.Read;
+import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.PipelineOptionsValidator;
@@ -54,6 +61,8 @@ import org.apache.spark.SparkEnv$;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.metrics.MetricsSystem;
 import org.apache.spark.streaming.api.java.JavaStreamingContext;
+import org.apache.spark.streaming.api.java.JavaStreamingListener;
+import org.apache.spark.streaming.api.java.JavaStreamingListenerWrapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -130,16 +139,27 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
   }
 
   private void registerMetrics(final SparkPipelineOptions opts, final JavaSparkContext jsc) {
-    final Accumulator<NamedAggregators> accum = SparkAggregators.getNamedAggregators(jsc);
-    final NamedAggregators initialValue = accum.value();
-
+    Optional<CheckpointDir> maybeCheckpointDir =
+        opts.isStreaming() ? Optional.of(new CheckpointDir(opts.getCheckpointDir()))
+            : Optional.<CheckpointDir>absent();
+    final Accumulator<NamedAggregators> aggregatorsAccumulator =
+        SparkAggregators.getOrCreateNamedAggregators(jsc, maybeCheckpointDir);
+    // Instantiate metrics accumulator
+    MetricsAccumulator.init(jsc, maybeCheckpointDir);
+    final NamedAggregators initialValue = aggregatorsAccumulator.value();
     if (opts.getEnableSparkMetricSinks()) {
       final MetricsSystem metricsSystem = SparkEnv$.MODULE$.get().metricsSystem();
+      String appName = opts.getAppName();
       final AggregatorMetricSource aggregatorMetricSource =
-          new AggregatorMetricSource(opts.getAppName(), initialValue);
+          new AggregatorMetricSource(appName, initialValue);
+      final SparkBeamMetricSource metricsSource =
+          new SparkBeamMetricSource(appName);
+      final CompositeSource compositeSource =
+          new CompositeSource(appName,
+              metricsSource.metricRegistry(), aggregatorMetricSource.metricRegistry());
       // re-register the metrics in case of context re-use
-      metricsSystem.removeSource(aggregatorMetricSource);
-      metricsSystem.registerSource(aggregatorMetricSource);
+      metricsSystem.removeSource(compositeSource);
+      metricsSystem.registerSource(compositeSource);
     }
   }
 
@@ -151,13 +171,31 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
     final Future<?> startPipeline;
     final ExecutorService executorService = Executors.newSingleThreadExecutor();
 
+    MetricsEnvironment.setMetricsSupported(true);
+
     detectTranslationMode(pipeline);
 
     if (mOptions.isStreaming()) {
+      CheckpointDir checkpointDir = new CheckpointDir(mOptions.getCheckpointDir());
       final SparkRunnerStreamingContextFactory contextFactory =
-          new SparkRunnerStreamingContextFactory(pipeline, mOptions);
+          new SparkRunnerStreamingContextFactory(pipeline, mOptions, checkpointDir);
       final JavaStreamingContext jssc =
-          JavaStreamingContext.getOrCreate(mOptions.getCheckpointDir(), contextFactory);
+          JavaStreamingContext.getOrCreate(checkpointDir.getSparkCheckpointDir().toString(),
+              contextFactory);
+
+      // Checkpoint aggregator/metrics values
+      jssc.addStreamingListener(
+          new JavaStreamingListenerWrapper(
+              new AggregatorsAccumulator.AccumulatorCheckpointingSparkListener()));
+      jssc.addStreamingListener(
+          new JavaStreamingListenerWrapper(
+              new MetricsAccumulator.AccumulatorCheckpointingSparkListener()));
+
+      // register listeners.
+      for (JavaStreamingListener listener: mOptions.as(SparkContextOptions.class).getListeners()) {
+        LOG.info("Registered listener {}." + listener.getClass().getSimpleName());
+        jssc.addStreamingListener(new JavaStreamingListenerWrapper(listener));
+      }
 
       startPipeline = executorService.submit(new Runnable() {
 

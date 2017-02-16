@@ -22,7 +22,7 @@
   <parent>
     <groupId>org.apache.beam</groupId>
     <artifactId>beam-runners-parent</artifactId>
-    <version>0.5.0-SNAPSHOT</version>
+    <version>0.6.0-SNAPSHOT</version>
     <relativePath>../pom.xml</relativePath>
   </parent>
 
@@ -151,6 +151,11 @@
 
     <dependency>
       <groupId>org.apache.beam</groupId>
+      <artifactId>beam-runners-core-construction-java</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.beam</groupId>
       <artifactId>beam-runners-core-java</artifactId>
     </dependency>
 
@@ -261,12 +266,26 @@
       </exclusions>
       <scope>test</scope>
     </dependency>
-    
+
     <!-- needed for eclipse-jdt generated core as the test-jar references classes from this -->
     <dependency>
         <groupId>com.google.cloud.dataflow</groupId>
         <artifactId>google-cloud-dataflow-java-proto-library-all</artifactId>
         <scope>test</scope>
+    </dependency>
+
+    <!-- transitive test dependencies from beam-sdk-java-core -->
+    <dependency>
+      <groupId>com.fasterxml.jackson.dataformat</groupId>
+      <artifactId>jackson-dataformat-yaml</artifactId>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.beam</groupId>
+      <artifactId>beam-sdks-common-fn-api</artifactId>
+      <type>test-jar</type>
+      <scope>test</scope>
     </dependency>
   </dependencies>
 </project>

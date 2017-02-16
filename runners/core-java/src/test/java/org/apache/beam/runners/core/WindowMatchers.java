@@ -198,7 +198,8 @@ public class WindowMatchers {
     protected boolean matchesSafely(WindowedValue<? extends T> windowedValue) {
       return valueMatcher.matches(windowedValue.getValue())
           && timestampMatcher.matches(windowedValue.getTimestamp())
-          && windowsMatcher.matches(windowedValue.getWindows());
+          && windowsMatcher.matches(windowedValue.getWindows())
+          && paneInfoMatcher.matches(windowedValue.getPane());
     }
   }
 }

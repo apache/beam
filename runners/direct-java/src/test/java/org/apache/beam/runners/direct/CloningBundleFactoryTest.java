@@ -130,7 +130,7 @@ public class CloningBundleFactoryTest {
 
   @Test
   public void bundleEncodeFailsAddFails() {
-    PCollection<Record> pc = p.apply(Create.<Record>of().withCoder(new RecordNoEncodeCoder()));
+    PCollection<Record> pc = p.apply(Create.empty(new RecordNoEncodeCoder()));
     UncommittedBundle<Record> bundle = factory.createBundle(pc);
 
     thrown.expect(UserCodeException.class);
@@ -141,7 +141,7 @@ public class CloningBundleFactoryTest {
 
   @Test
   public void bundleDecodeFailsAddFails() {
-    PCollection<Record> pc = p.apply(Create.<Record>of().withCoder(new RecordNoDecodeCoder()));
+    PCollection<Record> pc = p.apply(Create.empty(new RecordNoDecodeCoder()));
     UncommittedBundle<Record> bundle = factory.createBundle(pc);
 
     thrown.expect(UserCodeException.class);
@@ -152,7 +152,7 @@ public class CloningBundleFactoryTest {
 
   @Test
   public void keyedBundleEncodeFailsAddFails() {
-    PCollection<Record> pc = p.apply(Create.<Record>of().withCoder(new RecordNoEncodeCoder()));
+    PCollection<Record> pc = p.apply(Create.empty(new RecordNoEncodeCoder()));
     UncommittedBundle<Record> bundle =
         factory.createKeyedBundle(StructuralKey.of("foo", StringUtf8Coder.of()), pc);
 
@@ -164,7 +164,7 @@ public class CloningBundleFactoryTest {
 
   @Test
   public void keyedBundleDecodeFailsAddFails() {
-    PCollection<Record> pc = p.apply(Create.<Record>of().withCoder(new RecordNoDecodeCoder()));
+    PCollection<Record> pc = p.apply(Create.empty(new RecordNoDecodeCoder()));
     UncommittedBundle<Record> bundle =
         factory.createKeyedBundle(StructuralKey.of("foo", StringUtf8Coder.of()), pc);
 

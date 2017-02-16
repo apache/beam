@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.util;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.api.client.googleapis.batch.BatchRequest;
 import com.google.api.client.googleapis.batch.json.JsonBatchCallback;
@@ -101,6 +100,18 @@ public class GcsUtil {
           gcsOptions.getExecutorService(),
           gcsOptions.getGcsUploadBufferSizeBytes());
     }
+
+    /**
+     * Returns an instance of {@link GcsUtil} based on the given parameters.
+     */
+    public static GcsUtil create(
+        Storage storageClient,
+        HttpRequestInitializer httpRequestInitializer,
+        ExecutorService executorService,
+        @Nullable Integer uploadBufferSizeBytes) {
+      return new GcsUtil(
+          storageClient, httpRequestInitializer, executorService, uploadBufferSizeBytes);
+    }
   }
 
   private static final Logger LOG = LoggerFactory.getLogger(GcsUtil.class);
@@ -149,13 +160,66 @@ public class GcsUtil {
    * Returns true if the given GCS pattern is supported otherwise fails with an
    * exception.
    */
-  public boolean isGcsPatternSupported(String gcsPattern) {
+  public static boolean isGcsPatternSupported(String gcsPattern) {
     if (RECURSIVE_GCS_PATTERN.matcher(gcsPattern).matches()) {
       throw new IllegalArgumentException("Unsupported wildcard usage in \"" + gcsPattern + "\": "
           + " recursive wildcards are not supported.");
     }
-
     return true;
+  }
+
+  /**
+   * Returns the prefix portion of the glob that doesn't contain wildcards.
+   */
+  public static String getGlobPrefix(String globExp) {
+    checkArgument(isGcsPatternSupported(globExp));
+    Matcher m = GLOB_PREFIX.matcher(globExp);
+    checkArgument(
+        m.matches(),
+        String.format("Glob expression: [%s] is not expandable.", globExp));
+    return m.group("PREFIX");
+  }
+
+  /**
+   * Expands glob expressions to regular expressions.
+   *
+   * @param globExp the glob expression to expand
+   * @return a string with the regular expression this glob expands to
+   */
+  public static String globToRegexp(String globExp) {
+    StringBuilder dst = new StringBuilder();
+    char[] src = globExp.toCharArray();
+    int i = 0;
+    while (i < src.length) {
+      char c = src[i++];
+      switch (c) {
+        case '*':
+          dst.append("[^/]*");
+          break;
+        case '?':
+          dst.append("[^/]");
+          break;
+        case '.':
+        case '+':
+        case '{':
+        case '}':
+        case '(':
+        case ')':
+        case '|':
+        case '^':
+        case '$':
+          // These need to be escaped in regular expressions
+          dst.append('\\').append(c);
+          break;
+        case '\\':
+          i = doubleSlashes(dst, src, i);
+          break;
+        default:
+          dst.append(c);
+          break;
+      }
+    }
+    return dst.toString();
   }
 
   private GcsUtil(
@@ -181,67 +245,32 @@ public class GcsUtil {
    */
   public List<GcsPath> expand(GcsPath gcsPattern) throws IOException {
     checkArgument(isGcsPatternSupported(gcsPattern.getObject()));
-    Matcher m = GLOB_PREFIX.matcher(gcsPattern.getObject());
     Pattern p = null;
     String prefix = null;
-    if (!m.matches()) {
+    if (!GLOB_PREFIX.matcher(gcsPattern.getObject()).matches()) {
       // Not a glob.
-      Storage.Objects.Get getObject = storageClient.objects().get(
-          gcsPattern.getBucket(), gcsPattern.getObject());
       try {
-        // Use a get request to fetch the metadata of the object,
-        // the request has strong global consistency.
-        ResilientOperation.retry(
-            ResilientOperation.getGoogleRequestCallable(getObject),
-            BACKOFF_FACTORY.backoff(),
-            RetryDeterminer.SOCKET_ERRORS,
-            IOException.class);
+        // Use a get request to fetch the metadata of the object, and ignore the return value.
+        // The request has strong global consistency.
+        getObject(gcsPattern);
         return ImmutableList.of(gcsPattern);
-      } catch (IOException | InterruptedException e) {
-        if (e instanceof InterruptedException) {
-          Thread.currentThread().interrupt();
-        }
-        if (e instanceof IOException && errorExtractor.itemNotFound((IOException) e)) {
-          // If the path was not found, return an empty list.
-          return ImmutableList.of();
-        }
-        throw new IOException("Unable to match files for pattern " + gcsPattern, e);
+      } catch (FileNotFoundException e) {
+        // If the path was not found, return an empty list.
+        return ImmutableList.of();
       }
     } else {
       // Part before the first wildcard character.
-      prefix = m.group("PREFIX");
+      prefix = getGlobPrefix(gcsPattern.getObject());
       p = Pattern.compile(globToRegexp(gcsPattern.getObject()));
     }
 
     LOG.debug("matching files in bucket {}, prefix {} against pattern {}", gcsPattern.getBucket(),
         prefix, p.toString());
 
-    // List all objects that start with the prefix (including objects in sub-directories).
-    Storage.Objects.List listObject = storageClient.objects().list(gcsPattern.getBucket());
-    listObject.setMaxResults(MAX_LIST_ITEMS_PER_CALL);
-    listObject.setPrefix(prefix);
-
     String pageToken = null;
     List<GcsPath> results = new LinkedList<>();
     do {
-      if (pageToken != null) {
-        listObject.setPageToken(pageToken);
-      }
-
-      Objects objects;
-      try {
-        objects = ResilientOperation.retry(
-            ResilientOperation.getGoogleRequestCallable(listObject),
-            BACKOFF_FACTORY.backoff(),
-            RetryDeterminer.SOCKET_ERRORS,
-            IOException.class);
-      } catch (Exception e) {
-        throw new IOException("Unable to match files in bucket " + gcsPattern.getBucket()
-            +  ", prefix " + prefix + " against pattern " + p.toString(), e);
-      }
-      //Objects objects = listObject.execute();
-      checkNotNull(objects);
-
+      Objects objects = listObjects(gcsPattern.getBucket(), prefix, pageToken);
       if (objects.getItems() == null) {
         break;
       }
@@ -255,7 +284,6 @@ public class GcsUtil {
           results.add(GcsPath.fromObject(o));
         }
       }
-
       pageToken = objects.getNextPageToken();
     } while (pageToken != null);
 
@@ -273,33 +301,64 @@ public class GcsUtil {
    * if the resource does not exist.
    */
   public long fileSize(GcsPath path) throws IOException {
-    return fileSize(
-        path,
-        BACKOFF_FACTORY.backoff(),
-        Sleeper.DEFAULT);
+    return getObject(path).getSize().longValue();
   }
 
   /**
-   * Returns the file size from GCS or throws {@link FileNotFoundException}
-   * if the resource does not exist.
+   * Returns the {@link StorageObject} for the given {@link GcsPath}.
    */
+  public StorageObject getObject(GcsPath gcsPath) throws IOException {
+    return getObject(gcsPath, BACKOFF_FACTORY.backoff(), Sleeper.DEFAULT);
+  }
+
   @VisibleForTesting
-  long fileSize(GcsPath path, BackOff backoff, Sleeper sleeper) throws IOException {
+  StorageObject getObject(GcsPath gcsPath, BackOff backoff, Sleeper sleeper) throws IOException {
     Storage.Objects.Get getObject =
-            storageClient.objects().get(path.getBucket(), path.getObject());
+        storageClient.objects().get(gcsPath.getBucket(), gcsPath.getObject());
     try {
-      StorageObject object = ResilientOperation.retry(
+      return ResilientOperation.retry(
           ResilientOperation.getGoogleRequestCallable(getObject),
           backoff,
           RetryDeterminer.SOCKET_ERRORS,
           IOException.class,
           sleeper);
-      return object.getSize().longValue();
-    } catch (Exception e) {
-      if (e instanceof IOException && errorExtractor.itemNotFound((IOException) e)) {
-        throw new FileNotFoundException(path.toString());
+    } catch (IOException | InterruptedException e) {
+      if (e instanceof InterruptedException) {
+        Thread.currentThread().interrupt();
       }
-      throw new IOException("Unable to get file size", e);
+      if (e instanceof IOException && errorExtractor.itemNotFound((IOException) e)) {
+        throw new FileNotFoundException(gcsPath.toString());
+      }
+      throw new IOException(
+          String.format("Unable to get the file object for path %s.", gcsPath),
+          e);
+    }
+  }
+
+  /**
+   * Lists {@link Objects} given the {@code bucket}, {@code prefix}, {@code pageToken}.
+   */
+  public Objects listObjects(String bucket, String prefix, @Nullable String pageToken)
+      throws IOException {
+    // List all objects that start with the prefix (including objects in sub-directories).
+    Storage.Objects.List listObject = storageClient.objects().list(bucket);
+    listObject.setMaxResults(MAX_LIST_ITEMS_PER_CALL);
+    listObject.setPrefix(prefix);
+
+    if (pageToken != null) {
+      listObject.setPageToken(pageToken);
+    }
+
+    try {
+      return ResilientOperation.retry(
+          ResilientOperation.getGoogleRequestCallable(listObject),
+          BACKOFF_FACTORY.backoff(),
+          RetryDeterminer.SOCKET_ERRORS,
+          IOException.class);
+    } catch (Exception e) {
+      throw new IOException(
+          String.format("Unable to match files in bucket %s, prefix %s.", bucket, prefix),
+          e);
     }
   }
 
@@ -309,12 +368,12 @@ public class GcsUtil {
    */
   @VisibleForTesting
   List<Long> fileSizes(Collection<GcsPath> paths) throws IOException {
-    List<long[]> results = Lists.newArrayList();
+    List<StorageObject[]> results = Lists.newArrayList();
     executeBatches(makeGetBatches(paths, results));
 
     ImmutableList.Builder<Long> ret = ImmutableList.builder();
-    for (long[] result : results) {
-      ret.add(result[0]);
+    for (StorageObject[] result : results) {
+      ret.add(result[0].getSize().longValue());
     }
     return ret.build();
   }
@@ -530,7 +589,7 @@ public class GcsUtil {
   @VisibleForTesting
   List<BatchRequest> makeGetBatches(
       Collection<GcsPath> paths,
-      List<long[]> results) throws IOException {
+      List<StorageObject[]> results) throws IOException {
     List<BatchRequest> batches = new LinkedList<>();
     for (List<GcsPath> filesToGet :
         Lists.partition(Lists.newArrayList(paths), MAX_REQUESTS_PER_BATCH)) {
@@ -589,15 +648,16 @@ public class GcsUtil {
     executeBatches(makeRemoveBatches(filenames));
   }
 
-  private long[] enqueueGetFileSize(final GcsPath path, BatchRequest batch) throws IOException {
-    final long[] fileSize = new long[1];
+  private StorageObject[] enqueueGetFileSize(final GcsPath path, BatchRequest batch)
+      throws IOException {
+    final StorageObject[] storageObject = new StorageObject[1];
 
     Storage.Objects.Get getRequest = storageClient.objects()
         .get(path.getBucket(), path.getObject());
     getRequest.queue(batch, new JsonBatchCallback<StorageObject>() {
       @Override
       public void onSuccess(StorageObject response, HttpHeaders httpHeaders) throws IOException {
-        fileSize[0] = response.getSize().longValue();
+        storageObject[0] = response;
       }
 
       @Override
@@ -609,7 +669,7 @@ public class GcsUtil {
         }
       }
     });
-    return fileSize;
+    return storageObject;
   }
 
   private void enqueueCopy(final GcsPath from, final GcsPath to, BatchRequest batch)
@@ -658,48 +718,6 @@ public class GcsUtil {
 
   private BatchRequest createBatchRequest() {
     return storageClient.batch(httpRequestInitializer);
-  }
-
-  /**
-   * Expands glob expressions to regular expressions.
-   *
-   * @param globExp the glob expression to expand
-   * @return a string with the regular expression this glob expands to
-   */
-  static String globToRegexp(String globExp) {
-    StringBuilder dst = new StringBuilder();
-    char[] src = globExp.toCharArray();
-    int i = 0;
-    while (i < src.length) {
-      char c = src[i++];
-      switch (c) {
-        case '*':
-          dst.append("[^/]*");
-          break;
-        case '?':
-          dst.append("[^/]");
-          break;
-        case '.':
-        case '+':
-        case '{':
-        case '}':
-        case '(':
-        case ')':
-        case '|':
-        case '^':
-        case '$':
-          // These need to be escaped in regular expressions
-          dst.append('\\').append(c);
-          break;
-        case '\\':
-          i = doubleSlashes(dst, src, i);
-          break;
-        default:
-          dst.append(c);
-          break;
-      }
-    }
-    return dst.toString();
   }
 
   private static int doubleSlashes(StringBuilder dst, char[] src, int i) {

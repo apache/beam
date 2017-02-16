@@ -23,7 +23,6 @@ import static org.junit.Assert.assertThat;
 
 import org.apache.beam.runners.core.triggers.TriggerStateMachine.OnceTriggerStateMachine;
 import org.apache.beam.sdk.transforms.windowing.AfterAll;
-import org.apache.beam.sdk.transforms.windowing.AfterDelayFromFirstElement;
 import org.apache.beam.sdk.transforms.windowing.AfterEach;
 import org.apache.beam.sdk.transforms.windowing.AfterFirst;
 import org.apache.beam.sdk.transforms.windowing.AfterPane;
@@ -64,7 +63,7 @@ public class TriggerStateMachinesTest {
     Duration minutes = Duration.standardMinutes(94);
     Duration hours = Duration.standardHours(13);
 
-    AfterDelayFromFirstElement trigger =
+    AfterProcessingTime trigger =
         AfterProcessingTime.pastFirstElementInPane().plusDelayOf(minutes).alignedTo(hours);
 
     AfterDelayFromFirstElementStateMachine machine =
@@ -72,10 +71,6 @@ public class TriggerStateMachinesTest {
             TriggerStateMachines.stateMachineForOnceTrigger(trigger);
 
     assertThat(machine.getTimeDomain(), equalTo(TimeDomain.PROCESSING_TIME));
-
-    // This equality is function equality, but due to the structure of the code (no serialization)
-    // it is OK to check
-    assertThat(machine.getTimestampMappers(), equalTo(trigger.getTimestampMappers()));
   }
 
   @Test

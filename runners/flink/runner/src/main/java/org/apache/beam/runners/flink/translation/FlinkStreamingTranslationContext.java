@@ -107,7 +107,7 @@ public class FlinkStreamingTranslationContext {
   }
 
   public <T extends PInput> List<TaggedPValue> getInputs(PTransform<T, ?> transform) {
-    return currentTransform.getOutputs();
+    return currentTransform.getInputs();
   }
 
   @SuppressWarnings("unchecked")
