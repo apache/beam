@@ -57,10 +57,36 @@ public class SerializableConfiguration implements Externalizable {
 
   @Override
   public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
-    conf = new Configuration();
+    conf = new Configuration(false);
     int size = in.readInt();
     for (int i = 0; i < size; i++) {
       conf.set(in.readUTF(), in.readUTF());
+    }
+  }
+
+  /**
+   * Returns new configured {@link Job} object.
+   */
+  public static Job newJob(@Nullable SerializableConfiguration conf) throws IOException {
+    if (conf == null) {
+      return Job.getInstance();
+    } else {
+      Job job = Job.getInstance();
+      for (Map.Entry<String, String> entry : conf.get()) {
+        job.getConfiguration().set(entry.getKey(), entry.getValue());
+      }
+      return job;
+    }
+  }
+
+  /**
+   * Returns new populated {@link Configuration} object.
+   */
+  public static Configuration newConfiguration(@Nullable SerializableConfiguration conf) {
+    if (conf == null) {
+      return new Configuration();
+    } else {
+      return conf.get();
     }
   }
 
