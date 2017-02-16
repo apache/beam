@@ -293,6 +293,15 @@ public class HBaseIO {
             return serializableConfiguration.getConfiguration();
         }
 
+        /**
+         * Returns the range of keys that will be read from the table.
+         */
+        public ByteKeyRange getKeyRange() {
+            byte[] startRow = serializableScan.getScan().getStartRow();
+            byte[] stopRow = serializableScan.getScan().getStopRow();
+            return ByteKeyRange.of(ByteKey.copyFrom(startRow), ByteKey.copyFrom(stopRow));
+        }
+
         private SerializableConfiguration serializableConfiguration;
         private String tableId;
         private SerializableScan serializableScan;

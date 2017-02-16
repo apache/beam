@@ -87,7 +87,7 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class HBaseIOTest {
 //    private static final Logger LOG = LoggerFactory.getLogger(HBaseIOTest.class);
-
+    @Rule public final transient TestPipeline p = TestPipeline.create();
     @Rule public ExpectedException thrown = ExpectedException.none();
     @Rule public transient ExpectedLogs logged = ExpectedLogs.none(HBaseIO.class);
 
@@ -310,7 +310,6 @@ public class HBaseIOTest {
 
         createTable(table);
 
-        TestPipeline p = TestPipeline.create();
         p.apply("single row", Create.of(makeWrite(key, value)).withCoder(HBaseIO.WRITE_CODER))
                 .apply("write", HBaseIO.write().withConfiguration(conf).withTableId(table));
         p.run().waitUntilFinish();
@@ -325,7 +324,7 @@ public class HBaseIOTest {
         final String table = "TEST-TABLE";
 
         PCollection<KV<ByteString, Iterable<Mutation>>> emptyInput =
-                TestPipeline.create().apply(Create.empty(HBaseIO.WRITE_CODER));
+                p.apply(Create.empty(HBaseIO.WRITE_CODER));
 
         // Exception will be thrown by write.validate() when write is applied.
         thrown.expect(IllegalArgumentException.class);
@@ -342,7 +341,6 @@ public class HBaseIOTest {
         final String key = "KEY";
         createTable(table);
 
-        TestPipeline p = TestPipeline.create();
         p.apply(Create.of(makeBadWrite(key)).withCoder(HBaseIO.WRITE_CODER))
                 .apply(HBaseIO.write().withConfiguration(conf).withTableId(table));
 
@@ -449,17 +447,17 @@ public class HBaseIOTest {
         return KV.of(ByteString.copyFromUtf8(key), (Iterable<Mutation>) mutations);
     }
 
-    private static void runReadTest(HBaseIO.Read read, List<Result> expected) {
-        TestPipeline p = TestPipeline.create();
-        PCollection<Result> rows = p.apply(read);
+    private void runReadTest(HBaseIO.Read read, List<Result> expected) {
+        final String transformId = read.getTableId() + "_" + read.getKeyRange();
+        PCollection<Result> rows = p.apply("Read" + transformId, read);
         PAssert.that(rows).containsInAnyOrder(expected);
         p.run().waitUntilFinish();
     }
 
-    private static void runReadTestLength(HBaseIO.Read read, long numElements) {
-        TestPipeline p = TestPipeline.create();
-        PCollection<Result> rows = p.apply(read);
-        PAssert.thatSingleton(rows.apply("Count",
+    private void runReadTestLength(HBaseIO.Read read, long numElements) {
+        final String transformId = read.getTableId() + "_" + read.getKeyRange();
+        PCollection<Result> rows = p.apply("Read" + transformId, read);
+        PAssert.thatSingleton(rows.apply("Count" + transformId,
                 Count.<Result>globally())).isEqualTo(numElements);
         p.run().waitUntilFinish();
     }
