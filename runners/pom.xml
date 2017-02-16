@@ -33,6 +33,7 @@
   <name>Apache Beam :: Runners</name>
 
   <modules>
+    <module>core-construction-java</module>
     <module>core-java</module>
     <module>direct-java</module>
     <module>flink</module>
