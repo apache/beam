@@ -21,26 +21,26 @@
 class common_job_properties {
 
   // Sets common top-level job properties for website repository jobs.
-  static def setTopLevelWebsiteJobProperties(def context) {
+  static void setTopLevelWebsiteJobProperties(context) {
     setTopLevelJobProperties(context, 'beam-site', 'asf-site', 30)
   }
 
   // Sets common top-level job properties for main repository jobs.
-  static def setTopLevelMainJobProperties(def context,
-                                          def default_branch = 'master') {
-    setTopLevelJobProperties(context, 'beam', default_branch, 100)
+  static void setTopLevelMainJobProperties(context,
+                                           String defaultBranch = 'master') {
+    setTopLevelJobProperties(context, 'beam', defaultBranch, 100)
   }
 
   // Sets common top-level job properties. Should be accessed through one of the
   // above methods to protect jobs from internal details of param defaults.
-  private static def setTopLevelJobProperties(def context,
-                                              def repository_name,
-                                              def default_branch,
-                                              def default_timeout) {
+  private static void setTopLevelJobProperties(context,
+                                               String repositoryName,
+                                               String defaultBranch,
+                                               String defaultTimeout) {
 
     // GitHub project.
     context.properties {
-      githubProjectUrl('https://github.com/apache/' + repository_name + '/')
+      githubProjectUrl('https://github.com/apache/' + repositoryName + '/')
     }
 
     // Set JDK version.
@@ -59,7 +59,7 @@ class common_job_properties {
     context.scm {
       git {
         remote {
-          url('https://github.com/apache/' + repository_name + '.git')
+          url('https://github.com/apache/' + repositoryName + '.git')
           refspec('+refs/heads/*:refs/remotes/origin/* ' +
                   '+refs/pull/*:refs/remotes/origin/pr/*')
         }
@@ -75,14 +75,14 @@ class common_job_properties {
       // ${sha1} parameter needs to be provided, and defaults to the main branch.
       stringParam(
           'sha1',
-          default_branch,
+          defaultBranch,
           'Commit id or refname (eg: origin/pr/9/head) you want to build.')
     }
 
     context.wrappers {
       // Abort the build if it's stuck for more minutes than specified.
       timeout {
-        absolute(default_timeout)
+        absolute(defaultTimeout)
         abortBuild()
       }
 
@@ -98,10 +98,10 @@ class common_job_properties {
 
   // Sets the pull request build trigger. Accessed through precommit methods
   // below to insulate callers from internal parameter defaults.
-  private static def setPullRequestBuildTrigger(def context,
-                                                def commitStatusContext,
-                                                def successComment = '--none--',
-                                                def trigger_phrase = '') {
+  private static def setPullRequestBuildTrigger(context,
+                                                String commitStatusContext,
+                                                String successComment = '--none--',
+                                                String prTriggerPhrase = '') {
     context.triggers {
       githubPullRequest {
         admins(['asfbot'])
@@ -109,13 +109,13 @@ class common_job_properties {
         orgWhitelist(['apache'])
         allowMembersOfWhitelistedOrgsAsAdmin()
         permitAll()
-        // trigger_phrase is the argument which gets set when we want to allow
+        // prTriggerPhrase is the argument which gets set when we want to allow
         // post-commit builds to run against pending pull requests. This block
         // overrides the default trigger phrase with the new one. Setting this
         // will disable automatic invocation of this build; the phrase will be
         // required to start it.
-        if (trigger_phrase != '') {
-          triggerPhrase(trigger_phrase)
+        if (prTriggerPhrase != '') {
+          triggerPhrase(prTriggerPhrase)
           onlyTriggerPhrase()
         }
 
@@ -160,7 +160,7 @@ class common_job_properties {
   }
 
   // Sets common config for Maven jobs.
-  static def setMavenConfig(def context) {
+  static def setMavenConfig(context) {
     context.mavenInstallation('Maven 3.3.3')
     context.mavenOpts('-Dorg.slf4j.simpleLogger.showDateTime=true')
     context.mavenOpts('-Dorg.slf4j.simpleLogger.dateTimeFormat=yyyy-MM-dd\\\'T\\\'HH:mm:ss.SSS')
@@ -174,9 +174,9 @@ class common_job_properties {
   }
 
   // Sets common config for PreCommit jobs.
-  static def setPreCommit(def context,
-                          def commitStatusName,
-                          def successComment = '--none--') {
+  static def setPreCommit(context,
+                          String commitStatusName,
+                          String successComment = '--none--') {
     // Set pull request build trigger.
     setPullRequestBuildTrigger(context, commitStatusName, successComment)
   }
@@ -184,33 +184,33 @@ class common_job_properties {
   // Enable triggering postcommit runs against pull requests. Users can comment the trigger phrase
   // specified in the postcommit job and have the job run against their PR to run
   // tests not in the presubmit suite for additional confidence.
-  static def enablePhraseTriggeringFromPullRequest(def context,
-                                         def commitStatusName,
-                                         def trigger_phrase) {
+  static def enablePhraseTriggeringFromPullRequest(context,
+                                                   String commitStatusName,
+                                                   String prTriggerPhrase) {
     setPullRequestBuildTrigger(
       context,
       commitStatusName,
       '--none--',
-      trigger_phrase)
+      prTriggerPhrase)
   }
 
   // Sets common config for PostCommit jobs.
-  static def setPostCommit(def context,
-                           def build_schedule = '0 */6 * * *',
-                           def trigger_every_push = true,
-                           def notify_address = 'commits@beam.apache.org') {
+  static def setPostCommit(context,
+                           String buildSchedule = '0 */6 * * *',
+                           boolean triggerEveryPush = true,
+                           String notifyAddress = 'commits@beam.apache.org') {
     // Set build triggers
     context.triggers {
       // By default runs every 6 hours.
-      cron(build_schedule)
-      if (trigger_every_push) {
+      cron(buildSchedule)
+      if (triggerEveryPush) {
         githubPush()
       }
     }
 
     context.publishers {
       // Notify an email address for each failed build (defaults to commits@).
-      mailer(notify_address, false, true)
+      mailer(notifyAddress, false, true)
     }
   }
 }
