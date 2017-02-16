@@ -293,7 +293,7 @@ class TransformExecutor(ExecutorService.CallableTask):
           side_input_values, scoped_metrics_container)
 
       if self._input_bundle:
-        for value in self._input_bundle.elements:
+        for value in self._input_bundle.get_elements_iterable():
           evaluator.process_element(value)
 
       with scoped_metrics_container:
@@ -304,7 +304,7 @@ class TransformExecutor(ExecutorService.CallableTask):
         for uncommitted_bundle in result.output_bundles:
           self._evaluation_context.append_to_cache(
               self._applied_transform, uncommitted_bundle.tag,
-              uncommitted_bundle.elements)
+              uncommitted_bundle.get_elements_iterable())
         undeclared_tag_values = result.undeclared_tag_values
         if undeclared_tag_values:
           for tag, value in undeclared_tag_values.iteritems():

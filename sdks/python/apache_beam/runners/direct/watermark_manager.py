@@ -102,7 +102,7 @@ class WatermarkManager(object):
     # Update pending elements. Filter out empty bundles. They do not impact
     # watermarks and should not trigger downstream execution.
     for output in output_committed_bundles:
-      if output.elements:
+      if output.has_elements():
         if output.pcollection in self._value_to_consumers:
           consumers = self._value_to_consumers[output.pcollection]
           for consumer in consumers:
@@ -113,7 +113,7 @@ class WatermarkManager(object):
     completed_tw.update_timers(timer_update)
 
     assert input_committed_bundle or applied_ptransform in self._root_transforms
-    if input_committed_bundle and input_committed_bundle.elements:
+    if input_committed_bundle and input_committed_bundle.has_elements():
       completed_tw.remove_pending(input_committed_bundle)
 
   def _refresh_watermarks(self, applied_ptransform):
