@@ -27,9 +27,11 @@ import com.google.common.base.MoreObjects;
 import java.io.Serializable;
 import java.util.Collections;
 import org.apache.beam.sdk.coders.VarIntCoder;
+import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.runners.PTransformMatcher;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
+import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -273,6 +275,47 @@ public class PTransformMatchersTest implements Serializable {
     assertThat(PTransformMatchers.splittableParDoMulti().matches(parDoApplication), is(false));
     assertThat(PTransformMatchers.splittableParDoSingle().matches(parDoApplication), is(false));
     assertThat(PTransformMatchers.stateOrTimerParDoSingle().matches(parDoApplication), is(false));
+  }
+
+  @Test
+  public void parDoWithFnTypeWithMatchingType() {
+    DoFn<Object, Object> fn = new DoFn<Object, Object>() {
+      @ProcessElement
+      public void process(ProcessContext ctxt) {
+      }
+    };
+    AppliedPTransform<?, ?, ?> parDoSingle = getAppliedTransform(ParDo.of(fn));
+    AppliedPTransform<?, ?, ?> parDoMulti =
+        getAppliedTransform(
+            ParDo.of(fn).withOutputTags(new TupleTag<Object>(), TupleTagList.empty()));
+
+    PTransformMatcher matcher = PTransformMatchers.parDoWithFnType(fn.getClass());
+    assertThat(matcher.matches(parDoSingle), is(true));
+    assertThat(matcher.matches(parDoMulti), is(true));
+  }
+
+  @Test
+  public void parDoWithFnTypeWithNoMatch() {
+    DoFn<Object, Object> fn = new DoFn<Object, Object>() {
+      @ProcessElement
+      public void process(ProcessContext ctxt) {
+      }
+    };
+    AppliedPTransform<?, ?, ?> parDoSingle = getAppliedTransform(ParDo.of(fn));
+    AppliedPTransform<?, ?, ?> parDoMulti =
+        getAppliedTransform(
+            ParDo.of(fn).withOutputTags(new TupleTag<Object>(), TupleTagList.empty()));
+
+    PTransformMatcher matcher = PTransformMatchers.parDoWithFnType(doFnWithState.getClass());
+    assertThat(matcher.matches(parDoSingle), is(false));
+    assertThat(matcher.matches(parDoMulti), is(false));
+  }
+
+  @Test
+  public void parDoWithFnTypeNotParDo() {
+    AppliedPTransform<?, ?, ?> notParDo = getAppliedTransform(Create.empty(VoidCoder.of()));
+    PTransformMatcher matcher = PTransformMatchers.parDoWithFnType(doFnWithState.getClass());
+    assertThat(matcher.matches(notParDo), is(false));
   }
 
   @Test
