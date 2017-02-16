@@ -18,6 +18,8 @@
 
 // Contains functions that help build Jenkins projects. Functions typically set
 // common properties that are shared among all Jenkins projects.
+// Code in this directory should conform to the Groovy style guide.
+//  http://groovy-lang.org/style-guide.html
 class common_job_properties {
 
   // Sets common top-level job properties for website repository jobs.
