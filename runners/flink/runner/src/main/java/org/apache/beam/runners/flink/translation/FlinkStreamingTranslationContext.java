@@ -89,6 +89,14 @@ public class FlinkStreamingTranslationContext {
     this.currentTransform = currentTransform;
   }
 
+  public <T> Coder<WindowedValue<T>> getCoder(PCollection<T> collection) {
+    Coder<T> valueCoder = collection.getCoder();
+
+    return WindowedValue.getFullCoder(
+        valueCoder,
+        collection.getWindowingStrategy().getWindowFn().windowCoder());
+  }
+
   @SuppressWarnings("unchecked")
   public <T> TypeInformation<WindowedValue<T>> getTypeInfo(PCollection<T> collection) {
     Coder<T> valueCoder = collection.getCoder();

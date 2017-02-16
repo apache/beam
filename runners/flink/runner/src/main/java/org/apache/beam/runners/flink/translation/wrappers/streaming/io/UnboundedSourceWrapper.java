@@ -43,10 +43,9 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.state.CheckpointListener;
 import org.apache.flink.streaming.api.checkpoint.Checkpointed;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
-import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.streaming.api.watermark.Watermark;
-import org.apache.flink.streaming.runtime.operators.Triggerable;
+import org.apache.flink.streaming.runtime.tasks.ProcessingTimeCallback;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -57,7 +56,7 @@ import org.slf4j.LoggerFactory;
 public class UnboundedSourceWrapper<
     OutputT, CheckpointMarkT extends UnboundedSource.CheckpointMark>
     extends RichParallelSourceFunction<WindowedValue<OutputT>>
-    implements Triggerable, StoppableFunction, Checkpointed<byte[]>, CheckpointListener {
+    implements ProcessingTimeCallback, StoppableFunction, Checkpointed<byte[]>, CheckpointListener {
 
   private static final Logger LOG = LoggerFactory.getLogger(UnboundedSourceWrapper.class);
 
@@ -85,7 +84,7 @@ public class UnboundedSourceWrapper<
 
   /**
    * The local split readers. Assigned at runtime when the wrapper is executed in parallel.
-   * Make it a field so that we can access it in {@link #trigger(long)} for
+   * Make it a field so that we can access it in {@link #onProcessingTime(long)} for
    * emitting watermarks.
    */
   private transient List<UnboundedSource.UnboundedReader<OutputT>> localReaders;
@@ -98,16 +97,16 @@ public class UnboundedSourceWrapper<
   private volatile boolean isRunning = true;
 
   /**
-   * Make it a field so that we can access it in {@link #trigger(long)} for registering new
+   * Make it a field so that we can access it in {@link #onProcessingTime(long)} for registering new
    * triggers.
    */
   private transient StreamingRuntimeContext runtimeContext;
 
   /**
-   * Make it a field so that we can access it in {@link #trigger(long)} for emitting
+   * Make it a field so that we can access it in {@link #onProcessingTime(long)} for emitting
    * watermarks.
    */
-  private transient StreamSource.ManualWatermarkContext<WindowedValue<OutputT>> context;
+  private transient SourceContext<WindowedValue<OutputT>> context;
 
   /**
    * Pending checkpoints which have not been acknowledged yet.
@@ -218,12 +217,8 @@ public class UnboundedSourceWrapper<
 
   @Override
   public void run(SourceContext<WindowedValue<OutputT>> ctx) throws Exception {
-    if (!(ctx instanceof StreamSource.ManualWatermarkContext)) {
-      throw new RuntimeException(
-          "Cannot emit watermarks, this hints at a misconfiguration/bug.");
-    }
 
-    context = (StreamSource.ManualWatermarkContext<WindowedValue<OutputT>>) ctx;
+    context = ctx;
 
     if (localReaders.size() == 0) {
       // do nothing, but still look busy ...
@@ -405,7 +400,7 @@ public class UnboundedSourceWrapper<
   }
 
   @Override
-  public void trigger(long timestamp) throws Exception {
+  public void onProcessingTime(long timestamp) throws Exception {
     if (this.isRunning) {
       synchronized (context.getCheckpointLock()) {
         // find minimum watermark over all localReaders
@@ -426,7 +421,7 @@ public class UnboundedSourceWrapper<
     if (this.isRunning) {
       long watermarkInterval =  runtime.getExecutionConfig().getAutoWatermarkInterval();
       long timeToNextWatermark = getTimeToNextWatermark(watermarkInterval);
-      runtime.registerTimer(timeToNextWatermark, this);
+      runtime.getProcessingTimeService().registerTimer(timeToNextWatermark, this);
     }
   }
 
