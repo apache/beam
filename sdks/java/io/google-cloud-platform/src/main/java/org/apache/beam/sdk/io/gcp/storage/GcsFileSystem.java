@@ -128,6 +128,12 @@ class GcsFileSystem extends FileSystem<GcsResourceId> {
     return MatchResult.create(Status.OK, results.toArray(new Metadata[results.size()]));
   }
 
+  /**
+   * Returns {@link MatchResult MatchResults} for the given {@link GcsPath GcsPaths}.
+   *
+   *<p>The number of returned {@link MatchResult MatchResults} equals to the number of given
+   * {@link GcsPath GcsPaths}. Each {@link MatchResult} contains one {@link Metadata}.
+   */
   @VisibleForTesting
   List<MatchResult> matchNonGlobs(List<GcsPath> gcsPaths) throws IOException {
     List<StorageObjectOrIOException> results = options.getGcsUtil().getObjects(gcsPaths);
