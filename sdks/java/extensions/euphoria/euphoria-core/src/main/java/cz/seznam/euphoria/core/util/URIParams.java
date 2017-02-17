@@ -429,7 +429,7 @@ public class URIParams {
     String value = remove(name);
     if (value == null) {
       throw new IllegalArgumentException(String.format(
-          "Dropping parameter \"{}\" which does not exist.", new Object[] { name }));
+          "Dropping parameter \"%s\" which does not exist.", name));
     }
   }
 

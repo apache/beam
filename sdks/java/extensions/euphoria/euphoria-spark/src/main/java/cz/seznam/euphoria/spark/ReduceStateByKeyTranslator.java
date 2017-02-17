@@ -35,6 +35,7 @@ import org.apache.spark.api.java.function.FlatMapFunction;
 import org.apache.spark.api.java.function.PairFlatMapFunction;
 import scala.Tuple2;
 
+import javax.annotation.Nullable;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -117,12 +118,13 @@ class ReduceStateByKeyTranslator implements SparkOperatorTranslator<ReduceStateB
     private final UnaryFunction keyExtractor;
     private final UnaryFunction valueExtractor;
     private final Windowing windowing;
+    @Nullable
     private final UnaryFunction eventTimeAssigner;
 
     public CompositeKeyExtractor(UnaryFunction keyExtractor,
                                  UnaryFunction valueExtractor,
                                  Windowing windowing,
-                                 UnaryFunction<?, Long> eventTimeAssigner /* optional */) {
+                                 @Nullable UnaryFunction<?, Long> eventTimeAssigner) {
       this.keyExtractor = keyExtractor;
       this.valueExtractor = valueExtractor;
       this.windowing = windowing;
