@@ -1213,10 +1213,7 @@ public class DisplayDataTest implements Serializable {
               }
             });
 
-    byte[] dataBytes = SerializableUtils.serializeToByteArray(data);
-    DisplayData serData =
-        (DisplayData) SerializableUtils.deserializeFromByteArray(dataBytes, "DisplayDataInstance");
-
+    DisplayData serData = SerializableUtils.clone(data);
     assertEquals(data, serData);
   }
 
