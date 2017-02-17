@@ -78,15 +78,12 @@ import org.junit.experimental.categories.Category;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-//import org.slf4j.Logger;
-//import org.slf4j.LoggerFactory;
 
 /**
  * Test HBaseIO.
  */
 @RunWith(JUnit4.class)
 public class HBaseIOTest {
-//    private static final Logger LOG = LoggerFactory.getLogger(HBaseIOTest.class);
     @Rule public final transient TestPipeline p = TestPipeline.create();
     @Rule public ExpectedException thrown = ExpectedException.none();
     @Rule public transient ExpectedLogs logged = ExpectedLogs.none(HBaseIO.class);
@@ -101,32 +98,10 @@ public class HBaseIOTest {
 
     @BeforeClass
     public static void beforeClass() throws Exception {
-        System.out.println("Starting HBase Embedded Server (HBaseTestUtility)");
         conf.setInt(HConstants.HBASE_CLIENT_RETRIES_NUMBER, 1);
-        System.out.println("Printing /etc/hosts file");
-        try (BufferedReader br = new BufferedReader(new FileReader("/etc/hosts"))) {
-            String line = null;
-            while ((line = br.readLine()) != null) {
-                System.out.println(line);
-            }
-        }
-
+        conf.setStrings("hbase.master.info.bindAddress", "localhost");
         htu = new HBaseTestingUtility(conf);
-        System.out.println("HBase server configuration:");
-        Configuration configuration = htu.getConfiguration();
-        for (Map.Entry<String, String> entry : configuration) {
-            System.out.println(entry.getKey() + ": " + entry.getValue());
-        }
-
         htu.startMiniCluster(1, 4);
-
-        // https://issues.apache.org/jira/browse/HBASE-11711
-        htu.getConfiguration().setInt("hbase.master.info.port", -1);
-
-        // Make sure the zookeeper quorum value contains the right port number (varies per run).
-        htu.getConfiguration().set("hbase.zookeeper.quorum",
-                "localhost:" + htu.getZkCluster().getClientPort());
-
         admin = htu.getHBaseAdmin();
         System.out.println("Started HBase Embedded Server (HBaseTestUtility)");
     }
