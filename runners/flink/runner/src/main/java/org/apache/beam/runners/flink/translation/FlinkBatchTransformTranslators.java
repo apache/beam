@@ -489,6 +489,16 @@ class FlinkBatchTransformTranslators {
     }
   }
 
+  private static void rejectSplittable(DoFn<?, ?> doFn) {
+    DoFnSignature signature = DoFnSignatures.getSignature(doFn.getClass());
+    if (signature.processElement().isSplittable()) {
+      throw new UnsupportedOperationException(
+          String.format(
+              "%s does not currently support splittable DoFn: %s",
+              FlinkRunner.class.getSimpleName(), doFn));
+    }
+  }
+
   private static void rejectStateAndTimers(DoFn<?, ?> doFn) {
     DoFnSignature signature = DoFnSignatures.getSignature(doFn.getClass());
 
@@ -523,6 +533,7 @@ class FlinkBatchTransformTranslators {
 
         FlinkBatchTranslationContext context) {
       DoFn<InputT, OutputT> doFn = transform.getFn();
+      rejectSplittable(doFn);
       rejectStateAndTimers(doFn);
 
       DataSet<WindowedValue<InputT>> inputDataSet =
@@ -569,6 +580,7 @@ class FlinkBatchTransformTranslators {
         ParDo.BoundMulti<InputT, OutputT> transform,
         FlinkBatchTranslationContext context) {
       DoFn<InputT, OutputT> doFn = transform.getFn();
+      rejectSplittable(doFn);
       rejectStateAndTimers(doFn);
       DataSet<WindowedValue<InputT>> inputDataSet =
           context.getInputDataSet(context.getInput(transform));

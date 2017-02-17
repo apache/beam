@@ -229,7 +229,8 @@ class EvaluationContext {
 
   private void fireAvailableCallbacks(AppliedPTransform<?, ?, ?> producingTransform) {
     TransformWatermarks watermarks = watermarkManager.getWatermarks(producingTransform);
-    callbackExecutor.fireForWatermark(producingTransform, watermarks.getOutputWatermark());
+    Instant outputWatermark = watermarks.getOutputWatermark();
+    callbackExecutor.fireForWatermark(producingTransform, outputWatermark);
   }
 
   /**

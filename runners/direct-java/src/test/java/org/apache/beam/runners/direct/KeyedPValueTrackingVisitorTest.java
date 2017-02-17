@@ -24,6 +24,8 @@ import static org.junit.Assert.assertThat;
 import java.util.Collections;
 import org.apache.beam.runners.core.KeyedWorkItem;
 import org.apache.beam.runners.core.KeyedWorkItemCoder;
+import org.apache.beam.runners.direct.DirectGroupByKey.DirectGroupAlsoByWindow;
+import org.apache.beam.runners.direct.DirectGroupByKey.DirectGroupByKeyOnly;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -39,8 +41,11 @@ import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.TupleTagList;
 import org.joda.time.Instant;
 import org.junit.Before;
 import org.junit.Rule;
@@ -67,7 +72,12 @@ public class KeyedPValueTrackingVisitorTest {
   @Test
   public void groupByKeyProducesKeyedOutput() {
     PCollection<KV<String, Iterable<Integer>>> keyed =
-        p.apply(Create.of(KV.of("foo", 3))).apply(GroupByKey.<String, Integer>create());
+        p
+            .apply(Create.of(KV.of("foo", 3)))
+            .apply(new DirectGroupByKeyOnly<String, Integer>())
+            .apply(
+                new DirectGroupAlsoByWindow<String, Integer>(
+                    WindowingStrategy.globalDefault(), WindowingStrategy.globalDefault()));
 
     p.traverseTopologically(visitor);
     assertThat(visitor.getKeyedPValues(), hasItem(keyed));
@@ -144,10 +154,17 @@ public class KeyedPValueTrackingVisitorTest {
                         WindowedValue.getValueOnlyCoder(
                             KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of())))));
 
+    TupleTag<KeyedWorkItem<String, KV<String, Integer>>> keyedTag = new TupleTag<>();
     PCollection<KeyedWorkItem<String, KV<String, Integer>>> keyed =
         input
-            .apply(GroupByKey.<String, WindowedValue<KV<String, Integer>>>create())
-            .apply(ParDo.of(new ParDoMultiOverrideFactory.ToKeyedWorkItem<String, Integer>()))
+            .apply(new DirectGroupByKeyOnly<String, WindowedValue<KV<String, Integer>>>())
+            .apply(
+                new DirectGroupAlsoByWindow<String, WindowedValue<KV<String, Integer>>>(
+                    WindowingStrategy.globalDefault(), WindowingStrategy.globalDefault()))
+            .apply(
+                ParDo.of(new ParDoMultiOverrideFactory.ToKeyedWorkItem<String, Integer>())
+                    .withOutputTags(keyedTag, TupleTagList.empty()))
+            .get(keyedTag)
             .setCoder(
                 KeyedWorkItemCoder.of(
                     StringUtf8Coder.of(),
