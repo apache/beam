@@ -1125,6 +1125,7 @@
               <exclude>**/test/**/.placeholder</exclude>
               <exclude>.repository/**/*</exclude>
               <exclude>**/nose-*.egg/**/*</exclude>
+              <exclude>**/.eggs/**/*</exclude>
               <exclude>**/.tox/**/*</exclude>
 
               <!-- Default eclipse excludes neglect subprojects -->
