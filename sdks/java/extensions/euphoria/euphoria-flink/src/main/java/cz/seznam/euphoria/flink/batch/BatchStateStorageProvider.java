@@ -45,6 +45,8 @@ import org.apache.flink.api.java.ExecutionEnvironment;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
+
 /**
  * Storage provider for batch processing.
  * We will store the data in memory, for some amount of data and then
@@ -92,6 +94,7 @@ class BatchStateStorageProvider implements StorageProvider, Serializable {
     // serializer for the class
     Serializer<T> serializer;
     List<T> data = new ArrayList<>();
+    @Nullable
     File serializedElements = null;
     Output output = null;
 

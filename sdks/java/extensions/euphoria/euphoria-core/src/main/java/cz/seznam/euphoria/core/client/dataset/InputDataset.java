@@ -15,11 +15,12 @@
  */
 package cz.seznam.euphoria.core.client.dataset;
 
-import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.io.DataSink;
 import cz.seznam.euphoria.core.client.io.DataSource;
 import cz.seznam.euphoria.core.client.operator.Operator;
+
+import javax.annotation.Nullable;
 import java.util.Collection;
 
 /**
@@ -37,11 +38,13 @@ abstract class InputDataset<T> implements Dataset<T> {
     this.bounded = bounded;
   }
 
+  @Nullable
   @Override
   public DataSource<T> getSource() {
     return source;
   }
 
+  @Nullable
   @Override
   public Operator<?, T> getProducer() {
     return null;

@@ -22,6 +22,7 @@ import cz.seznam.euphoria.core.client.io.DataSink;
 import cz.seznam.euphoria.core.client.operator.Operator;
 import cz.seznam.euphoria.core.executor.FlowUnfolder;
 
+import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.IdentityHashMap;
@@ -47,13 +48,14 @@ public abstract class FlowTranslator {
       implements UnaryPredicate<Operator<?, ?>> {
 
     final Class<O> type;
+    @Nullable
     final UnaryPredicate<O> accept;
 
     public TranslateAcceptor(Class<O> type) {
       this (type, null);
     }
 
-    public TranslateAcceptor(Class<O> type, UnaryPredicate<O> accept) {
+    public TranslateAcceptor(Class<O> type, @Nullable UnaryPredicate<O> accept) {
       this.type = Objects.requireNonNull(type);
       this.accept = accept;
     }

@@ -22,6 +22,7 @@ import cz.seznam.euphoria.core.client.triggers.TimeTrigger;
 import cz.seznam.euphoria.core.client.triggers.Trigger;
 import cz.seznam.euphoria.core.client.util.Pair;
 
+import javax.annotation.Nullable;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -38,6 +39,7 @@ import java.util.Set;
 public final class Session<T> implements MergingWindowing<T, TimeInterval> {
 
   private final long gapDurationMillis;
+  @Nullable
   private Duration earlyTriggeringPeriod;
 
   public static <T> Session<T> of(Duration gapDuration) {

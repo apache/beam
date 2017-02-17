@@ -33,6 +33,7 @@ import cz.seznam.euphoria.core.client.operator.state.ListStorageDescriptor;
 import cz.seznam.euphoria.core.client.operator.state.StorageProvider;
 import cz.seznam.euphoria.core.client.util.Pair;
 
+import javax.annotation.Nullable;
 import java.util.Iterator;
 import java.util.Objects;
 
@@ -181,7 +182,9 @@ public class ReduceByKey<
     private final UnaryFunction<IN, KEY> keyExtractor;
     private final UnaryFunction<IN, VALUE> valueExtractor;
     private final ReduceFunction<VALUE, OUT> reducer;
+    @Nullable
     private final Windowing<IN, W> windowing;
+    @Nullable
     private final UnaryFunction<IN, Long> eventTimeAssigner;
 
     DatasetBuilder5(String name,
@@ -189,8 +192,8 @@ public class ReduceByKey<
                     UnaryFunction<IN, KEY> keyExtractor,
                     UnaryFunction<IN, VALUE> valueExtractor,
                     ReduceFunction<VALUE, OUT> reducer,
-                    Windowing<IN, W> windowing /* optional */,
-                    UnaryFunction<IN, Long> eventTimeAssigner /* optional */,
+                    @Nullable Windowing<IN, W> windowing,
+                    @Nullable UnaryFunction<IN, Long> eventTimeAssigner,
                     PartitioningBuilder<KEY, ?> partitioning) {
 
       // initialize default partitioning according to input
@@ -233,8 +236,8 @@ public class ReduceByKey<
               Dataset<IN> input,
               UnaryFunction<KIN, KEY> keyExtractor,
               UnaryFunction<KIN, VALUE> valueExtractor,
-              Windowing<IN, W> windowing /* optional */,
-              UnaryFunction<IN, Long> eventTimeAssigner /* optional */,
+              @Nullable Windowing<IN, W> windowing,
+              @Nullable UnaryFunction<IN, Long> eventTimeAssigner,
               ReduceFunction<VALUE, OUT> reducer,
               Partitioning<KEY> partitioning) {
     super(name, flow, input, keyExtractor, windowing, eventTimeAssigner, partitioning);

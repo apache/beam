@@ -22,6 +22,7 @@ import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 
+import javax.annotation.Nullable;
 import java.util.Collection;
 import java.util.Collections;
 
@@ -40,8 +41,8 @@ public class StateAwareWindowWiseSingleInputOperator<
           String name,
           Flow flow, Dataset<IN> input,
           UnaryFunction<KIN, KEY> extractor,
-          Windowing<WIN, W> windowing /* optional */,
-          UnaryFunction<WIN, Long> eventTimeAssigner /* optional */,
+          @Nullable Windowing<WIN, W> windowing,
+          @Nullable UnaryFunction<WIN, Long> eventTimeAssigner,
           Partitioning<KEY> partitioning) {
     
     super(name, flow, windowing, eventTimeAssigner, extractor, partitioning);
