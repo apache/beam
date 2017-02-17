@@ -459,10 +459,8 @@ public class Window {
       // an accumulating mode specified
       boolean dataCanArriveLate =
           !(strategy.getWindowFn() instanceof GlobalWindows)
-              && strategy.isAllowedLatenessSpecified()
               && strategy.getAllowedLateness().getMillis() > 0;
-      boolean hasCustomTrigger =
-          strategy.isTriggerSpecified() && !(strategy.getTrigger() instanceof DefaultTrigger);
+      boolean hasCustomTrigger = !(strategy.getTrigger() instanceof DefaultTrigger);
       return dataCanArriveLate || hasCustomTrigger;
     }
 
