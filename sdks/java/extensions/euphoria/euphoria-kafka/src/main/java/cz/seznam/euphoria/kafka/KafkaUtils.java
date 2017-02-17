@@ -36,6 +36,7 @@ import org.apache.kafka.common.serialization.StringDeserializer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.HashMap;
@@ -48,7 +49,7 @@ class KafkaUtils {
 
   private static final Logger LOG = LoggerFactory.getLogger(KafkaUtils.class);
 
-  private static Properties toProperties(Settings properties) {
+  private static Properties toProperties(@Nullable Settings properties) {
     final Properties ps = new Properties();
     if (properties != null) {
       for (Map.Entry<String, String> e : properties.getAll().entrySet()) {
@@ -72,7 +73,7 @@ class KafkaUtils {
   }
 
   public static Consumer<byte[], byte[]>
-  newConsumer(String brokerList, String groupId, Settings config)
+  newConsumer(String brokerList, String groupId, @Nullable Settings config)
   {
     Properties ps = toProperties(config);
     ps.setProperty(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, brokerList);

@@ -20,6 +20,7 @@ import cz.seznam.euphoria.core.client.io.DataSink;
 import cz.seznam.euphoria.core.client.io.DataSource;
 import cz.seznam.euphoria.core.client.operator.Operator;
 
+import javax.annotation.Nullable;
 import java.io.Serializable;
 import java.net.URI;
 import java.util.Collection;
@@ -44,11 +45,13 @@ public interface Dataset<T> extends Serializable {
    *
    * @return this dataset's explicit source - if any
    */
+  @Nullable
   DataSource<T> getSource();
 
   /**
    * @return the operator that produced this dataset - if any
    */
+  @Nullable
   Operator<?, T> getProducer();
 
   /**
@@ -105,6 +108,7 @@ public interface Dataset<T> extends Serializable {
    *          data set is supposed to be persisted to, otherwise the
    *          sink provided through {@link #persist(DataSink)}.
    */
+  @Nullable
   default DataSink<T> getOutputSink() {
     return null;
   }
@@ -115,6 +119,7 @@ public interface Dataset<T> extends Serializable {
    * @return {@code null} if no checkpoint sink has been defined,
    *          otherwise the sink provided through {@link #checkpoint(DataSink)}
    */
+  @Nullable
   default DataSink<T> getCheckpointSink() {
     return null;
   }

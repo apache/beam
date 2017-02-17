@@ -16,6 +16,8 @@
 package cz.seznam.euphoria.core.util;
 
 import cz.seznam.euphoria.core.client.util.Pair;
+
+import javax.annotation.Nullable;
 import java.io.Serializable;
 import java.net.URI;
 import java.util.Map;
@@ -31,6 +33,7 @@ import static java.util.Objects.requireNonNull;
  */
 public class Settings implements Serializable {
 
+  @Nullable
   private final String prefix;
   private final Map<String, String> map;
 
@@ -51,7 +54,7 @@ public class Settings implements Serializable {
     });
   }
 
-  private Settings(String prefix, Map<String, String> map) {
+  private Settings(@Nullable String prefix, Map<String, String> map) {
     this.prefix = prefix;
     this.map = map;
   }

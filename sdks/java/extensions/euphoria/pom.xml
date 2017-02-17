@@ -432,7 +432,7 @@
       <id>sign</id>
       <build>
         <plugins>
-          <!-- support for sining our artifacts to be deployed -->
+          <!-- support for signing our artifacts to be deployed -->
           <plugin>
             <groupId>org.apache.maven.plugins</groupId>
             <artifactId>maven-gpg-plugin</artifactId>
@@ -506,6 +506,12 @@
         <groupId>com.google.guava</groupId>
         <artifactId>guava</artifactId>
         <version>${guava.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>com.google.code.findbugs</groupId>
+        <artifactId>jsr305</artifactId>
+        <version>1.3.9</version>
       </dependency>
 
       <dependency>
