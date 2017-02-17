@@ -76,6 +76,7 @@
           <systemPropertyVariables>
             <beamUseDummyRunner>true</beamUseDummyRunner>
           </systemPropertyVariables>
+	  <skipTests>true</skipTests>
         </configuration>
       </plugin>
 
