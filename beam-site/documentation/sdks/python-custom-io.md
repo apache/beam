@@ -1,26 +1,26 @@
 ---
 layout: default
-title: "Beam Custom Sources and Sinks for Python"
+title: "Apache Beam: Creating New Sources and Sinks with the Python SDK"
 permalink: /documentation/sdks/python-custom-io/
 ---
-# Beam Custom Sources and Sinks for Python
+# Creating New Sources and Sinks with the Python SDK
 
-The Beam SDK for Python provides an extensible API that you can use to create custom data sources and sinks. This tutorial shows how to create custom sources and sinks using [Beam's Source and Sink API](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/io/iobase.py).
+The Apache Beam SDK for Python provides an extensible API that you can use to create new data sources and sinks. This tutorial shows how to create new sources and sinks using [Beam's Source and Sink API](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/io/iobase.py).
 
-* Create a custom source by extending the `BoundedSource` and `RangeTracker` interfaces.
-* Create a custom sink by implementing the `Sink` and `Writer` classes.
-
-
-## Why Create a Custom Source or Sink
-
-You'll need to create a custom source or sink if you want your pipeline to read data from (or write data to) a storage system for which the Beam SDK for Python does not provide [native support]({{ site.baseurl }}/documentation/programming-guide/#io).
-
-In simple cases, you may not need to create a custom source or sink. For example, if you need to read data from an SQL database using an arbitrary query, none of the advanced Source API features would benefit you. Likewise, if you'd like to write data to a third-party API via a protocol that lacks deduplication support, the Sink API wouldn't benefit you. In such cases it makes more sense to use a `ParDo`.
-
-However, if you'd like to use advanced features such as dynamic splitting and size estimation, you should use Beam's APIs and create a custom source or sink.
+* Create a new source by extending the `BoundedSource` and `RangeTracker` interfaces.
+* Create a new sink by implementing the `Sink` and `Writer` classes.
 
 
-## <a name="basic-code-reqs"></a>Basic Code Requirements for Custom Sources and Sinks
+## Why Create a New Source or Sink
+
+You'll need to create a new source or sink if you want your pipeline to read data from (or write data to) a storage system for which the Beam SDK for Python does not provide [native support]({{ site.baseurl }}/documentation/programming-guide/#io).
+
+In simple cases, you may not need to create a new source or sink. For example, if you need to read data from an SQL database using an arbitrary query, none of the advanced Source API features would benefit you. Likewise, if you'd like to write data to a third-party API via a protocol that lacks deduplication support, the Sink API wouldn't benefit you. In such cases it makes more sense to use a `ParDo`.
+
+However, if you'd like to use advanced features such as dynamic splitting and size estimation, you should use Beam's APIs and create a new source or sink.
+
+
+## <a name="basic-code-reqs"></a>Basic Code Requirements for New Sources and Sinks
 
 Services use the classes you provide to read and/or write data using multiple worker instances in parallel. As such, the code you provide for `Source` and `Sink` subclasses must meet some basic requirements:
 
@@ -43,9 +43,9 @@ It is critical to exhaustively unit-test all of your `Source` and `Sink` subclas
 You can use test harnesses and utility methods available in the [source_test_utils module](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/io/source_test_utils.py) to develop tests for your source.
 
 
-## <a name="creating-sources"></a>Creating a Custom Source
+## <a name="creating-sources"></a>Creating a New Source
 
-You should create a custom source if you'd like to use the advanced features that the Source API provides:
+You should create a new source if you'd like to use the advanced features that the Source API provides:
 
 * Dynamic splitting
 * Progress estimation
@@ -54,9 +54,9 @@ You should create a custom source if you'd like to use the advanced features tha
 
 For example, if you'd like to read from a new file format that contains many records per file, or if you'd like to read from a key-value store that supports read operations in sorted key order.
 
-To create a custom data source for your pipeline, you'll need to provide the format-specific logic that tells the service how to read data from your input source, and how to split your data source into multiple parts so that multiple worker instances can read your data in parallel.
+To create a new data source for your pipeline, you'll need to provide the format-specific logic that tells the service how to read data from your input source, and how to split your data source into multiple parts so that multiple worker instances can read your data in parallel.
 
-You supply the logic for your custom source by creating the following classes:
+You supply the logic for your new source by creating the following classes:
 
 * A subclass of `BoundedSource`, which you can find in the [iobase.py](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/io/iobase.py) module. `BoundedSource` is a source that reads a finite amount of input records. The class describes the data you want to read, including the data's location and parameters (such as how much data to read).
 * A subclass of `RangeTracker`, which you can find in the [iobase.py](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/io/iobase.py) module. `RangeTracker` is a thread-safe object used to manage a range for a given position type.
@@ -157,14 +157,14 @@ To create a source for a new file type, you need to create a sub-class of `FileB
 See [AvroSource](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/io/avroio.py) for an example implementation of `FileBasedSource`.
 
 
-## <a name="reading-sources"></a>Reading from a Custom Source
+## <a name="reading-sources"></a>Reading from a New Source
 
 The following example, `CountingSource`, demonstrates an implementation of `BoundedSource` and uses the SDK-provided `RangeTracker` called `OffsetRangeTracker`.
 
 ```
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets.py tag:model_custom_source_new_source %}```
 
-To read data from a custom source in your pipeline, use the `Read` transform:
+To read data from the source in your pipeline, use the `Read` transform:
 
 ```
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets.py tag:model_custom_source_use_new_source %}```
@@ -172,9 +172,9 @@ To read data from a custom source in your pipeline, use the `Read` transform:
 **Note:** When you create a source that end-users are going to use, it's recommended that you do not expose the code for the source itself as demonstrated in the example above, but rather use a wrapping `PTransform` instead. See [PTransform wrappers](#ptransform-wrappers) to see how and why to avoid exposing your sources.
 
 
-## <a name="creating-sinks"></a>Creating a Custom Sink
+## <a name="creating-sinks"></a>Creating a New Sink
 
-You should create a custom sink if you'd like to use the advanced features that the Sink API provides, such as global initialization and finalization that allow the write operation to appear "atomic" (i.e. either all data is written or none is).
+You should create a new sink if you'd like to use the advanced features that the Sink API provides, such as global initialization and finalization that allow the write operation to appear "atomic" (i.e. either all data is written or none is).
 
 A sink represents a resource that can be written to using the `Write` transform. A parallel write to a sink consists of three phases:
 
@@ -184,7 +184,7 @@ A sink represents a resource that can be written to using the `Write` transform.
 
 For example, if you'd like to write to a new table in a database, you should use the Sink API. In this case, the initializer will create a temporary table, the writer will write rows to it, and the finalizer will rename the table to a final location.
 
-To create a custom data sink for your pipeline, you'll need to provide the format-specific logic that tells the sink how to write bounded data from your pipeline's `PCollection`s to an output sink. The sink writes bundles of data in parallel using multiple workers.
+To create a new data sink for your pipeline, you'll need to provide the format-specific logic that tells the sink how to write bounded data from your pipeline's `PCollection`s to an output sink. The sink writes bundles of data in parallel using multiple workers.
 
 You supply the writing logic by creating the following classes:
 
@@ -235,7 +235,7 @@ If your data source uses files, you can derive your `Sink` and `Writer` classes 
 * Setting the output MIME type
 
 
-## <a name="writing-sinks"></a>Writing to a Custom Sink
+## <a name="writing-sinks"></a>Writing to a New Sink
 
 Consider a simple key-value storage that writes a given set of key-value pairs to a set of tables. The following is the key-value storage's API:
 
@@ -264,15 +264,15 @@ The following code demonstrates how to write to the sink using the `Write` trans
 
 ## <a name="ptransform-wrappers"></a>PTransform Wrappers
 
-If you create a custom source or sink for your own use, such as for learning purposes, you should create them as explained in the sections above and use them as demonstrated in the examples.
+If you create a new source or sink for your own use, such as for learning purposes, you should create them as explained in the sections above and use them as demonstrated in the examples.
 
-However, when you create a source or sink that end-users are going to use, instead of exposing the source or sink itself, you should create a wrapper `PTransform`. Ideally, a custom source or sink should be exposed to users simply as "something that can be applied in a pipeline", which is actually a `PTransform`. That way, its implementation can be hidden and arbitrarily complex or simple.
+However, when you create a source or sink that end-users are going to use, instead of exposing the source or sink itself, you should create a wrapper `PTransform`. Ideally, a source or sink should be exposed to users simply as "something that can be applied in a pipeline", which is actually a `PTransform`. That way, its implementation can be hidden and arbitrarily complex or simple.
 
 The greatest benefit of not exposing the implementation details is that later on you will be able to add additional functionality without breaking the existing implementation for users.  For example, if your users' pipelines read from your source using `beam.io.Read(...)` and you want to insert a reshard into the pipeline, all of your users would need to add the reshard themselves (using the `GroupByKey` transform). To solve this, it's recommended that you expose your source as a composite `PTransform` that performs both the read operation and the reshard.
 
-To avoid exposing your custom sources and sinks to end-users, it's recommended that you use the `_` prefix when creating your custom source and sink classes. Then, create a wrapper `PTransform`.
+To avoid exposing your sources and sinks to end-users, it's recommended that you use the `_` prefix when creating your new source and sink classes. Then, create a wrapper `PTransform`.
 
-The following examples change the custom source and sink from the above sections so that they are not exposed to end-users. For the source, rename `CountingSource` to `_CountingSource`. Then, create the wrapper `PTransform`, called `ReadFromCountingSource`:
+The following examples change the source and sink from the above sections so that they are not exposed to end-users. For the source, rename `CountingSource` to `_CountingSource`. Then, create the wrapper `PTransform`, called `ReadFromCountingSource`:
 
 ```
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets.py tag:model_custom_source_new_ptransform %}```
