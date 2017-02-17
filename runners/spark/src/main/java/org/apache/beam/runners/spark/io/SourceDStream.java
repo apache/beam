@@ -60,6 +60,7 @@ class SourceDStream<T, CheckpointMarkT extends UnboundedSource.CheckpointMark>
   private final UnboundedSource<T, CheckpointMarkT> unboundedSource;
   private final SparkRuntimeContext runtimeContext;
   private final Duration boundReadDuration;
+  private final double readerCacheInterval;
   // Number of partitions for the DStream is final and remains the same throughout the entire
   // lifetime of the pipeline, including when resuming from checkpoint.
   private final int numPartitions;
@@ -83,6 +84,10 @@ class SourceDStream<T, CheckpointMarkT extends UnboundedSource.CheckpointMark>
 
     SparkPipelineOptions options = runtimeContext.getPipelineOptions().as(
         SparkPipelineOptions.class);
+
+    // Reader cache interval is set to expire readers if they have not been accessed in the last
+    // microbatch. 50% of batch interval is added to accommodate latency.
+    this.readerCacheInterval = 1.5 * options.getBatchIntervalMillis();
 
     this.boundReadDuration = boundReadDuration(options.getReadTimePercentage(),
         options.getMinReadTimeMillis());
@@ -116,7 +121,7 @@ class SourceDStream<T, CheckpointMarkT extends UnboundedSource.CheckpointMark>
 
   private MicrobatchSource<T, CheckpointMarkT> createMicrobatchSource() {
     return new MicrobatchSource<>(unboundedSource, boundReadDuration, initialParallelism,
-        boundMaxRecords, -1, id());
+        boundMaxRecords, -1, id(), readerCacheInterval);
   }
 
   @Override
