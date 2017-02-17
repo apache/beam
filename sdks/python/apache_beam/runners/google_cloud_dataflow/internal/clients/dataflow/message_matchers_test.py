@@ -18,9 +18,9 @@ import unittest
 
 import hamcrest as hc
 
-import apache_beam.internal.clients.dataflow as dataflow
-from apache_beam.internal.clients.dataflow import message_matchers
+import apache_beam.runners.google_cloud_dataflow.internal.clients.dataflow as dataflow
 from apache_beam.internal.json_value import to_json_value
+from apache_beam.runners.google_cloud_dataflow.internal.clients.dataflow import message_matchers
 
 
 class TestMatchers(unittest.TestCase):

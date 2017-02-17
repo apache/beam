@@ -20,10 +20,10 @@ import unittest
 
 from mock import Mock
 
-from apache_beam.internal import apiclient
-from apache_beam.internal.clients import dataflow
 from apache_beam.metrics.cells import DistributionData
 from apache_beam.runners.google_cloud_dataflow.dataflow_runner import DataflowRunner
+from apache_beam.runners.google_cloud_dataflow.internal import apiclient
+from apache_beam.runners.google_cloud_dataflow.internal.clients import dataflow
 from apache_beam.utils.pipeline_options import PipelineOptions
 
 
