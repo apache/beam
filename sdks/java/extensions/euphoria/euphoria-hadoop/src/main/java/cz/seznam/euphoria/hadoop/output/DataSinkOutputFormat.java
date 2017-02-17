@@ -31,6 +31,8 @@ import org.apache.hadoop.mapreduce.OutputFormat;
 import org.apache.hadoop.mapreduce.RecordWriter;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
 
+import javax.annotation.Nullable;
+
 /**
  * {@code OutputFormat} created from {@code DataSink}.
  * Because of the hadoop output format contract, we need to be able to
@@ -100,6 +102,7 @@ public class DataSinkOutputFormat<V> extends OutputFormat<NullWritable, V> {
   // instance of the data sink
   private DataSink<V> sink;
   // the single writer per output format instance and thread
+  @Nullable
   private Writer<V> writer;
 
   @Override

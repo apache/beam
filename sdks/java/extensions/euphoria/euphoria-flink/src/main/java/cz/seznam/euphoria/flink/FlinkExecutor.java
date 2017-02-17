@@ -27,6 +27,8 @@ import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import java.time.Duration;
 import java.util.HashSet;
 import java.util.List;
@@ -50,6 +52,7 @@ public class FlinkExecutor implements Executor {
   private Duration autoWatermarkInterval = Duration.ofMillis(200);
   private Duration allowedLateness = Duration.ofMillis(0);
   private final Set<Class<?>> registeredClasses = new HashSet<>();
+  @Nullable
   private Duration checkpointInterval;
   
   // executor to submit flows, if closed all executions should be interrupted
@@ -242,8 +245,8 @@ public class FlinkExecutor implements Executor {
    *
    * @return this instance (for method chaining purposes)
    */
-  public FlinkExecutor setCheckpointInterval(Duration interval) {
-    this.checkpointInterval = interval;
+  public FlinkExecutor setCheckpointInterval(@Nonnull Duration interval) {
+    this.checkpointInterval = Objects.requireNonNull(interval);
     return this;
   }
 }

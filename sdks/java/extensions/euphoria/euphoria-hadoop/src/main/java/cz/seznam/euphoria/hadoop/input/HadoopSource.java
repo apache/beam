@@ -30,6 +30,7 @@ import org.apache.hadoop.mapreduce.InputSplit;
 import org.apache.hadoop.mapreduce.RecordReader;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
 
+import javax.annotation.Nullable;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
@@ -50,6 +51,7 @@ public class HadoopSource<K, V> implements DataSource<Pair<K, V>> {
   private final Class<? extends InputFormat<K, V>> hadoopFormatCls;
   private final SerializableWritable<Configuration> conf;
 
+  @Nullable
   private transient InputFormat<K, V> hadoopFormatInstance;
 
   public HadoopSource(Class<K> keyClass, Class<V> valueClass,

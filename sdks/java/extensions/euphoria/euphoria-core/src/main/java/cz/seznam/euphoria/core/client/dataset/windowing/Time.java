@@ -21,6 +21,7 @@ import cz.seznam.euphoria.core.client.triggers.PeriodicTimeTrigger;
 import cz.seznam.euphoria.core.client.triggers.TimeTrigger;
 import cz.seznam.euphoria.core.client.triggers.Trigger;
 
+import javax.annotation.Nullable;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.Objects;
@@ -34,6 +35,7 @@ import static java.util.Collections.singleton;
 public class Time<T> implements Windowing<T, TimeInterval> {
 
   private final long durationMillis;
+  @Nullable
   private Duration earlyTriggeringPeriod;
 
   public static <T> Time<T> of(Duration duration) {
@@ -79,6 +81,7 @@ public class Time<T> implements Windowing<T, TimeInterval> {
     return new TimeTrigger();
   }
 
+  @Nullable
   public Duration getEarlyTriggeringPeriod() {
     return earlyTriggeringPeriod;
   }

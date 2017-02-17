@@ -28,6 +28,7 @@ import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 import cz.seznam.euphoria.core.client.operator.state.State;
 import cz.seznam.euphoria.core.client.util.Pair;
 
+import javax.annotation.Nullable;
 import java.util.Objects;
 
 /**
@@ -155,8 +156,7 @@ public class ReduceStateByKey<
                     UnaryFunction<IN, KEY> keyExtractor,
                     UnaryFunction<IN, VALUE> valueExtractor,
                     StateFactory<OUT, STATE> stateFactory,
-                    CombinableReduceFunction<STATE> stateCombiner)
-    {
+                    CombinableReduceFunction<STATE> stateCombiner) {
       // initialize default partitioning according to input
       super(new DefaultPartitioning<>(input.getNumPartitions()));
 
@@ -175,8 +175,7 @@ public class ReduceStateByKey<
     }
     public <WIN, W extends Window>
     DatasetBuilder6<IN, WIN, KEY, VALUE, OUT, STATE, W>
-    windowBy(Windowing<WIN, W> windowing, UnaryFunction<WIN, Long> eventTimeAssigner)
-    {
+    windowBy(Windowing<WIN, W> windowing, UnaryFunction<WIN, Long> eventTimeAssigner) {
       return new DatasetBuilder6<>(name, input, keyExtractor, valueExtractor,
               stateFactory, stateCombiner,
               Objects.requireNonNull(windowing), eventTimeAssigner, this);
@@ -194,15 +193,17 @@ public class ReduceStateByKey<
           W extends Window>
       extends PartitioningBuilder<
           KEY,DatasetBuilder6<IN, WIN, KEY, VALUE, OUT, STATE, W>>
-      implements OutputBuilder<Pair<KEY, OUT>>
-  {
+      implements OutputBuilder<Pair<KEY, OUT>> {
+
     private final String name;
     private final Dataset<IN> input;
     private final UnaryFunction<IN, KEY> keyExtractor;
     private final UnaryFunction<IN, VALUE> valueExtractor;
     private final StateFactory<OUT, STATE> stateFactory;
     private final CombinableReduceFunction<STATE> stateCombiner;
+    @Nullable
     private final Windowing<WIN, W> windowing;
+    @Nullable
     private final UnaryFunction<WIN, Long> eventTimeAssigner;
 
     DatasetBuilder6(String name,
@@ -211,8 +212,8 @@ public class ReduceStateByKey<
                     UnaryFunction<IN, VALUE> valueExtractor,
                     StateFactory<OUT, STATE> stateFactory,
                     CombinableReduceFunction<STATE> stateCombiner,
-                    Windowing<WIN, W> windowing /* optional */,
-                    UnaryFunction<WIN, Long> eventTimeAssigner /* optional*/,
+                    @Nullable Windowing<WIN, W> windowing,
+                    @Nullable UnaryFunction<WIN, Long> eventTimeAssigner,
                     PartitioningBuilder<KEY, ?> partitioning)
     {
       // initialize partitioning
@@ -261,8 +262,8 @@ public class ReduceStateByKey<
                    Dataset<IN> input,
                    UnaryFunction<KIN, KEY> keyExtractor,
                    UnaryFunction<KIN, VALUE> valueExtractor,
-                   Windowing<WIN, W> windowing /* optional */,
-                   UnaryFunction<WIN, Long> eventTimeAssigner /* optional */,
+                   @Nullable Windowing<WIN, W> windowing,
+                   @Nullable UnaryFunction<WIN, Long> eventTimeAssigner,
                    StateFactory<OUT, STATE> stateFactory,
                    CombinableReduceFunction<STATE> stateCombiner,
                    Partitioning<KEY> partitioning)

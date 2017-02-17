@@ -33,6 +33,7 @@ import cz.seznam.euphoria.core.client.operator.state.ValueStorageDescriptor;
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.core.client.util.Triple;
 
+import javax.annotation.Nullable;
 import java.util.Iterator;
 
 import static java.util.Objects.requireNonNull;
@@ -209,7 +210,9 @@ public class TopPerKey<
     private final UnaryFunction<IN, K> keyFn;
     private final UnaryFunction<IN, V> valueFn;
     private final UnaryFunction<IN, S> scoreFn;
+    @Nullable
     private final Windowing<IN, W> windowing;
+    @Nullable
     private final UnaryFunction<IN, Long> eventTimeAssigner;
 
     OutputBuilder(String name,
@@ -218,8 +221,8 @@ public class TopPerKey<
                   UnaryFunction<IN, V> valueFn,
                   UnaryFunction<IN, S> scoreFn,
                   PartitioningBuilder<K, ?> partitioning,
-                  Windowing<IN, W> windowing /* optional */,
-                  UnaryFunction<IN, Long> eventTimeAssigner /*optional */) {
+                  @Nullable Windowing<IN, W> windowing,
+                  @Nullable UnaryFunction<IN, Long> eventTimeAssigner) {
 
       super(partitioning);
 
@@ -263,8 +266,8 @@ public class TopPerKey<
             UnaryFunction<IN, VALUE> valueFn,
             UnaryFunction<IN, SCORE> scoreFn,
             Partitioning<KEY> partitioning,
-            Windowing<IN, W> windowing /* optional */,
-            UnaryFunction<IN, Long> eventTimeAssigner /*optional */) {
+            @Nullable Windowing<IN, W> windowing,
+            @Nullable UnaryFunction<IN, Long> eventTimeAssigner) {
     super(name, flow, input, keyFn, windowing, eventTimeAssigner, partitioning);
     
     this.valueFn = valueFn;

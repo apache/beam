@@ -15,7 +15,7 @@
  */
 package cz.seznam.euphoria.core.client.util;
 
-import cz.seznam.euphoria.core.client.functional.UnaryFunction;
+import javax.annotation.Nullable;
 
 import static java.util.Objects.requireNonNull;
 
@@ -24,7 +24,9 @@ import static java.util.Objects.requireNonNull;
  */
 public final class Either<LEFT, RIGHT> {
 
+  @Nullable
   final LEFT left;
+  @Nullable
   final RIGHT right;
 
   public static <LEFT, RIGHT> Either<LEFT, RIGHT> left(LEFT left) {
@@ -39,7 +41,7 @@ public final class Either<LEFT, RIGHT> {
   }
 
 
-  private Either(LEFT left, RIGHT right) {
+  private Either(@Nullable LEFT left, @Nullable RIGHT right) {
     this.left = left;
     this.right = right;
   }

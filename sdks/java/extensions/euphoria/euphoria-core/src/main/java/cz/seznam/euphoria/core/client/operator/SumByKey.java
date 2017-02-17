@@ -27,6 +27,7 @@ import cz.seznam.euphoria.core.client.graph.DAG;
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.core.client.util.Sums;
 
+import javax.annotation.Nullable;
 import java.util.Objects;
 
 /**
@@ -109,16 +110,18 @@ public class SumByKey<
     private final Dataset<IN> input;
     private final UnaryFunction<IN, KEY> keyExtractor;
     private final UnaryFunction<IN, Long> valueExtractor;
-    private final Windowing<IN, W> windowing; /* optional */
-    private final UnaryFunction<IN, Long> eventTimeAssigner; /* optional */
+    @Nullable
+    private final Windowing<IN, W> windowing;
+    @Nullable
+    private final UnaryFunction<IN, Long> eventTimeAssigner;
+
     OutputBuilder(String name,
                   Dataset<IN> input,
                   UnaryFunction<IN, KEY> keyExtractor,
                   UnaryFunction<IN, Long> valueExtractor,
-                  Windowing<IN, W> windowing /* optional */,
-                  UnaryFunction<IN, Long> eventTimeAssigner /* optional */,
-                  PartitioningBuilder<KEY, ?> partitioning)
-    {
+                  @Nullable Windowing<IN, W> windowing,
+                  @Nullable UnaryFunction<IN, Long> eventTimeAssigner,
+                  PartitioningBuilder<KEY, ?> partitioning) {
       super(partitioning);
 
       this.name = Objects.requireNonNull(name);
@@ -154,8 +157,8 @@ public class SumByKey<
            Dataset<IN> input,
            UnaryFunction<IN, KEY> keyExtractor,
            UnaryFunction<IN, Long> valueExtractor,
-           Windowing<IN, W> windowing /* optional */,
-           UnaryFunction<IN, Long> eventTimeAssigner /* optional */,
+           @Nullable Windowing<IN, W> windowing,
+           @Nullable UnaryFunction<IN, Long> eventTimeAssigner,
            Partitioning<KEY> partitioning)
   {
     super(name, flow, input, keyExtractor, windowing, eventTimeAssigner, partitioning);

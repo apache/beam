@@ -27,6 +27,7 @@ import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 import cz.seznam.euphoria.core.client.graph.DAG;
 import cz.seznam.euphoria.core.client.util.Pair;
 
+import javax.annotation.Nullable;
 import java.util.Objects;
 
 /**
@@ -64,11 +65,13 @@ public class Distinct<IN, ELEM, W extends Window>
   {
     private final String name;
     private final Dataset<IN> input;
+    @Nullable
     private final UnaryFunction<IN, ELEM> mapper;
+
     WindowingBuilder(
         String name,
         Dataset<IN> input,
-        UnaryFunction<IN, ELEM> mapper /* optional */) {
+        @Nullable UnaryFunction<IN, ELEM> mapper) {
 
       // define default partitioning
       super(new DefaultPartitioning<>(input.getNumPartitions()));
@@ -100,16 +103,19 @@ public class Distinct<IN, ELEM, W extends Window>
   {
     private final String name;
     private final Dataset<IN> input;
+    @Nullable
     private final UnaryFunction<IN, ELEM> mapper;
+    @Nullable
     private final Windowing<IN, W> windowing;
+    @Nullable
     private final UnaryFunction<IN, Long> eventTimeAssigner;
 
     OutputBuilder(String name,
                   Dataset<IN> input,
-                  UnaryFunction<IN, ELEM> mapper /* optional */,
+                  @Nullable UnaryFunction<IN, ELEM> mapper,
                   PartitioningBuilder<ELEM, ?> partitioning,
-                  Windowing<IN, W> windowing /* optional */,
-                  UnaryFunction<IN, Long> eventTimeAssigner /* optional */) {
+                  @Nullable Windowing<IN, W> windowing,
+                  @Nullable UnaryFunction<IN, Long> eventTimeAssigner) {
 
       super(partitioning);
       this.name = Objects.requireNonNull(name);
@@ -143,8 +149,8 @@ public class Distinct<IN, ELEM, W extends Window>
            Dataset<IN> input,
            UnaryFunction<IN, ELEM> mapper,
            Partitioning<ELEM> partitioning,
-           Windowing<IN, W> windowing /* optional */,
-           UnaryFunction<IN, Long> eventTimeAssigner /* optional */) {
+           @Nullable Windowing<IN, W> windowing,
+           @Nullable UnaryFunction<IN, Long> eventTimeAssigner) {
 
     super(name, flow, input, mapper, windowing, eventTimeAssigner, partitioning);
   }

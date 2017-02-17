@@ -19,6 +19,8 @@ import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.io.DataSink;
 import cz.seznam.euphoria.core.client.io.DataSource;
 import cz.seznam.euphoria.core.client.operator.Operator;
+
+import javax.annotation.Nullable;
 import java.util.Collection;
 
 /**
@@ -39,11 +41,13 @@ abstract class OutputDataset<T> implements Dataset<T> {
     this.bounded = bounded;
   }
 
+  @Nullable
   @Override
   public DataSource<T> getSource() {
     return null;
   }
 
+  @Nullable
   @Override
   public Operator<?, T> getProducer() {
     return producer;
@@ -59,11 +63,13 @@ abstract class OutputDataset<T> implements Dataset<T> {
     checkpointSink = sink;
   }
 
+  @Nullable
   @Override
   public DataSink<T> getOutputSink() {
     return outputSink;
   }
 
+  @Nullable
   @Override
   public DataSink<T> getCheckpointSink() {
     return checkpointSink;

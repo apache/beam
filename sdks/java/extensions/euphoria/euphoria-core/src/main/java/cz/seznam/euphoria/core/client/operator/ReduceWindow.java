@@ -29,6 +29,8 @@ import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 import cz.seznam.euphoria.core.client.graph.DAG;
 import cz.seznam.euphoria.core.client.util.Pair;
 
+import javax.annotation.Nullable;
+
 /**
  * Reduce all elements in window.
  */
@@ -158,14 +160,14 @@ public class ReduceWindow<
   static final Byte B_ZERO = (byte) 0;
 
   private ReduceWindow(
-      String name,
-      Flow flow,
-      Dataset<IN> input,
-      UnaryFunction<IN, VALUE> valueExtractor,
-      Windowing<IN, W> windowing /* optional */,
-      UnaryFunction<IN, Long> eventTimeAssigner /* optional */,
-      ReduceFunction<VALUE, OUT> reducer,
-      int numPartitions) {
+          String name,
+          Flow flow,
+          Dataset<IN> input,
+          UnaryFunction<IN, VALUE> valueExtractor,
+          @Nullable Windowing<IN, W> windowing,
+          @Nullable UnaryFunction<IN, Long> eventTimeAssigner,
+          ReduceFunction<VALUE, OUT> reducer,
+          int numPartitions) {
     
     super(name, flow, input, e -> B_ZERO, windowing, eventTimeAssigner,
         new Partitioning<Byte>() {
