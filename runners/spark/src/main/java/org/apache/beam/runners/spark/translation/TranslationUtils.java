@@ -228,7 +228,8 @@ public final class TranslationUtils {
 
     if (signature.processElement().isSplittable()) {
       throw new UnsupportedOperationException(
-          String.format("SparkRunner does not support SplittableDoFn: %s", doFn));
+          String.format(
+              "%s does not support splittable DoFn: %s", SparkRunner.class.getSimpleName(), doFn));
     }
   }
   /**

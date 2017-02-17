@@ -314,7 +314,9 @@ public class FlinkStreamingTransformTranslators {
     DoFnSignature signature = DoFnSignatures.getSignature(doFn.getClass());
     if (signature.processElement().isSplittable()) {
       throw new UnsupportedOperationException(
-          String.format("FlinkRunner does not currently support Splittable DoFn: %s", doFn));
+          String.format(
+              "%s does not currently support splittable DoFn: %s",
+              FlinkRunner.class.getSimpleName(), doFn));
     }
   }
 

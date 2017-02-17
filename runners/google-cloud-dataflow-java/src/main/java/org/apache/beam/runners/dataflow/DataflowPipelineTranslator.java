@@ -948,7 +948,10 @@ public class DataflowPipelineTranslator {
     DoFnSignature signature = DoFnSignatures.getSignature(fn.getClass());
     if (signature.processElement().isSplittable()) {
       throw new UnsupportedOperationException(
-          String.format("FlinkRunner does not currently support splittable DoFn: %s", fn));
+          String.format(
+              "%s does not currently support splittable DoFn: %s",
+              DataflowRunner.class.getSimpleName(),
+              fn));
     }
 
     stepContext.addInput(PropertyNames.USER_FN, fn.getClass().getName());
