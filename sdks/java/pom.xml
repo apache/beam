@@ -38,8 +38,6 @@
     <module>build-tools</module> -->
     <module>core</module>
     <module>io</module>
-    <module>maven-archetypes</module>
-    <module>extensions</module>
     <!-- javadoc runs directly from the root parent as the last module
          in the build to be able to capture runner-specific javadoc.
     <module>javadoc</module> -->
@@ -52,8 +50,6 @@
         <jdk>[1.8,)</jdk>
       </activation>
       <modules>
-        <module>harness</module>
-        <module>java8tests</module>
       </modules>
     </profile>
   </profiles>
