@@ -392,9 +392,12 @@ message WindowingStrategy {
   // windowing strategy.
   OutputTime output_time = 6;
 
+  // (Required) Indicate when output should be omitted upon window expiration.
+  ClosingBehavior closing_behavior = 7;
+
   // (Required) The duration, in milliseconds, beyond the end of a window at
   // which the window becomes droppable.
-  int64 allowed_lateness = 7;
+  int64 allowed_lateness = 8;
 }
 
 // Whether or not a PCollection's WindowFn is non-merging, merging, or
@@ -426,6 +429,18 @@ enum AccumulationMode {
 
   // The aggregation is accumulated across outputs
   ACCUMULATING = 1;
+}
+
+// Controls whether or not an aggregating transform should output data
+// when a window expires.
+enum ClosingBehavior {
+
+  // Emit output when a window expires, whether or not there has been
+  // any new data since the last output.
+  EMIT_ALWAYS = 0;
+
+  // Only emit output when new data has arrives since the last output
+  EMIT_IF_NONEMPTY = 1;
 }
 
 // When a number of windowed, timestamped inputs are aggregated, the timestamp
