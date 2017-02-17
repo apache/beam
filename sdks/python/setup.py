@@ -100,6 +100,7 @@ REQUIRED_PACKAGES = [
 
 
 REQUIRED_TEST_PACKAGES = [
+    'nose-parameterized>=0.5.0',
     'pyhamcrest>=1.9,<2.0',
     ]
 
