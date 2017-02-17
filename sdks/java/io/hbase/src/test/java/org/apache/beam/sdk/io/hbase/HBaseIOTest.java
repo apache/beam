@@ -98,7 +98,7 @@ public class HBaseIOTest {
     public static void beforeClass() throws Exception {
         conf.setInt(HConstants.HBASE_CLIENT_RETRIES_NUMBER, 1);
         // Try to bind to localhost (this is apparently only for the web console)
-        conf.setStrings("hbase.master.info.bindAddress", "localhost");
+        conf.setStrings("hbase.master.hostname", "localhost");
         // Try to get a free port and bind the master port to it (HBase is supposed to already
         // do this)
         try (ServerSocket serverSocket = new ServerSocket(0)) {
