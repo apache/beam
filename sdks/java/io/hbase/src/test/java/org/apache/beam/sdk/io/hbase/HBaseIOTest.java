@@ -26,12 +26,9 @@ import static org.junit.Assert.assertThat;
 
 import com.google.protobuf.ByteString;
 
-import java.io.BufferedReader;
-import java.io.FileReader;
 import java.util.ArrayList;
 import java.util.List;
 
-import java.util.Map;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.hbase.HBaseIO.HBaseSource;
