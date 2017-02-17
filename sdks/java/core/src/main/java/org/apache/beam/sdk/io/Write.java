@@ -69,7 +69,7 @@ import org.slf4j.LoggerFactory;
  * <p>{@code Write} re-windows the data into the global window, so it is typically not well suited
  * to use in streaming pipelines.
  *
- * <p>Example usage with runner-controlled sharding:
+ * <p>Example usage with runner-determined sharding:
  *
  * <pre>{@code p.apply(Write.to(new MySink(...)));}</pre>
  *
@@ -87,7 +87,7 @@ public class Write {
    */
   public static <T> Bound<T> to(Sink<T> sink) {
     checkNotNull(sink, "sink");
-    return new Bound<>(sink, null /* runner-controlled sharding */);
+    return new Bound<>(sink, null /* runner-determined sharding */);
   }
 
   /**
@@ -157,7 +157,7 @@ public class Write {
      * more information.
      *
      * <p>A value less than or equal to 0 will be equivalent to the default behavior of
-     * runner-controlled sharding.
+     * runner-determined sharding.
      */
     public Bound<T> withNumShards(int numShards) {
       if (numShards > 0) {
@@ -321,6 +321,11 @@ public class Write {
       @ProcessElement
       public void processElement(ProcessContext context) {
         Integer shardCount = context.sideInput(numShards);
+        checkArgument(
+            shardCount > 0,
+            "Must have a positive number of shards specified for non-runner-determined sharding."
+                + " Got %s",
+            shardCount);
         if (shardNumber == -1) {
           // We want to desynchronize the first record sharding key for each instance of
           // ApplyShardingKey, so records in a small PCollection will be statistically balanced.
@@ -462,6 +467,11 @@ public class Write {
                 minShardsNeeded = 1;
               } else {
                 minShardsNeeded = c.sideInput(numShards);
+                checkArgument(
+                    minShardsNeeded > 0,
+                    "Must have a positive number of shards for non-runner-determined sharding."
+                        + " Got %s",
+                    minShardsNeeded);
               }
               int extraShardsNeeded = minShardsNeeded - results.size();
               if (extraShardsNeeded > 0) {
@@ -500,6 +510,7 @@ public class Write {
           .getPipeline()
           .apply(Create.of(0))
           .apply(
+              "FixedNumShards",
               ParDo.of(
                   new DoFn<Integer, Integer>() {
                     @ProcessElement
@@ -515,7 +526,8 @@ public class Write {
 
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
-      builder.add(DisplayData.item("numShards", numShards).withLabel("ConstantShards"));
+      builder.add(
+          DisplayData.item("Fixed Number of Shards", numShards).withLabel("ConstantShards"));
     }
 
     public ValueProvider<Integer> getNumShards() {
