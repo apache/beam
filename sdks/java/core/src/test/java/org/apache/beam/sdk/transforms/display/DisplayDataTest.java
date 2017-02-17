@@ -1202,6 +1202,24 @@ public class DisplayDataTest implements Serializable {
     }
   }
 
+  @Test
+  public void testSerializable() {
+    DisplayData data =
+        DisplayData.from(
+            new HasDisplayData() {
+              @Override
+              public void populateDisplayData(DisplayData.Builder builder) {
+                builder.add(DisplayData.item("foo", "bar"));
+              }
+            });
+
+    byte[] dataBytes = SerializableUtils.serializeToByteArray(data);
+    DisplayData serData =
+        (DisplayData) SerializableUtils.deserializeFromByteArray(dataBytes, "DisplayDataInstance");
+
+    assertEquals(data, serData);
+  }
+
   /**
    * Verify that {@link DisplayData.Builder} can recover from exceptions thrown in user code.
    * This is not used within the Beam SDK since we want all code to produce valid DisplayData.
