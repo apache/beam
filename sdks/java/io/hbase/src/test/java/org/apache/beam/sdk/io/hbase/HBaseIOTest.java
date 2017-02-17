@@ -26,6 +26,7 @@ import static org.junit.Assert.assertThat;
 
 import com.google.protobuf.ByteString;
 
+import java.net.ServerSocket;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -96,7 +97,14 @@ public class HBaseIOTest {
     @BeforeClass
     public static void beforeClass() throws Exception {
         conf.setInt(HConstants.HBASE_CLIENT_RETRIES_NUMBER, 1);
+        // Try to bind to localhost (this is apparently only for the web console)
         conf.setStrings("hbase.master.info.bindAddress", "localhost");
+        // Try to get a free port and bind the master port to it (HBase is supposed to already
+        // do this)
+        try (ServerSocket serverSocket = new ServerSocket(0)) {
+            int port = serverSocket.getLocalPort();
+            conf.setInt("hbase.master.port", port);
+        }
         htu = new HBaseTestingUtility(conf);
         htu.startMiniCluster(1, 4);
         admin = htu.getHBaseAdmin();
