@@ -40,8 +40,6 @@ import org.apache.beam.runners.core.SideInputHandler;
 import org.apache.beam.runners.core.StateInternals;
 import org.apache.beam.runners.core.StateNamespace;
 import org.apache.beam.runners.core.StateNamespaces;
-import org.apache.beam.runners.core.StateNamespaces.GlobalNamespace;
-import org.apache.beam.runners.core.StateNamespaces.WindowAndTriggerNamespace;
 import org.apache.beam.runners.core.StateNamespaces.WindowNamespace;
 import org.apache.beam.runners.core.StateTag;
 import org.apache.beam.runners.core.StateTags;
@@ -64,7 +62,6 @@ import org.apache.beam.sdk.transforms.join.RawUnionValue;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.NullSideInputReader;
 import org.apache.beam.sdk.util.SideInputReader;
 import org.apache.beam.sdk.util.TimeDomain;
@@ -565,27 +562,14 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
     fireTimer(timer);
   }
 
-  /**
-   *  StateNamespace don't have a getWindow method.
-   */
-  private BoundedWindow getWindowFromNamespace(StateNamespace namespace) {
-    if (namespace instanceof WindowNamespace) {
-      return ((WindowNamespace) namespace).getWindow();
-    } else if (namespace instanceof GlobalNamespace) {
-      return GlobalWindow.INSTANCE;
-    } else if (namespace instanceof WindowAndTriggerNamespace) {
-      return ((WindowAndTriggerNamespace) namespace).getWindow();
-    } else {
-      throw new RuntimeException("Unknown StateNamespace type: "
-          + namespace.getClass());
-    }
-  }
-
+  // allow overriding this in WindowDoFnOperator
   public void fireTimer(InternalTimer<?, TimerData> timer) {
     TimerInternals.TimerData timerData = timer.getNamespace();
     StateNamespace namespace = timerData.getNamespace();
-    pushbackDoFnRunner.onTimer(timerData.getTimerId(),
-        getWindowFromNamespace(namespace),
+    // This is a user timer, so namespace must be WindowNamespace
+    checkArgument(namespace instanceof WindowNamespace);
+    BoundedWindow window = ((WindowNamespace) namespace).getWindow();
+    pushbackDoFnRunner.onTimer(timerData.getTimerId(), window,
         timerData.getTimestamp(), timerData.getDomain());
   }
 
