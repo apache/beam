@@ -37,7 +37,6 @@ python $(type -p sphinx-apidoc) -f -o target/docs/source apache_beam \
 sed -i -e '/.. automodule:: apache_beam.coders.stream/d' \
     target/docs/source/apache_beam.coders.rst
 
-
 # Create the configuration and index files
 cat > target/docs/source/conf.py <<'EOF'
 import os
