@@ -35,7 +35,7 @@ mavenJob('beam_PostCommit_Java_RunnableOnService_Apex') {
   common_job_properties.enablePhraseTriggeringFromPullRequest(
     delegate,
     'Apache Apex Runner RunnableOnService Tests',
-    'Run Apex RunableOnService')
+    'Run Apex RunnableOnService')
 
   // Maven goals for this job.
   goals('''clean verify --projects runners/apex \
