@@ -54,4 +54,14 @@ public class GlobalWindows extends NonMergingWindowFn<Object, GlobalWindow> {
   public Instant getOutputTime(Instant inputTimestamp, GlobalWindow window) {
     return inputTimestamp;
   }
+
+  @Override
+  public boolean equals(Object other) {
+    return other instanceof GlobalWindows;
+  }
+
+  @Override
+  public String toString() {
+    return getClass().getCanonicalName();
+  }
 }
