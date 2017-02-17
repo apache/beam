@@ -37,8 +37,14 @@ python $(type -p sphinx-apidoc) -f -o target/docs/source apache_beam \
 sed -i -e '/.. automodule:: apache_beam.coders.stream/d' \
     target/docs/source/apache_beam.coders.rst
 
+
 # Create the configuration and index files
 cat > target/docs/source/conf.py <<'EOF'
+import os
+import sys
+
+sys.path.insert(0, os.path.abspath('../../..'))
+
 extensions = [
     'sphinx.ext.autodoc',
     'sphinx.ext.napoleon',
@@ -49,25 +55,7 @@ html_theme = 'sphinxdoc'
 project = 'Apache Beam'
 EOF
 cat > target/docs/source/index.rst <<'EOF'
-Welcome to Apache Beam!
-=======================
-
-`Apache Beam <https://beam.apache.org>`_ is a unified model for defining both batch and streaming data-parallel processing pipelines. Beam provides a set of language-specific SDKs for constructing pipelines. These pipelines can be executed on distributed processing backends like `Apache Spark <http://spark.apache.org/>`_, `Apache Flink <http://flink.apache.org/>`_, and `Google Cloud Dataflow <http://cloud.google.com/dataflow>`_.
-
-Please see the `Apache Beam website <https://beam.apache.org>`_ for more documention around usage and contributing.
-
-Library Documentation
----------------------
-
-* Complete library index: :ref:`genindex`
-* Index of all modules: :ref:`modindex`
-* Search all documentation: :ref:`search`
-
-.. toctree::
-   :maxdepth: 2
-   :hidden:
-
-   modules
+.. include:: ./modules.rst
 EOF
 
 # Build the documentation using sphinx
