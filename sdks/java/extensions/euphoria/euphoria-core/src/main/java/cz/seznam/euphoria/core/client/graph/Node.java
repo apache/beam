@@ -15,6 +15,7 @@
  */
 package cz.seznam.euphoria.core.client.graph;
 
+import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -26,17 +27,18 @@ import java.util.Objects;
 public final class Node<T> {
 
   final List<Node<T>> children = new ArrayList<>();
+  @Nullable
   final T value;
   final List<Node<T>> parents = new ArrayList<>();
 
   @SuppressWarnings("unchecked")
   private static final Node NULL_NODE = new Node(null);
 
-  Node(T value) {
+  Node(@Nullable T value) {
     this.value = value;
   }
 
-  Node(T value, List<Node<T>> parents) {
+  Node(@Nullable T value, List<Node<T>> parents) {
     this(value);
     this.parents.addAll(parents);
   }

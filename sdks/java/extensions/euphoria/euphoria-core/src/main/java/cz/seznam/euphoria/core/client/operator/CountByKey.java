@@ -26,6 +26,7 @@ import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 import cz.seznam.euphoria.core.client.graph.DAG;
 import cz.seznam.euphoria.core.client.util.Pair;
 
+import javax.annotation.Nullable;
 import java.util.Objects;
 
 /**
@@ -97,15 +98,17 @@ public class CountByKey<IN, KEY, W extends Window>
     private final String name;
     private final Dataset<IN> input;
     private final UnaryFunction<IN, KEY> keyExtractor;
+    @Nullable
     private final Windowing<IN, W> windowing;
+    @Nullable
     private final UnaryFunction<IN, Long> eventTimeAssigner;
 
 
     OutputBuilder(String name,
                   Dataset<IN> input,
                   UnaryFunction<IN, KEY> keyExtractor,
-                  Windowing<IN, W> windowing /* optional */,
-                  UnaryFunction<IN, Long> eventTimeAssigner /* optional */,
+                  @Nullable Windowing<IN, W> windowing,
+                  @Nullable UnaryFunction<IN, Long> eventTimeAssigner,
                   PartitioningBuilder<KEY, ?> partitioning) {
 
       //initialize partitioning
@@ -137,12 +140,12 @@ public class CountByKey<IN, KEY, W extends Window>
   }
 
   CountByKey(String name,
-      Flow flow,
-      Dataset<IN> input,
-      UnaryFunction<IN, KEY> extractor,
-      Windowing<IN, W> windowing /* optional */,
-      UnaryFunction<IN, Long> eventTimeAssigner /* optional */,
-      Partitioning<KEY> partitioning) {
+             Flow flow,
+             Dataset<IN> input,
+             UnaryFunction<IN, KEY> extractor,
+             @Nullable Windowing<IN, W> windowing,
+             @Nullable UnaryFunction<IN, Long> eventTimeAssigner,
+             Partitioning<KEY> partitioning) {
 
     super(name, flow, input, extractor, windowing, eventTimeAssigner,  partitioning);
   }

@@ -33,6 +33,7 @@ import cz.seznam.euphoria.core.client.operator.state.StorageProvider;
 import cz.seznam.euphoria.core.client.util.Either;
 import cz.seznam.euphoria.core.client.util.Pair;
 
+import javax.annotation.Nullable;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Iterator;
@@ -203,7 +204,9 @@ public class Join<LEFT, RIGHT, KEY, OUT, W extends Window>
     private final UnaryFunction<RIGHT, KEY> rightKeyExtractor;
     private final BinaryFunctor<LEFT, RIGHT, OUT> joinFunc;
     private final boolean outer;
+    @Nullable
     private final Windowing<Either<LEFT, RIGHT>, W> windowing;
+    @Nullable
     private final UnaryFunction<Either<LEFT, RIGHT>, Long> eventTimeAssigner;
 
     OutputBuilder(String name,
@@ -214,8 +217,8 @@ public class Join<LEFT, RIGHT, KEY, OUT, W extends Window>
                   BinaryFunctor<LEFT, RIGHT, OUT> joinFunc,
                   boolean outer,
                   PartitioningBuilder<KEY, ?> partitioning,
-                  Windowing<Either<LEFT, RIGHT>, W> windowing /* optional */,
-                  UnaryFunction<Either<LEFT, RIGHT>, Long> eventTimeAssigner /* optional */) {
+                  @Nullable Windowing<Either<LEFT, RIGHT>, W> windowing,
+                  @Nullable UnaryFunction<Either<LEFT, RIGHT>, Long> eventTimeAssigner) {
 
       super(partitioning);
 
@@ -262,15 +265,15 @@ public class Join<LEFT, RIGHT, KEY, OUT, W extends Window>
   boolean outer = false;
 
   Join(String name,
-      Flow flow,
-      Dataset<LEFT> left, Dataset<RIGHT> right,
-      Windowing<Either<LEFT, RIGHT>, W> windowing /* optional */,
-      UnaryFunction<Either<LEFT, RIGHT>, Long> eventTimeAssigner /* optional */,
-      Partitioning<KEY> partitioning,
-      UnaryFunction<LEFT, KEY> leftKeyExtractor,
-      UnaryFunction<RIGHT, KEY> rightKeyExtractor,
-      BinaryFunctor<LEFT, RIGHT, OUT> functor,
-      boolean outer) {
+       Flow flow,
+       Dataset<LEFT> left, Dataset<RIGHT> right,
+       @Nullable Windowing<Either<LEFT, RIGHT>, W> windowing,
+       @Nullable UnaryFunction<Either<LEFT, RIGHT>, Long> eventTimeAssigner,
+       Partitioning<KEY> partitioning,
+       UnaryFunction<LEFT, KEY> leftKeyExtractor,
+       UnaryFunction<RIGHT, KEY> rightKeyExtractor,
+       BinaryFunctor<LEFT, RIGHT, OUT> functor,
+       boolean outer) {
 
     super(name, flow, windowing, eventTimeAssigner, (Either<LEFT, RIGHT> elem) -> {
       if (elem.isLeft()) {

@@ -25,6 +25,7 @@ import cz.seznam.euphoria.core.util.Settings;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
 import java.io.IOException;
 import java.io.ObjectOutputStream;
 import java.io.OutputStream;
@@ -88,7 +89,7 @@ public class Flow implements Serializable {
       = new HashMap<>();
 
 
-  private Flow(String name, Settings settings) {
+  private Flow(@Nullable String name, Settings settings) {
     this.name = name == null ? "" : name;
     this.settings = cloneSettings(settings);
   }
@@ -110,7 +111,7 @@ public class Flow implements Serializable {
    *
    * @return a newly created flow
    */
-  public static Flow create(String flowName) {
+  public static Flow create(@Nullable String flowName) {
     return new Flow(flowName, new Settings());
   }
 
@@ -157,7 +158,7 @@ public class Flow implements Serializable {
    *
    * @return the added operator
    */
-  <IN, OUT, T extends Operator<IN, OUT>> T add(T operator, String logicalName) {
+  <IN, OUT, T extends Operator<IN, OUT>> T add(T operator, @Nullable String logicalName) {
 
     operatorNames.put(operator, buildOperatorName(operator, logicalName));
     operators.add(operator);
@@ -211,7 +212,7 @@ public class Flow implements Serializable {
     }
   }
 
-  private String buildOperatorName(Operator op, String logicalName) {
+  private String buildOperatorName(Operator op, @Nullable String logicalName) {
     StringBuilder sb = new StringBuilder(64);
     sb.append(op.getName()).append('@').append(operatorNames.size() + 1);
     logicalName = Util.trimToNull(logicalName);

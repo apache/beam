@@ -34,6 +34,7 @@ import org.apache.kafka.common.TopicPartition;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
 import java.io.IOException;
 import java.net.URI;
 import java.util.ArrayList;
@@ -122,6 +123,7 @@ public class KafkaSource implements DataSource<Pair<byte[], byte[]>> {
     private final String groupId;
     private final int partition;
     private final String host;
+    @Nullable
     private final Settings config;
     private final long startOffset;
 
@@ -131,7 +133,7 @@ public class KafkaSource implements DataSource<Pair<byte[], byte[]>> {
     KafkaPartition(String brokerList, String topicId,
                    String groupId,
                    int partition, String host,
-                   Settings config /* optional */,
+                   @Nullable Settings config,
                    long startOffset,
                    long stopReadingAtStamp)
     {
@@ -171,7 +173,8 @@ public class KafkaSource implements DataSource<Pair<byte[], byte[]>> {
     private final String brokerList;
     private final String topicId;
     private final String groupId;
-    private final Settings config; // ~ optional
+    @Nullable
+    private final Settings config;
     private final long offsetTimestamp; // ~ effective iff > 0
     private final long stopReadingAtStamp;
 
@@ -179,7 +182,7 @@ public class KafkaSource implements DataSource<Pair<byte[], byte[]>> {
         String brokerList,
         String topicId,
         String groupId,
-        Settings config,
+        @Nullable Settings config,
         long offsetTimestamp,
         long stopReadingStamp) {
 
@@ -244,13 +247,14 @@ public class KafkaSource implements DataSource<Pair<byte[], byte[]>> {
   private final String brokerList;
   private final String topicId;
   private final String groupId;
-  private final Settings config; // ~ optional
+  @Nullable
+  private final Settings config;
 
   KafkaSource(
       String brokerList,
       String topicId,
       String groupId,
-      Settings config) {
+      @Nullable Settings config) {
     this.brokerList = requireNonNull(brokerList);
     this.topicId = requireNonNull(topicId);
     this.groupId = requireNonNull(groupId);

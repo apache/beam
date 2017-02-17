@@ -38,6 +38,7 @@ import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
 import scala.Tuple2;
 
+import javax.annotation.Nullable;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -169,13 +170,14 @@ public class SparkFlowTranslator {
           implements UnaryPredicate<Operator<?, ?>> {
 
     final Class<O> type;
+    @Nullable
     final UnaryPredicate<O> accept;
 
     public TranslateAcceptor(Class<O> type) {
       this (type, null);
     }
 
-    public TranslateAcceptor(Class<O> type, UnaryPredicate<O> accept) {
+    public TranslateAcceptor(Class<O> type, @Nullable UnaryPredicate<O> accept) {
       this.type = Objects.requireNonNull(type);
       this.accept = accept;
     }

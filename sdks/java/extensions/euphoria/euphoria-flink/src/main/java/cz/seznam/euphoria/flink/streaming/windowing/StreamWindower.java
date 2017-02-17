@@ -29,6 +29,7 @@ import org.apache.flink.streaming.api.datastream.WindowedStream;
 import org.apache.flink.streaming.api.functions.timestamps.BoundedOutOfOrdernessTimestampExtractor;
 import org.apache.flink.streaming.api.windowing.assigners.WindowAssigner;
 
+import javax.annotation.Nullable;
 import java.time.Duration;
 import java.util.Objects;
 
@@ -78,7 +79,7 @@ public class StreamWindower {
       UnaryFunction<T, KEY> keyFn,
       UnaryFunction<T, VALUE> valFn,
       Windowing<T, WID> windowing,
-      UnaryFunction<T, Long> eventTimeAssigner) {
+      @Nullable UnaryFunction<T, Long> eventTimeAssigner) {
 
     if (eventTimeAssigner != null) {
         input = input.assignTimestampsAndWatermarks(

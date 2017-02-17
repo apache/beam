@@ -15,6 +15,8 @@
  */
 package cz.seznam.euphoria.core.client.flow;
 
+import javax.annotation.Nullable;
+
 class Util {
 
   /**
@@ -23,7 +25,8 @@ class Util {
    * @param s input string
    * @return non-empty trimmed string or null
    */
-  static String trimToNull(String s) {
+  @Nullable
+  static String trimToNull(@Nullable String s) {
     if (s == null) {
       return null;
     }

@@ -17,6 +17,7 @@ package cz.seznam.euphoria.core.executor.greduce;
 
 import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 
+import javax.annotation.Nullable;
 import java.util.HashSet;
 import java.util.PriorityQueue;
 
@@ -28,14 +29,16 @@ import java.util.PriorityQueue;
 class TimerSupport<W extends Window> {
 
   static final class Timer<W> implements Comparable<Timer<W>> {
+    @Nullable
     final W window;
     final long time;
 
-    Timer(W window, long time) {
+    Timer(@Nullable W window, long time) {
       this.window = window;
       this.time = time;
     }
 
+    @Nullable
     public W getWindow() {
       return window;
     }
