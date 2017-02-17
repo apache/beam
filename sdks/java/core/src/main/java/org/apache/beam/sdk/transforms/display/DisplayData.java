@@ -220,7 +220,7 @@ public class DisplayData implements Serializable {
    * within {@link HasDisplayData#populateDisplayData} implementations.
    */
   @AutoValue
-  public abstract static class Item {
+  public abstract static class Item implements Serializable {
 
     /**
      * The path for the display item within a component hierarchy.
@@ -489,7 +489,7 @@ public class DisplayData implements Serializable {
    * item will be retained; previous versions are discarded.
    */
   @AutoValue
-  public abstract static class Identifier {
+  public abstract static class Identifier implements Serializable {
     public abstract Path getPath();
     public abstract Class<?> getNamespace();
     public abstract String getKey();
@@ -512,7 +512,7 @@ public class DisplayData implements Serializable {
    * be registered at the path specified. Each sub-component path is created by appending a child
    * element to the path of its parent component, forming a hierarchy.
    */
-  public static class Path {
+  public static class Path implements Serializable {
     private final ImmutableList<String> components;
     private Path(ImmutableList<String> components) {
       this.components = components;
