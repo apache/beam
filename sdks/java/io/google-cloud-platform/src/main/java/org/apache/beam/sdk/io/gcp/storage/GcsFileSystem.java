@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.gcp.storage;
 
 import static com.google.common.base.Preconditions.checkNotNull;
+import static com.google.common.base.Preconditions.checkState;
 
 import com.google.api.services.storage.model.Objects;
 import com.google.api.services.storage.model.StorageObject;
@@ -25,12 +26,14 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Lists;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.math.BigInteger;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.WritableByteChannel;
 import java.util.Collection;
+import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.regex.Pattern;
@@ -60,7 +63,39 @@ class GcsFileSystem extends FileSystem<GcsResourceId> {
 
   @Override
   protected List<MatchResult> match(List<String> specs) throws IOException {
-    throw new UnsupportedOperationException();
+    List<GcsPath> gcsPaths = toGcsPaths(specs);
+
+    List<GcsPath> globs = Lists.newArrayList();
+    List<GcsPath> nonGlobs = Lists.newArrayList();
+    List<Boolean> isGlobBooleans = Lists.newArrayList();
+
+    for (int i = 0; i < gcsPaths.size(); ++i) {
+      GcsPath path = gcsPaths.get(i);
+      if (GcsUtil.isGlob(path)) {
+        globs.add(path);
+        isGlobBooleans.add(true);
+      } else {
+        nonGlobs.add(path);
+        isGlobBooleans.add(false);
+      }
+    }
+
+    Iterator<MatchResult> globsMatchResults = matchGlobs(globs).iterator();
+    Iterator<MatchResult> nonGlobsMatchResults = matchNonGlobs(nonGlobs).iterator();
+
+    ImmutableList.Builder<MatchResult> ret = ImmutableList.builder();
+    for (Boolean isGlob : isGlobBooleans) {
+      if (isGlob) {
+        checkState(globsMatchResults.hasNext(), "Expect globsMatchResults has next.");
+        ret.add(globsMatchResults.next());
+      } else {
+        checkState(nonGlobsMatchResults.hasNext(), "Expect nonGlobsMatchResults has next.");
+        ret.add(nonGlobsMatchResults.next());
+      }
+    }
+    checkState(!globsMatchResults.hasNext(), "Expect no more elements in globsMatchResults.");
+    checkState(!nonGlobsMatchResults.hasNext(), "Expect no more elements in nonGlobsMatchResults.");
+    return ret.build();
   }
 
   @Override
@@ -91,6 +126,21 @@ class GcsFileSystem extends FileSystem<GcsResourceId> {
   protected void copy(List<GcsResourceId> srcResourceIds, List<GcsResourceId> destResourceIds)
       throws IOException {
     options.getGcsUtil().copy(toFilenames(srcResourceIds), toFilenames(destResourceIds));
+  }
+
+  private List<MatchResult> matchGlobs(List<GcsPath> globs) {
+    // TODO: Executes in parallel, address https://issues.apache.org/jira/browse/BEAM-1503.
+    return FluentIterable.from(globs)
+        .transform(new Function<GcsPath, MatchResult>() {
+          @Override
+          public MatchResult apply(GcsPath gcsPath) {
+            try {
+              return expand(gcsPath);
+            } catch (IOException e) {
+              return MatchResult.create(Status.ERROR, e);
+            }
+          }})
+        .toList();
   }
 
   /**
@@ -177,6 +227,16 @@ class GcsFileSystem extends FileSystem<GcsResourceId> {
               public String apply(GcsResourceId resource) {
                 return resource.getGcsPath().toString();
               }})
+        .toList();
+  }
+
+  private List<GcsPath> toGcsPaths(Collection<String> specs) {
+    return FluentIterable.from(specs)
+        .transform(new Function<String, GcsPath>() {
+          @Override
+          public GcsPath apply(String spec) {
+            return GcsPath.fromUri(spec);
+          }})
         .toList();
   }
 }

@@ -74,6 +74,56 @@ public class GcsFileSystemTest {
   }
 
   @Test
+  public void testMatch() throws Exception {
+    Objects modelObjects = new Objects();
+    List<StorageObject> items = new ArrayList<>();
+    // A directory
+    items.add(new StorageObject().setBucket("testbucket").setName("testdirectory/"));
+
+    // Files within the directory
+    items.add(createStorageObject("gs://testbucket/testdirectory/file1name", 1L /* fileSize */));
+    items.add(createStorageObject("gs://testbucket/testdirectory/file2name", 2L /* fileSize */));
+    items.add(createStorageObject("gs://testbucket/testdirectory/file3name", 3L /* fileSize */));
+    items.add(createStorageObject("gs://testbucket/testdirectory/file4name", 4L /* fileSize */));
+    items.add(createStorageObject("gs://testbucket/testdirectory/otherfile", 5L /* fileSize */));
+    items.add(createStorageObject("gs://testbucket/testdirectory/anotherfile", 6L /* fileSize */));
+
+    modelObjects.setItems(items);
+    when(mockGcsUtil.listObjects(eq("testbucket"), anyString(), isNull(String.class)))
+        .thenReturn(modelObjects);
+
+    List<GcsPath> gcsPaths = ImmutableList.of(
+        GcsPath.fromUri("gs://testbucket/testdirectory/non-exist-file"),
+        GcsPath.fromUri("gs://testbucket/testdirectory/otherfile"));
+
+    when(mockGcsUtil.getObjects(eq(gcsPaths))).thenReturn(
+        ImmutableList.of(
+            StorageObjectOrIOException.create(new FileNotFoundException()),
+            StorageObjectOrIOException.create(
+                createStorageObject("gs://testbucket/testdirectory/otherfile", 4L))));
+
+    List<String> specs = ImmutableList.of(
+        "gs://testbucket/testdirectory/file[1-3]*",
+        "gs://testbucket/testdirectory/non-exist-file",
+        "gs://testbucket/testdirectory/otherfile");
+    List<MatchResult> matchResults = gcsFileSystem.match(specs);
+    assertEquals(3, matchResults.size());
+    assertEquals(Status.OK, matchResults.get(0).status());
+    assertThat(
+        ImmutableList.of(
+            "gs://testbucket/testdirectory/file1name",
+            "gs://testbucket/testdirectory/file2name",
+            "gs://testbucket/testdirectory/file3name"),
+        contains(toFilenames(matchResults.get(0)).toArray()));
+    assertEquals(Status.NOT_FOUND, matchResults.get(1).status());
+    assertEquals(Status.OK, matchResults.get(2).status());
+    assertThat(
+        ImmutableList.of("gs://testbucket/testdirectory/otherfile"),
+        contains(toFilenames(matchResults.get(2)).toArray()));
+
+  }
+
+  @Test
   public void testGlobExpansion() throws IOException {
     Objects modelObjects = new Objects();
     List<StorageObject> items = new ArrayList<>();
