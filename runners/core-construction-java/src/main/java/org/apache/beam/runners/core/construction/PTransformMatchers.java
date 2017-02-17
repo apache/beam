@@ -22,11 +22,13 @@ import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.runners.PTransformMatcher;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.ProcessElementMethod;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
+import org.apache.beam.sdk.values.PCollection;
 
 /**
  * A {@link PTransformMatcher} that matches {@link PTransform PTransforms} based on the class of the
@@ -155,6 +157,41 @@ public class PTransformMatchers {
           return signature.usesState() || signature.usesTimers();
         }
         return false;
+      }
+    };
+  }
+
+  /**
+   * A {@link PTransformMatcher} which matches a {@link ParDo.Bound} or {@link ParDo.BoundMulti}
+   * where the {@link DoFn} is of the provided type.
+   */
+  public static PTransformMatcher parDoWithFnType(final Class<? extends DoFn> fnType) {
+    return new PTransformMatcher() {
+      @Override
+      public boolean matches(AppliedPTransform<?, ?, ?> application) {
+        DoFn<?, ?> fn;
+        if (application.getTransform() instanceof ParDo.Bound) {
+          fn = ((ParDo.Bound) application.getTransform()).getFn();
+        } else if (application.getTransform() instanceof ParDo.BoundMulti) {
+          fn = ((ParDo.BoundMulti) application.getTransform()).getFn();
+        } else {
+          return false;
+        }
+        return fnType.equals(fn.getClass());
+      }
+    };
+  }
+
+  /**
+   * A {@link PTransformMatcher} which matches a {@link Flatten.FlattenPCollectionList} which
+   * consumes no input {@link PCollection PCollections}.
+   */
+  public static PTransformMatcher emptyFlatten() {
+    return new PTransformMatcher() {
+      @Override
+      public boolean matches(AppliedPTransform<?, ?, ?> application) {
+        return (application.getTransform() instanceof Flatten.FlattenPCollectionList)
+            && application.getInputs().isEmpty();
       }
     };
   }

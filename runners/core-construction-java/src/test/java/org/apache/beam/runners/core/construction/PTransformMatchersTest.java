@@ -25,11 +25,15 @@ import static org.junit.Assert.assertThat;
 
 import com.google.common.base.MoreObjects;
 import java.io.Serializable;
+import java.util.Collections;
 import org.apache.beam.sdk.coders.VarIntCoder;
+import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.runners.PTransformMatcher;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
+import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
@@ -46,6 +50,8 @@ import org.apache.beam.sdk.util.state.ValueState;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
+import org.apache.beam.sdk.values.PCollectionList;
+import org.apache.beam.sdk.values.TaggedPValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.hamcrest.Matchers;
@@ -269,5 +275,108 @@ public class PTransformMatchersTest implements Serializable {
     assertThat(PTransformMatchers.splittableParDoMulti().matches(parDoApplication), is(false));
     assertThat(PTransformMatchers.splittableParDoSingle().matches(parDoApplication), is(false));
     assertThat(PTransformMatchers.stateOrTimerParDoSingle().matches(parDoApplication), is(false));
+  }
+
+  @Test
+  public void parDoWithFnTypeWithMatchingType() {
+    DoFn<Object, Object> fn = new DoFn<Object, Object>() {
+      @ProcessElement
+      public void process(ProcessContext ctxt) {
+      }
+    };
+    AppliedPTransform<?, ?, ?> parDoSingle = getAppliedTransform(ParDo.of(fn));
+    AppliedPTransform<?, ?, ?> parDoMulti =
+        getAppliedTransform(
+            ParDo.of(fn).withOutputTags(new TupleTag<Object>(), TupleTagList.empty()));
+
+    PTransformMatcher matcher = PTransformMatchers.parDoWithFnType(fn.getClass());
+    assertThat(matcher.matches(parDoSingle), is(true));
+    assertThat(matcher.matches(parDoMulti), is(true));
+  }
+
+  @Test
+  public void parDoWithFnTypeWithNoMatch() {
+    DoFn<Object, Object> fn = new DoFn<Object, Object>() {
+      @ProcessElement
+      public void process(ProcessContext ctxt) {
+      }
+    };
+    AppliedPTransform<?, ?, ?> parDoSingle = getAppliedTransform(ParDo.of(fn));
+    AppliedPTransform<?, ?, ?> parDoMulti =
+        getAppliedTransform(
+            ParDo.of(fn).withOutputTags(new TupleTag<Object>(), TupleTagList.empty()));
+
+    PTransformMatcher matcher = PTransformMatchers.parDoWithFnType(doFnWithState.getClass());
+    assertThat(matcher.matches(parDoSingle), is(false));
+    assertThat(matcher.matches(parDoMulti), is(false));
+  }
+
+  @Test
+  public void parDoWithFnTypeNotParDo() {
+    AppliedPTransform<?, ?, ?> notParDo = getAppliedTransform(Create.empty(VoidCoder.of()));
+    PTransformMatcher matcher = PTransformMatchers.parDoWithFnType(doFnWithState.getClass());
+    assertThat(matcher.matches(notParDo), is(false));
+  }
+
+  @Test
+  public void emptyFlattenWithEmptyFlatten() {
+    AppliedPTransform application =
+        AppliedPTransform
+            .<PCollectionList<Object>, PCollection<Object>, Flatten.FlattenPCollectionList<Object>>
+                of(
+                    "EmptyFlatten",
+                    Collections.<TaggedPValue>emptyList(),
+                    Collections.singletonList(
+                        TaggedPValue.of(
+                            new TupleTag<Object>(),
+                            PCollection.createPrimitiveOutputInternal(
+                                p, WindowingStrategy.globalDefault(), IsBounded.BOUNDED))),
+                    Flatten.pCollections(),
+                    p);
+
+    assertThat(PTransformMatchers.emptyFlatten().matches(application), is(true));
+  }
+
+  @Test
+  public void emptyFlattenWithNonEmptyFlatten() {
+    AppliedPTransform application =
+        AppliedPTransform
+            .<PCollectionList<Object>, PCollection<Object>, Flatten.FlattenPCollectionList<Object>>
+                of(
+                    "Flatten",
+                    Collections.singletonList(
+                        TaggedPValue.of(
+                            new TupleTag<Object>(),
+                            PCollection.createPrimitiveOutputInternal(
+                                p, WindowingStrategy.globalDefault(), IsBounded.BOUNDED))),
+                    Collections.singletonList(
+                        TaggedPValue.of(
+                            new TupleTag<Object>(),
+                            PCollection.createPrimitiveOutputInternal(
+                                p, WindowingStrategy.globalDefault(), IsBounded.BOUNDED))),
+                    Flatten.pCollections(),
+                    p);
+
+    assertThat(PTransformMatchers.emptyFlatten().matches(application), is(false));
+  }
+
+  @Test
+  public void emptyFlattenWithNonFlatten() {
+    AppliedPTransform application =
+        AppliedPTransform
+            .<PCollection<Iterable<Object>>, PCollection<Object>, Flatten.FlattenIterables<Object>>
+                of(
+                    "EmptyFlatten",
+                    Collections.<TaggedPValue>emptyList(),
+                    Collections.singletonList(
+                        TaggedPValue.of(
+                            new TupleTag<Object>(),
+                            PCollection.createPrimitiveOutputInternal(
+                                p, WindowingStrategy.globalDefault(), IsBounded.BOUNDED))),
+                    Flatten.iterables() /* This isn't actually possible to construct,
+                                 * but for the sake of example */,
+                    p);
+
+    assertThat(PTransformMatchers.emptyFlatten().matches(application), is(false));
   }
 }
