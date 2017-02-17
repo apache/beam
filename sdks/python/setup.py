@@ -103,6 +103,10 @@ REQUIRED_TEST_PACKAGES = [
     'pyhamcrest>=1.9,<2.0',
     ]
 
+EXTRA_REQUIRES = {
+  'docs': ['Sphinx>=1.5.2,<2.0'],
+}
+
 setuptools.setup(
     name=PACKAGE_NAME,
     version=PACKAGE_VERSION,
@@ -127,6 +131,7 @@ setuptools.setup(
     install_requires=REQUIRED_PACKAGES,
     test_suite='nose.collector',
     tests_require=REQUIRED_TEST_PACKAGES,
+    extras_require=EXTRA_REQUIRES,
     zip_safe=False,
     # PyPI package information.
     classifiers=[
