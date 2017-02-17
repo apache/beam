@@ -696,9 +696,9 @@ public class FlinkStreamingTransformTranslators {
       DataStream<WindowedValue<List<ElemT>>> inputDataSet =
           context.getInputDataStream(context.getInput(transform));
 
-      PCollectionView<ViewT> input = transform.getView();
+      PCollectionView<ViewT> view = context.getOutput(transform);
 
-      context.setOutputDataStream(input, inputDataSet);
+      context.setOutputDataStream(view, inputDataSet);
     }
   }
 
