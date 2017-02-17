@@ -29,7 +29,6 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.TimeUnit;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.core.AggregatorFactory;
 import org.apache.beam.runners.core.DoFnRunner;
@@ -41,6 +40,9 @@ import org.apache.beam.runners.core.SideInputHandler;
 import org.apache.beam.runners.core.StateInternals;
 import org.apache.beam.runners.core.StateNamespace;
 import org.apache.beam.runners.core.StateNamespaces;
+import org.apache.beam.runners.core.StateNamespaces.GlobalNamespace;
+import org.apache.beam.runners.core.StateNamespaces.WindowAndTriggerNamespace;
+import org.apache.beam.runners.core.StateNamespaces.WindowNamespace;
 import org.apache.beam.runners.core.StateTag;
 import org.apache.beam.runners.core.StateTags;
 import org.apache.beam.runners.core.TimerInternals;
@@ -62,6 +64,7 @@ import org.apache.beam.sdk.transforms.join.RawUnionValue;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.NullSideInputReader;
 import org.apache.beam.sdk.util.SideInputReader;
 import org.apache.beam.sdk.util.TimeDomain;
@@ -179,7 +182,7 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
         TimerInternals.TimerDataCoder.of(windowingStrategy.getWindowFn().windowCoder());
   }
 
-  protected ExecutionContext.StepContext createStepContext() {
+  private ExecutionContext.StepContext createStepContext() {
     return new StepContext();
   }
 
@@ -306,7 +309,7 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
   protected final long getPushbackWatermarkHold() {
     // if we don't have side inputs we never hold the watermark
     if (sideInputs.isEmpty()) {
-      return Long.MAX_VALUE;
+      return BoundedWindow.TIMESTAMP_MAX_VALUE.getMillis();
     }
 
     try {
@@ -325,7 +328,7 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
       BagState<WindowedValue<InputT>> pushedBack =
           pushbackStateInternals.state(StateNamespaces.global(), pushedBackTag);
 
-      long min = TimeUnit.MICROSECONDS.toMillis(Long.MAX_VALUE);
+      long min = BoundedWindow.TIMESTAMP_MAX_VALUE.getMillis();
       for (WindowedValue<InputT> value : pushedBack.read()) {
         min = Math.min(min, value.getTimestamp().getMillis());
       }
@@ -398,7 +401,7 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
     }
 
     pushedBack.clear();
-    long min = TimeUnit.MICROSECONDS.toMillis(Long.MAX_VALUE);
+    long min = BoundedWindow.TIMESTAMP_MAX_VALUE.getMillis();
     for (WindowedValue<InputT> pushedBackValue : newPushedBack) {
       min = Math.min(min, pushedBackValue.getTimestamp().getMillis());
       pushedBack.add(pushedBackValue);
@@ -418,12 +421,36 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
 
   @Override
   public void processWatermark1(Watermark mark) throws Exception {
-    this.currentInputWatermark = mark.getTimestamp();
-    long potentialOutputWatermark =
-        Math.min(getPushbackWatermarkHold(), currentInputWatermark);
-    if (potentialOutputWatermark > currentOutputWatermark) {
-      currentOutputWatermark = potentialOutputWatermark;
-      output.emitWatermark(new Watermark(currentOutputWatermark));
+    if (keyCoder == null) {
+      this.currentInputWatermark = mark.getTimestamp();
+      long potentialOutputWatermark =
+          Math.min(getPushbackWatermarkHold(), currentInputWatermark);
+      if (potentialOutputWatermark > currentOutputWatermark) {
+        currentOutputWatermark = potentialOutputWatermark;
+        output.emitWatermark(new Watermark(currentOutputWatermark));
+      }
+    } else {
+      // fireTimers, so we need startBundle.
+      pushbackDoFnRunner.startBundle();
+
+      this.currentInputWatermark = mark.getTimestamp();
+
+      // hold back by the pushed back values waiting for side inputs
+      long actualInputWatermark = Math.min(getPushbackWatermarkHold(), mark.getTimestamp());
+
+      timerService.advanceWatermark(actualInputWatermark);
+
+      Instant watermarkHold = stateInternals.watermarkHold();
+
+      long combinedWatermarkHold = Math.min(watermarkHold.getMillis(), getPushbackWatermarkHold());
+
+      long potentialOutputWatermark = Math.min(currentInputWatermark, combinedWatermarkHold);
+
+      if (potentialOutputWatermark > currentOutputWatermark) {
+        currentOutputWatermark = potentialOutputWatermark;
+        output.emitWatermark(new Watermark(currentOutputWatermark));
+      }
+      pushbackDoFnRunner.finishBundle();
     }
   }
 
@@ -538,9 +565,28 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
     fireTimer(timer);
   }
 
+  /**
+   *  StateNamespace don't have a getWindow method.
+   */
+  private BoundedWindow getWindowFromNamespace(StateNamespace namespace) {
+    if (namespace instanceof WindowNamespace) {
+      return ((WindowNamespace) namespace).getWindow();
+    } else if (namespace instanceof GlobalNamespace) {
+      return GlobalWindow.INSTANCE;
+    } else if (namespace instanceof WindowAndTriggerNamespace) {
+      return ((WindowAndTriggerNamespace) namespace).getWindow();
+    } else {
+      throw new RuntimeException("Unknown StateNamespace type: "
+          + namespace.getClass());
+    }
+  }
+
   public void fireTimer(InternalTimer<?, TimerData> timer) {
-    // Now not implement timers in StatefulPardo
-    throw new RuntimeException("The fireTimer should not be invoke in DoFnOperator.");
+    TimerInternals.TimerData timerData = timer.getNamespace();
+    StateNamespace namespace = timerData.getNamespace();
+    pushbackDoFnRunner.onTimer(timerData.getTimerId(),
+        getWindowFromNamespace(namespace),
+        timerData.getTimestamp(), timerData.getDomain());
   }
 
   /**
@@ -638,7 +684,7 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
 
     @Override
     public TimerInternals timerInternals() {
-      throw new UnsupportedOperationException("Not supported for regular DoFns.");
+      return timerInternals;
     }
   }
 

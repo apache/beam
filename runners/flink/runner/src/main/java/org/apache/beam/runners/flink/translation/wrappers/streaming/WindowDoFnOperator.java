@@ -23,7 +23,6 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import org.apache.beam.runners.core.ExecutionContext;
 import org.apache.beam.runners.core.GroupAlsoByWindowViaWindowSetNewDoFn;
 import org.apache.beam.runners.core.KeyedWorkItem;
 import org.apache.beam.runners.core.KeyedWorkItems;
@@ -42,8 +41,6 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.flink.streaming.api.operators.InternalTimer;
-import org.apache.flink.streaming.api.watermark.Watermark;
-import org.joda.time.Instant;
 
 /**
  * Flink operator for executing window {@link DoFn DoFns}.
@@ -81,7 +78,6 @@ public class WindowDoFnOperator<K, InputT, OutputT>
 
     this.systemReduceFn = systemReduceFn;
 
-
   }
 
   @Override
@@ -114,55 +110,11 @@ public class WindowDoFnOperator<K, InputT, OutputT>
   }
 
   @Override
-  protected ExecutionContext.StepContext createStepContext() {
-    return new WindowDoFnOperator.StepContext();
-  }
-
-  @Override
   public void fireTimer(InternalTimer<?, TimerData> timer) {
     pushbackDoFnRunner.processElement(WindowedValue.valueInGlobalWindow(
         KeyedWorkItems.<K, InputT>timersWorkItem(
             (K) stateInternals.getKey(),
             Collections.singletonList(timer.getNamespace()))));
   }
-
-  @Override
-  public void processWatermark1(Watermark mark) throws Exception {
-    pushbackDoFnRunner.startBundle();
-
-    this.currentInputWatermark = mark.getTimestamp();
-
-    // hold back by the pushed back values waiting for side inputs
-    long actualInputWatermark = Math.min(getPushbackWatermarkHold(), mark.getTimestamp());
-
-    timerService.advanceWatermark(actualInputWatermark);
-
-    Instant watermarkHold = stateInternals.watermarkHold();
-
-    long combinedWatermarkHold = Math.min(watermarkHold.getMillis(), getPushbackWatermarkHold());
-
-    long potentialOutputWatermark = Math.min(currentInputWatermark, combinedWatermarkHold);
-
-    if (potentialOutputWatermark > currentOutputWatermark) {
-      currentOutputWatermark = potentialOutputWatermark;
-      output.emitWatermark(new Watermark(currentOutputWatermark));
-    }
-    pushbackDoFnRunner.finishBundle();
-
-  }
-
-  /**
-   * {@link StepContext} for running {@link DoFn DoFns} on Flink. This does now allow
-   * accessing state or timer internals.
-   */
-  protected class StepContext extends DoFnOperator.StepContext {
-
-    @Override
-    public TimerInternals timerInternals() {
-      return timerInternals;
-    }
-  }
-
-
 
 }
