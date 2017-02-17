@@ -30,6 +30,24 @@ from apache_beam.coders import coder_impl
 from apache_beam.utils.timestamp import Timestamp
 from apache_beam.transforms.window import IntervalWindow
 
+from nose_parameterized import parameterized
+
+STANDARD_CODERS_YAML = os.path.join(
+    os.path.dirname(__file__), '..', 'tests', 'data', 'standard_coders.yaml')
+
+
+def _load_test_cases(test_yaml):
+  """Load test data from yaml file and return an iterable of test cases.
+
+  See ``standard_coders.yaml`` for more details.
+  """
+  if not os.path.exists(test_yaml):
+    raise ValueError('Could not find the test spec: %s' % test_yaml)
+  for ix, spec in enumerate(yaml.load_all(open(test_yaml))):
+    spec['index'] = ix
+    name = spec.get('name', spec['coder']['urn'].split(':')[-2])
+    yield [name, spec]
+
 
 class StandardCodersTest(unittest.TestCase):
 
@@ -54,30 +72,8 @@ class StandardCodersTest(unittest.TestCase):
       'urn:beam:coders:stream:0.1': lambda x, parser: map(parser, x)
   }
 
-  # We must prepend an underscore to this name so that the open-source unittest
-  # runner does not execute this method directly as a test.
-  @classmethod
-  def _create_test(cls, spec):
-    counter = 0
-    name = spec.get('name', spec['coder']['urn'].split(':')[-2])
-    unique_name = 'test_' + name
-    while hasattr(cls, unique_name):
-      counter += 1
-      unique_name = 'test_%s_%d' % (name, counter)
-    setattr(cls, unique_name, lambda self: self._run_coder_test(spec))
-
-  # We must prepend an underscore to this name so that the open-source unittest
-  # runner does not execute this method directly as a test.
-  @classmethod
-  def _create_tests(cls, coder_test_specs):
-    if not os.path.exists(STANDARD_CODERS_YAML):
-      raise ValueError(
-          "Could not find the test spec: %s" % STANDARD_CODERS_YAML)
-    for ix, spec in enumerate(yaml.load_all(open(coder_test_specs))):
-      spec['index'] = ix
-      cls._create_test(spec)
-
-  def _run_coder_test(self, spec):
+  @parameterized.expand(_load_test_cases(STANDARD_CODERS_YAML))
+  def test_standard_coder(self, name, spec):
     coder = self.parse_coder(spec['coder'])
     parse_value = self.json_value_parser(spec['coder'])
     nested_list = [spec['nested']] if 'nested' in spec else [True, False]
@@ -122,11 +118,6 @@ class StandardCodersTest(unittest.TestCase):
         docs[doc_ix] = docs[doc_ix].replace(
             quote(expected_encoded) + ':', quote(actual_encoded) + ':')
       open(STANDARD_CODERS_YAML, 'w').write(doc_sep.join(docs))
-
-
-STANDARD_CODERS_YAML = os.path.join(
-    os.path.dirname(__file__), '..', 'tests', 'data', 'standard_coders.yaml')
-StandardCodersTest._create_tests(STANDARD_CODERS_YAML)
 
 
 def encode_nested(coder, value, nested=True):
