@@ -42,7 +42,7 @@ class common_job_properties {
 
     // GitHub project.
     context.properties {
-      githubProjectUrl('https://github.com/apache/${repositoryName}/')
+      githubProjectUrl('https://github.com/apache/' + repositoryName + '/')
     }
 
     // Set JDK version.
@@ -61,7 +61,7 @@ class common_job_properties {
     context.scm {
       git {
         remote {
-          url('https://github.com/apache/${repositoryName}.git')
+          url('https://github.com/apache/' + repositoryName + '.git')
           refspec('+refs/heads/*:refs/remotes/origin/* ' +
                   '+refs/pull/*:refs/remotes/origin/pr/*')
         }
