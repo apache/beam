@@ -54,8 +54,7 @@ public class ForceStreamingTest {
     Pipeline pipeline = Pipeline.create(options);
 
     // apply the BoundedReadFromUnboundedSource.
-    @SuppressWarnings("unchecked")
-    BoundedReadFromUnboundedSource boundedRead =
+    BoundedReadFromUnboundedSource<?> boundedRead =
         Read.from(CountingSource.unbounded()).withMaxNumRecords(-1);
     //noinspection unchecked
     pipeline.apply(boundedRead);
@@ -77,7 +76,7 @@ public class ForceStreamingTest {
     @Override
     public void visitPrimitiveTransform(TransformHierarchy.Node node) {
       Class<? extends PTransform> transformClass = node.getTransform().getClass();
-      if (transformClass == Read.Unbounded.class) {
+      if (Read.Unbounded.class.equals(transformClass)) {
         isUnbounded = true;
       }
     }

@@ -36,7 +36,7 @@ import org.junit.rules.ExpectedException;
 /**
  * A test suite for the propagation of watermarks in the Spark runner.
  */
-public class WatermarkTest {
+public class GlobalWatermarkHolderTest {
 
   @Rule
   public ClearWatermarksRule clearWatermarksRule = new ClearWatermarksRule();
@@ -47,6 +47,7 @@ public class WatermarkTest {
   @Rule
   public ReuseSparkContextRule reuseContext = ReuseSparkContextRule.yes();
 
+  // only needed in-order to get context from the SparkContextFactory.
   private static final SparkPipelineOptions options =
       PipelineOptionsFactory.create().as(SparkPipelineOptions.class);
 

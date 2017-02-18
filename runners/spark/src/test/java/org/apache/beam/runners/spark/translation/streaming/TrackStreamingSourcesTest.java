@@ -21,9 +21,8 @@ import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.core.IsEqual.equalTo;
 import static org.junit.Assert.assertThat;
 
-import java.util.Collections;
 import java.util.List;
-import org.apache.beam.runners.spark.ReuseSparkContext;
+import org.apache.beam.runners.spark.ReuseSparkContextRule;
 import org.apache.beam.runners.spark.SparkPipelineOptions;
 import org.apache.beam.runners.spark.SparkRunner;
 import org.apache.beam.runners.spark.io.CreateStream;
@@ -44,8 +43,8 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.spark.api.java.JavaSparkContext;
-import org.apache.spark.streaming.Duration;
 import org.apache.spark.streaming.api.java.JavaStreamingContext;
+import org.joda.time.Duration;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -58,14 +57,13 @@ import org.junit.Test;
 public class TrackStreamingSourcesTest {
 
   @Rule
-  public ReuseSparkContext reuseContext = ReuseSparkContext.yes();
+  public ReuseSparkContextRule reuseContext = ReuseSparkContextRule.yes();
 
   private static final transient SparkPipelineOptions options =
       PipelineOptionsFactory.create().as(SparkPipelineOptions.class);
 
   @Before
   public void before() {
-    UnboundedDataset.resetQueuedStreamIds();
     StreamingSourceTracker.numAssertions = 0;
   }
 
@@ -74,17 +72,18 @@ public class TrackStreamingSourcesTest {
     options.setRunner(SparkRunner.class);
     JavaSparkContext jsc = SparkContextFactory.getSparkContext(options);
     JavaStreamingContext jssc = new JavaStreamingContext(jsc,
-        new Duration(options.getBatchIntervalMillis()));
+        new org.apache.spark.streaming.Duration(options.getBatchIntervalMillis()));
 
     Pipeline p = Pipeline.create(options);
 
-    CreateStream.QueuedValues<Integer> queueStream =
-        CreateStream.fromQueue(Collections.<Iterable<Integer>>emptyList());
+    CreateStream<Integer> emptyStream =
+        CreateStream.<Integer>withBatchInterval(
+            Duration.millis(options.getBatchIntervalMillis())).nextBatch();
 
-    p.apply(queueStream).setCoder(VarIntCoder.of())
+    p.apply(emptyStream).setCoder(VarIntCoder.of())
         .apply(ParDo.of(new PassthroughFn<>()));
 
-    p.traverseTopologically(new StreamingSourceTracker(jssc, p, ParDo.Bound.class,  -1));
+    p.traverseTopologically(new StreamingSourceTracker(jssc, p, ParDo.Bound.class,  0));
     assertThat(StreamingSourceTracker.numAssertions, equalTo(1));
   }
 
@@ -93,14 +92,16 @@ public class TrackStreamingSourcesTest {
     options.setRunner(SparkRunner.class);
     JavaSparkContext jsc = SparkContextFactory.getSparkContext(options);
     JavaStreamingContext jssc = new JavaStreamingContext(jsc,
-        new Duration(options.getBatchIntervalMillis()));
+        new org.apache.spark.streaming.Duration(options.getBatchIntervalMillis()));
 
     Pipeline p = Pipeline.create(options);
 
-    CreateStream.QueuedValues<Integer> queueStream1 =
-        CreateStream.fromQueue(Collections.<Iterable<Integer>>emptyList());
-    CreateStream.QueuedValues<Integer> queueStream2 =
-        CreateStream.fromQueue(Collections.<Iterable<Integer>>emptyList());
+    CreateStream<Integer> queueStream1 =
+        CreateStream.<Integer>withBatchInterval(
+            Duration.millis(options.getBatchIntervalMillis())).nextBatch();
+    CreateStream<Integer> queueStream2 =
+        CreateStream.<Integer>withBatchInterval(
+            Duration.millis(options.getBatchIntervalMillis())).nextBatch();
 
     PCollection<Integer> pcol1 = p.apply(queueStream1).setCoder(VarIntCoder.of());
     PCollection<Integer> pcol2 = p.apply(queueStream2).setCoder(VarIntCoder.of());
@@ -108,7 +109,7 @@ public class TrackStreamingSourcesTest {
         PCollectionList.of(pcol1).and(pcol2).apply(Flatten.<Integer>pCollections());
     flattened.apply(ParDo.of(new PassthroughFn<>()));
 
-    p.traverseTopologically(new StreamingSourceTracker(jssc, p, ParDo.Bound.class, -1, -2));
+    p.traverseTopologically(new StreamingSourceTracker(jssc, p, ParDo.Bound.class, 0, 1));
     assertThat(StreamingSourceTracker.numAssertions, equalTo(1));
   }
 
