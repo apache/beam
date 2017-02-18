@@ -18,7 +18,7 @@
 package org.apache.beam.runners.spark.translation.streaming.utils;
 
 import org.apache.beam.runners.spark.SparkPipelineOptions;
-import org.apache.beam.runners.spark.SparkRunner;
+import org.apache.beam.runners.spark.TestSparkRunner;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.junit.rules.ExternalResource;
 
@@ -32,7 +32,7 @@ public class SparkTestPipelineOptions extends ExternalResource {
 
   @Override
   protected void before() throws Throwable {
-    options.setRunner(SparkRunner.class);
+    options.setRunner(TestSparkRunner.class);
     options.setEnableSparkMetricSinks(false);
   }
 

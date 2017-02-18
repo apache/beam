@@ -20,6 +20,7 @@ package org.apache.beam.runners.spark.translation.streaming.utils;
 
 import java.io.IOException;
 import org.apache.beam.runners.spark.SparkPipelineOptions;
+import org.joda.time.Duration;
 import org.junit.rules.TemporaryFolder;
 
 
@@ -28,10 +29,20 @@ import org.junit.rules.TemporaryFolder;
  */
 public class SparkTestPipelineOptionsForStreaming extends SparkTestPipelineOptions {
 
+  private static final int DEFAULT_NUMBER_OF_BATCHES_TIMEOUT = 5;
+
   public SparkPipelineOptions withTmpCheckpointDir(TemporaryFolder parent)
       throws IOException {
     // tests use JUnit's TemporaryFolder path in the form of: /.../junit/...
     options.setCheckpointDir(parent.newFolder(options.getJobName()).toURI().toURL().toString());
+    options.setForceStreaming(true);
+    // set the default timeout to DEFAULT_NUMBER_OF_BATCHES_TIMEOUT x batchDuration
+    // to allow pipelines to finish.
+    Duration batchDuration = Duration.millis(options.getBatchIntervalMillis());
+    // set the checkpoint duration to match interval.
+    options.setCheckpointDurationMillis(batchDuration.getMillis());
+    long forcedTimeout = batchDuration.multipliedBy(DEFAULT_NUMBER_OF_BATCHES_TIMEOUT).getMillis();
+    options.setForcedTimeout(forcedTimeout);
     return options;
   }
 }
