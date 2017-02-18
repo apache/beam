@@ -21,12 +21,12 @@ package org.apache.beam.runners.spark;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
 
+import java.io.File;
+import java.io.IOException;
 import org.apache.beam.runners.core.UnboundedReadFromBoundedSource;
-import org.apache.beam.runners.spark.aggregators.AggregatorsAccumulator;
-import org.apache.beam.runners.spark.metrics.SparkMetricsContainer;
+import org.apache.beam.runners.spark.aggregators.AccumulatorSingleton;
 import org.apache.beam.runners.spark.util.GlobalWatermarkHolder;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.PipelineResult.State;
 import org.apache.beam.sdk.io.BoundedReadFromUnboundedSource;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsValidator;
@@ -40,6 +40,10 @@ import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
+import org.apache.commons.io.FileUtils;
+import org.joda.time.Duration;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 
 /**
@@ -65,6 +69,8 @@ import org.apache.beam.sdk.values.POutput;
  */
 public final class TestSparkRunner extends PipelineRunner<SparkPipelineResult> {
 
+  private static final Logger LOG = LoggerFactory.getLogger(TestSparkRunner.class);
+
   private SparkRunner delegate;
   private boolean isForceStreaming;
   private int expectedNumberOfAssertions = 0;
@@ -87,7 +93,7 @@ public final class TestSparkRunner extends PipelineRunner<SparkPipelineResult> {
   @SuppressWarnings("unchecked")
   @Override
   public <OutputT extends POutput, InputT extends PInput> OutputT apply(
-          PTransform<InputT, OutputT> transform, InputT input) {
+      PTransform<InputT, OutputT> transform, InputT input) {
     // if the pipeline forces execution as a streaming pipeline,
     // and the source is an adapted unbounded source (as bounded),
     // read it as unbounded source via UnboundedReadFromBoundedSource.
@@ -108,38 +114,52 @@ public final class TestSparkRunner extends PipelineRunner<SparkPipelineResult> {
 
   @Override
   public SparkPipelineResult run(Pipeline pipeline) {
-    // clear state of Aggregators, Metrics and Watermarks if exists.
-    AggregatorsAccumulator.clear();
-    SparkMetricsContainer.clear();
-    GlobalWatermarkHolder.clear();
+    SparkPipelineOptions sparkOptions = pipeline.getOptions().as(SparkPipelineOptions.class);
+    long timeout = sparkOptions.getForcedTimeout();
+    SparkPipelineResult result = null;
+    try {
+      // clear state of Accumulators and Aggregators.
+      AccumulatorSingleton.clear();
+      GlobalWatermarkHolder.clear();
 
-    TestPipelineOptions testPipelineOptions = pipeline.getOptions().as(TestPipelineOptions.class);
-    SparkPipelineResult result = delegate.run(pipeline);
-    result.waitUntilFinish();
+      TestPipelineOptions testPipelineOptions = pipeline.getOptions().as(TestPipelineOptions.class);
+      LOG.info("About to run test pipeline " + sparkOptions.getJobName());
+      result = delegate.run(pipeline);
+      result.waitUntilFinish(Duration.millis(timeout));
 
+      assertThat(result, testPipelineOptions.getOnCreateMatcher());
+      assertThat(result, testPipelineOptions.getOnSuccessMatcher());
 
-    // make sure the test pipeline finished successfully.
-    State resultState = result.getState();
-    assertThat(
-        String.format("Test pipeline result state was %s instead of %s", resultState, State.DONE),
-        resultState,
-        is(State.DONE));
-    assertThat(result, testPipelineOptions.getOnCreateMatcher());
-    assertThat(result, testPipelineOptions.getOnSuccessMatcher());
+      // if the pipeline was executed in streaming mode, validate aggregators.
+      if (isForceStreaming) {
+        // validate assertion succeeded (at least once).
+        int successAssertions = result.getAggregatorValue(PAssert.SUCCESS_COUNTER, Integer.class);
+        assertThat(
+            String.format(
+                "Expected %d successful assertions, but found %d.",
+                expectedNumberOfAssertions, successAssertions),
+            successAssertions,
+            is(expectedNumberOfAssertions));
+        // validate assertion didn't fail.
+        int failedAssertions = result.getAggregatorValue(PAssert.FAILURE_COUNTER, Integer.class);
+        assertThat(
+            String.format("Found %d failed assertions.", failedAssertions),
+            failedAssertions,
+            is(0));
 
-    // if the pipeline was executed in streaming mode, validate aggregators.
-    if (isForceStreaming) {
-      // validate assertion succeeded (at least once).
-      int success = result.getAggregatorValue(PAssert.SUCCESS_COUNTER, Integer.class);
-      assertThat(
-          String.format(
-              "Expected %d successful assertions, but found %d.",
-              expectedNumberOfAssertions, success),
-          success,
-          is(expectedNumberOfAssertions));
-      // validate assertion didn't fail.
-      int failure = result.getAggregatorValue(PAssert.FAILURE_COUNTER, Integer.class);
-      assertThat("Failure aggregator should be zero.", failure, is(0));
+        LOG.info(
+            String.format(
+                "Successfully asserted pipeline %s with %d successful assertions.",
+                sparkOptions.getJobName(),
+                successAssertions));
+      }
+    } finally {
+      try {
+        // cleanup checkpoint dir.
+        FileUtils.deleteDirectory(new File(sparkOptions.getCheckpointDir()));
+      } catch (IOException e) {
+        throw new RuntimeException("Failed to clear checkpoint tmp dir.", e);
+      }
     }
     return result;
   }
