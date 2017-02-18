@@ -17,60 +17,70 @@
  */
 package org.apache.beam.runners.spark.translation.streaming;
 
-import static org.apache.beam.sdk.metrics.MetricMatchers.attemptedMetricsResult;
+import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.hasItem;
+import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
 
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.util.concurrent.Uninterruptibles;
 import java.io.IOException;
-import java.util.Arrays;
 import java.util.Collections;
-import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.TimeUnit;
+import org.apache.beam.runners.spark.ReuseSparkContextRule;
 import org.apache.beam.runners.spark.SparkPipelineOptions;
 import org.apache.beam.runners.spark.SparkPipelineResult;
-import org.apache.beam.runners.spark.aggregators.ClearAggregatorsRule;
+import org.apache.beam.runners.spark.SparkRunner;
+import org.apache.beam.runners.spark.aggregators.AccumulatorSingleton;
+import org.apache.beam.runners.spark.coders.CoderHelpers;
 import org.apache.beam.runners.spark.translation.streaming.utils.EmbeddedKafkaCluster;
-import org.apache.beam.runners.spark.translation.streaming.utils.PAssertStreaming;
-import org.apache.beam.runners.spark.translation.streaming.utils.SparkTestPipelineOptionsForStreaming;
+import org.apache.beam.runners.spark.util.GlobalWatermarkHolder;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.coders.InstantCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.kafka.KafkaIO;
-import org.apache.beam.sdk.metrics.Counter;
-import org.apache.beam.sdk.metrics.MetricNameFilter;
-import org.apache.beam.sdk.metrics.Metrics;
-import org.apache.beam.sdk.metrics.MetricsFilter;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.transforms.Aggregator;
-import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.GroupByKey;
+import org.apache.beam.sdk.transforms.Keys;
+import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.Sum;
-import org.apache.beam.sdk.transforms.View;
+import org.apache.beam.sdk.transforms.Values;
+import org.apache.beam.sdk.transforms.WithKeys;
+import org.apache.beam.sdk.transforms.windowing.AfterWatermark;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.sdk.values.PDone;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.serialization.Serializer;
 import org.apache.kafka.common.serialization.StringSerializer;
 import org.joda.time.Duration;
+import org.joda.time.Instant;
 import org.junit.AfterClass;
-import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
+import org.junit.rules.TestName;
 
 
 /**
- * Test pipelines which are resumed from checkpoint.
+ * Tests DStream recovery from checkpoint.
+ *
+ * <p>Runs the pipeline reading from a Kafka backlog with a WM function that will move to infinity
+ * on a EOF signal.
+ * After resuming from checkpoint, a single output (guaranteed by the WM) is asserted, along with
+ * {@link Aggregator}s values that are expected to resume from previous count as well.
  */
 public class ResumeFromCheckpointStreamingTest {
   private static final EmbeddedKafkaCluster.EmbeddedZookeeper EMBEDDED_ZOOKEEPER =
@@ -78,142 +88,158 @@ public class ResumeFromCheckpointStreamingTest {
   private static final EmbeddedKafkaCluster EMBEDDED_KAFKA_CLUSTER =
       new EmbeddedKafkaCluster(EMBEDDED_ZOOKEEPER.getConnection(), new Properties());
   private static final String TOPIC = "kafka_beam_test_topic";
-  private static final Map<String, String> KAFKA_MESSAGES = ImmutableMap.of(
-      "k1", "v1", "k2", "v2", "k3", "v3", "k4", "v4"
-  );
-  private static final String[] EXPECTED = {"k1,v1", "k2,v2", "k3,v3", "k4,v4"};
-  private static final long EXPECTED_AGG_FIRST = 4L;
-  private static final long EXPECTED_COUNTER_FIRST = 4L;
-  private static final long EXPECTED_AGG_SECOND = 8L;
-  private static final long EXPECTED_COUNTER_SECOND = 8L;
 
   @Rule
-  public TemporaryFolder checkpointParentDir = new TemporaryFolder();
-
+  public TemporaryFolder tmpFolder = new TemporaryFolder();
   @Rule
-  public SparkTestPipelineOptionsForStreaming commonOptions =
-      new SparkTestPipelineOptionsForStreaming();
-
+  public ReuseSparkContextRule noContextResue = ReuseSparkContextRule.no();
   @Rule
-  public ClearAggregatorsRule clearAggregatorsRule = new ClearAggregatorsRule();
+  public transient TestName testName = new TestName();
 
   @BeforeClass
   public static void init() throws IOException {
     EMBEDDED_ZOOKEEPER.startup();
     EMBEDDED_KAFKA_CLUSTER.startup();
-    /// this test actually requires to NOT reuse the context but rather to stop it and start again
-    // from the checkpoint with a brand new context.
-    System.setProperty("beam.spark.test.reuseSparkContext", "false");
   }
 
-  private static void produce() {
+  private static void produce(Map<String, Instant> messages) {
     Properties producerProps = new Properties();
     producerProps.putAll(EMBEDDED_KAFKA_CLUSTER.getProps());
     producerProps.put("request.required.acks", 1);
     producerProps.put("bootstrap.servers", EMBEDDED_KAFKA_CLUSTER.getBrokerList());
     Serializer<String> stringSerializer = new StringSerializer();
-    try (@SuppressWarnings("unchecked") KafkaProducer<String, String> kafkaProducer =
-        new KafkaProducer(producerProps, stringSerializer, stringSerializer)) {
-          for (Map.Entry<String, String> en : KAFKA_MESSAGES.entrySet()) {
+    Serializer<Instant> instantSerializer = new Serializer<Instant>() {
+      @Override
+      public void configure(Map<String, ?> configs, boolean isKey) { }
+
+      @Override
+      public byte[] serialize(String topic, Instant data) {
+        return CoderHelpers.toByteArray(data, InstantCoder.of());
+      }
+
+      @Override
+      public void close() { }
+    };
+
+    try (@SuppressWarnings("unchecked") KafkaProducer<String, Instant> kafkaProducer =
+        new KafkaProducer(producerProps, stringSerializer, instantSerializer)) {
+          for (Map.Entry<String, Instant> en : messages.entrySet()) {
             kafkaProducer.send(new ProducerRecord<>(TOPIC, en.getKey(), en.getValue()));
           }
           kafkaProducer.close();
         }
   }
 
-  /**
-   * Tests DStream recovery from checkpoint - recreate the job and continue (from checkpoint).
-   * <p>Also tests Aggregator values, which should be restored upon recovery from checkpoint.</p>
-   */
   @Test
-  public void testRun() throws Exception {
-    Duration batchIntervalDuration = Duration.standardSeconds(5);
-    SparkPipelineOptions options = commonOptions.withTmpCheckpointDir(checkpointParentDir);
-    // provide a generous enough batch-interval to have everything fit in one micro-batch.
-    options.setBatchIntervalMillis(batchIntervalDuration.getMillis());
-    // provide a very generous read time bound, we rely on num records bound here.
-    options.setMinReadTimeMillis(batchIntervalDuration.minus(1).getMillis());
-    // bound the read on the number of messages - 1 topic of 4 messages.
-    options.setMaxRecordsPerBatch(4L);
+  public void testWithResume() throws Exception {
+    SparkPipelineOptions options = PipelineOptionsFactory.create().as(SparkPipelineOptions.class);
+    options.setRunner(SparkRunner.class);
+    options.setCheckpointDir(tmpFolder.newFolder().toString());
+    options.setCheckpointDurationMillis(500L);
+    options.setJobName(testName.getMethodName());
+    options.setSparkMaster("local[*]");
 
-    // checkpoint after first (and only) interval.
-    options.setCheckpointDurationMillis(options.getBatchIntervalMillis());
-
-    MetricsFilter metricsFilter =
-        MetricsFilter.builder()
-            .addNameFilter(MetricNameFilter.inNamespace(ResumeFromCheckpointStreamingTest.class))
-            .build();
+    // write to Kafka
+    produce(ImmutableMap.of(
+        "k1", new Instant(100),
+        "k2", new Instant(200),
+        "k3", new Instant(300),
+        "k4", new Instant(400)
+    ));
 
     // first run will read from Kafka backlog - "auto.offset.reset=smallest"
     SparkPipelineResult res = run(options);
+    res.waitUntilFinish(Duration.standardSeconds(2));
+    // assertions 1:
     long processedMessages1 = res.getAggregatorValue("processedMessages", Long.class);
-    assertThat(String.format("Expected %d processed messages count but "
-        + "found %d", EXPECTED_AGG_FIRST, processedMessages1), processedMessages1,
-            equalTo(EXPECTED_AGG_FIRST));
-    assertThat(res.metrics().queryMetrics(metricsFilter).counters(),
-        hasItem(attemptedMetricsResult(ResumeFromCheckpointStreamingTest.class.getName(),
-            "aCounter", "formatKV", EXPECTED_COUNTER_FIRST)));
+    assertThat(
+        String.format(
+            "Expected %d processed messages count but found %d", 4, processedMessages1),
+        processedMessages1,
+        equalTo(4L));
+
+    //--- between executions:
+
+    //- clear state.
+    AccumulatorSingleton.clear();
+    GlobalWatermarkHolder.clear();
+
+    //- write a bit more.
+    produce(ImmutableMap.of(
+        "k5", new Instant(499),
+        "EOF", new Instant(500) // to be dropped from [0, 500).
+    ));
 
     // recovery should resume from last read offset, and read the second batch of input.
     res = runAgain(options);
+    res.waitUntilFinish(Duration.standardSeconds(2));
+    // assertions 2:
     long processedMessages2 = res.getAggregatorValue("processedMessages", Long.class);
-    assertThat(String.format("Expected %d processed messages count but "
-        + "found %d", EXPECTED_AGG_SECOND, processedMessages2), processedMessages2,
-            equalTo(EXPECTED_AGG_SECOND));
-    assertThat(res.metrics().queryMetrics(metricsFilter).counters(),
-        hasItem(attemptedMetricsResult(ResumeFromCheckpointStreamingTest.class.getName(),
-            "aCounter", "formatKV", EXPECTED_COUNTER_SECOND)));
+    int successAssertions = res.getAggregatorValue(PAssert.SUCCESS_COUNTER, Integer.class);
+    assertThat(
+        String.format("Expected %d processed messages count but found %d", 1, processedMessages2),
+        processedMessages2,
+        equalTo(5L));
+    res.getAggregatorValue(PAssert.SUCCESS_COUNTER, Integer.class);
+    assertThat(
+        String.format(
+            "Expected %d successful assertions, but found %d.", 1, successAssertions),
+            successAssertions,
+            is(1));
+    // validate assertion didn't fail.
+    int failedAssertions = res.getAggregatorValue(PAssert.FAILURE_COUNTER, Integer.class);
+    assertThat(
+        String.format("Found %d failed assertions.", failedAssertions),
+        failedAssertions,
+        is(0));
+
   }
 
   private SparkPipelineResult runAgain(SparkPipelineOptions options) {
-    clearAggregatorsRule.clearNamedAggregators();
     // sleep before next run.
-    Uninterruptibles.sleepUninterruptibly(100, TimeUnit.MILLISECONDS);
+    Uninterruptibles.sleepUninterruptibly(10, TimeUnit.MILLISECONDS);
     return run(options);
   }
 
   private static SparkPipelineResult run(SparkPipelineOptions options) {
-    // write to Kafka
-    produce();
-    Map<String, Object> consumerProps = ImmutableMap.<String, Object>of(
-        "auto.offset.reset", "earliest"
-    );
-
-    KafkaIO.Read<String, String> read = KafkaIO.<String, String>read()
+    KafkaIO.Read<String, Instant> read = KafkaIO.<String, Instant>read()
         .withBootstrapServers(EMBEDDED_KAFKA_CLUSTER.getBrokerList())
         .withTopics(Collections.singletonList(TOPIC))
         .withKeyCoder(StringUtf8Coder.of())
-        .withValueCoder(StringUtf8Coder.of())
-        .updateConsumerProperties(consumerProps);
-
-    Duration windowDuration = new Duration(options.getBatchIntervalMillis());
+        .withValueCoder(InstantCoder.of())
+        .updateConsumerProperties(ImmutableMap.<String, Object>of("auto.offset.reset", "earliest"))
+        .withTimestampFn(new SerializableFunction<KV<String, Instant>, Instant>() {
+          @Override
+          public Instant apply(KV<String, Instant> kv) {
+            return kv.getValue();
+          }
+        }).withWatermarkFn(new SerializableFunction<KV<String, Instant>, Instant>() {
+          @Override
+          public Instant apply(KV<String, Instant> kv) {
+            // at EOF move WM to infinity.
+            String key = kv.getKey();
+            Instant instant = kv.getValue();
+            return key.equals("EOF") ? BoundedWindow.TIMESTAMP_MAX_VALUE : instant;
+          }
+        });
 
     Pipeline p = Pipeline.create(options);
 
-    PCollection<String> expectedCol =
-        p.apply(Create.of(ImmutableList.copyOf(EXPECTED)).withCoder(StringUtf8Coder.of()));
-    final PCollectionView<List<String>> expectedView = expectedCol.apply(View.<String>asList());
+    PCollection<Iterable<String>> grouped = p
+        .apply(read.withoutMetadata())
+        .apply(Keys.<String>create())
+        .apply(ParDo.of(new EOFShallNotPassFn()))
+        .apply(Window.<String>into(FixedWindows.of(Duration.millis(500)))
+            .triggering(AfterWatermark.pastEndOfWindow())
+                .accumulatingFiredPanes()
+                .withAllowedLateness(Duration.ZERO))
+        .apply(WithKeys.<Integer, String>of(1))
+        .apply(GroupByKey.<Integer, String>create())
+        .apply(Values.<Iterable<String>>create());
 
-    PCollection<String> formattedKV =
-        p.apply(read.withoutMetadata())
-            .apply("formatKV", ParDo.of(new DoFn<KV<String, String>, KV<String, String>>() {
-              Counter counter =
-                  Metrics.counter(ResumeFromCheckpointStreamingTest.class, "aCounter");
+    grouped.apply(new PAssertWithoutFlatten<>("k1", "k2", "k3", "k4", "k5"));
 
-              @ProcessElement
-              public void process(ProcessContext c) {
-                // Check side input is passed correctly also after resuming from checkpoint
-                Assert.assertEquals(c.sideInput(expectedView), Arrays.asList(EXPECTED));
-                counter.inc();
-                c.output(c.element());
-              }
-            }).withSideInputs(expectedView))
-            .apply(Window.<KV<String, String>>into(FixedWindows.of(windowDuration)))
-            .apply(ParDo.of(new FormatAsText()));
-
-    // graceful shutdown will make sure first batch (at least) will finish.
-    Duration timeout = Duration.standardSeconds(1L);
-    return PAssertStreaming.runAndAssertContents(p, formattedKV, EXPECTED, timeout);
+    return (SparkPipelineResult) p.run();
   }
 
   @AfterClass
@@ -222,16 +248,60 @@ public class ResumeFromCheckpointStreamingTest {
     EMBEDDED_ZOOKEEPER.shutdown();
   }
 
-  private static class FormatAsText extends DoFn<KV<String, String>, String> {
-
+  /** A pass-through fn that prevents EOF event from passing. */
+  private static class EOFShallNotPassFn extends DoFn<String, String> {
     private final Aggregator<Long, Long> aggregator =
         createAggregator("processedMessages", Sum.ofLongs());
 
     @ProcessElement
     public void process(ProcessContext c) {
-      aggregator.addValue(1L);
-      String formatted = c.element().getKey() + "," + c.element().getValue();
-      c.output(formatted);
+      String element = c.element();
+      if (!element.equals("EOF")) {
+        aggregator.addValue(1L);
+        c.output(c.element());
+      }
+    }
+  }
+
+  /**
+   * A custom PAssert that avoids using {@link org.apache.beam.sdk.transforms.Flatten}
+   * until BEAM-1444 is resolved.
+   */
+  private static class PAssertWithoutFlatten<T>
+      extends PTransform<PCollection<Iterable<T>>, PDone> {
+    private final T[] expected;
+
+    private PAssertWithoutFlatten(T... expected) {
+      this.expected = expected;
+    }
+
+    @Override
+    public PDone expand(PCollection<Iterable<T>> input) {
+      input.apply(ParDo.of(new AssertDoFn<>(expected)));
+      return PDone.in(input.getPipeline());
+    }
+
+    private static class AssertDoFn<T> extends DoFn<Iterable<T>, Void> {
+      private final Aggregator<Integer, Integer> success =
+          createAggregator(PAssert.SUCCESS_COUNTER, Sum.ofIntegers());
+      private final Aggregator<Integer, Integer> failure =
+          createAggregator(PAssert.FAILURE_COUNTER, Sum.ofIntegers());
+      private final T[] expected;
+
+      AssertDoFn(T[] expected) {
+        this.expected = expected;
+      }
+
+      @ProcessElement
+      public void processElement(ProcessContext c) throws Exception {
+        try {
+          assertThat(c.element(), containsInAnyOrder(expected));
+          success.addValue(1);
+        } catch (Throwable t) {
+          failure.addValue(1);
+          throw t;
+        }
+      }
     }
   }
 

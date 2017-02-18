@@ -17,28 +17,17 @@
  */
 package org.apache.beam.runners.spark;
 
-import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.core.IsEqual.equalTo;
 import static org.junit.Assert.assertThat;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
-import org.apache.beam.runners.spark.io.CreateStream;
 import org.apache.beam.runners.spark.translation.SparkContextFactory;
 import org.apache.beam.runners.spark.util.GlobalWatermarkHolder;
 import org.apache.beam.runners.spark.util.GlobalWatermarkHolder.SparkWatermarks;
-import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.RegexMatcher;
-import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -56,7 +45,7 @@ public class WatermarkTest {
   public ExpectedException thrown = ExpectedException.none();
 
   @Rule
-  public ReuseSparkContext reuseContext = ReuseSparkContext.yes();
+  public ReuseSparkContextRule reuseContext = ReuseSparkContextRule.yes();
 
   private static final SparkPipelineOptions options =
       PipelineOptionsFactory.create().as(SparkPipelineOptions.class);
@@ -158,74 +147,4 @@ public class WatermarkTest {
     assertThat(watermarksForSource2.getLowWatermark(), equalTo(instant.plus(Duration.millis(3))));
     assertThat(watermarksForSource2.getHighWatermark(), equalTo(instant.plus(Duration.millis(6))));
   }
-
-  @Test
-  @Ignore(
-      "BEAM-1526 - This test is flaky, and is expected to be fixed in "
-          + "https://github.com/apache/beam/pull/2050")
-  public void testInDoFn() {
-    // because watermark advances onBatchCompleted.
-    Iterable<Integer> zeroBatch = Collections.emptyList();
-    Iterable<Integer> firstBatch = Collections.singletonList(1);
-    Iterable<Integer> secondBatch = Collections.singletonList(2);
-
-    Instant instant = new Instant(0);
-    GlobalWatermarkHolder.add(1,
-        new SparkWatermarks(
-            instant.plus(Duration.millis(5)),
-            instant.plus(Duration.millis(10)),
-            instant));
-    GlobalWatermarkHolder.add(1,
-        new SparkWatermarks(
-            instant.plus(Duration.millis(10)),
-            instant.plus(Duration.millis(15)),
-            instant.plus(options.getBatchIntervalMillis())));
-
-    options.setRunner(SparkRunner.class);
-    options.setStreaming(true);
-    options.setBatchIntervalMillis(500L);
-    Pipeline p = Pipeline.create(options);
-
-    CreateStream.QueuedValues<Integer> queueStream =
-        CreateStream.fromQueue(Arrays.asList(zeroBatch, firstBatch, secondBatch));
-
-    p.apply(queueStream).setCoder(VarIntCoder.of()).apply(ParDo.of(new WatermarksDoFn(1)));
-
-    p.run().waitUntilFinish(Duration.millis(options.getBatchIntervalMillis()).multipliedBy(3));
-
-    // this is a hacky way to assert but it will do until triggers are supported.
-    assertThat(
-        WatermarksDoFn.strings,
-        containsInAnyOrder(
-            "element: 1 lowWatermark: 5 highWatermark: 10 processingTime: 0",
-            "element: 2 lowWatermark: 10 highWatermark: 15 processingTime: 1000"));
-  }
-
-  private static class WatermarksDoFn extends DoFn<Integer, String> {
-    private final int sourceId;
-
-    static List<String> strings = new ArrayList<>();
-
-    private WatermarksDoFn(int sourceId) {
-      this.sourceId = sourceId;
-    }
-
-    @ProcessElement
-    public void processElement(ProcessContext c) {
-      if (GlobalWatermarkHolder.get() == null
-          || GlobalWatermarkHolder.get().getValue().get(sourceId) == null) {
-        // watermark not yet updated.
-        return;
-      }
-      SparkWatermarks sparkWatermarks = GlobalWatermarkHolder.get().getValue().get(sourceId);
-      Integer element = c.element();
-      String output =
-          "element: " + element
-          + " lowWatermark: " + sparkWatermarks.getLowWatermark().getMillis()
-          + " highWatermark: " + sparkWatermarks.getHighWatermark().getMillis()
-          + " processingTime: " + sparkWatermarks.getSynchronizedProcessingTime().getMillis();
-      strings.add(output);
-    }
-  }
-
 }
