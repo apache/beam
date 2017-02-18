@@ -139,6 +139,11 @@
       <artifactId>auto-value</artifactId>
       <scope>provided</scope>
     </dependency>
+    
+    <dependency>
+      <groupId>org.springframework</groupId>
+      <artifactId>spring-expression</artifactId>
+    </dependency>
 
     <!-- test dependencies-->
     <dependency>
