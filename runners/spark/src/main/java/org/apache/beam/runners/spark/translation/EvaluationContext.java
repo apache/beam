@@ -27,7 +27,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import org.apache.beam.runners.spark.SparkPipelineOptions;
-import org.apache.beam.runners.spark.translation.streaming.UnboundedDataset;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
@@ -134,11 +133,6 @@ public class EvaluationContext {
   <T> void putBoundedDatasetFromValues(
       PTransform<?, ? extends PValue> transform, Iterable<T> values, Coder<T> coder) {
     datasets.put(getOutput(transform), new BoundedDataset<>(values, jsc, coder));
-  }
-
-  public <T> void putUnboundedDatasetFromQueue(
-      PTransform<?, ? extends PValue> transform, Iterable<Iterable<T>> values, Coder<T> coder) {
-    datasets.put(getOutput(transform), new UnboundedDataset<>(values, jssc, coder));
   }
 
   public Dataset borrowDataset(PTransform<? extends PValue, ?> transform) {
