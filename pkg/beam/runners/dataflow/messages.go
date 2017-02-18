@@ -2,6 +2,7 @@ package dataflow
 
 import (
 	"encoding/json"
+	"fmt"
 	"google.golang.org/api/googleapi"
 )
 
@@ -12,6 +13,12 @@ func newMsg(msg interface{}) googleapi.RawMessage {
 		panic(err)
 	}
 	return googleapi.RawMessage(data)
+}
+
+// pipelineOptions models Job/Environment/SdkPipelineOptions
+type pipelineOptions struct {
+	DisplayData []*displayData `json:"display_data,omitempty"`
+	// Options interface{} `json:"options,omitempty"`
 }
 
 // NOTE(herohde) 2/9/2017: most of the v1b3 messages are weakly-typed json
@@ -117,17 +124,35 @@ func newOutputReference(step, output string) *outputReference {
 }
 
 type displayData struct {
-	Key        string `json:"key,omitempty"`
-	Label      string `json:"label,omitempty"`
-	Namespace  string `json:"namespace,omitempty"`
-	ShortValue string `json:"shortValue,omitempty"`
-	Type       string `json:"type,omitempty"`
-	Value      string `json:"value,omitempty"`
+	Key        string      `json:"key,omitempty"`
+	Label      string      `json:"label,omitempty"`
+	Namespace  string      `json:"namespace,omitempty"`
+	ShortValue string      `json:"shortValue,omitempty"`
+	Type       string      `json:"type,omitempty"`
+	Value      interface{} `json:"value,omitempty"`
 }
 
-/*
-type displayDataInt struct {
-	displayData
-	Value int `json:"value,omitempty"`
+func findDisplayDataType(value interface{}) (string, interface{}) {
+	switch value.(type) {
+	case int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64:
+		return "INTEGER", value
+	case bool:
+		return "BOOLEAN", value
+	case string:
+		return "STRING", value
+	default:
+		return "STRING", fmt.Sprintf("%v", value)
+	}
 }
-*/
+
+func newDisplayData(key, label, namespace string, value interface{}) *displayData {
+	t, v := findDisplayDataType(value)
+
+	return &displayData{
+		Key:       key,
+		Label:     label,
+		Namespace: namespace,
+		Type:      t,
+		Value:     v,
+	}
+}

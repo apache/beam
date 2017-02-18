@@ -65,6 +65,8 @@ func translateNodes(edges []*graph.MultiEdge) map[int]*outputReference {
 	return nodes
 }
 
+// TODO(herohde) 2/15/2017: user names encode composite names via "/"-separation.
+
 func translateEdge(edge *graph.MultiEdge) (string, properties, error) {
 	switch edge.Op {
 	case graph.Source:
