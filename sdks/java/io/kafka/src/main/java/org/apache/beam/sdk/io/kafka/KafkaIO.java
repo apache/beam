@@ -712,6 +712,9 @@ public class KafkaIO {
 
     private static final long UNINITIALIZED_OFFSET = -1;
 
+    //Add SpEL instance to cover the interface difference of Kafka client
+    private transient ConsumerSpEL consumerSpEL;
+
     /** watermark before any records have been read. */
     private static Instant initialWatermark = new Instant(Long.MIN_VALUE);
 
@@ -851,9 +854,11 @@ public class KafkaIO {
 
     @Override
     public boolean start() throws IOException {
+      this.consumerSpEL = new ConsumerSpEL();
       Read<K, V> spec = source.spec;
       consumer = spec.getConsumerFactoryFn().apply(spec.getConsumerConfig());
-      consumer.assign(spec.getTopicPartitions());
+//      consumer.assign(spec.getTopicPartitions());
+      consumerSpEL.eveluateAssign(consumer, spec.getTopicPartitions());
 
       for (PartitionState p : partitionStates) {
         if (p.nextOffset != UNINITIALIZED_OFFSET) {
@@ -889,7 +894,8 @@ public class KafkaIO {
       offsetConsumerConfig.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, false);
 
       offsetConsumer = spec.getConsumerFactoryFn().apply(offsetConsumerConfig);
-      offsetConsumer.assign(spec.getTopicPartitions());
+//      offsetConsumer.assign(spec.getTopicPartitions());
+      consumerSpEL.eveluateAssign(offsetConsumer, spec.getTopicPartitions());
 
       offsetFetcherThread.scheduleAtFixedRate(
           new Runnable() {
@@ -987,7 +993,8 @@ public class KafkaIO {
     private void updateLatestOffsets() {
       for (PartitionState p : partitionStates) {
         try {
-          offsetConsumer.seekToEnd(p.topicPartition);
+//          offsetConsumer.seekToEnd(p.topicPartition);
+          consumerSpEL.eveluateSeek2End(offsetConsumer, p.topicPartition);
           long offset = offsetConsumer.position(p.topicPartition);
           p.setLatestOffset(offset);
         } catch (Exception e) {
