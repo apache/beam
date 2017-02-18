@@ -20,6 +20,7 @@ package org.apache.beam.runners.spark;
 
 import com.google.common.base.Optional;
 import com.google.common.collect.Iterables;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
@@ -28,6 +29,7 @@ import java.util.concurrent.Future;
 import org.apache.beam.runners.spark.aggregators.AggregatorsAccumulator;
 import org.apache.beam.runners.spark.aggregators.NamedAggregators;
 import org.apache.beam.runners.spark.aggregators.SparkAggregators;
+import org.apache.beam.runners.spark.io.CreateStream;
 import org.apache.beam.runners.spark.metrics.AggregatorMetricSource;
 import org.apache.beam.runners.spark.metrics.CompositeSource;
 import org.apache.beam.runners.spark.metrics.MetricsAccumulator;
@@ -261,8 +263,10 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
   /**
    * Traverses the Pipeline to determine the {@link TranslationMode} for this pipeline.
    */
-  static class TranslationModeDetector extends Pipeline.PipelineVisitor.Defaults {
+  private static class TranslationModeDetector extends Pipeline.PipelineVisitor.Defaults {
     private static final Logger LOG = LoggerFactory.getLogger(TranslationModeDetector.class);
+    private static final Collection<Class<? extends PTransform>> UNBOUNDED_INPUTS =
+        Arrays.asList(Read.Unbounded.class, CreateStream.class);
 
     private TranslationMode translationMode;
 
@@ -282,7 +286,7 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
     public void visitPrimitiveTransform(TransformHierarchy.Node node) {
       if (translationMode.equals(TranslationMode.BATCH)) {
         Class<? extends PTransform> transformClass = node.getTransform().getClass();
-        if (transformClass == Read.Unbounded.class) {
+        if (UNBOUNDED_INPUTS.contains(transformClass)) {
           LOG.info("Found {}. Switching to streaming execution.", transformClass);
           translationMode = TranslationMode.STREAMING;
         }

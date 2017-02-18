@@ -175,6 +175,10 @@ public abstract class SparkPipelineResult implements PipelineResult {
     @Override
     protected void stop() {
       javaStreamingContext.stop(false, true);
+      // after calling stop, if exception occurs in "grace period" it won't propagate.
+      // calling the StreamingContext's waiter with 0 msec will throw any error that might have
+      // been thrown during the "grace period".
+      javaStreamingContext.awaitTermination(0);
       SparkContextFactory.stopSparkContext(javaSparkContext);
     }
 

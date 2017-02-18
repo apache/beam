@@ -40,7 +40,6 @@ import org.joda.time.Instant;
  * An implementation of {@link TimerInternals} for the SparkRunner.
  */
 class SparkTimerInternals implements TimerInternals {
-  private final Instant lowWatermark;
   private final Instant highWatermark;
   private final Instant synchronizedProcessingTime;
   private final Set<TimerData> timers = Sets.newHashSet();
@@ -49,7 +48,7 @@ class SparkTimerInternals implements TimerInternals {
 
   private SparkTimerInternals(
       Instant lowWatermark, Instant highWatermark, Instant synchronizedProcessingTime) {
-    this.lowWatermark = lowWatermark;
+    this.inputWatermark = lowWatermark;
     this.highWatermark = highWatermark;
     this.synchronizedProcessingTime = synchronizedProcessingTime;
   }
