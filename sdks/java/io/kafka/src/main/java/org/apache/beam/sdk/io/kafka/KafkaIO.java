@@ -98,7 +98,8 @@ import org.slf4j.LoggerFactory;
 
 /**
  * An unbounded source and a sink for <a href="http://kafka.apache.org/">Kafka</a> topics.
- * Kafka version 0.9 and above are supported.
+ * Kafka version 0.9 and above are supported. It's supported to replace with Kafka client 0.10
+ * for external authentication.
  *
  * <h3>Reading from Kafka topics</h3>
  *
@@ -212,7 +213,7 @@ public class KafkaIO {
         .setTopicPartitions(new ArrayList<TopicPartition>())
         .setKeyCoder(ByteArrayCoder.of())
         .setValueCoder(ByteArrayCoder.of())
-        .setConsumerFactoryFn(Read.KAFKA_9_CONSUMER_FACTORY_FN)
+        .setConsumerFactoryFn(Read.KAFKA_CONSUMER_FACTORY_FN)
         .setConsumerConfig(Read.DEFAULT_CONSUMER_PROPERTIES)
         .setMaxNumRecords(Long.MAX_VALUE)
         .build();
@@ -228,7 +229,7 @@ public class KafkaIO {
     return new AutoValue_KafkaIO_Read.Builder<K, V>()
         .setTopics(new ArrayList<String>())
         .setTopicPartitions(new ArrayList<TopicPartition>())
-        .setConsumerFactoryFn(Read.KAFKA_9_CONSUMER_FACTORY_FN)
+        .setConsumerFactoryFn(Read.KAFKA_CONSUMER_FACTORY_FN)
         .setConsumerConfig(Read.DEFAULT_CONSUMER_PROPERTIES)
         .setMaxNumRecords(Long.MAX_VALUE)
         .build();
@@ -492,7 +493,7 @@ public class KafkaIO {
 
     // default Kafka 0.9 Consumer supplier.
     private static final SerializableFunction<Map<String, Object>, Consumer<byte[], byte[]>>
-      KAFKA_9_CONSUMER_FACTORY_FN =
+      KAFKA_CONSUMER_FACTORY_FN =
         new SerializableFunction<Map<String, Object>, Consumer<byte[], byte[]>>() {
           public Consumer<byte[], byte[]> apply(Map<String, Object> config) {
             return new KafkaConsumer<>(config);

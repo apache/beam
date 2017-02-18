@@ -28,7 +28,8 @@ import org.springframework.expression.spel.standard.SpelExpressionParser;
 import org.springframework.expression.spel.support.StandardEvaluationContext;
 
 /**.
- * for beam-1407
+ * Add in beam-1407
+ * SpEL is added to hide the differences of Kafka client 0.9/0.10
  */
 public class ConsumerSpEL {
   SpelParserConfiguration config = new SpelParserConfiguration(true, true);
@@ -39,7 +40,6 @@ public class ConsumerSpEL {
 
   Expression assignExpression =
       parser.parseExpression("#consumer.assign(#tp)");
-
 
   public ConsumerSpEL() {}
 
