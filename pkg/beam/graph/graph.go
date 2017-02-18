@@ -9,7 +9,7 @@ import (
 
 // TODO(herohde): perhaps switch terminology closer to the Fn Runner, when ready.
 
-// Graph represents an in-progress deferred execution graph and in easily
+// Graph represents an in-progress deferred execution graph and is easily
 // translatable to the model graph.
 type Graph struct {
 	scopes []*Scope
