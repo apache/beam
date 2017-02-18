@@ -42,7 +42,6 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.Pipeline.PipelineExecutionException;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.io.Read;
-import org.apache.beam.sdk.io.Write.Bound;
 import org.apache.beam.sdk.metrics.MetricResults;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -82,7 +81,7 @@ public class DirectRunner extends PipelineRunner<DirectPipelineResult> {
   private static Map<PTransformMatcher, PTransformOverrideFactory> defaultTransformOverrides =
       ImmutableMap.<PTransformMatcher, PTransformOverrideFactory>builder()
           .put(
-              PTransformMatchers.classEqualTo(Bound.class),
+              PTransformMatchers.writeWithRunnerDeterminedSharding(),
               new WriteWithShardingFactory()) /* Uses a view internally. */
           .put(
               PTransformMatchers.classEqualTo(CreatePCollectionView.class),
