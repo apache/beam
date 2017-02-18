@@ -19,7 +19,6 @@
 package org.apache.beam.runners.direct;
 
 import static org.hamcrest.Matchers.allOf;
-import static org.hamcrest.Matchers.anyOf;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThan;
@@ -28,8 +27,6 @@ import static org.hamcrest.Matchers.lessThan;
 import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertThat;
 
-import com.google.common.base.Function;
-import com.google.common.collect.Iterables;
 import java.io.File;
 import java.io.FileReader;
 import java.io.Reader;
@@ -39,8 +36,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
-import java.util.concurrent.ThreadLocalRandom;
-import org.apache.beam.runners.direct.WriteWithShardingFactory.KeyBasedOnCountFn;
+import org.apache.beam.runners.direct.WriteWithShardingFactory.CalculateShardsFn;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.io.Sink;
 import org.apache.beam.sdk.io.TextIO;
@@ -48,12 +44,12 @@ import org.apache.beam.sdk.io.Write;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFnTester;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.IOChannelUtils;
 import org.apache.beam.sdk.util.PCollectionViews;
 import org.apache.beam.sdk.util.WindowingStrategy;
-import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.hamcrest.Matchers;
@@ -91,7 +87,7 @@ public class WriteWithShardingFactoryTest {
     p.run();
 
     Collection<String> files = IOChannelUtils.getFactory(outputPath).match(targetLocation + "*");
-    List<String> actuals = new ArrayList(strs.size());
+    List<String> actuals = new ArrayList<>(strs.size());
     for (String file : files) {
       CharBuffer buf = CharBuffer.allocate((int) new File(file).length());
       try (Reader reader = new FileReader(file)) {
@@ -134,82 +130,39 @@ public class WriteWithShardingFactoryTest {
 
   @Test
   public void keyBasedOnCountFnWithOneElement() throws Exception {
-    PCollectionView<Long> elementCountView =
-        PCollectionViews.singletonView(
-            p, WindowingStrategy.globalDefault(), true, 0L, VarLongCoder.of());
-    KeyBasedOnCountFn<String> fn = new KeyBasedOnCountFn<>(elementCountView, 0);
-    DoFnTester<String, KV<Integer, String>> fnTester = DoFnTester.of(fn);
+    CalculateShardsFn fn = new CalculateShardsFn(0);
+    DoFnTester<Long, Integer> fnTester = DoFnTester.of(fn);
 
-    fnTester.setSideInput(elementCountView, GlobalWindow.INSTANCE, 1L);
-
-    List<KV<Integer, String>> outputs = fnTester.processBundle("foo", "bar", "bazbar");
+    List<Integer> outputs = fnTester.processBundle(1L);
     assertThat(
-        outputs, containsInAnyOrder(KV.of(0, "foo"), KV.of(0, "bar"), KV.of(0, "bazbar")));
+        outputs, containsInAnyOrder(1));
   }
 
   @Test
   public void keyBasedOnCountFnWithTwoElements() throws Exception {
-    PCollectionView<Long> elementCountView =
-        PCollectionViews.singletonView(
-            p, WindowingStrategy.globalDefault(), true, 0L, VarLongCoder.of());
-    KeyBasedOnCountFn<String> fn = new KeyBasedOnCountFn<>(elementCountView, 0);
-    DoFnTester<String, KV<Integer, String>> fnTester = DoFnTester.of(fn);
+    CalculateShardsFn fn = new CalculateShardsFn(0);
+    DoFnTester<Long, Integer> fnTester = DoFnTester.of(fn);
 
-    fnTester.setSideInput(elementCountView, GlobalWindow.INSTANCE, 2L);
-
-    List<KV<Integer, String>> outputs = fnTester.processBundle("foo", "bar");
-    assertThat(
-        outputs,
-        anyOf(
-            containsInAnyOrder(KV.of(0, "foo"), KV.of(1, "bar")),
-            containsInAnyOrder(KV.of(1, "foo"), KV.of(0, "bar"))));
+    List<Integer> outputs = fnTester.processBundle(2L);
+    assertThat(outputs, containsInAnyOrder(2));
   }
 
   @Test
   public void keyBasedOnCountFnFewElementsThreeShards() throws Exception {
-    PCollectionView<Long> elementCountView =
-        PCollectionViews.singletonView(
-            p, WindowingStrategy.globalDefault(), true, 0L, VarLongCoder.of());
-    KeyBasedOnCountFn<String> fn = new KeyBasedOnCountFn<>(elementCountView, 0);
-    DoFnTester<String, KV<Integer, String>> fnTester = DoFnTester.of(fn);
+    CalculateShardsFn fn = new CalculateShardsFn(0);
+    DoFnTester<Long, Integer> fnTester = DoFnTester.of(fn);
 
-    fnTester.setSideInput(elementCountView, GlobalWindow.INSTANCE, 100L);
-
-    List<KV<Integer, String>> outputs =
-        fnTester.processBundle("foo", "bar", "baz", "foobar", "foobaz", "barbaz");
-    assertThat(
-        Iterables.transform(
-            outputs,
-            new Function<KV<Integer, String>, Integer>() {
-              @Override
-              public Integer apply(KV<Integer, String> input) {
-                return input.getKey();
-              }
-            }),
-        containsInAnyOrder(0, 0, 1, 1, 2, 2));
+    List<Integer> outputs = fnTester.processBundle(5L);
+    assertThat(outputs, containsInAnyOrder(3));
   }
 
   @Test
   public void keyBasedOnCountFnManyElements() throws Exception {
-    PCollectionView<Long> elementCountView =
-        PCollectionViews.singletonView(
-            p, WindowingStrategy.globalDefault(), true, 0L, VarLongCoder.of());
-    KeyBasedOnCountFn<String> fn = new KeyBasedOnCountFn<>(elementCountView, 0);
-    DoFnTester<String, KV<Integer, String>> fnTester = DoFnTester.of(fn);
+    DoFn<Long, Integer> fn = new CalculateShardsFn(0);
+    DoFnTester<Long, Integer> fnTester = DoFnTester.of(fn);
 
-    double count = Math.pow(10, 10);
-    fnTester.setSideInput(elementCountView, GlobalWindow.INSTANCE, (long) count);
-
-    List<String> strings = new ArrayList<>();
-    for (int i = 0; i < 100; i++) {
-      strings.add(Long.toHexString(ThreadLocalRandom.current().nextLong()));
-    }
-    List<KV<Integer, String>> kvs = fnTester.processBundle(strings);
-    long maxKey = -1L;
-    for (KV<Integer, String> kv : kvs) {
-      maxKey = Math.max(maxKey, kv.getKey());
-    }
-    assertThat(maxKey, equalTo(9L));
+    List<Integer> shard = fnTester.processBundle((long) Math.pow(10, 10));
+    assertThat(shard, containsInAnyOrder(10));
   }
 
   @Test
@@ -217,46 +170,25 @@ public class WriteWithShardingFactoryTest {
     PCollectionView<Long> elementCountView =
         PCollectionViews.singletonView(
             p, WindowingStrategy.globalDefault(), true, 0L, VarLongCoder.of());
-    KeyBasedOnCountFn<String> fn = new KeyBasedOnCountFn<>(elementCountView, 10);
-    DoFnTester<String, KV<Integer, String>> fnTester = DoFnTester.of(fn);
+    CalculateShardsFn fn = new CalculateShardsFn(3);
+    DoFnTester<Long, Integer> fnTester = DoFnTester.of(fn);
 
-    long countValue = (long) KeyBasedOnCountFn.MIN_SHARDS_FOR_LOG + 3;
+    long countValue = (long) WriteWithShardingFactory.MIN_SHARDS_FOR_LOG + 3;
     fnTester.setSideInput(elementCountView, GlobalWindow.INSTANCE, countValue);
 
-    List<String> strings = new ArrayList<>();
-    for (int i = 0; i < 100; i++) {
-      strings.add(Long.toHexString(ThreadLocalRandom.current().nextLong()));
-    }
-    List<KV<Integer, String>> kvs = fnTester.processBundle(strings);
-    long maxKey = -1L;
-    for (KV<Integer, String> kv : kvs) {
-      maxKey = Math.max(maxKey, kv.getKey());
-    }
-    // 0 to n-1 shard ids.
-    assertThat(maxKey, equalTo(countValue - 1));
+    List<Integer> kvs = fnTester.processBundle(10L);
+    assertThat(kvs, containsInAnyOrder(6));
   }
 
   @Test
   public void keyBasedOnCountFnManyElementsExtraShards() throws Exception {
-    PCollectionView<Long> elementCountView =
-        PCollectionViews.singletonView(
-            p, WindowingStrategy.globalDefault(), true, 0L, VarLongCoder.of());
-    KeyBasedOnCountFn<String> fn = new KeyBasedOnCountFn<>(elementCountView, 3);
-    DoFnTester<String, KV<Integer, String>> fnTester = DoFnTester.of(fn);
+    CalculateShardsFn fn = new CalculateShardsFn(3);
+    DoFnTester<Long, Integer> fnTester = DoFnTester.of(fn);
 
     double count = Math.pow(10, 10);
-    fnTester.setSideInput(elementCountView, GlobalWindow.INSTANCE, (long) count);
 
-    List<String> strings = new ArrayList<>();
-    for (int i = 0; i < 100; i++) {
-      strings.add(Long.toHexString(ThreadLocalRandom.current().nextLong()));
-    }
-    List<KV<Integer, String>> kvs = fnTester.processBundle(strings);
-    long maxKey = -1L;
-    for (KV<Integer, String> kv : kvs) {
-      maxKey = Math.max(maxKey, kv.getKey());
-    }
-    assertThat(maxKey, equalTo(12L));
+    List<Integer> shards = fnTester.processBundle((long) count);
+    assertThat(shards, containsInAnyOrder(13));
   }
 
   @Test
