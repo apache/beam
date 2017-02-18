@@ -189,8 +189,6 @@ public class WatermarkTest {
 
     p.run().waitUntilFinish(Duration.millis(options.getBatchIntervalMillis()).multipliedBy(3));
 
-    System.out.println(WatermarksDoFn.strings);
-
     // this is a hacky way to assert but it will do until triggers are supported.
     assertThat(
         WatermarksDoFn.strings,
