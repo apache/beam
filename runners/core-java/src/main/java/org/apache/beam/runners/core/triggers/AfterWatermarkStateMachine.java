@@ -78,13 +78,13 @@ public class AfterWatermarkStateMachine {
     private static final int EARLY_INDEX = 0;
     private static final int LATE_INDEX = 1;
 
-    private final OnceTriggerStateMachine earlyTrigger;
+    private final TriggerStateMachine earlyTrigger;
     @Nullable
-    private final OnceTriggerStateMachine lateTrigger;
+    private final TriggerStateMachine lateTrigger;
 
     @SuppressWarnings("unchecked")
     private AfterWatermarkEarlyAndLate(
-        OnceTriggerStateMachine earlyTrigger, OnceTriggerStateMachine lateTrigger) {
+        TriggerStateMachine earlyTrigger, TriggerStateMachine lateTrigger) {
       super(
           lateTrigger == null
               ? ImmutableList.<TriggerStateMachine>of(earlyTrigger)
@@ -93,11 +93,11 @@ public class AfterWatermarkStateMachine {
       this.lateTrigger = lateTrigger;
     }
 
-    public AfterWatermarkEarlyAndLate withEarlyFirings(OnceTriggerStateMachine earlyTrigger) {
+    public AfterWatermarkEarlyAndLate withEarlyFirings(TriggerStateMachine earlyTrigger) {
       return new AfterWatermarkEarlyAndLate(earlyTrigger, lateTrigger);
     }
 
-    public AfterWatermarkEarlyAndLate withLateFirings(OnceTriggerStateMachine lateTrigger) {
+    public AfterWatermarkEarlyAndLate withLateFirings(TriggerStateMachine lateTrigger) {
       return new AfterWatermarkEarlyAndLate(earlyTrigger, lateTrigger);
     }
 
@@ -254,7 +254,7 @@ public class AfterWatermarkStateMachine {
      * Creates a new {@code Trigger} like the this, except that it fires repeatedly whenever
      * the given {@code Trigger} fires before the watermark has passed the end of the window.
      */
-    public AfterWatermarkEarlyAndLate withEarlyFirings(OnceTriggerStateMachine earlyFirings) {
+    public AfterWatermarkEarlyAndLate withEarlyFirings(TriggerStateMachine earlyFirings) {
       checkNotNull(earlyFirings, "Must specify the trigger to use for early firings");
       return new AfterWatermarkEarlyAndLate(earlyFirings, null);
     }
@@ -263,7 +263,7 @@ public class AfterWatermarkStateMachine {
      * Creates a new {@code Trigger} like the this, except that it fires repeatedly whenever
      * the given {@code Trigger} fires after the watermark has passed the end of the window.
      */
-    public AfterWatermarkEarlyAndLate withLateFirings(OnceTriggerStateMachine lateFirings) {
+    public AfterWatermarkEarlyAndLate withLateFirings(TriggerStateMachine lateFirings) {
       checkNotNull(lateFirings, "Must specify the trigger to use for late firings");
       return new AfterWatermarkEarlyAndLate(NeverStateMachine.ever(), lateFirings);
     }

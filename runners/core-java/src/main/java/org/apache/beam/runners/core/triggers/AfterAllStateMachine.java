@@ -42,7 +42,7 @@ public class AfterAllStateMachine extends OnceTriggerStateMachine {
    * Returns an {@code AfterAll} {@code Trigger} with the given subtriggers.
    */
   @SafeVarargs
-  public static OnceTriggerStateMachine of(OnceTriggerStateMachine... triggers) {
+  public static OnceTriggerStateMachine of(TriggerStateMachine... triggers) {
     return new AfterAllStateMachine(Arrays.<TriggerStateMachine>asList(triggers));
   }
 

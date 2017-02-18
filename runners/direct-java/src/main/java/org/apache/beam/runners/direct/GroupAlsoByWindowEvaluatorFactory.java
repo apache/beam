@@ -46,6 +46,7 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
+import org.apache.beam.sdk.transforms.windowing.Triggers;
 import org.apache.beam.sdk.util.SideInputReader;
 import org.apache.beam.sdk.util.WindowTracing;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -172,7 +173,8 @@ class GroupAlsoByWindowEvaluatorFactory implements TransformEvaluatorFactory {
               key,
               windowingStrategy,
               ExecutableTriggerStateMachine.create(
-                  TriggerStateMachines.stateMachineForTrigger(windowingStrategy.getTrigger())),
+                  TriggerStateMachines.stateMachineForTrigger(
+                      Triggers.toProto(windowingStrategy.getTrigger()))),
               stateInternals,
               timerInternals,
               new OutputWindowedValueToBundle<>(bundle),
