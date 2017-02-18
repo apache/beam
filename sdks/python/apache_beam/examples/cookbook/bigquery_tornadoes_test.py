@@ -22,12 +22,13 @@ import unittest
 
 import apache_beam as beam
 from apache_beam.examples.cookbook import bigquery_tornadoes
+from apache_beam.test_pipeline import TestPipeline
 
 
 class BigQueryTornadoesTest(unittest.TestCase):
 
   def test_basics(self):
-    p = beam.Pipeline('DirectRunner')
+    p = TestPipeline()
     rows = (p | 'create' >> beam.Create([
         {'month': 1, 'day': 1, 'tornado': False},
         {'month': 1, 'day': 2, 'tornado': True},

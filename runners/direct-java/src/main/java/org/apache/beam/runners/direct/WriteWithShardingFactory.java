@@ -22,7 +22,9 @@ import static com.google.common.base.Preconditions.checkArgument;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Iterables;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.Write;
@@ -42,6 +44,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PDone;
+import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TaggedPValue;
 import org.joda.time.Duration;
 
@@ -58,7 +61,7 @@ class WriteWithShardingFactory<InputT>
   @Override
   public PTransform<PCollection<InputT>, PDone> getReplacementTransform(
       Bound<InputT> transform) {
-    if (transform.getNumShards() == 0) {
+    if (transform.getSharding() == null) {
       return new DynamicallyReshardedWrite<>(transform);
     }
     return transform;
@@ -70,6 +73,12 @@ class WriteWithShardingFactory<InputT>
     return (PCollection<InputT>) Iterables.getOnlyElement(inputs).getValue();
   }
 
+  @Override
+  public Map<PValue, ReplacementOutput> mapOutputs(
+      List<TaggedPValue> outputs, PDone newOutput) {
+    return Collections.emptyMap();
+  }
+
   private static class DynamicallyReshardedWrite<T> extends PTransform<PCollection<T>, PDone> {
     private final transient Write.Bound<T> original;
 
@@ -79,15 +88,19 @@ class WriteWithShardingFactory<InputT>
 
     @Override
     public PDone expand(PCollection<T> input) {
-      checkArgument(IsBounded.BOUNDED == input.isBounded(),
+      checkArgument(
+          IsBounded.BOUNDED == input.isBounded(),
           "%s can only be applied to a Bounded PCollection",
           getClass().getSimpleName());
-      PCollection<T> records = input.apply("RewindowInputs",
-          Window.<T>into(new GlobalWindows()).triggering(DefaultTrigger.of())
-              .withAllowedLateness(Duration.ZERO)
-              .discardingFiredPanes());
-      final PCollectionView<Long> numRecords = records
-          .apply("CountRecords", Count.<T>globally().asSingletonView());
+      PCollection<T> records =
+          input.apply(
+              "RewindowInputs",
+              Window.<T>into(new GlobalWindows())
+                  .triggering(DefaultTrigger.of())
+                  .withAllowedLateness(Duration.ZERO)
+                  .discardingFiredPanes());
+      final PCollectionView<Long> numRecords =
+          records.apply("CountRecords", Count.<T>globally().asSingletonView());
       PCollection<T> resharded =
           records
               .apply(
@@ -104,15 +117,13 @@ class WriteWithShardingFactory<InputT>
       // without adding a new Write Transform Node, which would be overwritten the same way, leading
       // to an infinite recursion. We cannot modify the number of shards, because that is determined
       // at runtime.
-      return original.expand(resharded);
+      return resharded.apply(original);
     }
   }
 
   @VisibleForTesting
   static class KeyBasedOnCountFn<T> extends DoFn<T, KV<Integer, T>> {
-    @VisibleForTesting
-    static final int MIN_SHARDS_FOR_LOG = 3;
-
+    @VisibleForTesting static final int MIN_SHARDS_FOR_LOG = 3;
     private final PCollectionView<Long> numRecords;
     private final int randomExtraShards;
     private int currentShard;

@@ -645,17 +645,13 @@ class Writer(object):
 class Read(ptransform.PTransform):
   """A transform that reads a PCollection."""
 
-  def __init__(self, *args, **kwargs):
+  def __init__(self, source):
     """Initializes a Read transform.
 
     Args:
-      *args: A tuple of position arguments.
-      **kwargs: A dictionary of keyword arguments.
-
-    The *args, **kwargs are expected to be (label, source) or (source).
+      source: Data source to read from.
     """
-    label, source = self.parse_label_and_arg(args, kwargs, 'source')
-    super(Read, self).__init__(label)
+    super(Read, self).__init__()
     self.source = source
 
   def expand(self, pbegin):
@@ -706,17 +702,13 @@ class Write(ptransform.PTransform):
   native write transform.
   """
 
-  def __init__(self, *args, **kwargs):
+  def __init__(self, sink):
     """Initializes a Write transform.
 
     Args:
-      *args: A tuple of position arguments.
-      **kwargs: A dictionary of keyword arguments.
-
-    The *args, **kwargs are expected to be (label, sink) or (sink).
+      sink: Data sink to write to.
     """
-    label, sink = self.parse_label_and_arg(args, kwargs, 'sink')
-    super(Write, self).__init__(label)
+    super(Write, self).__init__()
     self.sink = sink
 
   def display_data(self):
@@ -724,7 +716,7 @@ class Write(ptransform.PTransform):
             'sink_dd': self.sink}
 
   def expand(self, pcoll):
-    from apache_beam.runners.dataflow.native_io import iobase as dataflow_io
+    from apache_beam.runners.google_cloud_dataflow.native_io import iobase as dataflow_io
     if isinstance(self.sink, dataflow_io.NativeSink):
       # A native sink
       return pcoll | 'NativeWrite' >> dataflow_io._NativeWrite(self.sink)
@@ -772,8 +764,7 @@ class WriteImpl(ptransform.PTransform):
                            | core.WindowInto(window.GlobalWindows())
                            | core.GroupByKey()
                            | 'Extract' >> core.FlatMap(lambda x: x[1]))
-    return do_once | core.FlatMap(
-        'finalize_write',
+    return do_once | 'finalize_write' >> core.FlatMap(
         _finalize_write,
         self.sink,
         AsSingleton(init_result_coll),
@@ -850,4 +841,4 @@ class _RoundRobinKeyFn(core.DoFn):
 
 # For backwards compatibility.
 # pylint: disable=wrong-import-position
-from apache_beam.runners.dataflow.native_io.iobase import *
+from apache_beam.runners.google_cloud_dataflow.native_io.iobase import *

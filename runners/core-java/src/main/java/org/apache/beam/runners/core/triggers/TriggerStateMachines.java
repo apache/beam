@@ -18,14 +18,16 @@
 package org.apache.beam.runners.core.triggers;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Function;
+import com.google.common.collect.FluentIterable;
 import com.google.common.collect.Lists;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.List;
+import javax.annotation.Nonnull;
 import org.apache.beam.runners.core.triggers.TriggerStateMachine.OnceTriggerStateMachine;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.windowing.AfterAll;
-import org.apache.beam.sdk.transforms.windowing.AfterDelayFromFirstElement;
 import org.apache.beam.sdk.transforms.windowing.AfterEach;
 import org.apache.beam.sdk.transforms.windowing.AfterFirst;
 import org.apache.beam.sdk.transforms.windowing.AfterPane;
@@ -36,6 +38,7 @@ import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
 import org.apache.beam.sdk.transforms.windowing.Never.NeverTrigger;
 import org.apache.beam.sdk.transforms.windowing.OrFinallyTrigger;
 import org.apache.beam.sdk.transforms.windowing.Repeatedly;
+import org.apache.beam.sdk.transforms.windowing.TimestampTransform;
 import org.apache.beam.sdk.transforms.windowing.Trigger;
 import org.apache.beam.sdk.transforms.windowing.Trigger.OnceTrigger;
 import org.apache.beam.sdk.util.ReshuffleTrigger;
@@ -113,7 +116,7 @@ public class TriggerStateMachines {
     }
 
     private OnceTriggerStateMachine evaluateSpecific(AfterSynchronizedProcessingTime v) {
-      return new AfterSynchronizedProcessingTimeStateMachine();
+      return AfterSynchronizedProcessingTimeStateMachine.ofFirstElement();
     }
 
     private OnceTriggerStateMachine evaluateSpecific(AfterFirst v) {
@@ -171,18 +174,37 @@ public class TriggerStateMachines {
     }
 
     private OnceTriggerStateMachine evaluateSpecific(AfterProcessingTime v) {
-      return evaluateSpecific((AfterDelayFromFirstElement) v);
-    }
-
-    private OnceTriggerStateMachine evaluateSpecific(final AfterDelayFromFirstElement v) {
       return new AfterDelayFromFirstElementStateMachineAdapter(v);
     }
 
     private static class AfterDelayFromFirstElementStateMachineAdapter
         extends AfterDelayFromFirstElementStateMachine {
 
-      public AfterDelayFromFirstElementStateMachineAdapter(AfterDelayFromFirstElement v) {
-        this(v.getTimeDomain(), v.getTimestampMappers());
+      private static final Function<TimestampTransform, SerializableFunction<Instant, Instant>>
+          CONVERT_TIMESTAMP_TRANSFORM =
+              new Function<TimestampTransform, SerializableFunction<Instant, Instant>>() {
+                @Override
+                public SerializableFunction<Instant, Instant> apply(
+                    @Nonnull TimestampTransform transform) {
+                  if (transform instanceof TimestampTransform.Delay) {
+                    return new DelayFn(((TimestampTransform.Delay) transform).getDelay());
+                  } else if (transform instanceof TimestampTransform.AlignTo) {
+                    TimestampTransform.AlignTo alignTo = (TimestampTransform.AlignTo) transform;
+                    return new AlignFn(alignTo.getPeriod(), alignTo.getOffset());
+                  } else {
+                    throw new IllegalArgumentException(
+                        String.format(
+                            "Unknown %s: %s", TimestampTransform.class.getSimpleName(), transform));
+                  }
+                }
+              };
+
+      public AfterDelayFromFirstElementStateMachineAdapter(AfterProcessingTime v) {
+        this(
+            TimeDomain.PROCESSING_TIME,
+            FluentIterable.from(v.getTimestampTransforms())
+                .transform(CONVERT_TIMESTAMP_TRANSFORM)
+                .toList());
       }
 
       private AfterDelayFromFirstElementStateMachineAdapter(

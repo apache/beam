@@ -58,11 +58,11 @@
                 <relocations>
                   <relocation>
                     <pattern>com.google.common</pattern>
-                    <shadedPattern>org.apache.beam.io.kafka.repackaged.com.google.common</shadedPattern>
+                    <shadedPattern>org.apache.beam.sdk.io.kafka.repackaged.com.google.common</shadedPattern>
                   </relocation>
                   <relocation>
                     <pattern>com.google.thirdparty</pattern>
-                    <shadedPattern>org.apache.beam.io.kafka.repackaged.com.google.thirdparty</shadedPattern>
+                    <shadedPattern>org.apache.beam.sdk.io.kafka.repackaged.com.google.thirdparty</shadedPattern>
                   </relocation>
                 </relocations>
               </configuration>
@@ -150,7 +150,6 @@
     <dependency>
       <groupId>org.apache.beam</groupId>
       <artifactId>beam-runners-direct-java</artifactId>
-      <version>${project.version}</version>
       <scope>test</scope>
     </dependency>
 

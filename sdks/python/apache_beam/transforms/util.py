@@ -87,8 +87,8 @@ class CoGroupByKey(PTransform):
       to provide pipeline information, and should be considered mandatory.
   """
 
-  def __init__(self, label=None, **kwargs):
-    super(CoGroupByKey, self).__init__(label)
+  def __init__(self, **kwargs):
+    super(CoGroupByKey, self).__init__()
     self.pipeline = kwargs.pop('pipeline', None)
     if kwargs:
       raise ValueError('Unexpected keyword arguments: %s' % kwargs.keys())
@@ -169,7 +169,7 @@ def RemoveDuplicates(pcoll):  # pylint: disable=invalid-name
           | 'RemoveDuplicates' >> Keys())
 
 
-class DataflowAssertException(Exception):
+class BeamAssertException(Exception):
   """Exception raised by matcher classes used by assert_that transform."""
 
   pass
@@ -187,7 +187,7 @@ def equal_to(expected):
     sorted_expected = sorted(expected)
     sorted_actual = sorted(actual)
     if sorted_expected != sorted_actual:
-      raise DataflowAssertException(
+      raise BeamAssertException(
           'Failed assert: %r == %r' % (sorted_expected, sorted_actual))
   return _equal
 
@@ -196,7 +196,7 @@ def is_empty():
   def _empty(actual):
     actual = list(actual)
     if actual:
-      raise DataflowAssertException(
+      raise BeamAssertException(
           'Failed assert: [] == %r' % actual)
   return _empty
 
@@ -211,7 +211,7 @@ def assert_that(actual, matcher, label='assert_that'):
     actual: A PCollection.
     matcher: A matcher function taking as argument the actual value of a
       materialized PCollection. The matcher validates this actual value against
-      expectations and raises DataflowAssertException if they are not met.
+      expectations and raises BeamAssertException if they are not met.
     label: Optional string label. This is needed in case several assert_that
       transforms are introduced in the same pipeline.
 

@@ -82,28 +82,17 @@ else:
   except ImportError:
     cythonize = lambda *args, **kwargs: []
 
-# Copy standard_coders.yaml from the common resource location.
-STANDARD_CODER_COMMON_PATH = ("../common/fn-api/src/test/resources/"
-                              "org/apache/beam/fn/v1/standard_coders.yaml")
-STANDARD_CODER_TEST_PATH = "apache_beam/coders/standard_coders.yaml"
-if os.path.exists:
-  try:
-    shutil.copyfile(STANDARD_CODER_COMMON_PATH, STANDARD_CODER_TEST_PATH)
-  except:
-    # do nothing; the test might fail later
-    pass
-
-
 REQUIRED_PACKAGES = [
     'avro>=1.7.7,<2.0.0',
     'crcmod>=1.7,<2.0',
     'dill>=0.2.5,<0.3',
     'google-apitools>=0.5.6,<1.0.0',
-    'googledatastore==6.4.1',
+    'proto-google-cloud-datastore-v1==0.90.0',
+    'googledatastore==7.0.0',
     'httplib2>=0.8,<0.10',
     'mock>=1.0.1,<3.0.0',
     'oauth2client>=2.0.1,<4.0.0',
-    'protobuf==3.0.0',
+    'protobuf==3.2.0',
     'protorpc>=0.9.1,<0.12',
     'python-gflags>=2.0,<4.0.0',
     'pyyaml>=3.10,<4.0.0',

@@ -308,14 +308,19 @@ class TestBigQueryReader(unittest.TestCase):
             'ts': '22:39:12.627498',
             'dt_ts': '2008-12-25T07:30:00',
             'r': {'s2': 'b'},
-            'rpr': [{'s3': 'c', 'rpr2': [{'rs': ['d', 'e'], 's4': 'f'}]}]
+            'rpr': [{'s3': 'c', 'rpr2': [{'rs': ['d', 'e'], 's4': None}]}]
         },
         {
             'i': 10,
             's': 'xyz',
             'f': -3.14,
             'b': False,
-            'rpr': []
+            'rpr': [],
+            't': None,
+            'dt': None,
+            'ts': None,
+            'dt_ts': None,
+            'r': None,
         }]
 
     nested_schema = [
@@ -372,7 +377,7 @@ class TestBigQueryReader(unittest.TestCase):
             # schemas correctly so we have to use this f,v based format
             bigquery.TableCell(v=to_json_value({'f': [{'v': 'b'}]})),
             bigquery.TableCell(v=to_json_value([{'v':{'f':[{'v':'c'}, {'v':[
-                {'v':{'f':[{'v':[{'v':'d'}, {'v':'e'}]}, {'v':'f'}]}}]}]}}]))
+                {'v':{'f':[{'v':[{'v':'d'}, {'v':'e'}]}, {'v':None}]}}]}]}}]))
             ]),
         bigquery.TableRow(f=[
             bigquery.TableCell(v=to_json_value('false')),

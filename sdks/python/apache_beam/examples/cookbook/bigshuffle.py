@@ -63,8 +63,7 @@ def run(argv=None):
                 lambda x: (x[:10], x[10:99]))
             .with_output_types(beam.typehints.KV[str, str])
             | 'group' >> beam.GroupByKey()
-            | beam.FlatMap(
-                'format',
+            | 'format' >> beam.FlatMap(
                 lambda (key, vals): ['%s%s' % (key, val) for val in vals]))
 
   # Write the output using a "Write" transform that has side effects.

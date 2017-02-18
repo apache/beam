@@ -22,29 +22,27 @@ the other unit tests. In this file we choose to test only aspects related to
 caching and clearing values that are not tested elsewhere.
 """
 
-from datetime import datetime
 import json
 import unittest
+from datetime import datetime
 
 import hamcrest as hc
 
 import apache_beam as beam
-
-from apache_beam.internal import apiclient
+import apache_beam.transforms as ptransform
+from apache_beam.metrics.cells import DistributionData
+from apache_beam.metrics.cells import DistributionResult
+from apache_beam.metrics.execution import MetricKey
+from apache_beam.metrics.execution import MetricResult
+from apache_beam.metrics.metricbase import MetricName
 from apache_beam.pipeline import Pipeline
-from apache_beam.runners import create_runner
 from apache_beam.runners import DataflowRunner
 from apache_beam.runners import DirectRunner
 from apache_beam.runners import TestDataflowRunner
-import apache_beam.transforms as ptransform
+from apache_beam.runners import create_runner
+from apache_beam.runners.google_cloud_dataflow.internal import apiclient
 from apache_beam.transforms.display import DisplayDataItem
 from apache_beam.utils.pipeline_options import PipelineOptions
-
-from apache_beam.metrics.cells import DistributionData
-from apache_beam.metrics.cells import DistributionResult
-from apache_beam.metrics.execution import MetricResult
-from apache_beam.metrics.execution import MetricKey
-from apache_beam.metrics.metricbase import MetricName
 
 
 class RunnerTest(unittest.TestCase):
@@ -63,21 +61,21 @@ class RunnerTest(unittest.TestCase):
         isinstance(create_runner('DataflowRunner'),
                    DataflowRunner))
     self.assertTrue(
-        isinstance(create_runner('BlockingDataflowRunner'),
-                   DataflowRunner))
-    self.assertTrue(
         isinstance(create_runner('TestDataflowRunner'),
                    TestDataflowRunner))
     self.assertRaises(ValueError, create_runner, 'xyz')
-    # TODO(BEAM-1185): Remove when all references to PipelineRunners are gone.
+
+  def test_create_runner_shorthand(self):
     self.assertTrue(
-        isinstance(create_runner('DirectPipelineRunner'), DirectRunner))
+        isinstance(create_runner('DiReCtRuNnEr'), DirectRunner))
     self.assertTrue(
-        isinstance(create_runner('DataflowPipelineRunner'),
-                   DataflowRunner))
+        isinstance(create_runner('directrunner'), DirectRunner))
     self.assertTrue(
-        isinstance(create_runner('BlockingDataflowPipelineRunner'),
-                   DataflowRunner))
+        isinstance(create_runner('direct'), DirectRunner))
+    self.assertTrue(
+        isinstance(create_runner('DiReCt'), DirectRunner))
+    self.assertTrue(
+        isinstance(create_runner('Direct'), DirectRunner))
 
   def test_remote_runner_translation(self):
     remote_runner = DataflowRunner()

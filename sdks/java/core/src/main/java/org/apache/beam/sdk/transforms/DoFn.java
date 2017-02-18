@@ -77,15 +77,15 @@ import org.joda.time.Instant;
  *
  * <p>Example usage:
  *
- * <pre>{@code
- * PCollection<String> lines = ... ;
- * PCollection<String> words =
- *     lines.apply(ParDo.of(new DoFn<String, String>() {
- *         {@literal @}ProcessElement
- *         public void processElement(ProcessContext c, BoundedWindow window) {
- *
- *         }}));
- * }</pre>
+ * <pre><code>
+ * {@literal PCollection<String>} lines = ... ;
+ * {@literal PCollection<String>} words =
+ *     {@literal lines.apply(ParDo.of(new DoFn<String, String>())} {
+ *         {@literal @ProcessElement}
+ *          public void processElement(ProcessContext c, BoundedWindow window) {
+ *            ...
+ *          }}));
+ * </code></pre>
  *
  * @param <InputT> the type of the (main) input elements
  * @param <OutputT> the type of the (main) output elements
@@ -385,21 +385,21 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
    * subclass to your {@link ProcessElement @ProcessElement} or {@link OnTimer @OnTimer} method, and
    * annotate it with {@link StateId}. See the following code for an example:
    *
-   * <pre>{@code
-   * new DoFn<KV<Key, Foo>, Baz>() {
-   *   {@literal @}StateId("my-state-id")
-   *   private final StateSpec<K, ValueState<MyState>> myStateSpec =
+   * <pre><code>{@literal new DoFn<KV<Key, Foo>, Baz>()} {
+   *
+   *  {@literal @StateId("my-state-id")}
+   *  {@literal private final StateSpec<K, ValueState<MyState>>} myStateSpec =
    *       StateSpecs.value(new MyStateCoder());
    *
-   *   {@literal @}ProcessElement
+   *  {@literal @ProcessElement}
    *   public void processElement(
    *       ProcessContext c,
-   *       {@literal @}StateId("my-state-id") ValueState<MyState> myState) {
+   *      {@literal @StateId("my-state-id") ValueState<MyState> myState}) {
    *     myState.read();
    *     myState.write(...);
    *   }
    * }
-   * }</pre>
+   * </code></pre>
    *
    * <p>State is subject to the following validity conditions:
    *
@@ -429,24 +429,22 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
    * {@link ProcessElement @ProcessElement} or {@link OnTimer @OnTimer} method, and annotate it with
    * {@link TimerId}. See the following code for an example:
    *
-   * <pre>{@code
-   * new DoFn<KV<Key, Foo>, Baz>() {
-   *   {@literal @}TimerId("my-timer-id")
-   *   private final TimerSpec myTimer = TimerSpecs.timerForDomain(TimeDomain.EVENT_TIME);
+   * <pre><code>{@literal new DoFn<KV<Key, Foo>, Baz>()} {
+   *   {@literal @TimerId("my-timer-id")}
+   *    private final TimerSpec myTimer = TimerSpecs.timerForDomain(TimeDomain.EVENT_TIME);
    *
-   *   {@literal @}ProcessElement
-   *   public void processElement(
-   *       ProcessContext c,
-   *       {@literal @}TimerId("my-timer-id") Timer myTimer) {
-   *     myTimer.setForNowPlus(Duration.standardSeconds(...));
-   *   }
+   *   {@literal @ProcessElement}
+   *    public void processElement(
+   *        ProcessContext c,
+   *       {@literal @TimerId("my-timer-id") Timer myTimer}) {
+   *      myTimer.setForNowPlus(Duration.standardSeconds(...));
+   *    }
    *
-   *   {@literal @}OnTimer("my-timer-id")
-   *   public void onMyTimer() {
-   *     ...
-   *   }
-   * }
-   * }</pre>
+   *   {@literal @OnTimer("my-timer-id")}
+   *    public void onMyTimer() {
+   *      ...
+   *    }
+   * }</code></pre>
    *
    * <p>Timers are subject to the following validity conditions:
    *
@@ -532,8 +530,10 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
    *     href="https://s.apache.org/splittable-do-fn">splittable</a> {@link DoFn} subject to the
    *     separate requirements described below. Items below are assuming this is not a splittable
    *     {@link DoFn}.
-   * <li>If one of its arguments is {@link BoundedWindow}, this argument corresponds to the window
-   *     of the current element. If absent, a runner may perform additional optimizations.
+   * <li>If one of its arguments is a subtype of {@link BoundedWindow} then it will
+   *     be passed the window of the current element. When applied by {@link ParDo} the subtype
+   *     of {@link BoundedWindow} must match the type of windows on the input {@link PCollection}.
+   *     If the window is not accessed a runner may perform additional optimizations.
    * <li>It must return {@code void}.
    * </ul>
    *
@@ -808,7 +808,8 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
    * Finalize the {@link DoFn} construction to prepare for processing.
    * This method should be called by runners before any processing methods.
    */
-  public void prepareForProcessing() {
+  @Deprecated
+  public final void prepareForProcessing() {
     aggregatorsAreFinal = true;
   }
 

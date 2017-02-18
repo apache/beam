@@ -19,7 +19,7 @@
 
 import logging
 
-from google.datastore.v1 import datastore_pb2
+from google.cloud.proto.datastore.v1 import datastore_pb2
 from googledatastore import helper as datastore_helper
 
 from apache_beam.io.datastore.v1 import helper
@@ -126,8 +126,10 @@ class ReadFromDatastore(PTransform):
                    self._project, self._query, self._datastore_namespace,
                    self._num_splits)))
 
-    sharded_queries = queries | GroupByKey() | Values() | FlatMap('flatten',
-                                                                  lambda x: x)
+    sharded_queries = (queries
+                       | GroupByKey()
+                       | Values()
+                       | 'flatten' >> FlatMap(lambda x: x))
 
     entities = sharded_queries | 'Read' >> ParDo(
         ReadFromDatastore.ReadFn(self._project, self._datastore_namespace))

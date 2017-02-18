@@ -577,10 +577,8 @@ class ParDo(PTransformWithSideInputs):
   process method.
 
   Args:
-      label: name of this transform instance. Useful while monitoring and
-        debugging a pipeline execution.
       pcoll: a PCollection to be processed.
-      dofn: a DoFn object to be applied to each element of pcoll argument.
+      fn: a DoFn object to be applied to each element of pcoll argument.
       *args: positional arguments passed to the dofn object.
       **kwargs:  keyword arguments passed to the dofn object.
 
@@ -592,8 +590,8 @@ class ParDo(PTransformWithSideInputs):
   the argument lists.
   """
 
-  def __init__(self, fn_or_label, *args, **kwargs):
-    super(ParDo, self).__init__(fn_or_label, *args, **kwargs)
+  def __init__(self, fn, *args, **kwargs):
+    super(ParDo, self).__init__(fn, *args, **kwargs)
 
     if not isinstance(self.fn, DoFn):
       raise TypeError('ParDo must be called with a DoFn instance.')
@@ -667,7 +665,7 @@ class _MultiParDo(PTransform):
         pcoll.pipeline, self._do_transform, self._tags, self._main_tag)
 
 
-def FlatMap(fn_or_label, *args, **kwargs):  # pylint: disable=invalid-name
+def FlatMap(fn, *args, **kwargs):  # pylint: disable=invalid-name
   """FlatMap is like ParDo except it takes a callable to specify the
   transformation.
 
@@ -676,8 +674,7 @@ def FlatMap(fn_or_label, *args, **kwargs):  # pylint: disable=invalid-name
   the output PCollection.
 
   Args:
-    fn_or_label: name of this transform instance. Useful while monitoring and
-      debugging a pipeline execution.
+    fn: a callable object.
     *args: positional arguments passed to the transform callable.
     **kwargs: keyword arguments passed to the transform callable.
 
@@ -688,20 +685,15 @@ def FlatMap(fn_or_label, *args, **kwargs):  # pylint: disable=invalid-name
     TypeError: If the fn passed as argument is not a callable. Typical error
       is to pass a DoFn instance which is supported only for ParDo.
   """
-  if fn_or_label is None or isinstance(fn_or_label, str):
-    label, fn, args = fn_or_label, args[0], args[1:]
-  else:
-    label, fn = None, fn_or_label
+  label = 'FlatMap(%s)' % ptransform.label_from_callable(fn)
   if not callable(fn):
     raise TypeError(
         'FlatMap can be used only with callable objects. '
-        'Received %r instead for %s argument.'
-        % (fn, 'first' if label is None else 'second'))
+        'Received %r instead.' % (fn))
 
-  if label is None:
-    label = 'FlatMap(%s)' % ptransform.label_from_callable(fn)
-
-  return ParDo(label, CallableWrapperDoFn(fn), *args, **kwargs)
+  pardo = ParDo(CallableWrapperDoFn(fn), *args, **kwargs)
+  pardo.label = label
+  return pardo
 
 
 def Map(fn, *args, **kwargs):  # pylint: disable=invalid-name
@@ -744,7 +736,9 @@ def Map(fn, *args, **kwargs):  # pylint: disable=invalid-name
   wrapper._argspec_fn = fn
   # pylint: enable=protected-access
 
-  return FlatMap(label, wrapper, *args, **kwargs)
+  pardo = FlatMap(wrapper, *args, **kwargs)
+  pardo.label = label
+  return pardo
 
 
 def Filter(fn, *args, **kwargs):  # pylint: disable=invalid-name
@@ -787,7 +781,9 @@ def Filter(fn, *args, **kwargs):  # pylint: disable=invalid-name
   wrapper._argspec_fn = fn
   # pylint: enable=protected-access
 
-  return FlatMap(label, wrapper, *args, **kwargs)
+  pardo = FlatMap(wrapper, *args, **kwargs)
+  pardo.label = label
+  return pardo
 
 
 class CombineGlobally(PTransform):
@@ -799,8 +795,6 @@ class CombineGlobally(PTransform):
   are applied.
 
   Args:
-    label: name of this transform instance. Useful while monitoring and
-      debugging a pipeline execution.
     pcoll: a PCollection to be reduced into a single value.
     fn: a CombineFn object that will be called to progressively reduce the
       PCollection into single values, or a callable suitable for wrapping
@@ -826,13 +820,13 @@ class CombineGlobally(PTransform):
   has_defaults = True
   as_view = False
 
-  def __init__(self, label_or_fn, *args, **kwargs):
-    if label_or_fn is None or isinstance(label_or_fn, str):
-      label, fn, args = label_or_fn, args[0], args[1:]
-    else:
-      label, fn = None, label_or_fn
+  def __init__(self, fn, *args, **kwargs):
+    if not (isinstance(fn, CombineFn) or callable(fn)):
+      raise TypeError(
+          'CombineGlobally can be used only with combineFn objects. '
+          'Received %r instead.' % (fn))
 
-    super(CombineGlobally, self).__init__(label)
+    super(CombineGlobally, self).__init__()
     self.fn = fn
     self.args = args
     self.kwargs = kwargs
@@ -872,8 +866,8 @@ class CombineGlobally(PTransform):
                 | 'KeyWithVoid' >> add_input_types(
                     Map(lambda v: (None, v)).with_output_types(
                         KV[None, pcoll.element_type]))
-                | CombinePerKey(
-                    'CombinePerKey', self.fn, *self.args, **self.kwargs)
+                | 'CombinePerKey' >> CombinePerKey(
+                    self.fn, *self.args, **self.kwargs)
                 | 'UnKey' >> Map(lambda (k, v): v))
 
     if not self.has_defaults and not self.as_view:
@@ -948,8 +942,8 @@ class CombinePerKey(PTransformWithSideInputs):
   def expand(self, pcoll):
     args, kwargs = util.insert_values_in_args(
         self.args, self.kwargs, self.side_inputs)
-    return pcoll | GroupByKey() | CombineValues('Combine',
-                                                self.fn, *args, **kwargs)
+    return pcoll | GroupByKey() | 'Combine' >> CombineValues(
+        self.fn, *args, **kwargs)
 
 
 # TODO(robertwb): Rename to CombineGroupedValues?
@@ -1115,16 +1109,16 @@ class GroupByKey(PTransform):
               | 'group_by_key' >> (GroupByKeyOnly()
                  .with_input_types(reify_output_type)
                  .with_output_types(gbk_input_type))
-              | (ParDo('group_by_window',
-                       self.GroupAlsoByWindow(pcoll.windowing))
+              | ('group_by_window' >> ParDo(
+                     self.GroupAlsoByWindow(pcoll.windowing))
                  .with_input_types(gbk_input_type)
                  .with_output_types(gbk_output_type)))
     else:
       return (pcoll
               | 'reify_windows' >> ParDo(self.ReifyWindows())
               | 'group_by_key' >> GroupByKeyOnly()
-              | ParDo('group_by_window',
-                      self.GroupAlsoByWindow(pcoll.windowing)))
+              | 'group_by_window' >> ParDo(
+                    self.GroupAlsoByWindow(pcoll.windowing)))
 
 
 @typehints.with_input_types(typehints.KV[K, V])
@@ -1132,8 +1126,8 @@ class GroupByKey(PTransform):
 class GroupByKeyOnly(PTransform):
   """A group by key transform, ignoring windows."""
 
-  def __init__(self, label=None):
-    super(GroupByKeyOnly, self).__init__(label)
+  def __init__(self):
+    super(GroupByKeyOnly, self).__init__()
 
   def infer_output_type(self, input_type):
     key_type, value_type = trivial_inference.key_value_types(input_type)
@@ -1241,24 +1235,19 @@ class WindowInto(ParDo):
       new_windows = self.windowing.windowfn.assign(context)
       yield WindowedValue(element, context.timestamp, new_windows)
 
-  def __init__(self, *args, **kwargs):
+  def __init__(self, windowfn, *args, **kwargs):
     """Initializes a WindowInto transform.
 
     Args:
-      *args: A tuple of position arguments.
-      **kwargs: A dictionary of keyword arguments.
-
-    The *args, **kwargs are expected to be (label, windowfn) or (windowfn).
-    The optional trigger and accumulation_mode kwargs may also be provided.
+      windowfn: Function to be used for windowing
     """
     triggerfn = kwargs.pop('trigger', None)
     accumulation_mode = kwargs.pop('accumulation_mode', None)
     output_time_fn = kwargs.pop('output_time_fn', None)
-    label, windowfn = self.parse_label_and_arg(args, kwargs, 'windowfn')
     self.windowing = Windowing(windowfn, triggerfn, accumulation_mode,
                                output_time_fn)
     dofn = self.WindowIntoFn(self.windowing)
-    super(WindowInto, self).__init__(label, dofn)
+    super(WindowInto, self).__init__(dofn)
 
   def get_windowing(self, unused_inputs):
     return self.windowing
@@ -1288,8 +1277,6 @@ class Flatten(PTransform):
   will be empty (but see also kwargs below).
 
   Args:
-    label: name of this transform instance. Useful while monitoring and
-      debugging a pipeline execution.
     **kwargs: Accepts a single named argument "pipeline", which specifies the
       pipeline that "owns" this PTransform. Ordinarily Flatten can obtain this
       information from one of the input PCollections, but if there are none (or
@@ -1297,8 +1284,8 @@ class Flatten(PTransform):
       provide pipeline information and should be considered mandatory.
   """
 
-  def __init__(self, label=None, **kwargs):
-    super(Flatten, self).__init__(label)
+  def __init__(self, **kwargs):
+    super(Flatten, self).__init__()
     self.pipeline = kwargs.pop('pipeline', None)
     if kwargs:
       raise ValueError('Unexpected keyword arguments: %s' % kwargs.keys())
@@ -1326,17 +1313,13 @@ class Flatten(PTransform):
 class Create(PTransform):
   """A transform that creates a PCollection from an iterable."""
 
-  def __init__(self, *args, **kwargs):
+  def __init__(self, value):
     """Initializes a Create transform.
 
     Args:
-      *args: A tuple of position arguments.
-      **kwargs: A dictionary of keyword arguments.
-
-    The *args, **kwargs are expected to be (label, value) or (value).
+      value: An object of values for the PCollection
     """
-    label, value = self.parse_label_and_arg(args, kwargs, 'value')
-    super(Create, self).__init__(label)
+    super(Create, self).__init__()
     if isinstance(value, basestring):
       raise TypeError('PTransform Create: Refusing to treat string as '
                       'an iterable. (string=%r)' % value)

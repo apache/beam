@@ -45,6 +45,13 @@ public class AfterFirst extends OnceTrigger {
     return new AfterFirst(Arrays.<Trigger>asList(triggers));
   }
 
+  /**
+   * Returns an {@code AfterFirst} {@code Trigger} with the given subtriggers.
+   */
+  public static AfterFirst of(List<Trigger> triggers) {
+    return new AfterFirst(triggers);
+  }
+
   @Override
   public Instant getWatermarkThatGuaranteesFiring(BoundedWindow window) {
     // This trigger will fire after the earliest of its sub-triggers.

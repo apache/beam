@@ -26,6 +26,8 @@ import static org.junit.Assert.fail;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.core.JsonGenerator;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.google.auto.value.AutoValue;
@@ -43,8 +45,12 @@ import java.util.List;
 import java.util.Map;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.Coder.Context;
+import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
+import org.apache.beam.sdk.transforms.windowing.IntervalWindow.IntervalWindowCoder;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.values.KV;
+import org.joda.time.Duration;
+import org.joda.time.Instant;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -63,6 +69,8 @@ public class CommonCoderTest {
       .put("urn:beam:coders:bytes:0.1", ByteCoder.class)
       .put("urn:beam:coders:kv:0.1", KvCoder.class)
       .put("urn:beam:coders:varint:0.1", VarLongCoder.class)
+      .put("urn:beam:coders:intervalwindow:0.1", IntervalWindowCoder.class)
+      .put("urn:beam:coders:stream:0.1", IterableCoder.class)
       .build();
 
   @AutoValue
@@ -185,6 +193,21 @@ public class CommonCoderTest {
       }
       case "urn:beam:coders:varint:0.1":
         return ((Number) value).longValue();
+      case "urn:beam:coders:intervalwindow:0.1": {
+        Map<String, Object> kvMap = (Map<String, Object>) value;
+        Instant end = new Instant(((Number) kvMap.get("end")).longValue());
+        Duration span = Duration.millis(((Number) kvMap.get("span")).longValue());
+        return new IntervalWindow(end.minus(span), span);
+      }
+      case "urn:beam:coders:stream:0.1":
+        Coder elementCoder = ((IterableCoder) coder).getElemCoder();
+        List<Object> elements = (List<Object>) value;
+        List<Object> convertedElements = new LinkedList<>();
+        for (Object element : elements) {
+          convertedElements.add(
+              convertValue(element, coderSpec.getComponents().get(0), elementCoder));
+        }
+        return convertedElements;
       default:
         throw new IllegalStateException("Unknown coder URN: " + coderSpec.getUrn());
     }
@@ -202,6 +225,10 @@ public class CommonCoderTest {
         return KvCoder.of(components.get(0), components.get(1));
       case "urn:beam:coders:varint:0.1":
         return VarLongCoder.of();
+      case "urn:beam:coders:intervalwindow:0.1":
+        return IntervalWindowCoder.of();
+      case "urn:beam:coders:stream:0.1":
+        return IterableCoder.of(components.get(0));
       default:
         throw new IllegalStateException("Unknown coder URN: " + coder.getUrn());
     }
@@ -215,5 +242,21 @@ public class CommonCoderTest {
     Context context = testSpec.getNested() ? Context.NESTED : Context.OUTER;
     byte[] encoded = CoderUtils.encodeToByteArray(coder, testValue, context);
     assertThat(testSpec.toString(), encoded, equalTo(testSpec.getSerialized()));
+  }
+
+  /**
+   * Utility for adding new entries to the common coder spec -- prints the serialized bytes of
+   * the given value in the given context using JSON-escaped strings.
+   */
+  private static <T> String jsonByteString(Coder<T> coder, T value, Context context)
+      throws CoderException {
+    byte[] bytes = CoderUtils.encodeToByteArray(coder, value, context);
+    ObjectMapper mapper = new ObjectMapper();
+    mapper.configure(JsonGenerator.Feature.ESCAPE_NON_ASCII, true);
+    try {
+      return mapper.writeValueAsString(new String(bytes, StandardCharsets.ISO_8859_1));
+    } catch (JsonProcessingException e) {
+      throw new CoderException(String.format("Unable to encode %s with coder %s", value, coder), e);
+    }
   }
 }

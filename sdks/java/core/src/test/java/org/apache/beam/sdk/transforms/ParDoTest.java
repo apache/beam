@@ -40,6 +40,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.google.common.base.MoreObjects;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -48,6 +49,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import org.apache.beam.sdk.Pipeline.PipelineExecutionException;
 import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.CoderException;
@@ -60,6 +63,8 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.RunnableOnService;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestStream;
+import org.apache.beam.sdk.testing.UsesMapState;
+import org.apache.beam.sdk.testing.UsesSetState;
 import org.apache.beam.sdk.testing.UsesStatefulParDo;
 import org.apache.beam.sdk.testing.UsesTestStream;
 import org.apache.beam.sdk.testing.UsesTimersInParDo;
@@ -83,6 +88,8 @@ import org.apache.beam.sdk.util.TimerSpecs;
 import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
 import org.apache.beam.sdk.util.state.AccumulatorCombiningState;
 import org.apache.beam.sdk.util.state.BagState;
+import org.apache.beam.sdk.util.state.MapState;
+import org.apache.beam.sdk.util.state.SetState;
 import org.apache.beam.sdk.util.state.StateSpec;
 import org.apache.beam.sdk.util.state.StateSpecs;
 import org.apache.beam.sdk.util.state.ValueState;
@@ -1681,6 +1688,93 @@ public class ParDoTest implements Serializable {
   }
 
   @Test
+  @Category({RunnableOnService.class, UsesStatefulParDo.class, UsesSetState.class})
+  public void testSetState() {
+    final String stateId = "foo";
+    final String countStateId = "count";
+
+    DoFn<KV<String, Integer>, Set<Integer>> fn =
+        new DoFn<KV<String, Integer>, Set<Integer>>() {
+
+          @StateId(stateId)
+          private final StateSpec<Object, SetState<Integer>> setState =
+              StateSpecs.set(VarIntCoder.of());
+          @StateId(countStateId)
+          private final StateSpec<Object, AccumulatorCombiningState<Integer, int[], Integer>>
+              countState = StateSpecs.combiningValueFromInputInternal(VarIntCoder.of(),
+              Sum.ofIntegers());
+
+          @ProcessElement
+          public void processElement(
+              ProcessContext c,
+              @StateId(stateId) SetState<Integer> state,
+              @StateId(countStateId) AccumulatorCombiningState<Integer, int[], Integer>
+                  count) {
+            state.add(c.element().getValue());
+            count.add(1);
+            if (count.read() >= 4) {
+              Set<Integer> set = Sets.newHashSet(state.read());
+              c.output(set);
+            }
+          }
+        };
+
+    PCollection<Set<Integer>> output =
+        pipeline.apply(
+            Create.of(
+                KV.of("hello", 97), KV.of("hello", 42), KV.of("hello", 42), KV.of("hello", 12)))
+            .apply(ParDo.of(fn));
+
+    PAssert.that(output).containsInAnyOrder(Sets.newHashSet(97, 42, 12));
+    pipeline.run();
+  }
+
+  @Test
+  @Category({RunnableOnService.class, UsesStatefulParDo.class, UsesMapState.class})
+  public void testMapState() {
+    final String stateId = "foo";
+    final String countStateId = "count";
+
+    DoFn<KV<String, KV<String, Integer>>, KV<String, Integer>> fn =
+        new DoFn<KV<String, KV<String, Integer>>, KV<String, Integer>>() {
+
+          @StateId(stateId)
+          private final StateSpec<Object, MapState<String, Integer>> mapState =
+              StateSpecs.map(StringUtf8Coder.of(), VarIntCoder.of());
+          @StateId(countStateId)
+          private final StateSpec<Object, AccumulatorCombiningState<Integer, int[], Integer>>
+              countState = StateSpecs.combiningValueFromInputInternal(VarIntCoder.of(),
+              Sum.ofIntegers());
+
+          @ProcessElement
+          public void processElement(
+              ProcessContext c, @StateId(stateId) MapState<String, Integer> state,
+              @StateId(countStateId) AccumulatorCombiningState<Integer, int[], Integer>
+                  count) {
+            KV<String, Integer> value = c.element().getValue();
+            state.put(value.getKey(), value.getValue());
+            count.add(1);
+            if (count.read() >= 4) {
+              Iterable<Map.Entry<String, Integer>> iterate = state.iterate();
+              for (Map.Entry<String, Integer> entry : iterate) {
+                c.output(KV.of(entry.getKey(), entry.getValue()));
+              }
+            }
+          }
+        };
+
+    PCollection<KV<String, Integer>> output =
+        pipeline.apply(
+            Create.of(
+                KV.of("hello", KV.of("a", 97)), KV.of("hello", KV.of("b", 42)),
+                KV.of("hello", KV.of("b", 42)), KV.of("hello", KV.of("c", 12))))
+            .apply(ParDo.of(fn));
+
+    PAssert.that(output).containsInAnyOrder(KV.of("a", 97), KV.of("b", 42), KV.of("c", 12));
+    pipeline.run();
+  }
+
+  @Test
   @Category({RunnableOnService.class, UsesStatefulParDo.class})
   public void testCombiningState() {
     final String stateId = "foo";
@@ -2057,35 +2151,5 @@ public class ParDoTest implements Serializable {
                 }));
 
     // If it doesn't crash, we made it!
-  }
-
-  @Test
-  public void testRejectsSplittableDoFnByDefault() {
-    // ParDo with a splittable DoFn must be overridden by the runner.
-    // Without an override, applying it directly must fail.
-
-    thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage(pipeline.getRunner().getClass().getName());
-    thrown.expectMessage("does not support Splittable DoFn");
-
-    pipeline.apply(Create.of(1, 2, 3)).apply(ParDo.of(new TestSplittableDoFn()));
-  }
-
-  @Test
-  public void testMultiRejectsSplittableDoFnByDefault() {
-    // ParDo with a splittable DoFn must be overridden by the runner.
-    // Without an override, applying it directly must fail.
-
-    thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage(pipeline.getRunner().getClass().getName());
-    thrown.expectMessage("does not support Splittable DoFn");
-
-    pipeline
-        .apply(Create.of(1, 2, 3))
-        .apply(
-            ParDo.of(new TestSplittableDoFn())
-                .withOutputTags(
-                    new TupleTag<String>("main") {},
-                    TupleTagList.of(new TupleTag<String>("side1") {})));
   }
 }

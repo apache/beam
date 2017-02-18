@@ -144,19 +144,18 @@ public class FlinkStreamingTransformTranslators {
   //  Transformation Implementations
   // --------------------------------------------------------------------------------------------
 
-  private static class TextIOWriteBoundStreamingTranslator<T>
-      extends FlinkStreamingPipelineTranslator.StreamTransformTranslator<
-        TextIO.Write.Bound<T>> {
+  private static class TextIOWriteBoundStreamingTranslator
+      extends FlinkStreamingPipelineTranslator.StreamTransformTranslator<TextIO.Write.Bound> {
 
     private static final Logger LOG =
         LoggerFactory.getLogger(TextIOWriteBoundStreamingTranslator.class);
 
     @Override
     public void translateNode(
-        TextIO.Write.Bound<T> transform,
+        TextIO.Write.Bound transform,
         FlinkStreamingTranslationContext context) {
       PValue input = context.getInput(transform);
-      DataStream<WindowedValue<T>> inputDataStream = context.getInputDataStream(input);
+      DataStream<WindowedValue<String>> inputDataStream = context.getInputDataStream(input);
 
       String filenamePrefix = transform.getFilenamePrefix();
       String filenameSuffix = transform.getFilenameSuffix();
@@ -176,10 +175,13 @@ public class FlinkStreamingTransformTranslators {
           shardNameTemplate);
 
       DataStream<String> dataSink = inputDataStream
-          .flatMap(new FlatMapFunction<WindowedValue<T>, String>() {
+          .flatMap(new FlatMapFunction<WindowedValue<String>, String>() {
             @Override
-            public void flatMap(WindowedValue<T> value, Collector<String> out) throws Exception {
-              out.collect(value.getValue().toString());
+            public void flatMap(
+                WindowedValue<String> value,
+                Collector<String> out)
+                throws Exception {
+              out.collect(value.getValue());
             }
           });
       DataStreamSink<String> output =
@@ -308,6 +310,16 @@ public class FlinkStreamingTransformTranslators {
     }
   }
 
+  private static void rejectSplittable(DoFn<?, ?> doFn) {
+    DoFnSignature signature = DoFnSignatures.getSignature(doFn.getClass());
+    if (signature.processElement().isSplittable()) {
+      throw new UnsupportedOperationException(
+          String.format(
+              "%s does not currently support splittable DoFn: %s",
+              FlinkRunner.class.getSimpleName(), doFn));
+    }
+  }
+
   private static void rejectTimers(DoFn<?, ?> doFn) {
     DoFnSignature signature = DoFnSignatures.getSignature(doFn.getClass());
 
@@ -332,6 +344,7 @@ public class FlinkStreamingTransformTranslators {
         FlinkStreamingTranslationContext context) {
 
       DoFn<InputT, OutputT> doFn = transform.getFn();
+      rejectSplittable(doFn);
       rejectTimers(doFn);
 
       WindowingStrategy<?, ?> windowingStrategy =
@@ -345,8 +358,7 @@ public class FlinkStreamingTransformTranslators {
       @SuppressWarnings("unchecked")
       PCollection<InputT> inputPCollection = (PCollection<InputT>) context.getInput(transform);
 
-      TypeInformation<WindowedValue<InputT>> inputTypeInfo =
-          context.getTypeInfo(inputPCollection);
+      Coder<WindowedValue<InputT>> inputCoder = context.getCoder(inputPCollection);
 
       DataStream<WindowedValue<InputT>> inputDataStream =
           context.getInputDataStream(context.getInput(transform));
@@ -366,7 +378,7 @@ public class FlinkStreamingTransformTranslators {
         DoFnOperator<InputT, OutputT, WindowedValue<OutputT>> doFnOperator =
             new DoFnOperator<>(
                 transform.getFn(),
-                inputTypeInfo,
+                inputCoder,
                 new TupleTag<OutputT>("main output"),
                 Collections.<TupleTag<?>>emptyList(),
                 new DoFnOperator.DefaultOutputManagerFactory<WindowedValue<OutputT>>(),
@@ -387,7 +399,7 @@ public class FlinkStreamingTransformTranslators {
         DoFnOperator<InputT, OutputT, WindowedValue<OutputT>> doFnOperator =
             new DoFnOperator<>(
                 transform.getFn(),
-                inputTypeInfo,
+                inputCoder,
                 new TupleTag<OutputT>("main output"),
                 Collections.<TupleTag<?>>emptyList(),
                 new DoFnOperator.DefaultOutputManagerFactory<WindowedValue<OutputT>>(),
@@ -518,6 +530,7 @@ public class FlinkStreamingTransformTranslators {
         FlinkStreamingTranslationContext context) {
 
       DoFn<InputT, OutputT> doFn = transform.getFn();
+      rejectSplittable(doFn);
       rejectTimers(doFn);
 
       // we assume that the transformation does not change the windowing strategy.
@@ -536,8 +549,7 @@ public class FlinkStreamingTransformTranslators {
       @SuppressWarnings("unchecked")
       PCollection<InputT> inputPCollection = (PCollection<InputT>) context.getInput(transform);
 
-      TypeInformation<WindowedValue<InputT>> inputTypeInfo =
-          context.getTypeInfo(inputPCollection);
+      Coder<WindowedValue<InputT>> inputCoder = context.getCoder(inputPCollection);
 
       DataStream<WindowedValue<InputT>> inputDataStream =
           context.getInputDataStream(context.getInput(transform));
@@ -557,7 +569,7 @@ public class FlinkStreamingTransformTranslators {
         DoFnOperator<InputT, OutputT, RawUnionValue> doFnOperator =
             new DoFnOperator<>(
                 transform.getFn(),
-                inputTypeInfo,
+                inputCoder,
                 transform.getMainOutputTag(),
                 transform.getSideOutputTags().getAll(),
                 new DoFnOperator.MultiOutputOutputManagerFactory(tagsToLabels),
@@ -582,7 +594,7 @@ public class FlinkStreamingTransformTranslators {
         DoFnOperator<InputT, OutputT, RawUnionValue> doFnOperator =
             new DoFnOperator<>(
                 transform.getFn(),
-                inputTypeInfo,
+                inputCoder,
                 transform.getMainOutputTag(),
                 transform.getSideOutputTags().getAll(),
                 new DoFnOperator.MultiOutputOutputManagerFactory(tagsToLabels),
@@ -811,7 +823,7 @@ public class FlinkStreamingTransformTranslators {
       WindowDoFnOperator<K, InputT, Iterable<InputT>> doFnOperator =
           new WindowDoFnOperator<>(
               reduceFn,
-              (TypeInformation) workItemTypeInfo,
+              (Coder) windowedWorkItemCoder,
               new TupleTag<KV<K, Iterable<InputT>>>("main output"),
               Collections.<TupleTag<?>>emptyList(),
               outputManagerFactory,
@@ -911,7 +923,7 @@ public class FlinkStreamingTransformTranslators {
         WindowDoFnOperator<K, InputT, OutputT> doFnOperator =
             new WindowDoFnOperator<>(
                 reduceFn,
-                (TypeInformation) workItemTypeInfo,
+                (Coder) windowedWorkItemCoder,
                 new TupleTag<KV<K, OutputT>>("main output"),
                 Collections.<TupleTag<?>>emptyList(),
                 new DoFnOperator.DefaultOutputManagerFactory<WindowedValue<KV<K, OutputT>>>(),
@@ -936,7 +948,7 @@ public class FlinkStreamingTransformTranslators {
         WindowDoFnOperator<K, InputT, OutputT> doFnOperator =
             new WindowDoFnOperator<>(
                 reduceFn,
-                (TypeInformation) workItemTypeInfo,
+                (Coder) windowedWorkItemCoder,
                 new TupleTag<KV<K, OutputT>>("main output"),
                 Collections.<TupleTag<?>>emptyList(),
                 new DoFnOperator.DefaultOutputManagerFactory<WindowedValue<KV<K, OutputT>>>(),

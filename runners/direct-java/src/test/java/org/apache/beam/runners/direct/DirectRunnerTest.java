@@ -83,8 +83,7 @@ public class DirectRunnerTest implements Serializable {
     PipelineOptions opts = PipelineOptionsFactory.create();
     opts.setRunner(DirectRunner.class);
 
-    Pipeline p = Pipeline.create(opts);
-    return p;
+    return Pipeline.create(opts);
   }
 
   @Test

@@ -32,6 +32,8 @@ import org.junit.runners.JUnit4;
 
 /**
  * Tests for {@link LocalResourceId}.
+ *
+ * <p>TODO: re-enable unicode tests when BEAM-1453 is resolved.
  */
 @RunWith(JUnit4.class)
 public class LocalResourceIdTest {
@@ -68,16 +70,6 @@ public class LocalResourceIdTest {
         toResourceIdentifier("file:/aa"),
         toResourceIdentifier("file:///")
             .resolve("aa", StandardResolveOptions.RESOLVE_FILE));
-
-    // Tests path with unicode
-    assertEquals(
-        toResourceIdentifier("/根目录/输出 文件01.txt"),
-        toResourceIdentifier("/根目录/")
-            .resolve("输出 文件01.txt", StandardResolveOptions.RESOLVE_FILE));
-    assertEquals(
-        toResourceIdentifier("file://根目录/输出 文件01.txt"),
-        toResourceIdentifier("file://根目录/")
-            .resolve("输出 文件01.txt", StandardResolveOptions.RESOLVE_FILE));
   }
 
   @Test
@@ -199,15 +191,6 @@ public class LocalResourceIdTest {
         toResourceIdentifier("/"),
         toResourceIdentifier("/").getCurrentDirectory());
 
-    // Tests path with unicode
-    assertEquals(
-        toResourceIdentifier("/根目录/"),
-        toResourceIdentifier("/根目录/输出 文件01.txt").getCurrentDirectory());
-    assertEquals(
-        toResourceIdentifier("file://根目录/"),
-        toResourceIdentifier("file://根目录/输出 文件01.txt").getCurrentDirectory());
-
-
     // Tests path without parent.
     assertEquals(
         toResourceIdentifier("./"),
@@ -218,9 +201,6 @@ public class LocalResourceIdTest {
   public void testGetScheme() throws Exception {
     // Tests for local files without the scheme.
     assertEquals("file", toResourceIdentifier("/root/tmp/").getScheme());
-
-    // Tests path with unicode.
-    assertEquals("file", toResourceIdentifier("file://根目录/").getScheme());
   }
 
   @Test

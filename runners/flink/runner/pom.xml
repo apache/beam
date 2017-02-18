@@ -88,6 +88,8 @@
                   <groups>org.apache.beam.sdk.testing.RunnableOnService</groups>
                   <excludedGroups>
                     org.apache.beam.sdk.testing.FlattenWithHeterogeneousCoders,
+                    org.apache.beam.sdk.testing.UsesSetState,
+                    org.apache.beam.sdk.testing.UsesMapState,
                     org.apache.beam.sdk.testing.UsesTimersInParDo,
                     org.apache.beam.sdk.testing.UsesSplittableParDo,
                     org.apache.beam.sdk.testing.UsesAttemptedMetrics,
@@ -218,6 +220,12 @@
       <artifactId>flink-test-utils_2.10</artifactId>
       <version>${flink.version}</version>
       <scope>test</scope>
+        <exclusions>
+            <exclusion>
+                <artifactId>apacheds-jdbm1</artifactId>
+                <groupId>org.apache.directory.jdbm</groupId>
+            </exclusion>
+        </exclusions>
     </dependency>
 
     <!-- Optional Pipeline Registration -->

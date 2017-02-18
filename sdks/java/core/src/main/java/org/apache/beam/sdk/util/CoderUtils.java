@@ -47,6 +47,7 @@ import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.LengthPrefixCoder;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
+import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
 /**
@@ -61,6 +62,7 @@ public final class CoderUtils {
       .put("kind:pair", KvCoder.class)
       .put("kind:stream", IterableCoder.class)
       .put("kind:global_window", GlobalWindow.Coder.class)
+      .put("kind:interval_window", IntervalWindow.IntervalWindowCoder.class)
       .put("kind:length_prefix", LengthPrefixCoder.class)
       .put("kind:windowed_value", WindowedValue.FullWindowedValueCoder.class)
       .build();

@@ -155,13 +155,13 @@
   </Match>
 
   <Match>
-    <Class name="org.apache.beam.runners.spark.aggregators.metrics.sink.CsvSink"/>
+    <Class name="org.apache.beam.runners.spark.metrics.sink.CsvSink"/>
     <Bug pattern="NM_SAME_SIMPLE_NAME_AS_SUPERCLASS"/>
     <!-- Intentionally overriding parent name because inheritors should replace the parent. -->
   </Match>
 
   <Match>
-    <Class name="org.apache.beam.runners.spark.aggregators.metrics.sink.GraphiteSink"/>
+    <Class name="org.apache.beam.runners.spark.metrics.sink.GraphiteSink"/>
     <Bug pattern="NM_SAME_SIMPLE_NAME_AS_SUPERCLASS"/>
     <!-- Intentionally overriding parent name because inheritors should replace the parent. -->
   </Match>
@@ -334,12 +334,6 @@
     <!--[BEAM-413] Test for floating point equality-->
   </Match>
   <Match>
-    <Class name="org.apache.beam.sdk.transforms.display.DisplayData"/>
-    <Field name="entries"/>
-    <Bug pattern="SE_BAD_FIELD"/>
-    <!--[BEAM-412] Non-transient non-serializable instance field in serializable class-->
-  </Match>
-  <Match>
     <Class name="org.apache.beam.sdk.util.CombineFnUtil$NonSerializableBoundedKeyedCombineFn"/>
     <Field name="context"/>
     <Bug pattern="SE_BAD_FIELD"/>
@@ -356,5 +350,16 @@
     <Method name="equals"/>
     <Bug pattern="EQ_DOESNT_OVERRIDE_EQUALS"/>
     <!--[BEAM-421] Class doesn't override equals in superclass-->
+  </Match>
+  <Match>
+    <Class name="org.apache.beam.sdk.util.AutoValue_GcsUtil_StorageObjectOrIOException"/>
+    <Bug pattern="NM_CLASS_NOT_EXCEPTION"/>
+    <!-- It is clear from the name that this class holds either StorageObject or IOException. -->
+  </Match>
+
+  <Match>
+    <Class name="org.apache.beam.sdk.util.GcsUtil$StorageObjectOrIOException"/>
+    <Bug pattern="NM_CLASS_NOT_EXCEPTION"/>
+    <!-- It is clear from the name that this class holds either StorageObject or IOException. -->
   </Match>
 </FindBugsFilter>

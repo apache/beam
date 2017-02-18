@@ -27,6 +27,8 @@ import yaml
 
 from apache_beam import coders
 from apache_beam.coders import coder_impl
+from apache_beam.utils.timestamp import Timestamp
+from apache_beam.transforms.window import IntervalWindow
 
 
 class StandardCodersTest(unittest.TestCase):
@@ -34,7 +36,9 @@ class StandardCodersTest(unittest.TestCase):
   _urn_to_coder_class = {
       'urn:beam:coders:bytes:0.1': coders.BytesCoder,
       'urn:beam:coders:varint:0.1': coders.VarIntCoder,
-      'urn:beam:coders:kv:0.1': lambda k, v: coders.TupleCoder((k, v))
+      'urn:beam:coders:kv:0.1': lambda k, v: coders.TupleCoder((k, v)),
+      'urn:beam:coders:intervalwindow:0.1': coders.IntervalWindowCoder,
+      'urn:beam:coders:stream:0.1': lambda t: coders.IterableCoder(t),
   }
 
   _urn_to_json_value_parser = {
@@ -42,7 +46,12 @@ class StandardCodersTest(unittest.TestCase):
       'urn:beam:coders:varint:0.1': lambda x: x,
       'urn:beam:coders:kv:0.1':
           lambda x, key_parser, value_parser: (key_parser(x['key']),
-                                               value_parser(x['value']))
+                                               value_parser(x['value'])),
+      'urn:beam:coders:intervalwindow:0.1':
+          lambda x: IntervalWindow(
+              start=Timestamp(micros=(x['end'] - x['span']) * 1000),
+              end=Timestamp(micros=x['end'] * 1000)),
+      'urn:beam:coders:stream:0.1': lambda x, parser: map(parser, x)
   }
 
   # We must prepend an underscore to this name so that the open-source unittest
@@ -116,7 +125,7 @@ class StandardCodersTest(unittest.TestCase):
 
 
 STANDARD_CODERS_YAML = os.path.join(
-    os.path.dirname(__file__), 'standard_coders.yaml')
+    os.path.dirname(__file__), '..', 'tests', 'data', 'standard_coders.yaml')
 StandardCodersTest._create_tests(STANDARD_CODERS_YAML)
 
 

@@ -80,8 +80,6 @@ class PValue(object):
     optional first label and a transform/callable object. It will call the
     pipeline.apply() method with this modified argument list.
     """
-    if isinstance(args[0], basestring):
-      kwargs['label'], args = args[0], args[1:]
     arglist = list(args)
     arglist.insert(1, self)
     return self.pipeline.apply(*arglist, **kwargs)
@@ -312,27 +310,6 @@ def _cache_view(pipeline, key, view):
   pipeline._view_cache[key] = view  # pylint: disable=protected-access
 
 
-def can_take_label_as_first_argument(callee):
-  """Decorator to allow the "label" kwarg to be passed as the first argument.
-
-  For example, since AsSingleton is annotated with this decorator, this allows
-  the call "AsSingleton(pcoll, label='label1')" to be written more succinctly
-  as "AsSingleton('label1', pcoll)".
-
-  Args:
-    callee: The callable to be called with an optional label argument.
-
-  Returns:
-    Callable that allows (but does not require) a string label as its first
-    argument.
-  """
-  def _inner(maybe_label, *args, **kwargs):
-    if isinstance(maybe_label, basestring):
-      return callee(*args, label=maybe_label, **kwargs)
-    return callee(*((maybe_label,) + args), **kwargs)
-  return _inner
-
-
 def _format_view_label(pcoll):
   # The monitoring UI doesn't like '/' character in transform labels.
   if not pcoll.producer:
@@ -344,7 +321,6 @@ def _format_view_label(pcoll):
 _SINGLETON_NO_DEFAULT = object()
 
 
-@can_take_label_as_first_argument
 def AsSingleton(pcoll, default_value=_SINGLETON_NO_DEFAULT, label=None):  # pylint: disable=invalid-name
   """Create a SingletonPCollectionView from the contents of input PCollection.
 
@@ -388,7 +364,6 @@ def AsSingleton(pcoll, default_value=_SINGLETON_NO_DEFAULT, label=None):  # pyli
   return view
 
 
-@can_take_label_as_first_argument
 def AsIter(pcoll, label=None):  # pylint: disable=invalid-name
   """Create an IterablePCollectionView from the elements of input PCollection.
 
@@ -419,7 +394,6 @@ def AsIter(pcoll, label=None):  # pylint: disable=invalid-name
   return view
 
 
-@can_take_label_as_first_argument
 def AsList(pcoll, label=None):  # pylint: disable=invalid-name
   """Create a ListPCollectionView from the elements of input PCollection.
 
@@ -450,7 +424,6 @@ def AsList(pcoll, label=None):  # pylint: disable=invalid-name
   return view
 
 
-@can_take_label_as_first_argument
 def AsDict(pcoll, label=None):  # pylint: disable=invalid-name
   """Create a DictPCollectionView from the elements of input PCollection.
 

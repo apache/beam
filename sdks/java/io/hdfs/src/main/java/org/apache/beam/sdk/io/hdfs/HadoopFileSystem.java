@@ -17,13 +17,55 @@
  */
 package org.apache.beam.sdk.io.hdfs;
 
+import java.io.IOException;
+import java.nio.channels.ReadableByteChannel;
+import java.nio.channels.WritableByteChannel;
+import java.util.Collection;
+import java.util.List;
 import org.apache.beam.sdk.io.FileSystem;
+import org.apache.beam.sdk.io.fs.CreateOptions;
+import org.apache.beam.sdk.io.fs.MatchResult;
 
 /**
  * Adapts {@link org.apache.hadoop.fs.FileSystem} connectors to be used as
  * Apache Beam {@link FileSystem FileSystems}.
  */
-class HadoopFileSystem extends FileSystem {
+class HadoopFileSystem extends FileSystem<HadoopResourceId> {
 
   HadoopFileSystem() {}
+
+  @Override
+  protected List<MatchResult> match(List<String> specs) throws IOException {
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
+  protected WritableByteChannel create(HadoopResourceId resourceId, CreateOptions createOptions)
+      throws IOException {
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
+  protected ReadableByteChannel open(HadoopResourceId resourceId) throws IOException {
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
+  protected void copy(
+      List<HadoopResourceId> srcResourceIds,
+      List<HadoopResourceId> destResourceIds) throws IOException {
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
+  protected void rename(
+      List<HadoopResourceId> srcResourceIds,
+      List<HadoopResourceId> destResourceIds) throws IOException {
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
+  protected void delete(Collection<HadoopResourceId> resourceIds) throws IOException {
+    throw new UnsupportedOperationException();
+  }
 }

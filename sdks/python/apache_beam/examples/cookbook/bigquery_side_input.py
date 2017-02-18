@@ -64,13 +64,11 @@ def create_groups(group_ids, corpus, word, ignore_corpus, ignore_word):
     yield group + (selected,)
 
   return (group_ids
-          | beam.FlatMap(
-              'attach corpus',
+          | 'attach corpus' >> beam.FlatMap(
               attach_corpus_fn,
               AsList(corpus),
               AsSingleton(ignore_corpus))
-          | beam.FlatMap(
-              'attach word',
+          | 'attach word' >> beam.FlatMap(
               attach_word_fn,
               AsList(word),
               AsSingleton(ignore_word)))

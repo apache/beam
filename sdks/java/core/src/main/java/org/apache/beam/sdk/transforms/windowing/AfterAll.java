@@ -44,6 +44,13 @@ public class AfterAll extends OnceTrigger {
     return new AfterAll(Arrays.<Trigger>asList(triggers));
   }
 
+  /**
+   * Returns an {@code AfterAll} {@code Trigger} with the given subtriggers.
+   */
+  public static AfterAll of(List<Trigger> triggers) {
+    return new AfterAll(triggers);
+  }
+
   @Override
   public Instant getWatermarkThatGuaranteesFiring(BoundedWindow window) {
     // This trigger will fire after the latest of its sub-triggers.

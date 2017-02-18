@@ -25,7 +25,7 @@ from apache_beam.pipeline import Pipeline
 from apache_beam.pipeline import PipelineOptions
 from apache_beam.pipeline import PipelineVisitor
 from apache_beam.pvalue import AsSingleton
-from apache_beam.runners.dataflow.native_io.iobase import NativeSource
+from apache_beam.runners.google_cloud_dataflow.native_io.iobase import NativeSource
 from apache_beam.test_pipeline import TestPipeline
 from apache_beam.transforms import CombineGlobally
 from apache_beam.transforms import Create
@@ -229,11 +229,14 @@ class PipelineTest(unittest.TestCase):
     num_elements = 10
     num_maps = 100
 
-    pipeline = TestPipeline(runner='DirectRunner')
+    pipeline = TestPipeline()
 
     # Consumed memory should not be proportional to the number of maps.
     memory_threshold = (
         get_memory_usage_in_bytes() + (3 * len_elements * num_elements))
+
+    # Plus small additional slack for memory fluctuations during the test.
+    memory_threshold += 10 * (2 ** 20)
 
     biglist = pipeline | 'oom:create' >> Create(
         ['x' * len_elements] * num_elements)
@@ -327,6 +330,13 @@ class DoFnTest(unittest.TestCase):
              | ParDo(TestDoFn()))
     assert_that(pcoll, equal_to([(1, (-5, 5)), (1, (0, 10)),
                                  (7, (0, 10)), (7, (5, 15))]))
+    pcoll2 = pcoll | 'Again' >> ParDo(TestDoFn())
+    assert_that(
+        pcoll2,
+        equal_to([
+            ((1, (-5, 5)), (-5, 5)), ((1, (0, 10)), (0, 10)),
+            ((7, (0, 10)), (0, 10)), ((7, (5, 15)), (5, 15))]),
+        label='doubled windows')
     pipeline.run()
 
   def test_timestamp_param(self):

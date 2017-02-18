@@ -204,65 +204,6 @@ class PTransform(WithTypeHints, HasDisplayData):
   def default_label(self):
     return self.__class__.__name__
 
-  @classmethod
-  def parse_label_and_arg(cls, args, kwargs, arg_name):
-    """Parses a tuple of positional arguments into label, arg_name.
-
-    The function is used by functions that take a (label, arg_name) list of
-    parameters and in which first label could be optional even if the arg_name
-    is not passed as a keyword. More specifically the following calling patterns
-    are allowed::
-
-      (value)
-      ('label', value)
-      (arg_name=value)
-      ('label', arg_name=value)
-      (value, label='label')
-      (label='label', arg_name=value)
-
-    Args:
-      args: A tuple of position arguments.
-      kwargs: A dictionary of keyword arguments.
-      arg_name: The name of the second argument.
-
-    Returns:
-      A (label, value) tuple. The label will be the one passed in or one
-      derived from the class name. The value will the corresponding value for
-      the arg_name argument.
-
-    Raises:
-      ValueError: If the label and value cannot be deduced from args and kwargs
-        and also if the label is not a string.
-    """
-    # TODO(robertwb): Fix to not silently drop extra arguments.
-    kw_label = kwargs.get('label', None)
-    kw_value = kwargs.get(arg_name, None)
-
-    if kw_value is not None:
-      value = kw_value
-    else:
-      value = args[1] if len(args) > 1 else args[0] if args else None
-
-    if kw_label is not None:
-      label = kw_label
-    else:
-      # We need to get a label from positional arguments. If we did not get a
-      # keyword value for the arg_name either then expect that a one element
-      # list will provide the value and the label will be derived from the class
-      # name.
-      num_args = len(args)
-      if kw_value is None:
-        label = args[0] if num_args >= 2 else cls.__name__
-      else:
-        label = args[0] if num_args >= 1 else cls.__name__
-
-    if label is None or value is None or not isinstance(label, basestring):
-      raise ValueError(
-          '%s expects a (label, %s) or (%s) argument list '
-          'instead of args=%s, kwargs=%s' % (
-              cls.__name__, arg_name, arg_name, args, kwargs))
-    return label, value
-
   def with_input_types(self, input_type_hint):
     """Annotates the input type of a PTransform with a type-hint.
 
@@ -431,7 +372,7 @@ class PTransform(WithTypeHints, HasDisplayData):
     # pylint: disable=wrong-import-order, wrong-import-position
     from apache_beam.transforms.core import Create
     # pylint: enable=wrong-import-order, wrong-import-position
-    replacements = {id(v): p | Create('CreatePInput%s' % ix, v)
+    replacements = {id(v): p | 'CreatePInput%s' % ix >> Create(v)
                     for ix, v in enumerate(pvalues)
                     if not isinstance(v, pvalue.PValue) and v is not None}
     pvalueish = _SetInputPValues().visit(pvalueish, replacements)
@@ -507,19 +448,13 @@ class PTransformWithSideInputs(PTransform):
   for PTransforms that fit this model.
   """
 
-  def __init__(self, fn_or_label, *args, **kwargs):
-    if fn_or_label is None or isinstance(fn_or_label, basestring):
-      label = fn_or_label
-      fn, args = args[0], args[1:]
-    else:
-      label = None
-      fn = fn_or_label
+  def __init__(self, fn, *args, **kwargs):
     if isinstance(fn, type) and issubclass(fn, typehints.WithTypeHints):
       # Don't treat Fn class objects as callables.
       raise ValueError('Use %s() not %s.' % (fn.__name__, fn.__name__))
     self.fn = self.make_fn(fn)
     # Now that we figure out the label, initialize the super-class.
-    super(PTransformWithSideInputs, self).__init__(label=label)
+    super(PTransformWithSideInputs, self).__init__()
 
     if (any([isinstance(v, pvalue.PCollection) for v in args]) or
         any([isinstance(v, pvalue.PCollection) for v in kwargs.itervalues()])):
@@ -639,15 +574,9 @@ class CallablePTransform(PTransform):
     return res
 
   def __call__(self, *args, **kwargs):
-    if args and args[0] is None:
-      label, self._args = None, args[1:]
-    elif args and isinstance(args[0], str):
-      label, self._args = args[0], args[1:]
-    else:
-      label, self._args = None, args
+    super(CallablePTransform, self).__init__()
+    self._args = args
     self._kwargs = kwargs
-    # We know the label now, so initialize the super-class.
-    super(CallablePTransform, self).__init__(label=label)
     return self
 
   def expand(self, pcoll):

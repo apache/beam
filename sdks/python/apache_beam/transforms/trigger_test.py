@@ -25,7 +25,7 @@ import unittest
 import yaml
 
 import apache_beam as beam
-from apache_beam.pipeline import Pipeline
+from apache_beam.test_pipeline import TestPipeline
 from apache_beam.transforms import trigger
 from apache_beam.transforms.core import Windowing
 from apache_beam.transforms.trigger import AccumulationMode
@@ -383,7 +383,7 @@ class TriggerTest(unittest.TestCase):
 class TriggerPipelineTest(unittest.TestCase):
 
   def test_after_count(self):
-    p = Pipeline('DirectRunner')
+    p = TestPipeline()
     result = (p
               | beam.Create([1, 2, 3, 4, 5, 10, 11])
               | beam.FlatMap(lambda t: [('A', t), ('B', t + 5)])

@@ -529,7 +529,7 @@ class TextSourceTest(_TestCaseWithTempDirCleanUp):
     with gzip.GzipFile(file_name, 'wb') as f:
       f.write('\n'.join(lines))
 
-    pipeline = beam.Pipeline('DirectRunner')
+    pipeline = TestPipeline()
     pcoll = pipeline | 'Read' >> ReadFromText(
         file_name, 0, CompressionTypes.GZIP,
         True, coders.StrUtf8Coder(), skip_header_lines=2)
@@ -668,7 +668,7 @@ class TextSinkTest(_TestCaseWithTempDirCleanUp):
 
   def test_write_dataflow_auto_compression_unsharded(self):
     pipeline = TestPipeline()
-    pcoll = pipeline | beam.core.Create('Create', self.lines)
+    pcoll = pipeline | 'Create' >> beam.core.Create(self.lines)
     pcoll | 'Write' >> WriteToText(  # pylint: disable=expression-not-assigned
         self.path + '.gz',
         shard_name_template='')
@@ -684,7 +684,7 @@ class TextSinkTest(_TestCaseWithTempDirCleanUp):
 
   def test_write_dataflow_header(self):
     pipeline = TestPipeline()
-    pcoll = pipeline | beam.core.Create('Create', self.lines)
+    pcoll = pipeline | 'Create' >> beam.core.Create(self.lines)
     header_text = 'foo'
     pcoll | 'Write' >> WriteToText(  # pylint: disable=expression-not-assigned
         self.path + '.gz',

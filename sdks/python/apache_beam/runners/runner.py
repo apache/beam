@@ -26,9 +26,31 @@ import shutil
 import tempfile
 
 
+def _get_runner_map(runner_names, module_path):
+  """Create a map of runner name in lower case to full import path to the
+  runner class.
+  """
+  return {runner_name.lower(): module_path + runner_name
+          for runner_name in runner_names}
+
+
+_DIRECT_RUNNER_PATH = 'apache_beam.runners.direct.direct_runner.'
+_DATAFLOW_RUNNER_PATH = (
+    'apache_beam.runners.google_cloud_dataflow.dataflow_runner.')
+_TEST_RUNNER_PATH = 'apache_beam.runners.test.'
+
 _KNOWN_DIRECT_RUNNERS = ('DirectRunner', 'EagerRunner')
-_KNOWN_DATAFLOW_RUNNERS = ('DataflowRunner', 'BlockingDataflowRunner')
+_KNOWN_DATAFLOW_RUNNERS = ('DataflowRunner',)
 _KNOWN_TEST_RUNNERS = ('TestDataflowRunner',)
+
+_RUNNER_MAP = {}
+_RUNNER_MAP.update(_get_runner_map(_KNOWN_DIRECT_RUNNERS,
+                                   _DIRECT_RUNNER_PATH))
+_RUNNER_MAP.update(_get_runner_map(_KNOWN_DATAFLOW_RUNNERS,
+                                   _DATAFLOW_RUNNER_PATH))
+_RUNNER_MAP.update(_get_runner_map(_KNOWN_TEST_RUNNERS,
+                                   _TEST_RUNNER_PATH))
+
 _ALL_KNOWN_RUNNERS = (
     _KNOWN_DIRECT_RUNNERS + _KNOWN_DATAFLOW_RUNNERS + _KNOWN_TEST_RUNNERS)
 
@@ -47,25 +69,12 @@ def create_runner(runner_name):
     RuntimeError: if an invalid runner name is used.
   """
 
-  # TODO(BEAM-1185): Remove when all references to PipelineRunners are gone.
-  if 'PipelineRunner' in runner_name:
-    new_runner_name = runner_name.replace('PipelineRunner', 'Runner')
-    if new_runner_name in _ALL_KNOWN_RUNNERS:
-      logging.warning(
-          '%s is deprecated, use %s instead.', runner_name, new_runner_name)
-      runner_name = new_runner_name
-
-  # TODO(BEAM-759): Remove when all BlockingDataflowRunner references are gone.
-  if runner_name == 'BlockingDataflowRunner':
-    logging.warning(
-        'BlockingDataflowRunner is deprecated, use DataflowRunner instead.')
-
-  if runner_name in _KNOWN_DIRECT_RUNNERS:
-    runner_name = 'apache_beam.runners.direct.direct_runner.' + runner_name
-  elif runner_name in _KNOWN_DATAFLOW_RUNNERS:
-    runner_name = 'apache_beam.runners.dataflow_runner.' + runner_name
-  elif runner_name in _KNOWN_TEST_RUNNERS:
-    runner_name = 'apache_beam.runners.test.' + runner_name
+  # Get the qualified runner name by using the lower case runner name. If that
+  # fails try appending the name with 'runner' and check if it matches.
+  # If that also fails, use the given runner name as is.
+  runner_name = _RUNNER_MAP.get(
+      runner_name.lower(),
+      _RUNNER_MAP.get(runner_name.lower() + 'runner', runner_name))
 
   if '.' in runner_name:
     module, runner = runner_name.rsplit('.', 1)

@@ -125,6 +125,21 @@ public class StateSpecs {
     return new BagStateSpec<T>(elemCoder);
   }
 
+  /**
+   * Create a state spec that supporting for {@link java.util.Set} like access patterns.
+   */
+  public static <T> StateSpec<Object, SetState<T>> set(Coder<T> elemCoder) {
+    return new SetStateSpec<>(elemCoder);
+  }
+
+  /**
+   * Create a state spec that supporting for {@link java.util.Map} like access patterns.
+   */
+  public static <K, V> StateSpec<Object, MapState<K, V>> map(Coder<K> keyCoder,
+                                                             Coder<V> valueCoder) {
+    return new MapStateSpec<>(keyCoder, valueCoder);
+  }
+
   /** Create a state spec for holding the watermark. */
   public static <W extends BoundedWindow>
       StateSpec<Object, WatermarkHoldState<W>> watermarkStateInternal(
@@ -337,6 +352,80 @@ public class StateSpecs {
       }
 
       BagStateSpec<?> that = (BagStateSpec<?>) obj;
+      return Objects.equals(this.elemCoder, that.elemCoder);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(getClass(), elemCoder);
+    }
+  }
+
+  private static class MapStateSpec<K, V> implements StateSpec<Object, MapState<K, V>> {
+
+    private final Coder<K> keyCoder;
+    private final Coder<V> valueCoder;
+
+    private MapStateSpec(Coder<K> keyCoder, Coder<V> valueCoder) {
+      this.keyCoder = keyCoder;
+      this.valueCoder = valueCoder;
+    }
+
+    @Override
+    public MapState<K, V> bind(String id, StateBinder<?> visitor) {
+      return visitor.bindMap(id, this, keyCoder, valueCoder);
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+      if (obj == this) {
+        return true;
+      }
+
+      if (!(obj instanceof MapStateSpec)) {
+        return false;
+      }
+
+      MapStateSpec<?, ?> that = (MapStateSpec<?, ?>) obj;
+      return Objects.equals(this.keyCoder, that.keyCoder)
+          && Objects.equals(this.valueCoder, that.valueCoder);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(getClass(), keyCoder, valueCoder);
+    }
+  }
+
+  /**
+   * A specification for a state cell supporting for set-like access patterns.
+   *
+   * <p>Includes the coder for the element type {@code T}</p>
+   */
+  private static class SetStateSpec<T> implements StateSpec<Object, SetState<T>> {
+
+    private final Coder<T> elemCoder;
+
+    private SetStateSpec(Coder<T> elemCoder) {
+      this.elemCoder = elemCoder;
+    }
+
+    @Override
+    public SetState<T> bind(String id, StateBinder<?> visitor) {
+      return visitor.bindSet(id, this, elemCoder);
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+      if (obj == this) {
+        return true;
+      }
+
+      if (!(obj instanceof SetStateSpec)) {
+        return false;
+      }
+
+      SetStateSpec<?> that = (SetStateSpec<?>) obj;
       return Objects.equals(this.elemCoder, that.elemCoder);
     }
 

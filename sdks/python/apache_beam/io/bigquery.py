@@ -116,7 +116,7 @@ from apache_beam import coders
 from apache_beam.internal import auth
 from apache_beam.internal.json_value import from_json_value
 from apache_beam.internal.json_value import to_json_value
-from apache_beam.runners.dataflow.native_io import iobase as dataflow_io
+from apache_beam.runners.google_cloud_dataflow.native_io import iobase as dataflow_io
 from apache_beam.transforms.display import DisplayDataItem
 from apache_beam.utils import retry
 from apache_beam.utils.pipeline_options import GoogleCloudOptions
@@ -1065,17 +1065,18 @@ class BigQueryWrapper(object):
       value = None
       if isinstance(schema, bigquery.TableSchema):
         cell = row.f[index]
-        if cell.v is None:
-          continue  # Field not present in the row.
-        value = from_json_value(cell.v)
+        value = from_json_value(cell.v) if cell.v is not None else None
       elif isinstance(schema, bigquery.TableFieldSchema):
         cell = row['f'][index]
-        if 'v' not in cell:
-          continue  # Field not present in the row.
-        value = cell['v']
+        value = cell['v'] if 'v' in cell else None
       if field.mode == 'REPEATED':
         result[field.name] = [self._convert_cell_value_to_dict(x['v'], field)
                               for x in value]
+      elif value is None:
+        if not field.mode == 'NULLABLE':
+          raise ValueError('Received \'None\' as the value for the field %s '
+                           'but the field is not NULLABLE.', field.name)
+        result[field.name] = None
       else:
         result[field.name] = self._convert_cell_value_to_dict(value, field)
     return result

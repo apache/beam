@@ -946,6 +946,13 @@ public class DataflowPipelineTranslator {
       Map<Long, TupleTag<?>> outputMap) {
 
     DoFnSignature signature = DoFnSignatures.getSignature(fn.getClass());
+    if (signature.processElement().isSplittable()) {
+      throw new UnsupportedOperationException(
+          String.format(
+              "%s does not currently support splittable DoFn: %s",
+              DataflowRunner.class.getSimpleName(),
+              fn));
+    }
 
     stepContext.addInput(PropertyNames.USER_FN, fn.getClass().getName());
     stepContext.addInput(

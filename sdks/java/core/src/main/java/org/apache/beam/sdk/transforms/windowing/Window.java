@@ -434,22 +434,34 @@ public class Window {
 
       // Make sure that the windowing strategy is complete & valid.
       if (outputStrategy.isTriggerSpecified()
-          && !(outputStrategy.getTrigger() instanceof DefaultTrigger)) {
-        if (!(outputStrategy.getWindowFn() instanceof GlobalWindows)
-            && !outputStrategy.isAllowedLatenessSpecified()) {
-          throw new IllegalArgumentException("Except when using GlobalWindows,"
-              + " calling .triggering() to specify a trigger requires that the allowed lateness be"
-              + " specified using .withAllowedLateness() to set the upper bound on how late data"
-              + " can arrive before being dropped. See Javadoc for more details.");
-        }
-
-        if (!outputStrategy.isModeSpecified()) {
-          throw new IllegalArgumentException(
-              "Calling .triggering() to specify a trigger requires that the accumulation mode be"
-              + " specified using .discardingFiredPanes() or .accumulatingFiredPanes()."
-              + " See Javadoc for more details.");
-        }
+          && !(outputStrategy.getTrigger() instanceof DefaultTrigger)
+          && !(outputStrategy.getWindowFn() instanceof GlobalWindows)
+          && !outputStrategy.isAllowedLatenessSpecified()) {
+        throw new IllegalArgumentException(
+            "Except when using GlobalWindows,"
+                + " calling .triggering() to specify a trigger requires that the allowed lateness"
+                + " be specified using .withAllowedLateness() to set the upper bound on how late"
+                + " data can arrive before being dropped. See Javadoc for more details.");
       }
+
+      if (!outputStrategy.isModeSpecified() && canProduceMultiplePanes(outputStrategy)) {
+        throw new IllegalArgumentException(
+            "Calling .triggering() to specify a trigger or calling .withAllowedLateness() to"
+                + " specify an allowed lateness greater than zero requires that the accumulation"
+                + " mode be specified using .discardingFiredPanes() or .accumulatingFiredPanes()."
+                + " See Javadoc for more details.");
+      }
+    }
+
+    private boolean canProduceMultiplePanes(WindowingStrategy<?, ?> strategy) {
+      // The default trigger is Repeatedly.forever(AfterWatermark.pastEndOfWindow()); This fires
+      // for every late-arriving element if allowed lateness is nonzero, and thus we must have
+      // an accumulating mode specified
+      boolean dataCanArriveLate =
+          !(strategy.getWindowFn() instanceof GlobalWindows)
+              && strategy.getAllowedLateness().getMillis() > 0;
+      boolean hasCustomTrigger = !(strategy.getTrigger() instanceof DefaultTrigger);
+      return dataCanArriveLate || hasCustomTrigger;
     }
 
     @Override

@@ -168,7 +168,6 @@ public class DataflowRunnerTest {
                 StandardOpenOption.CREATE, StandardOpenOption.DELETE_ON_CLOSE);
           }
         });
-    when(mockGcsUtil.isGcsPatternSupported(anyString())).thenReturn(true);
     when(mockGcsUtil.expand(any(GcsPath.class))).then(new Answer<List<GcsPath>>() {
       @Override
       public List<GcsPath> answer(InvocationOnMock invocation) throws Throwable {
@@ -238,7 +237,6 @@ public class DataflowRunnerTest {
                 StandardOpenOption.CREATE, StandardOpenOption.DELETE_ON_CLOSE);
           }
         });
-    when(mockGcsUtil.isGcsPatternSupported(anyString())).thenReturn(true);
     when(mockGcsUtil.expand(any(GcsPath.class))).then(new Answer<List<GcsPath>>() {
       @Override
       public List<GcsPath> answer(InvocationOnMock invocation) throws Throwable {
