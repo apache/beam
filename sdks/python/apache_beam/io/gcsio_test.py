@@ -28,9 +28,9 @@ import unittest
 import httplib2
 import mock
 from apitools.base.py.exceptions import HttpError
-from apache_beam.internal.clients import storage
 
 from apache_beam.io import gcsio
+from apache_beam.io.google_cloud_platform.internal.clients import storage
 
 
 class FakeGcsClient(object):

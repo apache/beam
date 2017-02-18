@@ -15,13 +15,12 @@
 # limitations under the License.
 #
 
-"""Common imports for generated bigquery client library."""
+"""Common imports for generated storage client library."""
 # pylint:disable=wildcard-import
 
 import pkgutil
 
-from apitools.base.py import *
-from apache_beam.internal.clients.bigquery.bigquery_v2_client import *
-from apache_beam.internal.clients.bigquery.bigquery_v2_messages import *
+from apache_beam.io.google_cloud_platform.internal.clients.storage.storage_v1_client import *
+from apache_beam.io.google_cloud_platform.internal.clients.storage.storage_v1_messages import *
 
 __path__ = pkgutil.extend_path(__path__, __name__)
