@@ -52,6 +52,7 @@ import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.Never;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -161,23 +162,35 @@ public class CreateStreamTest implements Serializable {
     p.run();
   }
 
+  //TODO: fix this! how do i create a synchronized processing time trigger ???
 //  @Test
-//  @Category({NeedsRunner.class, UsesTestStream.class})
-//  public void testProcessingTimeTrigger() {
-//    TestStream<Long> source = TestStream.create(VarLongCoder.of())
-//            .addElements(TimestampedValue.of(1L, new Instant(1000L)),
-//                    TimestampedValue.of(2L, new Instant(2000L)))
-//            .advanceProcessingTime(Duration.standardMinutes(12))
-//            .addElements(TimestampedValue.of(3L, new Instant(3000L)))
-//            .advanceProcessingTime(Duration.standardMinutes(6))
-//            .advanceWatermarkToInfinity();
+//  public void testProcessingTimeTrigger() throws Exception {
+//    SparkPipelineOptions options = commonOptions.withTmpCheckpointDir(checkpointParentDir);
+//    Pipeline p = Pipeline.create(options);
+//    options.setJobName(testName.getMethodName());
+//    Duration batchDuration = Duration.millis(options.getBatchIntervalMillis());
 //
-//    PCollection<Long> sum = p.apply(source)
-//            .apply(Window.<Long>triggering(AfterWatermark.pastEndOfWindow()
-//                    .withEarlyFirings(AfterProcessingTime.pastFirstElementInPane()
-//                            .plusDelayOf(Duration.standardMinutes(5)))).accumulatingFiredPanes()
-//                    .withAllowedLateness(Duration.ZERO))
-//            .apply(Sum.longsGlobally());
+//    CreateStream<TimestampedValue<Long>> source =
+//        CreateStream.<TimestampedValue<Long>>withBatchInterval(batchDuration)
+//            .nextBatch( // batch sees system time of 0 - beginning.
+//                TimestampedValue.of(1L, new Instant(1000L)),
+//                TimestampedValue.of(2L, new Instant(2000L)))
+//            .advanceWatermarkForNextBatch(new Instant(0))
+//            .nextBatch() // batch sees system time of 500 millis since the clock moved += 500.
+//            .advanceWatermarkForNextBatch(new Instant(0))
+//            .nextBatch( // batch sees system time of 1000 millis.
+//                TimestampedValue.of(3L, new Instant(3000L)))
+//            .advanceNextBatchWatermarkToInfinity();
+//
+//    PCollection<Long> sum =
+//        p.apply(source).setCoder(TimestampedValue.TimestampedValueCoder.of(VarLongCoder.of()))
+//            .apply(ParDo.of(new OnlyValue<Long>()))
+//        .apply(Window.<Long>triggering(AfterWatermark.pastEndOfWindow()
+//            .withEarlyFirings(AfterProcessingTime.pastFirstElementInPane()
+//                .plusDelayOf(Duration.millis(100))))
+//            .accumulatingFiredPanes()
+//            .withAllowedLateness(Duration.ZERO))
+//        .apply(Sum.longsGlobally().withoutDefaults());
 //
 //    PAssert.that(sum).inEarlyGlobalWindowPanes().containsInAnyOrder(3L, 6L);
 //
@@ -249,7 +262,7 @@ public class CreateStreamTest implements Serializable {
     CreateStream<TimestampedValue<String>> source =
         CreateStream.<TimestampedValue<String>>withBatchInterval(batchDuration)
             .nextBatch()
-            .advanceWatermarkForNextBatch(new Instant(-1_000_000))
+            .advanceWatermarkForNextBatch(new Instant(0))
             .nextBatch(
                 TimestampedValue.of("late", lateElementTimestamp),
                 TimestampedValue.of("onTime", new Instant(100)))
@@ -268,8 +281,9 @@ public class CreateStreamTest implements Serializable {
         .apply(Values.<Iterable<String>>create())
         .apply(Flatten.<String>iterables());
 
-    //TODO: empty panes do not emmit anything so Spark won't evaluate an "empty" assertion.
-//    PAssert.that(values).inWindow(windowFn.assignWindow(lateElementTimestamp)).empty();
+    PAssert.that(values)
+        .inWindow(windowFn.assignWindow(lateElementTimestamp))
+        .empty();
     PAssert.that(values)
         .inWindow(windowFn.assignWindow(new Instant(100)))
         .containsInAnyOrder("onTime");
@@ -308,40 +322,97 @@ public class CreateStreamTest implements Serializable {
     p.run();
   }
 
-//  @Test
-//  public void testMultipleStreams() throws IOException {
-//    SparkPipelineOptions options = commonOptions.withTmpCheckpointDir(checkpointParentDir);
-//    Pipeline p = Pipeline.create(options);
-//    options.setJobName(testName.getMethodName());
-//    Duration batchDuration = Duration.millis(options.getBatchIntervalMillis());
-//
-//    CreateStream<String> source =
-//        CreateStream.<String>withBatchInterval(batchDuration)
-//            .nextBatch("foo", "bar").advanceWatermarkForNextBatch(new Instant(100))
-//            .nextBatch().advanceNextBatchWatermarkToInfinity();
-//
-////    CreateStream<Integer> other =
-////        CreateStream.<Integer>withBatchInterval(batchDuration)
-////            .nextBatch(1, 2, 3, 4)
-////            .advanceNextBatchWatermarkToInfinity();
-//
-//    PCollection<String> createStrings =
-//        p.apply("CreateStrings", source).setCoder(StringUtf8Coder.of())
-//            .apply("WindowStrings",
-//                Window.<String>triggering(AfterPane.elementCountAtLeast(2))
-//                    .withAllowedLateness(Duration.ZERO)
-//                    .accumulatingFiredPanes());
-//    PAssert.that(createStrings).containsInAnyOrder("foo", "bar");
-////    PCollection<Integer> createInts =
-////        p.apply("CreateInts", other).setCoder(VarIntCoder.of())
-////            .apply("WindowInts",
-////                Window.<Integer>triggering(AfterPane.elementCountAtLeast(4))
-////                    .withAllowedLateness(Duration.ZERO)
-////                    .accumulatingFiredPanes());
-////    PAssert.that(createInts).containsInAnyOrder(1, 2, 3, 4);
-//
-//    p.run();
-//  }
+  @Test
+  public void testMultipleStreams() throws IOException {
+    SparkPipelineOptions options = commonOptions.withTmpCheckpointDir(checkpointParentDir);
+    Pipeline p = Pipeline.create(options);
+    options.setJobName(testName.getMethodName());
+    Duration batchDuration = Duration.millis(options.getBatchIntervalMillis());
+
+    CreateStream<String> source =
+        CreateStream.<String>withBatchInterval(batchDuration)
+            .nextBatch("foo", "bar")
+            .advanceNextBatchWatermarkToInfinity();
+    CreateStream<Integer> other =
+        CreateStream.<Integer>withBatchInterval(batchDuration)
+            .nextBatch(1, 2, 3, 4)
+            .advanceNextBatchWatermarkToInfinity();
+
+    PCollection<String> createStrings =
+        p.apply("CreateStrings", source).setCoder(StringUtf8Coder.of())
+            .apply("WindowStrings",
+                Window.<String>triggering(AfterPane.elementCountAtLeast(2))
+                    .withAllowedLateness(Duration.ZERO)
+                    .accumulatingFiredPanes());
+    PAssert.that(createStrings).containsInAnyOrder("foo", "bar");
+
+    PCollection<Integer> createInts =
+        p.apply("CreateInts", other).setCoder(VarIntCoder.of())
+            .apply("WindowInts",
+                Window.<Integer>triggering(AfterPane.elementCountAtLeast(4))
+                    .withAllowedLateness(Duration.ZERO)
+                    .accumulatingFiredPanes());
+    PAssert.that(createInts).containsInAnyOrder(1, 2, 3, 4);
+
+    p.run();
+  }
+
+  @Test
+  public void testFlattenedWithWatermarkHold() throws IOException {
+    SparkPipelineOptions options = commonOptions.withTmpCheckpointDir(checkpointParentDir);
+    Pipeline p = Pipeline.create(options);
+    options.setJobName(testName.getMethodName());
+    Duration batchDuration = Duration.millis(options.getBatchIntervalMillis());
+
+    Instant instant = new Instant(0);
+    CreateStream<TimestampedValue<Integer>> source1 =
+        CreateStream.<TimestampedValue<Integer>>withBatchInterval(batchDuration)
+            .nextBatch()
+            .advanceWatermarkForNextBatch(instant.plus(Duration.standardMinutes(5)))
+            .nextBatch(
+                TimestampedValue.of(1, instant),
+                TimestampedValue.of(2, instant),
+                TimestampedValue.of(3, instant))
+            .advanceWatermarkForNextBatch(instant.plus(Duration.standardMinutes(10)));
+    CreateStream<TimestampedValue<Integer>> source2 =
+        CreateStream.<TimestampedValue<Integer>>withBatchInterval(batchDuration)
+            .nextBatch()
+            .advanceWatermarkForNextBatch(instant.plus(Duration.standardMinutes(1)))
+            .nextBatch(
+                TimestampedValue.of(4, instant))
+            .advanceWatermarkForNextBatch(instant.plus(Duration.standardMinutes(2)))
+            .nextBatch(
+                TimestampedValue.of(5, instant))
+            .advanceWatermarkForNextBatch(instant.plus(Duration.standardMinutes(5)));
+
+    PCollection<Integer> windowed1 = p
+        .apply(source1).setCoder(TimestampedValue.TimestampedValueCoder.of(VarIntCoder.of()))
+        .apply(ParDo.of(new OnlyValue<Integer>()))
+        .apply(Window.<Integer>into(FixedWindows.of(Duration.standardMinutes(5)))
+            .triggering(AfterWatermark.pastEndOfWindow())
+            .accumulatingFiredPanes()
+            .withAllowedLateness(Duration.ZERO));
+    PCollection<Integer> windowed2 = p
+        .apply(source2).setCoder(TimestampedValue.TimestampedValueCoder.of(VarIntCoder.of()))
+        .apply(ParDo.of(new OnlyValue<Integer>()))
+        .apply(Window.<Integer>into(FixedWindows.of(Duration.standardMinutes(5)))
+            .triggering(AfterWatermark.pastEndOfWindow())
+            .accumulatingFiredPanes()
+            .withAllowedLateness(Duration.ZERO));
+
+    PCollectionList<Integer> pCollectionList = PCollectionList.of(windowed1).and(windowed2);
+    PCollection<Integer> flattened = pCollectionList.apply(Flatten.<Integer>pCollections());
+    PCollection<Integer> triggered = flattened
+        .apply(WithKeys.<Integer, Integer>of(1))
+        .apply(GroupByKey.<Integer, Integer>create())
+        .apply(Values.<Iterable<Integer>>create())
+        .apply(Flatten.<Integer>iterables());
+
+    IntervalWindow window = new IntervalWindow(instant, instant.plus(Duration.standardMinutes(5L)));
+    PAssert.that(triggered).inOnTimePane(window).containsInAnyOrder(1, 2, 3, 4, 5);
+
+    p.run();
+  }
 
   @Test
   public void testElementAtPositiveInfinityThrows() {
@@ -378,7 +449,7 @@ public class CreateStreamTest implements Serializable {
     OnlyValue() { }
 
     @ProcessElement
-    public void onlyValue(ProcessContext c) {
+    public void emitTimestampedValue(ProcessContext c) {
       c.outputWithTimestamp(c.element().getValue(), c.element().getTimestamp());
     }
   }
