@@ -41,11 +41,20 @@
   <profiles>
     <profile>
       <id>release</id>
+      <activation>
+        <property>
+          <name>!skipTests</name>
+        </property>
+      </activation>
       <build>
         <plugins>
           <plugin>
             <groupId>org.codehaus.mojo</groupId>
             <artifactId>findbugs-maven-plugin</artifactId>
+          </plugin>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-checkstyle-plugin</artifactId>
           </plugin>
         </plugins>
       </build>
@@ -70,13 +79,6 @@
         </plugin>
       </plugins>
     </pluginManagement>
-
-    <plugins>
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-checkstyle-plugin</artifactId>
-      </plugin>
-    </plugins>
   </build>
 
 </project>
