@@ -20,6 +20,7 @@
 
 import pkgutil
 
+from apitools.base.py import *
 from apache_beam.io.google_cloud_platform.internal.clients.storage.storage_v1_client import *
 from apache_beam.io.google_cloud_platform.internal.clients.storage.storage_v1_messages import *
 
