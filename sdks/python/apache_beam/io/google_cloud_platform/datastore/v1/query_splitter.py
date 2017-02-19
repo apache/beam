@@ -17,7 +17,7 @@
 
 """Implements a Cloud Datastore query splitter."""
 
-from apache_beam.io.datastore.v1 import helper
+from apache_beam.io.google_cloud_platform.datastore.v1 import helper
 from google.cloud.proto.datastore.v1 import datastore_pb2
 from google.cloud.proto.datastore.v1 import query_pb2
 from google.cloud.proto.datastore.v1.query_pb2 import PropertyFilter
