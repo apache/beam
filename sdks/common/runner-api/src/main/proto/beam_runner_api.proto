@@ -540,6 +540,11 @@ message Trigger {
   message Never {
   }
 
+  // Always ready. This can also be expressed as ElementCount(1) but
+  // is more explicit.
+  message Always {
+  }
+
   // Ready whenever either of its subtriggers are ready, but finishes output
   // when the finally subtrigger fires.
   message OrFinally {
@@ -566,6 +571,7 @@ message Trigger {
     AfterEndOfWindow after_end_of_widow = 4;
     AfterProcessingTime after_processing_time = 5;
     AfterSynchronizedProcessingTime after_synchronized_processing_time = 6;
+    Always always = 12;
     Default default = 7;
     ElementCount element_count = 8;
     Never never = 9;
