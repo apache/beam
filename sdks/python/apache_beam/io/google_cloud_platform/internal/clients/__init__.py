@@ -14,13 +14,3 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-
-"""Common imports for generated dataflow client library."""
-# pylint:disable=wildcard-import
-
-import pkgutil
-
-from apache_beam.runners.google_cloud_dataflow.internal.clients.dataflow.dataflow_v1b3_messages import *
-from apache_beam.runners.google_cloud_dataflow.internal.clients.dataflow.dataflow_v1b3_client import *
-
-__path__ = pkgutil.extend_path(__path__, __name__)

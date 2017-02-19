@@ -17,22 +17,22 @@
 
 """Unit tests for BigQuery sources and sinks."""
 
+import datetime
 import json
 import logging
 import time
-import datetime
 import unittest
 
-from apitools.base.py.exceptions import HttpError
 import hamcrest as hc
 import mock
+from apitools.base.py.exceptions import HttpError
 
 import apache_beam as beam
-from apache_beam.internal.clients import bigquery
 from apache_beam.internal.json_value import to_json_value
 from apache_beam.io.bigquery import RowAsDictJsonCoder
 from apache_beam.io.bigquery import TableRowJsonCoder
 from apache_beam.io.bigquery import parse_table_schema_from_json
+from apache_beam.io.google_cloud_platform.internal.clients import bigquery
 from apache_beam.transforms.display import DisplayData
 from apache_beam.transforms.display_test import DisplayDataItemMatcher
 from apache_beam.utils.pipeline_options import PipelineOptions
@@ -376,7 +376,7 @@ class TestBigQueryReader(unittest.TestCase):
             # For record we cannot use dict because it doesn't create nested
             # schemas correctly so we have to use this f,v based format
             bigquery.TableCell(v=to_json_value({'f': [{'v': 'b'}]})),
-            bigquery.TableCell(v=to_json_value([{'v':{'f':[{'v':'c'}, {'v':[
+            bigquery.TableCell(v=to_json_value([{'v':{'f':[{'v': 'c'}, {'v':[
                 {'v':{'f':[{'v':[{'v':'d'}, {'v':'e'}]}, {'v':None}]}}]}]}}]))
             ]),
         bigquery.TableRow(f=[

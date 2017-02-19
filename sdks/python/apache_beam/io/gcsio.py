@@ -31,9 +31,9 @@ import re
 import threading
 import traceback
 
-from apitools.base.py.exceptions import HttpError
-from apitools.base.py.batch import BatchApiRequest
 import apitools.base.py.transfer as transfer
+from apitools.base.py.batch import BatchApiRequest
+from apitools.base.py.exceptions import HttpError
 
 from apache_beam.internal import auth
 from apache_beam.utils import retry
@@ -42,7 +42,7 @@ from apache_beam.utils import retry
 # TODO(silviuc): Remove this guard when storage is available everywhere.
 try:
   # pylint: disable=wrong-import-order, wrong-import-position
-  from apache_beam.internal.clients import storage
+  from apache_beam.io.google_cloud_platform.internal.clients import storage
 except ImportError:
   raise RuntimeError(
       'Google Cloud Storage I/O not supported for this execution environment '
