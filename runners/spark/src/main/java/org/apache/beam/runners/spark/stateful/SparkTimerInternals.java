@@ -29,6 +29,7 @@ import java.util.Set;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.core.StateNamespace;
 import org.apache.beam.runners.core.TimerInternals;
+import org.apache.beam.runners.spark.coders.CoderHelpers;
 import org.apache.beam.runners.spark.util.GlobalWatermarkHolder.SparkWatermarks;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.TimeDomain;
@@ -109,8 +110,10 @@ class SparkTimerInternals implements TimerInternals {
     return toFire;
   }
 
-  void addTimers(Collection<TimerData> timers) {
-    this.timers.addAll(timers);
+  void addTimers(Iterable<TimerData> timers) {
+    for (TimerData timer: timers) {
+      this.timers.add(timer);
+    }
   }
 
   @Override
@@ -167,6 +170,16 @@ class SparkTimerInternals implements TimerInternals {
   @Override
   public void deleteTimer(StateNamespace namespace, String timerId) {
     throw new UnsupportedOperationException("Deleting a timer by ID is not yet supported.");
+  }
+
+  public static Collection<byte[]> serializeTimers(
+      Collection<TimerData> timers, TimerDataCoder timerDataCoder) {
+    return CoderHelpers.toByteArrays(timers, timerDataCoder);
+  }
+
+  public static Iterable<TimerData> deserializeTimers(
+      Collection<byte[]> serTimers, TimerDataCoder timerDataCoder) {
+    return CoderHelpers.fromByteArrays(serTimers, timerDataCoder);
   }
 
 }
