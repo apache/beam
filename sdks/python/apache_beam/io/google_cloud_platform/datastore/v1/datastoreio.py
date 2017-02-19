@@ -22,8 +22,8 @@ import logging
 from google.cloud.proto.datastore.v1 import datastore_pb2
 from googledatastore import helper as datastore_helper
 
-from apache_beam.io.datastore.v1 import helper
-from apache_beam.io.datastore.v1 import query_splitter
+from apache_beam.io.google_cloud_platform.datastore.v1 import helper
+from apache_beam.io.google_cloud_platform.datastore.v1 import query_splitter
 from apache_beam.transforms import Create
 from apache_beam.transforms import DoFn
 from apache_beam.transforms import FlatMap

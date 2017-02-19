@@ -22,7 +22,8 @@ import unittest
 
 import hamcrest as hc
 
-from apache_beam.io.pubsub import PubSubSource, PubSubSink
+from apache_beam.io.google_cloud_platform.pubsub import PubSubSink
+from apache_beam.io.google_cloud_platform.pubsub import PubSubSource
 from apache_beam.transforms.display import DisplayData
 from apache_beam.transforms.display_test import DisplayDataItemMatcher
 
