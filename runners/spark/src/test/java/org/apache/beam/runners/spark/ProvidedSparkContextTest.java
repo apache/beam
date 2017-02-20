@@ -119,7 +119,7 @@ public class ProvidedSparkContextTest {
 
     private static SparkContextOptions getSparkContextOptions(JavaSparkContext jsc) {
         final SparkContextOptions options = PipelineOptionsFactory.as(SparkContextOptions.class);
-        options.setRunner(SparkRunner.class);
+        options.setRunner(TestSparkRunner.class);
         options.setUsesProvidedSparkContext(true);
         options.setProvidedSparkContext(jsc);
         options.setEnableSparkMetricSinks(false);
