@@ -859,7 +859,7 @@ public class KafkaIO {
       this.consumerSpEL = new ConsumerSpEL();
       Read<K, V> spec = source.spec;
       consumer = spec.getConsumerFactoryFn().apply(spec.getConsumerConfig());
-      consumerSpEL.eveluateAssign(consumer, spec.getTopicPartitions());
+      consumerSpEL.evaluateAssign(consumer, spec.getTopicPartitions());
 
       for (PartitionState p : partitionStates) {
         if (p.nextOffset != UNINITIALIZED_OFFSET) {
@@ -895,7 +895,7 @@ public class KafkaIO {
       offsetConsumerConfig.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, false);
 
       offsetConsumer = spec.getConsumerFactoryFn().apply(offsetConsumerConfig);
-      consumerSpEL.eveluateAssign(offsetConsumer, spec.getTopicPartitions());
+      consumerSpEL.evaluateAssign(offsetConsumer, spec.getTopicPartitions());
 
       offsetFetcherThread.scheduleAtFixedRate(
           new Runnable() {
@@ -993,7 +993,7 @@ public class KafkaIO {
     private void updateLatestOffsets() {
       for (PartitionState p : partitionStates) {
         try {
-          consumerSpEL.eveluateSeek2End(offsetConsumer, p.topicPartition);
+          consumerSpEL.evaluateSeek2End(offsetConsumer, p.topicPartition);
           long offset = offsetConsumer.position(p.topicPartition);
           p.setLatestOffset(offset);
         } catch (Exception e) {

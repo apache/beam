@@ -32,7 +32,7 @@ import org.springframework.expression.spel.support.StandardEvaluationContext;
  * It auto detects the input type List/Collection/Varargs,
  * to eliminate the method definition differences.
  */
-public class ConsumerSpEL {
+class ConsumerSpEL {
   SpelParserConfiguration config = new SpelParserConfiguration(true, true);
   ExpressionParser parser = new SpelExpressionParser(config);
 
@@ -44,14 +44,14 @@ public class ConsumerSpEL {
 
   public ConsumerSpEL() {}
 
-  public void eveluateSeek2End(Consumer consumer, TopicPartition topicPartitions) {
+  public void evaluateSeek2End(Consumer consumer, TopicPartition topicPartitions) {
     StandardEvaluationContext mapContext = new StandardEvaluationContext();
     mapContext.setVariable("consumer", consumer);
     mapContext.setVariable("tp", topicPartitions);
     seek2endExpression.getValue(mapContext);
   }
 
-  public void eveluateAssign(Consumer consumer, Collection<TopicPartition> topicPartitions) {
+  public void evaluateAssign(Consumer consumer, Collection<TopicPartition> topicPartitions) {
     StandardEvaluationContext mapContext = new StandardEvaluationContext();
     mapContext.setVariable("consumer", consumer);
     mapContext.setVariable("tp", topicPartitions);
