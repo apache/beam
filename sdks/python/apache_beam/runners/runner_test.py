@@ -169,9 +169,9 @@ class RunnerTest(unittest.TestCase):
                  options=PipelineOptions(self.default_properties))
     pcoll = (p | ptransform.Create([1, 2, 3, 4, 5])
              | 'Do' >> beam.ParDo(MyDoFn()))
+    assert_that(pcoll, equal_to([1, 2, 3, 4, 5]))
     result = p.run()
     result.wait_until_finish()
-    assert_that(pcoll, equal_to([1, 2, 3, 4, 5]))
     metrics = result.metrics().query()
     namespace = '{}.{}'.format(MyDoFn.__module__,
                                MyDoFn.__name__)

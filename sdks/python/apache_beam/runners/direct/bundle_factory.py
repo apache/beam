@@ -28,7 +28,7 @@ class BundleFactory(object):
 
   Args:
     stacked: whether or not to stack the WindowedValues within the bundle
-      in a case consecutive ones share the same timestamp and windows.
+      in case consecutive ones share the same timestamp and windows.
       DirectRunnerOptions.direct_runner_use_stacked_bundle controls this option.
   """
 
@@ -123,7 +123,6 @@ class Bundle(object):
       in the form of iterable if committed and make_copy is not True,
       or as a list of copied WindowedValues.
     """
-
     if not self._stacked:
       if self._committed and not make_copy:
         return self._elements
