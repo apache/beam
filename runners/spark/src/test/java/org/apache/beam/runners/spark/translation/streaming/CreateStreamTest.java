@@ -69,6 +69,9 @@ import org.junit.rules.TestName;
  * <p>Since Spark is a micro-batch engine, and will process any test-sized input
  * within the same (first) batch, it is important to make sure inputs are ingested across
  * micro-batches using {@link org.apache.spark.streaming.dstream.QueueInputDStream}.
+ * This test suite uses {@link CreateStream} to construct such
+ * {@link org.apache.spark.streaming.dstream.QueueInputDStream} and advance the system's WMs.
+ * //TODO: add synchronized/processing time trigger.
  */
 public class CreateStreamTest implements Serializable {
 
@@ -161,41 +164,6 @@ public class CreateStreamTest implements Serializable {
 
     p.run();
   }
-
-  //TODO: fix this! how do i create a synchronized processing time trigger ???
-//  @Test
-//  public void testProcessingTimeTrigger() throws Exception {
-//    SparkPipelineOptions options = commonOptions.withTmpCheckpointDir(checkpointParentDir);
-//    Pipeline p = Pipeline.create(options);
-//    options.setJobName(testName.getMethodName());
-//    Duration batchDuration = Duration.millis(options.getBatchIntervalMillis());
-//
-//    CreateStream<TimestampedValue<Long>> source =
-//        CreateStream.<TimestampedValue<Long>>withBatchInterval(batchDuration)
-//            .nextBatch( // batch sees system time of 0 - beginning.
-//                TimestampedValue.of(1L, new Instant(1000L)),
-//                TimestampedValue.of(2L, new Instant(2000L)))
-//            .advanceWatermarkForNextBatch(new Instant(0))
-//            .nextBatch() // batch sees system time of 500 millis since the clock moved += 500.
-//            .advanceWatermarkForNextBatch(new Instant(0))
-//            .nextBatch( // batch sees system time of 1000 millis.
-//                TimestampedValue.of(3L, new Instant(3000L)))
-//            .advanceNextBatchWatermarkToInfinity();
-//
-//    PCollection<Long> sum =
-//        p.apply(source).setCoder(TimestampedValue.TimestampedValueCoder.of(VarLongCoder.of()))
-//            .apply(ParDo.of(new OnlyValue<Long>()))
-//        .apply(Window.<Long>triggering(AfterWatermark.pastEndOfWindow()
-//            .withEarlyFirings(AfterProcessingTime.pastFirstElementInPane()
-//                .plusDelayOf(Duration.millis(100))))
-//            .accumulatingFiredPanes()
-//            .withAllowedLateness(Duration.ZERO))
-//        .apply(Sum.longsGlobally().withoutDefaults());
-//
-//    PAssert.that(sum).inEarlyGlobalWindowPanes().containsInAnyOrder(3L, 6L);
-//
-//    p.run();
-//  }
 
   @Test
   public void testDiscardingMode() throws IOException {

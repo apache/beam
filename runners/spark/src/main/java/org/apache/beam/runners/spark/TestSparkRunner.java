@@ -24,7 +24,8 @@ import static org.hamcrest.Matchers.is;
 import java.io.File;
 import java.io.IOException;
 import org.apache.beam.runners.core.UnboundedReadFromBoundedSource;
-import org.apache.beam.runners.spark.aggregators.AccumulatorSingleton;
+import org.apache.beam.runners.spark.aggregators.AggregatorsAccumulator;
+import org.apache.beam.runners.spark.metrics.SparkMetricsContainer;
 import org.apache.beam.runners.spark.util.GlobalWatermarkHolder;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.BoundedReadFromUnboundedSource;
@@ -118,8 +119,9 @@ public final class TestSparkRunner extends PipelineRunner<SparkPipelineResult> {
     long timeout = sparkOptions.getForcedTimeout();
     SparkPipelineResult result = null;
     try {
-      // clear state of Accumulators and Aggregators.
-      AccumulatorSingleton.clear();
+      // clear state of Aggregators, Metrics and Watermarks.
+      AggregatorsAccumulator.clear();
+      SparkMetricsContainer.clear();
       GlobalWatermarkHolder.clear();
 
       TestPipelineOptions testPipelineOptions = pipeline.getOptions().as(TestPipelineOptions.class);

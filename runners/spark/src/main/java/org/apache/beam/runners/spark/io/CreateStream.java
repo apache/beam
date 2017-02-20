@@ -37,6 +37,47 @@ import org.joda.time.Instant;
 /**
  * Create an input stream from Queue. For SparkRunner tests only.
  *
+ * <p>To properly compose a stream of micro-batches with their Watermarks, please keep in mind
+ * that eventually there a two queues here - one for batches and another for Watermarks.
+ *
+ * <p>While both queues advance according to Spark's batch-interval, there is a slight difference
+ * in how data is pushed into the stream compared to the advancement of Watermarks since Watermarks
+ * advance onBatchCompleted hook call so if you'd want to set the watermark advance for a specific
+ * batch it should be called before that batch.
+ * Also keep in mind that being a queue that is polled per batch interval, if there is a need to
+ * "hold" the same Watermark without advancing it it should be stated explicitly or the Watermark
+ * will advance as soon as it can (in the next batch completed hook).
+ *
+ * <p>Example 1:
+ *
+ * {@code
+ * CreateStream.<TimestampedValue<String>>withBatchInterval(batchDuration)
+ *     .nextBatch(
+ *         TimestampedValue.of("foo", endOfGlobalWindow),
+ *         TimestampedValue.of("bar", endOfGlobalWindow))
+ *     .advanceNextBatchWatermarkToInfinity();
+ * }
+ * The first batch will see the default start-of-time WM of
+ * {@link BoundedWindow#TIMESTAMP_MIN_VALUE} and any following batch will see
+ * the end-of-time WM {@link BoundedWindow#TIMESTAMP_MAX_VALUE}.
+ *
+ * <p>Example 2:
+ *
+ * {@code
+ * CreateStream.<TimestampedValue<String>>withBatchInterval(batchDuration)
+ *     .nextBatch(
+ *         TimestampedValue.of(1, instant))
+ *     .advanceWatermarkForNextBatch(instant.plus(Duration.standardMinutes(20)))
+ *     .nextBatch(
+ *         TimestampedValue.of(2, instant))
+ *     .nextBatch(
+ *         TimestampedValue.of(3, instant))
+ *     .advanceWatermarkForNextBatch(instant.plus(Duration.standardMinutes(30)))
+ * }
+ * The first batch will see the start-of-time WM and the second will see the advanced (+20 min.) WM.
+ * The third WM will see the WM advanced to +30 min, because this is the next advancement of the WM
+ * regardless of where it ws called in the construction of CreateStream.
+ * //TODO: write a proper Builder enforcing all those rules mentioned.
  * @param <T> stream type.
  */
 public final class CreateStream<T> extends PTransform<PBegin, PCollection<T>> {
