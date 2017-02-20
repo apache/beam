@@ -82,7 +82,7 @@ public class NamedAggregatorsTest {
 
     PAssert.that(output).containsInAnyOrder(expectedCounts);
 
-    pipeline.run().waitUntilFinish();
+    pipeline.run();
   }
 
   @Test

@@ -21,13 +21,14 @@ package org.apache.beam.runners.spark;
 import static org.hamcrest.MatcherAssert.assertThat;
 
 import java.io.IOException;
+import org.apache.beam.runners.spark.translation.streaming.utils.SparkTestPipelineOptionsForStreaming;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.BoundedReadFromUnboundedSource;
 import org.apache.beam.sdk.io.CountingSource;
 import org.apache.beam.sdk.io.Read;
-import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.junit.Rule;
 import org.junit.Test;
 
 
@@ -44,13 +45,14 @@ import org.junit.Test;
  */
 public class ForceStreamingTest {
 
+  @Rule
+  public SparkTestPipelineOptionsForStreaming commonOptions =
+      new SparkTestPipelineOptionsForStreaming();
+
   @Test
   public void test() throws IOException {
-    SparkPipelineOptions options = PipelineOptionsFactory.create().as(SparkPipelineOptions.class);
-    options.setRunner(TestSparkRunner.class);
-    // force streaming.
+    SparkPipelineOptions options = commonOptions.getOptions();
     options.setForceStreaming(true);
-
     Pipeline pipeline = Pipeline.create(options);
 
     // apply the BoundedReadFromUnboundedSource.
