@@ -68,7 +68,6 @@
             </execution>
           </executions>
         </plugin>
-
       </plugins>
     </pluginManagement>
 
