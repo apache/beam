@@ -334,7 +334,6 @@
         <version>${project.version}</version>
       </dependency>
 
-
       <dependency>
         <groupId>org.apache.beam</groupId>
         <artifactId>beam-runners-flink_2.10-examples</artifactId>
@@ -348,32 +347,32 @@
       </dependency>
 
       <dependency>
-	<groupId>org.apache.beam</groupId>
-	<artifactId>beam-sdks-java-extensions-join-library</artifactId>
-        <version>${project.version}</version>
-      </dependency>
-
-      <dependency>
-	<groupId>org.apache.beam</groupId>
-	<artifactId>beam-sdks-java-extensions-sorter</artifactId>
-        <version>${project.version}</version>
-      </dependency>
-
-      <dependency>
-	<groupId>org.apache.beam</groupId>
-	<artifactId>beam-sdks-java-harness</artifactId>
+        <groupId>org.apache.beam</groupId>
+        <artifactId>beam-sdks-java-extensions-join-library</artifactId>
         <version>${project.version}</version>
       </dependency>
 
       <dependency>
         <groupId>org.apache.beam</groupId>
-        <artifactId>beam-sdks-java-io-google-cloud-platform</artifactId>
+        <artifactId>beam-sdks-java-extensions-sorter</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.apache.beam</groupId>
+        <artifactId>beam-sdks-java-harness</artifactId>
         <version>${project.version}</version>
       </dependency>
 
       <dependency>
         <groupId>org.apache.beam</groupId>
         <artifactId>beam-sdks-java-io-elasticsearch</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.apache.beam</groupId>
+        <artifactId>beam-sdks-java-io-google-cloud-platform</artifactId>
         <version>${project.version}</version>
       </dependency>
 
