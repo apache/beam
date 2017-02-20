@@ -25,10 +25,10 @@ import java.net.URI;
  * Given a configuration bundle and a URI, this registry creates an associated
  * data source as follows:
  * <ol>
- *   <li>Extra the schema from the given URI</li>
+ *   <li>Extract the schema from the given URI</li>
  *   <li>Lookup the value under the key "{@link #SCHEME_SOURCE_PREFIX} + schema" where
  *       schema represents the schema value extracted from the given URI</li>
- *   <li>If no such value is define, fail.</li>
+ *   <li>If no such value is defined, just fail.</li>
  *   <li>Otherwise validate that the value names an existing class which implements
  *        {@link DataSourceFactory}.</li>
  *   <li>Instantiate the class using its default public constructor.</li>
