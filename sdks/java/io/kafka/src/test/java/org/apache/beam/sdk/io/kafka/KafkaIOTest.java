@@ -27,6 +27,7 @@ import com.google.common.collect.ImmutableMap;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -144,7 +145,7 @@ public class KafkaIOTest {
         new MockConsumer<byte[], byte[]>(offsetResetStrategy) {
           // override assign() in order to set offset limits & to save assigned partitions.
           @Override
-          public void assign(final List<TopicPartition> assigned) {
+          public void assign(final Collection<TopicPartition> assigned) {
             super.assign(assigned);
             assignedPartitions.set(ImmutableList.copyOf(assigned));
             for (TopicPartition tp : assigned) {

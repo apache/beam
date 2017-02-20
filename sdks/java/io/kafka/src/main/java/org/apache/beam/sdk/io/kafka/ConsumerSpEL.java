@@ -28,8 +28,9 @@ import org.springframework.expression.spel.standard.SpelExpressionParser;
 import org.springframework.expression.spel.support.StandardEvaluationContext;
 
 /**.
- * Add in beam-1407
- * SpEL is added to hide the differences of Kafka client 0.9/0.10
+ * ConsumerSpEL to handle multiple of versions of Consumer API between Kafka 0.9 and 0.10.
+ * It auto detects the input type List/Collection/Varargs,
+ * to eliminate the method definition differences.
  */
 public class ConsumerSpEL {
   SpelParserConfiguration config = new SpelParserConfiguration(true, true);

@@ -98,8 +98,8 @@ import org.slf4j.LoggerFactory;
 
 /**
  * An unbounded source and a sink for <a href="http://kafka.apache.org/">Kafka</a> topics.
- * Kafka version 0.9 and above are supported. It's supported to replace with Kafka client 0.10
- * for external authentication.
+ * Kafka version 0.9 and 0.10 are supported. To specify Kafka client 0.10 in pom.xml
+ * for features in Kafka 0.10, like external authentication.
  *
  * <h3>Reading from Kafka topics</h3>
  *
@@ -858,7 +858,6 @@ public class KafkaIO {
       this.consumerSpEL = new ConsumerSpEL();
       Read<K, V> spec = source.spec;
       consumer = spec.getConsumerFactoryFn().apply(spec.getConsumerConfig());
-//      consumer.assign(spec.getTopicPartitions());
       consumerSpEL.eveluateAssign(consumer, spec.getTopicPartitions());
 
       for (PartitionState p : partitionStates) {
@@ -895,7 +894,6 @@ public class KafkaIO {
       offsetConsumerConfig.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, false);
 
       offsetConsumer = spec.getConsumerFactoryFn().apply(offsetConsumerConfig);
-//      offsetConsumer.assign(spec.getTopicPartitions());
       consumerSpEL.eveluateAssign(offsetConsumer, spec.getTopicPartitions());
 
       offsetFetcherThread.scheduleAtFixedRate(
@@ -994,7 +992,6 @@ public class KafkaIO {
     private void updateLatestOffsets() {
       for (PartitionState p : partitionStates) {
         try {
-//          offsetConsumer.seekToEnd(p.topicPartition);
           consumerSpEL.eveluateSeek2End(offsetConsumer, p.topicPartition);
           long offset = offsetConsumer.position(p.topicPartition);
           p.setLatestOffset(offset);
