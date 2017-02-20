@@ -66,7 +66,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-import java.util.regex.Pattern;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 import org.apache.beam.runners.dataflow.util.PackageUtil.PackageAttributes;
@@ -74,11 +73,10 @@ import org.apache.beam.sdk.options.GcsOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.ExpectedLogs;
 import org.apache.beam.sdk.testing.FastNanoClockAndSleeper;
+import org.apache.beam.sdk.testing.RegexMatcher;
 import org.apache.beam.sdk.util.GcsUtil;
 import org.apache.beam.sdk.util.IOChannelUtils;
 import org.apache.beam.sdk.util.gcsfs.GcsPath;
-import org.hamcrest.BaseMatcher;
-import org.hamcrest.Description;
 import org.hamcrest.Matchers;
 import org.junit.Before;
 import org.junit.Rule;
@@ -106,32 +104,6 @@ public class PackageUtilTest {
 
   // 128 bits, base64 encoded is 171 bits, rounds to 22 bytes
   private static final String HASH_PATTERN = "[a-zA-Z0-9+-]{22}";
-
-  // Hamcrest matcher to assert a string matches a pattern
-  private static class RegexMatcher extends BaseMatcher<String> {
-    private final Pattern pattern;
-
-    public RegexMatcher(String regex) {
-      this.pattern = Pattern.compile(regex);
-    }
-
-    @Override
-    public boolean matches(Object o) {
-      if (!(o instanceof String)) {
-        return false;
-      }
-      return pattern.matcher((String) o).matches();
-    }
-
-    @Override
-    public void describeTo(Description description) {
-      description.appendText(String.format("matches regular expression %s", pattern));
-    }
-
-    public static RegexMatcher matches(String regex) {
-      return new RegexMatcher(regex);
-    }
-  }
 
   @Before
   public void setUp() {
