@@ -98,8 +98,9 @@ import org.slf4j.LoggerFactory;
 
 /**
  * An unbounded source and a sink for <a href="http://kafka.apache.org/">Kafka</a> topics.
- * Kafka version 0.9 and 0.10 are supported. To specify Kafka client 0.10 in pom.xml
- * for features in Kafka 0.10, like external authentication.
+ * Kafka version 0.9 and 0.10 are supported. If you need a specific version of Kafka
+ * client(e.g. 0.9 for 0.9 servers, or 0.10 for security features), specify explicit
+ * kafka-client dependency.
  *
  * <h3>Reading from Kafka topics</h3>
  *
