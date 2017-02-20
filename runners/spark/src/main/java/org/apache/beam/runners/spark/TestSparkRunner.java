@@ -116,7 +116,6 @@ public final class TestSparkRunner extends PipelineRunner<SparkPipelineResult> {
   @Override
   public SparkPipelineResult run(Pipeline pipeline) {
     SparkPipelineOptions sparkOptions = pipeline.getOptions().as(SparkPipelineOptions.class);
-    long timeout = sparkOptions.getForcedTimeout();
     SparkPipelineResult result = null;
     try {
       // clear state of Aggregators, Metrics and Watermarks.
@@ -126,14 +125,12 @@ public final class TestSparkRunner extends PipelineRunner<SparkPipelineResult> {
 
       TestPipelineOptions testPipelineOptions = pipeline.getOptions().as(TestPipelineOptions.class);
       LOG.info("About to run test pipeline " + sparkOptions.getJobName());
-      result = delegate.run(pipeline);
-      result.waitUntilFinish(Duration.millis(timeout));
-
-      assertThat(result, testPipelineOptions.getOnCreateMatcher());
-      assertThat(result, testPipelineOptions.getOnSuccessMatcher());
 
       // if the pipeline was executed in streaming mode, validate aggregators.
       if (isForceStreaming) {
+        result = delegate.run(pipeline);
+        long timeout = sparkOptions.getForcedTimeout();
+        result.waitUntilFinish(Duration.millis(timeout));
         // validate assertion succeeded (at least once).
         int successAssertions = result.getAggregatorValue(PAssert.SUCCESS_COUNTER, Integer.class);
         assertThat(
@@ -154,6 +151,13 @@ public final class TestSparkRunner extends PipelineRunner<SparkPipelineResult> {
                 "Successfully asserted pipeline %s with %d successful assertions.",
                 sparkOptions.getJobName(),
                 successAssertions));
+      } else {
+        // for batch test pipelines, run and block until done.
+        result = delegate.run(pipeline);
+        result.waitUntilFinish();
+        // assert via matchers.
+        assertThat(result, testPipelineOptions.getOnCreateMatcher());
+        assertThat(result, testPipelineOptions.getOnSuccessMatcher());
       }
     } finally {
       try {
