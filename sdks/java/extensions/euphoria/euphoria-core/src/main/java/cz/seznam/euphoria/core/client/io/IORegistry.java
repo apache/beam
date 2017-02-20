@@ -20,14 +20,36 @@ import cz.seznam.euphoria.core.util.Settings;
 import java.net.URI;
 
 /**
- * Factory of {@code DataSource} from URI and settings.
+ * Factory for {@link DataSource}s and {@link DataSink}s based on URIs.
+ * <p>
+ * The registry instantiates {@link SchemeBasedIORegistry} by default to resolve
+ * a URI to a data source or sink. If {@link #REGISTRY_IMPL_CONF} is defined
+ * in the supplied configuration bundle, it is expected to define a subclass of
+ * {@link IORegistry} and have a public, default constructor. A new instance of
+ * this sub-class will be created for every URI resolve request and is then responsible
+ * for creating the corresponding data source or sink.
  */
 public abstract class IORegistry {
 
+  /**
+   * The configuration key specifying a sub-class of {@link IORegistry} to
+   * instantiate to handle URI to data source/sink translation requests.
+   */
+  public static final String REGISTRY_IMPL_CONF = "euphoria.io.registry.impl";
 
-  private static final String REGISTRY_IMPL_CONF = "euphoria.io.registry.impl";
-  
 
+  /**
+   * Retrieves an {@link IORegistry} from the specified the configuration.
+   * Falls back to {@link SchemeBasedIORegistry} if none is explicitly defined.
+   *
+   * @param settings the configuration settings
+   *
+   * @return a {@link IORegistry}
+   *
+   * @throws Exception if instantiating the configured {@link IORegistry} fails
+   *          for some reason or if the configured registry is not sub-class
+   *          of {@link IORegistry}
+   */
   public static IORegistry get(Settings settings) throws Exception {
     return getInstance(settings, REGISTRY_IMPL_CONF,
         IORegistry.class, new SchemeBasedIORegistry());
