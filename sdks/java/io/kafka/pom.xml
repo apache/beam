@@ -143,7 +143,6 @@
     <dependency>
       <groupId>org.springframework</groupId>
       <artifactId>spring-expression</artifactId>
-      <version>4.3.5.RELEASE</version>
     </dependency>
 
     <!-- test dependencies-->
