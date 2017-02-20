@@ -28,10 +28,46 @@
         <relativePath>../pom.xml</relativePath>
     </parent>
 
-    <artifactId>beam-sdks-java-extensions-jackson</artifactId>
+    <artifactId>beam-sdks-java-extensions-json-jackson</artifactId>
     <name>Apache Beam :: SDKs :: Java :: Extensions :: Jackson</name>
+    <description>
+        Jackson extension provides PTransforms for deserializing and generating JSON strings.
+    </description>
 
     <build>
+        <pluginManagement>
+            <plugins>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-shade-plugin</artifactId>
+                    <executions>
+                        <execution>
+                            <phase>package</phase>
+                            <goals>
+                                <goal>shade</goal>
+                            </goals>
+                            <configuration>
+                                <artifactSet>
+                                    <includes>
+                                        <include>com.google.guava:guava</include>
+                                    </includes>
+                                </artifactSet>
+                                <relocations>
+                                    <relocation>
+                                        <pattern>com.google.common</pattern>
+                                        <shadedPattern>org.apache.beam.sdk.extensions.jackson.repackaged.com.google.common</shadedPattern>
+                                    </relocation>
+                                    <relocation>
+                                        <pattern>com.google.thirdparty</pattern>
+                                        <shadedPattern>org.apache.beam.sdk.extensions.jackson.repackaged.com.google.thirdparty</shadedPattern>
+                                    </relocation>
+                                </relocations>
+                            </configuration>
+                        </execution>
+                    </executions>
+                </plugin>
+            </plugins>
+        </pluginManagement>
         <plugins>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
@@ -40,6 +76,10 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-jar-plugin</artifactId>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-shade-plugin</artifactId>
             </plugin>
         </plugins>
     </build>
