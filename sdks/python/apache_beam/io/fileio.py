@@ -29,8 +29,8 @@ import time
 import zlib
 
 from apache_beam.internal import util
-from apache_beam.io import gcsio
 from apache_beam.io import iobase
+from apache_beam.io.google_cloud_platform import gcsio
 from apache_beam.transforms.display import DisplayDataItem
 
 

@@ -20,6 +20,7 @@ package org.apache.beam.runners.spark.translation;
 
 import com.google.common.base.Function;
 import com.google.common.collect.Iterables;
+import java.util.Iterator;
 import java.util.List;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.spark.coders.CoderHelpers;
@@ -32,6 +33,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaRDDLike;
 import org.apache.spark.api.java.JavaSparkContext;
+import org.apache.spark.api.java.function.VoidFunction;
 import org.apache.spark.storage.StorageLevel;
 
 /**
@@ -104,7 +106,13 @@ public class BoundedDataset<T> implements Dataset {
 
   @Override
   public void action() {
-    rdd.count();
+    // Empty function to force computation of RDD.
+    rdd.foreachPartition(new VoidFunction<Iterator<WindowedValue<T>>>() {
+      @Override
+      public void call(Iterator<WindowedValue<T>> windowedValueIterator) throws Exception {
+        // Empty implementation.
+      }
+    });
   }
 
   @Override

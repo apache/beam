@@ -103,11 +103,11 @@ TableCell: Holds the value for one cell (or field).  Has one attribute,
 from __future__ import absolute_import
 
 import collections
+import datetime
 import json
 import logging
 import re
 import time
-import datetime
 import uuid
 
 from apitools.base.py.exceptions import HttpError
@@ -124,7 +124,7 @@ from apache_beam.utils.pipeline_options import GoogleCloudOptions
 # Protect against environments where bigquery library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position
 try:
-  from apache_beam.internal.clients import bigquery
+  from apache_beam.io.google_cloud_platform.internal.clients import bigquery
 except ImportError:
   pass
 # pylint: enable=wrong-import-order, wrong-import-position

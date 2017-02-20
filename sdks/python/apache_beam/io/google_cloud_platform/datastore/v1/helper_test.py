@@ -27,8 +27,8 @@ from googledatastore.connection import RPCError
 from googledatastore import helper as datastore_helper
 from mock import MagicMock
 
-from apache_beam.io.datastore.v1 import fake_datastore
-from apache_beam.io.datastore.v1 import helper
+from apache_beam.io.google_cloud_platform.datastore.v1 import fake_datastore
+from apache_beam.io.google_cloud_platform.datastore.v1 import helper
 from apache_beam.tests.test_utils import patch_retry
 
 

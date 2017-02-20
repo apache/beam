@@ -867,8 +867,8 @@ def model_datastoreio():
   import googledatastore
   import apache_beam as beam
   from apache_beam.utils.pipeline_options import PipelineOptions
-  from apache_beam.io.datastore.v1.datastoreio import ReadFromDatastore
-  from apache_beam.io.datastore.v1.datastoreio import WriteToDatastore
+  from apache_beam.io.google_cloud_platform.datastore.v1.datastoreio import ReadFromDatastore
+  from apache_beam.io.google_cloud_platform.datastore.v1.datastoreio import WriteToDatastore
 
   project = 'my_project'
   kind = 'my_kind'
