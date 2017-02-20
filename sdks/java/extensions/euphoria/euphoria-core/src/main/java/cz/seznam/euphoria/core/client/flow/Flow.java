@@ -311,6 +311,8 @@ public class Flow implements Serializable {
    * @return a dataset representing the specified source
    *
    * @throws Exception if setting up the source fails for some reason
+   *
+   * @see IORegistry
    */
   public <T> Dataset<T> createInput(URI uri) throws Exception {
     return createInput(getSourceFromURI(uri));
@@ -332,7 +334,22 @@ public class Flow implements Serializable {
     return ret;
   }
 
-
+  /**
+   * Creates a new output/sink data set based on the specified URI.
+   *
+   * @param <T> the type of elements being written to the sink; this is
+   *         not type-safe. if the caller mixes up the sink and the expected
+   *         type of a such a sink the result may be {@link ClassCastException}s
+   *         at later points in time
+   *
+   * @param uri the URI describing the sink of the data set
+   *
+   * @return a data sink based on the specified URI
+   *
+   * @throws Exception if setting up the sink fails for some reason
+   *
+   * @see IORegistry
+   */
   public <T> DataSink<T> createOutput(URI uri) throws Exception {
     return getSinkFromURI(uri);
   }
