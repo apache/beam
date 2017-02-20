@@ -22,8 +22,8 @@ import unittest
 from mock import MagicMock
 from mock import call
 
-from apache_beam.io.datastore.v1 import fake_datastore
-from apache_beam.io.datastore.v1 import query_splitter
+from apache_beam.io.google_cloud_platform.datastore.v1 import fake_datastore
+from apache_beam.io.google_cloud_platform.datastore.v1 import query_splitter
 
 from google.cloud.proto.datastore.v1 import datastore_pb2
 from google.cloud.proto.datastore.v1 import query_pb2
