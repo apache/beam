@@ -20,12 +20,32 @@ import cz.seznam.euphoria.core.util.Settings;
 import java.net.URI;
 
 /**
- * {@code IORegistry} that creates {@code DataSource} based on scheme.
+ * An {@code IORegistry} creating {@code DataSource} based on a URI's schema.
+ *
+ * Given a configuration bundle and a URI, this registry creates an associated
+ * data source as follows:
+ * <ol>
+ *   <li>Extra the schema from the given URI</li>
+ *   <li>Lookup the value under the key "{@link #SCHEME_SOURCE_PREFIX} + schema" where
+ *       schema represents the schema value extracted from the given URI</li>
+ *   <li>If no such value is define, fail.</li>
+ *   <li>Otherwise validate that the value names an existing class which implements
+ *        {@link DataSourceFactory}.</li>
+ *   <li>Instantiate the class using its default public constructor.</li>
+ *   <li>Invoke {@link DataSourceFactory#get(URI, Settings)} on the new factory instance
+ *        passing on the original URI and configuration values.</li>
+ *   <li>Return the result of the factory's {@code get} method invocation.</li>
+ * </ol>
+ *
+ * Similarly, the same applies to constructing sinks. The corresponding key prefix is
+ * {@link #SCHEME_SINK_PREFIX} and the factory interface {@link DataSinkFactory}.
  */
 public class SchemeBasedIORegistry extends IORegistry {
 
+  /** Key prefix specifying associations of schemes to particular data source factories. */
   public static final String SCHEME_SOURCE_PREFIX = "euphoria.io.datasource.factory.";
 
+  /** Key prefix specifying associations of schems to particular data sink factories. */
   public static final String SCHEME_SINK_PREFIX = "euphoria.io.datasink.factory.";
 
   @Override
