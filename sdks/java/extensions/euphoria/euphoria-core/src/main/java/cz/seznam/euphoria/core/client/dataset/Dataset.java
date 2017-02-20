@@ -79,6 +79,17 @@ public interface Dataset<T> extends Serializable {
    */
   boolean isBounded();
 
+  /**
+   * Declares this data set to be persisted to a data sink specified by its URI.
+   *
+   * @param uri the URI representing the data sink to persist this data set to
+   *
+   * @throws Exception if setting up the actual data sink implementation fails
+   *          for some reason
+   *
+   * @see #persist(DataSink)
+   * @see cz.seznam.euphoria.core.client.io.IORegistry
+   */
   default void persist(URI uri) throws Exception {
     persist(getFlow().createOutput(uri));
   }
