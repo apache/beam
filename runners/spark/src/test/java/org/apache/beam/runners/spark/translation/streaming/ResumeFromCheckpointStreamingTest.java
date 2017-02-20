@@ -17,15 +17,19 @@
  */
 package org.apache.beam.runners.spark.translation.streaming;
 
+import static org.apache.beam.sdk.metrics.MetricMatchers.attemptedMetricsResult;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
 
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.util.concurrent.Uninterruptibles;
 import java.io.IOException;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.TimeUnit;
@@ -33,17 +37,23 @@ import org.apache.beam.runners.spark.ReuseSparkContextRule;
 import org.apache.beam.runners.spark.SparkPipelineOptions;
 import org.apache.beam.runners.spark.SparkPipelineResult;
 import org.apache.beam.runners.spark.SparkRunner;
-import org.apache.beam.runners.spark.aggregators.AccumulatorSingleton;
+import org.apache.beam.runners.spark.aggregators.AggregatorsAccumulator;
 import org.apache.beam.runners.spark.coders.CoderHelpers;
+import org.apache.beam.runners.spark.metrics.SparkMetricsContainer;
 import org.apache.beam.runners.spark.translation.streaming.utils.EmbeddedKafkaCluster;
 import org.apache.beam.runners.spark.util.GlobalWatermarkHolder;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.InstantCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.kafka.KafkaIO;
+import org.apache.beam.sdk.metrics.Counter;
+import org.apache.beam.sdk.metrics.MetricNameFilter;
+import org.apache.beam.sdk.metrics.Metrics;
+import org.apache.beam.sdk.metrics.MetricsFilter;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.transforms.Aggregator;
+import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.Keys;
@@ -52,6 +62,7 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.Values;
+import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.WithKeys;
 import org.apache.beam.sdk.transforms.windowing.AfterWatermark;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -59,6 +70,7 @@ import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerRecord;
@@ -147,6 +159,11 @@ public class ResumeFromCheckpointStreamingTest {
         "k4", new Instant(400)
     ));
 
+    MetricsFilter metricsFilter =
+        MetricsFilter.builder()
+            .addNameFilter(MetricNameFilter.inNamespace(ResumeFromCheckpointStreamingTest.class))
+            .build();
+
     // first run will read from Kafka backlog - "auto.offset.reset=smallest"
     SparkPipelineResult res = run(options);
     res.waitUntilFinish(Duration.standardSeconds(2));
@@ -157,11 +174,15 @@ public class ResumeFromCheckpointStreamingTest {
             "Expected %d processed messages count but found %d", 4, processedMessages1),
         processedMessages1,
         equalTo(4L));
+    assertThat(res.metrics().queryMetrics(metricsFilter).counters(),
+        hasItem(attemptedMetricsResult(ResumeFromCheckpointStreamingTest.class.getName(),
+            "allMessages", "EOFShallNotPassFn", 4L)));
 
     //--- between executions:
 
     //- clear state.
-    AccumulatorSingleton.clear();
+    AggregatorsAccumulator.clear();
+    SparkMetricsContainer.clear();
     GlobalWatermarkHolder.clear();
 
     //- write a bit more.
@@ -175,11 +196,14 @@ public class ResumeFromCheckpointStreamingTest {
     res.waitUntilFinish(Duration.standardSeconds(2));
     // assertions 2:
     long processedMessages2 = res.getAggregatorValue("processedMessages", Long.class);
-    int successAssertions = res.getAggregatorValue(PAssert.SUCCESS_COUNTER, Integer.class);
     assertThat(
-        String.format("Expected %d processed messages count but found %d", 1, processedMessages2),
+        String.format("Expected %d processed messages count but found %d", 5, processedMessages2),
         processedMessages2,
         equalTo(5L));
+    assertThat(res.metrics().queryMetrics(metricsFilter).counters(),
+        hasItem(attemptedMetricsResult(ResumeFromCheckpointStreamingTest.class.getName(),
+            "allMessages", "EOFShallNotPassFn", 6L)));
+    int successAssertions = res.getAggregatorValue(PAssert.SUCCESS_COUNTER, Integer.class);
     res.getAggregatorValue(PAssert.SUCCESS_COUNTER, Integer.class);
     assertThat(
         String.format(
@@ -225,10 +249,14 @@ public class ResumeFromCheckpointStreamingTest {
 
     Pipeline p = Pipeline.create(options);
 
+    PCollection<String> expectedCol =
+        p.apply(Create.of(ImmutableList.of("side1", "side2")).withCoder(StringUtf8Coder.of()));
+    PCollectionView<List<String>> view = expectedCol.apply(View.<String>asList());
+
     PCollection<Iterable<String>> grouped = p
         .apply(read.withoutMetadata())
         .apply(Keys.<String>create())
-        .apply(ParDo.of(new EOFShallNotPassFn()))
+        .apply("EOFShallNotPassFn", ParDo.of(new EOFShallNotPassFn(view)).withSideInputs(view))
         .apply(Window.<String>into(FixedWindows.of(Duration.millis(500)))
             .triggering(AfterWatermark.pastEndOfWindow())
                 .accumulatingFiredPanes()
@@ -250,12 +278,22 @@ public class ResumeFromCheckpointStreamingTest {
 
   /** A pass-through fn that prevents EOF event from passing. */
   private static class EOFShallNotPassFn extends DoFn<String, String> {
+    final PCollectionView<List<String>> view;
     private final Aggregator<Long, Long> aggregator =
         createAggregator("processedMessages", Sum.ofLongs());
+    Counter counter =
+        Metrics.counter(ResumeFromCheckpointStreamingTest.class, "allMessages");
+
+    private EOFShallNotPassFn(PCollectionView<List<String>> view) {
+      this.view = view;
+    }
 
     @ProcessElement
     public void process(ProcessContext c) {
       String element = c.element();
+      // assert that side input is passed correctly before/after resuming from checkpoint.
+      assertThat(c.sideInput(view), containsInAnyOrder("side1", "side2"));
+      counter.inc();
       if (!element.equals("EOF")) {
         aggregator.addValue(1L);
         c.output(c.element());
