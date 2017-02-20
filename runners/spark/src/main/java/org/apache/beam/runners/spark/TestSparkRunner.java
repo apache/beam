@@ -108,14 +108,15 @@ public final class TestSparkRunner extends PipelineRunner<SparkPipelineResult> {
 
   @Override
   public SparkPipelineResult run(Pipeline pipeline) {
+    // clear state of Aggregators, Metrics and Watermarks if exists.
+    AggregatorsAccumulator.clear();
+    SparkMetricsContainer.clear();
+    GlobalWatermarkHolder.clear();
+
     TestPipelineOptions testPipelineOptions = pipeline.getOptions().as(TestPipelineOptions.class);
     SparkPipelineResult result = delegate.run(pipeline);
     result.waitUntilFinish();
 
-    // clear state of Aggregators, Metrics and Watermarks.
-    AggregatorsAccumulator.clear();
-    SparkMetricsContainer.clear();
-    GlobalWatermarkHolder.clear();
 
     // make sure the test pipeline finished successfully.
     State resultState = result.getState();
