@@ -144,12 +144,19 @@ examples:
 
 ---
 
+# All windowed values consist of pane infos that represent NO_FIRING until full support is added
+# in the Python SDK (BEAM-1522).
 coder:
   urn: "urn:beam:coders:windowed_value:0.1"
   components: [{urn: "urn:beam:coders:varint:0.1"},
                {urn: "urn:beam:coders:global_window:0.1"}]
 examples:
-  "\u0080\0\u0001R\u009a\u00a4\u009bh\0\0\0\u0001\u000f\u0002": {value: 2, timestamp: 1454293425000, windows: ["global"]}
+  "\u0080\0\u0001R\u009a\u00a4\u009bh\0\0\0\u0001\u000f\u0002": {
+    value: 2,
+    timestamp: 1454293425000,
+    pane: {is_first: True, is_last: True, timing: UNKNOWN, index: 0, on_time_index: 0},
+    windows: ["global"]
+  }
 
 ---
 
@@ -158,5 +165,16 @@ coder:
   components: [{urn: "urn:beam:coders:varint:0.1"},
                {urn: "urn:beam:coders:interval_window:0.1"}]
 examples:
-  "\u007f\u00ff\u00ff\u00ff\u00ff\u00f9\u00e5\u0080\0\0\0\u0001\u0080\0\u0001R\u009a\u00a4\u009bh\u00c0\u008b\u0011\u000f\u0004": {value: 4, timestamp: -400000, windows: [{end: 1454293425000, span: 280000}]}
-  "\u007f\u00ff\u00ff\u00ff\u00ff\u00ff\u00ff\u009c\0\0\0\u0002\u0080\0\u0001R\u009a\u00a4\u009bh\u0080\u00dd\u00db\u0001\u007f\u00df;dZ\u001c\u00adv\u00ed\u0002\u000f\u0002": {value: 2, timestamp: -100, windows: [{end: 1454293425000, span: 3600000}, {end: -9223372036854410, span: 365}]}
+  "\u007f\u00ff\u00ff\u00ff\u00ff\u00f9\u00e5\u0080\0\0\0\u0001\u0080\0\u0001R\u009a\u00a4\u009bh\u00c0\u008b\u0011\u000f\u0004": {
+    value: 4,
+    timestamp: -400000,
+    pane: {is_first: True, is_last: True, timing: UNKNOWN, index: 0, on_time_index: 0},
+    windows: [{end: 1454293425000, span: 280000}]
+  }
+
+  "\u007f\u00ff\u00ff\u00ff\u00ff\u00ff\u00ff\u009c\0\0\0\u0002\u0080\0\u0001R\u009a\u00a4\u009bh\u0080\u00dd\u00db\u0001\u007f\u00df;dZ\u001c\u00adv\u00ed\u0002\u000f\u0002": {
+    value: 2,
+    timestamp: -100,
+    pane: {is_first: True, is_last: True, timing: UNKNOWN, index: 0, on_time_index: 0},
+    windows: [{end: 1454293425000, span: 3600000}, {end: -9223372036854410, span: 365}]
+  }

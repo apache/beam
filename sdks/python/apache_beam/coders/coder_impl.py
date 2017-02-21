@@ -571,7 +571,10 @@ class IterableCoderImpl(SequenceCoderImpl):
 class WindowedValueCoderImpl(StreamCoderImpl):
   """A coder for windowed values."""
 
-  # TODO: Fn Harness only supports millis. Is this important enough to fix?
+  # Ensure that lexicographic ordering of the bytes corresponds to
+  # chronological order of timestamps.
+  # TODO(BEAM-1524): Clean this up once we have a BEAM wide consensus on
+  # byte representation of timestamps.
   def _to_normal_time(self, value):
     """Convert "lexicographically ordered unsigned" to signed."""
     return value - (1 << 63)
@@ -594,11 +597,13 @@ class WindowedValueCoderImpl(StreamCoderImpl):
         # Convert to postive number and divide, since python rounds off to the
         # lower negative number. For ex: -3 / 2 = -2, but we expect it to be -1,
         # to be consistent across SDKs.
+        # TODO(BEAM-1524): Clean this up once we have a BEAM wide consensus on
+        # precision of timestamps.
         self._from_normal_time(
             restore_sign * (abs(wv.timestamp_micros) / 1000)))
     self._windows_coder.encode_to_stream(wv.windows, out, True)
     # Default PaneInfo encoded byte representing NO_FIRING.
-    # TODO(vikasrk): Remove the hard coding here once PaneInfo is supported.
+    # TODO(BEAM-1522): Remove the hard coding here once PaneInfo is supported.
     out.write_byte(0xF)
     self._value_coder.encode_to_stream(wv.value, out, nested)
 
@@ -608,7 +613,7 @@ class WindowedValueCoderImpl(StreamCoderImpl):
     # of precision while converting to millis.
     # Note: This is only a best effort here as there is no way to know if these
     # were indeed MIN/MAX timestamps.
-    # TODO(vikasrk): Clean this up once we have a BEAM wide consensus on
+    # TODO(BEAM-1524): Clean this up once we have a BEAM wide consensus on
     # precision of timestamps.
     if timestamp == -(abs(MIN_TIMESTAMP.micros) / 1000):
       timestamp = MIN_TIMESTAMP.micros
@@ -619,6 +624,8 @@ class WindowedValueCoderImpl(StreamCoderImpl):
 
     windows = self._windows_coder.decode_from_stream(in_stream, True)
     # Read PaneInfo encoded byte.
+    # TODO(BEAM-1522): Ignored for now but should be converted to pane info once
+    # it is supported.
     in_stream.read_byte()
     value = self._value_coder.decode_from_stream(in_stream, nested)
     return windowed_value.create(

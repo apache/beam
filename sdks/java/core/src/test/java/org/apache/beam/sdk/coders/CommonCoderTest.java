@@ -197,15 +197,16 @@ public class CommonCoderTest {
         Object v = convertValue(kvMap.get("value"), coderSpec.getComponents().get(1), valueCoder);
         return KV.of(k, v);
       }
-      case "urn:beam:coders:varint:0.1":
+      case "urn:beam:coders:varint:0.1": {
         return ((Number) value).longValue();
+      }
       case "urn:beam:coders:interval_window:0.1": {
         Map<String, Object> kvMap = (Map<String, Object>) value;
         Instant end = new Instant(((Number) kvMap.get("end")).longValue());
         Duration span = Duration.millis(((Number) kvMap.get("span")).longValue());
         return new IntervalWindow(end.minus(span), span);
       }
-      case "urn:beam:coders:stream:0.1":
+      case "urn:beam:coders:stream:0.1": {
         Coder elementCoder = ((IterableCoder) coder).getElemCoder();
         List<Object> elements = (List<Object>) value;
         List<Object> convertedElements = new LinkedList<>();
@@ -214,9 +215,11 @@ public class CommonCoderTest {
               convertValue(element, coderSpec.getComponents().get(0), elementCoder));
         }
         return convertedElements;
-      case "urn:beam:coders:global_window:0.1":
+      }
+      case "urn:beam:coders:global_window:0.1": {
         return GlobalWindow.INSTANCE;
-      case "urn:beam:coders:windowed_value:0.1":
+      }
+      case "urn:beam:coders:windowed_value:0.1": {
         Map<String, Object> kvMap = (Map<String, Object>) value;
         Coder valueCoder = ((WindowedValue.FullWindowedValueCoder) coder).getValueCoder();
         Coder windowCoder = ((WindowedValue.FullWindowedValueCoder) coder).getWindowCoder();
@@ -224,12 +227,21 @@ public class CommonCoderTest {
             kvMap.get("value"), coderSpec.getComponents().get(0), valueCoder);
         Instant timestamp = new Instant(((Number) kvMap.get("timestamp")).longValue());
         List<BoundedWindow> windows = new LinkedList<>();
-        for (Object window: ((List<Object>) kvMap.get("windows"))) {
+        for (Object window : ((List<Object>) kvMap.get("windows"))) {
           windows.add((BoundedWindow) convertValue(window, coderSpec.getComponents().get(1),
               windowCoder));
         }
-        // Note: Until Python SDK supports PaneInfo, we default to PaneInfo.NO_FIRING.
-        return WindowedValue.of(windowValue, timestamp, windows, PaneInfo.NO_FIRING);
+
+        Map<String, Object> paneInfoMap = (Map<String, Object>) kvMap.get("pane");
+        PaneInfo paneInfo = PaneInfo.createPane(
+            (boolean) paneInfoMap.get("is_first"),
+            (boolean) paneInfoMap.get("is_last"),
+            PaneInfo.Timing.valueOf((String) paneInfoMap.get("timing")),
+            (int) paneInfoMap.get("index"),
+            (int) paneInfoMap.get("on_time_index"));
+
+        return WindowedValue.of(windowValue, timestamp, windows, paneInfo);
+      }
       default:
         throw new IllegalStateException("Unknown coder URN: " + coderSpec.getUrn());
     }
