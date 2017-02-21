@@ -54,6 +54,9 @@ import org.apache.beam.sdk.io.range.ByteKeyRange;
 import org.apache.beam.sdk.io.range.ByteKeyRangeTracker;
 import org.apache.beam.sdk.options.GcpOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.ValueProvider;
+import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
+import org.apache.beam.sdk.options.ValueProviders;
 import org.apache.beam.sdk.runners.PipelineRunner;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -166,7 +169,7 @@ public class BigtableIO {
    */
   @Experimental
   public static Read read() {
-    return new Read(null, "", ByteKeyRange.ALL_KEYS, null, null);
+    return new Read(null, null, StaticValueProvider.of(ByteKeyRange.ALL_KEYS), null, null);
   }
 
   /**
@@ -240,7 +243,7 @@ public class BigtableIO {
      */
     public Read withRowFilter(RowFilter filter) {
       checkNotNull(filter, "filter");
-      return new Read(options, tableId, keyRange, filter, bigtableService);
+      return new Read(options, tableId, keyRange, StaticValueProvider.of(filter), bigtableService);
     }
 
     /**
@@ -250,7 +253,7 @@ public class BigtableIO {
      */
     public Read withKeyRange(ByteKeyRange keyRange) {
       checkNotNull(keyRange, "keyRange");
-      return new Read(options, tableId, keyRange, filter, bigtableService);
+      return new Read(options, tableId, StaticValueProvider.of(keyRange), filter, bigtableService);
     }
 
     /**
@@ -260,7 +263,7 @@ public class BigtableIO {
      */
     public Read withTableId(String tableId) {
       checkNotNull(tableId, "tableId");
-      return new Read(options, tableId, keyRange, filter, bigtableService);
+      return new Read(options, StaticValueProvider.of(tableId), keyRange, filter, bigtableService);
     }
 
     /**
@@ -275,14 +278,14 @@ public class BigtableIO {
      * {@link ByteKeyRange#ALL_KEYS} to scan the entire table.
      */
     public ByteKeyRange getKeyRange() {
-      return keyRange;
+      return ValueProviders.getValueOrNull(keyRange);
     }
 
     /**
      * Returns the table being read from.
      */
     public String getTableId() {
-      return tableId;
+      return tableId.get();
     }
 
     @Override
@@ -349,20 +352,20 @@ public class BigtableIO {
      * source is being built.
      */
     @Nullable private final BigtableOptions options;
-    private final String tableId;
-    private final ByteKeyRange keyRange;
-    @Nullable private final RowFilter filter;
+    @Nullable private final ValueProvider<String> tableId;
+    private final ValueProvider<ByteKeyRange> keyRange;
+    @Nullable private final ValueProvider<RowFilter> filter;
     @Nullable private final BigtableService bigtableService;
 
     private Read(
         @Nullable BigtableOptions options,
-        String tableId,
-        ByteKeyRange keyRange,
-        @Nullable RowFilter filter,
+        @Nullable ValueProvider<String> tableId,
+        ValueProvider<ByteKeyRange> keyRange,
+        @Nullable ValueProvider<RowFilter> filter,
         @Nullable BigtableService bigtableService) {
       this.options = options;
-      this.tableId = checkNotNull(tableId, "tableId");
-      this.keyRange = checkNotNull(keyRange, "keyRange");
+      this.tableId = tableId;
+      this.keyRange = keyRange;
       this.filter = filter;
       this.bigtableService = bigtableService;
     }
@@ -687,9 +690,9 @@ public class BigtableIO {
   static class BigtableSource extends BoundedSource<Row> {
     public BigtableSource(
         SerializableFunction<PipelineOptions, BigtableService> serviceFactory,
-        String tableId,
-        @Nullable RowFilter filter,
-        ByteKeyRange range,
+        ValueProvider<String> tableId,
+        @Nullable ValueProvider<RowFilter> filter,
+        ValueProvider<ByteKeyRange> range,
         @Nullable Long estimatedSizeBytes) {
       this.serviceFactory = serviceFactory;
       this.tableId = tableId;
@@ -710,9 +713,9 @@ public class BigtableIO {
 
     ////// Private state and internal implementation details //////
     private final SerializableFunction<PipelineOptions, BigtableService> serviceFactory;
-    private final String tableId;
-    @Nullable private final RowFilter filter;
-    private final ByteKeyRange range;
+    private final ValueProvider<String> tableId;
+    @Nullable private final ValueProvider<RowFilter> filter;
+    private final ValueProvider<ByteKeyRange> range;
     @Nullable private Long estimatedSizeBytes;
     @Nullable private transient List<SampleRowKeysResponse> sampleRowKeys;
 
