@@ -14,6 +14,7 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"time"
 )
@@ -23,10 +24,6 @@ var (
 	project         = flag.String("project", "", "Dataflow project.")
 	jobName         = flag.String("job_name", "", "Dataflow job name (optional).")
 	stagingLocation = flag.String("staging_location", os.ExpandEnv("gs://foo"), "GCS staging location.")
-
-	// TODO(herohde) 2/14/2017: obtain a cross-compiled worker binary more elegantly. Reflect the top of the callstack?
-	goProgram = flag.String("go_program", "", "Worker program to cross-compile (optional). Must be the same as the running program. If empty, binary is used.")
-	goBinary  = flag.String("go_binary", "", "Cross-compiled worker binary (optional). If empty and program not specified, the present binary is used.")
 
 	dryRun = flag.Bool("dry_run", false, "Dry run. Just print the job, but don't submit it.")
 )
@@ -43,7 +40,7 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 
 	// (1) Upload Go binary to GCS.
 
-	worker, err := buildBinary(*goProgram, *goBinary)
+	worker, err := buildLocalBinary()
 	if err != nil {
 		return err
 	}
@@ -149,33 +146,44 @@ func stageWorker(ctx context.Context, project, location, worker string) (string,
 	return Upload(client, project, bucket, obj, fd)
 }
 
-// buildBinary creates (or finds) a local worker binary suitable to run on Dataflow.
-func buildBinary(program, binary string) (string, error) {
-	switch {
-	case program != "":
-		ret := filepath.Join(os.TempDir(), fmt.Sprintf("dataflow-go-%v", time.Now().UnixNano()))
-		if *dryRun {
-			log.Printf("Dry-run: not building binary %v", ret)
-			return ret, nil
-		}
-
-		// Cross-compile given go program. Not awesome.
-		real := []string{"go", "build", "-o", ret, program}
-
-		cmd := exec.Command("/bin/bash", "-c", strings.Join(real, " "))
-		cmd.Env = append(os.Environ(), "GOOS=linux", "GOARCH=amd64")
-		if out, err := cmd.CombinedOutput(); err != nil {
-			log.Print(string(out))
-			return "", fmt.Errorf("Failed to cross-compile %v: %v", program, err)
-		}
+// buildLocalBinary creates a local worker binary suitable to run on Dataflow. It finds the filename
+// by examining the call stack. We want the user entry (*), for example:
+//
+//   /Users/herohde/go/src/github.com/apache/beam/sdks/go/pkg/beam/runners/beamexec/main.go (skip: 2)
+// * /Users/herohde/go/src/github.com/apache/beam/sdks/go/examples/wordcount/wordcount.go (skip: 3)
+//   /usr/local/go/src/runtime/proc.go (skip: 4)
+//   /usr/local/go/src/runtime/asm_amd64.s (skip: 5)
+func buildLocalBinary() (string, error) {
+	ret := filepath.Join(os.TempDir(), fmt.Sprintf("dataflow-go-%v", time.Now().UnixNano()))
+	if *dryRun {
+		log.Printf("Dry-run: not building binary %v", ret)
 		return ret, nil
-
-	case binary != "":
-		return binary, nil
-
-	default:
-		return os.Args[0], nil
 	}
+
+	program := ""
+	for i := 3; ; i++ {
+		_, file, _, ok := runtime.Caller(i)
+		if !ok || strings.HasSuffix(file, "runtime/proc.go") {
+			break
+		}
+		program = file
+	}
+	if program == "" {
+		return "", fmt.Errorf("Could not detect user main")
+	}
+
+	log.Printf("Cross-compiling %v as %v", program, ret)
+
+	// Cross-compile given go program. Not awesome.
+	real := []string{"go", "build", "-o", ret, program}
+
+	cmd := exec.Command("/bin/bash", "-c", strings.Join(real, " "))
+	cmd.Env = append(os.Environ(), "GOOS=linux", "GOARCH=amd64")
+	if out, err := cmd.CombinedOutput(); err != nil {
+		log.Print(string(out))
+		return "", fmt.Errorf("Failed to cross-compile %v: %v", program, err)
+	}
+	return ret, nil
 }
 
 func findPipelineFlags() []*displayData {
