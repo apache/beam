@@ -117,17 +117,17 @@ public final class TestSparkRunner extends PipelineRunner<SparkPipelineResult> {
   public SparkPipelineResult run(Pipeline pipeline) {
     SparkPipelineOptions sparkOptions = pipeline.getOptions().as(SparkPipelineOptions.class);
     SparkPipelineResult result = null;
-    try {
-      // clear state of Aggregators, Metrics and Watermarks.
-      AggregatorsAccumulator.clear();
-      SparkMetricsContainer.clear();
-      GlobalWatermarkHolder.clear();
+    // clear state of Aggregators, Metrics and Watermarks.
+    AggregatorsAccumulator.clear();
+    SparkMetricsContainer.clear();
+    GlobalWatermarkHolder.clear();
 
-      TestPipelineOptions testPipelineOptions = pipeline.getOptions().as(TestPipelineOptions.class);
-      LOG.info("About to run test pipeline " + sparkOptions.getJobName());
+    TestPipelineOptions testPipelineOptions = pipeline.getOptions().as(TestPipelineOptions.class);
+    LOG.info("About to run test pipeline " + sparkOptions.getJobName());
 
-      // if the pipeline was executed in streaming mode, validate aggregators.
-      if (isForceStreaming) {
+    // if the pipeline was executed in streaming mode, validate aggregators.
+    if (isForceStreaming) {
+      try {
         result = delegate.run(pipeline);
         long timeout = sparkOptions.getForcedTimeout();
         result.waitUntilFinish(Duration.millis(timeout));
@@ -151,21 +151,21 @@ public final class TestSparkRunner extends PipelineRunner<SparkPipelineResult> {
                 "Successfully asserted pipeline %s with %d successful assertions.",
                 sparkOptions.getJobName(),
                 successAssertions));
-      } else {
-        // for batch test pipelines, run and block until done.
-        result = delegate.run(pipeline);
-        result.waitUntilFinish();
-        // assert via matchers.
-        assertThat(result, testPipelineOptions.getOnCreateMatcher());
-        assertThat(result, testPipelineOptions.getOnSuccessMatcher());
+        } finally {
+        try {
+          // cleanup checkpoint dir.
+          FileUtils.deleteDirectory(new File(sparkOptions.getCheckpointDir()));
+        } catch (IOException e) {
+          throw new RuntimeException("Failed to clear checkpoint tmp dir.", e);
+        }
       }
-    } finally {
-      try {
-        // cleanup checkpoint dir.
-        FileUtils.deleteDirectory(new File(sparkOptions.getCheckpointDir()));
-      } catch (IOException e) {
-        throw new RuntimeException("Failed to clear checkpoint tmp dir.", e);
-      }
+    } else {
+      // for batch test pipelines, run and block until done.
+      result = delegate.run(pipeline);
+      result.waitUntilFinish();
+      // assert via matchers.
+      assertThat(result, testPipelineOptions.getOnCreateMatcher());
+      assertThat(result, testPipelineOptions.getOnSuccessMatcher());
     }
     return result;
   }
