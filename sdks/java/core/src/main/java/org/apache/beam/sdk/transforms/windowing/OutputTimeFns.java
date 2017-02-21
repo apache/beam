@@ -23,6 +23,7 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Ordering;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.common.runner.v1.RunnerApi;
 import org.joda.time.Instant;
 
 /**
@@ -162,6 +163,50 @@ public class OutputTimeFns {
     @Override
     protected Instant assignOutputTime(BoundedWindow window) {
       return window.maxTimestamp();
+    }
+
+    @Override
+    public String toString() {
+      return getClass().getCanonicalName();
+    }
+  }
+
+  public static RunnerApi.OutputTime toProto(OutputTimeFn<?> outputTimeFn) {
+    if (outputTimeFn instanceof OutputAtEarliestInputTimestamp) {
+      return RunnerApi.OutputTime.EARLIEST_IN_PANE;
+    } else if (outputTimeFn instanceof OutputAtLatestInputTimestamp) {
+      return RunnerApi.OutputTime.LATEST_IN_PANE;
+    } else if (outputTimeFn instanceof OutputAtEndOfWindow) {
+      return RunnerApi.OutputTime.END_OF_WINDOW;
+    } else {
+      throw new IllegalArgumentException(
+          String.format(
+              "Cannot convert %s to %s: %s",
+              OutputTimeFn.class.getCanonicalName(),
+              RunnerApi.OutputTime.class.getCanonicalName(),
+              outputTimeFn));
+    }
+  }
+
+  public static OutputTimeFn<?> fromProto(RunnerApi.OutputTime proto) {
+    switch (proto) {
+      case EARLIEST_IN_PANE:
+        return OutputTimeFns.outputAtEarliestInputTimestamp();
+      case LATEST_IN_PANE:
+        return OutputTimeFns.outputAtLatestInputTimestamp();
+      case END_OF_WINDOW:
+        return OutputTimeFns.outputAtEndOfWindow();
+      case UNRECOGNIZED:
+      default:
+        // Whether or not it is proto that cannot recognize it (due to the version of the
+        // generated code we link to) or the switch hasn't been updated to handle it,
+        // the situation is the same: we don't know what this OutputTime means
+        throw new IllegalArgumentException(
+            String.format(
+                "Cannot convert unknown %s to %s: %s",
+                RunnerApi.OutputTime.class.getCanonicalName(),
+                OutputTimeFn.class.getCanonicalName(),
+                proto));
     }
   }
 }

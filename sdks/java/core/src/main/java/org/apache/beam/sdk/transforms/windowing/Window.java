@@ -152,7 +152,8 @@ public class Window {
      *
      * <p>This is the default behavior.
      */
-    FIRE_IF_NON_EMPTY
+    FIRE_IF_NON_EMPTY;
+
   }
 
   /**
