@@ -4,9 +4,8 @@ import (
 	"context"
 	"flag"
 	"github.com/apache/beam/sdks/go/pkg/beam"
-	"github.com/apache/beam/sdks/go/pkg/beam/harness"
 	"github.com/apache/beam/sdks/go/pkg/beam/io/textio"
-	"github.com/apache/beam/sdks/go/pkg/beam/runners/dataflow"
+	"github.com/apache/beam/sdks/go/pkg/beam/runners/beamexec"
 	"log"
 	"os"
 	"regexp"
@@ -45,7 +44,7 @@ func Drop(elms <-chan string) {
 func main() {
 	flag.Parse()
 	ctx := context.Background()
-	harness.Init(ctx)
+	beamexec.Init(ctx)
 
 	log.Print("Running wordcap")
 
@@ -58,7 +57,7 @@ func main() {
 	cap := beam.ParDo(p, Cap, words)
 	beam.ParDo0(p, Drop, cap)
 
-	if err := dataflow.Execute(ctx, p); err != nil {
+	if err := beamexec.Run(ctx, p); err != nil {
 		log.Fatalf("Failed to execute job: %v", err)
 	}
 

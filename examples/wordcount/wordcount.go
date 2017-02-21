@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"github.com/apache/beam/sdks/go/pkg/beam"
 	"github.com/apache/beam/sdks/go/pkg/beam/io/textio"
-	"github.com/apache/beam/sdks/go/pkg/beam/runners/local"
+	"github.com/apache/beam/sdks/go/pkg/beam/runners/beamexec"
 	"github.com/apache/beam/sdks/go/pkg/beam/transforms/count"
 	"log"
 	"os"
@@ -62,6 +62,9 @@ func CountWords(p *beam.Pipeline, lines beam.PCollection) beam.PCollection {
 
 func main() {
 	flag.Parse()
+	ctx := context.Background()
+	beamexec.Init(ctx)
+
 	log.Print("Running wordcount")
 
 	// (1) build pipeline
@@ -75,7 +78,7 @@ func main() {
 
 	// (2) execute it locally
 
-	if err := local.Execute(context.Background(), p); err != nil {
+	if err := beamexec.Run(ctx, p); err != nil {
 		log.Fatalf("Failed to execute job: %v", err)
 	}
 	log.Print("Success!")

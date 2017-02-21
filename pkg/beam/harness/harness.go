@@ -2,7 +2,6 @@ package harness
 
 import (
 	"context"
-	"flag"
 	"fmt"
 	"github.com/golang/protobuf/ptypes"
 	pb "github.com/apache/beam/sdks/go/third_party/beam/org_apache_beam_fn_v1"
@@ -10,23 +9,6 @@ import (
 	"log"
 	"time"
 )
-
-var (
-	worker     = flag.Bool("worker", false, "Whether binary is running in worker mode.")
-	endpoint   = flag.String("endpoint", "", "Local gRPC endpoint (required in worker mode).")
-	persistDir = flag.String("persist_dir", "", "Local semi-persistent directory (required in worker mode).")
-)
-
-// Init is the hook that all user code must call, for now.
-func Init(ctx context.Context) {
-	if !*worker {
-		return
-	}
-
-	if err := Main(ctx, *endpoint); err != nil {
-		log.Fatalf("Worker failed: %v", err)
-	}
-}
 
 // TODO(herohde) 2/8/2017: for now, assume we stage a full binary (not a plugin).
 

@@ -4,7 +4,7 @@ import (
 	"context"
 	"flag"
 	"github.com/apache/beam/sdks/go/pkg/beam"
-	"github.com/apache/beam/sdks/go/pkg/beam/runners/local"
+	"github.com/apache/beam/sdks/go/pkg/beam/runners/beamexec"
 	"log"
 	"math/rand"
 	"sort"
@@ -93,6 +93,9 @@ func Eval(_ <-chan string, a, b, c, d, e <-chan int) {
 
 func main() {
 	flag.Parse()
+	ctx := context.Background()
+	beamexec.Init(ctx)
+
 	rand.Seed(time.Now().UnixNano())
 
 	p := beam.NewPipeline()
@@ -105,7 +108,7 @@ func main() {
 		beam.SideInput{Input: roll(p)},
 	)
 
-	if err := local.Execute(context.Background(), p); err != nil {
+	if err := beamexec.Run(ctx, p); err != nil {
 		log.Fatalf("Failed to execute job: %v", err)
 	}
 }
