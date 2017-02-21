@@ -42,6 +42,8 @@ from apache_beam.runners import TestDataflowRunner
 from apache_beam.runners import create_runner
 from apache_beam.runners.google_cloud_dataflow.internal import apiclient
 from apache_beam.transforms.display import DisplayDataItem
+from apache_beam.transforms.util import assert_that
+from apache_beam.transforms.util import equal_to
 from apache_beam.utils.pipeline_options import PipelineOptions
 
 
@@ -163,9 +165,9 @@ class RunnerTest(unittest.TestCase):
     runner = DirectRunner()
     p = Pipeline(runner,
                  options=PipelineOptions(self.default_properties))
-    # pylint: disable=expression-not-assigned
-    (p | ptransform.Create([1, 2, 3, 4, 5])
-     | 'Do' >> beam.ParDo(MyDoFn()))
+    pcoll = (p | ptransform.Create([1, 2, 3, 4, 5])
+             | 'Do' >> beam.ParDo(MyDoFn()))
+    assert_that(pcoll, equal_to([1, 2, 3, 4, 5]))
     result = p.run()
     result.wait_until_finish()
     metrics = result.metrics().query()
