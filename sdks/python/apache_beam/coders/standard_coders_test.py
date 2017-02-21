@@ -36,7 +36,11 @@ STANDARD_CODERS_YAML = os.path.join(
     os.path.dirname(__file__), '..', 'tests', 'data', 'standard_coders.yaml')
 
 
-def data(test_yaml):
+def _load_test_cases(test_yaml):
+  """Load test data from yaml file and return an iterable of test cases.
+
+  See ``standard_coders.yaml`` for more details.
+  """
   if not os.path.exists(test_yaml):
     raise ValueError('Could not find the test spec: %s' % test_yaml)
   for ix, spec in enumerate(yaml.load_all(open(test_yaml))):
@@ -68,7 +72,7 @@ class StandardCodersTest(unittest.TestCase):
       'urn:beam:coders:stream:0.1': lambda x, parser: map(parser, x)
   }
 
-  @parameterized.expand(data(STANDARD_CODERS_YAML))
+  @parameterized.expand(_load_test_cases(STANDARD_CODERS_YAML))
   def test_standard_coder(self, name, spec):
     coder = self.parse_coder(spec['coder'])
     parse_value = self.json_value_parser(spec['coder'])
