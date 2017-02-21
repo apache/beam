@@ -52,7 +52,7 @@ import org.slf4j.LoggerFactory;
  * {@link org.apache.beam.fn.v1.BeamFnApi.InstructionRequest}s.
  */
 public class BeamFnControlClient {
-  private static final Logger LOGGER = LoggerFactory.getLogger(BeamFnControlClient.class);
+  private static final Logger LOG = LoggerFactory.getLogger(BeamFnControlClient.class);
   private static final BeamFnApi.InstructionRequest POISON_PILL =
       BeamFnApi.InstructionRequest.newBuilder().setInstructionId(Long.MIN_VALUE).build();
 
@@ -88,7 +88,7 @@ public class BeamFnControlClient {
   private class InboundObserver implements StreamObserver<BeamFnApi.InstructionRequest> {
     @Override
     public void onNext(BeamFnApi.InstructionRequest value) {
-      LOGGER.info("InstructionRequest received {}", value);
+      LOG.info("InstructionRequest received {}", value);
       Uninterruptibles.putUninterruptibly(bufferedInstructions, value);
     }
 

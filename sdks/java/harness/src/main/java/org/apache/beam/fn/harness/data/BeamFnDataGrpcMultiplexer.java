@@ -45,7 +45,7 @@ import org.slf4j.LoggerFactory;
  * the output location with a specific outbound observer.
  */
 public class BeamFnDataGrpcMultiplexer {
-  private static final Logger LOGGER = LoggerFactory.getLogger(BeamFnDataGrpcMultiplexer.class);
+  private static final Logger LOG = LoggerFactory.getLogger(BeamFnDataGrpcMultiplexer.class);
   private final BeamFnApi.ApiServiceDescriptor apiServiceDescriptor;
   private final StreamObserver<BeamFnApi.Elements> inboundObserver;
   private final StreamObserver<BeamFnApi.Elements> outboundObserver;
@@ -110,14 +110,14 @@ public class BeamFnDataGrpcMultiplexer {
          * instead of relying on the Runner harness to do all the failure handling.
          */
         } catch (ExecutionException | InterruptedException e) {
-          LOGGER.error(
+          LOG.error(
               "Client interrupted during handling of data for instruction {} and target {}",
               data.getInstructionReference(),
               data.getTarget(),
               e);
           outboundObserver.onError(e);
         } catch (RuntimeException e) {
-          LOGGER.error(
+          LOG.error(
               "Client failed to handle data for instruction {} and target {}",
               data.getInstructionReference(),
               data.getTarget(),
@@ -129,12 +129,12 @@ public class BeamFnDataGrpcMultiplexer {
 
     @Override
     public void onError(Throwable t) {
-      LOGGER.error("Failed to handle for {}", apiServiceDescriptor, t);
+      LOG.error("Failed to handle for {}", apiServiceDescriptor, t);
     }
 
     @Override
     public void onCompleted() {
-      LOGGER.warn("Hanged up for {}.", apiServiceDescriptor);
+      LOG.warn("Hanged up for {}.", apiServiceDescriptor);
     }
   }
 }

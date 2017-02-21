@@ -33,7 +33,7 @@ import org.slf4j.LoggerFactory;
  * provided {@link Coder} passing the individual decoded elements to the provided consumer.
  */
 public class BeamFnDataInboundObserver<T> implements Consumer<BeamFnApi.Elements.Data> {
-  private static final Logger LOGGER = LoggerFactory.getLogger(BeamFnDataInboundObserver.class);
+  private static final Logger LOG = LoggerFactory.getLogger(BeamFnDataInboundObserver.class);
   private final ThrowingConsumer<WindowedValue<T>> consumer;
   private final Coder<WindowedValue<T>> coder;
   private final CompletableFuture<Void> readFuture;
@@ -57,7 +57,7 @@ public class BeamFnDataInboundObserver<T> implements Consumer<BeamFnApi.Elements
     }
     try {
       if (t.getData().isEmpty()) {
-        LOGGER.debug("Closing stream for instruction {} and "
+        LOG.debug("Closing stream for instruction {} and "
             + "target {} having consumed {} values {} bytes",
             t.getInstructionReference(),
             t.getTarget(),

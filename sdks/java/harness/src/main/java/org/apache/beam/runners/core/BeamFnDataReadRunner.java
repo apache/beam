@@ -46,7 +46,7 @@ import org.slf4j.LoggerFactory;
  * {@link #blockTillReadFinishes()} to finish.
  */
 public class BeamFnDataReadRunner<OutputT> {
-  private static final Logger LOGGER = LoggerFactory.getLogger(BeamFnDataReadRunner.class);
+  private static final Logger LOG = LoggerFactory.getLogger(BeamFnDataReadRunner.class);
   private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
   private final BeamFnApi.ApiServiceDescriptor apiServiceDescriptor;
@@ -91,7 +91,7 @@ public class BeamFnDataReadRunner<OutputT> {
   }
 
   public void blockTillReadFinishes() throws Exception {
-    LOGGER.debug("Waiting for process bundle instruction {} and target {} to close.",
+    LOG.debug("Waiting for process bundle instruction {} and target {} to close.",
         processBundleInstructionIdSupplier.get(), inputTarget);
     readFuture.get();
   }
