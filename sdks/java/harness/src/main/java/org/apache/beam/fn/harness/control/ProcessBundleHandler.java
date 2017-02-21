@@ -82,7 +82,7 @@ public class ProcessBundleHandler {
   private static final String JAVA_DO_FN_URN = "urn:org.apache.beam:dofn:java:0.1";
   private static final String JAVA_SOURCE_URN = "urn:org.apache.beam:source:java:0.1";
 
-  private static final Logger LOGGER = LoggerFactory.getLogger(ProcessBundleHandler.class);
+  private static final Logger LOG = LoggerFactory.getLogger(ProcessBundleHandler.class);
 
   private final PipelineOptions options;
   private final Function<Long, Message> fnApiRegistry;
@@ -234,13 +234,13 @@ public class ProcessBundleHandler {
 
     // Already in reverse order so we don't need to do anything.
     for (ThrowingRunnable startFunction : startFunctions) {
-      LOGGER.debug("Starting function {}", startFunction);
+      LOG.debug("Starting function {}", startFunction);
       startFunction.run();
     }
 
     // Need to reverse this since we want to call finish in topological order.
     for (ThrowingRunnable finishFunction : Lists.reverse(finishFunctions)) {
-      LOGGER.debug("Finishing function {}", finishFunction);
+      LOG.debug("Finishing function {}", finishFunction);
       finishFunction.run();
     }
 
