@@ -18,8 +18,14 @@
 """Fake datastore used for unit testing."""
 import uuid
 
-from google.cloud.proto.datastore.v1 import datastore_pb2
-from google.cloud.proto.datastore.v1 import query_pb2
+# Protect against environments where datastore library is not available.
+# pylint: disable=wrong-import-order, wrong-import-position
+try:
+  from google.cloud.proto.datastore.v1 import datastore_pb2
+  from google.cloud.proto.datastore.v1 import query_pb2
+except ImportError:
+  pass
+# pylint: enable=wrong-import-order, wrong-import-position
 
 
 def create_run_query(entities, batch_size):

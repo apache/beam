@@ -19,12 +19,6 @@
 import sys
 import unittest
 
-from google.cloud.proto.datastore.v1 import datastore_pb2
-from google.cloud.proto.datastore.v1 import entity_pb2
-from google.cloud.proto.datastore.v1 import query_pb2
-from google.cloud.proto.datastore.v1.entity_pb2 import Key
-from googledatastore.connection import RPCError
-from googledatastore import helper as datastore_helper
 from mock import MagicMock
 
 from apache_beam.io.google_cloud_platform.datastore.v1 import fake_datastore
@@ -32,6 +26,21 @@ from apache_beam.io.google_cloud_platform.datastore.v1 import helper
 from apache_beam.tests.test_utils import patch_retry
 
 
+# Protect against environments where apitools library is not available.
+# pylint: disable=wrong-import-order, wrong-import-position
+try:
+  from google.cloud.proto.datastore.v1 import datastore_pb2
+  from google.cloud.proto.datastore.v1 import entity_pb2
+  from google.cloud.proto.datastore.v1 import query_pb2
+  from google.cloud.proto.datastore.v1.entity_pb2 import Key
+  from googledatastore.connection import RPCError
+  from googledatastore import helper as datastore_helper
+except ImportError:
+  datastore_helper = None
+# pylint: enable=wrong-import-order, wrong-import-position
+
+
+@unittest.skipIf(datastore_helper is None, 'GCP dependencies are not installed')
 class HelperTest(unittest.TestCase):
 
   def setUp(self):

@@ -27,7 +27,7 @@ from apache_beam.internal.google_cloud_platform.json_value import to_json_value
 # pylint: disable=wrong-import-order, wrong-import-position
 try:
   from apitools.base.py.extra_types import JsonValue
-except:
+except ImportError:
   JsonValue = None
 # pylint: enable=wrong-import-order, wrong-import-position
 

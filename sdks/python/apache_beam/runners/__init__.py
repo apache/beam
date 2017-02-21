@@ -27,4 +27,4 @@ from apache_beam.runners.runner import PipelineState
 from apache_beam.runners.runner import create_runner
 
 from apache_beam.runners.google_cloud_dataflow.dataflow_runner import DataflowRunner
-from apache_beam.runners.test.test_dataflow_runner import TestDataflowRunner
+from apache_beam.runners.google_cloud_dataflow.test_dataflow_runner import TestDataflowRunner

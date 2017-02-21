@@ -171,7 +171,7 @@
                   <executable>${python.user.base}/bin/tox</executable>
                   <arguments>
                     <argument>-e</argument>
-                    <argument>py27</argument>
+                    <argument>ALL</argument>
                     <argument>-c</argument>
                     <argument>tox.ini</argument>
                   </arguments>
