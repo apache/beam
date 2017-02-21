@@ -19,6 +19,7 @@ package org.apache.beam.runners.core.construction;
 
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
+import org.apache.beam.sdk.io.Write;
 import org.apache.beam.sdk.runners.PTransformMatcher;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -40,25 +41,6 @@ import org.apache.beam.sdk.values.PCollection;
 @Experimental(Kind.CORE_RUNNERS_ONLY)
 public class PTransformMatchers {
   private PTransformMatchers() {}
-
-  /**
-   * Returns a {@link PTransformMatcher} which matches a {@link PTransform} if any of the provided
-   * matchers match the {@link PTransform}.
-   */
-  public static PTransformMatcher anyOf(
-      final PTransformMatcher matcher, final PTransformMatcher... matchers) {
-    return new PTransformMatcher() {
-      @Override
-      public boolean matches(AppliedPTransform<?, ?, ?> application) {
-        for (PTransformMatcher component : matchers) {
-          if (component.matches(application)) {
-            return true;
-          }
-        }
-        return matcher.matches(application);
-      }
-    };
-  }
 
   /**
    * Returns a {@link PTransformMatcher} that matches a {@link PTransform} if the class of the
@@ -192,6 +174,18 @@ public class PTransformMatchers {
       public boolean matches(AppliedPTransform<?, ?, ?> application) {
         return (application.getTransform() instanceof Flatten.FlattenPCollectionList)
             && application.getInputs().isEmpty();
+      }
+    };
+  }
+
+  public static PTransformMatcher writeWithRunnerDeterminedSharding() {
+    return new PTransformMatcher() {
+      @Override
+      public boolean matches(AppliedPTransform<?, ?, ?> application) {
+        if (application.getTransform() instanceof Write.Bound) {
+          return ((Write.Bound) application.getTransform()).getSharding() == null;
+        }
+        return false;
       }
     };
   }

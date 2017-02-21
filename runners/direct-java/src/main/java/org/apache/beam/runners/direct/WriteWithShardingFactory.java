@@ -51,10 +51,7 @@ class WriteWithShardingFactory<InputT>
 
   @Override
   public PTransform<PCollection<InputT>, PDone> getReplacementTransform(Bound<InputT> transform) {
-    if (transform.getSharding() == null) {
-      return transform.withSharding(new LogElementShardsWithDrift<InputT>());
-    }
-    return transform;
+    return transform.withSharding(new LogElementShardsWithDrift<InputT>());
   }
 
   @Override
@@ -72,23 +69,15 @@ class WriteWithShardingFactory<InputT>
 
     @Override
     public PCollectionView<Integer> expand(PCollection<T> records) {
-      final int randomExtraShards = ThreadLocalRandom.current().nextInt(0, 3);
       return records
           .apply("CountRecords", Count.<T>globally())
-          .apply("GenerateShardCount", ParDo.of(new CalculateShardsFn(randomExtraShards)))
+          .apply("GenerateShardCount", ParDo.of(new CalculateShardsFn()))
           .apply(View.<Integer>asSingleton());
     }
   }
 
   @VisibleForTesting
   static class CalculateShardsFn extends DoFn<Long, Integer> {
-    private final int randomExtraShards;
-
-    @VisibleForTesting
-    CalculateShardsFn(int randomExtraShards) {
-      this.randomExtraShards = randomExtraShards;
-    }
-
     @ProcessElement
     public void process(ProcessContext ctxt) {
       ctxt.output(calculateShards(ctxt.element()));
@@ -104,7 +93,8 @@ class WriteWithShardingFactory<InputT>
       }
       // 100mil records before >7 output files
       int floorLogRecs = Double.valueOf(Math.log10(totalRecords)).intValue();
-      return Math.max(floorLogRecs, MIN_SHARDS_FOR_LOG) + randomExtraShards;
+      return Math.max(floorLogRecs, MIN_SHARDS_FOR_LOG)
+          + ThreadLocalRandom.current().nextInt(0, MAX_RANDOM_EXTRA_SHARDS);
     }
   }
 }

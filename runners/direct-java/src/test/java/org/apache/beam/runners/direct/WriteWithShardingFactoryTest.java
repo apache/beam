@@ -116,16 +116,19 @@ public class WriteWithShardingFactoryTest {
   }
 
   @Test
-  public void withShardingSpecifiesOriginalTransform() {
-    Write.Bound<Object> original = Write.to(new TestSink()).withNumShards(3);
-
-    assertThat(factory.getReplacementTransform(original), equalTo((Object) original));
-  }
-
-  @Test
   public void withNoShardingSpecifiedReturnsNewTransform() {
     Write.Bound<Object> original = Write.to(new TestSink());
     assertThat(factory.getReplacementTransform(original), not(equalTo((Object) original)));
+  }
+
+  @Test
+  public void keyBasedOnCountFnWithNoElements() throws Exception {
+    CalculateShardsFn fn = new CalculateShardsFn(0);
+    DoFnTester<Long, Integer> fnTester = DoFnTester.of(fn);
+
+    List<Integer> outputs = fnTester.processBundle(0L);
+    assertThat(
+        outputs, containsInAnyOrder(1));
   }
 
   @Test
