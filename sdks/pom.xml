@@ -43,7 +43,7 @@
       <id>release</id>
       <activation>
         <property>
-          <name>!skipTests</name>
+          <name>!quick</name>
         </property>
       </activation>
       <build>
