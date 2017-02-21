@@ -303,14 +303,22 @@ public class BigtableIO {
     @Override
     public void validate(PBegin input) {
       checkArgument(options != null, "BigtableOptions not specified");
-      checkArgument(!tableId.isEmpty(), "Table ID not specified");
-      try {
-        checkArgument(
-            getBigtableService(input.getPipeline().getOptions()).tableExists(tableId),
-            "Table %s does not exist",
-            tableId);
-      } catch (IOException e) {
-        LOG.warn("Error checking whether table {} exists; proceeding.", tableId, e);
+
+      if (tableId == null) {
+        throw new IllegalArgumentException("tableId not specified");
+      } else if (!tableId.isAccessible()) {
+        LOG.warn("Skipping validation for tableId");
+      } else if (tableId.get().isEmpty()) {
+        throw new IllegalArgumentException("tableId not specified");
+      } else {
+        try {
+          checkArgument(
+                  getBigtableService(input.getPipeline().getOptions()).tableExists(tableId.get()),
+                  "Table %s does not exist",
+                  tableId);
+        } catch (IOException e) {
+          LOG.warn("Error checking whether table {} exists; proceeding.", tableId.get(), e);
+        }
       }
     }
 
@@ -719,16 +727,28 @@ public class BigtableIO {
     @Nullable private Long estimatedSizeBytes;
     @Nullable private transient List<SampleRowKeysResponse> sampleRowKeys;
 
-    protected BigtableSource withStartKey(ByteKey startKey) {
+    protected BigtableSource withStartKey(final ByteKey startKey) {
       checkNotNull(startKey, "startKey");
       return new BigtableSource(
-          serviceFactory, tableId, filter, range.withStartKey(startKey), estimatedSizeBytes);
+          serviceFactory, tableId, filter, ValueProvider.NestedValueProvider.of(range,
+              new SerializableFunction<ByteKeyRange, ByteKeyRange>() {
+                  @Override
+                  public ByteKeyRange apply(ByteKeyRange input) {
+                      return input.withStartKey(startKey);
+                  }
+              }), estimatedSizeBytes);
     }
 
-    protected BigtableSource withEndKey(ByteKey endKey) {
+    protected BigtableSource withEndKey(final ByteKey endKey) {
       checkNotNull(endKey, "endKey");
       return new BigtableSource(
-          serviceFactory, tableId, filter, range.withEndKey(endKey), estimatedSizeBytes);
+          serviceFactory, tableId, filter, ValueProvider.NestedValueProvider.of(range,
+              new SerializableFunction<ByteKeyRange, ByteKeyRange>() {
+                  @Override
+                  public ByteKeyRange apply(ByteKeyRange input) {
+                      return input.withEndKey(endKey);
+                  }
+              }), estimatedSizeBytes);
     }
 
     protected BigtableSource withEstimatedSizeBytes(Long estimatedSizeBytes) {
@@ -790,7 +810,7 @@ public class BigtableIO {
             responseOffset,
             lastOffset);
 
-        if (!range.overlaps(ByteKeyRange.of(lastEndKey, responseEndKey))) {
+        if (!range.get().overlaps(ByteKeyRange.of(lastEndKey, responseEndKey))) {
           // This region does not overlap the scan, so skip it.
           lastOffset = responseOffset;
           lastEndKey = responseEndKey;
@@ -800,15 +820,15 @@ public class BigtableIO {
         // Calculate the beginning of the split as the larger of startKey and the end of the last
         // split. Unspecified start is smallest key so is correctly treated as earliest key.
         ByteKey splitStartKey = lastEndKey;
-        if (splitStartKey.compareTo(range.getStartKey()) < 0) {
-          splitStartKey = range.getStartKey();
+        if (splitStartKey.compareTo(range.get().getStartKey()) < 0) {
+          splitStartKey = range.get().getStartKey();
         }
 
         // Calculate the end of the split as the smaller of endKey and the end of this sample. Note
         // that range.containsKey handles the case when range.getEndKey() is empty.
         ByteKey splitEndKey = responseEndKey;
-        if (!range.containsKey(splitEndKey)) {
-          splitEndKey = range.getEndKey();
+        if (!range.get().containsKey(splitEndKey)) {
+          splitEndKey = range.get().getEndKey();
         }
 
         // We know this region overlaps the desired key range, and we know a rough estimate of its
@@ -830,8 +850,8 @@ public class BigtableIO {
       //  1. we did not scan to the end yet (lastEndKey is concrete, not 0-length).
       //  2. we want to scan to the end (endKey is empty) or farther (lastEndKey < endKey).
       if (!lastEndKey.isEmpty()
-          && (range.getEndKey().isEmpty() || lastEndKey.compareTo(range.getEndKey()) < 0)) {
-        splits.add(this.withStartKey(lastEndKey).withEndKey(range.getEndKey()));
+          && (range.get().getEndKey().isEmpty() || lastEndKey.compareTo(range.get().getEndKey()) < 0)) {
+        splits.add(this.withStartKey(lastEndKey).withEndKey(range.get().getEndKey()));
       }
 
       List<BigtableSource> ret = splits.build();
@@ -866,7 +886,7 @@ public class BigtableIO {
           // Skip an empty region.
           lastOffset = currentOffset;
           continue;
-        } else if (range.overlaps(ByteKeyRange.of(currentStartKey, currentEndKey))) {
+        } else if (range.get().overlaps(ByteKeyRange.of(currentStartKey, currentEndKey))) {
           estimatedSizeBytes += currentOffset - lastOffset;
         }
         currentStartKey = currentEndKey;
@@ -882,7 +902,13 @@ public class BigtableIO {
 
     @Override
     public void validate() {
-      checkArgument(!tableId.isEmpty(), "tableId cannot be empty");
+        if (tableId == null) {
+            throw new IllegalArgumentException("tableId not specified");
+        } else if (!tableId.isAccessible()) {
+            LOG.warn("Skipping validation for tableId");
+        } else if (tableId.get().isEmpty()) {
+            throw new IllegalArgumentException("tableId not specified");
+        }
     }
 
     @Override
@@ -940,16 +966,19 @@ public class BigtableIO {
       return splits.build();
     }
 
+    @Nullable
     public ByteKeyRange getRange() {
-      return range;
+        return ValueProviders.getValueOrNull(range);
     }
 
+    @Nullable
     public RowFilter getRowFilter() {
-      return filter;
+        return ValueProviders.getValueOrNull(filter);
     }
 
+    @Nullable
     public String getTableId() {
-      return tableId;
+      return ValueProviders.getValueOrNull(tableId);
     }
   }
 
