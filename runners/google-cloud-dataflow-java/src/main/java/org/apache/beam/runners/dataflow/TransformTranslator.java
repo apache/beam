@@ -23,6 +23,7 @@ import java.util.Map;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.runners.dataflow.util.OutputReference;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PInput;
@@ -73,7 +74,12 @@ interface TransformTranslator<TransformT extends PTransform> {
      */
     Step addStep(PTransform<?, ? extends PValue> transform, Step step);
     /** Encode a PValue reference as an output reference. */
-    OutputReference asOutputReference(PValue value);
+    OutputReference asOutputReference(PValue value, AppliedPTransform<?, ?, ?> producer);
+
+    /**
+     * Get the {@link AppliedPTransform} that produced the provided {@link PValue}.
+     */
+    AppliedPTransform<?, ?, ?> getProducer(PValue value);
   }
 
   /** The interface for a {@link TransformTranslator} to build a Dataflow step. */
@@ -93,6 +99,11 @@ interface TransformTranslator<TransformT extends PTransform> {
     /**
      * Adds an input with the given name to this Dataflow step, coming from the specified input
      * PValue.
+     *
+     * <p>The input {@link PValue} must have already been produced by a step earlier in this {@link
+     * Pipeline}. If the input value has not yet been produced yet (either by a call to {@link
+     * StepTranslationContext#addOutput(PValue)} or within a call to {@link
+     * TranslationContext#addStep(PTransform, Step)}), this method will throw an exception.
      */
     void addInput(String name, PInput value);
 

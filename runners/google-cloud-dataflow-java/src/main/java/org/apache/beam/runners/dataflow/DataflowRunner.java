@@ -874,7 +874,8 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
         stepContext.addEncodingInput(WindowedValue.getValueOnlyCoder(
             overriddenTransform.getElementCoder()));
       }
-      stepContext.addInput(PropertyNames.PARALLEL_INPUT, context.getInput(transform));
+      PCollection<T> input = context.getInput(transform);
+      stepContext.addInput(PropertyNames.PARALLEL_INPUT, input);
     }
   }
 
