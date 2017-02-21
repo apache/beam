@@ -206,7 +206,7 @@ public class TextIOTest {
   }
 
   @AfterClass
-  public static void testdownClass() throws IOException {
+  public static void teardownClass() throws IOException {
     Files.walkFileTree(tempFolder, new SimpleFileVisitor<Path>() {
       @Override
       public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
