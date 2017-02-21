@@ -32,7 +32,7 @@ try:
                            PropertyFilter.GREATER_THAN,
                            PropertyFilter.GREATER_THAN_OR_EQUAL]
 except ImportError:
-  UNSUPPORTED_OPERATORS = []
+  UNSUPPORTED_OPERATORS = None
 # pylint: enable=wrong-import-order, wrong-import-position
 
 
