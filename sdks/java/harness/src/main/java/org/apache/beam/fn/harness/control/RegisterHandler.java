@@ -77,9 +77,9 @@ public class RegisterHandler {
       computeIfAbsent(processBundleDescriptor.getId()).complete(processBundleDescriptor);
       for (BeamFnApi.Coder coder : processBundleDescriptor.getCodersList()) {
         LOGGER.debug("Registering {} with type {}",
-            coder.getFunctionSpec().getId(),
+            coder.getId(),
             coder.getClass());
-        computeIfAbsent(coder.getFunctionSpec().getId()).complete(coder);
+        computeIfAbsent(coder.getId()).complete(coder);
       }
     }
 
