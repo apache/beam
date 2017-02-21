@@ -49,6 +49,7 @@ import org.apache.beam.sdk.util.IOChannelFactory;
 import org.apache.beam.sdk.util.IOChannelUtils;
 import org.apache.beam.sdk.util.MimeTypes;
 import org.apache.commons.compress.compressors.bzip2.BZip2CompressorOutputStream;
+import org.apache.commons.compress.compressors.deflate.DeflateCompressorOutputStream;
 import org.joda.time.Instant;
 import org.joda.time.format.DateTimeFormat;
 import org.slf4j.Logger;
@@ -106,6 +107,16 @@ public abstract class FileBasedSink<T> extends Sink<T> {
       public WritableByteChannel create(WritableByteChannel channel) throws IOException {
         return Channels
             .newChannel(new BZip2CompressorOutputStream(Channels.newOutputStream(channel)));
+      }
+    },
+    /**
+     * Provides deflate output transformation.
+     */
+    DEFLATE(".deflate", MimeTypes.BINARY) {
+      @Override
+      public WritableByteChannel create(WritableByteChannel channel) throws IOException {
+        return Channels
+            .newChannel(new DeflateCompressorOutputStream(Channels.newOutputStream(channel)));
       }
     };
 
