@@ -27,5 +27,12 @@ from apache_beam.io.iobase import Writer
 from apache_beam.io.textio import *
 from apache_beam.io.tfrecordio import *
 from apache_beam.io.range_trackers import *
-from apache_beam.io.google_cloud_platform.bigquery import *
-from apache_beam.io.google_cloud_platform.pubsub import *
+
+# Protect against environments where clientslibrary is not available.
+# pylint: disable=wrong-import-order, wrong-import-position
+try:
+  from apache_beam.io.google_cloud_platform.bigquery import *
+  from apache_beam.io.google_cloud_platform.pubsub import *
+except ImportError:
+  pass
+# pylint: enable=wrong-import-order, wrong-import-position

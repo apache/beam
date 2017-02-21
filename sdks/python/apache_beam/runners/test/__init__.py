@@ -21,4 +21,10 @@ This package defines runners, which are used to execute test pipeline and
 verify results.
 """
 
-from apache_beam.runners.test.test_dataflow_runner import TestDataflowRunner
+# Protect against environments where dataflow runner is not available.
+# pylint: disable=wrong-import-order, wrong-import-position
+try:
+  from apache_beam.runners.google_cloud_dataflow.test_dataflow_runner import TestDataflowRunner
+except ImportError:
+  pass
+# pylint: enable=wrong-import-order, wrong-import-position

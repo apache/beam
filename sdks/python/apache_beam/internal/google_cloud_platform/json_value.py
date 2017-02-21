@@ -17,7 +17,13 @@
 
 """JSON conversion utility functions."""
 
-from apitools.base.py import extra_types
+# Protect against environments where apitools library is not available.
+# pylint: disable=wrong-import-order, wrong-import-position
+try:
+  from apitools.base.py import extra_types
+except ImportError:
+  extra_types = None
+# pylint: enable=wrong-import-order, wrong-import-position
 
 
 _MAXINT64 = (1 << 63) - 1

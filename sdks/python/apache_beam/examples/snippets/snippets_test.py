@@ -37,6 +37,14 @@ from apache_beam.examples.snippets import snippets
 # pylint: disable=expression-not-assigned
 from apache_beam.test_pipeline import TestPipeline
 
+# Protect against environments where apitools library is not available.
+# pylint: disable=wrong-import-order, wrong-import-position
+try:
+  from apitools.base.py import base_api
+except ImportError:
+  base_api = None
+# pylint: enable=wrong-import-order, wrong-import-position
+
 
 class ParDoTest(unittest.TestCase):
   """Tests for model/par-do."""
@@ -576,6 +584,7 @@ class SnippetsTest(unittest.TestCase):
     # TODO(vikasrk): Expore using Datastore Emulator.
     snippets.model_datastoreio()
 
+  @unittest.skipIf(base_api is None, 'GCP dependencies are not installed')
   def test_model_bigqueryio(self):
     # We cannot test BigQueryIO functionality in unit tests therefore we limit
     # ourselves to making sure the pipeline containing BigQuery sources and

@@ -15,14 +15,22 @@
 # limitations under the License.
 #
 import unittest
-
 import hamcrest as hc
-
 import apache_beam.runners.google_cloud_dataflow.internal.clients.dataflow as dataflow
-from apache_beam.internal.json_value import to_json_value
+
+from apache_beam.internal.google_cloud_platform.json_value import to_json_value
 from apache_beam.runners.google_cloud_dataflow.internal.clients.dataflow import message_matchers
 
+# Protect against environments where apitools library is not available.
+# pylint: disable=wrong-import-order, wrong-import-position
+try:
+  from apitools.base.py import base_api
+except ImportError:
+  base_api = None
+# pylint: enable=wrong-import-order, wrong-import-position
 
+
+@unittest.skipIf(base_api is None, 'GCP dependencies are not installed')
 class TestMatchers(unittest.TestCase):
 
   def test_structured_name_matcher_basic(self):
