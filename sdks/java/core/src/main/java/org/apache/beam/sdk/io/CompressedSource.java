@@ -39,6 +39,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.commons.compress.compressors.bzip2.BZip2CompressorInputStream;
+import org.apache.commons.compress.compressors.deflate.DeflateCompressorInputStream;
 import org.apache.commons.compress.compressors.gzip.GzipCompressorInputStream;
 
 /**
@@ -164,6 +165,22 @@ public class CompressedSource<T> extends FileBasedSource<T> {
         throws IOException {
         FullZipInputStream zip = new FullZipInputStream(Channels.newInputStream(channel));
         return Channels.newChannel(zip);
+      }
+    },
+
+    /**
+     * Reads a byte channel assuming it is compressed with deflate.
+     */
+    DEFLATE {
+      @Override
+      public boolean matches(String fileName) {
+        return fileName.toLowerCase().endsWith(".deflate");
+      }
+
+      public ReadableByteChannel createDecompressingChannel(ReadableByteChannel channel)
+          throws IOException {
+        return Channels.newChannel(
+            new DeflateCompressorInputStream(Channels.newInputStream(channel)));
       }
     };
 
