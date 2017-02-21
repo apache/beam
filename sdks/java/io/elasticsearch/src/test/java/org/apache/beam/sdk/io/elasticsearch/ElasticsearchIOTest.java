@@ -64,7 +64,7 @@ import org.slf4j.LoggerFactory;
 @RunWith(JUnit4.class)
 public class ElasticsearchIOTest implements Serializable {
 
-  private static final Logger LOGGER = LoggerFactory.getLogger(ElasticsearchIOTest.class);
+  private static final Logger LOG = LoggerFactory.getLogger(ElasticsearchIOTest.class);
 
   private static final String ES_INDEX = "beam";
   private static final String ES_TYPE = "test";
@@ -90,7 +90,7 @@ public class ElasticsearchIOTest implements Serializable {
     connectionConfiguration =
         ElasticsearchIO.ConnectionConfiguration.create(
             new String[] {"http://" + ES_IP + ":" + esHttpPort}, ES_INDEX, ES_TYPE);
-    LOGGER.info("Starting embedded Elasticsearch instance ({})", esHttpPort);
+    LOG.info("Starting embedded Elasticsearch instance ({})", esHttpPort);
     Settings.Builder settingsBuilder =
         Settings.settingsBuilder()
             .put("cluster.name", "beam")
@@ -106,7 +106,7 @@ public class ElasticsearchIOTest implements Serializable {
             // and queue of 50 was full. No pb with real ES instance (cf testWrite integration test)
             .put("threadpool.bulk.queue_size", 100);
     node = NodeBuilder.nodeBuilder().settings(settingsBuilder).build();
-    LOGGER.info("Elasticsearch node created");
+    LOG.info("Elasticsearch node created");
     node.start();
   }
 
@@ -130,7 +130,7 @@ public class ElasticsearchIOTest implements Serializable {
     // can't use equal assert as Elasticsearch indexes never have same size
     // (due to internal Elasticsearch implementation)
     long estimatedSize = initialSource.getEstimatedSizeBytes(options);
-    LOGGER.info("Estimated size: {}", estimatedSize);
+    LOG.info("Estimated size: {}", estimatedSize);
     assertThat("Wrong estimated size", estimatedSize, greaterThan(AVERAGE_DOC_SIZE * NUM_DOCS));
   }
 

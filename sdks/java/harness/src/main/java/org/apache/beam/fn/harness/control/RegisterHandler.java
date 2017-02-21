@@ -36,7 +36,7 @@ import org.slf4j.LoggerFactory;
  * occurs.
  */
 public class RegisterHandler {
-  private static final Logger LOGGER = LoggerFactory.getLogger(RegisterHandler.class);
+  private static final Logger LOG = LoggerFactory.getLogger(RegisterHandler.class);
   private final ConcurrentMap<Long, CompletableFuture<Message>> idToObject;
 
   public RegisterHandler() {
@@ -71,12 +71,12 @@ public class RegisterHandler {
     BeamFnApi.RegisterRequest registerRequest = request.getRegister();
     for (BeamFnApi.ProcessBundleDescriptor processBundleDescriptor
         : registerRequest.getProcessBundleDescriptorList()) {
-      LOGGER.debug("Registering {} with type {}",
+      LOG.debug("Registering {} with type {}",
           processBundleDescriptor.getId(),
           processBundleDescriptor.getClass());
       computeIfAbsent(processBundleDescriptor.getId()).complete(processBundleDescriptor);
       for (BeamFnApi.Coder coder : processBundleDescriptor.getCodersList()) {
-        LOGGER.debug("Registering {} with type {}",
+        LOG.debug("Registering {} with type {}",
             coder.getFunctionSpec().getId(),
             coder.getClass());
         computeIfAbsent(coder.getFunctionSpec().getId()).complete(coder);
