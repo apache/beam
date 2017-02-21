@@ -53,6 +53,7 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.util.IOChannelUtils;
 import org.apache.commons.compress.compressors.bzip2.BZip2CompressorInputStream;
+import org.apache.commons.compress.compressors.deflate.DeflateCompressorInputStream;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -418,7 +419,7 @@ public class FileBasedSinkTest {
   }
 
   /**
-   * {@link CompressionType#BZIP2} correctly writes Gzipped data.
+   * {@link CompressionType#BZIP2} correctly writes BZip2 data.
    */
   @Test
   public void testCompressionTypeBZIP2() throws FileNotFoundException, IOException {
@@ -443,7 +444,19 @@ public class FileBasedSinkTest {
   }
 
   /**
-   * {@link CompressionType#GZIP} correctly writes Gzipped data.
+   * {@link CompressionType#DEFLATE} correctly writes deflate data.
+   */
+  @Test
+  public void testCompressionTypeDEFLATE() throws FileNotFoundException, IOException {
+    final File file = writeValuesWithWritableByteChannelFactory(
+        CompressionType.DEFLATE, "abc", "123");
+    // Read Gzipped data back in using standard API.
+    assertReadValues(new BufferedReader(new InputStreamReader(new DeflateCompressorInputStream(
+        new FileInputStream(file)), StandardCharsets.UTF_8.name())), "abc", "123");
+  }
+
+  /**
+   * {@link CompressionType#UNCOMPRESSED} correctly writes uncompressed data.
    */
   @Test
   public void testCompressionTypeUNCOMPRESSED() throws FileNotFoundException, IOException {
