@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"github.com/apache/beam/sdks/go/pkg/beam"
 	"github.com/apache/beam/sdks/go/pkg/beam/io/textio"
-	"github.com/apache/beam/sdks/go/pkg/beam/runners/local"
+	"github.com/apache/beam/sdks/go/pkg/beam/runners/beamexec"
 	"log"
 	"os"
 	"regexp"
@@ -55,6 +55,8 @@ func Multi(words, sample <-chan string, small, big chan<- string) error {
 
 func main() {
 	flag.Parse()
+	ctx := context.Background()
+	beamexec.Init(ctx)
 
 	p := beam.NewPipeline()
 
@@ -66,7 +68,7 @@ func main() {
 	textio.Write(p, *output, small)
 	textio.Write(p, *output, big)
 
-	if err := local.Execute(context.Background(), p); err != nil {
+	if err := beamexec.Run(ctx, p); err != nil {
 		log.Fatalf("Failed to execute job: %v", err)
 	}
 }
