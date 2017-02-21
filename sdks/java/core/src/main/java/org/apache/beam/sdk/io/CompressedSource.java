@@ -55,14 +55,17 @@ import org.apache.commons.compress.compressors.gzip.GzipCompressorInputStream;
  *     .withDecompression(CompressedSource.CompressionMode.GZIP)));
  * } </pre>
  *
- * <p>Supported compression algorithms are {@link CompressionMode#GZIP} and
- * {@link CompressionMode#BZIP2}. User-defined compression types are supported by implementing
+ * <p>Supported compression algorithms are {@link CompressionMode#GZIP},
+ * {@link CompressionMode#BZIP2}, {@link CompressionMode#ZIP} and {@link CompressionMode#DEFLATE}.
+ * User-defined compression types are supported by implementing
  * {@link DecompressingChannelFactory}.
  *
  * <p>By default, the compression algorithm is selected from those supported in
  * {@link CompressionMode} based on the file name provided to the source, namely
- * {@code ".bz2"} indicates {@link CompressionMode#BZIP2} and {@code ".gz"} indicates
- * {@link CompressionMode#GZIP}. If the file name does not match any of the supported
+ * {@code ".bz2"} indicates {@link CompressionMode#BZIP2}, {@code ".gz"} indicates
+ * {@link CompressionMode#GZIP}, {@code ".zip"} indicates {@link CompressionMode#ZIP} and
+ * {@code ".deflate"} indicates {@link CompressionMode#DEFLATE}. If the file name does not match
+ * any of the supported
  * algorithms, it is assumed to be uncompressed data.
  *
  * @param <T> The type to read from the compressed file.
@@ -402,8 +405,8 @@ public class CompressedSource<T> extends FileBasedSource<T> {
           .withLabel("Read Source"));
 
     if (channelFactory instanceof Enum) {
-      // GZIP and BZIP are implemented as enums; Enum classes are anonymous, so use the .name()
-      // value instead
+      // GZIP, BZIP, ZIP and DEFLATE are implemented as enums; Enum classes are anonymous, so use
+      // the .name() value instead
       builder.add(DisplayData.item("compressionMode", ((Enum) channelFactory).name())
         .withLabel("Compression Mode"));
     } else {
