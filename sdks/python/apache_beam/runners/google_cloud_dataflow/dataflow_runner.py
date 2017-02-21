@@ -29,8 +29,8 @@ import traceback
 
 from apache_beam import coders
 from apache_beam import pvalue
-from apache_beam.internal import json_value
 from apache_beam.internal import pickler
+from apache_beam.internal.google_cloud_platform import json_value
 from apache_beam.pvalue import PCollectionView
 from apache_beam.runners.google_cloud_dataflow.dataflow_metrics import DataflowMetrics
 from apache_beam.runners.google_cloud_dataflow.internal.clients import dataflow as dataflow_api

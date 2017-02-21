@@ -21,7 +21,6 @@ import logging
 import tempfile
 import unittest
 
-from apitools.base.py.exceptions import HttpError
 from hamcrest import assert_that as hc_assert_that
 from mock import Mock, patch
 
@@ -30,6 +29,11 @@ from apache_beam.runners.runner import PipelineState
 from apache_beam.runners.runner import PipelineResult
 from apache_beam.tests import pipeline_verifiers as verifiers
 from apache_beam.tests.test_utils import patch_retry
+
+try:
+  from apitools.base.py.exceptions import HttpError
+except:
+  HttpError = None
 
 
 class PipelineVerifiersTest(unittest.TestCase):
@@ -102,6 +106,7 @@ class PipelineVerifiersTest(unittest.TestCase):
     self.assertEqual(verifiers.MAX_RETRIES + 1, mock_glob.call_count)
 
   @patch.object(ChannelFactory, 'glob')
+  @unittest.skipIf(HttpError is None, 'google-apitools is not installed')
   def test_file_checksum_matcher_service_error(self, mock_glob):
     mock_glob.side_effect = HttpError(
         response={'status': '404'}, url='', content='Not Found',

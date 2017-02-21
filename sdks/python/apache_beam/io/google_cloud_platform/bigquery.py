@@ -110,21 +110,20 @@ import re
 import time
 import uuid
 
-from apitools.base.py.exceptions import HttpError
-
 from apache_beam import coders
 from apache_beam.internal import auth
-from apache_beam.internal.json_value import from_json_value
-from apache_beam.internal.json_value import to_json_value
+from apache_beam.internal.google_cloud_platform.json_value import from_json_value
+from apache_beam.internal.google_cloud_platform.json_value import to_json_value
 from apache_beam.runners.google_cloud_dataflow.native_io import iobase as dataflow_io
 from apache_beam.transforms.display import DisplayDataItem
 from apache_beam.utils import retry
 from apache_beam.utils.pipeline_options import GoogleCloudOptions
+from apache_beam.io.google_cloud_platform.internal.clients import bigquery
 
 # Protect against environments where bigquery library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position
 try:
-  from apache_beam.io.google_cloud_platform.internal.clients import bigquery
+  from apitools.base.py.exceptions import HttpError
 except ImportError:
   pass
 # pylint: enable=wrong-import-order, wrong-import-position

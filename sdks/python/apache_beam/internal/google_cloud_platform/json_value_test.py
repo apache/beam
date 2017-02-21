@@ -19,11 +19,20 @@
 
 import unittest
 
-from apitools.base.py.extra_types import JsonValue
-from apache_beam.internal.json_value import from_json_value
-from apache_beam.internal.json_value import to_json_value
+from apache_beam.internal.google_cloud_platform.json_value import from_json_value
+from apache_beam.internal.google_cloud_platform.json_value import to_json_value
 
 
+# Protect against environments where apitools library is not available.
+# pylint: disable=wrong-import-order, wrong-import-position
+try:
+  from apitools.base.py.extra_types import JsonValue
+except:
+  JsonValue = None
+# pylint: enable=wrong-import-order, wrong-import-position
+
+
+@unittest.skipIf(JsonValue is None, 'GCP dependencies are not installed')
 class JsonValueTest(unittest.TestCase):
 
   def test_string_to(self):

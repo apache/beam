@@ -36,15 +36,23 @@ from apache_beam.metrics.execution import MetricKey
 from apache_beam.metrics.execution import MetricResult
 from apache_beam.metrics.metricbase import MetricName
 from apache_beam.pipeline import Pipeline
-from apache_beam.runners import DataflowRunner
 from apache_beam.runners import DirectRunner
-from apache_beam.runners import TestDataflowRunner
 from apache_beam.runners import create_runner
-from apache_beam.runners.google_cloud_dataflow.internal import apiclient
 from apache_beam.transforms.display import DisplayDataItem
 from apache_beam.transforms.util import assert_that
 from apache_beam.transforms.util import equal_to
 from apache_beam.utils.pipeline_options import PipelineOptions
+
+from apache_beam.runners import DataflowRunner
+from apache_beam.runners import TestDataflowRunner
+
+# Protect against environments where api client is not available.
+# pylint: disable=wrong-import-order, wrong-import-position
+try:
+  from apache_beam.runners.google_cloud_dataflow.internal import apiclient
+except ImportError:
+  apiclient = None
+# pylint: enable=wrong-import-order, wrong-import-position
 
 
 class RunnerTest(unittest.TestCase):
@@ -59,12 +67,14 @@ class RunnerTest(unittest.TestCase):
   def test_create_runner(self):
     self.assertTrue(
         isinstance(create_runner('DirectRunner'), DirectRunner))
-    self.assertTrue(
-        isinstance(create_runner('DataflowRunner'),
-                   DataflowRunner))
-    self.assertTrue(
-        isinstance(create_runner('TestDataflowRunner'),
-                   TestDataflowRunner))
+    if apiclient is not None:
+      self.assertTrue(
+          isinstance(create_runner('DataflowRunner'),
+                     DataflowRunner))
+    if apiclient is not None:
+      self.assertTrue(
+          isinstance(create_runner('TestDataflowRunner'),
+                     TestDataflowRunner))
     self.assertRaises(ValueError, create_runner, 'xyz')
 
   def test_create_runner_shorthand(self):
@@ -79,6 +89,7 @@ class RunnerTest(unittest.TestCase):
     self.assertTrue(
         isinstance(create_runner('Direct'), DirectRunner))
 
+  @unittest.skipIf(apiclient is None, 'GCP dependencies are not installed')
   def test_remote_runner_translation(self):
     remote_runner = DataflowRunner()
     p = Pipeline(remote_runner,
@@ -90,6 +101,7 @@ class RunnerTest(unittest.TestCase):
     remote_runner.job = apiclient.Job(p.options)
     super(DataflowRunner, remote_runner).run(p)
 
+  @unittest.skipIf(apiclient is None, 'GCP dependencies are not installed')
   def test_remote_runner_display_data(self):
     remote_runner = DataflowRunner()
     p = Pipeline(remote_runner,
@@ -194,6 +206,7 @@ class RunnerTest(unittest.TestCase):
                 DistributionResult(DistributionData(15, 5, 1, 5)),
                 DistributionResult(DistributionData(15, 5, 1, 5)))))
 
+  @unittest.skipIf(apiclient is None, 'GCP dependencies are not installed')
   def test_no_group_by_key_directly_after_bigquery(self):
     remote_runner = DataflowRunner()
     p = Pipeline(remote_runner,

@@ -25,6 +25,14 @@ from apache_beam.runners.google_cloud_dataflow.dataflow_runner import DataflowPi
 from apache_beam.runners.google_cloud_dataflow.dataflow_runner import DataflowRuntimeException
 from apache_beam.runners.google_cloud_dataflow.internal.clients import dataflow as dataflow_api
 
+# Protect against environments where apitools library is not available.
+# pylint: disable=wrong-import-order, wrong-import-position
+try:
+  from apitools.base.py import base_api
+except ImportError:
+  base_api = None
+# pylint: enable=wrong-import-order, wrong-import-position
+
 
 class DataflowRunnerTest(unittest.TestCase):
 
@@ -33,6 +41,7 @@ class DataflowRunnerTest(unittest.TestCase):
     self.assertTrue(df_result.metrics())
     self.assertTrue(df_result.metrics().query())
 
+  @unittest.skipIf(base_api is None, 'GCP dependencies are not installed')
   @mock.patch('time.sleep', return_value=None)
   def test_wait_until_finish(self, patched_time_sleep):
     values_enum = dataflow_api.Job.CurrentStateValueValuesEnum

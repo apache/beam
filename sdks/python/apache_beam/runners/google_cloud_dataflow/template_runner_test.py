@@ -25,13 +25,22 @@ import unittest
 
 import apache_beam as beam
 from apache_beam.pipeline import Pipeline
-from apache_beam.runners.google_cloud_dataflow.dataflow_runner import DataflowRunner
-from apache_beam.runners.google_cloud_dataflow.internal import apiclient
 from apache_beam.utils.pipeline_options import PipelineOptions
+from apache_beam.runners.google_cloud_dataflow.dataflow_runner import DataflowRunner
+
+# Protect against environments where apitools library is not available.
+# pylint: disable=wrong-import-order, wrong-import-position
+try:
+  from apache_beam.runners.google_cloud_dataflow.internal import apiclient
+except ImportError:
+  apiclient = None
+# pylint: enable=wrong-import-order, wrong-import-position
 
 
+@unittest.skipIf(apiclient is None, 'GCP dependencies are not installed')
 class TemplatingDataflowRunnerTest(unittest.TestCase):
   """TemplatingDataflow tests."""
+
   def test_full_completion(self):
     # Create dummy file and close it.  Note that we need to do this because
     # Windows does not allow NamedTemporaryFiles to be reopened elsewhere

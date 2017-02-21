@@ -19,7 +19,15 @@
 
 import unittest
 
-from apitools.base.py.exceptions import HttpError
+# Protect against environments where apitools library is not available.
+# pylint: disable=wrong-import-order, wrong-import-position
+# TODO(sourabhbajaj): Remove the GCP specific error code to a submodule
+try:
+  from apitools.base.py.exceptions import HttpError
+except ImportError:
+  HttpError = None
+# pylint: enable=wrong-import-order, wrong-import-position
+
 
 from apache_beam.utils import retry
 
@@ -80,6 +88,8 @@ class RetryTest(unittest.TestCase):
     raise NotImplementedError
 
   def http_error(self, code):
+    if HttpError is None:
+      raise RuntimeError("This is not a valid test as GCP is not enabled")
     raise HttpError({'status': str(code)}, '', '')
 
   def test_with_explicit_decorator(self):
@@ -109,6 +119,7 @@ class RetryTest(unittest.TestCase):
                       10, b=20)
     self.assertEqual(len(self.clock.calls), 10)
 
+  @unittest.skipIf(HttpError is None, 'google-apitools is not installed')
   def test_with_http_error_that_should_not_be_retried(self):
     self.assertRaises(HttpError,
                       retry.with_exponential_backoff(
@@ -118,6 +129,7 @@ class RetryTest(unittest.TestCase):
     # Make sure just one call was made.
     self.assertEqual(len(self.clock.calls), 0)
 
+  @unittest.skipIf(HttpError is None, 'google-apitools is not installed')
   def test_with_http_error_that_should_be_retried(self):
     self.assertRaises(HttpError,
                       retry.with_exponential_backoff(
