@@ -18,13 +18,20 @@
 """Cloud Datastore helper functions."""
 import sys
 
-from google.cloud.proto.datastore.v1 import datastore_pb2
-from google.cloud.proto.datastore.v1 import entity_pb2
-from google.cloud.proto.datastore.v1 import query_pb2
-from googledatastore import PropertyFilter, CompositeFilter
-from googledatastore import helper as datastore_helper
-from googledatastore.connection import Datastore
-from googledatastore.connection import RPCError
+# Protect against environments where datastore library is not available.
+# pylint: disable=wrong-import-order, wrong-import-position
+try:
+  from google.cloud.proto.datastore.v1 import datastore_pb2
+  from google.cloud.proto.datastore.v1 import entity_pb2
+  from google.cloud.proto.datastore.v1 import query_pb2
+  from googledatastore import PropertyFilter, CompositeFilter
+  from googledatastore import helper as datastore_helper
+  from googledatastore.connection import Datastore
+  from googledatastore.connection import RPCError
+  QUERY_NOT_FINISHED = query_pb2.QueryResultBatch.NOT_FINISHED
+except ImportError:
+  QUERY_NOT_FINISHED = None
+# pylint: enable=wrong-import-order, wrong-import-position
 
 from apache_beam.internal import auth
 from apache_beam.utils import retry
@@ -220,7 +227,7 @@ class QueryIterator(object):
 
   Entities are read in batches. Retries on failures.
   """
-  _NOT_FINISHED = query_pb2.QueryResultBatch.NOT_FINISHED
+  _NOT_FINISHED = QUERY_NOT_FINISHED
   # Maximum number of results to request per query.
   _BATCH_SIZE = 500
 

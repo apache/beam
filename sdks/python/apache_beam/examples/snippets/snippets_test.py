@@ -45,6 +45,14 @@ except ImportError:
   base_api = None
 # pylint: enable=wrong-import-order, wrong-import-position
 
+# Protect against environments where datastore library is not available.
+# pylint: disable=wrong-import-order, wrong-import-position
+try:
+  from google.cloud.proto.datastore.v1 import datastore_pb2
+except ImportError:
+  datastore_pb2 = None
+# pylint: enable=wrong-import-order, wrong-import-position
+
 
 class ParDoTest(unittest.TestCase):
   """Tests for model/par-do."""
@@ -577,6 +585,7 @@ class SnippetsTest(unittest.TestCase):
     snippets.model_textio_compressed(
         {'read': gzip_file_name}, ['aa', 'bb', 'cc'])
 
+  @unittest.skipIf(datastore_pb2 is None, 'GCP dependencies are not installed')
   def test_model_datastoreio(self):
     # We cannot test datastoreio functionality in unit tests therefore we limit
     # ourselves to making sure the pipeline containing Datastore read and write

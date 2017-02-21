@@ -32,7 +32,7 @@ from apache_beam.tests.test_utils import patch_retry
 
 try:
   from apitools.base.py.exceptions import HttpError
-except:
+except ImportError:
   HttpError = None
 
 

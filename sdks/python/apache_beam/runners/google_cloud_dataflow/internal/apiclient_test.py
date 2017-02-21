@@ -34,6 +34,7 @@ except ImportError:
   apiclient = None
 # pylint: enable=wrong-import-order, wrong-import-position
 
+
 @unittest.skipIf(apiclient is None, 'GCP dependencies are not installed')
 class UtilTest(unittest.TestCase):
 

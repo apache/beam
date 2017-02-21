@@ -18,11 +18,22 @@
 """Implements a Cloud Datastore query splitter."""
 
 from apache_beam.io.google_cloud_platform.datastore.v1 import helper
-from google.cloud.proto.datastore.v1 import datastore_pb2
-from google.cloud.proto.datastore.v1 import query_pb2
-from google.cloud.proto.datastore.v1.query_pb2 import PropertyFilter
-from google.cloud.proto.datastore.v1.query_pb2 import CompositeFilter
-from googledatastore import helper as datastore_helper
+
+# Protect against environments where datastore library is not available.
+# pylint: disable=wrong-import-order, wrong-import-position
+try:
+  from google.cloud.proto.datastore.v1 import datastore_pb2
+  from google.cloud.proto.datastore.v1 import query_pb2
+  from google.cloud.proto.datastore.v1.query_pb2 import PropertyFilter
+  from google.cloud.proto.datastore.v1.query_pb2 import CompositeFilter
+  from googledatastore import helper as datastore_helper
+  UNSUPPORTED_OPERATORS = [PropertyFilter.LESS_THAN,
+                           PropertyFilter.LESS_THAN_OR_EQUAL,
+                           PropertyFilter.GREATER_THAN,
+                           PropertyFilter.GREATER_THAN_OR_EQUAL]
+except ImportError:
+  UNSUPPORTED_OPERATORS = []
+# pylint: enable=wrong-import-order, wrong-import-position
 
 
 __all__ = [
@@ -33,11 +44,6 @@ SCATTER_PROPERTY_NAME = '__scatter__'
 KEY_PROPERTY_NAME = '__key__'
 # The number of keys to sample for each split.
 KEYS_PER_SPLIT = 32
-
-UNSUPPORTED_OPERATORS = [PropertyFilter.LESS_THAN,
-                         PropertyFilter.LESS_THAN_OR_EQUAL,
-                         PropertyFilter.GREATER_THAN,
-                         PropertyFilter.GREATER_THAN_OR_EQUAL]
 
 
 def get_splits(datastore, query, num_splits, partition=None):

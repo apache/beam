@@ -19,8 +19,14 @@
 
 import logging
 
-from google.cloud.proto.datastore.v1 import datastore_pb2
-from googledatastore import helper as datastore_helper
+# Protect against environments where datastore library is not available.
+# pylint: disable=wrong-import-order, wrong-import-position
+try:
+  from google.cloud.proto.datastore.v1 import datastore_pb2
+  from googledatastore import helper as datastore_helper
+except ImportError:
+  pass
+# pylint: enable=wrong-import-order, wrong-import-position
 
 from apache_beam.io.google_cloud_platform.datastore.v1 import helper
 from apache_beam.io.google_cloud_platform.datastore.v1 import query_splitter

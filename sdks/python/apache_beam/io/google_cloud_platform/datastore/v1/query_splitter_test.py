@@ -25,11 +25,18 @@ from mock import call
 from apache_beam.io.google_cloud_platform.datastore.v1 import fake_datastore
 from apache_beam.io.google_cloud_platform.datastore.v1 import query_splitter
 
-from google.cloud.proto.datastore.v1 import datastore_pb2
-from google.cloud.proto.datastore.v1 import query_pb2
-from google.cloud.proto.datastore.v1.query_pb2 import PropertyFilter
+# Protect against environments where datastore library is not available.
+# pylint: disable=wrong-import-order, wrong-import-position
+try:
+  from google.cloud.proto.datastore.v1 import datastore_pb2
+  from google.cloud.proto.datastore.v1 import query_pb2
+  from google.cloud.proto.datastore.v1.query_pb2 import PropertyFilter
+except ImportError:
+  datastore_pb2 = None
+# pylint: enable=wrong-import-order, wrong-import-position
 
 
+@unittest.skipIf(datastore_pb2 is None, 'GCP dependencies are not installed')
 class QuerySplitterTest(unittest.TestCase):
 
   def test_get_splits_query_with_multiple_kinds(self):
