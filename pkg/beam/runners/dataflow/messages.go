@@ -90,9 +90,21 @@ type encoding struct {
 	IsPairLike bool       `json:"is_pair_like,omitempty"`
 }
 
+type integer struct {
+	Type  string `json:"@type,omitempty"` // "http://schema.org/Integer"
+	Value int    `json:"value,omitempty"`
+}
+
+func newInteger(value int) *integer {
+	return &integer{
+		Type:  "http://schema.org/Integer",
+		Value: value,
+	}
+}
+
 type customSourceInputStep struct {
-	Spec customSourceInputStepSpec `json:"spec"`
-	// TODO(herohde): metadata size estimate
+	Spec     customSourceInputStepSpec      `json:"spec"`
+	Metadata *customSourceInputStepMetadata `json:"metadata,omitempty"`
 }
 
 type customSourceInputStepSpec struct {
@@ -100,11 +112,18 @@ type customSourceInputStepSpec struct {
 	SerializedSource string `json:"serialized_source,omitempty"`
 }
 
+type customSourceInputStepMetadata struct {
+	EstimatedSizeBytes *integer `json:"estimated_size_bytes,omitempty"`
+}
+
 func newCustomSourceInputStep(serializedSource string) *customSourceInputStep {
 	return &customSourceInputStep{
 		Spec: customSourceInputStepSpec{
 			Type:             "CustomSourcesType",
 			SerializedSource: serializedSource,
+		},
+		Metadata: &customSourceInputStepMetadata{
+			EstimatedSizeBytes: newInteger(5 << 20), // 5 MB
 		},
 	}
 }
