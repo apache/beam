@@ -31,6 +31,7 @@ import java.util.List;
 import java.util.Map;
 import org.apache.beam.runners.core.SystemReduceFn;
 import org.apache.beam.runners.flink.FlinkRunner;
+import org.apache.beam.runners.flink.FlinkStreamingViewOverrides;
 import org.apache.beam.runners.flink.translation.functions.FlinkAssignWindows;
 import org.apache.beam.runners.flink.translation.types.CoderTypeInformation;
 import org.apache.beam.runners.flink.translation.types.FlinkCoder;
@@ -128,7 +129,8 @@ public class FlinkStreamingTransformTranslators {
     TRANSLATORS.put(Window.Bound.class, new WindowBoundTranslator());
     TRANSLATORS.put(Flatten.FlattenPCollectionList.class, new FlattenPCollectionTranslator());
     TRANSLATORS.put(
-        FlinkRunner.CreateFlinkPCollectionView.class, new CreateViewStreamingTranslator());
+        FlinkStreamingViewOverrides.CreateFlinkPCollectionView.class,
+        new CreateViewStreamingTranslator());
 
     TRANSLATORS.put(Reshuffle.class, new ReshuffleTranslatorStreaming());
     TRANSLATORS.put(GroupByKey.class, new GroupByKeyTranslator());
@@ -686,11 +688,11 @@ public class FlinkStreamingTransformTranslators {
 
   private static class CreateViewStreamingTranslator<ElemT, ViewT>
       extends FlinkStreamingPipelineTranslator.StreamTransformTranslator<
-      FlinkRunner.CreateFlinkPCollectionView<ElemT, ViewT>> {
+      FlinkStreamingViewOverrides.CreateFlinkPCollectionView<ElemT, ViewT>> {
 
     @Override
     public void translateNode(
-        FlinkRunner.CreateFlinkPCollectionView<ElemT, ViewT> transform,
+        FlinkStreamingViewOverrides.CreateFlinkPCollectionView<ElemT, ViewT> transform,
         FlinkStreamingTranslationContext context) {
       // just forward
       DataStream<WindowedValue<List<ElemT>>> inputDataSet =
