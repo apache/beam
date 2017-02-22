@@ -113,6 +113,7 @@ public class DataflowRunnerTest {
   private static final String NON_EXISTENT_BUCKET = "gs://non-existent-bucket/location";
 
   private static final String PROJECT_ID = "some-project";
+  private static final String REGION_ID = "some-region-1";
 
   @Rule
   public TemporaryFolder tmpFolder = new TemporaryFolder();
@@ -121,7 +122,7 @@ public class DataflowRunnerTest {
   @Rule
   public ExpectedLogs expectedLogs = ExpectedLogs.none(DataflowRunner.class);
 
-  private Dataflow.Projects.Jobs mockJobs;
+  private Dataflow.Projects.Locations.Jobs mockJobs;
   private GcsUtil mockGcsUtil;
 
   // Asserts that the given Job has all expected fields set.
@@ -159,7 +160,7 @@ public class DataflowRunnerTest {
     // The dataflow pipeline attempts to output to this location.
     when(mockGcsUtil.bucketAccessible(GcsPath.fromUri("gs://bucket/object"))).thenReturn(true);
 
-    mockJobs = mock(Dataflow.Projects.Jobs.class);
+    mockJobs = mock(Dataflow.Projects.Locations.Jobs.class);
   }
 
   private Pipeline buildDataflowPipeline(DataflowPipelineOptions options) {
@@ -176,14 +177,17 @@ public class DataflowRunnerTest {
   private Dataflow buildMockDataflow() throws IOException {
     Dataflow mockDataflowClient = mock(Dataflow.class);
     Dataflow.Projects mockProjects = mock(Dataflow.Projects.class);
-    Dataflow.Projects.Jobs.Create mockRequest =
-        mock(Dataflow.Projects.Jobs.Create.class);
-    Dataflow.Projects.Jobs.List mockList = mock(Dataflow.Projects.Jobs.List.class);
+    Dataflow.Projects.Locations mockLocations = mock(Dataflow.Projects.Locations.class);
+    Dataflow.Projects.Locations.Jobs.Create mockRequest =
+        mock(Dataflow.Projects.Locations.Jobs.Create.class);
+    Dataflow.Projects.Locations.Jobs.List mockList = mock(
+        Dataflow.Projects.Locations.Jobs.List.class);
 
     when(mockDataflowClient.projects()).thenReturn(mockProjects);
-    when(mockProjects.jobs()).thenReturn(mockJobs);
-    when(mockJobs.create(eq(PROJECT_ID), isA(Job.class))).thenReturn(mockRequest);
-    when(mockJobs.list(eq(PROJECT_ID))).thenReturn(mockList);
+    when(mockProjects.locations()).thenReturn(mockLocations);
+    when(mockLocations.jobs()).thenReturn(mockJobs);
+    when(mockJobs.create(eq(PROJECT_ID), eq(REGION_ID), isA(Job.class))).thenReturn(mockRequest);
+    when(mockJobs.list(eq(PROJECT_ID), eq(REGION_ID))).thenReturn(mockList);
     when(mockList.setPageToken(anyString())).thenReturn(mockList);
     when(mockList.execute())
         .thenReturn(
@@ -226,6 +230,7 @@ public class DataflowRunnerTest {
     options.setRunner(DataflowRunner.class);
     options.setProject(PROJECT_ID);
     options.setTempLocation(VALID_TEMP_BUCKET);
+    options.setRegion(REGION_ID);
     // Set FILES_PROPERTY to empty to prevent a default value calculated from classpath.
     options.setFilesToStage(new LinkedList<String>());
     options.setDataflowClient(buildMockDataflow());
@@ -304,7 +309,7 @@ public class DataflowRunnerTest {
     assertEquals("newid", job.getJobId());
 
     ArgumentCaptor<Job> jobCaptor = ArgumentCaptor.forClass(Job.class);
-    Mockito.verify(mockJobs).create(eq(PROJECT_ID), jobCaptor.capture());
+    Mockito.verify(mockJobs).create(eq(PROJECT_ID), eq(REGION_ID), jobCaptor.capture());
     assertValidJob(jobCaptor.getValue());
   }
 
@@ -331,8 +336,10 @@ public class DataflowRunnerTest {
   public void testRunReturnDifferentRequestId() throws IOException {
     DataflowPipelineOptions options = buildPipelineOptions();
     Dataflow mockDataflowClient = options.getDataflowClient();
-    Dataflow.Projects.Jobs.Create mockRequest = mock(Dataflow.Projects.Jobs.Create.class);
-    when(mockDataflowClient.projects().jobs().create(eq(PROJECT_ID), any(Job.class)))
+    Dataflow.Projects.Locations.Jobs.Create mockRequest = mock(
+        Dataflow.Projects.Locations.Jobs.Create.class);
+    when(mockDataflowClient.projects().locations().jobs()
+        .create(eq(PROJECT_ID), eq(REGION_ID), any(Job.class)))
         .thenReturn(mockRequest);
     Job resultJob = new Job();
     resultJob.setId("newid");
@@ -347,7 +354,7 @@ public class DataflowRunnerTest {
     } catch (DataflowJobAlreadyExistsException expected) {
       assertThat(expected.getMessage(),
           containsString("If you want to submit a second job, try again by setting a "
-            + "different name using --jobName."));
+              + "different name using --jobName."));
       assertEquals(expected.getJob().getJobId(), resultJob.getId());
     }
   }
@@ -362,7 +369,7 @@ public class DataflowRunnerTest {
     assertEquals("newid", job.getJobId());
 
     ArgumentCaptor<Job> jobCaptor = ArgumentCaptor.forClass(Job.class);
-    Mockito.verify(mockJobs).create(eq(PROJECT_ID), jobCaptor.capture());
+    Mockito.verify(mockJobs).create(eq(PROJECT_ID), eq(REGION_ID), jobCaptor.capture());
     assertValidJob(jobCaptor.getValue());
   }
 
@@ -384,8 +391,10 @@ public class DataflowRunnerTest {
     options.setUpdate(true);
     options.setJobName("oldJobName");
     Dataflow mockDataflowClient = options.getDataflowClient();
-    Dataflow.Projects.Jobs.Create mockRequest = mock(Dataflow.Projects.Jobs.Create.class);
-    when(mockDataflowClient.projects().jobs().create(eq(PROJECT_ID), any(Job.class)))
+    Dataflow.Projects.Locations.Jobs.Create mockRequest = mock(
+        Dataflow.Projects.Locations.Jobs.Create.class);
+    when(mockDataflowClient.projects().locations().jobs()
+        .create(eq(PROJECT_ID), eq(REGION_ID), any(Job.class)))
         .thenReturn(mockRequest);
     final Job resultJob = new Job();
     resultJob.setId("newid");
@@ -434,6 +443,7 @@ public class DataflowRunnerTest {
     options.setTempLocation(VALID_TEMP_BUCKET);
     options.setTempDatasetId(cloudDataflowDataset);
     options.setProject(PROJECT_ID);
+    options.setRegion(REGION_ID);
     options.setJobName("job");
     options.setDataflowClient(buildMockDataflow());
     options.setGcsUtil(mockGcsUtil);
@@ -445,7 +455,7 @@ public class DataflowRunnerTest {
     assertEquals("newid", job.getJobId());
 
     ArgumentCaptor<Job> jobCaptor = ArgumentCaptor.forClass(Job.class);
-    Mockito.verify(mockJobs).create(eq(PROJECT_ID), jobCaptor.capture());
+    Mockito.verify(mockJobs).create(eq(PROJECT_ID), eq(REGION_ID), jobCaptor.capture());
     Job workflowJob = jobCaptor.getValue();
     assertValidJob(workflowJob);
 
@@ -485,7 +495,7 @@ public class DataflowRunnerTest {
   public void detectClassPathResourceWithFileResources() throws Exception {
     File file = tmpFolder.newFile("file");
     File file2 = tmpFolder.newFile("file2");
-    URLClassLoader classLoader = new URLClassLoader(new URL[]{
+    URLClassLoader classLoader = new URLClassLoader(new URL[] {
         file.toURI().toURL(),
         file2.toURI().toURL()
     });
@@ -506,7 +516,7 @@ public class DataflowRunnerTest {
   @Test
   public void detectClassPathResourceWithNonFileResources() throws Exception {
     String url = "http://www.google.com/all-the-secrets.jar";
-    URLClassLoader classLoader = new URLClassLoader(new URL[]{
+    URLClassLoader classLoader = new URLClassLoader(new URL[] {
         new URL(url)
     });
     thrown.expect(IllegalArgumentException.class);
@@ -542,7 +552,7 @@ public class DataflowRunnerTest {
     p.run();
 
     ArgumentCaptor<Job> jobCaptor = ArgumentCaptor.forClass(Job.class);
-    Mockito.verify(mockJobs).create(eq(PROJECT_ID), jobCaptor.capture());
+    Mockito.verify(mockJobs).create(eq(PROJECT_ID), eq(REGION_ID), jobCaptor.capture());
     assertValidJob(jobCaptor.getValue());
   }
 
@@ -568,7 +578,7 @@ public class DataflowRunnerTest {
     p.run();
 
     ArgumentCaptor<Job> jobCaptor = ArgumentCaptor.forClass(Job.class);
-    Mockito.verify(mockJobs).create(eq(PROJECT_ID), jobCaptor.capture());
+    Mockito.verify(mockJobs).create(eq(PROJECT_ID), eq(REGION_ID), jobCaptor.capture());
     assertValidJob(jobCaptor.getValue());
   }
 
@@ -592,7 +602,7 @@ public class DataflowRunnerTest {
     DataflowRunner.fromOptions(options);
 
     ArgumentCaptor<Job> jobCaptor = ArgumentCaptor.forClass(Job.class);
-    Mockito.verify(mockJobs).create(eq(PROJECT_ID), jobCaptor.capture());
+    Mockito.verify(mockJobs).create(eq(PROJECT_ID), eq(REGION_ID), jobCaptor.capture());
     assertValidJob(jobCaptor.getValue());
   }
 
@@ -657,7 +667,7 @@ public class DataflowRunnerTest {
     DataflowRunner.fromOptions(options);
 
     ArgumentCaptor<Job> jobCaptor = ArgumentCaptor.forClass(Job.class);
-    Mockito.verify(mockJobs).create(eq(PROJECT_ID), jobCaptor.capture());
+    Mockito.verify(mockJobs).create(eq(PROJECT_ID), eq(REGION_ID), jobCaptor.capture());
     assertValidJob(jobCaptor.getValue());
   }
 
@@ -672,7 +682,7 @@ public class DataflowRunnerTest {
     DataflowRunner.fromOptions(options);
 
     ArgumentCaptor<Job> jobCaptor = ArgumentCaptor.forClass(Job.class);
-    Mockito.verify(mockJobs).create(eq(PROJECT_ID), jobCaptor.capture());
+    Mockito.verify(mockJobs).create(eq(PROJECT_ID), eq(REGION_ID), jobCaptor.capture());
     assertValidJob(jobCaptor.getValue());
   }
 
@@ -687,9 +697,9 @@ public class DataflowRunnerTest {
     DataflowRunner.fromOptions(options);
 
     ArgumentCaptor<Job> jobCaptor = ArgumentCaptor.forClass(Job.class);
-    Mockito.verify(mockJobs).create(eq(PROJECT_ID), jobCaptor.capture());
+    Mockito.verify(mockJobs).create(eq(PROJECT_ID), eq(REGION_ID), jobCaptor.capture());
     assertValidJob(jobCaptor.getValue());
-   }
+  }
 
   @Test
   public void testNoProjectFails() {
@@ -933,7 +943,7 @@ public class DataflowRunnerTest {
     Pipeline p = Pipeline.create(options);
 
     p.apply(Create.of(Arrays.asList(1, 2, 3)))
-     .apply(new TestTransform());
+        .apply(new TestTransform());
 
     thrown.expect(IllegalStateException.class);
     thrown.expectMessage(Matchers.containsString("no translator registered"));
@@ -942,7 +952,7 @@ public class DataflowRunnerTest {
             p, (DataflowRunner) p.getRunner(), Collections.<DataflowPackage>emptyList());
 
     ArgumentCaptor<Job> jobCaptor = ArgumentCaptor.forClass(Job.class);
-    Mockito.verify(mockJobs).create(eq(PROJECT_ID), jobCaptor.capture());
+    Mockito.verify(mockJobs).create(eq(PROJECT_ID), eq(REGION_ID), jobCaptor.capture());
     assertValidJob(jobCaptor.getValue());
   }
 
