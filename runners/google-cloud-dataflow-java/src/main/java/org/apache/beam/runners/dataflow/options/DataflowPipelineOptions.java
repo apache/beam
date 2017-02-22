@@ -97,6 +97,23 @@ public interface DataflowPipelineOptions
   void setServiceAccount(String value);
 
   /**
+   * The Google Compute Engine
+   * <a href="https://cloud.google.com/compute/docs/regions-zones/regions-zones">region</a>
+   * for creating Dataflow jobs.
+   *
+   * <p>NOTE: The Cloud Dataflow service does not yet honor this setting. However, once service
+   * support is added then users of this SDK will be able to control the region.
+   */
+  @Hidden
+  @Experimental
+  @Description("The Google Compute Engine region for creating Dataflow jobs. See "
+      + "https://cloud.google.com/compute/docs/regions-zones/regions-zones for a list of valid "
+      + "options. Default is up to the Dataflow service.")
+  @Default.String("us-central1")
+  String getRegion();
+  void setRegion(String region);
+
+  /**
    * Returns a default staging location under {@link GcpOptions#getGcpTempLocation}.
    */
   class StagingLocationFactory implements DefaultValueFactory<String> {
