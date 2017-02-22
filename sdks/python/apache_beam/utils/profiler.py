@@ -72,7 +72,8 @@ class Profile(object):
 
 class MemoryReporter(object):
   """A memory reporter that reports the memory usage and heap profile.
-  Usage:
+  Usage:::
+
     mr = MemoryReporter(interval_second=30.0)
     mr.start()
     while ...
@@ -88,7 +89,8 @@ class MemoryReporter(object):
       while ...
         <do some thing>
 
-  Also it could report on demand without continuous reporting.
+  Also it could report on demand without continuous reporting.::
+
     mr = MemoryReporter()  # default interval 60s but not started.
     <do something>
     mr.report_once()

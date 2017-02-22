@@ -33,14 +33,15 @@
   (sources and sinks) to consume and produce data from systems.</description>
 
   <modules>
+    <module>elasticsearch</module>
     <module>google-cloud-platform</module>
+    <module>hbase</module>
     <module>hdfs</module>
+    <module>jdbc</module>
     <module>jms</module>
     <module>kafka</module>
     <module>kinesis</module>
     <module>mongodb</module>
-    <module>jdbc</module>
-    <module>elasticsearch</module>
     <module>mqtt</module>
   </modules>
 

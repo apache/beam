@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.flink.translation;
+package org.apache.beam.runners.flink;
 
 import com.google.common.collect.Iterables;
 import java.util.HashMap;
@@ -40,7 +40,7 @@ import org.apache.flink.api.java.ExecutionEnvironment;
  * Helper for {@link FlinkBatchPipelineTranslator} and translators in
  * {@link FlinkBatchTransformTranslators}.
  */
-public class FlinkBatchTranslationContext {
+class FlinkBatchTranslationContext {
 
   private final Map<PValue, DataSet<?>> dataSets;
   private final Map<PCollectionView<?>, DataSet<?>> broadcastDataSets;

@@ -48,22 +48,6 @@
         <skipIntegrationTests>false</skipIntegrationTests>
       </properties>
     </profile>
-    <profile>
-      <id>release</id>
-      <activation>
-        <property>
-          <name>!quick</name>
-        </property>
-      </activation>
-      <build>
-        <plugins>
-          <plugin>
-            <groupId>org.apache.maven.plugins</groupId>
-            <artifactId>maven-checkstyle-plugin</artifactId>
-          </plugin>
-        </plugins>
-      </build>
-    </profile>
   </profiles>
 
   <dependencies>
@@ -190,6 +174,12 @@
 
   <build>
     <plugins>
+
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-checkstyle-plugin</artifactId>
+      </plugin>
+
       <!-- Integration Tests -->
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>

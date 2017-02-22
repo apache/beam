@@ -136,7 +136,7 @@
     <storage.version>v1-rev71-1.22.0</storage.version>
     <woodstox.version>4.4.1</woodstox.version>
     <spring.version>4.3.5.RELEASE</spring.version>
-
+    
     <compiler.error.flag>-Werror</compiler.error.flag>
     <compiler.default.pkginfo.flag>-Xpkginfo:always</compiler.default.pkginfo.flag>
     <compiler.default.exclude>nothing</compiler.default.exclude>
@@ -161,11 +161,6 @@
       to this profile. -->
     <profile>
       <id>release</id>
-      <activation>
-        <property>
-          <name>!quick</name>
-        </property>
-      </activation>
       <build>
         <pluginManagement>
           <plugins>
@@ -379,6 +374,12 @@
       <dependency>
         <groupId>org.apache.beam</groupId>
         <artifactId>beam-sdks-java-io-google-cloud-platform</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.apache.beam</groupId>
+        <artifactId>beam-sdks-java-io-hbase</artifactId>
         <version>${project.version}</version>
       </dependency>
 
@@ -884,7 +885,7 @@
         <artifactId>byte-buddy</artifactId>
         <version>1.6.8</version>
       </dependency>
-
+      
       <dependency>
         <groupId>org.springframework</groupId>
         <artifactId>spring-expression</artifactId>

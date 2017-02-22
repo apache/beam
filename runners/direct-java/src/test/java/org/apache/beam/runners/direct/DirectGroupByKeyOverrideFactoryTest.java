@@ -32,12 +32,12 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for {@link DirectGBKIntoKeyedWorkItemsOverrideFactory}.
- */
+/** Tests for {@link DirectGBKIntoKeyedWorkItemsOverrideFactory}. */
 @RunWith(JUnit4.class)
 public class DirectGroupByKeyOverrideFactoryTest {
-  private DirectGroupByKeyOverrideFactory factory = new DirectGroupByKeyOverrideFactory();
+  private DirectGroupByKeyOverrideFactory<String, Integer> factory =
+      new DirectGroupByKeyOverrideFactory<>();
+
   @Test
   public void getInputSucceeds() {
     TestPipeline p = TestPipeline.create();
