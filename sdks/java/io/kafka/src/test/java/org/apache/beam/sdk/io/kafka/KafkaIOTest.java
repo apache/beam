@@ -143,7 +143,6 @@ public class KafkaIOTest {
     final MockConsumer<byte[], byte[]> consumer =
         new MockConsumer<byte[], byte[]>(offsetResetStrategy) {
           // override assign() in order to set offset limits & to save assigned partitions.
-          @Override
           public void assign(final List<TopicPartition> assigned) {
             super.assign(assigned);
             assignedPartitions.set(ImmutableList.copyOf(assigned));
