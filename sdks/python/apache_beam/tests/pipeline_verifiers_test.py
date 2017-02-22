@@ -21,7 +21,7 @@ import logging
 import tempfile
 import unittest
 
-from google.cloud.bigquery import Client
+from google.cloud import bigquery
 from google.cloud.exceptions import NotFound
 from hamcrest import assert_that as hc_assert_that
 from mock import Mock, patch
@@ -119,12 +119,12 @@ class PipelineVerifiersTest(unittest.TestCase):
     self.assertTrue(mock_glob.called)
     self.assertEqual(verifiers.MAX_RETRIES + 1, mock_glob.call_count)
 
-  @patch.object(Client, 'run_sync_query')
-  def test_bigquery_matcher_success(self, mock_query):
-    mock_result = ([], Mock(), None)
-    query_job = Mock()
-    mock_query.return_value = query_job
-    query_job.fetch_data.return_value = mock_result
+  @patch.object(bigquery, 'Client')
+  def test_bigquery_matcher_success(self, mock_bigquery):
+    mock_query = Mock()
+    mock_client = mock_bigquery.return_value
+    mock_client.run_sync_query.return_value = mock_query
+    mock_query.fetch_data.return_value = ([], None, None)
 
     matcher = verifiers.BigqueryMatcher(
         'mock_project',
@@ -132,48 +132,51 @@ class PipelineVerifiersTest(unittest.TestCase):
         'da39a3ee5e6b4b0d3255bfef95601890afd80709')
     hc_assert_that(self._mock_result, matcher)
 
-  @patch.object(Client, 'run_sync_query')
-  def test_bigquery_matcher_query_run_error(self, mock_query):
-    query_job = Mock()
-    mock_query.return_value = query_job
-    query_job.run.side_effect = ValueError('job is already running')
+  @patch.object(bigquery, 'Client')
+  def test_bigquery_matcher_query_run_error(self, mock_bigquery):
+    mock_query = Mock()
+    mock_client = mock_bigquery.return_value
+    mock_client.run_sync_query.return_value = mock_query
+    mock_query.run.side_effect = ValueError('job is already running')
 
     matcher = verifiers.BigqueryMatcher('mock_project',
                                         'mock_query',
                                         'mock_checksum')
     with self.assertRaises(ValueError):
       hc_assert_that(self._mock_result, matcher)
-    self.assertTrue(query_job.run.called)
-    self.assertEqual(verifiers.MAX_RETRIES + 1, query_job.run.call_count)
+    self.assertTrue(mock_query.run.called)
+    self.assertEqual(verifiers.MAX_RETRIES + 1, mock_query.run.call_count)
 
-  @patch.object(Client, 'run_sync_query')
-  def test_bigquery_matcher_fetch_data_error(self, mock_query):
-    query_job = Mock()
-    mock_query.return_value = query_job
-    query_job.fetch_data.side_effect = ValueError('query job not executed')
+  @patch.object(bigquery, 'Client')
+  def test_bigquery_matcher_fetch_data_error(self, mock_bigquery):
+    mock_query = Mock()
+    mock_client = mock_bigquery.return_value
+    mock_client.run_sync_query.return_value = mock_query
+    mock_query.fetch_data.side_effect = ValueError('query job not executed')
 
     matcher = verifiers.BigqueryMatcher('mock_project',
                                         'mock_query',
                                         'mock_checksum')
     with self.assertRaises(ValueError):
       hc_assert_that(self._mock_result, matcher)
-    self.assertTrue(query_job.fetch_data.called)
+    self.assertTrue(mock_query.fetch_data.called)
     self.assertEqual(verifiers.MAX_RETRIES + 1,
-                     query_job.fetch_data.call_count)
+                     mock_query.fetch_data.call_count)
 
-  @patch.object(Client, 'run_sync_query')
-  def test_bigquery_matcher_query_responds_error_code(self, mock_query):
-    query_job = Mock()
-    mock_query.return_value = query_job
-    query_job.run.side_effect = NotFound('table is not found')
+  @patch.object(bigquery, 'Client')
+  def test_bigquery_matcher_query_responds_error_code(self, mock_bigquery):
+    mock_query = Mock()
+    mock_client = mock_bigquery.return_value
+    mock_client.run_sync_query.return_value = mock_query
+    mock_query.run.side_effect = NotFound('table is not found')
 
     matcher = verifiers.BigqueryMatcher('mock_project',
                                         'mock_query',
                                         'mock_checksum')
     with self.assertRaises(NotFound):
       hc_assert_that(self._mock_result, matcher)
-    self.assertTrue(query_job.run.called)
-    self.assertEqual(verifiers.MAX_RETRIES + 1, query_job.run.call_count)
+    self.assertTrue(mock_query.run.called)
+    self.assertEqual(verifiers.MAX_RETRIES + 1, mock_query.run.call_count)
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
