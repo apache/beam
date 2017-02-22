@@ -27,8 +27,10 @@ import yaml
 
 from apache_beam import coders
 from apache_beam.coders import coder_impl
+from apache_beam.utils import windowed_value
 from apache_beam.utils.timestamp import Timestamp
 from apache_beam.transforms.window import IntervalWindow
+from apache_beam.transforms import window
 
 from nose_parameterized import parameterized
 
@@ -55,8 +57,11 @@ class StandardCodersTest(unittest.TestCase):
       'urn:beam:coders:bytes:0.1': coders.BytesCoder,
       'urn:beam:coders:varint:0.1': coders.VarIntCoder,
       'urn:beam:coders:kv:0.1': lambda k, v: coders.TupleCoder((k, v)),
-      'urn:beam:coders:intervalwindow:0.1': coders.IntervalWindowCoder,
+      'urn:beam:coders:interval_window:0.1': coders.IntervalWindowCoder,
       'urn:beam:coders:stream:0.1': lambda t: coders.IterableCoder(t),
+      'urn:beam:coders:global_window:0.1': coders.GlobalWindowCoder,
+      'urn:beam:coders:windowed_value:0.1':
+          lambda v, w: coders.WindowedValueCoder(v, w)
   }
 
   _urn_to_json_value_parser = {
@@ -65,11 +70,16 @@ class StandardCodersTest(unittest.TestCase):
       'urn:beam:coders:kv:0.1':
           lambda x, key_parser, value_parser: (key_parser(x['key']),
                                                value_parser(x['value'])),
-      'urn:beam:coders:intervalwindow:0.1':
+      'urn:beam:coders:interval_window:0.1':
           lambda x: IntervalWindow(
               start=Timestamp(micros=(x['end'] - x['span']) * 1000),
               end=Timestamp(micros=x['end'] * 1000)),
-      'urn:beam:coders:stream:0.1': lambda x, parser: map(parser, x)
+      'urn:beam:coders:stream:0.1': lambda x, parser: map(parser, x),
+      'urn:beam:coders:global_window:0.1': lambda x: window.GlobalWindow(),
+      'urn:beam:coders:windowed_value:0.1':
+          lambda x, value_parser, window_parser: windowed_value.create(
+              value_parser(x['value']), x['timestamp'] * 1000,
+              tuple([window_parser(w) for w in x['windows']]))
   }
 
   @parameterized.expand(_load_test_cases(STANDARD_CODERS_YAML))
