@@ -17,10 +17,6 @@
 
 import unittest
 
-from google.cloud.proto.datastore.v1 import datastore_pb2
-from google.cloud.proto.datastore.v1 import query_pb2
-from google.protobuf import timestamp_pb2
-from googledatastore import helper as datastore_helper
 from mock import MagicMock, call, patch
 
 from apache_beam.io.google_cloud_platform.datastore.v1 import fake_datastore
@@ -30,7 +26,19 @@ from apache_beam.io.google_cloud_platform.datastore.v1.datastoreio import _Mutat
 from apache_beam.io.google_cloud_platform.datastore.v1.datastoreio import ReadFromDatastore
 from apache_beam.io.google_cloud_platform.datastore.v1.datastoreio import WriteToDatastore
 
+# Protect against environments where datastore library is not available.
+# pylint: disable=wrong-import-order, wrong-import-position
+try:
+  from google.cloud.proto.datastore.v1 import datastore_pb2
+  from google.cloud.proto.datastore.v1 import query_pb2
+  from google.protobuf import timestamp_pb2
+  from googledatastore import helper as datastore_helper
+except ImportError:
+  datastore_pb2 = None
+# pylint: enable=wrong-import-order, wrong-import-position
 
+
+@unittest.skipIf(datastore_pb2 is None, 'GCP dependencies are not installed')
 class DatastoreioTest(unittest.TestCase):
   _PROJECT = 'project'
   _KIND = 'kind'

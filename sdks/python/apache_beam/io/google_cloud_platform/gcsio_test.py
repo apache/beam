@@ -27,10 +27,17 @@ import unittest
 
 import httplib2
 import mock
-from apitools.base.py.exceptions import HttpError
 
 from apache_beam.io import gcsio
 from apache_beam.io.google_cloud_platform.internal.clients import storage
+
+# Protect against environments where apitools library is not available.
+# pylint: disable=wrong-import-order, wrong-import-position
+try:
+  from apitools.base.py.exceptions import HttpError
+except ImportError:
+  HttpError = None
+# pylint: enable=wrong-import-order, wrong-import-position
 
 
 class FakeGcsClient(object):
@@ -196,6 +203,7 @@ class FakeBatchApiRequest(object):
     return api_calls
 
 
+@unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
 class TestGCSPathParser(unittest.TestCase):
 
   def test_gcs_path(self):
@@ -213,6 +221,7 @@ class TestGCSPathParser(unittest.TestCase):
     self.assertRaises(ValueError, gcsio.parse_gcs_path, 'gs:/blah/bucket/name')
 
 
+@unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
 class TestGCSIO(unittest.TestCase):
 
   def _insert_random_file(self, client, path, size, generation=1):
@@ -740,6 +749,7 @@ class TestGCSIO(unittest.TestCase):
           self.gcs.size_of_files_in_glob(file_pattern), expected_file_sizes)
 
 
+@unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
 class TestPipeStream(unittest.TestCase):
 
   def _read_and_verify(self, stream, expected, buffer_size):

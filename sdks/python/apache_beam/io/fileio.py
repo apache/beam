@@ -30,8 +30,21 @@ import zlib
 
 from apache_beam.internal import util
 from apache_beam.io import iobase
-from apache_beam.io.google_cloud_platform import gcsio
 from apache_beam.transforms.display import DisplayDataItem
+
+# TODO(sourabhbajaj): Fix the constant values after the new IO factory
+# Current constants are copy pasted from gcsio.py till we fix this.
+# Protect against environments where apitools library is not available.
+# pylint: disable=wrong-import-order, wrong-import-position
+try:
+  from apache_beam.io.google_cloud_platform import gcsio
+  DEFAULT_READ_BUFFER_SIZE = gcsio.DEFAULT_READ_BUFFER_SIZE
+  MAX_BATCH_OPERATION_SIZE = gcsio.MAX_BATCH_OPERATION_SIZE
+except ImportError:
+  gcsio = None
+  DEFAULT_READ_BUFFER_SIZE = 16 * 1024 * 1024
+  MAX_BATCH_OPERATION_SIZE = 100
+# pylint: enable=wrong-import-order, wrong-import-position
 
 
 DEFAULT_SHARD_NAME_TEMPLATE = '-SSSSS-of-NNNNN'
@@ -190,7 +203,7 @@ class ChannelFactory(object):
     gcs_current_batch = []
     for src, dest in src_dest_pairs:
       gcs_current_batch.append((src, dest))
-      if len(gcs_current_batch) == gcsio.MAX_BATCH_OPERATION_SIZE:
+      if len(gcs_current_batch) == MAX_BATCH_OPERATION_SIZE:
         gcs_batches.append(gcs_current_batch)
         gcs_current_batch = []
     if gcs_current_batch:
@@ -324,7 +337,7 @@ class _CompressedFile(object):
   def __init__(self,
                fileobj,
                compression_type=CompressionTypes.GZIP,
-               read_size=gcsio.DEFAULT_READ_BUFFER_SIZE):
+               read_size=DEFAULT_READ_BUFFER_SIZE):
     if not fileobj:
       raise ValueError('File object must be opened file but was at %s' %
                        fileobj)
@@ -633,7 +646,7 @@ class FileSink(iobase.Sink):
     current_batch = []
     for rename_op in rename_ops:
       current_batch.append(rename_op)
-      if len(current_batch) == gcsio.MAX_BATCH_OPERATION_SIZE:
+      if len(current_batch) == MAX_BATCH_OPERATION_SIZE:
         batches.append(current_batch)
         current_batch = []
     if current_batch:

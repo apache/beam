@@ -25,19 +25,27 @@ import unittest
 
 import hamcrest as hc
 import mock
-from apitools.base.py.exceptions import HttpError
 
 import apache_beam as beam
-from apache_beam.internal.json_value import to_json_value
 from apache_beam.io.google_cloud_platform.bigquery import RowAsDictJsonCoder
 from apache_beam.io.google_cloud_platform.bigquery import TableRowJsonCoder
 from apache_beam.io.google_cloud_platform.bigquery import parse_table_schema_from_json
 from apache_beam.io.google_cloud_platform.internal.clients import bigquery
+from apache_beam.internal.google_cloud_platform.json_value import to_json_value
 from apache_beam.transforms.display import DisplayData
 from apache_beam.transforms.display_test import DisplayDataItemMatcher
 from apache_beam.utils.pipeline_options import PipelineOptions
 
+# Protect against environments where bigquery library is not available.
+# pylint: disable=wrong-import-order, wrong-import-position
+try:
+  from apitools.base.py.exceptions import HttpError
+except ImportError:
+  HttpError = None
+# pylint: enable=wrong-import-order, wrong-import-position
 
+
+@unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
 class TestRowAsDictJsonCoder(unittest.TestCase):
 
   def test_row_as_dict(self):
@@ -62,6 +70,7 @@ class TestRowAsDictJsonCoder(unittest.TestCase):
     self.json_compliance_exception(float('-inf'))
 
 
+@unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
 class TestTableRowJsonCoder(unittest.TestCase):
 
   def test_row_as_table_row(self):
@@ -123,6 +132,7 @@ class TestTableRowJsonCoder(unittest.TestCase):
     self.json_compliance_exception(float('-inf'))
 
 
+@unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
 class TestTableSchemaParser(unittest.TestCase):
   def test_parse_table_schema_from_json(self):
     string_field = bigquery.TableFieldSchema(
@@ -144,6 +154,7 @@ class TestTableSchemaParser(unittest.TestCase):
                      expected_schema)
 
 
+@unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
 class TestBigQuerySource(unittest.TestCase):
 
   def test_display_data_item_on_validate_true(self):
@@ -234,6 +245,7 @@ class TestBigQuerySource(unittest.TestCase):
     hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
 
 
+@unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
 class TestBigQuerySink(unittest.TestCase):
 
   def test_table_spec_display_data(self):
@@ -291,6 +303,7 @@ class TestBigQuerySink(unittest.TestCase):
         json.loads(sink.schema_as_json()))
 
 
+@unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
 class TestBigQueryReader(unittest.TestCase):
 
   def get_test_rows(self):
@@ -543,6 +556,7 @@ class TestBigQueryReader(unittest.TestCase):
                       reader.query)
 
 
+@unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
 class TestBigQueryWriter(unittest.TestCase):
 
   @mock.patch('time.sleep', return_value=None)
@@ -713,6 +727,7 @@ class TestBigQueryWriter(unittest.TestCase):
     self.assertEquals('myproject', writer.project_id)
 
 
+@unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
 class TestBigQueryWrapper(unittest.TestCase):
 
   def test_delete_non_existing_dataset(self):
