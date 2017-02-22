@@ -15,9 +15,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.flink.translation;
+package org.apache.beam.runners.flink;
 
-import org.apache.beam.runners.flink.FlinkPipelineOptions;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -28,7 +27,7 @@ import org.slf4j.LoggerFactory;
 /**
  * Traverses the Pipeline to determine the {@link TranslationMode} for this pipeline.
  */
-public class PipelineTranslationOptimizer extends FlinkPipelineTranslator {
+class PipelineTranslationOptimizer extends FlinkPipelineTranslator {
 
   private static final Logger LOG = LoggerFactory.getLogger(PipelineTranslationOptimizer.class);
 

@@ -20,11 +20,6 @@ package org.apache.beam.runners.flink;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 import java.util.List;
-import org.apache.beam.runners.flink.translation.FlinkBatchPipelineTranslator;
-import org.apache.beam.runners.flink.translation.FlinkPipelineTranslator;
-import org.apache.beam.runners.flink.translation.FlinkStreamingPipelineTranslator;
-import org.apache.beam.runners.flink.translation.PipelineTranslationOptimizer;
-import org.apache.beam.runners.flink.translation.TranslationMode;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.java.CollectionEnvironment;
@@ -43,7 +38,7 @@ import org.slf4j.LoggerFactory;
  * ({@link FlinkBatchPipelineTranslator} or {@link FlinkStreamingPipelineTranslator}) to
  * transform the Beam job into a Flink one, and executes the (translated) job.
  */
-public class FlinkPipelineExecutionEnvironment {
+class FlinkPipelineExecutionEnvironment {
 
   private static final Logger LOG =
       LoggerFactory.getLogger(FlinkPipelineExecutionEnvironment.class);

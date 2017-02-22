@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.flink.translation;
+package org.apache.beam.runners.flink;
 
 import org.apache.beam.sdk.Pipeline;
 
@@ -28,7 +28,7 @@ import org.apache.beam.sdk.Pipeline;
  * a {@link org.apache.flink.streaming.api.datastream.DataStream} (for streaming) or a
  * {@link org.apache.flink.api.java.DataSet} (for batch) one.
  */
-public abstract class FlinkPipelineTranslator extends Pipeline.PipelineVisitor.Defaults {
+abstract class FlinkPipelineTranslator extends Pipeline.PipelineVisitor.Defaults {
 
   /**
    * Translates the pipeline by passing this class as a visitor.

@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.flink.translation;
+package org.apache.beam.runners.flink;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
@@ -42,7 +42,7 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
  * Helper for keeping track of which {@link DataStream DataStreams} map
  * to which {@link PTransform PTransforms}.
  */
-public class FlinkStreamingTranslationContext {
+class FlinkStreamingTranslationContext {
 
   private final StreamExecutionEnvironment env;
   private final PipelineOptions options;
