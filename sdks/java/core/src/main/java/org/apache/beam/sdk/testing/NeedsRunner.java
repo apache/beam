@@ -21,8 +21,23 @@ package org.apache.beam.sdk.testing;
 import org.apache.beam.sdk.runners.PipelineRunner;
 
 /**
- * Category tag for validation tests which utilize {@link TestPipeline} for execution and expect
- * to be executed by a {@link PipelineRunner}.
+ * Category tag for tests which utilize {@link TestPipeline} for execution and
+ * {@link PAssert} for validation. Tests in this category require a
+ * {@link PipelineRunner} to be executed. Example usage:
+ * <pre><code>
+ *     {@literal @}Test
+ *     public class MyPipelineTest {
+ *       {@literal @}Rule
+ *       public final transient TestPipeline p = TestPipeline.create();
+ *
+ *       {@literal @}Category(NeedsRunner.class)
+ *       public void testMyPipeline() {
+ *         p.apply(...);
+ *         PAssert.that(p);
+ *         p.run();
+ *       }
+ *     }
+ * </code></pre>
  */
 public interface NeedsRunner {
 }
