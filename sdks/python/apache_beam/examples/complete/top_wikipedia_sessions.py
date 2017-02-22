@@ -22,19 +22,21 @@ user with the longest string of edits separated by no more than an hour within
 each 30 day period.
 
 To execute this pipeline locally using the DirectRunner, specify an
-output prefix on GCS:
+output prefix on GCS:::
+
   --output gs://YOUR_OUTPUT_PREFIX
 
 To execute this pipeline using the Google Cloud Dataflow service, specify
-pipeline configuration in addition to the above:
+pipeline configuration in addition to the above:::
+
   --job_name NAME_FOR_YOUR_JOB
   --project YOUR_PROJECT_ID
   --staging_location gs://YOUR_STAGING_DIRECTORY
   --temp_location gs://YOUR_TEMPORARY_DIRECTORY
   --runner DataflowRunner
 
-The default input is gs://dataflow-samples/wikipedia_edits/*.json and can be
-overridden with --input.
+The default input is ``gs://dataflow-samples/wikipedia_edits/*.json`` and can
+be overridden with --input.
 """
 
 from __future__ import absolute_import

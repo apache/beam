@@ -142,8 +142,6 @@ class DoFn(WithTypeHints, HasDisplayData):
 
     Args:
       element: The element to be processed
-      context: a DoFnProcessContext object containing. See the
-        DoFnProcessContext documentation for details.
       *args: side inputs
       **kwargs: keyword side inputs
     """
@@ -915,7 +913,7 @@ class CombinePerKey(PTransformWithSideInputs):
   Args:
     pcoll: input pcollection.
     fn: instance of CombineFn to apply to all values under the same key in
-      pcoll, or a callable whose signature is f(iterable, *args, **kwargs)
+      pcoll, or a callable whose signature is ``f(iterable, *args, **kwargs)``
       (e.g., sum, max).
     *args: arguments and side inputs, passed directly to the CombineFn.
     **kwargs: arguments and side inputs, passed directly to the CombineFn.

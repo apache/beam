@@ -25,33 +25,37 @@ Both 'deprecated' and 'experimental' annotations can specify the
 current recommended version to use by means of a 'current' parameter.
 
 The following example illustrates how to annotate coexisting versions of the
-same function 'multiply'.
-def multiply(arg1, arg2):
-  print arg1, '*', arg2, '=',
-  return arg1*arg2
+same function 'multiply'.::
+
+  def multiply(arg1, arg2):
+    print arg1, '*', arg2, '=',
+    return arg1*arg2
 
 # This annotation marks 'old_multiply' as deprecated since 'v.1' and suggests
-# using 'multiply' instead.
-@deprecated(since='v.1', current='multiply')
-def old_multiply(arg1, arg2):
-  result = 0
-  for i in xrange(arg1):
-      result += arg2
-  print arg1, '*', arg2, '(the old way)=',
-  return result
+# using 'multiply' instead.::
+
+  @deprecated(since='v.1', current='multiply')
+  def old_multiply(arg1, arg2):
+    result = 0
+    for i in xrange(arg1):
+        result += arg2
+    print arg1, '*', arg2, '(the old way)=',
+    return result
 
 # This annotation marks 'exp_multiply' as experimental and suggests
-# using 'multiply' instead.
-@experimental(since='v.1', current='multiply')
-def exp_multiply(arg1, arg2):
-  print arg1, '*', arg2, '(the experimental way)=',
-  return (arg1*arg2)*(arg1/arg2)*(arg2/arg1)
+# using 'multiply' instead.::
 
-# Set a warning filter to control how often warnings are produced
-warnings.simplefilter("always")
-print multiply(5, 6)
-print old_multiply(5,6)
-print exp_multiply(5,6)
+  @experimental(since='v.1', current='multiply')
+  def exp_multiply(arg1, arg2):
+    print arg1, '*', arg2, '(the experimental way)=',
+    return (arg1*arg2)*(arg1/arg2)*(arg2/arg1)
+
+# Set a warning filter to control how often warnings are produced.::
+
+  warnings.simplefilter("always")
+  print multiply(5, 6)
+  print old_multiply(5,6)
+  print exp_multiply(5,6)
 """
 
 import warnings

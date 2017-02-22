@@ -86,6 +86,7 @@ class BoundedSource(HasDisplayData):
     ``RangeTracker``.
 
   A runner will perform reading the source in two steps.
+
   (1) Method ``get_range_tracker()`` will be invoked with start and end
       positions to obtain a ``RangeTracker`` for the range of positions the
       runner intends to read. Source must define a default initial start and end
@@ -137,6 +138,7 @@ class BoundedSource(HasDisplayData):
 
     Framework may invoke ``read()`` method with the RangeTracker object returned
     here to read data from the source.
+
     Args:
       start_position: starting position of the range. If 'None' default start
                       position of the source must be used.
