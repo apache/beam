@@ -278,6 +278,14 @@ Copy the source release to the dev repository of `dist.apache.org`.
 
 1. Verify that files are [present](https://dist.apache.org/repos/dist/dev/beam).
 
+### Build the Pydoc API reference
+
+Create the Python SDK documentation using sphinx by running a helper script.
+```
+cd sdks/python && ./generate_pydoc.sh
+```
+By default the Pydoc is generated in `sdks/python/target/docs/_build`. Let `${PYDOC_ROOT}` be the absolute path to `_build`.
+
 ### Propose a pull request for website updates
 
 The final step of building the candidate is to propose a website pull request.
@@ -297,13 +305,19 @@ Add the new Javadoc to [SDK API Reference page]({{ site.baseurl }}/documentation
 * Set up the necessary git commands to account for the new and deleted files from the javadoc.
 * Update the Javadoc link on this page to point to the new version (in `src/documentation/sdks/javadoc/current.md`).
 
+#### Create Pydoc
+Add the new Pydoc to [SDK API Reference page]({{ site.baseurl }}/documentation/sdks/pydoc/) page, as follows:
+
+* Copy the generated Pydoc into the website repository: `cp -r ${PYDOC_ROOT} documentation/sdks/pydoc/${VERSION}`.
+* Update the Pydoc link on this page to point to the new version (in `src/documentation/sdks/pydoc/current.md`).
+
 Finally, propose a pull request with these changes. (Don’t merge before finalizing the release.)
 
 ### Checklist to proceed to the next step
 
 1. Maven artifacts deployed to the staging repository of [repository.apache.org](https://repository.apache.org/content/repositories/)
 1. Source distribution deployed to the dev repository of [dist.apache.org](https://dist.apache.org/repos/dist/dev/beam/)
-1. Website pull request proposed to list the [release]({{ site.baseurl }}/use/releases/) and publish the [API reference manual]({{ site.baseurl }}/learn/sdks/javadoc/)
+1. Website pull request proposed to list the [release]({{ site.baseurl }}/use/releases/), publish the [Java API reference manual]({{ site.baseurl }}/documentation/sdks/javadoc/), and publish the [Python API reference manual]({{ site.baseurl }}/documentation/sdks/pydoc/).
 
 **********
 
@@ -402,7 +416,7 @@ Create a new Git tag for the released version by copying the tag for the final r
 
 ### Merge website pull request
 
-Merge the website pull request to [list the release]({{ site.baseurl }}/use/releases/) and publish the [API reference manual]({{ site.baseurl }}/learn/sdks/javadoc/) created earlier.
+Merge the website pull request to [list the release]({{ site.baseurl }}/use/releases/), publish the [Python API reference manual]({{ site.baseurl }}/documentation/sdks/pydoc/), and the [Java API reference manual]({{ site.baseurl }}/documentation/sdks/javadoc/) created earlier.
 
 ### Mark the version as released in JIRA
 
@@ -412,7 +426,7 @@ In JIRA, inside [version management](https://issues.apache.org/jira/plugins/serv
 
 * Maven artifacts released and indexed in the [Maven Central Repository](https://search.maven.org/#search%7Cga%7C1%7Cg%3A%22org.apache.beam%22)
 * Source distribution available in the release repository of [dist.apache.org](https://dist.apache.org/repos/dist/release/beam/)
-* Website pull request to [list the release]({{ site.baseurl }}/use/releases/) and publish the [API reference manual]({{ site.baseurl }}/learn/sdks/javadoc/) merged
+* Website pull request to [list the release]({{ site.baseurl }}/use/releases/) and publish the [API reference manual]({{ site.baseurl }}/documentation/sdks/javadoc/) merged
 * Release tagged in the source code repository
 * Release version finalized in JIRA
 
