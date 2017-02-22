@@ -1,6 +1,7 @@
 package beam
 
 import (
+	"fmt"
 	"github.com/apache/beam/sdks/go/pkg/beam/graph"
 	"github.com/apache/beam/sdks/go/pkg/beam/reflectx"
 	"log"
@@ -9,12 +10,12 @@ import (
 // groupByKey inserts a GBK transform into the pipeline.
 func groupByKey(p *Pipeline, a PCollection) (PCollection, error) {
 	if !a.IsValid() {
-		return PCollection{}, Errorf(3, "Invalid pcollection to GBK")
+		return PCollection{}, fmt.Errorf("Invalid pcollection to GBK")
 	}
 
 	key, value, ok := reflectx.UnfoldKV(a.Type())
 	if !ok {
-		return PCollection{}, Errorf(3, "Input type must by KV: %v", a)
+		return PCollection{}, fmt.Errorf("Input type must by KV: %v", a)
 	}
 
 	// TODO(herohde): perhaps cleaner to not inject synthetic types, but
@@ -25,7 +26,7 @@ func groupByKey(p *Pipeline, a PCollection) (PCollection, error) {
 
 	t, err := reflectx.MakeGBK(key, value)
 	if err != nil {
-		return PCollection{}, Errorf(3, "Bad GBK type: %v", err)
+		return PCollection{}, fmt.Errorf("Bad GBK type: %v", err)
 	}
 
 	n := p.real.NewNode(t)
@@ -50,8 +51,7 @@ func groupByKey(p *Pipeline, a PCollection) (PCollection, error) {
 func GroupByKey(p *Pipeline, a PCollection) PCollection {
 	ret, err := groupByKey(p, a)
 	if err != nil {
-		p.errs.Add(err)
-		return PCollection{}
+		panic(err)
 	}
 	return ret
 }

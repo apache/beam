@@ -51,8 +51,7 @@ func source(p *Pipeline, dofn interface{}, opts ...Option) (PCollection, error) 
 func Source(p *Pipeline, dofn interface{}, opts ...Option) PCollection {
 	ret, err := source(p, dofn, opts...)
 	if err != nil {
-		p.errs.Add(err)
-		return PCollection{}
+		panic(err)
 	}
 	return ret
 }
