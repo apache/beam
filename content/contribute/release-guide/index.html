@@ -85,6 +85,10 @@
                  alt="External link."></a>
         </li>
         <li><a href="/documentation/sdks/python/">Python SDK</a></li>
+<!--         <li><a href="/documentation/sdks/pydoc/0.5.0/" target="_blank">Python SDK API Reference <img src="/images/external-link-icon.png"
+                 width="14" height="14"
+                 alt="External link."></a>
+        </li> -->
 			  <li role="separator" class="divider"></li>
 			  <li class="dropdown-header">Runners</li>
 			  <li><a href="/documentation/runners/capability-matrix/">Capability Matrix</a></li>
@@ -109,7 +113,7 @@
         <li class="dropdown-header">Technical References</li>
         <li><a href="/contribute/design-principles/">Design Principles</a></li>
 			  <li><a href="/contribute/work-in-progress/">Ongoing Projects</a></li>
-        <li><a href="/contribute/source-repository/">Source Repository</a></li>      
+        <li><a href="/contribute/source-repository/">Source Repository</a></li>
         <li role="separator" class="divider"></li>
 			  <li class="dropdown-header">Promotion</li>
         <li><a href="/contribute/presentation-materials/">Presentation Materials</a></li>
@@ -174,7 +178,11 @@
   <li><a href="#build-a-release-candidate" id="markdown-toc-build-a-release-candidate">Build a release candidate</a>    <ul>
       <li><a href="#build-and-stage-java-artifacts-with-maven" id="markdown-toc-build-and-stage-java-artifacts-with-maven">Build and stage Java artifacts with Maven</a></li>
       <li><a href="#stage-source-release-on-distapacheorg" id="markdown-toc-stage-source-release-on-distapacheorg">Stage source release on dist.apache.org</a></li>
-      <li><a href="#propose-a-pull-request-for-website-updates" id="markdown-toc-propose-a-pull-request-for-website-updates">Propose a pull request for website updates</a></li>
+      <li><a href="#build-the-pydoc-api-reference" id="markdown-toc-build-the-pydoc-api-reference">Build the Pydoc API reference</a></li>
+      <li><a href="#propose-a-pull-request-for-website-updates" id="markdown-toc-propose-a-pull-request-for-website-updates">Propose a pull request for website updates</a>        <ul>
+          <li><a href="#create-pydoc" id="markdown-toc-create-pydoc">Create Pydoc</a></li>
+        </ul>
+      </li>
       <li><a href="#checklist-to-proceed-to-the-next-step-2" id="markdown-toc-checklist-to-proceed-to-the-next-step-2">Checklist to proceed to the next step</a></li>
     </ul>
   </li>
@@ -540,6 +548,14 @@ TAG="v${VERSION}-RC${RC_NUM}"
   </li>
 </ol>
 
+<h3 id="build-the-pydoc-api-reference">Build the Pydoc API reference</h3>
+
+<p>Create the Python SDK documentation using sphinx by running a helper script.</p>
+<div class="highlighter-rouge"><pre class="highlight"><code>cd sdks/python &amp;&amp; ./generate_pydoc.sh
+</code></pre>
+</div>
+<p>By default the Pydoc is generated in <code class="highlighter-rouge">sdks/python/target/docs/_build</code>. Let <code class="highlighter-rouge">${PYDOC_ROOT}</code> be the absolute path to <code class="highlighter-rouge">_build</code>.</p>
+
 <h3 id="propose-a-pull-request-for-website-updates">Propose a pull request for website updates</h3>
 
 <p>The final step of building the candidate is to propose a website pull request.</p>
@@ -561,6 +577,14 @@ candidate into the source tree of the website.</p>
   <li>Update the Javadoc link on this page to point to the new version (in <code class="highlighter-rouge">src/documentation/sdks/javadoc/current.md</code>).</li>
 </ul>
 
+<h4 id="create-pydoc">Create Pydoc</h4>
+<p>Add the new Pydoc to <a href="/documentation/sdks/pydoc/">SDK API Reference page</a> page, as follows:</p>
+
+<ul>
+  <li>Copy the generated Pydoc into the website repository: <code class="highlighter-rouge">cp -r ${PYDOC_ROOT} documentation/sdks/pydoc/${VERSION}</code>.</li>
+  <li>Update the Pydoc link on this page to point to the new version (in <code class="highlighter-rouge">src/documentation/sdks/pydoc/current.md</code>).</li>
+</ul>
+
 <p>Finally, propose a pull request with these changes. (Don’t merge before finalizing the release.)</p>
 
 <h3 id="checklist-to-proceed-to-the-next-step-2">Checklist to proceed to the next step</h3>
@@ -568,7 +592,7 @@ candidate into the source tree of the website.</p>
 <ol>
   <li>Maven artifacts deployed to the staging repository of <a href="https://repository.apache.org/content/repositories/">repository.apache.org</a></li>
   <li>Source distribution deployed to the dev repository of <a href="https://dist.apache.org/repos/dist/dev/beam/">dist.apache.org</a></li>
-  <li>Website pull request proposed to list the <a href="/use/releases/">release</a> and publish the <a href="/learn/sdks/javadoc/">API reference manual</a></li>
+  <li>Website pull request proposed to list the <a href="/use/releases/">release</a>, publish the <a href="/documentation/sdks/javadoc/">Java API reference manual</a>, and publish the <a href="/documentation/sdks/pydoc/">Python API reference manual</a>.</li>
 </ol>
 
 <hr />
@@ -678,7 +702,7 @@ Thanks everyone!
 
 <h3 id="merge-website-pull-request">Merge website pull request</h3>
 
-<p>Merge the website pull request to <a href="/use/releases/">list the release</a> and publish the <a href="/learn/sdks/javadoc/">API reference manual</a> created earlier.</p>
+<p>Merge the website pull request to <a href="/use/releases/">list the release</a>, publish the <a href="/documentation/sdks/pydoc/">Python API reference manual</a>, and the <a href="/documentation/sdks/javadoc/">Java API reference manual</a> created earlier.</p>
 
 <h3 id="mark-the-version-as-released-in-jira">Mark the version as released in JIRA</h3>
 
@@ -689,7 +713,7 @@ Thanks everyone!
 <ul>
   <li>Maven artifacts released and indexed in the <a href="https://search.maven.org/#search%7Cga%7C1%7Cg%3A%22org.apache.beam%22">Maven Central Repository</a></li>
   <li>Source distribution available in the release repository of <a href="https://dist.apache.org/repos/dist/release/beam/">dist.apache.org</a></li>
-  <li>Website pull request to <a href="/use/releases/">list the release</a> and publish the <a href="/learn/sdks/javadoc/">API reference manual</a> merged</li>
+  <li>Website pull request to <a href="/use/releases/">list the release</a> and publish the <a href="/documentation/sdks/javadoc/">API reference manual</a> merged</li>
   <li>Release tagged in the source code repository</li>
   <li>Release version finalized in JIRA</li>
 </ul>
