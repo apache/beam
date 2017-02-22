@@ -157,23 +157,20 @@ profile are in good shape.
 
 ### Update and Verify Javadoc
 
-The build with `-Prelease` creates the combined javadoc for the release in `sdks/java/javadoc`.
+The build with `-Prelease` creates the combined Javadoc for the release in `sdks/java/javadoc`.
 
-In that directory, the file `sdks/java/javadoc/ant.xml` file contains a list of
-modules to include in and exclude, plus a list of offline URLs that populate
-links to Javadoc for other modules that Beam depends on.
+The file `sdks/java/javadoc/ant.xml` file contains a list of modules to include
+in and exclude, plus a list of offline URLs that populate links from Beam's
+Javadoc to the Javadoc for other modules that Beam depends on.
 
-You should both examine the generated javadoc and look over the contents of that
-file to ensure that the javadoc is correct.
+* Confirm that new modules added since the last release have been added to the
+  inclusion list as appropriate.
 
-Confirm that new modules added since the last release have been added to the
-inclusion list as appropriate.
+* Confirm that the excluded package list is up to date.
 
-Confirm that the excluded package list is up to date.
-
-Verify the version numbers for offline links match the versions used by Beam. If
-the version number has changed, download a new version of the corresponding
-XX-docs/package-list file.
+* Verify the version numbers for offline links match the versions used by Beam. If
+  the version number has changed, download a new version of the corresponding
+  `<module>-docs/package-list` file.
 
 ### Create a release branch
 
@@ -289,9 +286,9 @@ Start by updating `release_latest` version flag in the top-level `_config.yml`, 
 
 Beam publishes API reference manual for each release on the website. For Java SDK, that’s Javadoc.
 
-One of the artifacts created in the release contains the Javadoc for the website: 
-. To update the website, you must unpack
-this jar file from the release candidate into the source tree of the website.
+One of the artifacts created in the release contains the Javadoc for the
+website. To update the website, you must unpack this jar file from the release
+candidate into the source tree of the website.
 
 Add the new Javadoc to [SDK API Reference page]({{ site.baseurl }}/documentation/sdks/javadoc/) page, as follows:
 
