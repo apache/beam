@@ -1032,7 +1032,7 @@ public class AvroIO {
       }
 
       @Override
-      protected void writeFooter() throws Exception {
+      protected void finishWrite() throws Exception {
         dataFileWriter.flush();
       }
     }

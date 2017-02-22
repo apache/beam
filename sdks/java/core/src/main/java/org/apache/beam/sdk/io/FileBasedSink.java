@@ -590,6 +590,12 @@ public abstract class FileBasedSink<T> extends Sink<T> {
     protected void writeFooter() throws Exception {}
 
     /**
+     * Called after all calls to {@link #writeHeader}, {@link #write} and {@link #writeFooter}.
+     * If any resources opened in the write processes need to be flushed, flush them here.
+     */
+    protected void finishWrite() throws Exception {}
+
+    /**
      * Opens the channel.
      */
     @Override
@@ -630,6 +636,11 @@ public abstract class FileBasedSink<T> extends Sink<T> {
       try (WritableByteChannel theChannel = channel) {
         LOG.debug("Writing footer to {}.", filename);
         writeFooter();
+        LOG.debug("Finishing write to {}.", filename);
+        finishWrite();
+        if (!channel.isOpen()) {
+          throw new IllegalStateException("Channel should only be closed by its owner: " + channel);
+        }
       }
       FileResult result = new FileResult(filename);
       LOG.debug("Result for bundle {}: {}", this.id, filename);
