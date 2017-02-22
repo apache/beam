@@ -1,6 +1,6 @@
 ---
 layout: default
-title: "Beam Python SDK"
+title: "Apache Beam Python SDK"
 permalink: /documentation/sdks/python/
 ---
 # Apache Beam Python SDK
@@ -9,9 +9,9 @@ The Python SDK for Apache Beam provides a simple, powerful API for building batc
 
 ## Get Started with the Python SDK
 
-Get started with the [Beam Programming Guide]({{ site.baseurl }}/learn/programming-guide) to learn the basic concepts that apply to all SDKs in Beam.
+Get started with the [Beam Programming Guide]({{ site.baseurl }}/learn/programming-guide) to learn the basic concepts that apply to all SDKs in Beam. Then, follow the [Beam Python SDK Quickstart]({{ site.baseurl }}/get-started/quickstart-py) to set up your Python development environment, get the Beam SDK for Python, and run an example pipeline.
 
-Then, follow the [Beam Python SDK Quickstart]({{ site.baseurl }}/get-started/quickstart-py) to set up your Python development environment, get the Beam SDK for Python, and run an example pipeline.
+See the [Python API Reference]({{ site.baseurl }}/documentation/sdks/pydoc/) for more information on individual APIs.
 
 ## Python Type Safety
 
