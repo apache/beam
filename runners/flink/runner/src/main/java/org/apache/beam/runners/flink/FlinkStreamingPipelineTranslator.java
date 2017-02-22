@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.flink.translation;
+package org.apache.beam.runners.flink;
 
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.runners.TransformHierarchy;
@@ -31,7 +31,7 @@ import org.slf4j.LoggerFactory;
  * {@link org.apache.flink.streaming.api.datastream.DataStream} one.
  *
  */
-public class FlinkStreamingPipelineTranslator extends FlinkPipelineTranslator {
+class FlinkStreamingPipelineTranslator extends FlinkPipelineTranslator {
 
   private static final Logger LOG = LoggerFactory.getLogger(FlinkStreamingPipelineTranslator.class);
 
