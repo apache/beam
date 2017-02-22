@@ -62,7 +62,8 @@ class Bundle(object):
   to restore WindowedValues upon get_elements() call.
 
   When this optimization is not desired, it can be avoided by an option when
-  creating bundles, like:
+  creating bundles, like:::
+
     b = Bundle(stacked=False)
   """
 
@@ -71,7 +72,8 @@ class Bundle(object):
 
     It must be initialized from a single WindowedValue.
 
-    Example:
+    Example:::
+
       s = StackedWindowedValues(windowed_value)
       if (another_windowed_value.timestamp == s.timestamp and
           another_windowed_value.windows == s.windows):

@@ -43,7 +43,7 @@ completely every time a ParDo DoFn gets executed. In the example below the
 lambda function implementing the DoFn for the Map transform will get on each
 call *one* row of the main table and *all* rows of the side table. The runner
 may use some caching techniques to share the side inputs between calls in order
-to avoid excessive reading:
+to avoid excessive reading:::
 
   main_table = pipeline | 'very_big' >> beam.io.Read(beam.io.BigQuerySource()
   side_table = pipeline | 'not_big' >> beam.io.Read(beam.io.BigQuerySource()
@@ -69,7 +69,7 @@ a query.
 
 Users may provide a query to read from rather than reading all of a BigQuery
 table. If specified, the result obtained by executing the specified query will
-be used as the data of the input transform.
+be used as the data of the input transform.::
 
   query_results = pipeline | beam.io.Read(beam.io.BigQuerySource(
       query='SELECT year, mean_temp FROM samples.weather_stations'))

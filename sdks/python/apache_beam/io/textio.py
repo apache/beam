@@ -336,7 +336,8 @@ class ReadFromText(PTransform):
   UTF-8 encoding. Supports newline delimiters '\n' and '\r\n'.
 
   This implementation only supports reading text encoded using UTF-8 or ASCII.
-  This does not support other encodings such as UTF-16 or UTF-32."""
+  This does not support other encodings such as UTF-16 or UTF-32.
+  """
   def __init__(
       self,
       file_pattern=None,
