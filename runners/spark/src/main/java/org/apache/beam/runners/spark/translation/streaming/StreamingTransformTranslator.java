@@ -105,12 +105,14 @@ final class StreamingTransformTranslator {
     return new TransformEvaluator<Read.Unbounded<T>>() {
       @Override
       public void evaluate(Read.Unbounded<T> transform, EvaluationContext context) {
+        final String stepName = context.getCurrentTransform().getFullName();
         context.putDataset(
             transform,
             SparkUnboundedSource.read(
                 context.getStreamingContext(),
                 context.getRuntimeContext(),
-                transform.getSource()));
+                transform.getSource(),
+                stepName));
       }
     };
   }

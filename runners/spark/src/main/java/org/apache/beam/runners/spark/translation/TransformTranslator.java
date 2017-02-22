@@ -403,11 +403,13 @@ public final class TransformTranslator {
     return new TransformEvaluator<Read.Bounded<T>>() {
       @Override
       public void evaluate(Read.Bounded<T> transform, EvaluationContext context) {
+        String stepName = context.getCurrentTransform().getFullName();
         final JavaSparkContext jsc = context.getSparkContext();
         final SparkRuntimeContext runtimeContext = context.getRuntimeContext();
+        Accumulator<SparkMetricsContainer> metricsAccum = MetricsAccumulator.getInstance();
         // create an RDD from a BoundedSource.
         JavaRDD<WindowedValue<T>> input = new SourceRDD.Bounded<>(
-            jsc.sc(), transform.getSource(), runtimeContext).toJavaRDD();
+            jsc.sc(), transform.getSource(), runtimeContext, metricsAccum, stepName).toJavaRDD();
         // cache to avoid re-evaluation of the source by Spark's lazy DAG evaluation.
         context.putDataset(transform, new BoundedDataset<>(input.cache()));
       }
