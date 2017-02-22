@@ -1096,13 +1096,13 @@ public class TextIO {
       }
 
       @Override
-      protected void finishWrite() throws Exception {
-        out.close();
+      protected void writeHeader() throws Exception {
+        writeIfNotNull(header);
       }
 
       @Override
-      protected void writeHeader() throws Exception {
-        writeIfNotNull(header);
+      public void write(String value) throws Exception {
+        writeLine(value);
       }
 
       @Override
@@ -1111,8 +1111,8 @@ public class TextIO {
       }
 
       @Override
-      public void write(String value) throws Exception {
-        writeLine(value);
+      protected void finishWrite() throws Exception {
+        out.flush();
       }
     }
   }
