@@ -1027,13 +1027,13 @@ public class AvroIO {
       }
 
       @Override
-      public void write(T value) throws Exception {
-        dataFileWriter.append(value);
+      protected void finishWrite() throws Exception {
+        dataFileWriter.flush();
       }
 
       @Override
-      protected void writeFooter() throws Exception {
-        dataFileWriter.flush();
+      public void write(T value) throws Exception {
+        dataFileWriter.append(value);
       }
     }
   }

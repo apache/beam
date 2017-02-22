@@ -1096,6 +1096,11 @@ public class TextIO {
       }
 
       @Override
+      protected void finishWrite() throws Exception {
+        out.close();
+      }
+
+      @Override
       protected void writeHeader() throws Exception {
         writeIfNotNull(header);
       }
@@ -1103,8 +1108,6 @@ public class TextIO {
       @Override
       protected void writeFooter() throws Exception {
         writeIfNotNull(footer);
-        // Flush here because there is currently no other natural place to do this. [BEAM-1465]
-        out.flush();
       }
 
       @Override

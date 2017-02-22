@@ -580,6 +580,12 @@ public abstract class FileBasedSink<T> extends Sink<T> {
     protected abstract void prepareWrite(WritableByteChannel channel) throws Exception;
 
     /**
+     * Called after all calls to writeHeader, writeFooter, and write.
+     * If any resources opened in the write processes need to be closed, close them here.
+     */
+    protected void finishWrite() throws Exception {}
+
+    /**
      * Writes header at the beginning of output files. Nothing by default; subclasses may override.
      */
     protected void writeHeader() throws Exception {}
@@ -627,9 +633,11 @@ public abstract class FileBasedSink<T> extends Sink<T> {
      */
     @Override
     public final FileResult close() throws Exception {
-      try (WritableByteChannel theChannel = channel) {
-        LOG.debug("Writing footer to {}.", filename);
-        writeFooter();
+      LOG.debug("Writing footer to {}.", filename);
+      writeFooter();
+      finishWrite();
+      if (channel.isOpen()) {
+        channel.close();
       }
       FileResult result = new FileResult(filename);
       LOG.debug("Result for bundle {}: {}", this.id, filename);
