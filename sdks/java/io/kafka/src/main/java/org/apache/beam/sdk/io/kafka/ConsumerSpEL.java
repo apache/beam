@@ -27,7 +27,7 @@ import org.springframework.expression.spel.SpelParserConfiguration;
 import org.springframework.expression.spel.standard.SpelExpressionParser;
 import org.springframework.expression.spel.support.StandardEvaluationContext;
 
-/**.
+/**
  * ConsumerSpEL to handle multiple of versions of Consumer API between Kafka 0.9 and 0.10.
  * It auto detects the input type List/Collection/Varargs,
  * to eliminate the method definition differences.

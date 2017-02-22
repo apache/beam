@@ -80,8 +80,8 @@ import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**.
- * Tests of {@link KafkaIO}
+/**
+ * Tests of {@link KafkaIO}.
  * Run with 'mvn test -Dkafka.clients.version=0.10.1.1',
  * or 'mvn test -Dkafka.clients.version=0.9.0.1' for either Kafka client version
  */
