@@ -241,7 +241,7 @@ public class DataflowRunnerTest {
 
   @Test
   public void testPathValidation() {
-    String[] args = new String[]{
+    String[] args = new String[] {
         "--runner=DataflowRunner",
         "--tempLocation=/tmp/not/a/gs/path",
         "--project=test-project",
@@ -260,7 +260,7 @@ public class DataflowRunnerTest {
 
   @Test
   public void testPathExistsValidation() {
-    String[] args = new String[]{
+    String[] args = new String[] {
         "--runner=DataflowRunner",
         "--tempLocation=gs://does/not/exist",
         "--project=test-project",
@@ -280,7 +280,7 @@ public class DataflowRunnerTest {
 
   @Test
   public void testPathValidatorOverride() {
-    String[] args = new String[]{
+    String[] args = new String[] {
         "--runner=DataflowRunner",
         "--tempLocation=/tmp/testing",
         "--project=test-project",
@@ -313,17 +313,12 @@ public class DataflowRunnerTest {
     assertValidJob(jobCaptor.getValue());
   }
 
-  /**
-   * Options for testing.
-   */
+  /** Options for testing. */
   public interface RuntimeTestOptions extends PipelineOptions {
-
     ValueProvider<String> getInput();
-
     void setInput(ValueProvider<String> value);
 
     ValueProvider<String> getOutput();
-
     void setOutput(ValueProvider<String> value);
   }
 
@@ -500,7 +495,7 @@ public class DataflowRunnerTest {
   public void detectClassPathResourceWithFileResources() throws Exception {
     File file = tmpFolder.newFile("file");
     File file2 = tmpFolder.newFile("file2");
-    URLClassLoader classLoader = new URLClassLoader(new URL[]{
+    URLClassLoader classLoader = new URLClassLoader(new URL[] {
         file.toURI().toURL(),
         file2.toURI().toURL()
     });
@@ -521,7 +516,7 @@ public class DataflowRunnerTest {
   @Test
   public void detectClassPathResourceWithNonFileResources() throws Exception {
     String url = "http://www.google.com/all-the-secrets.jar";
-    URLClassLoader classLoader = new URLClassLoader(new URL[]{
+    URLClassLoader classLoader = new URLClassLoader(new URL[] {
         new URL(url)
     });
     thrown.expect(IllegalArgumentException.class);
@@ -926,7 +921,6 @@ public class DataflowRunnerTest {
    */
   public static class TestTransform
       extends PTransform<PCollection<Integer>, PCollection<Integer>> {
-
     public boolean translated = false;
 
     @Override
@@ -997,11 +991,8 @@ public class DataflowRunnerTest {
     assertTrue(transform.translated);
   }
 
-  /**
-   * Records all the composite transforms visited within the Pipeline.
-   */
+  /** Records all the composite transforms visited within the Pipeline. */
   private static class CompositeTransformRecorder extends PipelineVisitor.Defaults {
-
     private List<PTransform<?, ?>> transforms = new ArrayList<>();
 
     @Override

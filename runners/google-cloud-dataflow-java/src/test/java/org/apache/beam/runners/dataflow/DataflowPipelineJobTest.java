@@ -88,7 +88,6 @@ import org.mockito.MockitoAnnotations;
  */
 @RunWith(JUnit4.class)
 public class DataflowPipelineJobTest {
-
   private static final String PROJECT_ID = "some-project";
   private static final String REGION_ID = "some-region-2b";
   private static final String JOB_ID = "1234";
@@ -157,8 +156,8 @@ public class DataflowPipelineJobTest {
 
   @Test
   public void testWaitToFinishMessagesFail() throws Exception {
-    Dataflow.Projects.Locations.Jobs.Get statusRequest = mock(
-        Dataflow.Projects.Locations.Jobs.Get.class);
+    Dataflow.Projects.Locations.Jobs.Get statusRequest =
+        mock(Dataflow.Projects.Locations.Jobs.Get.class);
 
     Job statusResponse = new Job();
     statusResponse.setCurrentState("JOB_STATE_" + State.DONE.name());
@@ -185,8 +184,8 @@ public class DataflowPipelineJobTest {
   }
 
   public State mockWaitToFinishInState(State state) throws Exception {
-    Dataflow.Projects.Locations.Jobs.Get statusRequest = mock(
-        Dataflow.Projects.Locations.Jobs.Get.class);
+    Dataflow.Projects.Locations.Jobs.Get statusRequest =
+        mock(Dataflow.Projects.Locations.Jobs.Get.class);
 
     Job statusResponse = new Job();
     statusResponse.setCurrentState("JOB_STATE_" + state.name());
@@ -259,8 +258,8 @@ public class DataflowPipelineJobTest {
 
   @Test
   public void testWaitToFinishFail() throws Exception {
-    Dataflow.Projects.Locations.Jobs.Get statusRequest = mock(
-        Dataflow.Projects.Locations.Jobs.Get.class);
+    Dataflow.Projects.Locations.Jobs.Get statusRequest =
+        mock(Dataflow.Projects.Locations.Jobs.Get.class);
 
     when(mockJobs.get(eq(PROJECT_ID), eq(REGION_ID), eq(JOB_ID))).thenReturn(statusRequest);
     when(statusRequest.execute()).thenThrow(IOException.class);
@@ -280,8 +279,8 @@ public class DataflowPipelineJobTest {
 
   @Test
   public void testWaitToFinishTimeFail() throws Exception {
-    Dataflow.Projects.Locations.Jobs.Get statusRequest = mock(
-        Dataflow.Projects.Locations.Jobs.Get.class);
+    Dataflow.Projects.Locations.Jobs.Get statusRequest =
+        mock(Dataflow.Projects.Locations.Jobs.Get.class);
 
     when(mockJobs.get(eq(PROJECT_ID), eq(REGION_ID), eq(JOB_ID))).thenReturn(statusRequest);
     when(statusRequest.execute()).thenThrow(IOException.class);
@@ -300,8 +299,8 @@ public class DataflowPipelineJobTest {
 
   @Test
   public void testCumulativeTimeOverflow() throws Exception {
-    Dataflow.Projects.Locations.Jobs.Get statusRequest = mock(
-        Dataflow.Projects.Locations.Jobs.Get.class);
+    Dataflow.Projects.Locations.Jobs.Get statusRequest =
+        mock(Dataflow.Projects.Locations.Jobs.Get.class);
 
     Job statusResponse = new Job();
     statusResponse.setCurrentState("JOB_STATE_RUNNING");
@@ -325,8 +324,8 @@ public class DataflowPipelineJobTest {
 
   @Test
   public void testGetStateReturnsServiceState() throws Exception {
-    Dataflow.Projects.Locations.Jobs.Get statusRequest = mock(
-        Dataflow.Projects.Locations.Jobs.Get.class);
+    Dataflow.Projects.Locations.Jobs.Get statusRequest =
+        mock(Dataflow.Projects.Locations.Jobs.Get.class);
 
     Job statusResponse = new Job();
     statusResponse.setCurrentState("JOB_STATE_" + State.RUNNING.name());
@@ -347,8 +346,8 @@ public class DataflowPipelineJobTest {
 
   @Test
   public void testGetStateWithExceptionReturnsUnknown() throws Exception {
-    Dataflow.Projects.Locations.Jobs.Get statusRequest = mock(
-        Dataflow.Projects.Locations.Jobs.Get.class);
+    Dataflow.Projects.Locations.Jobs.Get statusRequest =
+        mock(Dataflow.Projects.Locations.Jobs.Get.class);
 
     when(mockJobs.get(eq(PROJECT_ID), eq(REGION_ID), eq(JOB_ID))).thenReturn(statusRequest);
     when(statusRequest.execute()).thenThrow(IOException.class);
@@ -662,7 +661,6 @@ public class DataflowPipelineJobTest {
   }
 
   private static class TestAggregator<InT, OutT> implements Aggregator<InT, OutT> {
-
     private final CombineFn<InT, ?, OutT> combineFn;
     private final String name;
 
@@ -721,8 +719,8 @@ public class DataflowPipelineJobTest {
 
   @Test
   public void testCancelUnterminatedJobThatSucceeds() throws IOException {
-    Dataflow.Projects.Locations.Jobs.Update update = mock(
-        Dataflow.Projects.Locations.Jobs.Update.class);
+    Dataflow.Projects.Locations.Jobs.Update update =
+        mock(Dataflow.Projects.Locations.Jobs.Update.class);
     when(mockJobs.update(eq(PROJECT_ID), eq(REGION_ID), eq(JOB_ID), any(Job.class)))
         .thenReturn(update);
     when(update.execute()).thenReturn(new Job());
@@ -740,8 +738,8 @@ public class DataflowPipelineJobTest {
 
   @Test
   public void testCancelUnterminatedJobThatFails() throws IOException {
-    Dataflow.Projects.Locations.Jobs.Get statusRequest = mock(
-        Dataflow.Projects.Locations.Jobs.Get.class);
+    Dataflow.Projects.Locations.Jobs.Get statusRequest =
+        mock(Dataflow.Projects.Locations.Jobs.Get.class);
 
     Job statusResponse = new Job();
     statusResponse.setCurrentState("JOB_STATE_RUNNING");
