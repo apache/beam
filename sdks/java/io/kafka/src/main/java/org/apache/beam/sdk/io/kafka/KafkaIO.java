@@ -62,6 +62,9 @@ import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.io.UnboundedSource.CheckpointMark;
 import org.apache.beam.sdk.io.UnboundedSource.UnboundedReader;
 import org.apache.beam.sdk.io.kafka.KafkaCheckpointMark.PartitionMark;
+import org.apache.beam.sdk.metrics.Counter;
+import org.apache.beam.sdk.metrics.Distribution;
+import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.MapElements;
@@ -688,6 +691,15 @@ public class KafkaIO {
     private Instant curTimestamp;
     private Iterator<PartitionState> curBatch = Collections.emptyIterator();
 
+    private final Counter messagesConsumed = Metrics.counter("io", "messagesConsumed");
+    private final Counter bytesConsumed = Metrics.counter("io", "bytesConsumed");
+    private final Distribution backlogBytes = Metrics.distribution("io", "backlog.bytes");
+    private final Distribution backlogMessages = Metrics.distribution("io", "backlog.messages");
+    private final Counter messagesConsumedPerSplit;
+    private final Counter bytesConsumedPerSplit;
+    private final Distribution backlogBytesPerSplit;
+    private final Distribution backlogMessagesPerSplit;
+
     private static final Duration KAFKA_POLL_TIMEOUT = Duration.millis(1000);
     private static final Duration NEW_RECORDS_POLL_TIMEOUT = Duration.millis(10);
 
@@ -760,10 +772,14 @@ public class KafkaIO {
 
       synchronized long approxBacklogInBytes() {
         // Note that is an an estimate of uncompressed backlog.
+        return (long) (backlogMessageCount() * avgRecordSize);
+      }
+
+      synchronized long backlogMessageCount() {
         if (latestOffset < 0 || nextOffset < 0) {
           return UnboundedReader.BACKLOG_UNKNOWN;
         }
-        return Math.max(0, (long) ((latestOffset - nextOffset) * avgRecordSize));
+        return Math.max(0, (latestOffset - nextOffset));
       }
     }
 
@@ -802,6 +818,11 @@ public class KafkaIO {
           partitionStates.get(i).nextOffset = ckptMark.getNextOffset();
         }
       }
+
+      messagesConsumedPerSplit = Metrics.counter("io.splits", source.id + ".messagesConsumed");
+      bytesConsumedPerSplit = Metrics.counter("io.splits", source.id + ".bytesConsumed");
+      backlogBytesPerSplit = Metrics.distribution("io.splits", source.id + ".backlog.bytes");
+      backlogMessagesPerSplit = Metrics.distribution("io.splits", source.id + ".backlog.messages");
     }
 
     private void consumerPollLoop() {
@@ -920,6 +941,9 @@ public class KafkaIO {
         if (curBatch.hasNext()) {
           PartitionState pState = curBatch.next();
 
+          messagesConsumed.inc();
+          messagesConsumedPerSplit.inc();
+
           if (!pState.recordIter.hasNext()) { // -- (c)
             pState.recordIter = Collections.emptyIterator(); // drop ref
             curBatch.remove();
@@ -966,6 +990,8 @@ public class KafkaIO {
           int recordSize = (rawRecord.key() == null ? 0 : rawRecord.key().length)
               + (rawRecord.value() == null ? 0 : rawRecord.value().length);
           pState.recordConsumed(offset, recordSize);
+          bytesConsumed.inc(recordSize);
+          bytesConsumedPerSplit.inc(recordSize);
           return true;
 
         } else { // -- (b)
@@ -1013,6 +1039,21 @@ public class KafkaIO {
       LOG.debug("{}:  backlog {}", this, getSplitBacklogBytes());
     }
 
+    private void reportBacklog() {
+      long splitBacklogBytes = getSplitBacklogBytes();
+      if (splitBacklogBytes < 0) {
+        splitBacklogBytes = 0;
+      }
+      backlogBytes.update(splitBacklogBytes);
+      backlogBytesPerSplit.update(splitBacklogBytes);
+      long splitBacklogMessages = getSplitBacklogMessageCount();
+      if (splitBacklogMessages < 0) {
+        splitBacklogMessages = 0;
+      }
+      backlogMessages.update(splitBacklogMessages);
+      backlogMessagesPerSplit.update(splitBacklogMessages);
+    }
+
     @Override
     public Instant getWatermark() {
       if (curRecord == null) {
@@ -1026,6 +1067,7 @@ public class KafkaIO {
 
     @Override
     public CheckpointMark getCheckpointMark() {
+      reportBacklog();
       return new KafkaCheckpointMark(ImmutableList.copyOf(// avoid lazy (consumedOffset can change)
           Lists.transform(partitionStates,
               new Function<PartitionState, PartitionMark>() {
@@ -1054,7 +1096,6 @@ public class KafkaIO {
       return curTimestamp;
     }
 
-
     @Override
     public long getSplitBacklogBytes() {
       long backlogBytes = 0;
@@ -1068,6 +1109,20 @@ public class KafkaIO {
       }
 
       return backlogBytes;
+    }
+
+    public long getSplitBacklogMessageCount() {
+      long backlogCount = 0;
+
+      for (PartitionState p : partitionStates) {
+        long pBacklog = p.backlogMessageCount();
+        if (pBacklog == UnboundedReader.BACKLOG_UNKNOWN) {
+          return UnboundedReader.BACKLOG_UNKNOWN;
+        }
+        backlogCount += pBacklog;
+      }
+
+      return backlogCount;
     }
 
     @Override
@@ -1282,6 +1337,8 @@ public class KafkaIO {
       producer.send(
           new ProducerRecord<K, V>(spec.getTopic(), kv.getKey(), kv.getValue()),
           new SendCallback());
+
+      messagesProduced.inc();
     }
 
     @FinishBundle
@@ -1305,6 +1362,8 @@ public class KafkaIO {
     // first exception and number of failures since last invocation of checkForFailures():
     private transient Exception sendException = null;
     private transient long numSendFailures = 0;
+
+    private final Counter messagesProduced = Metrics.counter("io", "messagesProduced");
 
     KafkaWriter(Write<K, V> spec) {
       this.spec = spec;

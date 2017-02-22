@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.io.kafka;
 
+import static org.apache.beam.sdk.metrics.MetricMatchers.attemptedMetricsResult;
+import static org.hamcrest.Matchers.hasItem;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
@@ -39,12 +41,19 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.Pipeline.PipelineExecutionException;
+import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.BigEndianLongCoder;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.io.UnboundedSource.UnboundedReader;
+import org.apache.beam.sdk.metrics.DistributionResult;
+import org.apache.beam.sdk.metrics.MetricMatchers;
+import org.apache.beam.sdk.metrics.MetricNameFilter;
+import org.apache.beam.sdk.metrics.MetricQueryResults;
+import org.apache.beam.sdk.metrics.MetricResult;
+import org.apache.beam.sdk.metrics.MetricsFilter;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
@@ -221,7 +230,7 @@ public class KafkaIOTest {
         .withBootstrapServers("none")
         .withTopics(topics)
         .withConsumerFactoryFn(new ConsumerFactoryFn(
-            topics, 10, numElements, OffsetResetStrategy.EARLIEST)) // 20 partitions
+            topics, 10, numElements * 2, OffsetResetStrategy.EARLIEST)) // 20 partitions
         .withKeyCoder(BigEndianIntegerCoder.of())
         .withValueCoder(BigEndianLongCoder.of())
         .withMaxNumRecords(numElements);
@@ -504,6 +513,55 @@ public class KafkaIOTest {
     assertThat(actual, IsIterableContainingInAnyOrder.containsInAnyOrder(expected.toArray()));
   }
 
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testUnboundedSourceMetrics() {
+    int numElements = 1000;
+
+    String readStep = "readFromKafka";
+
+    p.apply(readStep,
+        mkKafkaReadTransform(numElements, new ValueAsTimestampFn()).withoutMetadata());
+    PipelineResult result = p.run();
+    MetricQueryResults metrics = result.metrics().queryMetrics(
+        MetricsFilter.builder()
+            .addNameFilter(MetricNameFilter.inNamespace("io"))
+            .addNameFilter(MetricNameFilter.inNamespace("io.splits"))
+            .build());
+
+    Iterable<MetricResult<Long>> counters = metrics.counters();
+    Iterable<MetricResult<DistributionResult>> distributions = metrics.distributions();
+
+    assertThat(counters, hasItem(
+        MetricMatchers.attemptedMetricsResult("io", "messagesConsumed", readStep, 1000L)));
+
+    assertThat(counters, hasItem(
+        MetricMatchers.attemptedMetricsResult("io.splits", "0.messagesConsumed", readStep, 1000L)));
+
+    assertThat(counters, hasItem(
+        MetricMatchers.attemptedMetricsResult("io", "bytesConsumed", readStep, 12000L)));
+
+    assertThat(counters, hasItem(
+        MetricMatchers.attemptedMetricsResult("io.splits", "0.bytesConsumed", readStep, 12000L)));
+
+    assertThat(distributions, hasItem(
+        attemptedMetricsResult("io", "backlog.messages", readStep,
+            DistributionResult.create(1000, 1L, 1000L, 1000L))));
+
+    assertThat(distributions, hasItem(
+        attemptedMetricsResult("io.splits", "0.backlog.messages", readStep,
+            DistributionResult.create(1000, 1L, 1000L, 1000L))));
+
+    assertThat(distributions, hasItem(
+        attemptedMetricsResult("io", "backlog.bytes", readStep,
+            DistributionResult.create(12000L, 1L, 12000L, 12000L))));
+
+    assertThat(distributions, hasItem(
+        attemptedMetricsResult("io.splits", "0.backlog.bytes", readStep,
+            DistributionResult.create(12000L, 1L, 12000L, 12000L))));
+  }
+
   @Test
   public void testSink() throws Exception {
     // Simply read from kafka source and write to kafka sink. Then verify the records
@@ -611,6 +669,45 @@ public class KafkaIOTest {
       } finally {
         completionThreadWithErrors.shutdown();
       }
+    }
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testSinkMetrics() throws Exception {
+    // Simply read from kafka source and write to kafka sink. Then verify the metrics are reported.
+
+    int numElements = 1000;
+
+    synchronized (MOCK_PRODUCER_LOCK) {
+
+      MOCK_PRODUCER.clear();
+
+      ProducerSendCompletionThread completionThread = new ProducerSendCompletionThread().start();
+
+      String topic = "test";
+
+      p
+          .apply(mkKafkaReadTransform(numElements, new ValueAsTimestampFn())
+              .withoutMetadata())
+          .apply("writeToKafka", KafkaIO.<Integer, Long>write()
+              .withBootstrapServers("none")
+              .withTopic(topic)
+              .withKeyCoder(BigEndianIntegerCoder.of())
+              .withValueCoder(BigEndianLongCoder.of())
+              .withProducerFactoryFn(new ProducerFactoryFn()));
+
+      PipelineResult result = p.run();
+
+      MetricQueryResults metrics = result.metrics().queryMetrics(
+          MetricsFilter.builder()
+              .addNameFilter(MetricNameFilter.inNamespace("io"))
+              .build());
+
+      assertThat(metrics.counters(), hasItem(
+          MetricMatchers.attemptedMetricsResult("io", "messagesProduced", "writeToKafka", 1000L)));
+
+      completionThread.shutdown();
     }
   }
 
