@@ -126,6 +126,15 @@ interface TransformTranslator<TransformT extends PTransform> {
      * input {@code PValue} and producing the specified output {@code PValue}. This step requires
      * special treatment for its output encoding. Returns a pipeline level unique id.
      */
-    long addCollectionToSingletonOutput(PValue inputValue, PValue outputValue);
+    long addCollectionToSingletonOutput(
+        PValue inputValue, PValue outputValue);
+
+    /**
+     * Adds an output to this {@code CollectionToSingleton} Dataflow step, consuming the specified
+     * input {@code PValue} and producing the specified output {@code PValue}. This step requires
+     * special treatment for its output encoding. Returns a pipeline level unique id.
+     */
+    long addCollectionToSingletonOutput(
+        PValue inputValue, Coder<?> inputValueCoder, PValue outputValue);
   }
 }

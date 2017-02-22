@@ -91,6 +91,7 @@ import org.apache.beam.sdk.util.CloudObject;
 import org.apache.beam.sdk.util.PropertyNames;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.util.WindowedValue.WindowedValueCoder;
 import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
@@ -618,11 +619,21 @@ public class DataflowPipelineTranslator {
         PValue inputValue, PValue outputValue) {
       Coder<?> inputValueCoder =
           checkNotNull(translator.outputCoders.get(inputValue));
+      return addCollectionToSingletonOutput(inputValue, inputValueCoder, outputValue);
+    }
+
+    @Override
+    public long addCollectionToSingletonOutput(
+        PValue inputValue, Coder<?> inputValueCoder, PValue outputValue) {
+      Coder<?> originalCoder = translator.outputCoders.get(inputValue);
       // The inputValueCoder for the input PCollection should be some
       // WindowedValueCoder of the input PCollection's element
       // coder.
       checkState(
-          inputValueCoder instanceof WindowedValue.WindowedValueCoder);
+          inputValueCoder instanceof WindowedValue.WindowedValueCoder,
+          "Input coder for a singleton output must be a %s, got %s",
+          WindowedValueCoder.class.getSimpleName(),
+          inputValueCoder.getClass().getSimpleName());
       // The outputValueCoder for the output should be an
       // IterableCoder of the inputValueCoder. This is a property
       // of the backend "CollectionToSingleton" step.
@@ -700,6 +711,27 @@ public class DataflowPipelineTranslator {
 
   static {
     registerTransformTranslator(
+        BatchViewOverrides.CreateIsmPCollectionView.class,
+        new TransformTranslator<BatchViewOverrides.CreateIsmPCollectionView>() {
+          @Override
+          public void translate(
+              BatchViewOverrides.CreateIsmPCollectionView transform, TranslationContext context) {
+            translateTyped(transform, context);
+          }
+
+          private <ElemT, ViewT> void translateTyped(
+              BatchViewOverrides.CreateIsmPCollectionView<ElemT, ViewT> transform,
+              TranslationContext context) {
+            StepTranslationContext stepContext =
+                context.addStep(transform, "CollectionToSingleton");
+            PCollection<ElemT> input = context.getInput(transform);
+            stepContext.addInput(PropertyNames.PARALLEL_INPUT, input);
+            stepContext.addCollectionToSingletonOutput(
+                input, transform.getCoder(), context.getOutput(transform));
+          }
+        });
+
+    registerTransformTranslator(
         View.CreatePCollectionView.class,
         new TransformTranslator<View.CreatePCollectionView>() {
           @Override
@@ -713,7 +745,8 @@ public class DataflowPipelineTranslator {
                 context.addStep(transform, "CollectionToSingleton");
             PCollection<ElemT> input = context.getInput(transform);
             stepContext.addInput(PropertyNames.PARALLEL_INPUT, input);
-            stepContext.addCollectionToSingletonOutput(input, context.getOutput(transform));
+            stepContext.addCollectionToSingletonOutput(
+                input, context.getOutput(transform));
           }
         });
 
