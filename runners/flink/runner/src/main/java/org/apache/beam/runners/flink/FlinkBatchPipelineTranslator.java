@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.flink.translation;
+package org.apache.beam.runners.flink;
 
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -31,7 +31,7 @@ import org.slf4j.LoggerFactory;
  * {@link Pipeline.PipelineVisitor} for executing a {@link Pipeline} as a
  * Flink batch job.
  */
-public class FlinkBatchPipelineTranslator extends FlinkPipelineTranslator {
+class FlinkBatchPipelineTranslator extends FlinkPipelineTranslator {
 
   private static final Logger LOG = LoggerFactory.getLogger(FlinkBatchPipelineTranslator.class);
 

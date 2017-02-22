@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.beam.runners.flink.translation;
+package org.apache.beam.runners.flink;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
@@ -30,8 +30,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.runners.core.SystemReduceFn;
-import org.apache.beam.runners.flink.FlinkRunner;
-import org.apache.beam.runners.flink.FlinkStreamingViewOverrides;
 import org.apache.beam.runners.flink.translation.functions.FlinkAssignWindows;
 import org.apache.beam.runners.flink.translation.types.CoderTypeInformation;
 import org.apache.beam.runners.flink.translation.types.FlinkCoder;
@@ -105,7 +103,7 @@ import org.slf4j.LoggerFactory;
  * traverses the Beam job and comes here to translate the encountered Beam transformations
  * into Flink one, based on the mapping available in this class.
  */
-public class FlinkStreamingTransformTranslators {
+class FlinkStreamingTransformTranslators {
 
   // --------------------------------------------------------------------------------------------
   //  Transform Translator Registry

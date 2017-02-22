@@ -38,7 +38,7 @@ import org.apache.beam.sdk.values.PCollectionView;
 /**
  * Flink streaming overrides for various view (side input) transforms.
  */
-public class FlinkStreamingViewOverrides {
+class FlinkStreamingViewOverrides {
 
   /**
    * Specialized implementation for
