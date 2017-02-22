@@ -165,6 +165,8 @@
       <li><a href="#create-a-new-version-in-jira" id="markdown-toc-create-a-new-version-in-jira">Create a new version in JIRA</a></li>
       <li><a href="#triage-release-blocking-issues-in-jira" id="markdown-toc-triage-release-blocking-issues-in-jira">Triage release-blocking issues in JIRA</a></li>
       <li><a href="#review-release-notes-in-jira" id="markdown-toc-review-release-notes-in-jira">Review Release Notes in JIRA</a></li>
+      <li><a href="#verify-that-a-release-build-works" id="markdown-toc-verify-that-a-release-build-works">Verify that a Release Build Works</a></li>
+      <li><a href="#update-and-verify-javadoc" id="markdown-toc-update-and-verify-javadoc">Update and Verify Javadoc</a></li>
       <li><a href="#create-a-release-branch" id="markdown-toc-create-a-release-branch">Create a release branch</a></li>
       <li><a href="#checklist-to-proceed-to-the-next-step-1" id="markdown-toc-checklist-to-proceed-to-the-next-step-1">Checklist to proceed to the next step</a></li>
     </ul>
@@ -172,7 +174,6 @@
   <li><a href="#build-a-release-candidate" id="markdown-toc-build-a-release-candidate">Build a release candidate</a>    <ul>
       <li><a href="#build-and-stage-java-artifacts-with-maven" id="markdown-toc-build-and-stage-java-artifacts-with-maven">Build and stage Java artifacts with Maven</a></li>
       <li><a href="#stage-source-release-on-distapacheorg" id="markdown-toc-stage-source-release-on-distapacheorg">Stage source release on dist.apache.org</a></li>
-      <li><a href="#build-the-api-reference" id="markdown-toc-build-the-api-reference">Build the API reference</a></li>
       <li><a href="#propose-a-pull-request-for-website-updates" id="markdown-toc-propose-a-pull-request-for-website-updates">Propose a pull request for website updates</a></li>
       <li><a href="#checklist-to-proceed-to-the-next-step-2" id="markdown-toc-checklist-to-proceed-to-the-next-step-2">Checklist to proceed to the next step</a></li>
     </ul>
@@ -372,6 +373,34 @@ export GPG_AGENT_INFO
 
 <p>Adjust any of the above properties to the improve clarity and presentation of the Release Notes.</p>
 
+<h3 id="verify-that-a-release-build-works">Verify that a Release Build Works</h3>
+
+<p>Run <code class="highlighter-rouge">mvn -Prelease</code> to ensure that the build processes that are specific to that
+profile are in good shape.</p>
+
+<h3 id="update-and-verify-javadoc">Update and Verify Javadoc</h3>
+
+<p>The build with <code class="highlighter-rouge">-Prelease</code> creates the combined Javadoc for the release in <code class="highlighter-rouge">sdks/java/javadoc</code>.</p>
+
+<p>The file <code class="highlighter-rouge">sdks/java/javadoc/ant.xml</code> file contains a list of modules to include
+in and exclude, plus a list of offline URLs that populate links from Beam’s
+Javadoc to the Javadoc for other modules that Beam depends on.</p>
+
+<ul>
+  <li>
+    <p>Confirm that new modules added since the last release have been added to the
+inclusion list as appropriate.</p>
+  </li>
+  <li>
+    <p>Confirm that the excluded package list is up to date.</p>
+  </li>
+  <li>
+    <p>Verify the version numbers for offline links match the versions used by Beam. If
+the version number has changed, download a new version of the corresponding
+<code class="highlighter-rouge">&lt;module&gt;-docs/package-list</code> file.</p>
+  </li>
+</ul>
+
 <h3 id="create-a-release-branch">Create a release branch</h3>
 
 <p>Release candidates are built from a release branch. As a final step in preparation for the release, you should create the release branch, push it to the code repository, and update version information on the original branch.</p>
@@ -429,6 +458,7 @@ DEVELOPMENT_VERSION="${NEXT_VERSION}-SNAPSHOT"
   <li>JIRA release item for the subsequent release has been created</li>
   <li>There are no release blocking JIRA issues</li>
   <li>Release Notes in JIRA have been audited and adjusted</li>
+  <li>Combined javadoc has the appropriate contents.</li>
   <li>Release branch has been created</li>
   <li>Originating branch has the version information updated to the new version</li>
 </ol>
@@ -510,40 +540,24 @@ TAG="v${VERSION}-RC${RC_NUM}"
   </li>
 </ol>
 
-<h3 id="build-the-api-reference">Build the API reference</h3>
-
-<p>Beam publishes API reference manual for each release on the website. For Java SDK, that’s Javadoc.</p>
-
-<p>Check out release candidate, as follows:</p>
-
-<div class="highlighter-rouge"><pre class="highlight"><code>git checkout ${TAG}
-</code></pre>
-</div>
-
-<p>Use Maven Javadoc plugin to generate the new Java reference manual, as follows:</p>
-
-<div class="highlighter-rouge"><pre class="highlight"><code>mvn -DskipTests clean package javadoc:aggregate \
-    -Ddoctitle="Apache Beam SDK for Java, version ${VERSION}" \
-    -Dwindowtitle="Apache Beam SDK for Java, version ${VERSION}" \
-    -Dmaven.javadoc.failOnError=false \
-    -DexcludePackageNames="org.apache.beam.examples,org.apache.beam.runners.dataflow.internal,org.apache.beam.runners.flink.examples,org.apache.beam.runners.flink.translation,org.apache.beam.runners.spark.examples,org.apache.beam.runners.spark.translation,org.apache.beam.runners.apex.translation,org.apache.beam.sdk.microbenchmarks.coders.generated,org.apache.beam.sdk.microbenchmarks.transforms.generated,org.openjdk.jmh.infra.generated"
-</code></pre>
-</div>
-
-<p>By default, the Javadoc will be generated in <code class="highlighter-rouge">target/site/apidocs/</code>. Let <code class="highlighter-rouge">${JAVADOC_ROOT}</code> be the absolute path to <code class="highlighter-rouge">apidocs</code>. (<a href="https://github.com/apache/beam/pull/1015">Pull request #1015</a> will hopefully simplify this process.)</p>
-
-<p>Please carefully review the generated Javadoc. Check for completeness and presence of all relevant packages and <code class="highlighter-rouge">package-info.java</code>; consider adding less relevant packages to the <code class="highlighter-rouge">excludePackageNames</code> configuration. The index page is generated at <code class="highlighter-rouge">${JAVADOC_ROOT}/index.html</code>.</p>
-
 <h3 id="propose-a-pull-request-for-website-updates">Propose a pull request for website updates</h3>
 
 <p>The final step of building the candidate is to propose a website pull request.</p>
 
 <p>Start by updating <code class="highlighter-rouge">release_latest</code> version flag in the top-level <code class="highlighter-rouge">_config.yml</code>, and list the new release in the <a href="/get-started/downloads/">Apache Beam Downloads</a>, linking to the source code download and the Release Notes in JIRA.</p>
 
+<p>Beam publishes API reference manual for each release on the website. For Java SDK, that’s Javadoc.</p>
+
+<p>One of the artifacts created in the release contains the Javadoc for the
+website. To update the website, you must unpack this jar file from the release
+candidate into the source tree of the website.</p>
+
 <p>Add the new Javadoc to <a href="/documentation/sdks/javadoc/">SDK API Reference page</a> page, as follows:</p>
 
 <ul>
-  <li>Copy the generated Javadoc into the website repository: <code class="highlighter-rouge">cp -r ${JAVADOC_ROOT} documentation/sdks/javadoc/${VERSION}</code>.</li>
+  <li>Unpack the Maven artifact <code class="highlighter-rouge">org.apache.beam:beam-sdks-java-javadoc</code> into some temporary location. Call this <code class="highlighter-rouge">${JAVADOC_TMP}</code>.</li>
+  <li>Copy the generated Javadoc into the website repository: <code class="highlighter-rouge">cp -r ${JAVADOC_TMP} documentation/sdks/javadoc/${VERSION}</code>.</li>
+  <li>Set up the necessary git commands to account for the new and deleted files from the javadoc.</li>
   <li>Update the Javadoc link on this page to point to the new version (in <code class="highlighter-rouge">src/documentation/sdks/javadoc/current.md</code>).</li>
 </ul>
 
