@@ -15,16 +15,19 @@
 # limitations under the License.
 #
 
-"""Runner objects execute a Pipeline.
+"""Common imports for generated storage client library."""
+# pylint:disable=wildcard-import
 
-This package defines runners, which are used to execute a pipeline.
-"""
+import pkgutil
 
-from apache_beam.runners.direct.direct_runner import DirectRunner
-from apache_beam.runners.direct.direct_runner import EagerRunner
-from apache_beam.runners.runner import PipelineRunner
-from apache_beam.runners.runner import PipelineState
-from apache_beam.runners.runner import create_runner
+# Protect against environments where apitools library is not available.
+# pylint: disable=wrong-import-order, wrong-import-position
+try:
+  from apitools.base.py import *
+  from apache_beam.io.gcp.internal.clients.storage.storage_v1_client import *
+  from apache_beam.io.gcp.internal.clients.storage.storage_v1_messages import *
+except ImportError:
+  pass
+# pylint: enable=wrong-import-order, wrong-import-position
 
-from apache_beam.runners.dataflow.dataflow_runner import DataflowRunner
-from apache_beam.runners.dataflow.test_dataflow_runner import TestDataflowRunner
+__path__ = pkgutil.extend_path(__path__, __name__)
