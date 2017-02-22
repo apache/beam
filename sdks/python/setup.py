@@ -87,6 +87,7 @@ REQUIRED_PACKAGES = [
     'avro>=1.7.7,<2.0.0',
     'crcmod>=1.7,<2.0',
     'dill==0.2.6',
+    'google-cloud-bigquery>=0.22.1,<1.0.0',
     'httplib2>=0.8,<0.10',
     'mock>=1.0.1,<3.0.0',
     'oauth2client>=2.0.1,<4.0.0',
@@ -102,6 +103,8 @@ GCP_REQUIREMENTS = [
   'google-apitools>=0.5.6,<1.0.0',
   'proto-google-cloud-datastore-v1==0.90.0',
   'googledatastore==7.0.0',
+  # GCP packages required by tests
+  'google-cloud-bigquery>=0.22.1,<0.23',
 ]
 
 

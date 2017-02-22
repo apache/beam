@@ -22,13 +22,13 @@ of test pipeline job. Customized verifier should extend
 `hamcrest.core.base_matcher.BaseMatcher` and override _matches.
 """
 
-import hashlib
 import logging
 
 from hamcrest.core.base_matcher import BaseMatcher
 
 from apache_beam.io.fileio import ChannelFactory
 from apache_beam.runners.runner import PipelineState
+from apache_beam.tests import test_utils as utils
 from apache_beam.utils import retry
 
 try:
@@ -76,7 +76,7 @@ class FileChecksumMatcher(BaseMatcher):
   """Matcher that verifies file(s) content by comparing file checksum.
 
   Use apache_beam.io.fileio to fetch file(s) from given path. File checksum
-  is a SHA-1 hash computed from content of file(s).
+  is a hash string computed from content of file(s).
   """
 
   def __init__(self, file_path, expected_checksum):
@@ -103,13 +103,9 @@ class FileChecksumMatcher(BaseMatcher):
     read_lines = self._read_with_retry()
 
     # Compute checksum
-    read_lines.sort()
-    m = hashlib.new('sha1')
-    for line in read_lines:
-      m.update(line)
-    self.checksum, num_lines = (m.hexdigest(), len(read_lines))
+    self.checksum = utils.compute_hash(read_lines)
     logging.info('Read from given path %s, %d lines, checksum: %s.',
-                 self.file_path, num_lines, self.checksum)
+                 self.file_path, len(read_lines), self.checksum)
     return self.checksum == self.expected_checksum
 
   def describe_to(self, description):
