@@ -19,6 +19,7 @@
 """
 
 import json
+import logging
 import os.path
 import sys
 import unittest
@@ -31,8 +32,6 @@ from apache_beam.utils import windowed_value
 from apache_beam.utils.timestamp import Timestamp
 from apache_beam.transforms.window import IntervalWindow
 from apache_beam.transforms import window
-
-from nose_parameterized import parameterized
 
 STANDARD_CODERS_YAML = os.path.join(
     os.path.dirname(__file__), '..', 'tests', 'data', 'standard_coders.yaml')
@@ -82,8 +81,12 @@ class StandardCodersTest(unittest.TestCase):
               tuple([window_parser(w) for w in x['windows']]))
   }
 
-  @parameterized.expand(_load_test_cases(STANDARD_CODERS_YAML))
-  def test_standard_coder(self, name, spec):
+  def test_standard_coders(self):
+    for name, spec in _load_test_cases(STANDARD_CODERS_YAML):
+      logging.info('Executing %s test.', name)
+      self._run_standard_coder(name, spec)
+
+  def _run_standard_coder(self, name, spec):
     coder = self.parse_coder(spec['coder'])
     parse_value = self.json_value_parser(spec['coder'])
     nested_list = [spec['nested']] if 'nested' in spec else [True, False]
