@@ -24,25 +24,28 @@ the corresponding result (a PCollection) for that side output.
 
 This is a slightly modified version of the basic wordcount example. In this
 example words are divided into 2 buckets as shorts words (3 characters in length
-or less) and words (all other words). There will be 3 output files:
+or less) and words (all other words). There will be 3 output files:::
 
   [OUTPUT]-chars        :   Character count for the input.
   [OUTPUT]-short-words  :   Word count for short words only.
   [OUTPUT]-words        :   Word count for all other words.
 
 To execute this pipeline locally, specify a local output file or output prefix
-on GCS:
+on GCS:::
+
   --output [YOUR_LOCAL_FILE | gs://YOUR_OUTPUT_PREFIX]
 
 To execute this pipeline using the Google Cloud Dataflow service, specify
-pipeline configuration:
+pipeline configuration:::
+
   --project YOUR_PROJECT_ID
   --staging_location gs://YOUR_STAGING_DIRECTORY
   --temp_location gs://YOUR_TEMP_DIRECTORY
   --job_name YOUR_JOB_NAME
   --runner DataflowRunner
 
-and an output prefix on GCS:
+and an output prefix on GCS:::
+
   --output gs://YOUR_OUTPUT_PREFIX
 """
 

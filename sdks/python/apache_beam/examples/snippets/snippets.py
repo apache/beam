@@ -583,6 +583,7 @@ def model_custom_source(count):
   distributed to a large number of end users.
 
   This method runs two pipelines.
+
   (1) A pipeline that uses ``CountingSource`` directly using the ``df.Read``
       transform.
   (2) A pipeline that uses a custom ``PTransform`` that wraps
@@ -591,6 +592,7 @@ def model_custom_source(count):
   Args:
     count: the size of the counting source to be used in the pipeline
            demonstrated in this method.
+
   """
 
   import apache_beam as beam
@@ -708,6 +710,7 @@ def model_custom_sink(simplekv, KVs, final_table_name_no_ptransform,
   distributed to a large number of end users.
 
   This method runs two pipelines.
+
   (1) A pipeline that uses ``SimpleKVSink`` directly using the ``df.Write``
       transform.
   (2) A pipeline that uses a custom ``PTransform`` that wraps
@@ -715,10 +718,13 @@ def model_custom_sink(simplekv, KVs, final_table_name_no_ptransform,
 
   Args:
     simplekv: an object that mocks the key-value storage.
+
     KVs: the set of key-value pairs to be written in the example pipeline.
+
     final_table_name_no_ptransform: the prefix of final set of tables to be
                                     created by the example pipeline that uses
                                     ``SimpleKVSink`` directly.
+
     final_table_name_with_ptransform: the prefix of final set of tables to be
                                       created by the example pipeline that uses
                                       a ``PTransform`` that wraps
