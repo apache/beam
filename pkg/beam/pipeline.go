@@ -1,9 +1,7 @@
 package beam
 
 import (
-	"fmt"
 	"github.com/apache/beam/sdks/go/pkg/beam/graph"
-	"log"
 )
 
 // TODO(herohde): we could also just leave Pipeline a value-type here.
@@ -14,15 +12,12 @@ import (
 type Pipeline struct {
 	parent *graph.Scope
 	real   *graph.Graph
-
-	errs *ErrorList
 }
 
 // NewPipeline creates a new empty beam pipeline.
 func NewPipeline() *Pipeline {
 	real := graph.New()
-	errs := &ErrorList{}
-	return &Pipeline{real.Root(), real, errs}
+	return &Pipeline{real.Root(), real}
 }
 
 // TODO(herohde): add composite helper that picks up the enclosing function name.
@@ -31,7 +26,7 @@ func NewPipeline() *Pipeline {
 // deferred execution Graph is the same.
 func (p *Pipeline) Composite(name string) *Pipeline {
 	scope := p.real.NewScope(p.parent, name)
-	return &Pipeline{scope, p.real, p.errs}
+	return &Pipeline{scope, p.real}
 }
 
 func (p *Pipeline) Build() ([]*graph.MultiEdge, error) {
@@ -41,11 +36,5 @@ func (p *Pipeline) Build() ([]*graph.MultiEdge, error) {
 // TODO(herohde): remove FakeBuild
 
 func (p *Pipeline) FakeBuild() (map[int]*graph.MultiEdge, error) {
-	if errs := p.errs.Errors(); len(errs) > 0 {
-		for _, err := range errs {
-			log.Printf("ERROR: %v", err)
-		}
-		return nil, fmt.Errorf("Pipeline met unhappiness")
-	}
 	return p.real.FakeBuild(), nil
 }

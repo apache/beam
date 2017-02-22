@@ -1,12 +1,9 @@
 package beam
 
 import (
-	"errors"
 	"github.com/apache/beam/sdks/go/pkg/beam/graph"
 	"reflect"
 )
-
-var ErrInvalidPCollection = errors.New("Invalid PCollection")
 
 // PCollection is a value-type, wrapping a Graph Node. If there is no node, the
 // collection is invalid.
@@ -20,21 +17,21 @@ func (p PCollection) IsValid() bool {
 
 func (p PCollection) Type() reflect.Type {
 	if !p.IsValid() {
-		return nil
+		panic("Invalid PCollection")
 	}
 	return p.n.T
 }
 
 func (p PCollection) Coder() Coder {
 	if !p.IsValid() {
-		return Coder{}
+		panic("Invalid PCollection")
 	}
 	return Coder{p.n.Coder}
 }
 
 func (p PCollection) SetCoder(coder Coder) error {
 	if !p.IsValid() {
-		return ErrInvalidPCollection
+		panic("Invalid PCollection")
 	}
 
 	// TODO(herohde): validate that the coder is compatible with the underlying type.

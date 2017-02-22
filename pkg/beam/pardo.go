@@ -1,6 +1,7 @@
 package beam
 
 import (
+	"fmt"
 	"github.com/apache/beam/sdks/go/pkg/beam/graph"
 	"github.com/apache/beam/sdks/go/pkg/beam/reflectx"
 	"log"
@@ -11,19 +12,19 @@ import (
 func parDo(p *Pipeline, dofn interface{}, col PCollection, opts ...Option) ([]PCollection, error) {
 	fn, err := graph.ReflectFn(dofn)
 	if err != nil {
-		return nil, Errorf(3, "Bad DoFn: %v", err)
+		return nil, fmt.Errorf("Bad DoFn: %v", err)
 	}
 	side, _, err := parseOpts(opts)
 	if err != nil {
-		return nil, Errorf(3, "Bad options: %v", err)
+		return nil, fmt.Errorf("Bad options: %v", err)
 	}
 
 	if !col.IsValid() {
-		return nil, Errorf(3, "Bad main pcollection")
+		return nil, fmt.Errorf("Bad main pcollection")
 	}
 	for i, in := range side {
 		if !in.Input.IsValid() {
-			return nil, Errorf(3, "Bad side pcollection: index %v", i)
+			return nil, fmt.Errorf("Bad side pcollection: index %v", i)
 		}
 	}
 
@@ -34,15 +35,15 @@ func parDo(p *Pipeline, dofn interface{}, col PCollection, opts ...Option) ([]PC
 	in, views := fn.Input()
 	bound, boundViews, ok := graph.Bind(col.Type(), in, views)
 	if !ok {
-		return nil, Errorf(3, "ParDo: Cannot bind input (%v, %v) to fn: %v", col, side, fn)
+		return nil, fmt.Errorf("ParDo: Cannot bind input (%v, %v) to fn: %v", col, side, fn)
 	}
 
 	if len(boundViews) != len(side) {
-		return nil, Errorf(3, "ParDo: Mismatch number of side inputs: %v, expected %v", side, boundViews)
+		return nil, fmt.Errorf("ParDo: Mismatch number of side inputs: %v, expected %v", side, boundViews)
 	}
 	for i := 0; i < len(boundViews); i++ {
 		if !graph.BindSide(boundViews[i], side[i].Input.Type()) {
-			return nil, Errorf(3, "ParDo: Mismatch type for side input %v: %v, expected %v", i, side[i], boundViews[i])
+			return nil, fmt.Errorf("ParDo: Mismatch type for side input %v: %v, expected %v", i, side[i], boundViews[i])
 		}
 	}
 
@@ -116,23 +117,20 @@ func parDo(p *Pipeline, dofn interface{}, col PCollection, opts ...Option) ([]PC
 func ParDo0(p *Pipeline, dofn interface{}, col PCollection, opts ...Option) {
 	ret, err := parDo(p, dofn, col, opts...)
 	if err != nil {
-		p.errs.Add(err)
-		return
+		panic(err)
 	}
 	if len(ret) != 0 {
-		p.errs.Add(Errorf(2, "ParDo: Expected 0 output. Found: %v", ret))
+		panic(fmt.Sprintf("ParDo: Expected 0 output. Found: %v", ret))
 	}
 }
 
 func ParDo(p *Pipeline, dofn interface{}, col PCollection, opts ...Option) PCollection {
 	ret, err := parDo(p, dofn, col, opts...)
 	if err != nil {
-		p.errs.Add(err)
-		return PCollection{}
+		panic(err)
 	}
 	if len(ret) != 1 {
-		p.errs.Add(Errorf(2, "ParDo: Expected 1 output. Found: %v", ret))
-		return PCollection{}
+		panic(fmt.Sprintf("ParDo: Expected 1 output. Found: %v", ret))
 	}
 	return ret[0]
 }
@@ -140,12 +138,10 @@ func ParDo(p *Pipeline, dofn interface{}, col PCollection, opts ...Option) PColl
 func ParDo2(p *Pipeline, dofn interface{}, col PCollection, opts ...Option) (PCollection, PCollection) {
 	ret, err := parDo(p, dofn, col, opts...)
 	if err != nil {
-		p.errs.Add(err)
-		return PCollection{}, PCollection{}
+		panic(err)
 	}
 	if len(ret) != 2 {
-		p.errs.Add(Errorf(2, "ParDo: Expected 2 output. Found: %v", ret))
-		return PCollection{}, PCollection{}
+		panic(fmt.Sprintf("ParDo: Expected 2 output. Found: %v", ret))
 	}
 	return ret[0], ret[1]
 }
