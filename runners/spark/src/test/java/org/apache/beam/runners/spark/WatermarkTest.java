@@ -38,6 +38,7 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -159,6 +160,9 @@ public class WatermarkTest {
   }
 
   @Test
+  @Ignore(
+      "BEAM-1526 - This test is flaky, and is expected to be fixed in "
+          + "https://github.com/apache/beam/pull/2050")
   public void testInDoFn() {
     // because watermark advances onBatchCompleted.
     Iterable<Integer> zeroBatch = Collections.emptyList();
