@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.io;
 
-import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 
 import com.google.common.base.Strings;
@@ -152,7 +151,7 @@ public class PubsubIO {
           .withLabel("Pubsub Topic"));
     }
   }
-  
+
   /**
    * Class representing a Pub/Sub message. Each message contains a single message payload and
    * a map of attached attributes.

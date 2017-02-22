@@ -109,6 +109,7 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.JsonSchemaToTableSchema;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.PassThroughThenCleanup;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.PassThroughThenCleanup.CleanupOperation;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Status;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TableWritePolicy;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TransformingSource;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.TableRowWriter;
@@ -1172,11 +1173,11 @@ public class BigQueryIOTest implements Serializable {
         }
     );
 
-    SerializableFunction<BoundedWindow, String> tableFunction =
-        new SerializableFunction<BoundedWindow, String>() {
+    TableWritePolicy<String> tableFunction = new TableWritePolicy<String>() {
           @Override
-          public String apply(BoundedWindow input) {
-            return "project-id:dataset-id.table-id-" + ((PartitionedGlobalWindow) input).value;
+          public String apply(Context input) {
+            return "project-id:dataset-id.table-id-"
+                + ((PartitionedGlobalWindow) input.getWindow()).value;
           }
     };
 
@@ -1722,14 +1723,14 @@ public class BigQueryIOTest implements Serializable {
     p.enableAbandonedNodeEnforcement(false);
 
     thrown.expect(IllegalStateException.class);
-    thrown.expectMessage("Cannot set both a table reference and a table function");
+    thrown.expectMessage("Cannot set both a table reference and a table policy");
     p
         .apply(Create.empty(TableRowJsonCoder.of()))
         .apply(BigQueryIO.Write
             .to("dataset.table")
-            .to(new SerializableFunction<BoundedWindow, String>() {
+            .to(new BigQueryIO.TableWritePolicy<String>() {
               @Override
-              public String apply(BoundedWindow input) {
+              public String apply(Context input) {
                 return null;
               }
             }));
