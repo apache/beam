@@ -1030,8 +1030,8 @@ See the language specific source code directories for the Beam supported I/O API
   <td>
   </td>
   <td>
-    <p><a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/io/google_cloud_platform/bigquery.py">Google BigQuery</a></p>
-    <p><a href="https://github.com/apache/beam/tree/master/sdks/python/apache_beam/io/google_cloud_platform/datastore">Google Cloud Datastore</a></p>
+    <p><a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/io/gcp/bigquery.py">Google BigQuery</a></p>
+    <p><a href="https://github.com/apache/beam/tree/master/sdks/python/apache_beam/io/gcp/datastore">Google Cloud Datastore</a></p>
   </td>
 
 </tr>
