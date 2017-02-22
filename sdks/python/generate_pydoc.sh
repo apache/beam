@@ -32,7 +32,8 @@ mkdir -p target/docs/source
 excluded_internal_clients=(
     apache_beam/internal/clients/
     apache_beam/io/google_cloud_platform/internal/clients/
-    apache_beam/runners/google_cloud_dataflow/internal/clients/)
+    apache_beam/runners/google_cloud_dataflow/internal/clients/
+    apache_beam/examples/complete/juliaset/setup.py)
 python $(type -p sphinx-apidoc) -f -o target/docs/source apache_beam \
     "${excluded_internal_clients[@]}"
 
@@ -61,12 +62,15 @@ cat > target/docs/source/index.rst <<'EOF'
 EOF
 
 # Build the documentation using sphinx
-python $(type -p sphinx-build) -q target/docs/source target/docs/_build -c target/docs/source \
-    -w "target/docs/sphinx-build.warnings.log"
+# Reference: http://www.sphinx-doc.org/en/stable/man/sphinx-build.html
+python $(type -p sphinx-build) -v -a -E -q target/docs/source \
+  target/docs/_build -c target/docs/source \
+  -w "target/docs/sphinx-build.warnings.log"
 
 # Message is useful only when this script is run locally.  In a remote
 # test environment, this path will be removed when the test completes.
 echo "Browse to file://$PWD/target/docs/_build/index.html"
 
-# Fail if there are errors in docs
+# Fail if there are errors or warnings in docs
 ! grep -q "ERROR:" target/docs/sphinx-build.warnings.log
+! grep -q "WARNING:" target/docs/sphinx-build.warnings.log

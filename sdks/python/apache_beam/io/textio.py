@@ -333,7 +333,7 @@ class ReadFromText(PTransform):
   """A PTransform for reading text files.
 
   Parses a text file as newline-delimited elements, by default assuming
-  UTF-8 encoding. Supports newline delimiters '\n' and '\r\n'.
+  UTF-8 encoding. Supports newline delimiters '\\n' and '\\r\\n'.
 
   This implementation only supports reading text encoded using UTF-8 or ASCII.
   This does not support other encodings such as UTF-16 or UTF-32.
@@ -352,22 +352,21 @@ class ReadFromText(PTransform):
 
     Args:
       file_pattern: The file path to read from as a local file path or a GCS
-        gs:// path. The path can contain glob characters (*, ?, and [...]
-        sets).
+        ``gs://`` path. The path can contain glob characters
+        ``(*, ?, and [...] sets)``.
       min_bundle_size: Minimum size of bundles that should be generated when
-                       splitting this source into bundles. See
-                       ``FileBasedSource`` for more details.
+        splitting this source into bundles. See ``FileBasedSource`` for more
+        details.
       compression_type: Used to handle compressed input files. Typical value
-          is CompressionTypes.AUTO, in which case the underlying file_path's
-          extension will be used to detect the compression.
+        is CompressionTypes.AUTO, in which case the underlying file_path's
+        extension will be used to detect the compression.
       strip_trailing_newlines: Indicates whether this source should remove
-                               the newline char in each line it reads before
-                               decoding that line.
+        the newline char in each line it reads before decoding that line.
       validate: flag to verify that the files exist during the pipeline
-                creation time.
+        creation time.
       skip_header_lines: Number of header lines to skip. Same number is skipped
-                         from each source file. Must be 0 or higher. Large
-                         number of skipped lines might impact performance.
+        from each source file. Must be 0 or higher. Large number of skipped
+        lines might impact performance.
       coder: Coder used to decode each line.
     """
 
