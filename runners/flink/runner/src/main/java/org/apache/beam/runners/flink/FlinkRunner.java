@@ -615,10 +615,6 @@ public class FlinkRunner extends PipelineRunner<PipelineResult> {
       return new CreateFlinkPCollectionView<>(view);
     }
 
-    public PCollectionView<ViewT> getView() {
-      return view;
-    }
-
     @Override
     public PCollectionView<ViewT> expand(PCollection<List<ElemT>> input) {
       return view;
