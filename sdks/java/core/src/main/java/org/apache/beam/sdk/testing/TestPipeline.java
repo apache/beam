@@ -299,8 +299,8 @@ public class TestPipeline extends Pipeline implements TestRule {
   public PipelineResult run() {
     checkState(
         enforcement.isPresent(),
-        "Attempted to run a pipeline while it's enforcement level was not set. Are you "
-            + "using TestPipeline without a @Rule annotation?");
+        "Is your TestPipeline declaration missing a @Rule annotation? Usage: "
+        + "@Rule public final transient TestPipeline pipeline = TestPipeline.Create();");
 
     try {
       return super.run();
