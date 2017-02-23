@@ -292,19 +292,19 @@ public class CommonCoderTest {
     if (!testSpec.getCoder().getNonDeterministic()) {
       assertThat(testSpec.toString(), encoded, equalTo(testSpec.getSerialized()));
     }
-    verify_decoded_value(testSpec.getCoder(), decodedValue, testValue);
+    verifyDecodedValue(testSpec.getCoder(), decodedValue, testValue);
   }
 
-  private void verify_decoded_value(CommonCoder coder, Object expectedValue, Object actualValue) {
+  private void verifyDecodedValue(CommonCoder coder, Object expectedValue, Object actualValue) {
     switch (coder.getUrn()) {
       case "urn:beam:coders:bytes:0.1":
         assertThat(expectedValue, equalTo(actualValue));
         break;
       case "urn:beam:coders:kv:0.1":
         assertThat(actualValue, instanceOf(KV.class));
-        verify_decoded_value(coder.getComponents().get(0),
+        verifyDecodedValue(coder.getComponents().get(0),
             ((KV) expectedValue).getKey(), ((KV) actualValue).getKey());
-        verify_decoded_value(coder.getComponents().get(0),
+        verifyDecodedValue(coder.getComponents().get(0),
             ((KV) expectedValue).getValue(), ((KV) actualValue).getValue());
         break;
       case "urn:beam:coders:varint:0.1":
@@ -318,7 +318,7 @@ public class CommonCoderTest {
         CommonCoder componentCoder = coder.getComponents().get(0);
         Iterator<Object> expectedValueIterator = ((Iterable<Object>) expectedValue).iterator();
         for (Object value: (Iterable<Object>) actualValue) {
-          verify_decoded_value(componentCoder, expectedValueIterator.next(), value);
+          verifyDecodedValue(componentCoder, expectedValueIterator.next(), value);
         }
         assertFalse(expectedValueIterator.hasNext());
         break;
