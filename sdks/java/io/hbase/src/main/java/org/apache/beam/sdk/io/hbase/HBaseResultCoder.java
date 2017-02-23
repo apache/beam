@@ -32,23 +32,24 @@ import org.apache.hadoop.hbase.protobuf.generated.ClientProtos;
  * A {@link Coder} that serializes and deserializes the {@link Result} objects using {@link
  * ProtobufUtil}.
  */
-public class HBaseResultCoder extends AtomicCoder<Result> implements Serializable {
-
+class HBaseResultCoder extends AtomicCoder<Result> implements Serializable {
   private static final HBaseResultCoder INSTANCE = new HBaseResultCoder();
+
+  private HBaseResultCoder() {}
 
   public static HBaseResultCoder of() {
     return INSTANCE;
   }
 
   @Override
-  public Result decode(InputStream inputStream, Coder.Context context)
-      throws IOException {
-    return ProtobufUtil.toResult(ClientProtos.Result.parseDelimitedFrom(inputStream));
+  public void encode(Result value, OutputStream outputStream, Coder.Context context)
+          throws IOException {
+    ProtobufUtil.toResult(value).writeDelimitedTo(outputStream);
   }
 
   @Override
-  public void encode(Result value, OutputStream outputStream, Coder.Context context)
+  public Result decode(InputStream inputStream, Coder.Context context)
       throws IOException {
-    ProtobufUtil.toResult(value).writeDelimitedTo(outputStream);
+    return ProtobufUtil.toResult(ClientProtos.Result.parseDelimitedFrom(inputStream));
   }
 }
