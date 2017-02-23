@@ -15,35 +15,40 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io.hbase.coders;
+package org.apache.beam.sdk.io.hbase;
 
 import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.io.Serializable;
-import org.apache.hadoop.hbase.client.Scan;
+
+import org.apache.beam.sdk.coders.AtomicCoder;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.protobuf.ProtobufUtil;
 import org.apache.hadoop.hbase.protobuf.generated.ClientProtos;
 
 /**
- * This is just a wrapper class to serialize HBase {@link Scan}.
+ * A {@link Coder} that serializes and deserializes the {@link Result} objects using {@link
+ * ProtobufUtil}.
  */
-public class SerializableScan implements Serializable {
-    private transient Scan scan;
+public class HBaseResultCoder extends AtomicCoder<Result> implements Serializable {
 
-    public SerializableScan(Scan scan) {
-        this.scan = scan;
-    }
+  private static final HBaseResultCoder INSTANCE = new HBaseResultCoder();
 
-    private void writeObject(ObjectOutputStream out) throws IOException {
-        ProtobufUtil.toScan(scan).writeDelimitedTo(out);
-    }
+  public static HBaseResultCoder of() {
+    return INSTANCE;
+  }
 
-    private void readObject(ObjectInputStream in) throws IOException {
-        scan = ProtobufUtil.toScan(ClientProtos.Scan.parseDelimitedFrom(in));
-    }
+  @Override
+  public Result decode(InputStream inputStream, Coder.Context context)
+      throws IOException {
+    return ProtobufUtil.toResult(ClientProtos.Result.parseDelimitedFrom(inputStream));
+  }
 
-    public Scan getScan() {
-        return scan;
-    }
+  @Override
+  public void encode(Result value, OutputStream outputStream, Coder.Context context)
+      throws IOException {
+    ProtobufUtil.toResult(value).writeDelimitedTo(outputStream);
+  }
 }
