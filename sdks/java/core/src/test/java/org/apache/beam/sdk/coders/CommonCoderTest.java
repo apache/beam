@@ -25,7 +25,6 @@ import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
@@ -315,7 +314,7 @@ public class CommonCoderTest {
         assertEquals(expectedValue, actualValue);
         break;
       case "urn:beam:coders:stream:0.1":
-        assertTrue(actualValue instanceof Iterable);
+        assertThat(actualValue, instanceOf(Iterable.class));
         CommonCoder componentCoder = coder.getComponents().get(0);
         Iterator<Object> expectedValueIterator = ((Iterable<Object>) expectedValue).iterator();
         for (Object value: (Iterable<Object>) actualValue) {

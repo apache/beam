@@ -74,25 +74,24 @@ class BufferedElementCountingOutputStream(OutputStream):
   count of number of elements. Note that each element needs to be encoded in a
   nested context.
 
-  To write to this stream:
-  ``
+  To write to this stream::
+
     buffered_stream = BufferedElementCountingOutputStream(output_stream)
-    for element in elements:
-      buffered_stream.mark_element_start()
-      buffered_stream.write(...)
-
+      for element in elements:
+        buffered_stream.mark_element_start()
+        buffered_stream.write(...)
     buffered_stream.finish()
-  ``
 
-  The resulting output stream is:
+  The resulting output stream is::
+
     countA element(0) element(1) ... element(countA - 1)
     countB element(0) element(1) ... element(countB - 1)
     ...
     countX element(0) element(1) ... element(countX - 1)
     countY
 
-  To decode data encoded by this stream:
-  ``
+  To decode data encoded by this stream::
+
     in_stream = ...
     count = in_stream.read_var_int64()
     elements = []
@@ -101,7 +100,6 @@ class BufferedElementCountingOutputStream(OutputStream):
       count -= 1
       if not count:
         count = in_stream.read_var_int64()
-  ``
 
   The counts are encoded as variable length longs and the end of iterable is
   detected by reading a count of 0.
