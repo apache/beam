@@ -366,7 +366,8 @@ def stage_job_resources(
       if setup_options.sdk_location == 'default':
         module_path = os.path.abspath(__file__)
         sdk_path = os.path.join(
-            os.path.dirname(module_path), '..', names.DATAFLOW_SDK_TARBALL_FILE)
+            os.path.dirname(module_path), '..', '..', '..',
+            names.DATAFLOW_SDK_TARBALL_FILE)
       elif os.path.isdir(setup_options.sdk_location):
         sdk_path = os.path.join(
             setup_options.sdk_location, names.DATAFLOW_SDK_TARBALL_FILE)
