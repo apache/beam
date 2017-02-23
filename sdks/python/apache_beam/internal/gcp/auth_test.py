@@ -22,7 +22,7 @@ import unittest
 
 import mock
 
-from apache_beam.internal import auth
+from apache_beam.internal.gcp import auth
 
 
 class AuthTest(unittest.TestCase):
@@ -31,7 +31,7 @@ class AuthTest(unittest.TestCase):
     try:
       test_args = [
           'test', '--service_account_name', 'abc', '--service_account_key_file',
-          os.path.join(os.path.dirname(__file__), '..', 'tests',
+          os.path.join(os.path.dirname(__file__), '..', '..', 'tests',
                        'data', 'privatekey.p12')]
       with mock.patch.object(sys, 'argv', test_args):
         credentials = auth.get_service_credentials()
