@@ -79,17 +79,24 @@ import org.junit.runners.model.Statement;
  * <p>Use {@link PAssert} for tests, as it integrates with this test harness in both direct and
  * remote execution modes. For example:
  *
- * <pre>{@code
- * Pipeline p = TestPipeline.create();
- * PCollection<Integer> output = ...
+ * <pre><code>
+ * {@literal @Rule}
+ * public final transient TestPipeline p = TestPipeline.create();
  *
- * PAssert.that(output)
- *     .containsInAnyOrder(1, 2, 3, 4);
- * p.run();
- * }</pre>
+ * {@literal @Test}
+ * {@literal @Category}(NeedsRunner.class)
+ * public void myPipelineTest() throws Exception {
+ *   final PCollection<String> pCollection = pipeline.apply(...)
+ *   PAssert.that(pCollection).containsInAnyOrder(...);
+ *   pipeline.run();
+ * }
+ * </code></pre>
  *
  * <p>For pipeline runners, it is required that they must throw an {@link AssertionError} containing
  * the message from the {@link PAssert} that failed.
+ *
+ * <p>See also the <a href="https://beam.apache.org/contribute/testing/">Testing</a> documentation
+ * section.</p>
  */
 public class TestPipeline extends Pipeline implements TestRule {
 
@@ -309,6 +316,20 @@ public class TestPipeline extends Pipeline implements TestRule {
     }
   }
 
+  /**
+   * Enables the abandoned node detection. Abandoned nodes are <code>PTransforms</code>, <code>
+   * PAsserts</code> included, that were not executed by the pipeline runner. Abandoned nodes are
+   * most likely to occur due to the one of the following scenarios:
+   *
+   * <ul>
+   * <li>Lack of a <code>pipeline.run()</code> statement at the end of a test.
+   * <li>Addition of PTransforms after the pipeline has already run.
+   * </ul>
+   *
+   * Abandoned node detection is automatically enabled when a real pipeline runner (i.e. not a
+   * {@link CrashingRunner}) and/or a {@link NeedsRunner} or a {@link RunnableOnService} annotation
+   * are detected.
+   */
   public TestPipeline enableAbandonedNodeEnforcement(final boolean enable) {
     enforcement =
         enable
@@ -318,6 +339,10 @@ public class TestPipeline extends Pipeline implements TestRule {
     return this;
   }
 
+  /**
+   * If enabled, a <code>pipeline.run()</code> statement will be added automatically in case it is
+   * missing in the test.
+   */
   public TestPipeline enableAutoRunIfMissing(final boolean enable) {
     enforcement.get().enableAutoRunIfMissing(enable);
     return this;
