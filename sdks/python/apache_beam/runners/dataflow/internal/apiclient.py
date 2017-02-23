@@ -34,13 +34,13 @@ from apache_beam import utils
 from apache_beam.internal.auth import get_service_credentials
 from apache_beam.internal.gcp.json_value import to_json_value
 from apache_beam.io.gcp.internal.clients import storage
+from apache_beam.runners.dataflow.internal import dependency
 from apache_beam.runners.dataflow.internal.clients import dataflow
+from apache_beam.runners.dataflow.internal.dependency import get_required_container_version
+from apache_beam.runners.dataflow.internal.dependency import get_sdk_name_and_version
 from apache_beam.transforms import cy_combiners
 from apache_beam.transforms.display import DisplayData
-from apache_beam.utils import dependency
 from apache_beam.utils import retry
-from apache_beam.utils.dependency import get_required_container_version
-from apache_beam.utils.dependency import get_sdk_name_and_version
 from apache_beam.utils.names import PropertyNames
 from apache_beam.utils.pipeline_options import DebugOptions
 from apache_beam.utils.pipeline_options import GoogleCloudOptions
