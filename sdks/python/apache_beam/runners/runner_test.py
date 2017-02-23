@@ -22,9 +22,7 @@ the other unit tests. In this file we choose to test only aspects related to
 caching and clearing values that are not tested elsewhere.
 """
 
-import json
 import unittest
-from datetime import datetime
 
 import hamcrest as hc
 
@@ -38,21 +36,9 @@ from apache_beam.metrics.metricbase import MetricName
 from apache_beam.pipeline import Pipeline
 from apache_beam.runners import DirectRunner
 from apache_beam.runners import create_runner
-from apache_beam.transforms.display import DisplayDataItem
 from apache_beam.transforms.util import assert_that
 from apache_beam.transforms.util import equal_to
 from apache_beam.utils.pipeline_options import PipelineOptions
-
-from apache_beam.runners import DataflowRunner
-from apache_beam.runners import TestDataflowRunner
-
-# Protect against environments where api client is not available.
-# pylint: disable=wrong-import-order, wrong-import-position
-try:
-  from apache_beam.runners.dataflow.internal import apiclient
-except ImportError:
-  apiclient = None
-# pylint: enable=wrong-import-order, wrong-import-position
 
 
 class RunnerTest(unittest.TestCase):
@@ -67,14 +53,6 @@ class RunnerTest(unittest.TestCase):
   def test_create_runner(self):
     self.assertTrue(
         isinstance(create_runner('DirectRunner'), DirectRunner))
-    if apiclient is not None:
-      self.assertTrue(
-          isinstance(create_runner('DataflowRunner'),
-                     DataflowRunner))
-    if apiclient is not None:
-      self.assertTrue(
-          isinstance(create_runner('TestDataflowRunner'),
-                     TestDataflowRunner))
     self.assertRaises(ValueError, create_runner, 'xyz')
 
   def test_create_runner_shorthand(self):
@@ -88,72 +66,6 @@ class RunnerTest(unittest.TestCase):
         isinstance(create_runner('DiReCt'), DirectRunner))
     self.assertTrue(
         isinstance(create_runner('Direct'), DirectRunner))
-
-  @unittest.skipIf(apiclient is None, 'GCP dependencies are not installed')
-  def test_remote_runner_translation(self):
-    remote_runner = DataflowRunner()
-    p = Pipeline(remote_runner,
-                 options=PipelineOptions(self.default_properties))
-
-    (p | ptransform.Create([1, 2, 3])  # pylint: disable=expression-not-assigned
-     | 'Do' >> ptransform.FlatMap(lambda x: [(x, x)])
-     | ptransform.GroupByKey())
-    remote_runner.job = apiclient.Job(p.options)
-    super(DataflowRunner, remote_runner).run(p)
-
-  @unittest.skipIf(apiclient is None, 'GCP dependencies are not installed')
-  def test_remote_runner_display_data(self):
-    remote_runner = DataflowRunner()
-    p = Pipeline(remote_runner,
-                 options=PipelineOptions(self.default_properties))
-
-    # TODO: Should not subclass ParDo. Switch to PTransform as soon as
-    # composite transforms support display data.
-    class SpecialParDo(beam.ParDo):
-      def __init__(self, fn, now):
-        super(SpecialParDo, self).__init__(fn)
-        self.fn = fn
-        self.now = now
-
-      # Make this a list to be accessible within closure
-      def display_data(self):
-        return {'asubcomponent': self.fn,
-                'a_class': SpecialParDo,
-                'a_time': self.now}
-
-    class SpecialDoFn(beam.DoFn):
-      def display_data(self):
-        return {'dofn_value': 42}
-
-      def process(self):
-        pass
-
-    now = datetime.now()
-    # pylint: disable=expression-not-assigned
-    (p | ptransform.Create([1, 2, 3, 4, 5])
-     | 'Do' >> SpecialParDo(SpecialDoFn(), now))
-
-    remote_runner.job = apiclient.Job(p.options)
-    super(DataflowRunner, remote_runner).run(p)
-    job_dict = json.loads(str(remote_runner.job))
-    steps = [step
-             for step in job_dict['steps']
-             if len(step['properties'].get('display_data', [])) > 0]
-    step = steps[0]
-    disp_data = step['properties']['display_data']
-    disp_data = sorted(disp_data, key=lambda x: x['namespace']+x['key'])
-    nspace = SpecialParDo.__module__+ '.'
-    expected_data = [{'type': 'TIMESTAMP', 'namespace': nspace+'SpecialParDo',
-                      'value': DisplayDataItem._format_value(now, 'TIMESTAMP'),
-                      'key': 'a_time'},
-                     {'type': 'STRING', 'namespace': nspace+'SpecialParDo',
-                      'value': nspace+'SpecialParDo', 'key': 'a_class',
-                      'shortValue': 'SpecialParDo'},
-                     {'type': 'INTEGER', 'namespace': nspace+'SpecialDoFn',
-                      'value': 42, 'key': 'dofn_value'}]
-    expected_data = sorted(expected_data, key=lambda x: x['namespace']+x['key'])
-    self.assertEqual(len(disp_data), 3)
-    self.assertEqual(disp_data, expected_data)
 
   def test_direct_runner_metrics(self):
     from apache_beam.metrics.metric import Metrics
@@ -205,25 +117,6 @@ class RunnerTest(unittest.TestCase):
                 MetricKey('Do', MetricName(namespace, 'element_dist')),
                 DistributionResult(DistributionData(15, 5, 1, 5)),
                 DistributionResult(DistributionData(15, 5, 1, 5)))))
-
-  @unittest.skipIf(apiclient is None, 'GCP dependencies are not installed')
-  def test_no_group_by_key_directly_after_bigquery(self):
-    remote_runner = DataflowRunner()
-    p = Pipeline(remote_runner,
-                 options=PipelineOptions([
-                     '--dataflow_endpoint=ignored',
-                     '--job_name=test-job',
-                     '--project=test-project',
-                     '--staging_location=ignored',
-                     '--temp_location=/dev/null',
-                     '--no_auth=True'
-                 ]))
-    rows = p | beam.io.Read(beam.io.BigQuerySource('dataset.faketable'))
-    with self.assertRaises(ValueError,
-                           msg=('Coder for the GroupByKey operation'
-                                '"GroupByKey" is not a key-value coder: '
-                                'RowAsDictJsonCoder')):
-      unused_invalid = rows | beam.GroupByKey()
 
 
 if __name__ == '__main__':
