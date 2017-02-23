@@ -15,8 +15,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.beam.sdk.io.hdfs;
+
+import java.io.IOException;
+import javax.annotation.Nullable;
+import org.apache.hadoop.security.UserGroupInformation;
 
 /**
- * Transforms used to read from the Hadoop file system (HDFS) with authentication.
+ * {@link UserGroupInformation} helper methods.
  */
-package org.apache.beam.sdk.io.hdfs.simpleauth;
+public class UGIHelper {
+
+  /**
+   * Find the most appropriate UserGroupInformation to use.
+   * @param username the user name, or NULL if none is specified.
+   * @return the most appropriate UserGroupInformation
+   */
+  public static UserGroupInformation getBestUGI(@Nullable String username) throws IOException {
+    return UserGroupInformation.getBestUGI(null, username);
+  }
+
+}
