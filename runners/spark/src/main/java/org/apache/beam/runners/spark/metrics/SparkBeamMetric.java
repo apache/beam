@@ -19,6 +19,7 @@
 package org.apache.beam.runners.spark.metrics;
 
 import com.codahale.metrics.Metric;
+import com.google.common.annotations.VisibleForTesting;
 import java.util.HashMap;
 import java.util.Map;
 import org.apache.beam.sdk.metrics.DistributionResult;
@@ -33,6 +34,7 @@ import org.apache.beam.sdk.metrics.MetricsFilter;
  */
 class SparkBeamMetric implements Metric {
   private static final String ILLEGAL_CHARACTERS = "[^A-Za-z0-9\\._-]";
+  private static final String ILLEGAL_CHARACTERS_AND_PERIOD = "[^A-Za-z0-9_-]";
 
   private final SparkMetricResults metricResults = new SparkMetricResults();
 
@@ -54,12 +56,14 @@ class SparkBeamMetric implements Metric {
     return metrics;
   }
 
-  private String renderName(MetricResult<?> metricResult) {
+  @VisibleForTesting
+  String renderName(MetricResult<?> metricResult) {
+    String renderedStepName = metricResult.step().replaceAll(ILLEGAL_CHARACTERS_AND_PERIOD, "_");
+    if (renderedStepName.endsWith("_")) {
+      renderedStepName = renderedStepName.substring(0, renderedStepName.length() - 1);
+    }
     MetricName metricName = metricResult.name();
-    String rendered =
-        metricResult.step().replace(".", "_")
-            + "." + metricName.namespace()
-            + "." + metricName.name();
-    return rendered.replaceAll(ILLEGAL_CHARACTERS, "_");
+    return (renderedStepName + "." + metricName.namespace() + "." + metricName.name())
+        .replaceAll(ILLEGAL_CHARACTERS, "_");
   }
 }
