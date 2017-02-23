@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io.hdfs;
+package org.apache.beam.sdk.io.hadoop;
 
 import java.io.Externalizable;
 import java.io.IOException;
@@ -33,12 +33,15 @@ import org.apache.hadoop.mapreduce.Job;
 public class SerializableConfiguration implements Externalizable {
   private static final long serialVersionUID = 0L;
 
-  private Configuration conf;
+  private transient Configuration conf;
 
   public SerializableConfiguration() {
   }
 
   public SerializableConfiguration(Configuration conf) {
+    if (conf == null) {
+      throw new NullPointerException("Configuration must not be null.");
+    }
     this.conf = conf;
   }
 
