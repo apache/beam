@@ -122,5 +122,5 @@ class AnnotationTests(unittest.TestCase):
         self.assertNotIn(label[0], str(warning[-1].message))
 
 
-if __name__ == '__main__': # It doesn't like these 2 lines
+if __name__ == '__main__':
   unittest.main()
