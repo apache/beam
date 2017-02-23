@@ -19,7 +19,10 @@
 package org.apache.beam.runners.direct;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Supplier;
+import com.google.common.base.Suppliers;
 import com.google.common.collect.Iterables;
+import java.io.Serializable;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -78,6 +81,25 @@ class WriteWithShardingFactory<InputT>
 
   @VisibleForTesting
   static class CalculateShardsFn extends DoFn<Long, Integer> {
+    private final Supplier<Integer> extraShardsSupplier;
+
+    public CalculateShardsFn() {
+      this(new BoundedRandomIntSupplier(MAX_RANDOM_EXTRA_SHARDS));
+    }
+
+    /**
+     * Construct a {@link CalculateShardsFn} that always uses a constant number of specified extra
+     * shards.
+     */
+    @VisibleForTesting
+    CalculateShardsFn(int constantExtraShards) {
+      this(Suppliers.ofInstance(constantExtraShards));
+    }
+
+    private CalculateShardsFn(Supplier<Integer> extraShardsSupplier) {
+      this.extraShardsSupplier = extraShardsSupplier;
+    }
+
     @ProcessElement
     public void process(ProcessContext ctxt) {
       ctxt.output(calculateShards(ctxt.element()));
@@ -88,13 +110,28 @@ class WriteWithShardingFactory<InputT>
         // Write out at least one shard, even if there is no input.
         return 1;
       }
-      if (totalRecords < MIN_SHARDS_FOR_LOG + randomExtraShards) {
+      // Windows get their own number of random extra shards. This is stored in a side input, so
+      // writers use a consistent number of keys.
+      int extraShards = extraShardsSupplier.get();
+      if (totalRecords < MIN_SHARDS_FOR_LOG + extraShards) {
         return (int) totalRecords;
       }
       // 100mil records before >7 output files
       int floorLogRecs = Double.valueOf(Math.log10(totalRecords)).intValue();
-      return Math.max(floorLogRecs, MIN_SHARDS_FOR_LOG)
-          + ThreadLocalRandom.current().nextInt(0, MAX_RANDOM_EXTRA_SHARDS);
+      return Math.max(floorLogRecs, MIN_SHARDS_FOR_LOG) + extraShards;
+    }
+  }
+
+  private static class BoundedRandomIntSupplier implements Supplier<Integer>, Serializable {
+    private final int upperBound;
+
+    private BoundedRandomIntSupplier(int upperBound) {
+      this.upperBound = upperBound;
+    }
+
+    @Override
+    public Integer get() {
+      return ThreadLocalRandom.current().nextInt(0, upperBound);
     }
   }
 }
