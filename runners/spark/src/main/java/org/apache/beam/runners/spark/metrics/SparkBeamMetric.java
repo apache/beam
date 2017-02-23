@@ -56,7 +56,10 @@ class SparkBeamMetric implements Metric {
 
   private String renderName(MetricResult<?> metricResult) {
     MetricName metricName = metricResult.name();
-    String rendered = metricResult.step() + "." + metricName.namespace() + "." + metricName.name();
+    String rendered =
+        metricResult.step().replace(".", "_")
+            + "." + metricName.namespace()
+            + "." + metricName.name();
     return rendered.replaceAll(ILLEGAL_CHARACTERS, "_");
   }
 }
