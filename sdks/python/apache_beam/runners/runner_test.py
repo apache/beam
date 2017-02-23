@@ -49,7 +49,7 @@ from apache_beam.runners import TestDataflowRunner
 # Protect against environments where api client is not available.
 # pylint: disable=wrong-import-order, wrong-import-position
 try:
-  from apache_beam.runners.google_cloud_dataflow.internal import apiclient
+  from apache_beam.runners.dataflow.internal import apiclient
 except ImportError:
   apiclient = None
 # pylint: enable=wrong-import-order, wrong-import-position

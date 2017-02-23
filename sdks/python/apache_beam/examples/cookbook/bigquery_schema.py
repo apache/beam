@@ -44,7 +44,7 @@ def run(argv=None):
 
   p = beam.Pipeline(argv=pipeline_args)
 
-  from apache_beam.io.google_cloud_platform.internal.clients import bigquery  # pylint: disable=wrong-import-order, wrong-import-position
+  from apache_beam.io.gcp.internal.clients import bigquery  # pylint: disable=wrong-import-order, wrong-import-position
 
   table_schema = bigquery.TableSchema()
 
