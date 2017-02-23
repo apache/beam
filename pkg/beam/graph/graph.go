@@ -30,14 +30,14 @@ func (b *Graph) Root() *Scope {
 
 func (b *Graph) NewScope(parent *Scope, name string) *Scope {
 	id := len(b.scopes) + 1
-	g := &Scope{id: id, label: name, parent: parent}
+	g := &Scope{id: id, Label: name, Parent: parent}
 	b.scopes = append(b.scopes, g)
 	return g
 }
 
 func (b *Graph) NewEdge(parent *Scope) *MultiEdge {
 	id := len(b.edges) + 1
-	e := &MultiEdge{id: id, parent: parent}
+	e := &MultiEdge{id: id, Parent: parent}
 	b.edges = append(b.edges, e)
 	return e
 }
@@ -115,8 +115,8 @@ func (n *Node) String() string {
 // has no semantic meaning at execution time. Used by monitoring.
 type Scope struct {
 	id     int
-	label  string
-	parent *Scope
+	Label  string
+	Parent *Scope
 }
 
 func (s *Scope) ID() int {
@@ -124,10 +124,10 @@ func (s *Scope) ID() int {
 }
 
 func (s *Scope) String() string {
-	if s.parent == nil {
-		return s.label
+	if s.Parent == nil {
+		return s.Label
 	}
-	return s.parent.String() + "/" + s.label
+	return s.Parent.String() + "/" + s.Label
 }
 
 //go:generate $GOPATH/bin/stringer -type=Opcode
@@ -167,7 +167,7 @@ func (o *Outbound) String() string {
 // MultiEdge represents a primitive Fn API instruction.
 type MultiEdge struct {
 	id     int
-	parent *Scope
+	Parent *Scope
 
 	Op   Opcode
 	DoFn *UserFn

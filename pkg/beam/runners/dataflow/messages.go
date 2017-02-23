@@ -84,10 +84,10 @@ type output struct {
 
 // encoding defines the (structured) Coder.
 type encoding struct {
-	Type       string     `json:"@type,omitempty"`
-	Components []encoding `json:"component_encodings,omitempty"`
-	IsWrapper  bool       `json:"is_wrapper,omitempty"`
-	IsPairLike bool       `json:"is_pair_like,omitempty"`
+	Type       string      `json:"@type,omitempty"`
+	Components []*encoding `json:"component_encodings,omitempty"`
+	IsWrapper  bool        `json:"is_wrapper,omitempty"`
+	IsPairLike bool        `json:"is_pair_like,omitempty"`
 }
 
 type integer struct {

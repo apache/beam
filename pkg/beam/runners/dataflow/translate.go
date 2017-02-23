@@ -3,7 +3,10 @@ package dataflow
 import (
 	"fmt"
 	"github.com/apache/beam/sdks/go/pkg/beam/graph"
+	"github.com/apache/beam/sdks/go/pkg/beam/reflectx"
 	df "google.golang.org/api/dataflow/v1b3"
+	"path"
+	"reflect"
 )
 
 func translate(edges []*graph.MultiEdge) ([]*df.Step, error) {
@@ -25,8 +28,31 @@ func translate(edges []*graph.MultiEdge) ([]*df.Step, error) {
 
 			prop.NonParallelInputs = make(map[string]*outputReference)
 			for i := 1; i < len(edge.Input); i++ {
+				// Side input requires an additional conversion step,
+				// which must be before the present one.
+
 				ref := nodes[edge.Input[i].From.ID()]
-				prop.NonParallelInputs[ref.StepName] = ref
+				side := &df.Step{
+					Name: fmt.Sprintf("view%v_%v", edge.ID(), i),
+					Kind: "CollectionToSingleton",
+					Properties: newMsg(properties{
+						ParallelInput: ref,
+						OutputInfo: []output{{
+							UserName:   "out",
+							OutputName: "out",
+							Encoding: &encoding{
+								Type: "kind:windowed_value",
+								Components: []*encoding{
+									translateCoder(edge.Input[i].From),
+								},
+							},
+						}},
+						UserName: "AsView",
+					}),
+				}
+				steps = append(steps, side)
+
+				prop.NonParallelInputs[side.Name] = newOutputReference(side.Name, "out")
 			}
 		}
 
@@ -72,19 +98,19 @@ func translateEdge(edge *graph.MultiEdge) (string, properties, error) {
 	case graph.Source:
 		return "ParallelRead", properties{
 			CustomSourceInputStep: newCustomSourceInputStep(edge.DoFn.Name),
-			UserName:              edge.DoFn.Name,
+			UserName:              buildName(edge.Parent, edge.DoFn.Name),
 			Format:                "custom_source",
 		}, nil
 
 	case graph.ParDo:
 		return "ParallelDo", properties{
-			UserName:     edge.DoFn.Name,
+			UserName:     buildName(edge.Parent, edge.DoFn.Name),
 			SerializedFn: edge.DoFn.Name,
 		}, nil
 
 	case graph.GBK:
 		return "GroupByKey", properties{
-			UserName: "group", // TODO: user-defined
+			UserName: buildName(edge.Parent, "group"), // TODO: user-defined
 		}, nil
 
 	case graph.Sink:
@@ -94,7 +120,7 @@ func translateEdge(edge *graph.MultiEdge) (string, properties, error) {
 
 	case graph.Flatten:
 		return "Flatten", properties{
-			UserName: "flatten", // TODO: user-defined
+			UserName: buildName(edge.Parent, "flatten"), // TODO: user-defined
 		}, nil
 
 	default:
@@ -102,11 +128,50 @@ func translateEdge(edge *graph.MultiEdge) (string, properties, error) {
 	}
 }
 
-func translateCoder(ref *graph.Node) *encoding {
-	// TODO
+// NOTE: Dataflow uses "/" to separate composite transforms, so we must remove
+// them from the otherwise qualified package names of DoFns, etc.
 
+func buildName(scope *graph.Scope, name string) string {
+	if scope.Parent == nil {
+		// Ignore "root" node in naming.
+		return path.Base(name)
+	}
+	return buildScopeName(scope) + "/" + path.Base(name)
+}
+
+func buildScopeName(scope *graph.Scope) string {
+	if scope.Parent.Parent == nil {
+		return scope.Label
+	}
+	return buildScopeName(scope.Parent) + "/" + scope.Label
+}
+
+// TODO(herohde) 2/22/2017: for now, use structurally sound - but bogus - coders.
+
+func translateCoder(ref *graph.Node) *encoding {
 	return &encoding{
-		Type: "string",
+		Type: "kind:windowed_value",
+		Components: []*encoding{
+			translateType(ref.T),
+			{Type: "kind:global_window"},
+		},
+		IsWrapper: true,
+	}
+}
+
+func translateType(t reflect.Type) *encoding {
+	if k, v, ok := reflectx.UnfoldComposite(t); ok {
+		return &encoding{
+			Type: "kind:pair",
+			Components: []*encoding{
+				translateType(k),
+				translateType(v),
+			},
+			IsPairLike: true,
+		}
+	}
+	return &encoding{
+		Type: "json",
 	}
 }
 
