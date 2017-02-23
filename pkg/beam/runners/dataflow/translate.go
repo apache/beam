@@ -47,7 +47,7 @@ func translate(edges []*graph.MultiEdge) ([]*df.Step, error) {
 								},
 							},
 						}},
-						UserName: "AsView",
+						UserName: buildName(edge.Parent, "AsView"),
 					}),
 				}
 				steps = append(steps, side)
