@@ -65,6 +65,121 @@ class OutputStream(object):
     return ''.join(self.data)
 
 
+class BufferedElementCountingOutputStream(OutputStream):
+  """
+  An output stream that provides efficient encoding for ``Iterables`` of
+  unknown length and containing small values.
+
+  The elements are buffered up to ``buffer_size`` bytes before prefixing the
+  count of number of elements. Note that each element needs to be encoded in a
+  nested context.
+
+  To write to this stream:
+  ``
+    buffered_stream = BufferedElementCountingOutputStream(output_stream)
+    for element in elements:
+      buffered_stream.mark_element_start()
+      buffered_stream.write(...)
+
+    buffered_stream.finish()
+  ``
+
+  The resulting output stream is:
+    countA element(0) element(1) ... element(countA - 1)
+    countB element(0) element(1) ... element(countB - 1)
+    ...
+    countX element(0) element(1) ... element(countX - 1)
+    countY
+
+  To decode data encoded by this stream:
+  ``
+    in_stream = ...
+    count = in_stream.read_var_int64()
+    elements = []
+    while count > 0:
+      elements.append(element_coder.decode_from_stream(in_stream, nested=True))
+      count -= 1
+      if not count:
+        count = in_stream.read_var_int64()
+  ``
+
+  The counts are encoded as variable length longs and the end of iterable is
+  detected by reading a count of 0.
+  """
+
+  # Default buffer size of 64kB.
+  _DEFAULT_BUFFER_SIZE = 64 * 1024
+
+  def __init__(self, op_stream, buffer_size=_DEFAULT_BUFFER_SIZE):
+    self._buffer_size = buffer_size
+    self._underlying_op_stream = op_stream
+    self._count = 0
+    self._current_data = []
+    self._current_data_size_in_bytes = 0
+    self._finished = False
+
+  def mark_element_start(self):
+    """
+    Marks that a new element is being output.
+
+    This allows this output stream to use the buffer if it had previously
+    overflowed marking the start of a new block of elements.
+    """
+    self._check_not_finished()
+    self._count += 1
+
+  def finish(self):
+    """
+    Finishes the encoding by flushing any buffered data, and outputting a
+    final count of 0.
+    """
+    if self._finished:
+      return
+    self._output()
+    self._underlying_op_stream.write_var_int64(0)
+    self._finished = True
+
+  def write(self, b, nested=False):
+    assert isinstance(b, str), type(b)
+    if nested:
+      self.write_var_int64(len(b))
+    self._write(b)
+
+  def write_byte(self, val):
+    self._write(chr(val))
+
+  def _write(self, b):
+    self._check_not_finished()
+    if self._count == 0:
+      self._underlying_op_stream.write(b)
+      return
+
+    if self._current_data_size_in_bytes + len(b) < self._buffer_size:
+      self._current_data.append(b)
+      self._current_data_size_in_bytes += len(b)
+    else:
+      self._output()
+      self._underlying_op_stream.write(b)
+
+  def _output(self):
+    if self._count > 0:
+      self._underlying_op_stream.write_var_int64(self._count)
+      self._underlying_op_stream.write(''.join(self._current_data))
+      self._current_data = []
+      self._current_data_size_in_bytes = 0
+      # The buffer has been flushed so we must write to the underlying stream
+      # until we learn of the next element. We reset the count to zero marking
+      # that we should not use the buffer.
+      self._count = 0
+
+  def _check_not_finished(self):
+    if self._finished:
+      raise ValueError("Stream has been finished. Can not write any more data.")
+
+  def get(self):
+    return self._underlying_op_stream.get()
+
+
 class ByteCountingOutputStream(OutputStream):
   """A pure Python implementation of stream.ByteCountingOutputStream."""
 
