@@ -24,7 +24,7 @@ import tempfile
 import unittest
 
 from apache_beam import utils
-from apache_beam.utils import dependency
+from apache_beam.runners.dataflow.internal import dependency
 from apache_beam.utils import names
 from apache_beam.utils.pipeline_options import GoogleCloudOptions
 from apache_beam.utils.pipeline_options import PipelineOptions

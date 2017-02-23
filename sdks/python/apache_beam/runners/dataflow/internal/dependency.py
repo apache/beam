@@ -70,6 +70,10 @@ from apache_beam.utils.pipeline_options import GoogleCloudOptions
 from apache_beam.utils.pipeline_options import SetupOptions
 
 
+# Update this version to the next version whenever there is a change that will
+# require changes to the execution environment.
+BEAM_CONTAINER_VERSION = 'beamhead'
+
 # Standard file names used for staging files.
 WORKFLOW_TARBALL_FILE = 'workflow.tar.gz'
 REQUIREMENTS_FILE = 'requirements.txt'
@@ -459,14 +463,14 @@ def get_required_container_version():
   except pkg.DistributionNotFound:
     # This case covers Apache Beam end-to-end testing scenarios. All these tests
     # will run with a special container version.
-    return 'beamhead'
+    return BEAM_CONTAINER_VERSION
 
 
 def get_sdk_name_and_version():
   """Returns name and version of SDK reported to Google Cloud Dataflow."""
   # TODO(ccy): Make this check cleaner.
   container_version = get_required_container_version()
-  if container_version == 'beamhead':
+  if container_version == BEAM_CONTAINER_VERSION:
     return ('Apache Beam SDK for Python', beam_version.__version__)
   else:
     return ('Google Cloud Dataflow SDK for Python', container_version)
