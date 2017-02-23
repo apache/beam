@@ -92,6 +92,17 @@ In the WordCount example from above, to switch the execution engine
 from Apache Flink to Apache Spark, we'd merely need to replace
 `FlinkExecutor` with `SparkExecutor`.
 
+## Bugs / Features / Contributing
+
+There's still a lot of room for improvements and extensions.  Have a
+look into the [issue tracker](https://github.com/seznam/euphoria/issues)
+and feel free to contribute by reporting new problems, contributing to
+existing ones, or even open issues in case of questions.  Any constructive
+feedback is warmly welcome!
+
+As usually with open source, don't hesitate to fork the repo and
+submit a pull requests if you see something to be changed.  We'll be
+happy see euphoria improving over time.
 
 ## Building
 
