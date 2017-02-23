@@ -94,13 +94,18 @@ class StandardCodersTest(unittest.TestCase):
       for expected_encoded, json_value in spec['examples'].items():
         value = parse_value(json_value)
         expected_encoded = expected_encoded.encode('latin1')
-        actual_encoded = encode_nested(coder, value, nested)
-        if self.fix and actual_encoded != expected_encoded:
-          self.to_fix[spec['index'], expected_encoded] = actual_encoded
+        if not spec['coder'].get('non_deterministic', False):
+          actual_encoded = encode_nested(coder, value, nested)
+          if self.fix and actual_encoded != expected_encoded:
+            self.to_fix[spec['index'], expected_encoded] = actual_encoded
+          else:
+            self.assertEqual(expected_encoded, actual_encoded)
+            self.assertEqual(decode_nested(coder, expected_encoded, nested),
+                             value)
         else:
+          # Only verify decoding for a non-deterministic coder
           self.assertEqual(decode_nested(coder, expected_encoded, nested),
                            value)
-          self.assertEqual(expected_encoded, actual_encoded)
 
   def parse_coder(self, spec):
     return self._urn_to_coder_class[spec['urn']](

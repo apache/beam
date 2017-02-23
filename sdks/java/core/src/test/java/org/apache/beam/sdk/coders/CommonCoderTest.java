@@ -21,6 +21,9 @@ import static com.google.common.base.MoreObjects.firstNonNull;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasItem;
+import static org.hamcrest.Matchers.instanceOf;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
@@ -40,6 +43,7 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.util.Collections;
+import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -83,13 +87,16 @@ public class CommonCoderTest {
   abstract static class CommonCoder {
     abstract String getUrn();
     abstract List<CommonCoder> getComponents();
+    abstract Boolean getNonDeterministic();
     @JsonCreator
     static CommonCoder create(
         @JsonProperty("urn") String urn,
-        @JsonProperty("components") @Nullable List<CommonCoder> components) {
+        @JsonProperty("components") @Nullable List<CommonCoder> components,
+        @JsonProperty("non_deterministic") @Nullable Boolean nonDeterministic) {
       return new AutoValue_CommonCoderTest_CommonCoder(
           checkNotNull(urn, "urn"),
-          firstNonNull(components, Collections.<CommonCoder>emptyList()));
+          firstNonNull(components, Collections.<CommonCoder>emptyList()),
+          firstNonNull(nonDeterministic, Boolean.FALSE));
     }
   }
 
@@ -280,7 +287,50 @@ public class CommonCoderTest {
     Object testValue = convertValue(testSpec.getValue(), testSpec.getCoder(), coder);
     Context context = testSpec.getNested() ? Context.NESTED : Context.OUTER;
     byte[] encoded = CoderUtils.encodeToByteArray(coder, testValue, context);
-    assertThat(testSpec.toString(), encoded, equalTo(testSpec.getSerialized()));
+    Object decodedValue = CoderUtils.decodeFromByteArray(coder, testSpec.getSerialized(), context);
+
+    if (!testSpec.getCoder().getNonDeterministic()) {
+      assertThat(testSpec.toString(), encoded, equalTo(testSpec.getSerialized()));
+    }
+    verifyDecodedValue(testSpec.getCoder(), decodedValue, testValue);
+  }
+
+  private void verifyDecodedValue(CommonCoder coder, Object expectedValue, Object actualValue) {
+    switch (coder.getUrn()) {
+      case "urn:beam:coders:bytes:0.1":
+        assertThat(expectedValue, equalTo(actualValue));
+        break;
+      case "urn:beam:coders:kv:0.1":
+        assertThat(actualValue, instanceOf(KV.class));
+        verifyDecodedValue(coder.getComponents().get(0),
+            ((KV) expectedValue).getKey(), ((KV) actualValue).getKey());
+        verifyDecodedValue(coder.getComponents().get(0),
+            ((KV) expectedValue).getValue(), ((KV) actualValue).getValue());
+        break;
+      case "urn:beam:coders:varint:0.1":
+        assertEquals(expectedValue, actualValue);
+        break;
+      case "urn:beam:coders:interval_window:0.1":
+        assertEquals(expectedValue, actualValue);
+        break;
+      case "urn:beam:coders:stream:0.1":
+        assertThat(actualValue, instanceOf(Iterable.class));
+        CommonCoder componentCoder = coder.getComponents().get(0);
+        Iterator<Object> expectedValueIterator = ((Iterable<Object>) expectedValue).iterator();
+        for (Object value: (Iterable<Object>) actualValue) {
+          verifyDecodedValue(componentCoder, expectedValueIterator.next(), value);
+        }
+        assertFalse(expectedValueIterator.hasNext());
+        break;
+      case "urn:beam:coders:global_window:0.1":
+        assertEquals(expectedValue, actualValue);
+        break;
+      case "urn:beam:coders:windowed_value:0.1":
+        assertEquals(expectedValue, actualValue);
+        break;
+      default:
+        throw new IllegalStateException("Unknown coder URN: " + coder.getUrn());
+    }
   }
 
   /**

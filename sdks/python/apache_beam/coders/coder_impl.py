@@ -509,7 +509,29 @@ class TupleCoderImpl(AbstractComponentCoderImpl):
 
 
 class SequenceCoderImpl(StreamCoderImpl):
-  """A coder for sequences of known length."""
+  """A coder for sequences.
+
+  If the length of the sequence in known we encode the length as a 32 bit
+  ``int`` followed by the encoded bytes.
+
+  If the length of the sequence is unknown, we encode the length as ``-1``
+  followed by the encoding of elements buffered up to 64K bytes before prefixing
+  the count of number of elements. A ``0`` is encoded at the end to indicate the
+  end of stream.
+
+  The resulting encoding would look like this::
+
+    -1
+    countA element(0) element(1) ... element(countA - 1)
+    countB element(0) element(1) ... element(countB - 1)
+    ...
+    countX element(0) element(1) ... element(countX - 1)
+    0
+
+  """
+
+  # Default buffer size of 64kB of handling iterables of unknown length.
+  _DEFAULT_BUFFER_SIZE = 64 * 1024
 
   def __init__(self, elem_coder):
     self._elem_coder = elem_coder
@@ -519,15 +541,46 @@ class SequenceCoderImpl(StreamCoderImpl):
 
   def encode_to_stream(self, value, out, nested):
     # Compatible with Java's IterableLikeCoder.
-    out.write_bigendian_int32(len(value))
-    for elem in value:
-      self._elem_coder.encode_to_stream(elem, out, True)
+    if hasattr(value, '__len__'):
+      out.write_bigendian_int32(len(value))
+      for elem in value:
+        self._elem_coder.encode_to_stream(elem, out, True)
+    else:
+      # We don't know the size without traversing it so use a fixed size buffer
+      # and encode as many elements as possible into it before outputting
+      # the size followed by the elements.
+
+      # -1 to indicate that the length is not known.
+      out.write_bigendian_int32(-1)
+      buffer = create_OutputStream()
+      prev_index = index = -1
+      for index, elem in enumerate(value):
+        self._elem_coder.encode_to_stream(elem, buffer, True)
+        if out.size() > self._DEFAULT_BUFFER_SIZE:
+          out.write_var_int64(index - prev_index)
+          out.write(buffer.get())
+          prev_index = index
+          buffer = create_OutputStream()
+      if index > prev_index:
+        out.write_var_int64(index - prev_index)
+        out.write(buffer.get())
+      out.write_var_int64(0)
 
   def decode_from_stream(self, in_stream, nested):
     size = in_stream.read_bigendian_int32()
-    return self._construct_from_sequence(
-        [self._elem_coder.decode_from_stream(in_stream, True)
-         for _ in range(size)])
+
+    if size >= 0:
+      elements = [self._elem_coder.decode_from_stream(in_stream, True)
+                  for _ in range(size)]
+    else:
+      elements = []
+      count = in_stream.read_var_int64()
+      while count > 0:
+        for _ in range(count):
+          elements.append(self._elem_coder.decode_from_stream(in_stream, True))
+        count = in_stream.read_var_int64()
+
+    return self._construct_from_sequence(elements)
 
   def estimate_size(self, value, nested=False):
     """Estimates the encoded size of the given value, in bytes."""
@@ -551,6 +604,11 @@ class SequenceCoderImpl(StreamCoderImpl):
                 elem, nested=True))
         estimated_size += child_size
         observables += child_observables
+      # TODO: (BEAM-1537) Update to use an accurate count depending on size and
+      # count, currently we are underestimating the size by up to 10 bytes
+      # per block of data since we are not including the count prefix which
+      # occurs at most once per 64k of data and is upto 10 bytes long. The upper
+      # bound of the underestimate is 10 / 65536 ~= 0.0153% of the actual size.
       return estimated_size, observables
 
 
