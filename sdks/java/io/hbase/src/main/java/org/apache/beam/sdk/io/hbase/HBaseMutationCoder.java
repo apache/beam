@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io.hbase.coders;
+package org.apache.beam.sdk.io.hbase;
 
 import java.io.IOException;
 import java.io.InputStream;
