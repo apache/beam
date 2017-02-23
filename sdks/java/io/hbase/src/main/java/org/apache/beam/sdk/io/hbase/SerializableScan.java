@@ -26,12 +26,18 @@ import org.apache.hadoop.hbase.protobuf.ProtobufUtil;
 import org.apache.hadoop.hbase.protobuf.generated.ClientProtos;
 
 /**
- * This is just a wrapper class to serialize HBase {@link Scan}.
+ * This is just a wrapper class to serialize HBase {@link Scan} using Protobuf.
  */
 class SerializableScan implements Serializable {
     private transient Scan scan;
 
+    public SerializableScan() {
+    }
+
     public SerializableScan(Scan scan) {
+        if (scan == null) {
+            throw new NullPointerException("Scan must not be null.");
+        }
         this.scan = scan;
     }
 
@@ -43,7 +49,7 @@ class SerializableScan implements Serializable {
         scan = ProtobufUtil.toScan(ClientProtos.Scan.parseDelimitedFrom(in));
     }
 
-    public Scan getScan() {
+    public Scan get() {
         return scan;
     }
 }
