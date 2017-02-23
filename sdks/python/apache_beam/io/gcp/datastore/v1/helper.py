@@ -33,7 +33,7 @@ except ImportError:
   QUERY_NOT_FINISHED = None
 # pylint: enable=wrong-import-order, wrong-import-position
 
-from apache_beam.internal import auth
+from apache_beam.internal.gcp import auth
 from apache_beam.utils import retry
 
 

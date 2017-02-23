@@ -35,7 +35,7 @@ import apitools.base.py.transfer as transfer
 from apitools.base.py.batch import BatchApiRequest
 from apitools.base.py.exceptions import HttpError
 
-from apache_beam.internal import auth
+from apache_beam.internal.gcp import auth
 from apache_beam.utils import retry
 
 # Issue a friendlier error message if the storage library is not available.

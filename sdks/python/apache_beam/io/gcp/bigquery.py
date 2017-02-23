@@ -111,7 +111,7 @@ import time
 import uuid
 
 from apache_beam import coders
-from apache_beam.internal import auth
+from apache_beam.internal.gcp import auth
 from apache_beam.internal.gcp.json_value import from_json_value
 from apache_beam.internal.gcp.json_value import to_json_value
 from apache_beam.runners.dataflow.native_io import iobase as dataflow_io

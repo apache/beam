@@ -33,16 +33,16 @@ from apache_beam.internal import pickler
 from apache_beam.internal.gcp import json_value
 from apache_beam.pvalue import PCollectionView
 from apache_beam.runners.dataflow.dataflow_metrics import DataflowMetrics
+from apache_beam.runners.dataflow.internal import names
 from apache_beam.runners.dataflow.internal.clients import dataflow as dataflow_api
+from apache_beam.runners.dataflow.internal.names import PropertyNames
+from apache_beam.runners.dataflow.internal.names import TransformNames
 from apache_beam.runners.runner import PValueCache
 from apache_beam.runners.runner import PipelineResult
 from apache_beam.runners.runner import PipelineRunner
 from apache_beam.runners.runner import PipelineState
 from apache_beam.transforms.display import DisplayData
 from apache_beam.typehints import typehints
-from apache_beam.utils import names
-from apache_beam.utils.names import PropertyNames
-from apache_beam.utils.names import TransformNames
 from apache_beam.utils.pipeline_options import StandardOptions
 
 
