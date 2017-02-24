@@ -29,9 +29,7 @@ import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.protobuf.Any;
 import com.google.protobuf.ByteString;
-import com.google.protobuf.BytesValue;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.concurrent.atomic.AtomicLong;
@@ -40,6 +38,7 @@ import org.apache.beam.fn.harness.fn.CloseableThrowingConsumer;
 import org.apache.beam.fn.v1.BeamFnApi;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.common.runner.v1.RunnerApi;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
@@ -57,17 +56,23 @@ public class BeamFnDataWriteRunnerTest {
   private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
   private static final BeamFnApi.RemoteGrpcPort PORT_SPEC = BeamFnApi.RemoteGrpcPort.newBuilder()
       .setApiServiceDescriptor(BeamFnApi.ApiServiceDescriptor.getDefaultInstance()).build();
-  private static final BeamFnApi.FunctionSpec FUNCTION_SPEC = BeamFnApi.FunctionSpec.newBuilder()
-      .setData(Any.pack(PORT_SPEC)).build();
+  private static final RunnerApi.FunctionSpec FUNCTION_SPEC =
+      RunnerApi.FunctionSpec.newBuilder()
+          .setSdkFnSpec(RunnerApi.SdkFunctionSpec.newBuilder().setData(PORT_SPEC.toByteString()))
+          .build();
   private static final Coder<WindowedValue<String>> CODER =
       WindowedValue.getFullCoder(StringUtf8Coder.of(), GlobalWindow.Coder.INSTANCE);
-  private static final BeamFnApi.Coder CODER_SPEC;
+  private static final RunnerApi.FunctionSpec CODER_SPEC;
   static {
     try {
-      CODER_SPEC = BeamFnApi.Coder.newBuilder().setFunctionSpec(BeamFnApi.FunctionSpec.newBuilder()
-      .setData(Any.pack(BytesValue.newBuilder().setValue(ByteString.copyFrom(
-          OBJECT_MAPPER.writeValueAsBytes(CODER.asCloudObject()))).build())))
-      .build();
+      CODER_SPEC =
+          RunnerApi.FunctionSpec.newBuilder()
+              .setSdkFnSpec(
+                  RunnerApi.SdkFunctionSpec.newBuilder()
+                      .setData(
+                          ByteString.copyFrom(
+                              OBJECT_MAPPER.writeValueAsBytes(CODER.asCloudObject()))))
+              .build();
     } catch (IOException e) {
       throw new ExceptionInInitializerError(e);
     }

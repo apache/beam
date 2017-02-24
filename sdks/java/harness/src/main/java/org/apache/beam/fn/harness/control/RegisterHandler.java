@@ -19,12 +19,14 @@
 package org.apache.beam.fn.harness.control;
 
 import com.google.protobuf.Message;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutionException;
 import org.apache.beam.fn.v1.BeamFnApi;
 import org.apache.beam.fn.v1.BeamFnApi.RegisterResponse;
+import org.apache.beam.sdk.common.runner.v1.RunnerApi;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -75,11 +77,11 @@ public class RegisterHandler {
           processBundleDescriptor.getId(),
           processBundleDescriptor.getClass());
       computeIfAbsent(processBundleDescriptor.getId()).complete(processBundleDescriptor);
-      for (BeamFnApi.Coder coder : processBundleDescriptor.getCodersList()) {
-        LOG.debug("Registering {} with type {}",
-            coder.getFunctionSpec().getId(),
-            coder.getClass());
-        computeIfAbsent(coder.getFunctionSpec().getId()).complete(coder);
+      for (Map.Entry<Long, RunnerApi.FunctionSpec> coderEntry :
+          processBundleDescriptor.getCodersMap().entrySet()) {
+        LOG.debug(
+            "Registering {} with type {}", coderEntry.getKey(), coderEntry.getValue().getClass());
+        computeIfAbsent(coderEntry.getKey()).complete(coderEntry.getValue());
       }
     }
 

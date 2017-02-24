@@ -41,9 +41,7 @@ import com.google.common.collect.ImmutableMultimap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Multimap;
-import com.google.protobuf.Any;
 import com.google.protobuf.ByteString;
-import com.google.protobuf.BytesValue;
 import com.google.protobuf.Message;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -65,6 +63,7 @@ import org.apache.beam.runners.dataflow.util.DoFnInfo;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarLongCoder;
+import org.apache.beam.sdk.common.runner.v1.RunnerApi;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.CountingSource;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -100,23 +99,29 @@ public class ProcessBundleHandlerTest {
           .setId(58L)
           .setUrl("TestUrl"))
       .build();
-  private static final BeamFnApi.Coder LONG_CODER_SPEC;
-  private static final BeamFnApi.Coder STRING_CODER_SPEC;
+  private static final RunnerApi.FunctionSpec LONG_CODER_SPEC;
+  private static final RunnerApi.FunctionSpec STRING_CODER_SPEC;
   static {
     try {
       STRING_CODER_SPEC =
-          BeamFnApi.Coder.newBuilder().setFunctionSpec(BeamFnApi.FunctionSpec.newBuilder()
-          .setId(STRING_CODER_SPEC_ID)
-          .setData(Any.pack(BytesValue.newBuilder().setValue(ByteString.copyFrom(
-              OBJECT_MAPPER.writeValueAsBytes(STRING_CODER.asCloudObject()))).build())))
-          .build();
+          RunnerApi.FunctionSpec.newBuilder()
+              .setSdkFnSpec(
+                  RunnerApi.SdkFunctionSpec.newBuilder()
+                      .setData(
+                          ByteString.copyFrom(
+                              OBJECT_MAPPER.writeValueAsBytes(STRING_CODER.asCloudObject()))))
+              .build();
       LONG_CODER_SPEC =
-          BeamFnApi.Coder.newBuilder().setFunctionSpec(BeamFnApi.FunctionSpec.newBuilder()
-          .setId(STRING_CODER_SPEC_ID)
-          .setData(Any.pack(BytesValue.newBuilder().setValue(ByteString.copyFrom(
-              OBJECT_MAPPER.writeValueAsBytes(WindowedValue.getFullCoder(
-                  VarLongCoder.of(), GlobalWindow.Coder.INSTANCE).asCloudObject()))).build())))
-          .build();
+          RunnerApi.FunctionSpec.newBuilder()
+              .setSdkFnSpec(
+                  RunnerApi.SdkFunctionSpec.newBuilder()
+                      .setData(
+                          ByteString.copyFrom(
+                              OBJECT_MAPPER.writeValueAsBytes(
+                                  WindowedValue.getFullCoder(
+                                          VarLongCoder.of(), GlobalWindow.Coder.INSTANCE)
+                                      .asCloudObject()))))
+              .build();
     } catch (IOException e) {
       throw new ExceptionInInitializerError(e);
     }
@@ -339,13 +344,13 @@ public class ProcessBundleHandlerTest {
         ImmutableMap.of(
             mainOutputId, TestDoFn.mainOutput,
             sideOutputId, TestDoFn.sideOutput));
-    BeamFnApi.FunctionSpec functionSpec = BeamFnApi.FunctionSpec.newBuilder()
-        .setId(1L)
-        .setUrn(JAVA_DO_FN_URN)
-        .setData(Any.pack(BytesValue.newBuilder()
-            .setValue(ByteString.copyFrom(SerializableUtils.serializeToByteArray(doFnInfo)))
-            .build()))
-        .build();
+    RunnerApi.FunctionSpec functionSpec =
+        RunnerApi.FunctionSpec.newBuilder()
+            .setSpec(RunnerApi.UrnWithParameter.newBuilder().setUrn(JAVA_DO_FN_URN))
+            .setSdkFnSpec(
+                RunnerApi.SdkFunctionSpec.newBuilder()
+                    .setData(ByteString.copyFrom(SerializableUtils.serializeToByteArray(doFnInfo))))
+            .build();
     BeamFnApi.Target inputATarget1 = BeamFnApi.Target.newBuilder()
         .setPrimitiveTransformReference(1000L)
         .setName("inputATarget1")
@@ -458,14 +463,15 @@ public class ProcessBundleHandlerTest {
     List<ThrowingRunnable> startFunctions = new ArrayList<>();
     List<ThrowingRunnable> finishFunctions = new ArrayList<>();
 
-    BeamFnApi.FunctionSpec functionSpec = BeamFnApi.FunctionSpec.newBuilder()
-        .setId(1L)
-        .setUrn(JAVA_SOURCE_URN)
-        .setData(Any.pack(BytesValue.newBuilder()
-            .setValue(ByteString.copyFrom(
-                SerializableUtils.serializeToByteArray(CountingSource.upTo(3))))
-            .build()))
-        .build();
+    RunnerApi.FunctionSpec functionSpec =
+        RunnerApi.FunctionSpec.newBuilder()
+            .setSpec(RunnerApi.UrnWithParameter.newBuilder().setUrn(JAVA_SOURCE_URN))
+            .setSdkFnSpec(
+                RunnerApi.SdkFunctionSpec.newBuilder()
+                    .setData(
+                        ByteString.copyFrom(
+                            SerializableUtils.serializeToByteArray(CountingSource.upTo(3)))))
+            .build();
 
     BeamFnApi.PrimitiveTransform primitiveTransform = BeamFnApi.PrimitiveTransform.newBuilder()
         .setId(primitiveTransformId)
@@ -529,11 +535,12 @@ public class ProcessBundleHandlerTest {
     List<ThrowingRunnable> startFunctions = new ArrayList<>();
     List<ThrowingRunnable> finishFunctions = new ArrayList<>();
 
-    BeamFnApi.FunctionSpec functionSpec = BeamFnApi.FunctionSpec.newBuilder()
-        .setId(1L)
-        .setUrn(DATA_INPUT_URN)
-        .setData(Any.pack(REMOTE_PORT))
-        .build();
+    RunnerApi.FunctionSpec functionSpec =
+        RunnerApi.FunctionSpec.newBuilder()
+            .setSpec(RunnerApi.UrnWithParameter.newBuilder().setUrn(DATA_INPUT_URN))
+            .setSdkFnSpec(
+                RunnerApi.SdkFunctionSpec.newBuilder().setData(REMOTE_PORT.toByteString()))
+            .build();
 
     BeamFnApi.PrimitiveTransform primitiveTransform = BeamFnApi.PrimitiveTransform.newBuilder()
         .setId(primitiveTransformId)
@@ -602,10 +609,9 @@ public class ProcessBundleHandlerTest {
     List<ThrowingRunnable> startFunctions = new ArrayList<>();
     List<ThrowingRunnable> finishFunctions = new ArrayList<>();
 
-    BeamFnApi.FunctionSpec functionSpec = BeamFnApi.FunctionSpec.newBuilder()
-        .setId(1L)
-        .setUrn(DATA_OUTPUT_URN)
-        .setData(Any.pack(REMOTE_PORT))
+    RunnerApi.FunctionSpec functionSpec = RunnerApi.FunctionSpec.newBuilder()
+        .setSpec(RunnerApi.UrnWithParameter.newBuilder().setUrn(DATA_OUTPUT_URN))
+        .setSdkFnSpec(RunnerApi.SdkFunctionSpec.newBuilder().setData(REMOTE_PORT.toByteString()))
         .build();
 
     BeamFnApi.PrimitiveTransform primitiveTransform = BeamFnApi.PrimitiveTransform.newBuilder()

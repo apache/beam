@@ -27,6 +27,7 @@ import org.apache.beam.fn.harness.test.TestExecutors;
 import org.apache.beam.fn.harness.test.TestExecutors.TestExecutorService;
 import org.apache.beam.fn.v1.BeamFnApi;
 import org.apache.beam.fn.v1.BeamFnApi.RegisterResponse;
+import org.apache.beam.sdk.common.runner.v1.RunnerApi;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -42,11 +43,9 @@ public class RegisterHandlerTest {
       .setInstructionId(1L)
       .setRegister(BeamFnApi.RegisterRequest.newBuilder()
           .addProcessBundleDescriptor(BeamFnApi.ProcessBundleDescriptor.newBuilder().setId(1L)
-              .addCoders(BeamFnApi.Coder.newBuilder().setFunctionSpec(
-                  BeamFnApi.FunctionSpec.newBuilder().setId(10L)).build()))
+              .putCoders(10L, RunnerApi.FunctionSpec.getDefaultInstance()))
           .addProcessBundleDescriptor(BeamFnApi.ProcessBundleDescriptor.newBuilder().setId(2L)
-              .addCoders(BeamFnApi.Coder.newBuilder().setFunctionSpec(
-                  BeamFnApi.FunctionSpec.newBuilder().setId(20L)).build()))
+              .putCoders(20L, RunnerApi.FunctionSpec.getDefaultInstance()))
           .build())
       .build();
   private static final BeamFnApi.InstructionResponse REGISTER_RESPONSE =
@@ -71,9 +70,11 @@ public class RegisterHandlerTest {
         handler.getById(1L));
     assertEquals(REGISTER_REQUEST.getRegister().getProcessBundleDescriptor(1),
         handler.getById(2L));
-    assertEquals(REGISTER_REQUEST.getRegister().getProcessBundleDescriptor(0).getCoders(0),
+    assertEquals(
+        REGISTER_REQUEST.getRegister().getProcessBundleDescriptor(0).getCodersMap().get(10L),
         handler.getById(10L));
-    assertEquals(REGISTER_REQUEST.getRegister().getProcessBundleDescriptor(1).getCoders(0),
+    assertEquals(
+        REGISTER_REQUEST.getRegister().getProcessBundleDescriptor(1).getCodersMap().get(20L),
         handler.getById(20L));
     assertEquals(REGISTER_RESPONSE, responseFuture.get());
   }

@@ -143,14 +143,8 @@ public class WindowingStrategies implements Serializable {
                             ByteString.copyFrom(SerializableUtils.serializeToByteArray(windowFn)))))
         .setComponents(
             Components.newBuilder()
-                .putCoders(
-                    windowCoderId,
-                    RunnerApi.Coder.newBuilder()
-                        .setUrn(CUSTOM_CODER_URN)
-                        .setCustomCoderFnId(customCoderId)
-                        .build())
                 .putFunctionSpecs(
-                    customCoderId,
+                    windowCoderId,
                     RunnerApi.FunctionSpec.newBuilder()
                         .setSdkFnSpec(
                             RunnerApi.SdkFunctionSpec.newBuilder()

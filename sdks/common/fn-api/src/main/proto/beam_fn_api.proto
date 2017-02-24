@@ -19,9 +19,6 @@
 /*
  * Protocol Buffers describing the Fn API and boostrapping.
  *
- * TODO: Usage of plural names in lists looks awkward in Java
- * e.g. getOutputsMap, addCodersBuilder
- *
  * TODO: gRPC / proto field names conflict with generated code
  * e.g. "class" in java, "output" in python
  */
@@ -37,6 +34,7 @@ package org.apache.beam.fn.v1;
 option java_package = "org.apache.beam.fn.v1";
 option java_outer_classname = "BeamFnApi";
 
+import "beam_runner_api.proto";
 import "google/protobuf/any.proto";
 import "google/protobuf/timestamp.proto";
 
@@ -82,7 +80,7 @@ message PrimitiveTransform {
 
   // (Required) A function spec that is used by this primitive
   // transform to process data.
-  FunctionSpec function_spec = 2;
+  org.apache.beam.runner_api.v1.FunctionSpec function_spec = 2;
 
   // A map of distinct input names to target definitions.
   // For example, in CoGbk this represents the tag name associated with each
@@ -111,33 +109,6 @@ message PrimitiveTransform {
  * This is still unstable mainly due to how we model the side input.
  */
 
-// Defines the common elements of user-definable functions, to allow the SDK to
-// express the information the runner needs to execute work.
-// Stable
-message FunctionSpec {
-  // (Required) A pipeline level unique id which can be used as a reference to
-  // refer to this.
-  int64 id = 1;
-
-  // (Required) A globally unique name representing this user definable
-  // function.
-  //
-  // User definable functions use the urn encodings registered such that another
-  // may implement the user definable function within another language.
-  //
-  // For example:
-  //    urn:org.apache.beam:coder:kv:1.0
-  string urn = 2;
-
-  // (Required) Reference to specification of execution environment required to
-  // invoke this function.
-  int64 environment_reference = 3;
-
-  // Data used to parameterize this function. Depending on the urn, this may be
-  // optional or required.
-  google.protobuf.Any data = 4;
-}
-
 message SideInput {
   // TODO: Coder?
 
@@ -145,41 +116,7 @@ message SideInput {
   Target input = 1;
 
   // For FnAPI.
-  FunctionSpec view_fn = 2;
-}
-
-// Defines how to encode values into byte streams and decode values from byte
-// streams. A coder can be parameterized by additional properties which may or
-// may not be language agnostic.
-//
-// Coders using the urn:org.apache.beam:coder namespace must have their
-// encodings registered such that another may implement the encoding within
-// another language.
-//
-// For example:
-//    urn:org.apache.beam:coder:kv:1.0
-//    urn:org.apache.beam:coder:iterable:1.0
-// Stable
-message Coder {
-  // TODO: This looks weird when compared to the other function specs
-  // which use URN to differentiate themselves. Should "Coder" be embedded
-  // inside the FunctionSpec data block.
-
-  // The data associated with this coder used to reconstruct it.
-  FunctionSpec function_spec = 1;
-
-  // A list of component coder references.
-  //
-  // For a key-value coder, there must be exactly two component coder references
-  // where the first reference represents the key coder and the second reference
-  // is the value coder.
-  //
-  // For an iterable coder, there must be exactly one component coder reference
-  // representing the value coder.
-  //
-  // TODO: Perhaps this is redundant with the data of the FunctionSpec
-  // for known coders?
-  repeated int64 component_coder_reference = 2;
+  org.apache.beam.runner_api.v1.FunctionSpec view_fn = 2;
 }
 
 // A descriptor for connecting to a remote port using the Beam Fn Data API.
@@ -275,8 +212,9 @@ message ProcessBundleDescriptor {
   // be used to construct the bundle processing graph.
   repeated PrimitiveTransform primitive_transform = 2;
 
-  // (Required) The set of all coders referenced in this bundle.
-  repeated Coder coders = 4;
+  // (Required) A map from request-scoped id to coders
+  // referenced in the bundle
+  map<int64, org.apache.beam.runner_api.v1.FunctionSpec> coders = 4;
 }
 
 // A request to process a given bundle.
@@ -351,14 +289,14 @@ message PrimitiveTransformSplit {
   //
   // For example, a remote GRPC source will have a specific urn and data
   // block containing an ElementCountRestriction.
-  FunctionSpec completed_restriction = 2;
+  org.apache.beam.runner_api.v1.FunctionSpec completed_restriction = 2;
 
   // (Required) A function specification describing the restriction
   // representing the remainder of work for the primitive transform.
   //
   // FOr example, a remote GRPC source will have a specific urn and data
   // block contain an ElemntCountSkipRestriction.
-  FunctionSpec remaining_restriction = 3;
+  org.apache.beam.runner_api.v1.FunctionSpec remaining_restriction = 3;
 }
 
 message ProcessBundleSplitResponse {

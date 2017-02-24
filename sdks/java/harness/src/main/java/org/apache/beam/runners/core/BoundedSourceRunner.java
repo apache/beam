@@ -20,13 +20,10 @@ package org.apache.beam.runners.core;
 
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
-import com.google.protobuf.BytesValue;
-import com.google.protobuf.InvalidProtocolBufferException;
-import java.io.IOException;
 import java.util.Collection;
 import java.util.Map;
 import org.apache.beam.fn.harness.fn.ThrowingConsumer;
-import org.apache.beam.fn.v1.BeamFnApi;
+import org.apache.beam.sdk.common.runner.v1.RunnerApi;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.Source.Reader;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -39,12 +36,12 @@ import org.apache.beam.sdk.util.WindowedValue;
  */
 public class BoundedSourceRunner<InputT extends BoundedSource<OutputT>, OutputT> {
   private final PipelineOptions pipelineOptions;
-  private final BeamFnApi.FunctionSpec definition;
+  private final RunnerApi.FunctionSpec definition;
   private final Collection<ThrowingConsumer<WindowedValue<OutputT>>> consumers;
 
   public BoundedSourceRunner(
       PipelineOptions pipelineOptions,
-      BeamFnApi.FunctionSpec definition,
+      RunnerApi.FunctionSpec definition,
       Map<String, Collection<ThrowingConsumer<WindowedValue<OutputT>>>> outputMap) {
     this.pipelineOptions = pipelineOptions;
     this.definition = definition;
@@ -53,25 +50,18 @@ public class BoundedSourceRunner<InputT extends BoundedSource<OutputT>, OutputT>
 
   /**
    * The runner harness is meant to send the source over the Beam Fn Data API which would be
-   * consumed by the {@link #runReadLoop}. Drop this method once the runner harness sends the
-   * source instead of unpacking it from the data block of the function specification.
+   * consumed by the {@link #runReadLoop}. Drop this method once the runner harness sends the source
+   * instead of unpacking it from the data block of the function specification.
    */
   @Deprecated
   public void start() throws Exception {
-    try {
-      // The representation here is defined as the java serialized representation of the
-      // bounded source object packed into a protobuf Any using a protobuf BytesValue wrapper.
-      byte[] bytes = definition.getData().unpack(BytesValue.class).getValue().toByteArray();
-      @SuppressWarnings("unchecked")
-      InputT boundedSource =
-          (InputT) SerializableUtils.deserializeFromByteArray(bytes, definition.toString());
-      runReadLoop(WindowedValue.valueInGlobalWindow(boundedSource));
-    } catch (InvalidProtocolBufferException e) {
-      throw new IOException(
-          String.format("Failed to decode %s, expected %s",
-              definition.getData().getTypeUrl(), BytesValue.getDescriptor().getFullName()),
-          e);
-    }
+    // The representation here is defined as the java serialized representation of the
+    // bounded source object packed into a protobuf Any using a protobuf BytesValue wrapper.
+    byte[] bytes = definition.getSdkFnSpec().getData().toByteArray();
+    @SuppressWarnings("unchecked")
+    InputT boundedSource =
+        (InputT) SerializableUtils.deserializeFromByteArray(bytes, definition.toString());
+    runReadLoop(WindowedValue.valueInGlobalWindow(boundedSource));
   }
 
   /**
