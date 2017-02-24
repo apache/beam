@@ -66,7 +66,7 @@ The examples subdirectory has some examples.
 import sys
 
 
-if sys.version_info[0] != 2:
+if sys.version_info < (2, 7):
   raise RuntimeError(
       'Dataflow SDK for Python is supported only on Python 2.7. '
       'It is not supported on Python [%s].' % sys.version)
