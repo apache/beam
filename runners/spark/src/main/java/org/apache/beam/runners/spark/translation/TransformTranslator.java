@@ -611,10 +611,10 @@ public final class TransformTranslator {
     rdd.saveAsNewAPIHadoopFile(outputDir, keyClass, valueClass, formatClass, conf);
   }
 
-  private static <T, W extends BoundedWindow> TransformEvaluator<Window.Bound<T>> window() {
-    return new TransformEvaluator<Window.Bound<T>>() {
+  private static <T, W extends BoundedWindow> TransformEvaluator<Window.Assign<T>> window() {
+    return new TransformEvaluator<Window.Assign<T>>() {
       @Override
-      public void evaluate(Window.Bound<T> transform, EvaluationContext context) {
+      public void evaluate(Window.Assign<T> transform, EvaluationContext context) {
         @SuppressWarnings("unchecked")
         JavaRDD<WindowedValue<T>> inRDD =
             ((BoundedDataset<T>) context.borrowDataset(transform)).getRDD();
@@ -734,7 +734,7 @@ public final class TransformTranslator {
     EVALUATORS.put(View.AsSingleton.class, viewAsSingleton());
     EVALUATORS.put(View.AsIterable.class, viewAsIter());
     EVALUATORS.put(View.CreatePCollectionView.class, createPCollView());
-    EVALUATORS.put(Window.Bound.class, window());
+    EVALUATORS.put(Window.Assign.class, window());
     // mostly test evaluators
     EVALUATORS.put(StorageLevelPTransform.class, storageLevel());
   }

@@ -85,7 +85,6 @@ import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
 import org.apache.beam.sdk.transforms.windowing.Window;
-import org.apache.beam.sdk.transforms.windowing.Window.Bound;
 import org.apache.beam.sdk.util.AppliedCombineFn;
 import org.apache.beam.sdk.util.CloudObject;
 import org.apache.beam.sdk.util.PropertyNames;
@@ -878,14 +877,14 @@ public class DataflowPipelineTranslator {
         });
 
     registerTransformTranslator(
-        Window.Bound.class,
-        new TransformTranslator<Bound>() {
+        Window.Assign.class,
+        new TransformTranslator<Window.Assign>() {
           @Override
-          public void translate(Window.Bound transform, TranslationContext context) {
+          public void translate(Window.Assign transform, TranslationContext context) {
             translateHelper(transform, context);
           }
 
-          private <T> void translateHelper(Window.Bound<T> transform, TranslationContext context) {
+          private <T> void translateHelper(Window.Assign<T> transform, TranslationContext context) {
             StepTranslationContext stepContext = context.addStep(transform, "Bucket");
             PCollection<T> input = context.getInput(transform);
             stepContext.addInput(PropertyNames.PARALLEL_INPUT, input);
