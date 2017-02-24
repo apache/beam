@@ -80,6 +80,7 @@ REQUIREMENTS_FILE = 'requirements.txt'
 EXTRA_PACKAGES_FILE = 'extra_packages.txt'
 
 GOOGLE_PACKAGE_NAME = 'google-cloud-dataflow'
+BEAM_PACKAGE_NAME = 'apache-beam'
 
 
 def _dependency_file_copy(from_path, to_path):
@@ -477,30 +478,39 @@ def get_sdk_name_and_version():
     return ('Google Cloud Dataflow SDK for Python', container_version)
 
 
+def get_sdk_package_name():
+  """Returns the PyPI package name to be staged to Google Cloud Dataflow."""
+  container_version = get_required_container_version()
+  if container_version == BEAM_CONTAINER_VERSION:
+    return BEAM_PACKAGE_NAME
+  else:
+    return GOOGLE_PACKAGE_NAME
+
+
 def _download_pypi_sdk_package(temp_dir):
   """Downloads SDK package from PyPI and returns path to local path."""
-  # TODO(silviuc): Handle apache-beam versions when we have official releases.
+  package_name = get_sdk_package_name()
   import pkg_resources as pkg
   try:
-    version = pkg.get_distribution(GOOGLE_PACKAGE_NAME).version
+    version = pkg.get_distribution(package_name).version
   except pkg.DistributionNotFound:
     raise RuntimeError('Please set --sdk_location command-line option '
                        'or install a valid {} distribution.'
-                       .format(GOOGLE_PACKAGE_NAME))
+                       .format(package_name))
 
   # Get a source distribution for the SDK package from PyPI.
   cmd_args = [
       _get_python_executable(), '-m', 'pip', 'install', '--download', temp_dir,
-      '%s==%s' % (GOOGLE_PACKAGE_NAME, version),
+      '%s==%s' % (package_name, version),
       '--no-binary', ':all:', '--no-deps']
   logging.info('Executing command: %s', cmd_args)
   processes.check_call(cmd_args)
   zip_expected = os.path.join(
-      temp_dir, '%s-%s.zip' % (GOOGLE_PACKAGE_NAME, version))
+      temp_dir, '%s-%s.zip' % (package_name, version))
   if os.path.exists(zip_expected):
     return zip_expected
   tgz_expected = os.path.join(
-      temp_dir, '%s-%s.tar.gz' % (GOOGLE_PACKAGE_NAME, version))
+      temp_dir, '%s-%s.tar.gz' % (package_name, version))
   if os.path.exists(tgz_expected):
     return tgz_expected
   raise RuntimeError(
