@@ -18,9 +18,6 @@
 package org.apache.beam.sdk.transforms.windowing;
 
 import com.google.auto.value.AutoValue;
-
-import java.io.Serializable;
-
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
