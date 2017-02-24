@@ -22,7 +22,7 @@ import org.joda.time.Duration;
 import org.joda.time.Instant;
 
 /** An abstract description of a standardized transformation on timestamps. */
-public abstract class TimestampTransform{
+public abstract class TimestampTransform {
 
   /** Returns a transform that shifts a timestamp later by {@code delay}. */
   public static TimestampTransform delay(Duration delay) {
