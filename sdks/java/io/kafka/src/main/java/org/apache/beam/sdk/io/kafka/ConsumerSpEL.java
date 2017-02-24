@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.kafka;
 import java.util.Collection;
 
 import org.apache.kafka.clients.consumer.Consumer;
+import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.common.TopicPartition;
 import org.springframework.expression.Expression;
 import org.springframework.expression.ExpressionParser;
@@ -42,6 +43,9 @@ class ConsumerSpEL {
   Expression assignExpression =
       parser.parseExpression("#consumer.assign(#tp)");
 
+  Expression eventTimestampExpression =
+      parser.parseExpression("#this?.timestamp()");
+
   public ConsumerSpEL() {}
 
   public void evaluateSeek2End(Consumer consumer, TopicPartition topicPartitions) {
@@ -56,5 +60,9 @@ class ConsumerSpEL {
     mapContext.setVariable("consumer", consumer);
     mapContext.setVariable("tp", topicPartitions);
     assignExpression.getValue(mapContext);
+  }
+
+  public long getEventTimestamp(ConsumerRecord<byte[], byte[]> rawRecord) {
+    return eventTimestampExpression.getValue(rawRecord, Long.class);
   }
 }

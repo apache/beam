@@ -95,6 +95,7 @@ import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.util.ReflectionUtils;
 
 /**
  * An unbounded source and a sink for <a href="http://kafka.apache.org/">Kafka</a> topics.
@@ -716,6 +717,8 @@ public class KafkaIO {
 
     //Add SpEL instance to cover the interface difference of Kafka client
     private transient ConsumerSpEL consumerSpEL;
+    private boolean hasEventTimestamp =
+        ReflectionUtils.findMethod(ConsumerRecord.class, "timestamp") != null;
 
     /** watermark before any records have been read. */
     private static Instant initialWatermark = new Instant(Long.MIN_VALUE);
@@ -956,11 +959,14 @@ public class KafkaIO {
               rawRecord.topic(),
               rawRecord.partition(),
               rawRecord.offset(),
+              hasEventTimestamp ? consumerSpEL.getEventTimestamp(rawRecord)
+                  : System.currentTimeMillis(),
               decode(rawRecord.key(), source.spec.getKeyCoder()),
               decode(rawRecord.value(), source.spec.getValueCoder()));
 
           curTimestamp = (source.spec.getTimestampFn() == null)
-              ? Instant.now() : source.spec.getTimestampFn().apply(record);
+              ? new Instant(record.getEventTimestamp())
+                  : source.spec.getTimestampFn().apply(record);
           curRecord = record;
 
           int recordSize = (rawRecord.key() == null ? 0 : rawRecord.key().length)
