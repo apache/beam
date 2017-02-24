@@ -33,8 +33,8 @@
   <name>Apache Beam :: SDKs :: Python</name>
 
   <properties>
-    <python.interpreter.bin>python2</python.interpreter.bin>
-    <python.pip.bin>pip2</python.pip.bin>
+    <python.interpreter.bin>python2.7</python.interpreter.bin>
+    <python.pip.bin>pip2.7</python.pip.bin>
     <python.build.base>${project.build.directory}/build</python.build.base>
     <python.user.base>${project.build.directory}/python</python.user.base>
   </properties>
