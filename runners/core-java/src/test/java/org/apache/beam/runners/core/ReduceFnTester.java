@@ -60,6 +60,7 @@ import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.OutputTimeFns;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.Trigger;
+import org.apache.beam.sdk.transforms.windowing.Triggers;
 import org.apache.beam.sdk.transforms.windowing.Window.ClosingBehavior;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.AppliedCombineFn;
@@ -122,7 +123,8 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
       nonCombining(WindowingStrategy<?, W> windowingStrategy) throws Exception {
     return new ReduceFnTester<Integer, Iterable<Integer>, W>(
         windowingStrategy,
-        TriggerStateMachines.stateMachineForTrigger(windowingStrategy.getTrigger()),
+        TriggerStateMachines.stateMachineForTrigger(
+            Triggers.toProto(windowingStrategy.getTrigger())),
         SystemReduceFn.<String, Integer, W>buffering(VarIntCoder.of()),
         IterableCoder.of(VarIntCoder.of()),
         PipelineOptionsFactory.create(),
@@ -186,7 +188,7 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
 
     return combining(
         strategy,
-        TriggerStateMachines.stateMachineForTrigger(strategy.getTrigger()),
+        TriggerStateMachines.stateMachineForTrigger(Triggers.toProto(strategy.getTrigger())),
         combineFn,
         outputCoder);
   }
@@ -236,7 +238,7 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
 
     return combining(
         strategy,
-        TriggerStateMachines.stateMachineForTrigger(strategy.getTrigger()),
+        TriggerStateMachines.stateMachineForTrigger(Triggers.toProto(strategy.getTrigger())),
         combineFn,
         outputCoder,
         options,

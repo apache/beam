@@ -38,14 +38,14 @@ public class ReshuffleTriggerStateMachineTest {
 
   /** Public so that other tests can instantiate {@link ReshuffleTriggerStateMachine}. */
   public static <W extends BoundedWindow> ReshuffleTriggerStateMachine forTest() {
-    return new ReshuffleTriggerStateMachine();
+    return ReshuffleTriggerStateMachine.create();
   }
 
   @Test
   public void testShouldFire() throws Exception {
     TriggerStateMachineTester<Integer, IntervalWindow> tester =
         TriggerStateMachineTester.forTrigger(
-            new ReshuffleTriggerStateMachine(), FixedWindows.of(Duration.millis(100)));
+            ReshuffleTriggerStateMachine.create(), FixedWindows.of(Duration.millis(100)));
     IntervalWindow arbitraryWindow = new IntervalWindow(new Instant(300), new Instant(400));
     assertTrue(tester.shouldFire(arbitraryWindow));
   }
@@ -54,7 +54,7 @@ public class ReshuffleTriggerStateMachineTest {
   public void testOnTimer() throws Exception {
     TriggerStateMachineTester<Integer, IntervalWindow> tester =
         TriggerStateMachineTester.forTrigger(
-            new ReshuffleTriggerStateMachine(), FixedWindows.of(Duration.millis(100)));
+            ReshuffleTriggerStateMachine.create(), FixedWindows.of(Duration.millis(100)));
     IntervalWindow arbitraryWindow = new IntervalWindow(new Instant(100), new Instant(200));
     tester.fireIfShouldFire(arbitraryWindow);
     assertFalse(tester.isMarkedFinished(arbitraryWindow));
@@ -62,7 +62,7 @@ public class ReshuffleTriggerStateMachineTest {
 
   @Test
   public void testToString() {
-    TriggerStateMachine trigger = new ReshuffleTriggerStateMachine();
+    TriggerStateMachine trigger = ReshuffleTriggerStateMachine.create();
     assertEquals("ReshuffleTriggerStateMachine()", trigger.toString());
   }
 }

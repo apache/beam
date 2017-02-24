@@ -29,7 +29,7 @@ class OrFinallyStateMachine extends TriggerStateMachine {
   private static final int UNTIL = 1;
 
   @VisibleForTesting
-  OrFinallyStateMachine(TriggerStateMachine actual, OnceTriggerStateMachine until) {
+  OrFinallyStateMachine(TriggerStateMachine actual, TriggerStateMachine until) {
     super(Arrays.asList(actual, until));
   }
 

@@ -37,6 +37,7 @@ import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
+import org.apache.beam.sdk.transforms.windowing.Triggers;
 import org.apache.beam.sdk.util.SideInputReader;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowingStrategy;
@@ -101,29 +102,30 @@ public class SparkGroupAlsoByWindowFn<K, InputT, W extends BoundedWindow>
             key,
             windowingStrategy,
             ExecutableTriggerStateMachine.create(
-                TriggerStateMachines.stateMachineForTrigger(windowingStrategy.getTrigger())),
+                TriggerStateMachines.stateMachineForTrigger(
+                    Triggers.toProto(windowingStrategy.getTrigger()))),
             stateInternals,
             timerInternals,
             outputter,
             new SideInputReader() {
-                @Override
-                public <T> T get(PCollectionView<T> view, BoundedWindow sideInputWindow) {
-                  throw new UnsupportedOperationException(
-                      "GroupAlsoByWindow must not have side inputs");
-                }
+              @Override
+              public <T> T get(PCollectionView<T> view, BoundedWindow sideInputWindow) {
+                throw new UnsupportedOperationException(
+                    "GroupAlsoByWindow must not have side inputs");
+              }
 
-                @Override
-                public <T> boolean contains(PCollectionView<T> view) {
-                  throw new UnsupportedOperationException(
-                      "GroupAlsoByWindow must not have side inputs");
-                }
+              @Override
+              public <T> boolean contains(PCollectionView<T> view) {
+                throw new UnsupportedOperationException(
+                    "GroupAlsoByWindow must not have side inputs");
+              }
 
-                @Override
-                public boolean isEmpty() {
-                  throw new UnsupportedOperationException(
-                      "GroupAlsoByWindow must not have side inputs");
-                }
-              },
+              @Override
+              public boolean isEmpty() {
+                throw new UnsupportedOperationException(
+                    "GroupAlsoByWindow must not have side inputs");
+              }
+            },
             droppedDueToClosedWindow,
             reduceFn,
             runtimeContext.getPipelineOptions());

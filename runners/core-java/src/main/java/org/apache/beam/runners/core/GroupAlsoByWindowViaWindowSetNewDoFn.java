@@ -25,6 +25,7 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
+import org.apache.beam.sdk.transforms.windowing.Triggers;
 import org.apache.beam.sdk.util.SideInputReader;
 import org.apache.beam.sdk.util.SystemDoFnInternal;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -128,7 +129,8 @@ public class GroupAlsoByWindowViaWindowSetNewDoFn<
             key,
             windowingStrategy,
             ExecutableTriggerStateMachine.create(
-                TriggerStateMachines.stateMachineForTrigger(windowingStrategy.getTrigger())),
+                TriggerStateMachines.stateMachineForTrigger(
+                    Triggers.toProto(windowingStrategy.getTrigger()))),
             stateInternals,
             timerInternals,
             outputWindowedValue(),
