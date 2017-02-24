@@ -40,6 +40,7 @@ import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
+import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
@@ -128,6 +129,17 @@ public class CreateTest {
   }
 
   static class Record2 extends Record {
+  }
+
+  private static class RecordCoder extends CustomCoder<Record> {
+    @Override
+    public void encode(Record value, OutputStream outStream, Context context)
+        throws CoderException, IOException {}
+
+    @Override
+    public Record decode(InputStream inStream, Context context) throws CoderException, IOException {
+      return null;
+    }
   }
 
   @Test
@@ -321,29 +333,33 @@ public class CreateTest {
 
   @Test
   public void testCreateDefaultOutputCoderUsingInference() throws Exception {
-    Coder<Integer> coder = VarIntCoder.of();
+    Coder<Record> coder = new RecordCoder();
+    p.getCoderRegistry().registerCoder(Record.class, coder);
     PBegin pBegin = PBegin.in(p);
-    Create.Values<Integer> values = Create.of(1, 2, 3, 4, 5, 6, 7, 8);
-    Coder<Integer> defaultCoder = values.getDefaultOutputCoder(pBegin);
+    Create.Values<Record> values = Create.of(new Record(), new Record(), new Record());
+    Coder<Record> defaultCoder = values.getDefaultOutputCoder(pBegin);
     assertThat(defaultCoder, equalTo(coder));
   }
 
   @Test
   public void testCreateDefaultOutputCoderUsingCoder() throws Exception {
-    Coder<Integer> coder = VarIntCoder.of();
+    Coder<Record> coder = new RecordCoder();
     PBegin pBegin = PBegin.in(p);
-    Create.Values<Integer> values = Create.of(1, 2, 3, 4, 5, 6, 7, 8).withCoder(coder);
-    Coder<Integer> defaultCoder = values.getDefaultOutputCoder(pBegin);
+    Create.Values<Record> values =
+        Create.of(new Record(), new Record(), new Record()).withCoder(coder);
+    Coder<Record> defaultCoder = values.getDefaultOutputCoder(pBegin);
     assertThat(defaultCoder, equalTo(coder));
   }
 
   @Test
   public void testCreateDefaultOutputCoderUsingTypeDescriptor() throws Exception {
-    Coder<Integer> coder = VarIntCoder.of();
+    Coder<Record> coder = new RecordCoder();
+    p.getCoderRegistry().registerCoder(Record.class, coder);
     PBegin pBegin = PBegin.in(p);
-    Create.Values<Integer> values =
-        Create.of(1, 2, 3, 4, 5, 6, 7, 8).withType(new TypeDescriptor<Integer>() {});
-    Coder<Integer> defaultCoder = values.getDefaultOutputCoder(pBegin);
+    Create.Values<Record> values =
+        Create.of(new Record(), new Record(), new Record())
+            .withType(new TypeDescriptor<Record>() {});
+    Coder<Record> defaultCoder = values.getDefaultOutputCoder(pBegin);
     assertThat(defaultCoder, equalTo(coder));
   }
 

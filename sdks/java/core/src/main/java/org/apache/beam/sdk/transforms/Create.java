@@ -154,6 +154,23 @@ public class Create<T> {
   }
 
   /**
+   * Returns a new {@code Create.Values} transform that produces
+   * an empty {@link PCollection}.
+   *
+   * <p>The elements will have a timestamp of negative infinity, see
+   * {@link Create#timestamped} for a way of creating a {@code PCollection}
+   * with timestamped elements.
+   *
+   * <p>Since there are no elements, the {@code Coder} cannot be automatically determined.
+   * Instead, the {@code Coder} is determined from given {@code TypeDescriptor<T>}.
+   * Note that a default coder must be registered for the class described in the
+   * {@code TypeDescriptor<T>}.
+   */
+  public static <T> Values<T> empty(TypeDescriptor<T> type) {
+    return new Values<>(new ArrayList<T>(), Optional.<Coder<T>>absent(), Optional.of(type));
+  }
+
+  /**
    * Returns a new {@code Create.Values} transform that produces a
    * {@link PCollection} of {@link KV}s corresponding to the keys and
    * values of the specified {@code Map}.
@@ -325,10 +342,10 @@ public class Create<T> {
     private Values(
         Iterable<T> elems,
         Optional<Coder<T>> coder,
-        Optional<TypeDescriptor<T>> typDescriptor) {
+        Optional<TypeDescriptor<T>> typeDescriptor) {
       this.elems = elems;
       this.coder = coder;
-      this.typeDescriptor = typDescriptor;
+      this.typeDescriptor = typeDescriptor;
     }
 
     @VisibleForTesting
