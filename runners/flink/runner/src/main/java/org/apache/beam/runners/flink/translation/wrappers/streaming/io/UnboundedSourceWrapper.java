@@ -18,8 +18,6 @@
 package org.apache.beam.runners.flink.translation.wrappers.streaming.io;
 
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Function;
-import com.google.common.collect.Lists;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
@@ -123,15 +121,13 @@ public class UnboundedSourceWrapper<
    */
   private static final int MAX_NUMBER_PENDING_CHECKPOINTS = 32;
 
-  /**
-   * When restoring from a snapshot we put the restored sources/checkpoint marks here
-   * and open in {@link #open(Configuration)}.
-   */
-  private transient List<
-      KV<? extends UnboundedSource<OutputT, CheckpointMarkT>, CheckpointMarkT>> restoredState;
-
   private transient ListState<KV<? extends
       UnboundedSource<OutputT, CheckpointMarkT>, CheckpointMarkT>> stateForCheckpoint;
+
+  /**
+   * false if checkpointCoder is null or no restore state by starting first.
+   */
+  private transient boolean isRestored = false;
 
   @SuppressWarnings("unchecked")
   public UnboundedSourceWrapper(
@@ -180,30 +176,14 @@ public class UnboundedSourceWrapper<
 
     pendingCheckpoints = new LinkedHashMap<>();
 
-    if (restoredState != null) {
-
+    if (isRestored) {
       // restore the splitSources from the checkpoint to ensure consistent ordering
-      // do it using a transform because otherwise we would have to do
-      // unchecked casts
-      localSplitSources = Lists.transform(
-          restoredState,
-          new Function<
-              KV<? extends UnboundedSource<OutputT, CheckpointMarkT>, CheckpointMarkT>,
-              UnboundedSource<OutputT, CheckpointMarkT>>() {
-            @Override
-            public UnboundedSource<OutputT, CheckpointMarkT> apply(
-                KV<? extends UnboundedSource<OutputT, CheckpointMarkT>, CheckpointMarkT> input) {
-              return input.getKey();
-            }
-          });
-
       for (KV<? extends UnboundedSource<OutputT, CheckpointMarkT>, CheckpointMarkT> restored:
-          restoredState) {
-        localReaders.add(
-            restored.getKey().createReader(
-                serializedOptions.getPipelineOptions(), restored.getValue()));
+          stateForCheckpoint.get()) {
+        localSplitSources.add(restored.getKey());
+        localReaders.add(restored.getKey().createReader(
+            serializedOptions.getPipelineOptions(), restored.getValue()));
       }
-      restoredState = null;
     } else {
       // initialize localReaders and localSources from scratch
       for (int i = 0; i < splitSources.size(); i++) {
@@ -418,20 +398,8 @@ public class UnboundedSourceWrapper<
             typeInformation.createSerializer(new ExecutionConfig())));
 
     if (context.isRestored()) {
-      if (restoredState == null) {
-        restoredState = new ArrayList<>();
-        for (KV<? extends UnboundedSource<OutputT, CheckpointMarkT>, CheckpointMarkT>
-            kv : stateForCheckpoint.get()) {
-          restoredState.add((KV) KV.of(kv.getKey(), kv.getValue()));
-        }
-
-        LOG.info("Setting restore state in the UnbounedSourceWrapper.");
-        if (LOG.isDebugEnabled()) {
-          LOG.debug("Using the following offsets: {}", restoredState);
-        }
-      } else if (restoredState.isEmpty()) {
-        restoredState = null;
-      }
+      isRestored = true;
+      LOG.info("Having restore state in the UnbounedSourceWrapper.");
     } else {
       LOG.info("No restore state for UnbounedSourceWrapper.");
     }
