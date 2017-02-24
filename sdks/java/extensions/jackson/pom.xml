@@ -33,42 +33,6 @@
     </description>
 
     <build>
-        <pluginManagement>
-            <plugins>
-                <plugin>
-                    <groupId>org.apache.maven.plugins</groupId>
-                    <artifactId>maven-shade-plugin</artifactId>
-                    <executions>
-                        <execution>
-                            <phase>package</phase>
-                            <goals>
-                                <goal>shade</goal>
-                            </goals>
-                            <configuration>
-                                <artifactSet>
-                                    <includes>
-                                        <include>com.google.guava:guava</include>
-                                    </includes>
-                                </artifactSet>
-                                <relocations>
-                                    <relocation>
-                                        <pattern>com.google.common</pattern>
-                                        <shadedPattern>org.apache.beam.sdk.extensions.jackson.repackaged.com.google.common</shadedPattern>
-                                    </relocation>
-                                    <relocation>
-                                        <pattern>com.google.thirdparty</pattern>
-                                        <shadedPattern>org.apache.beam.sdk.extensions.jackson.repackaged.com.google.thirdparty</shadedPattern>
-                                    </relocation>
-                                </relocations>
-                                <transformers>
-                                    <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
-                                </transformers>
-                            </configuration>
-                        </execution>
-                    </executions>
-                </plugin>
-            </plugins>
-        </pluginManagement>
         <plugins>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
@@ -77,10 +41,6 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-jar-plugin</artifactId>
-            </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-shade-plugin</artifactId>
             </plugin>
         </plugins>
     </build>
