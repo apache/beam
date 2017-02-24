@@ -209,8 +209,8 @@ import org.slf4j.LoggerFactory;
  * <h3>Sharding BigQuery output tables</h3>
  *
  * <p>A common use case is to dynamically generate BigQuery table names based on
- * the current window. To support this,
- * {@link BigQueryIO.Write#to(SerializableFunction)}
+ * the current window or element. To support this,
+ * {@link BigQueryIO.Write#to(BigQueryIO.TableWritePolicy)}
  * accepts a function mapping the current window to a tablespec. For example,
  * here's code that outputs daily tables to BigQuery:
  * <pre>{@code
@@ -218,12 +218,12 @@ import org.slf4j.LoggerFactory;
  * quotes.apply(Window.<TableRow>into(CalendarWindows.days(1)))
  *       .apply(BigQueryIO.Write
  *         .withSchema(schema)
- *         .to(new SerializableFunction<BoundedWindow, String>() {
- *           public String apply(BoundedWindow window) {
+ *         .to(new TableWritePolicy<String>() {
+ *           public String apply(Context window) {
  *             // The cast below is safe because CalendarWindows.days(1) produces IntervalWindows.
  *             String dayString = DateTimeFormat.forPattern("yyyy_MM_dd")
  *                  .withZone(DateTimeZone.UTC)
- *                  .print(((IntervalWindow) window).start());
+ *                  .print(((IntervalWindow) context.getWindow()).start());
  *             return "my-project:output.output_table_" + dayString;
  *           }
  *         }));
@@ -433,6 +433,33 @@ public class BigQueryIO {
     return NestedValueProvider.of(table, new TableRefToTableSpec());
   }
 
+  /**
+   * A policy for determining output table names. Currently supports examining the elemented or
+   * the window.
+   */
+   public abstract static class TableWritePolicy<T> implements SerializableFunction<
+      TableWritePolicy.Context, T> {
+    /**
+     * Context object used by the policy to determine the destination table.
+     */
+    public static class Context {
+      private TableRow element;
+      private BoundedWindow window;
+
+      Context(TableRow element, BoundedWindow window) {
+        this.element = element;
+        this.window = window;
+      }
+
+      public TableRow getElement() {
+        return element;
+      }
+
+      public BoundedWindow getWindow() {
+        return window;
+      }
+    }
+  }
   /**
    * A {@link PTransform} that reads from a BigQuery table and returns a
    * {@link PCollection} of {@link TableRow TableRows} containing each of the rows of the table.
@@ -1588,20 +1615,19 @@ public class BigQueryIO {
      * <p>{@code tableSpecFunction} should be deterministic. When given the same window, it should
      * always return the same table specification.
      */
-    public static Bound to(SerializableFunction<BoundedWindow, String> tableSpecFunction) {
-      return new Bound().to(tableSpecFunction);
+    public static Bound to(TableWritePolicy<String> tableRefPolicy) {
+      return new Bound().to(tableRefPolicy);
     }
 
     /**
      * Creates a write transformation from a function that maps windows to {@link TableReference}
      * objects.
      *
-     * <p>{@code tableRefFunction} should be deterministic. When given the same window, it should
+     * <p>{@code tableRefPolicy} should be deterministic. When given the same window, it should
      * always return the same table reference.
      */
-    public static Bound toTableReference(
-        SerializableFunction<BoundedWindow, TableReference> tableRefFunction) {
-      return new Bound().toTableReference(tableRefFunction);
+    public static Bound toTableReference(TableWritePolicy<TableReference> tableRefPolicy) {
+      return new Bound().toTableReference(tableRefPolicy);
     }
 
     /**
@@ -1664,7 +1690,7 @@ public class BigQueryIO {
 
       @Nullable final ValueProvider<String> jsonTableRef;
 
-      @Nullable final SerializableFunction<BoundedWindow, TableReference> tableRefFunction;
+      @Nullable final TableWritePolicy<TableReference> tableRefPolicy;
 
       // Table schema. The schema is required only if the table does not exist.
       @Nullable final ValueProvider<String> jsonSchema;
@@ -1687,16 +1713,15 @@ public class BigQueryIO {
       @VisibleForTesting @Nullable String stepUuid;
       @VisibleForTesting @Nullable ValueProvider<String> jobUuid;
 
-      private static class TranslateTableSpecFunction implements
-          SerializableFunction<BoundedWindow, TableReference> {
-        private SerializableFunction<BoundedWindow, String> tableSpecFunction;
+      private static class TranslateTableSpecFunction extends TableWritePolicy<TableReference> {
+        private TableWritePolicy<String> tableSpecFunction;
 
-        TranslateTableSpecFunction(SerializableFunction<BoundedWindow, String> tableSpecFunction) {
+        TranslateTableSpecFunction(TableWritePolicy<String> tableSpecFunction) {
           this.tableSpecFunction = tableSpecFunction;
         }
 
         @Override
-        public TableReference apply(BoundedWindow value) {
+        public TableReference apply(TableWritePolicy.Context value) {
           return parseTableSpec(tableSpecFunction.apply(value));
         }
       }
@@ -1711,7 +1736,7 @@ public class BigQueryIO {
         this(
             null /* name */,
             null /* jsonTableRef */,
-            null /* tableRefFunction */,
+            null /* tableRefPolicy */,
             null /* jsonSchema */,
             CreateDisposition.CREATE_IF_NEEDED,
             WriteDisposition.WRITE_EMPTY,
@@ -1721,7 +1746,7 @@ public class BigQueryIO {
       }
 
       private Bound(String name, @Nullable ValueProvider<String> jsonTableRef,
-          @Nullable SerializableFunction<BoundedWindow, TableReference> tableRefFunction,
+          @Nullable TableWritePolicy<TableReference> tableRefPolicy,
           @Nullable ValueProvider<String> jsonSchema,
           CreateDisposition createDisposition,
           WriteDisposition writeDisposition,
@@ -1730,7 +1755,7 @@ public class BigQueryIO {
           @Nullable BigQueryServices bigQueryServices) {
         super(name);
         this.jsonTableRef = jsonTableRef;
-        this.tableRefFunction = tableRefFunction;
+        this.tableRefPolicy = tableRefPolicy;
         this.jsonSchema = jsonSchema;
         this.createDisposition = checkNotNull(createDisposition, "createDisposition");
         this.writeDisposition = checkNotNull(writeDisposition, "writeDisposition");
@@ -1777,7 +1802,7 @@ public class BigQueryIO {
       private Bound toTableRef(ValueProvider<TableReference> table) {
         return new Bound(name,
             NestedValueProvider.of(table, new TableRefToJson()),
-            tableRefFunction, jsonSchema, createDisposition,
+            tableRefPolicy, jsonSchema, createDisposition,
             writeDisposition, tableDescription, validate, bigQueryServices);
       }
 
@@ -1787,12 +1812,11 @@ public class BigQueryIO {
        *
        * <p>Does not modify this object.
        *
-       * <p>{@code tableSpecFunction} should be deterministic. When given the same window, it
+       * <p>{@code tableRefPolicy} should be deterministic. When given the same window, it
        * should always return the same table specification.
        */
-      public Bound to(
-          SerializableFunction<BoundedWindow, String> tableSpecFunction) {
-        return toTableReference(new TranslateTableSpecFunction(tableSpecFunction));
+      public Bound to(TableWritePolicy<String> tableRefPolicy) {
+        return toTableReference(new TranslateTableSpecFunction(tableRefPolicy));
       }
 
       /**
@@ -1801,12 +1825,11 @@ public class BigQueryIO {
        *
        * <p>Does not modify this object.
        *
-       * <p>{@code tableRefFunction} should be deterministic. When given the same window, it should
+       * <p>{@code tableRefPolicy} should be deterministic. When given the same window, it should
        * always return the same table reference.
        */
-      public Bound toTableReference(
-          SerializableFunction<BoundedWindow, TableReference> tableRefFunction) {
-        return new Bound(name, jsonTableRef, tableRefFunction, jsonSchema, createDisposition,
+      public Bound toTableReference(TableWritePolicy<TableReference> tableRefPolicy) {
+        return new Bound(name, jsonTableRef, tableRefPolicy, jsonSchema, createDisposition,
             writeDisposition, tableDescription, validate, bigQueryServices);
       }
 
@@ -1817,7 +1840,7 @@ public class BigQueryIO {
        * <p>Does not modify this object.
        */
       public Bound withSchema(TableSchema schema) {
-        return new Bound(name, jsonTableRef, tableRefFunction,
+        return new Bound(name, jsonTableRef, tableRefPolicy,
             StaticValueProvider.of(toJsonString(schema)),
             createDisposition, writeDisposition, tableDescription, validate, bigQueryServices);
       }
@@ -1826,7 +1849,7 @@ public class BigQueryIO {
        * Like {@link #withSchema(TableSchema)}, but with a {@link ValueProvider}.
        */
       public Bound withSchema(ValueProvider<TableSchema> schema) {
-        return new Bound(name, jsonTableRef, tableRefFunction,
+        return new Bound(name, jsonTableRef, tableRefPolicy,
             NestedValueProvider.of(schema, new TableSchemaToJsonSchema()),
             createDisposition, writeDisposition, tableDescription, validate, bigQueryServices);
       }
@@ -1837,7 +1860,7 @@ public class BigQueryIO {
        * <p>Does not modify this object.
        */
       public Bound withCreateDisposition(CreateDisposition createDisposition) {
-        return new Bound(name, jsonTableRef, tableRefFunction, jsonSchema,
+        return new Bound(name, jsonTableRef, tableRefPolicy, jsonSchema,
             createDisposition, writeDisposition, tableDescription, validate, bigQueryServices);
       }
 
@@ -1847,7 +1870,7 @@ public class BigQueryIO {
        * <p>Does not modify this object.
        */
       public Bound withWriteDisposition(WriteDisposition writeDisposition) {
-        return new Bound(name, jsonTableRef, tableRefFunction, jsonSchema,
+        return new Bound(name, jsonTableRef, tableRefPolicy, jsonSchema,
             createDisposition, writeDisposition, tableDescription, validate, bigQueryServices);
       }
 
@@ -1857,7 +1880,7 @@ public class BigQueryIO {
        * <p>Does not modify this object.
        */
       public Bound withTableDescription(@Nullable String tableDescription) {
-        return new Bound(name, jsonTableRef, tableRefFunction, jsonSchema,
+        return new Bound(name, jsonTableRef, tableRefPolicy, jsonSchema,
             createDisposition, writeDisposition, tableDescription, validate, bigQueryServices);
       }
 
@@ -1867,13 +1890,13 @@ public class BigQueryIO {
        * <p>Does not modify this object.
        */
       public Bound withoutValidation() {
-        return new Bound(name, jsonTableRef, tableRefFunction, jsonSchema, createDisposition,
+        return new Bound(name, jsonTableRef, tableRefPolicy, jsonSchema, createDisposition,
             writeDisposition, tableDescription, false, bigQueryServices);
       }
 
       @VisibleForTesting
       Bound withTestServices(BigQueryServices testServices) {
-        return new Bound(name, jsonTableRef, tableRefFunction, jsonSchema, createDisposition,
+        return new Bound(name, jsonTableRef, tableRefPolicy, jsonSchema, createDisposition,
             writeDisposition, tableDescription, validate, testServices);
       }
 
@@ -1903,11 +1926,11 @@ public class BigQueryIO {
 
         // Exactly one of the table and table reference can be configured.
         checkState(
-            jsonTableRef != null || tableRefFunction != null,
+            jsonTableRef != null || tableRefPolicy != null,
             "must set the table reference of a BigQueryIO.Write transform");
         checkState(
-            jsonTableRef == null || tableRefFunction == null,
-            "Cannot set both a table reference and a table function for a BigQueryIO.Write"
+            jsonTableRef == null || tableRefPolicy == null,
+            "Cannot set both a table reference and a table policy for a BigQueryIO.Write"
                 + " transform");
 
         // Require a schema if creating one or more tables.
@@ -1933,13 +1956,13 @@ public class BigQueryIO {
           }
         }
 
-        if (input.isBounded() == PCollection.IsBounded.UNBOUNDED || tableRefFunction != null) {
+        if (input.isBounded() == PCollection.IsBounded.UNBOUNDED || tableRefPolicy != null) {
           // We will use BigQuery's streaming write API -- validate supported dispositions.
-          if (tableRefFunction != null) {
+          if (tableRefPolicy != null) {
             checkArgument(
                 createDisposition != CreateDisposition.CREATE_NEVER,
                 "CreateDisposition.CREATE_NEVER is not supported when using a tablespec"
-                + " function.");
+                + " policy.");
           }
           if (jsonSchema == null) {
             checkArgument(
@@ -1950,7 +1973,7 @@ public class BigQueryIO {
           checkArgument(
               writeDisposition != WriteDisposition.WRITE_TRUNCATE,
               "WriteDisposition.WRITE_TRUNCATE is not supported for an unbounded PCollection or"
-                  + " when using a tablespec function.");
+                  + " when using a tablespec policy.");
         } else {
           // We will use a BigQuery load job -- validate the temp location.
           String tempLocation = options.getTempLocation();
@@ -1977,11 +2000,11 @@ public class BigQueryIO {
         BigQueryOptions options = p.getOptions().as(BigQueryOptions.class);
         BigQueryServices bqServices = getBigQueryServices();
 
-        // When writing an Unbounded PCollection, or when a tablespec function is defined, we use
+        // When writing an Unbounded PCollection, or when a tablespec policy is defined, we use
         // StreamWithDeDup and BigQuery's streaming import API.
-        if (input.isBounded() == IsBounded.UNBOUNDED || tableRefFunction != null) {
+        if (input.isBounded() == IsBounded.UNBOUNDED || tableRefPolicy != null) {
           return input.apply(
-              new StreamWithDeDup(getTable(), tableRefFunction,
+              new StreamWithDeDup(getTable(), tableRefPolicy,
                   jsonSchema == null ? null : NestedValueProvider.of(
                       jsonSchema, new JsonSchemaToTableSchema()),
                   createDisposition,
@@ -2144,9 +2167,9 @@ public class BigQueryIO {
             .addIfNotNull(DisplayData.item("schema", jsonSchema)
               .withLabel("Table Schema"));
 
-        if (tableRefFunction != null) {
-          builder.add(DisplayData.item("tableFn", tableRefFunction.getClass())
-            .withLabel("Table Reference Function"));
+        if (tableRefPolicy != null) {
+          builder.add(DisplayData.item("tableFn", tableRefPolicy.getClass())
+            .withLabel("Table Reference Policy"));
         }
 
         builder
@@ -2177,7 +2200,7 @@ public class BigQueryIO {
       }
 
       /**
-       * Returns the table to write, or {@code null} if writing with {@code tableRefFunction}.
+       * Returns the table to write, or {@code null} if writing with {@code tableRefPolicy}.
        *
        * <p>If the table's project is not specified, use the executing project.
        */
@@ -2941,17 +2964,17 @@ public class BigQueryIO {
     /** TableSpec to write to. */
     private final ValueProvider<String> tableSpec;
 
-    /** User function mapping windows to {@link TableReference} in JSON. */
-    private final SerializableFunction<BoundedWindow, TableReference> tableRefFunction;
+    /** User policy mapping windows to {@link TableReference} in JSON. */
+    private final TableWritePolicy<TableReference> tableRefPolicy;
 
     private transient String randomUUID;
     private transient long sequenceNo = 0L;
 
     TagWithUniqueIdsAndTable(BigQueryOptions options,
         ValueProvider<TableReference> table,
-        SerializableFunction<BoundedWindow, TableReference> tableRefFunction) {
-      checkArgument(table == null ^ tableRefFunction == null,
-          "Exactly one of table or tableRefFunction should be set");
+        TableWritePolicy<TableReference> tableRefPolicy) {
+      checkArgument(table == null ^ tableRefPolicy == null,
+          "Exactly one of table or tableRefPolicy should be set");
       if (table != null) {
         if (table.isAccessible() && Strings.isNullOrEmpty(table.get().getProjectId())) {
           TableReference tableRef = table.get()
@@ -2964,7 +2987,7 @@ public class BigQueryIO {
       } else {
         tableSpec = null;
       }
-      this.tableRefFunction = tableRefFunction;
+      this.tableRefPolicy = tableRefPolicy;
     }
 
 
@@ -2978,8 +3001,8 @@ public class BigQueryIO {
     public void processElement(ProcessContext context, BoundedWindow window) throws IOException {
       String uniqueId = randomUUID + sequenceNo++;
       ThreadLocalRandom randomGenerator = ThreadLocalRandom.current();
-      String tableSpec = tableSpecFromWindow(
-          context.getPipelineOptions().as(BigQueryOptions.class), window);
+      String tableSpec = tableSpecFromElementAndWindow(
+          context.getPipelineOptions().as(BigQueryOptions.class), context.element(), window);
       // We output on keys 0-50 to ensure that there's enough batching for
       // BigQuery.
       context.output(KV.of(ShardedKey.of(tableSpec, randomGenerator.nextInt(0, 50)),
@@ -2991,9 +3014,9 @@ public class BigQueryIO {
       super.populateDisplayData(builder);
 
       builder.addIfNotNull(DisplayData.item("table", tableSpec));
-      if (tableRefFunction != null) {
-        builder.add(DisplayData.item("tableFn", tableRefFunction.getClass())
-          .withLabel("Table Reference Function"));
+      if (tableRefPolicy != null) {
+        builder.add(DisplayData.item("tableFn", tableRefPolicy.getClass())
+          .withLabel("Table Reference Policy"));
       }
     }
 
@@ -3002,11 +3025,12 @@ public class BigQueryIO {
       return tableSpec;
     }
 
-    private String tableSpecFromWindow(BigQueryOptions options, BoundedWindow window) {
+    private String tableSpecFromElementAndWindow(
+        BigQueryOptions options, TableRow element, BoundedWindow window) {
       if (tableSpec != null) {
         return tableSpec.get();
       } else {
-        TableReference table = tableRefFunction.apply(window);
+        TableReference table = tableRefPolicy.apply(new TableWritePolicy.Context(element, window));
         if (table.getProjectId() == null) {
           table.setProjectId(options.getProject());
         }
@@ -3023,7 +3047,7 @@ public class BigQueryIO {
    */
   private static class StreamWithDeDup extends PTransform<PCollection<TableRow>, PDone> {
     @Nullable private final transient ValueProvider<TableReference> tableReference;
-    @Nullable private final SerializableFunction<BoundedWindow, TableReference> tableRefFunction;
+    @Nullable private final TableWritePolicy<TableReference> tableRefPolicy;
     @Nullable private final transient ValueProvider<TableSchema> tableSchema;
     private final Write.CreateDisposition createDisposition;
     private final BigQueryServices bqServices;
@@ -3031,12 +3055,12 @@ public class BigQueryIO {
 
     /** Constructor. */
     StreamWithDeDup(ValueProvider<TableReference> tableReference,
-                    @Nullable SerializableFunction<BoundedWindow, TableReference> tableRefFunction,
+                    @Nullable TableWritePolicy<TableReference> tableRefPolicy,
                     @Nullable ValueProvider<TableSchema> tableSchema,
                     Write.CreateDisposition createDisposition,
                     @Nullable String tableDescription, BigQueryServices bqServices) {
       this.tableReference = tableReference;
-      this.tableRefFunction = tableRefFunction;
+      this.tableRefPolicy = tableRefPolicy;
       this.tableSchema = tableSchema;
       this.createDisposition = createDisposition;
       this.bqServices = checkNotNull(bqServices, "bqServices");
@@ -3062,7 +3086,7 @@ public class BigQueryIO {
 
       PCollection<KV<ShardedKey<String>, TableRowInfo>> tagged = input.apply(ParDo.of(
           new TagWithUniqueIdsAndTable(input.getPipeline().getOptions().as(BigQueryOptions.class),
-              tableReference, tableRefFunction)));
+              tableReference, tableRefPolicy)));
 
       // To prevent having the same TableRow processed more than once with regenerated
       // different unique ids, this implementation relies on "checkpointing", which is
