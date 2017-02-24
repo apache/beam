@@ -59,7 +59,7 @@ message Target {
   }
 
   // (Required) The id of the PrimitiveTransform which is the target.
-  int64 primitive_transform_reference = 1;
+  string primitive_transform_reference = 1;
 
   // (Required) The local name of an input or output defined on the primitive
   // transform.
@@ -69,7 +69,7 @@ message Target {
 // Information defining a PCollection
 message PCollection {
   // (Required) A reference to a coder.
-  int64 coder_reference = 1;
+  string coder_reference = 1;
 
   // TODO: Windowing strategy, ...
 }
@@ -78,7 +78,7 @@ message PCollection {
 message PrimitiveTransform {
   // (Required) A pipeline level unique id which can be used as a reference to
   // refer to this.
-  int64 id = 1;
+  string id = 1;
 
   // (Required) A function spec that is used by this primitive
   // transform to process data.
@@ -117,7 +117,7 @@ message PrimitiveTransform {
 message FunctionSpec {
   // (Required) A pipeline level unique id which can be used as a reference to
   // refer to this.
-  int64 id = 1;
+  string id = 1;
 
   // (Required) A globally unique name representing this user definable
   // function.
@@ -131,7 +131,7 @@ message FunctionSpec {
 
   // (Required) Reference to specification of execution environment required to
   // invoke this function.
-  int64 environment_reference = 3;
+  string environment_reference = 3;
 
   // Data used to parameterize this function. Depending on the urn, this may be
   // optional or required.
@@ -179,7 +179,7 @@ message Coder {
   //
   // TODO: Perhaps this is redundant with the data of the FunctionSpec
   // for known coders?
-  repeated int64 component_coder_reference = 2;
+  repeated string component_coder_reference = 2;
 }
 
 // A descriptor for connecting to a remote port using the Beam Fn Data API.
@@ -218,7 +218,7 @@ service BeamFnControl {
 message InstructionRequest {
   // (Required) An unique identifier provided by the runner which represents
   // this requests execution. The InstructionResponse MUST have the matching id.
-  int64 instruction_id = 1;
+  string instruction_id = 1;
 
   // (Required) A request that the SDK Harness needs to interpret.
   oneof request {
@@ -235,7 +235,7 @@ message InstructionResponse {
   // (Required) A reference provided by the runner which represents a requests
   // execution. The InstructionResponse MUST have the matching id when
   // responding to the runner.
-  int64 instruction_id = 1;
+  string instruction_id = 1;
 
   // If this is specified, then this instruction has failed.
   // A human readable string representing the reason as to why processing has
@@ -269,7 +269,7 @@ message RegisterResponse {
 message ProcessBundleDescriptor {
   // (Required) A pipeline level unique id which can be used as a reference to
   // refer to this.
-  int64 id = 1;
+  string id = 1;
 
   // (Required) A list of primitive transforms that should
   // be used to construct the bundle processing graph.
@@ -282,7 +282,7 @@ message ProcessBundleDescriptor {
 // A request to process a given bundle.
 // Stable
 message ProcessBundleRequest {
-  int64 process_bundle_descriptor_reference = 1;
+  string process_bundle_descriptor_reference = 1;
 }
 
 // Stable
@@ -292,7 +292,7 @@ message ProcessBundleResponse {
 message ProcessBundleProgressRequest {
   // (Required) A reference to an active process bundle request with the given
   // instruction id.
-  int64 instruction_reference = 1;
+  string instruction_reference = 1;
 }
 
 message ProcessBundleProgressResponse {
@@ -309,7 +309,7 @@ message ProcessBundleProgressResponse {
 message ProcessBundleSplitRequest {
   // (Required) A reference to an active process bundle request with the given
   // instruction id.
-  int64 instruction_reference = 1;
+  string instruction_reference = 1;
 
   // (Required) The fraction of work (when compared to the known amount of work)
   // the process bundle request should try to split at.
@@ -344,7 +344,7 @@ message PrimitiveTransformSplit {
   // (Required) A reference to a primitive transform with the given id that
   // is part of the active process bundle request with the given instruction
   // id.
-  int64 primitive_transform_reference = 1;
+  string primitive_transform_reference = 1;
 
   // (Required) A function specification describing the restriction
   // that has been completed by the primitive transform.
@@ -425,7 +425,7 @@ message Elements {
   message Data {
     // (Required) A reference to an active instruction request with the given
     // instruction id.
-    int64 instruction_reference = 1;
+    string instruction_reference = 1;
 
     // (Required) A definition representing a consumer or producer of this data.
     // If received by a harness, this represents the consumer within that
@@ -475,12 +475,12 @@ service BeamFnData {
 message StateRequest {
   // (Required) An unique identifier provided by the SDK which represents this
   // requests execution. The StateResponse must have the matching id.
-  int64 id = 1;
+  string id = 1;
 
   // (Required) The associated instruction id of the work that is currently
   // being processed. This allows for the runner to associate any modifications
   // to state to be committed with the appropriate work execution.
-  int64 instruction_reference = 2;
+  string instruction_reference = 2;
 
   // At least one of the following fields should be populated.
   // Also, no request should use a state key referred to in another state key.
@@ -499,11 +499,11 @@ message StateResponse {
   // (Required) A reference provided by the SDK which represents a requests
   // execution. The StateResponse must have the matching id when responding
   // to the SDK.
-  int64 id = 1;
+  string id = 1;
 
   // (Required) The associated instruction id of the work that is currently
   // being processed.
-  int64 instruction_reference = 2;
+  string instruction_reference = 2;
 
   // (Required) A key to associate with the version of this state. Allows for
   // SDKs to share state across work items if they have the same cache key and
@@ -563,7 +563,7 @@ message StateKey {
   // (Required) Represents the namespace for the state. If this state is for a
   // DoFn, then this reference is expected to point to the DoFn. If this state
   // is for a side input, then this is expected to reference the ViewFn.
-  int64 function_spec_reference = 1;
+  string function_spec_reference = 1;
 
   // (Required) The bytes of the window which this state request is for encoded
   // in the outer context.
@@ -693,11 +693,11 @@ message LogEntry {
 
   // (Optional) A reference to the instruction this log statement is associated
   // with.
-  int64 instruction_reference = 5;
+  string instruction_reference = 5;
 
   // (Optional) A reference to the primitive transform this log statement is
   // associated with.
-  int64 primitive_transform_reference = 6;
+  string primitive_transform_reference = 6;
 
   // (Optional) Human-readable name of the function or method being invoked,
   // with optional context such as the class or package name. The format can
@@ -734,7 +734,7 @@ service BeamFnLogging {
 message ApiServiceDescriptor {
   // (Required) A pipeline level unique id which can be used as a reference to
   // refer to this.
-  int64 id = 1;
+  string id = 1;
 
   // (Required) The URL to connect to.
   string url = 2;
@@ -758,7 +758,7 @@ message OAuth2ClientCredentialsGrant {
 message DockerContainer {
   // (Required) A pipeline level unique id which can be used as a reference to
   // refer to this.
-  int64 id = 1;
+  string id = 1;
 
   // (Required) The Docker container URI
   // For example "dataflow.gcr.io/v1beta3/java-batch:1.5.1"
@@ -767,5 +767,5 @@ message DockerContainer {
   // (Optional) Docker registry specification.
   // If unspecified, the uri is expected to be able to be fetched without
   // requiring additional configuration by a runner.
-  int64 registry_reference = 3;
+  string registry_reference = 3;
 }

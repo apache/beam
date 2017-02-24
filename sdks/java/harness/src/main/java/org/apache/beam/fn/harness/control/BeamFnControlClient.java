@@ -52,9 +52,10 @@ import org.slf4j.LoggerFactory;
  * {@link org.apache.beam.fn.v1.BeamFnApi.InstructionRequest}s.
  */
 public class BeamFnControlClient {
+  private static final String FAKE_INSTRUCTION_ID = "FAKE_INSTRUCTION_ID";
   private static final Logger LOG = LoggerFactory.getLogger(BeamFnControlClient.class);
   private static final BeamFnApi.InstructionRequest POISON_PILL =
-      BeamFnApi.InstructionRequest.newBuilder().setInstructionId(Long.MIN_VALUE).build();
+      BeamFnApi.InstructionRequest.newBuilder().setInstructionId(FAKE_INSTRUCTION_ID).build();
 
   private final StreamObserver<BeamFnApi.InstructionResponse> outboundObserver;
   private final BlockingDeque<BeamFnApi.InstructionRequest> bufferedInstructions;

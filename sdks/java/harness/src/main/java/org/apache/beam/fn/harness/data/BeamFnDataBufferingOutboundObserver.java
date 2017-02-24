@@ -61,13 +61,13 @@ public class BeamFnDataBufferingOutboundObserver<T>
   private long counter;
   private final int bufferLimit;
   private final Coder<WindowedValue<T>> coder;
-  private final KV<Long, BeamFnApi.Target> outputLocation;
+  private final KV<String, BeamFnApi.Target> outputLocation;
   private final StreamObserver<BeamFnApi.Elements> outboundObserver;
   private final ByteString.Output bufferedElements;
 
   public BeamFnDataBufferingOutboundObserver(
       PipelineOptions options,
-      KV<Long, BeamFnApi.Target> outputLocation,
+      KV<String, BeamFnApi.Target> outputLocation,
       Coder<WindowedValue<T>> coder,
       StreamObserver<BeamFnApi.Elements> outboundObserver) {
     this.bufferLimit = getBufferLimit(options);

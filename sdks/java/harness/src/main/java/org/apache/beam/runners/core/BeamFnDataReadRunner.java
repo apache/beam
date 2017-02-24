@@ -51,7 +51,7 @@ public class BeamFnDataReadRunner<OutputT> {
 
   private final BeamFnApi.ApiServiceDescriptor apiServiceDescriptor;
   private final Collection<ThrowingConsumer<WindowedValue<OutputT>>> consumers;
-  private final Supplier<Long> processBundleInstructionIdSupplier;
+  private final Supplier<String> processBundleInstructionIdSupplier;
   private final BeamFnDataClient beamFnDataClientFactory;
   private final Coder<WindowedValue<OutputT>> coder;
   private final BeamFnApi.Target inputTarget;
@@ -60,7 +60,7 @@ public class BeamFnDataReadRunner<OutputT> {
 
   public BeamFnDataReadRunner(
       BeamFnApi.FunctionSpec functionSpec,
-      Supplier<Long> processBundleInstructionIdSupplier,
+      Supplier<String> processBundleInstructionIdSupplier,
       BeamFnApi.Target inputTarget,
       BeamFnApi.Coder coderSpec,
       BeamFnDataClient beamFnDataClientFactory,

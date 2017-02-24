@@ -39,14 +39,14 @@ public class RegisterHandlerTest {
 
   private static final BeamFnApi.InstructionRequest REGISTER_REQUEST =
       BeamFnApi.InstructionRequest.newBuilder()
-      .setInstructionId(1L)
+      .setInstructionId("1L")
       .setRegister(BeamFnApi.RegisterRequest.newBuilder()
-          .addProcessBundleDescriptor(BeamFnApi.ProcessBundleDescriptor.newBuilder().setId(1L)
+          .addProcessBundleDescriptor(BeamFnApi.ProcessBundleDescriptor.newBuilder().setId("1L")
               .addCoders(BeamFnApi.Coder.newBuilder().setFunctionSpec(
-                  BeamFnApi.FunctionSpec.newBuilder().setId(10L)).build()))
-          .addProcessBundleDescriptor(BeamFnApi.ProcessBundleDescriptor.newBuilder().setId(2L)
+                  BeamFnApi.FunctionSpec.newBuilder().setId("10L")).build()))
+          .addProcessBundleDescriptor(BeamFnApi.ProcessBundleDescriptor.newBuilder().setId("2L")
               .addCoders(BeamFnApi.Coder.newBuilder().setFunctionSpec(
-                  BeamFnApi.FunctionSpec.newBuilder().setId(20L)).build()))
+                  BeamFnApi.FunctionSpec.newBuilder().setId("20L")).build()))
           .build())
       .build();
   private static final BeamFnApi.InstructionResponse REGISTER_RESPONSE =
@@ -68,13 +68,13 @@ public class RegisterHandlerTest {
           }
     });
     assertEquals(REGISTER_REQUEST.getRegister().getProcessBundleDescriptor(0),
-        handler.getById(1L));
+        handler.getById("1L"));
     assertEquals(REGISTER_REQUEST.getRegister().getProcessBundleDescriptor(1),
-        handler.getById(2L));
+        handler.getById("2L"));
     assertEquals(REGISTER_REQUEST.getRegister().getProcessBundleDescriptor(0).getCoders(0),
-        handler.getById(10L));
+        handler.getById("10L"));
     assertEquals(REGISTER_REQUEST.getRegister().getProcessBundleDescriptor(1).getCoders(0),
-        handler.getById(20L));
+        handler.getById("20L"));
     assertEquals(REGISTER_RESPONSE, responseFuture.get());
   }
 }
