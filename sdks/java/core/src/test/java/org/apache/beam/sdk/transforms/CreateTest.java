@@ -55,8 +55,10 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create.Values.CreateSource;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TimestampedValue;
+import org.apache.beam.sdk.values.TypeDescriptor;
 import org.hamcrest.Matchers;
 import org.joda.time.Instant;
 import org.junit.Rule;
@@ -314,6 +316,35 @@ public class CreateTest {
   public void testCreateGetName() {
     assertEquals("Create.Values", Create.of(1, 2, 3).getName());
     assertEquals("Create.TimestampedValues", Create.timestamped(Collections.EMPTY_LIST).getName());
+  }
+
+
+  @Test
+  public void testCreateDefaultOutputCoderUsingInference() throws Exception {
+    Coder<Integer> coder = VarIntCoder.of();
+    PBegin pBegin = PBegin.in(p);
+    Create.Values<Integer> values = Create.of(1, 2, 3, 4, 5, 6, 7, 8);
+    Coder<Integer> defaultCoder = values.getDefaultOutputCoder(pBegin);
+    assertThat(defaultCoder, equalTo(coder));
+  }
+
+  @Test
+  public void testCreateDefaultOutputCoderUsingCoder() throws Exception {
+    Coder<Integer> coder = VarIntCoder.of();
+    PBegin pBegin = PBegin.in(p);
+    Create.Values<Integer> values = Create.of(1, 2, 3, 4, 5, 6, 7, 8).withCoder(coder);
+    Coder<Integer> defaultCoder = values.getDefaultOutputCoder(pBegin);
+    assertThat(defaultCoder, equalTo(coder));
+  }
+
+  @Test
+  public void testCreateDefaultOutputCoderUsingTypeDescriptor() throws Exception {
+    Coder<Integer> coder = VarIntCoder.of();
+    PBegin pBegin = PBegin.in(p);
+    Create.Values<Integer> values =
+        Create.of(1, 2, 3, 4, 5, 6, 7, 8).withType(new TypeDescriptor<Integer>() {});
+    Coder<Integer> defaultCoder = values.getDefaultOutputCoder(pBegin);
+    assertThat(defaultCoder, equalTo(coder));
   }
 
   @Test
