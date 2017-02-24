@@ -235,7 +235,7 @@ environment’s directories.</p>
   </li>
   <li>
     <p>Install the Apache Beam SDK
-  <code class="highlighter-rouge">pip install dist/apache-beam-sdk-*.tar.gz .[gcp]</code></p>
+  <code class="highlighter-rouge">pip install dist/apache-beam-*.tar.gz</code></p>
   </li>
 </ol>
 
@@ -245,7 +245,18 @@ environment’s directories.</p>
 
 <p>For example, to run <code class="highlighter-rouge">wordcount.py</code>, run:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>python -m apache_beam.examples.wordcount --input gs://dataflow-samples/shakespeare/kinglear.txt --output output.txt
+<div class="runner-direct highlighter-rouge"><pre class="highlight"><code>python -m apache_beam.examples.wordcount --input README.md --output counts
+</code></pre>
+</div>
+
+<div class="runner-dataflow highlighter-rouge"><pre class="highlight"><code># As part of the initial setup, install gcp specific extra components.
+pip install dist/apache-beam-*.tar.gz .[gcp]
+python -m apache_beam.examples.wordcount --input gs://dataflow-samples/shakespeare/kinglear.txt \
+                                         --output gs://&lt;your-gcs-bucket&gt;/counts \
+                                         --runner DataflowRunner \
+                                         --project your-gcp-project \
+                                         --temp_location gs://&lt;your-gcs-bucket&gt;/tmp/ \
+                                         --sdk_location dist/apache-beam-*.tar.gz
 </code></pre>
 </div>
 
