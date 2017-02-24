@@ -332,7 +332,7 @@ def stage_job_resources(
     file_copy(pickled_session_file, staged_path)
     resources.append(names.PICKLED_MAIN_SESSION_FILE)
 
-  if hasattr(setup_options, 'sdk_location') and setup_options.sdk_location:
+  if hasattr(setup_options, 'sdk_location'):
     if setup_options.sdk_location == 'default':
       stage_tarball_from_remote_location = True
     elif (setup_options.sdk_location.startswith('gs://') or
@@ -381,6 +381,9 @@ def stage_job_resources(
         if setup_options.sdk_location == 'default':
           raise RuntimeError('Cannot find default Dataflow SDK tar file "%s"',
                              sdk_path)
+        elif not setup_options.sdk_location:
+          logging.warning('Dataflow SDK is not provided. Unless this is a test,'
+                          'set --sdk_location command line option correctly.')
         else:
           raise RuntimeError(
               'The file "%s" cannot be found. Its location was specified by '
