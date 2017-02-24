@@ -47,6 +47,7 @@ import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
+import org.apache.beam.sdk.transforms.windowing.Triggers;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowedValue.FullWindowedValueCoder;
 import org.apache.beam.sdk.util.WindowingStrategy;
@@ -231,7 +232,7 @@ public class SparkGroupAlsoByWindowViaWindowSet {
                               windowingStrategy,
                               ExecutableTriggerStateMachine.create(
                                   TriggerStateMachines.stateMachineForTrigger(
-                                      windowingStrategy.getTrigger())),
+                                      Triggers.toProto(windowingStrategy.getTrigger()))),
                               stateInternals,
                               timerInternals,
                               outputHolder,
