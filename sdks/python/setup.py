@@ -91,8 +91,6 @@ REQUIRED_PACKAGES = [
     'mock>=1.0.1,<3.0.0',
     'oauth2client>=2.0.1,<4.0.0',
     'protobuf==3.2.0',
-    'protorpc>=0.9.1,<0.12',
-    'python-gflags>=2.0,<4.0.0',
     'pyyaml>=3.10,<4.0.0',
     ]
 
