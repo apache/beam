@@ -186,9 +186,9 @@ Periodically while you work, and certainly before submitting a pull request, you
 
 Remember to always use `--rebase` parameter to avoid extraneous merge commits.
 
-To push your local, committed changes to your (forked) repository on GitHub, run:
+Then you can push your local, committed changes to your (forked) repository on GitHub. Since rebase may change that branch's history, you may need to force push. You'll run:
 
-	$ git push <GitHub_user> <my-branch>
+	$ git push <GitHub_user> <my-branch> --force
 
 ### Testing
 All code should have appropriate unit testing coverage. New code should have new tests in the same contribution. Bug fixes should include a regression test to prevent the issue from reoccurring.
@@ -201,9 +201,11 @@ For contributions to the Java code, run unit tests locally via Maven. Alternativ
 Once the initial code is complete and the tests pass, it’s time to start the code review process. We review and discuss all code, no matter who authors it. It’s a great way to build community, since you can learn from other developers, and they become familiar with your contribution. It also builds a strong project by encouraging a high quality bar and keeping code consistent throughout the project.
 
 ### Create a pull request
-Organize your commits to make your reviewer’s job easier. Use the following command to re-order, squash, edit, or change description of individual commits.
+Organize your commits to make your reviewer’s job easier. Reviewers normally prefer multiple small pull requests, instead of a single large pull request. Within a pull request, a relatively small number of commits that break the problem into logical steps is preferred. For most pull requests, you'll squash your changes down to 1 commit. You can use the following command to re-order, squash, edit, or change description of individual commits.
 
     $ git rebase -i origin/master
+
+You'll then push to your branch on GitHub. Note: when updating your commit after pull request feedback and use squash to get back to one commit, you will need to do a force submit to the branch on your repo.
 
 Navigate to the [Beam GitHub mirror](https://github.com/apache/beam) to create a pull request. The title of the pull request should be strictly in the following format:
 
