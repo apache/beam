@@ -293,7 +293,8 @@ public class ProcessBundleHandler {
               Collection<ThrowingConsumer<WindowedValue<?>>> consumers =
                   tupleTagToOutput.get(tag);
               if (consumers == null) {
-                // TODO: Is this the right behavior for undeclared outputs?
+                /* This is a normal case, e.g., if a DoFn has output but that output is not
+                 * consumed. Drop the output. */
                 return;
               }
               for (ThrowingConsumer<WindowedValue<?>> consumer : consumers) {
