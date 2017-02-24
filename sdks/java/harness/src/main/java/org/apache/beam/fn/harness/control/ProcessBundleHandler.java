@@ -293,9 +293,8 @@ public class ProcessBundleHandler {
               Collection<ThrowingConsumer<WindowedValue<?>>> consumers =
                   tupleTagToOutput.get(tag);
               if (consumers == null) {
-                // TODO: Should we handle undeclared outputs, if so how?
-                throw new UnsupportedOperationException(String.format(
-                    "Unable to output %s on unknown output %s", output, tag));
+                // TODO: Is this the right behavior for undeclared outputs?
+                return;
               }
               for (ThrowingConsumer<WindowedValue<?>> consumer : consumers) {
                 consumer.accept(output);
