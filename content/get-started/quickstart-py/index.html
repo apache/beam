@@ -222,24 +222,20 @@ environment’s directories.</p>
 
 <ol>
   <li>
-    <p>Clone the Apache Beam repo from GitHub: 
+    <p>Clone the Apache Beam repo from GitHub:
   <code class="highlighter-rouge">git clone https://github.com/apache/beam.git</code></p>
   </li>
   <li>
-    <p>Navigate to the <code class="highlighter-rouge">python</code> directory: 
+    <p>Navigate to the <code class="highlighter-rouge">python</code> directory:
   <code class="highlighter-rouge">cd beam/sdks/python/</code></p>
   </li>
   <li>
-    <p>Create the Apache Beam Python SDK installation package: 
+    <p>Create the Apache Beam Python SDK installation package:
   <code class="highlighter-rouge">python setup.py sdist</code></p>
   </li>
   <li>
-    <p>Navigate to the <code class="highlighter-rouge">dist</code> directory:
-  <code class="highlighter-rouge">cd dist/</code></p>
-  </li>
-  <li>
     <p>Install the Apache Beam SDK
-  <code class="highlighter-rouge">pip install apache-beam-sdk-*.tar.gz</code></p>
+  <code class="highlighter-rouge">pip install dist/apache-beam-sdk-*.tar.gz .[gcp]</code></p>
   </li>
 </ol>
 
