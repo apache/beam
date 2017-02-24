@@ -93,8 +93,7 @@ import org.junit.runners.model.Statement;
  * </code></pre>
  *
  * <p>For pipeline runners, it is required that they must throw an {@link AssertionError} containing
- * the message from the {@link PAssert} that failed.
- *
+ * the message from the {@link PAssert} that failed.</p>
  * <p>See also the <a href="https://beam.apache.org/contribute/testing/">Testing</a> documentation
  * section.</p>
  */
@@ -320,12 +319,10 @@ public class TestPipeline extends Pipeline implements TestRule {
    * Enables the abandoned node detection. Abandoned nodes are <code>PTransforms</code>, <code>
    * PAsserts</code> included, that were not executed by the pipeline runner. Abandoned nodes are
    * most likely to occur due to the one of the following scenarios:
-   *
    * <ul>
    * <li>Lack of a <code>pipeline.run()</code> statement at the end of a test.
    * <li>Addition of PTransforms after the pipeline has already run.
    * </ul>
-   *
    * Abandoned node detection is automatically enabled when a real pipeline runner (i.e. not a
    * {@link CrashingRunner}) and/or a {@link NeedsRunner} or a {@link RunnableOnService} annotation
    * are detected.
