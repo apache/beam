@@ -173,6 +173,8 @@
   <li><a href="#testing-systems" id="markdown-toc-testing-systems">Testing Systems</a>    <ul>
       <li><a href="#e2e-testing-framework" id="markdown-toc-e2e-testing-framework">E2E Testing Framework</a></li>
       <li><a href="#runnableonservice-tests" id="markdown-toc-runnableonservice-tests">RunnableOnService Tests</a></li>
+      <li><a href="#effective-use-of-the-testpipeline-junit-rule" id="markdown-toc-effective-use-of-the-testpipeline-junit-rule">Effective use of the TestPipeline JUnit rule</a></li>
+      <li><a href="#api-surface-testing" id="markdown-toc-api-surface-testing">API Surface testing</a></li>
     </ul>
   </li>
 </ul>
@@ -541,6 +543,161 @@ Cloud Dataflow service.</p>
 which enables test authors to write simple functionality verification. They are
 meant to use some of the built-in utilities of the SDK, namely PAssert, to
 verify that the simple pipelines they run end in the correct state.</p>
+
+<h3 id="effective-use-of-the-testpipeline-junit-rule">Effective use of the TestPipeline JUnit rule</h3>
+
+<p><code class="highlighter-rouge">TestPipeline</code> is JUnit rule designed to facilitate testing pipelines. 
+In combination with <code class="highlighter-rouge">PAssert</code>, the two can be used for testing and 
+writing assertions over pipelines. However, in order for these assertions 
+to be effective, the constructed pipeline <strong>must</strong> be run by a pipeline 
+runner. If the pipeline is not run (i.e., executed) then the 
+constructed <code class="highlighter-rouge">PAssert</code> statements will not be triggered, and will thus 
+be ineffective.</p>
+
+<p>To prevent such cases, <code class="highlighter-rouge">TestPipeline</code> has some protection mechanisms in place.</p>
+
+<p><strong>Abandoned node detection (performed automatically)</strong></p>
+
+<p>Abandoned nodes are <code class="highlighter-rouge">PTransforms</code>, <code class="highlighter-rouge">PAsserts</code> included, that were not 
+executed by the pipeline runner. Abandoned nodes are most likely to occur 
+due to the one of the following scenarios:</p>
+<ol>
+  <li>Lack of a <code class="highlighter-rouge">pipeline.run()</code> statement at the end of a test.</li>
+  <li>Addition of <code class="highlighter-rouge">PTransform</code>s  after the pipeline has already run.</li>
+</ol>
+
+<p>Abandoned node detection is <em>automatically enabled</em> when a real pipeline 
+runner (i.e. not a <code class="highlighter-rouge">CrashingRunner</code>) and/or a 
+<code class="highlighter-rouge">@NeedsRunner</code> / <code class="highlighter-rouge">@RunnableOnService</code> annotation are detected.</p>
+
+<p>Consider the following test:</p>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="c1">// Note the @Rule annotation here</span>
+<span class="nd">@Rule</span>
+<span class="kd">public</span> <span class="kd">final</span> <span class="kd">transient</span> <span class="n">TestPipeline</span> <span class="n">pipeline</span> <span class="o">=</span> <span class="n">TestPipeline</span><span class="o">.</span><span class="na">create</span><span class="o">();</span>
+
+<span class="nd">@Test</span>
+<span class="nd">@Category</span><span class="o">(</span><span class="n">NeedsRunner</span><span class="o">.</span><span class="na">class</span><span class="o">)</span>
+<span class="kd">public</span> <span class="kt">void</span> <span class="nf">myPipelineTest</span><span class="o">()</span> <span class="kd">throws</span> <span class="n">Exception</span> <span class="o">{</span>
+
+<span class="kd">final</span> <span class="n">PCollection</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">pCollection</span> <span class="o">=</span> 
+  <span class="n">pipeline</span>
+    <span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="s">"Create"</span><span class="o">,</span> <span class="n">Create</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">WORDS</span><span class="o">).</span><span class="na">withCoder</span><span class="o">(</span><span class="n">StringUtf8Coder</span><span class="o">.</span><span class="na">of</span><span class="o">()))</span>
+    <span class="o">.</span><span class="na">apply</span><span class="o">(</span>
+        <span class="s">"Map1"</span><span class="o">,</span>
+        <span class="n">MapElements</span><span class="o">.</span><span class="na">via</span><span class="o">(</span>
+            <span class="k">new</span> <span class="n">SimpleFunction</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">String</span><span class="o">&gt;()</span> <span class="o">{</span>
+
+              <span class="nd">@Override</span>
+              <span class="kd">public</span> <span class="n">String</span> <span class="nf">apply</span><span class="o">(</span><span class="kd">final</span> <span class="n">String</span> <span class="n">input</span><span class="o">)</span> <span class="o">{</span>
+                <span class="k">return</span> <span class="n">WHATEVER</span><span class="o">;</span>
+              <span class="o">}</span>
+            <span class="o">}));</span>
+            
+<span class="n">PAssert</span><span class="o">.</span><span class="na">that</span><span class="o">(</span><span class="n">pCollection</span><span class="o">).</span><span class="na">containsInAnyOrder</span><span class="o">(</span><span class="n">WHATEVER</span><span class="o">);</span>       
+
+<span class="cm">/* ERROR: pipeline.run() is missing, PAsserts are ineffective */</span>
+<span class="o">}</span>
+</code></pre>
+</div>
+
+<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="c"># Unsupported in Beam's Python SDK.</span>
+</code></pre>
+</div>
+
+<p>The <code class="highlighter-rouge">PAssert</code> at the end of this test method will not be executed, since 
+<code class="highlighter-rouge">pipeline</code> is never run, making this test ineffective. If this test method 
+is run using an actual pipeline runner, an exception will be thrown 
+indicating that there was no <code class="highlighter-rouge">run()</code> invocation in the test.</p>
+
+<p>Exceptions that are thrown prior to executing a pipeline, will fail 
+the test unless handled by an <code class="highlighter-rouge">ExpectedException</code> rule.</p>
+
+<p>Consider the following test:</p>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="c1">// Note the @Rule annotation here</span>
+<span class="nd">@Rule</span>
+<span class="kd">public</span> <span class="kd">final</span> <span class="kd">transient</span> <span class="n">TestPipeline</span> <span class="n">pipeline</span> <span class="o">=</span> <span class="n">TestPipeline</span><span class="o">.</span><span class="na">create</span><span class="o">();</span>
+
+<span class="nd">@Test</span>
+<span class="kd">public</span> <span class="kt">void</span> <span class="nf">testReadingFailsTableDoesNotExist</span><span class="o">()</span> <span class="kd">throws</span> <span class="n">Exception</span> <span class="o">{</span>
+  <span class="kd">final</span> <span class="n">String</span> <span class="n">table</span> <span class="o">=</span> <span class="s">"TEST-TABLE"</span><span class="o">;</span>
+
+  <span class="n">BigtableIO</span><span class="o">.</span><span class="na">Read</span> <span class="n">read</span> <span class="o">=</span>
+      <span class="n">BigtableIO</span><span class="o">.</span><span class="na">read</span><span class="o">()</span>
+          <span class="o">.</span><span class="na">withBigtableOptions</span><span class="o">(</span><span class="n">BIGTABLE_OPTIONS</span><span class="o">)</span>
+          <span class="o">.</span><span class="na">withTableId</span><span class="o">(</span><span class="n">table</span><span class="o">)</span>
+          <span class="o">.</span><span class="na">withBigtableService</span><span class="o">(</span><span class="n">service</span><span class="o">);</span>
+
+  <span class="c1">// Exception will be thrown by read.validate() when read is applied.</span>
+  <span class="n">thrown</span><span class="o">.</span><span class="na">expect</span><span class="o">(</span><span class="n">IllegalArgumentException</span><span class="o">.</span><span class="na">class</span><span class="o">);</span>
+  <span class="n">thrown</span><span class="o">.</span><span class="na">expectMessage</span><span class="o">(</span><span class="n">String</span><span class="o">.</span><span class="na">format</span><span class="o">(</span><span class="s">"Table %s does not exist"</span><span class="o">,</span> <span class="n">table</span><span class="o">));</span>
+
+  <span class="n">p</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">read</span><span class="o">);</span>
+<span class="o">}</span>
+</code></pre>
+</div>
+
+<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="c"># Unsupported in Beam's Python SDK.</span>
+</code></pre>
+</div>
+
+<p>The application of the <code class="highlighter-rouge">read</code> transform throws an exception, which is then 
+handled by the <code class="highlighter-rouge">thrown</code> <code class="highlighter-rouge">ExpectedException</code> rule. 
+In light of this exception, the fact this test has abandoned nodes 
+(the <code class="highlighter-rouge">read</code> transform) does not play a role since the test fails before 
+the pipeline would have been executed (had there been a <code class="highlighter-rouge">run()</code> statement).</p>
+
+<p><strong>Auto-add <code class="highlighter-rouge">pipeline.run()</code> (disabled by default)</strong></p>
+
+<p>A <code class="highlighter-rouge">TestPipeline</code> instance can be configured to auto-add a missing <code class="highlighter-rouge">run()</code> 
+statement by setting <code class="highlighter-rouge">testPipeline.enableAutoRunIfMissing(true/false)</code>. 
+If this feature is enabled, no exception will be thrown in case of a 
+missing <code class="highlighter-rouge">run()</code> statement, instead, one will be added automatically.</p>
+
+<h3 id="api-surface-testing">API Surface testing</h3>
+
+<p>The surface of an API is the set of public classes that are exposed to the 
+outer world. In order to keep the API tight and avoid unnecessarily exposing 
+classes, Beam provides the <code class="highlighter-rouge">ApiSurface</code> utility class. 
+Using the <code class="highlighter-rouge">ApiSurface</code> class,  we can assert the API surface against an 
+expected set of classes.</p>
+
+<p>Consider the following snippet:</p>
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="nd">@Test</span>
+<span class="kd">public</span> <span class="kt">void</span> <span class="nf">testMyApiSurface</span><span class="o">()</span> <span class="kd">throws</span> <span class="n">Exception</span> <span class="o">{</span>
+  
+    <span class="kd">final</span> <span class="n">Package</span> <span class="n">thisPackage</span> <span class="o">=</span> <span class="n">getClass</span><span class="o">().</span><span class="na">getPackage</span><span class="o">();</span>
+    <span class="kd">final</span> <span class="n">ClassLoader</span> <span class="n">thisClassLoader</span> <span class="o">=</span> <span class="n">getClass</span><span class="o">().</span><span class="na">getClassLoader</span><span class="o">();</span>
+    
+    <span class="kd">final</span> <span class="n">ApiSurface</span> <span class="n">apiSurface</span> <span class="o">=</span>
+        <span class="n">ApiSurface</span><span class="o">.</span><span class="na">ofPackage</span><span class="o">(</span><span class="n">thisPackage</span><span class="o">,</span> <span class="n">thisClassLoader</span><span class="o">)</span>
+            <span class="o">.</span><span class="na">pruningPattern</span><span class="o">(</span><span class="s">"org[.]apache[.]beam[.].*Test.*"</span><span class="o">)</span>
+            <span class="o">.</span><span class="na">pruningPattern</span><span class="o">(</span><span class="s">"org[.]apache[.]beam[.].*IT"</span><span class="o">)</span>
+            <span class="o">.</span><span class="na">pruningPattern</span><span class="o">(</span><span class="s">"java[.]lang.*"</span><span class="o">);</span>
+    
+    <span class="nd">@SuppressWarnings</span><span class="o">(</span><span class="s">"unchecked"</span><span class="o">)</span>
+    <span class="kd">final</span> <span class="n">Set</span><span class="o">&lt;</span><span class="n">Matcher</span><span class="o">&lt;</span><span class="n">Class</span><span class="o">&lt;?&gt;&gt;&gt;</span> <span class="n">allowed</span> <span class="o">=</span>
+        <span class="n">ImmutableSet</span><span class="o">.</span><span class="na">of</span><span class="o">(</span>
+            <span class="n">classesInPackage</span><span class="o">(</span><span class="s">"org.apache.beam.x"</span><span class="o">),</span>
+            <span class="n">classesInPackage</span><span class="o">(</span><span class="s">"org.apache.beam.y"</span><span class="o">),</span>
+            <span class="n">classesInPackage</span><span class="o">(</span><span class="s">"org.apache.beam.z"</span><span class="o">),</span>
+            <span class="n">Matchers</span><span class="o">.&lt;</span><span class="n">Class</span><span class="o">&lt;?&gt;&gt;</span><span class="n">equalTo</span><span class="o">(</span><span class="n">Other</span><span class="o">.</span><span class="na">class</span><span class="o">));</span>
+    
+    <span class="n">assertThat</span><span class="o">(</span><span class="n">apiSurface</span><span class="o">,</span> <span class="n">containsOnlyClassesMatching</span><span class="o">(</span><span class="n">allowed</span><span class="o">));</span>
+<span class="o">}</span>
+</code></pre>
+</div>
+
+<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="c"># Unsupported in Beam's Python SDK.</span>
+</code></pre>
+</div>
+
+<p>This test will fail if the classes exposed by <code class="highlighter-rouge">getClass().getPackage()</code>, except 
+classes which reside under <code class="highlighter-rouge">"org[.]apache[.]beam[.].*Test.*"</code>,<br />
+<code class="highlighter-rouge">"org[.]apache[.]beam[.].*IT"</code> or <code class="highlighter-rouge">"java[.]lang.*"</code>, belong to neither
+of the packages: <code class="highlighter-rouge">org.apache.beam.x</code>, <code class="highlighter-rouge">org.apache.beam.y</code>, <code class="highlighter-rouge">org.apache.beam.z</code>, 
+nor equal to <code class="highlighter-rouge">Other.class</code>.</p>
 
       </div>
 
