@@ -85,6 +85,18 @@ class TestDataflowMetrics(unittest.TestCase):
                 "name": "split/__main__.WordExtractingDoFn/words",
                 "origin": "user"},
        "scalar": {"integer_value": 26185},
+       "updateTime": "2017-02-23T01:13:36.659Z"},
+      {"name": {"context":
+                {"additionalProperties": [
+                    {"key": "original_name",
+                     "value": "user-split-split/__main__.WordExtractingDoFn/"
+                              "secretdistribution(DIST)"},
+                    {"key": "step", "value": "split"},
+                    {"key": "tentative", "value": "true"}]},
+                "name":
+                "split/__main__.WordExtractingDoFn/secretdistribution(DIST)",
+                "origin": "user"},
+       "scalar": {"integer_value": 15},
        "updateTime": "2017-02-23T01:13:36.659Z"}
   ]}
 

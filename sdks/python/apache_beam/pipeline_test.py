@@ -140,12 +140,12 @@ class PipelineTest(unittest.TestCase):
   @attr('ValidatesRunner')
   def test_metrics_in_source(self):
     pipeline = TestPipeline()
-    pcoll = pipeline | 'read' >> Read(FakeSource([1, 2, 3, 4, 5, 6]))
+    pcoll = pipeline | Read(FakeSource([1, 2, 3, 4, 5, 6]))
     assert_that(pcoll, equal_to([1, 2, 3, 4, 5, 6]))
     res = pipeline.run()
     metric_results = res.metrics().query()
     outputs_counter = metric_results['counters'][0]
-    self.assertEqual(outputs_counter.key.step, 'read')
+    self.assertEqual(outputs_counter.key.step, 'Read')
     self.assertEqual(outputs_counter.key.metric.name, 'outputs')
     self.assertEqual(outputs_counter.committed, 6)
 

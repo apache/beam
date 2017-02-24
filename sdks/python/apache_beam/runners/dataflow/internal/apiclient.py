@@ -436,7 +436,7 @@ class DataflowApplicationClient(object):
     # TODO(silviuc): Remove the debug logging eventually.
     logging.info('JOB: %s', job)
 
-  @retry.with_exponential_backoff()  # Using retry defaults from utils/retry.py
+  @retry.with_exponential_backoff(num_retries=3, initial_delay_secs=3)
   def get_job_metrics(self, job_id):
     request = dataflow.DataflowProjectsJobsGetMetricsRequest()
     request.jobId = job_id

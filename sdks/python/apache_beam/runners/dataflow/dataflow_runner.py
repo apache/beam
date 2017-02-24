@@ -638,12 +638,13 @@ class DataflowPipelineResult(PipelineResult):
     """Job is a Job message from the Dataflow API."""
     self._job = job
     self._runner = runner
+    self.metric_results = None
 
   def job_id(self):
     return self._job.id
 
   def metrics(self):
-    return getattr(self, 'metric_results', None)
+    return self.metric_results
 
   @property
   def has_job(self):

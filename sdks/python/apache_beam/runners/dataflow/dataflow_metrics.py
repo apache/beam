@@ -22,6 +22,7 @@ service.
 """
 
 from collections import defaultdict
+from warnings import warn
 
 from apache_beam.metrics.execution import MetricKey
 from apache_beam.metrics.execution import MetricResult
@@ -72,6 +73,8 @@ class DataflowMetrics(MetricResults):
           name.endswith('[MAX]') or
           name.endswith('[MEAN]') or
           name.endswith('[COUNT]')):
+        warn('Distribution metrics will be ignored in the MetricsResult.query'
+             'method. You can see them in the Dataflow User Interface.')
         # Distributions are not yet fully supported in this runner
         continue
       [step, namespace, name] = name.split('/')
