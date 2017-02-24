@@ -34,7 +34,7 @@ def get_version():
   exec(open(os.path.normpath('./apache_beam/version.py')).read(), global_names)
   return global_names['__version__']
 
-PACKAGE_NAME = 'apache-beam-sdk'
+PACKAGE_NAME = 'apache-beam'
 PACKAGE_VERSION = get_version()
 PACKAGE_DESCRIPTION = 'Apache Beam SDK for Python'
 PACKAGE_URL = 'https://beam.apache.org'
