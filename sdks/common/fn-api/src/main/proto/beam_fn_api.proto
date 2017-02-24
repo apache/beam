@@ -37,6 +37,7 @@ package org.apache.beam.fn.v1;
 option java_package = "org.apache.beam.fn.v1";
 option java_outer_classname = "BeamFnApi";
 
+import "beam_runner_api.proto";
 import "google/protobuf/any.proto";
 import "google/protobuf/timestamp.proto";
 
@@ -276,7 +277,7 @@ message ProcessBundleDescriptor {
   repeated PrimitiveTransform primitive_transform = 2;
 
   // (Required) The set of all coders referenced in this bundle.
-  repeated Coder coders = 4;
+  map<string, org.apache.beam.runner_api.v1.Coder> coders = 4;
 }
 
 // A request to process a given bundle.

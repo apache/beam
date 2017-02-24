@@ -19,12 +19,14 @@
 package org.apache.beam.fn.harness.control;
 
 import com.google.protobuf.Message;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutionException;
 import org.apache.beam.fn.v1.BeamFnApi;
 import org.apache.beam.fn.v1.BeamFnApi.RegisterResponse;
+import org.apache.beam.sdk.common.runner.v1.RunnerApi;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -38,12 +40,35 @@ import org.slf4j.LoggerFactory;
 public class RegisterHandler {
   private static final Logger LOG = LoggerFactory.getLogger(RegisterHandler.class);
   private final ConcurrentMap<Long, CompletableFuture<Message>> idToObject;
+  private final ConcurrentMap<String, CompletableFuture<Message>> stringToObject;
 
   public RegisterHandler() {
     idToObject = new ConcurrentHashMap<>();
+    stringToObject = new ConcurrentHashMap<>();
   }
 
   public <T extends Message> T getById(long id) {
+    try {
+      @SuppressWarnings("unchecked")
+      CompletableFuture<T> returnValue = (CompletableFuture<T>) computeIfAbsent(id);
+      /*
+       * TODO: Even though the register request instruction occurs before the process bundle
+       * instruction in the control stream, the instructions are being processed in parallel
+       * in the Java harness causing a data race which is why we use a future. This will block
+       * forever in the case of a runner having a bug sending the wrong ids. Instead of blocking
+       * forever, we could do a timed wait or come up with another way of ordering the instruction
+       * processing to remove the data race.
+       */
+      return returnValue.get();
+    } catch (ExecutionException e) {
+      throw new RuntimeException(String.format("Failed to load %s", id), e);
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new RuntimeException(String.format("Failed to load %s", id), e);
+    }
+  }
+
+  public <T extends Message> T getById(String id) {
     try {
       @SuppressWarnings("unchecked")
       CompletableFuture<T> returnValue = (CompletableFuture<T>) computeIfAbsent(id);
@@ -75,11 +100,11 @@ public class RegisterHandler {
           processBundleDescriptor.getId(),
           processBundleDescriptor.getClass());
       computeIfAbsent(processBundleDescriptor.getId()).complete(processBundleDescriptor);
-      for (BeamFnApi.Coder coder : processBundleDescriptor.getCodersList()) {
-        LOG.debug("Registering {} with type {}",
-            coder.getFunctionSpec().getId(),
-            coder.getClass());
-        computeIfAbsent(coder.getFunctionSpec().getId()).complete(coder);
+      for (Map.Entry<String, RunnerApi.Coder> coderEntry :
+          processBundleDescriptor.getCodersMap().entrySet()) {
+        LOG.debug(
+            "Registering {} with type {}", coderEntry.getKey(), coderEntry.getValue().getClass());
+        computeIfAbsent(coderEntry.getKey()).complete(coderEntry.getValue());
       }
     }
 
@@ -88,5 +113,9 @@ public class RegisterHandler {
 
   private CompletableFuture<Message> computeIfAbsent(long id) {
     return idToObject.computeIfAbsent(id, (Long ignored) -> new CompletableFuture<>());
+  }
+
+  private CompletableFuture<Message> computeIfAbsent(String id) {
+    return stringToObject.computeIfAbsent(id, (String ignored) -> new CompletableFuture<>());
   }
 }
