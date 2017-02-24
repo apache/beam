@@ -38,11 +38,11 @@ import org.apache.beam.sdk.values.TupleTagList;
  * {@link Window.Bound} is translated to {link ApexParDoOperator} that wraps an {@link
  * AssignWindowsDoFn}.
  */
-class WindowBoundTranslator<T> implements TransformTranslator<Window.Bound<T>> {
+class WindowAssignTranslator<T> implements TransformTranslator<Window.Assign<T>> {
   private static final long serialVersionUID = 1L;
 
   @Override
-  public void translate(Window.Bound<T> transform, TranslationContext context) {
+  public void translate(Window.Assign<T> transform, TranslationContext context) {
     PCollection<T> output = (PCollection<T>) context.getOutput();
     PCollection<T> input = (PCollection<T>) context.getInput();
     @SuppressWarnings("unchecked")

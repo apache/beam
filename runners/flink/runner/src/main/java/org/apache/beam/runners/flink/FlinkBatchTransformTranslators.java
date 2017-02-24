@@ -110,7 +110,7 @@ class FlinkBatchTransformTranslators {
 
     TRANSLATORS.put(Flatten.PCollections.class, new FlattenPCollectionTranslatorBatch());
 
-    TRANSLATORS.put(Window.Bound.class, new WindowBoundTranslatorBatch());
+    TRANSLATORS.put(Window.Assign.class, new WindowAssignTranslatorBatch());
 
     TRANSLATORS.put(ParDo.Bound.class, new ParDoBoundTranslatorBatch());
     TRANSLATORS.put(ParDo.BoundMulti.class, new ParDoBoundMultiTranslatorBatch());
@@ -145,11 +145,11 @@ class FlinkBatchTransformTranslators {
     }
   }
 
-  private static class WindowBoundTranslatorBatch<T>
-      implements FlinkBatchPipelineTranslator.BatchTransformTranslator<Window.Bound<T>> {
+  private static class WindowAssignTranslatorBatch<T>
+      implements FlinkBatchPipelineTranslator.BatchTransformTranslator<Window.Assign<T>> {
 
     @Override
-    public void translateNode(Window.Bound<T> transform, FlinkBatchTranslationContext context) {
+    public void translateNode(Window.Assign<T> transform, FlinkBatchTranslationContext context) {
       PValue input = context.getInput(transform);
 
       TypeInformation<WindowedValue<T>> resultTypeInfo =
