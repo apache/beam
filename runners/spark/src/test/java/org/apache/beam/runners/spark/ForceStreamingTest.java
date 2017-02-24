@@ -56,6 +56,8 @@ public class ForceStreamingTest {
         Read.from(CountingSource.unbounded()).withMaxNumRecords(-1);
     //noinspection unchecked
     pipeline.apply(boundedRead);
+    TestSparkRunner runner = TestSparkRunner.fromOptions(options);
+    runner.adaptBoundedReads(pipeline);
 
     UnboundedReadDetector unboundedReadDetector = new UnboundedReadDetector();
     pipeline.traverseTopologically(unboundedReadDetector);

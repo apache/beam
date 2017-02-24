@@ -22,9 +22,15 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
 
+import com.google.common.annotations.VisibleForTesting;
 import java.io.File;
 import java.io.IOException;
+import java.util.List;
+import java.util.Map;
 import org.apache.beam.runners.core.UnboundedReadFromBoundedSource;
+import org.apache.beam.runners.core.construction.AssertionCountingVisitor;
+import org.apache.beam.runners.core.construction.PTransformMatchers;
+import org.apache.beam.runners.core.construction.ReplacementOutputs;
 import org.apache.beam.runners.spark.aggregators.AggregatorsAccumulator;
 import org.apache.beam.runners.spark.metrics.SparkMetricsContainer;
 import org.apache.beam.runners.spark.util.GlobalWatermarkHolder;
@@ -32,6 +38,7 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.BoundedReadFromUnboundedSource;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsValidator;
+import org.apache.beam.sdk.runners.PTransformOverrideFactory;
 import org.apache.beam.sdk.runners.PipelineRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -46,6 +53,8 @@ import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import org.apache.beam.sdk.values.PValue;
+import org.apache.beam.sdk.values.TaggedPValue;
 
 /**
  * The SparkRunner translate operations defined on a pipeline to a representation executable
@@ -88,37 +97,24 @@ public final class TestSparkRunner extends PipelineRunner<SparkPipelineResult> {
     return new TestSparkRunner(sparkOptions);
   }
 
-  /**
-   * Overrides for the test runner.
-   */
-  @SuppressWarnings("unchecked")
-  @Override
-  public <OutputT extends POutput, InputT extends PInput> OutputT apply(
-      PTransform<InputT, OutputT> transform, InputT input) {
-    // if the pipeline forces execution as a streaming pipeline,
-    // and the source is an adapted unbounded source (as bounded),
-    // read it as unbounded source via UnboundedReadFromBoundedSource.
-    if (isForceStreaming && transform instanceof BoundedReadFromUnboundedSource) {
-      return (OutputT) delegate.apply(new AdaptedBoundedAsUnbounded(
-          (BoundedReadFromUnboundedSource) transform), input);
-    } else {
-      // no actual override, simply counts asserting transforms in the pipeline.
-      if (transform instanceof PAssert.OneSideInputAssert
-          || transform instanceof PAssert.GroupThenAssert
-          || transform instanceof PAssert.GroupThenAssertForSingleton) {
-        expectedNumberOfAssertions += 1;
-      }
-
-      return delegate.apply(transform, input);
-    }
-  }
-
   @Override
   public SparkPipelineResult run(Pipeline pipeline) {
     TestSparkPipelineOptions testSparkPipelineOptions =
         pipeline.getOptions().as(TestSparkPipelineOptions.class);
+    //
+    // if the pipeline forces execution as a streaming pipeline,
+    // and the source is an adapted unbounded source (as bounded),
+    // read it as unbounded source via UnboundedReadFromBoundedSource.
+    if (isForceStreaming) {
+      adaptBoundedReads(pipeline);
+    }
     SparkPipelineResult result = null;
     // clear state of Aggregators, Metrics and Watermarks.
+    AssertionCountingVisitor assertionCountingVisitor = AssertionCountingVisitor.create();
+    pipeline.traverseTopologically(assertionCountingVisitor);
+    expectedNumberOfAssertions = assertionCountingVisitor.getPAssertCount();
+
+    // clear state of Aggregators, Metrics and Watermarks if exists.
     AggregatorsAccumulator.clear();
     SparkMetricsContainer.clear();
     GlobalWatermarkHolder.clear();
@@ -170,6 +166,13 @@ public final class TestSparkRunner extends PipelineRunner<SparkPipelineResult> {
     return result;
   }
 
+  @VisibleForTesting
+  void adaptBoundedReads(Pipeline pipeline) {
+    pipeline.replace(
+        PTransformMatchers.classEqualTo(BoundedReadFromUnboundedSource.class),
+        new AdaptedBoundedAsUnbounded.Factory());
+  }
+
   private static class AdaptedBoundedAsUnbounded<T> extends PTransform<PBegin, PCollection<T>> {
     private final BoundedReadFromUnboundedSource<T> source;
 
@@ -185,6 +188,26 @@ public final class TestSparkRunner extends PipelineRunner<SparkPipelineResult> {
       return (PCollection<T>) input.apply(replacingTransform)
           .apply("StripIds", ParDo.of(new ValueWithRecordId.StripIdsDoFn()));
     }
-  }
 
+    static class Factory<T>
+        implements PTransformOverrideFactory<
+            PBegin, PCollection<T>, BoundedReadFromUnboundedSource<T>> {
+      @Override
+      public PTransform<PBegin, PCollection<T>> getReplacementTransform(
+          BoundedReadFromUnboundedSource<T> transform) {
+        return new AdaptedBoundedAsUnbounded<>(transform);
+      }
+
+      @Override
+      public PBegin getInput(List<TaggedPValue> inputs, Pipeline p) {
+        return p.begin();
+      }
+
+      @Override
+      public Map<PValue, ReplacementOutput> mapOutputs(
+          List<TaggedPValue> outputs, PCollection<T> newOutput) {
+        return ReplacementOutputs.singleton(outputs, newOutput);
+      }
+    }
+  }
 }
