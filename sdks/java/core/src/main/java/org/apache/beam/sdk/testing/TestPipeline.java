@@ -86,7 +86,7 @@ import org.junit.runners.model.Statement;
  * {@literal @Test}
  * {@literal @Category}(NeedsRunner.class)
  * public void myPipelineTest() throws Exception {
- *   final PCollection<String> pCollection = pipeline.apply(...)
+ *   final PCollection&lt;String&gt; pCollection = pipeline.apply(...)
  *   PAssert.that(pCollection).containsInAnyOrder(...);
  *   pipeline.run();
  * }
