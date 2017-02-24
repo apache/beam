@@ -82,6 +82,8 @@ import org.junit.runners.JUnit4;
 
 /**
  * Tests of {@link KafkaIO}.
+ * Run with 'mvn test -Dkafka.clients.version=0.10.1.1',
+ * or 'mvn test -Dkafka.clients.version=0.9.0.1' for either Kafka client version
  */
 @RunWith(JUnit4.class)
 public class KafkaIOTest {
@@ -143,7 +145,10 @@ public class KafkaIOTest {
     final MockConsumer<byte[], byte[]> consumer =
         new MockConsumer<byte[], byte[]>(offsetResetStrategy) {
           // override assign() in order to set offset limits & to save assigned partitions.
-          @Override
+          //remove keyword '@Override' here, it can work with Kafka client 0.9 and 0.10 as:
+          //1. SpEL can find this function, either input is List or Collection;
+          //2. List extends Collection, so super.assign() could find either assign(List)
+          //  or assign(Collection).
           public void assign(final List<TopicPartition> assigned) {
             super.assign(assigned);
             assignedPartitions.set(ImmutableList.copyOf(assigned));
