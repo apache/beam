@@ -72,7 +72,7 @@ For instructions using other shells, see the [virtualenv documentation](https://
   `python setup.py sdist`
 
 4. Install the Apache Beam SDK
-  `pip install dist/apache-beam-sdk-*.tar.gz .[gcp]`
+  `pip install dist/apache-beam-*.tar.gz`
 
 ## Execute a pipeline locally
 
@@ -80,8 +80,21 @@ The Apache Beam [examples](https://github.com/apache/beam/tree/master/sdks/pytho
 
 For example, to run `wordcount.py`, run:
 
+{:.runner-direct}
 ```
-python -m apache_beam.examples.wordcount --input gs://dataflow-samples/shakespeare/kinglear.txt --output output.txt
+python -m apache_beam.examples.wordcount --input README.md --output counts
+```
+
+{:.runner-dataflow}
+```
+# As part of the initial setup, install gcp specific extra components.
+pip install dist/apache-beam-*.tar.gz .[gcp]
+python -m apache_beam.examples.wordcount --input gs://dataflow-samples/shakespeare/kinglear.txt \
+                                         --output gs://<your-gcs-bucket>/counts \
+                                         --runner DataflowRunner \
+                                         --project your-gcp-project \
+                                         --temp_location gs://<your-gcs-bucket>/tmp/ \
+                                         --sdk_location dist/apache-beam-*.tar.gz
 ```
 
 ## Next Steps
