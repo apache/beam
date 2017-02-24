@@ -378,7 +378,8 @@ public class TestDataflowRunnerTest {
     PCollection<Integer> pc = p.apply(Create.of(1, 2, 3));
     PAssert.that(pc).containsInAnyOrder(1, 2, 3);
 
-    TestDataflowRunner runner = (TestDataflowRunner) p.getRunner();
+    TestDataflowRunner runner = TestDataflowRunner.fromOptions(options);
+    runner.updatePAssertCount(p);
     doReturn(State.RUNNING).when(job).getState();
     JobMetrics metrics = buildJobMetrics(
         generateMockMetrics(true /* success */, false /* tentative */));
