@@ -15,13 +15,13 @@ This guide shows you how to set up your Python development environment, get the 
 
 ### Install pip
 
-Install [pip](https://pip.pypa.io/en/stable/installing/), Python's package manager. Check that you have version 7.0.0 or newer, by running: 
+Install [pip](https://pip.pypa.io/en/stable/installing/), Python's package manager. Check that you have version 7.0.0 or newer, by running:
 
 ```
 pip --version
 ```
 
-### Install Python virtual environment 
+### Install Python virtual environment
 
 It is recommended that you install a [Python virtual environment](http://docs.python-guide.org/en/latest/dev/virtualenvs/)
 for initial experiments. If you do not have `virtualenv` version 13.1.0 or newer, install it by running:
@@ -48,7 +48,7 @@ virtualenv /path/to/directory
 
 A virtual environment needs to be activated for each shell that is to use it.
 Activating it sets some environment variables that point to the virtual
-environment's directories. 
+environment's directories.
 
 To activate a virtual environment in Bash, run:
 
@@ -62,20 +62,17 @@ For instructions using other shells, see the [virtualenv documentation](https://
 
 ### Download and install
 
-1. Clone the Apache Beam repo from GitHub: 
+1. Clone the Apache Beam repo from GitHub:
   `git clone https://github.com/apache/beam.git`
 
-2. Navigate to the `python` directory: 
+2. Navigate to the `python` directory:
   `cd beam/sdks/python/`
 
-3. Create the Apache Beam Python SDK installation package: 
+3. Create the Apache Beam Python SDK installation package:
   `python setup.py sdist`
 
-4. Navigate to the `dist` directory:
-  `cd dist/`
-
-5. Install the Apache Beam SDK
-  `pip install apache-beam-sdk-*.tar.gz`
+4. Install the Apache Beam SDK
+  `pip install dist/apache-beam-sdk-*.tar.gz .[gcp]`
 
 ## Execute a pipeline locally
 
