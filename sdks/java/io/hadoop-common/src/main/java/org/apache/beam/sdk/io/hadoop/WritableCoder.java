@@ -15,8 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
-package org.apache.beam.runners.spark.coders;
+package org.apache.beam.sdk.io.hadoop;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -25,7 +24,6 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.lang.reflect.InvocationTargetException;
 import java.util.List;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
@@ -45,7 +43,7 @@ import org.apache.hadoop.io.Writable;
  * }
  * </pre>
  *
- * @param <T> the type of elements handled by this coder
+ * @param <T> the type of elements handled by this coder.
  */
 public class WritableCoder<T extends Writable> extends StandardCoder<T> {
   private static final long serialVersionUID = 0L;
@@ -53,15 +51,8 @@ public class WritableCoder<T extends Writable> extends StandardCoder<T> {
   /**
    * Returns a {@code WritableCoder} instance for the provided element class.
    * @param <T> the element type
-   * @param clazz the element class
-   * @return a {@code WritableCoder} instance for the provided element class
    */
   public static <T extends Writable> WritableCoder<T> of(Class<T> clazz) {
-    if (clazz.equals(NullWritable.class)) {
-      @SuppressWarnings("unchecked")
-      WritableCoder<T> result = (WritableCoder<T>) NullWritableCoder.of();
-      return result;
-    }
     return new WritableCoder<>(clazz);
   }
 
@@ -88,16 +79,19 @@ public class WritableCoder<T extends Writable> extends StandardCoder<T> {
     value.write(new DataOutputStream(outStream));
   }
 
+  @SuppressWarnings("unchecked")
   @Override
   public T decode(InputStream inStream, Context context) throws IOException {
     try {
-      T t = type.getConstructor().newInstance();
+      if (type == NullWritable.class) {
+        // NullWritable has no default constructor
+        return (T) NullWritable.get();
+      }
+      T t = type.newInstance();
       t.readFields(new DataInputStream(inStream));
       return t;
-    } catch (NoSuchMethodException | InstantiationException | IllegalAccessException e) {
+    } catch (InstantiationException | IllegalAccessException e) {
       throw new CoderException("unable to deserialize record", e);
-    } catch (InvocationTargetException ite) {
-      throw new CoderException("unable to deserialize record", ite.getCause());
     }
   }
 
@@ -107,14 +101,14 @@ public class WritableCoder<T extends Writable> extends StandardCoder<T> {
   }
 
   @Override
-  protected CloudObject initializeCloudObject() {
+  public CloudObject initializeCloudObject() {
     CloudObject result = CloudObject.forClass(getClass());
     result.put("type", type.getName());
     return result;
   }
 
   @Override
-  public void verifyDeterministic() throws Coder.NonDeterministicException {
+  public void verifyDeterministic() throws NonDeterministicException {
     throw new NonDeterministicException(this,
         "Hadoop Writable may be non-deterministic.");
   }
