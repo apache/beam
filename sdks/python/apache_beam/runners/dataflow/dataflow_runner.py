@@ -171,8 +171,12 @@ class DataflowRunner(PipelineRunner):
         pipeline.options, job_version)
 
     # Create the job
-    return DataflowPipelineResult(
+    result = DataflowPipelineResult(
         self.dataflow_client.create_job(self.job), self)
+
+    self._metrics = DataflowMetrics(self.dataflow_client, result)
+    result.metric_results = self._metrics
+    return result
 
   def _get_typehint_based_encoding(self, typehint, window_coder):
     """Returns an encoding based on a typehint object."""
@@ -634,12 +638,13 @@ class DataflowPipelineResult(PipelineResult):
     """Job is a Job message from the Dataflow API."""
     self._job = job
     self._runner = runner
+    self.metric_results = None
 
   def job_id(self):
     return self._job.id
 
   def metrics(self):
-    return DataflowMetrics()
+    return self.metric_results
 
   @property
   def has_job(self):

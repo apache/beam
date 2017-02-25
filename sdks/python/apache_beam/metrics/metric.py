@@ -105,7 +105,7 @@ class MetricResults(object):
     else:
       return False
 
-  def query(self, filter):
+  def query(self, filter=None):
     raise NotImplementedError
 
 
