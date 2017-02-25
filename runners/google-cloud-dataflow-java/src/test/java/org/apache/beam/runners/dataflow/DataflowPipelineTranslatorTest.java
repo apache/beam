@@ -513,11 +513,13 @@ public class DataflowPipelineTranslatorTest implements Serializable {
     pipeline.apply("ReadMyFile", TextIO.Read.from("gs://bucket/in"))
         .apply(stepName, ParDo.of(new NoOpFn()))
         .apply("WriteMyFile", TextIO.Write.to("gs://bucket/out"));
+    DataflowRunner runner = DataflowRunner.fromOptions(options);
+    runner.replaceTransforms(pipeline);
     Job job =
         translator
             .translate(
                 pipeline,
-                (DataflowRunner) pipeline.getRunner(),
+                runner,
                 Collections.<DataflowPackage>emptyList())
             .getJob();
 
