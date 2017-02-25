@@ -576,11 +576,9 @@ message TimestampTransform {
 // A specification for how to "side input" a PCollection.
 message SideInput {
 
-  // (Required) A local name for this side input, as embedded in a serialized UDF.
+  // (Required) A local name for this side input, as interpreted by its
+  // parent PTransform (and/or its PTransform's UDFs).
   string name = 1;
-
-  // (Required) The pipeline-scoped unique id of the PCollection to be side input.
-  string pcollection_id = 2;
 
   // (Required) URN of the access pattern required by the `view_fn` to present
   // the desired SDK-specific interface to a UDF.
