@@ -21,7 +21,8 @@ import logging
 import platform
 import unittest
 
-from nose.plugins.attrib import attr
+# TODO(BEAM-1555): Test is failing on the service, with FakeSource.
+# from nose.plugins.attrib import attr
 
 from apache_beam.metrics import Metrics
 from apache_beam.pipeline import Pipeline
@@ -137,7 +138,8 @@ class PipelineTest(unittest.TestCase):
     assert_that(pcoll, equal_to([[1, 2, 3]]))
     pipeline.run()
 
-  @attr('ValidatesRunner')
+  # TODO(BEAM-1555): Test is failing on the service, with FakeSource.
+  # @attr('ValidatesRunner')
   def test_metrics_in_source(self):
     pipeline = TestPipeline()
     pcoll = pipeline | Read(FakeSource([1, 2, 3, 4, 5, 6]))
