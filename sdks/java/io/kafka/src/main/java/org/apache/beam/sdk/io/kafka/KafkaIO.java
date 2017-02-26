@@ -63,12 +63,14 @@ import org.apache.beam.sdk.io.UnboundedSource.CheckpointMark;
 import org.apache.beam.sdk.io.UnboundedSource.UnboundedReader;
 import org.apache.beam.sdk.io.kafka.KafkaCheckpointMark.PartitionMark;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.SimpleFunction;
+import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.ExposedByteArrayInputStream;
 import org.apache.beam.sdk.values.KV;
@@ -500,6 +502,17 @@ public class KafkaIO {
             return new KafkaConsumer<>(config);
           }
         };
+
+    @SuppressWarnings("unchecked")
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      super.populateDisplayData(builder);
+      builder.add(DisplayData.item("topics", Joiner.on(",").join(getTopics())));
+      for (Map.Entry<String, Object> conf : getConsumerConfig().entrySet()) {
+        builder.add(DisplayData.item(conf.getKey(),
+            ValueProvider.StaticValueProvider.of(conf.getValue())));
+      }
+    }
   }
 
   /**
@@ -526,6 +539,12 @@ public class KafkaIO {
                   ctx.output(ctx.element().getKV());
                 }
               }));
+    }
+
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      super.populateDisplayData(builder);
+      read.populateDisplayData(builder);
     }
   }
 
@@ -1222,6 +1241,15 @@ public class KafkaIO {
         configForKeySerializer(), "Reserved for internal serializer",
         configForValueSerializer(), "Reserved for internal serializer"
      );
+
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      super.populateDisplayData(builder);
+      builder.addIfNotNull(DisplayData.item("topic", getTopic()));
+      for (Map.Entry<String, Object> conf : getProducerConfig().entrySet()) {
+        builder.add(DisplayData.item(conf.getKey(), conf.getValue().toString()));
+      }
+    }
   }
 
   /**
@@ -1247,6 +1275,12 @@ public class KafkaIO {
           }))
         .setCoder(KvCoder.of(new NullOnlyCoder<K>(), kvWriteTransform.getValueCoder()))
         .apply(kvWriteTransform);
+    }
+
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      super.populateDisplayData(builder);
+      kvWriteTransform.populateDisplayData(builder);
     }
   }
 
