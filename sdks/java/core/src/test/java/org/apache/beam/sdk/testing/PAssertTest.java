@@ -389,10 +389,11 @@ public class PAssertTest implements Serializable {
   @Category(RunnableOnService.class)
   public void testEmptyFalse() throws Exception {
     PCollection<Long> vals = pipeline.apply(CountingInput.upTo(5L));
-    PAssert.that(vals).empty();
+    PAssert.that("Vals should have been empty", vals).empty();
 
     Throwable thrown = runExpectingAssertionFailure(pipeline);
 
+    assertThat(thrown.getMessage(), containsString("Vals should have been empty"));
     assertThat(thrown.getMessage(), containsString("Expected: iterable over [] in any order"));
   }
 
