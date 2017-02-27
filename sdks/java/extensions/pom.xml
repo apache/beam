@@ -32,6 +32,7 @@
   <name>Apache Beam :: SDKs :: Java :: Extensions</name>
 
   <modules>
+    <module>jackson</module>
     <module>join-library</module>
     <module>sorter</module>
   </modules>
