@@ -32,7 +32,7 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.flink.api.common.functions.RuntimeContext;
 
 /**
- * A {@link SideInputReader} for the FlinkRunner.
+ * A {@link SideInputReader} for the Flink Batch Runner.
  */
 public class FlinkSideInputReader implements SideInputReader {
 

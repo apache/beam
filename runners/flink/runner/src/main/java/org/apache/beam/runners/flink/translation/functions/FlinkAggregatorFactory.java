@@ -25,7 +25,7 @@ import org.apache.beam.sdk.transforms.Combine;
 import org.apache.flink.api.common.functions.RuntimeContext;
 
 /**
- * A {@link AggregatorFactory} for the FlinkRunner.
+ * A {@link AggregatorFactory} for the Flink Batch Runner.
  */
 public class FlinkAggregatorFactory implements AggregatorFactory{
 
