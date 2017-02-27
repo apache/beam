@@ -293,9 +293,9 @@ public class ProcessBundleHandler {
               Collection<ThrowingConsumer<WindowedValue<?>>> consumers =
                   tupleTagToOutput.get(tag);
               if (consumers == null) {
-                // TODO: Should we handle undeclared outputs, if so how?
-                throw new UnsupportedOperationException(String.format(
-                    "Unable to output %s on unknown output %s", output, tag));
+                /* This is a normal case, e.g., if a DoFn has output but that output is not
+                 * consumed. Drop the output. */
+                return;
               }
               for (ThrowingConsumer<WindowedValue<?>> consumer : consumers) {
                 consumer.accept(output);

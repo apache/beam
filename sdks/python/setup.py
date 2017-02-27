@@ -34,7 +34,7 @@ def get_version():
   exec(open(os.path.normpath('./apache_beam/version.py')).read(), global_names)
   return global_names['__version__']
 
-PACKAGE_NAME = 'apache-beam-sdk'
+PACKAGE_NAME = 'apache-beam'
 PACKAGE_VERSION = get_version()
 PACKAGE_DESCRIPTION = 'Apache Beam SDK for Python'
 PACKAGE_URL = 'https://beam.apache.org'
@@ -91,8 +91,6 @@ REQUIRED_PACKAGES = [
     'mock>=1.0.1,<3.0.0',
     'oauth2client>=2.0.1,<4.0.0',
     'protobuf==3.2.0',
-    'protorpc>=0.9.1,<0.12',
-    'python-gflags>=2.0,<4.0.0',
     'pyyaml>=3.10,<4.0.0',
     ]
 

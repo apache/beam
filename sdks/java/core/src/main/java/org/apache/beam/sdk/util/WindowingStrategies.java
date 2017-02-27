@@ -17,14 +17,21 @@
  */
 package org.apache.beam.sdk.util;
 
+import static com.google.common.base.Preconditions.checkArgument;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.protobuf.Any;
 import com.google.protobuf.ByteString;
+import com.google.protobuf.BytesValue;
+import com.google.protobuf.InvalidProtocolBufferException;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.UUID;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.common.runner.v1.RunnerApi;
 import org.apache.beam.sdk.common.runner.v1.RunnerApi.Components;
+import org.apache.beam.sdk.common.runner.v1.RunnerApi.FunctionSpec;
+import org.apache.beam.sdk.common.runner.v1.RunnerApi.UrnWithParameter;
 import org.apache.beam.sdk.transforms.windowing.OutputTimeFn;
 import org.apache.beam.sdk.transforms.windowing.OutputTimeFns;
 import org.apache.beam.sdk.transforms.windowing.Trigger;
@@ -108,7 +115,6 @@ public class WindowingStrategies implements Serializable {
                 RunnerApi.ClosingBehavior.class.getCanonicalName(),
                 ClosingBehavior.class.getCanonicalName(),
                 proto));
-
     }
   }
 
@@ -122,46 +128,70 @@ public class WindowingStrategies implements Serializable {
   }
 
   // This URN says that the coder is just a UDF blob the indicated SDK understands
-  private static final String CUSTOM_CODER_URN = "urn:beam:coders:custom:1.0";
+  // TODO: standardize such things
+  private static final String CUSTOM_CODER_URN = "urn:beam:coders:javasdk:0.1";
+
+  // This URN says that the WindowFn is just a UDF blob the indicated SDK understands
+  // TODO: standardize such things
+  private static final String CUSTOM_WINDOWFN_URN = "urn:beam:windowfn:javasdk:0.1";
 
   private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
+  /**
+   * Converts a {@link WindowFn} into a {@link RunnerApi.MessageWithComponents} where
+   * {@link RunnerApi.MessageWithComponents#getFunctionSpec()} is a {@link RunnerApi.FunctionSpec}
+   * for the input {@link WindowFn}.
+   */
   public static RunnerApi.MessageWithComponents toProto(WindowFn<?, ?> windowFn)
       throws IOException {
     Coder<?> windowCoder = windowFn.windowCoder();
 
     // TODO: re-use components
     String windowCoderId = UUID.randomUUID().toString();
-    String customCoderId = UUID.randomUUID().toString();
+
+    RunnerApi.FunctionSpec windowFnSpec =
+        RunnerApi.FunctionSpec.newBuilder()
+            .setSpec(
+                UrnWithParameter.newBuilder()
+                    .setUrn(CUSTOM_WINDOWFN_URN)
+                    .setParameter(
+                        Any.pack(
+                            BytesValue.newBuilder()
+                                .setValue(
+                                    ByteString.copyFrom(
+                                        SerializableUtils.serializeToByteArray(windowFn)))
+                                .build())))
+            .build();
+
+    RunnerApi.Coder windowCoderProto =
+        RunnerApi.Coder.newBuilder()
+            .setSpec(
+                FunctionSpec.newBuilder()
+                    .setSpec(
+                        UrnWithParameter.newBuilder()
+                            .setUrn(CUSTOM_CODER_URN)
+                            .setParameter(
+                                Any.pack(
+                                    BytesValue.newBuilder()
+                                        .setValue(
+                                            ByteString.copyFrom(
+                                                OBJECT_MAPPER.writeValueAsBytes(
+                                                    windowCoder.asCloudObject())))
+                                        .build()))))
+            .build();
 
     return RunnerApi.MessageWithComponents.newBuilder()
-        .setFunctionSpec(
-            RunnerApi.FunctionSpec.newBuilder()
-                .setSdkFnSpec(
-                    RunnerApi.SdkFunctionSpec.newBuilder()
-                        .setData(
-                            ByteString.copyFrom(SerializableUtils.serializeToByteArray(windowFn)))))
-        .setComponents(
-            Components.newBuilder()
-                .putCoders(
-                    windowCoderId,
-                    RunnerApi.Coder.newBuilder()
-                        .setUrn(CUSTOM_CODER_URN)
-                        .setCustomCoderFnId(customCoderId)
-                        .build())
-                .putFunctionSpecs(
-                    customCoderId,
-                    RunnerApi.FunctionSpec.newBuilder()
-                        .setSdkFnSpec(
-                            RunnerApi.SdkFunctionSpec.newBuilder()
-                                .setData(
-                                    ByteString.copyFrom(
-                                        OBJECT_MAPPER.writeValueAsBytes(
-                                            windowCoder.asCloudObject()))))
-                        .build()))
+        .setFunctionSpec(windowFnSpec)
+        .setComponents(Components.newBuilder().putCoders(windowCoderId, windowCoderProto))
         .build();
   }
 
+  /**
+   * Converts a {@link WindowingStrategy} into a {@link RunnerApi.MessageWithComponents} where
+   * {@link RunnerApi.MessageWithComponents#getWindowingStrategy()} ()} is a {@link
+   * RunnerApi.WindowingStrategy RunnerApi.WindowingStrategy (proto)} for the input {@link
+   * WindowingStrategy}.
+   */
   public static RunnerApi.MessageWithComponents toProto(WindowingStrategy<?, ?> windowingStrategy)
       throws IOException {
 
@@ -195,7 +225,8 @@ public class WindowingStrategies implements Serializable {
    * Converts from a {@link RunnerApi.WindowingStrategy} accompanied by {@link RunnerApi.Components}
    * to the SDK's {@link WindowingStrategy}.
    */
-  public static WindowingStrategy<?, ?> fromProto(RunnerApi.MessageWithComponents proto) {
+  public static WindowingStrategy<?, ?> fromProto(RunnerApi.MessageWithComponents proto)
+      throws InvalidProtocolBufferException {
     switch (proto.getRootCase()) {
       case WINDOWING_STRATEGY:
         return fromProto(proto.getWindowingStrategy(), proto.getComponents());
@@ -212,15 +243,23 @@ public class WindowingStrategies implements Serializable {
    * the provided components to dereferences identifiers found in the proto.
    */
   public static WindowingStrategy<?, ?> fromProto(
-      RunnerApi.WindowingStrategy proto, RunnerApi.Components components) {
+      RunnerApi.WindowingStrategy proto, RunnerApi.Components components)
+      throws InvalidProtocolBufferException {
+
+    FunctionSpec windowFnSpec =
+        components
+            .getFunctionSpecsMap()
+            .get(proto.getFnId());
+
+    checkArgument(
+        windowFnSpec.getSpec().getUrn().equals(CUSTOM_WINDOWFN_URN),
+        "Only Java-serialized %s instances are supported, with URN %s. But found URN %s",
+        WindowFn.class.getSimpleName(),
+        windowFnSpec.getSpec().getUrn());
+
     Object deserializedWindowFn =
         SerializableUtils.deserializeFromByteArray(
-            components
-                .getFunctionSpecsMap()
-                .get(proto.getFnId())
-                .getSdkFnSpec()
-                .getData()
-                .toByteArray(),
+            windowFnSpec.getSpec().getParameter().unpack(BytesValue.class).getValue().toByteArray(),
             "WindowFn");
 
     WindowFn<?, ?> windowFn = (WindowFn<?, ?>) deserializedWindowFn;
@@ -237,5 +276,4 @@ public class WindowingStrategies implements Serializable {
         .withOutputTimeFn(outputTimeFn)
         .withClosingBehavior(closingBehavior);
   }
-
 }

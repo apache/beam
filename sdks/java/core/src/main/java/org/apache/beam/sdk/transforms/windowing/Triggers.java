@@ -28,6 +28,7 @@ import org.apache.beam.sdk.common.runner.v1.RunnerApi;
 import org.apache.beam.sdk.transforms.windowing.AfterWatermark.AfterWatermarkEarlyAndLate;
 import org.apache.beam.sdk.transforms.windowing.Never.NeverTrigger;
 import org.apache.beam.sdk.transforms.windowing.Trigger.OnceTrigger;
+import org.apache.beam.sdk.util.ReshuffleTrigger;
 import org.apache.beam.sdk.util.TimeDomain;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -92,6 +93,12 @@ public class Triggers implements Serializable {
     private RunnerApi.Trigger convertSpecific(NeverTrigger v) {
       return RunnerApi.Trigger.newBuilder()
           .setNever(RunnerApi.Trigger.Never.getDefaultInstance())
+          .build();
+    }
+
+    private RunnerApi.Trigger convertSpecific(ReshuffleTrigger v) {
+      return RunnerApi.Trigger.newBuilder()
+          .setAlways(RunnerApi.Trigger.Always.getDefaultInstance())
           .build();
     }
 

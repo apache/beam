@@ -25,10 +25,8 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThat;
 
 import com.google.protobuf.ByteString;
-
 import java.util.ArrayList;
 import java.util.List;
-
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.hbase.HBaseIO.HBaseSource;
@@ -68,6 +66,7 @@ import org.apache.hadoop.hbase.util.Bytes;
 import org.hamcrest.Matchers;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -78,6 +77,7 @@ import org.junit.runners.JUnit4;
 /**
  * Test HBaseIO.
  */
+@Ignore
 @RunWith(JUnit4.class)
 public class HBaseIOTest {
     @Rule public final transient TestPipeline p = TestPipeline.create();

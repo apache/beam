@@ -25,13 +25,6 @@ Apache Beam for Python provides access to Beam capabilities from the Python prog
 ## Table of Contents
   * [Overview of the Beam Programming Model](#overview-of-the-programming-model)
   * [Getting Started](#getting-started)
-      * [Set up your environment](#set-up-your-environment)
-          * [Install pip](#install-pip)
-          * [Install virtualenv](#install-virtualenv)
-      * [Get Apache Beam](#get-apache-beam)
-          * [Create and activate a virtual environment](#create-and-activate-a-virtual-environment)
-          * [Download and install](#download-and-install)
-      * [Execute a pipeline locally](#execute-a-pipeline-locally)
   * [A Quick Tour of the Source Code](#a-quick-tour-of-the-source-code)
   * [Simple Examples](#simple-examples)
       * [Basic pipeline](#basic-pipeline)
@@ -62,74 +55,7 @@ For a further, detailed introduction, please read the
 
 ## Getting Started
 
-### Set up your environment
-
-`pip` is Python's package manager.  If you already have `pip` installed
-(type `pip -V` to check), please make sure to have at least version 7.0.0.
-
-#### Install `pip`
-
-Check if you already have `pip`, Python's package manager, installed by running <code>pip -V</code>. If not, [install pip](https://pip.pypa.io/en/stable/installing/).
-
-#### Install `virtualenv`
-
-It's recommended that you install a [Python virtual environment](http://docs.python-guide.org/en/latest/dev/virtualenvs/)
-for initial experiments.  Check if you have it installed by running `virtualenv --version`. If you do not have `virtualenv` version 13.1.0 or later, install (or upgrade) your `virtualenv`:
-
-`pip install --upgrade virtualenv`
-
-If you are not going to use a Python virtual environment (not recommended!), ensure `setuptools` version 17.1 or newer is installed on your machine. (run `easy_install --version` to check).  If not, install `setuptools`:
-
-`pip install --upgrade setuptools`
-
-### Get Apache Beam
-
-#### Create and activate a virtual environment
-
-A virtual environment is a directory tree containing its own Python
-distribution. To create a virtual environment, create a directory and run:
-
-```
-virtualenv /path/to/directory
-```
-
-A virtual environment needs to be activated for each shell that is to use it.
-Activating it sets some environment variables that point to the virtual
-environment's directories. To activate a virtual environment in Bash, run:
-
-```
-. /path/to/directory/bin/activate
-```
-
-That is, source the script `bin/activate` under the virtual environment
-directory you created.
-
-#### Download and install
-
-1. Clone the Apache Beam repo from GitHub: 
-  `git clone https://github.com/apache/beam.git`
-
-2. Navigate to the `python` directory: 
-  `cd beam/sdks/python/`
-
-3. Create the Apache Beam Python SDK installation package: 
-  `python setup.py sdist`
-
-4. Navigate to the `dist` directory:
-  `cd dist/`
-
-5. Install the Apache Beam SDK
-  `pip install apache-beam-sdk-*.tar.gz`
-
-### Execute a pipeline locally
-
-The Apache Beam [examples](https://github.com/apache/beam/tree/master/sdks/python/apache_beam/examples) directory has many examples. All examples can be run locally by passing the arguments required by the example script.
-
-For example, to run `wordcount.py`, run:
-
-```
-python -m apache_beam.examples.wordcount --input gs://dataflow-samples/shakespeare/kinglear.txt --output output.txt
-```
+See [Apache Beam Python SDK Quickstart](https://beam.apache.org/get-started/quickstart-py/).
 
 ## A Quick Tour of the Source Code
 
