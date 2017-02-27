@@ -77,7 +77,7 @@ public class TrackStreamingSourcesTest {
     Pipeline p = Pipeline.create(options);
 
     CreateStream<Integer> emptyStream =
-        CreateStream.create(
+        CreateStream.of(
             VarIntCoder.of(),
             Duration.millis(options.getBatchIntervalMillis())).emptyBatch();
 
@@ -97,11 +97,11 @@ public class TrackStreamingSourcesTest {
     Pipeline p = Pipeline.create(options);
 
     CreateStream<Integer> queueStream1 =
-        CreateStream.create(
+        CreateStream.of(
             VarIntCoder.of(),
             Duration.millis(options.getBatchIntervalMillis())).emptyBatch();
     CreateStream<Integer> queueStream2 =
-        CreateStream.create(
+        CreateStream.of(
             VarIntCoder.of(),
             Duration.millis(options.getBatchIntervalMillis())).emptyBatch();
 

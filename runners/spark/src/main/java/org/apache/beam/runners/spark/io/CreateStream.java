@@ -102,7 +102,7 @@ public final class CreateStream<T> extends PTransform<PBegin, PCollection<T>> {
   }
 
   /** Set the batch interval for the stream. */
-  public static <T> CreateStream<T> create(Coder<T> coder, Duration batchInterval) {
+  public static <T> CreateStream<T> of(Coder<T> coder, Duration batchInterval) {
     return new CreateStream<>(batchInterval, new Instant(0), coder);
   }
 
