@@ -27,9 +27,11 @@ import com.datastax.driver.core.Session;
 import com.datastax.driver.core.querybuilder.QueryBuilder;
 
 import java.io.Serializable;
+import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -156,7 +158,7 @@ KV<String, String> kv = KV.of("name", row.getString("name"));
     }
     @Test
     public void testWriteBuildsCorrectly() {
-        String statement = "INSERT INTO test.atable (a1,a2,a3) VALUES (?,?,?) ";
+        String statement = "INSERT INTO " + TESTKEYSPACE + ".atable (a1,a2,a3) VALUES (?,?,?) ";
         CassandraIO.Write write = CassandraIO.<List>write()
                 .withClusterConfiguration(clusterConfiguration)
                 .withStatement(statement);
@@ -167,25 +169,27 @@ KV<String, String> kv = KV.of("name", row.getString("name"));
     @Test
     @Category(NeedsRunner.class)
     public void testWrite() {
-        String statement = "INSERT INTO test.atable (a1,a2,a3) VALUES (?,?,?) ";
+        String statement = "INSERT INTO " + TESTKEYSPACE + ".atable (a1,a2,a3) VALUES (?,?,?) ";
 
         List<List> data = new ArrayList<List>();
-        for (int i = 0; i < 1000; i++) {
-            List<String> kv = new ArrayList<String>();
+        int countAll = 20000;
+        for (int i = 0; i < countAll; i++) {
+            List kv = new ArrayList<String>();
+            
             kv.add("a" + i);
             kv.add("b" + i);
             kv.add("c" + i);
-
             data.add(kv);
         }
-        pipeline.apply(Create.of(data))
+        Coder coder =  ListCoder.of(StringUtf8Coder.of());
+        pipeline.apply(Create.of(data).withCoder(coder))
                 .apply(CassandraIO.<List> write()
                 .withClusterConfiguration(clusterConfiguration)
                 .withStatement(statement)
                 .withBoundStatementSetter(
-                new CassandraIO.BoundStatementSetter<List>() {
+                new CassandraIO.BoundStatementSetter< List>() {
                     @Override
-                    public void setParameters(List element,
+                    public void setParameters( List element,
                             BoundStatement boundStatement)
                             throws Exception {
                         boundStatement.
@@ -195,14 +199,15 @@ KV<String, String> kv = KV.of("name", row.getString("name"));
         pipeline.run();
         try (Session session = clusterConfiguration.getSession()) {
             com.datastax.driver.core.ResultSet resultSet = session
-                    .execute("select count(*) count from test.atable");
+                    .execute("select count(*) from " + TESTKEYSPACE + ".atable");
             List<Row> resultAll = resultSet.all();
             Assert.assertNotNull(resultAll);
             Assert.assertEquals(1, resultAll.size());
-            int count = resultAll.get(0).getInt("count");
-            Assert.assertEquals(1000, count);
+            long count = resultAll.get(0).get(0,Long.class);
+            Assert.assertEquals(countAll, count);
         } catch (Exception e) {
             e.printStackTrace();
+            Assert.assertNull(e);
         }
     }
 
