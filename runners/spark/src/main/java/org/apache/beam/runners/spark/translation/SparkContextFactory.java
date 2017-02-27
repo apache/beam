@@ -38,7 +38,7 @@ public final class SparkContextFactory {
    * {@code true} then the Spark context will be reused for beam pipelines.
    * This property should only be enabled for tests.
    */
-  static final String TEST_REUSE_SPARK_CONTEXT = "beam.spark.test.reuseSparkContext";
+  public static final String TEST_REUSE_SPARK_CONTEXT = "beam.spark.test.reuseSparkContext";
 
   // Spark allows only one context for JVM so this can be static.
   private static JavaSparkContext sparkContext;

@@ -49,6 +49,7 @@ import org.apache.beam.sdk.util.IOChannelFactory;
 import org.apache.beam.sdk.util.IOChannelUtils;
 import org.apache.beam.sdk.util.MimeTypes;
 import org.apache.commons.compress.compressors.bzip2.BZip2CompressorOutputStream;
+import org.apache.commons.compress.compressors.deflate.DeflateCompressorOutputStream;
 import org.joda.time.Instant;
 import org.joda.time.format.DateTimeFormat;
 import org.slf4j.Logger;
@@ -106,6 +107,16 @@ public abstract class FileBasedSink<T> extends Sink<T> {
       public WritableByteChannel create(WritableByteChannel channel) throws IOException {
         return Channels
             .newChannel(new BZip2CompressorOutputStream(Channels.newOutputStream(channel)));
+      }
+    },
+    /**
+     * Provides deflate output transformation.
+     */
+    DEFLATE(".deflate", MimeTypes.BINARY) {
+      @Override
+      public WritableByteChannel create(WritableByteChannel channel) throws IOException {
+        return Channels
+            .newChannel(new DeflateCompressorOutputStream(Channels.newOutputStream(channel)));
       }
     };
 
@@ -590,6 +601,12 @@ public abstract class FileBasedSink<T> extends Sink<T> {
     protected void writeFooter() throws Exception {}
 
     /**
+     * Called after all calls to {@link #writeHeader}, {@link #write} and {@link #writeFooter}.
+     * If any resources opened in the write processes need to be flushed, flush them here.
+     */
+    protected void finishWrite() throws Exception {}
+
+    /**
      * Opens the channel.
      */
     @Override
@@ -630,6 +647,11 @@ public abstract class FileBasedSink<T> extends Sink<T> {
       try (WritableByteChannel theChannel = channel) {
         LOG.debug("Writing footer to {}.", filename);
         writeFooter();
+        LOG.debug("Finishing write to {}.", filename);
+        finishWrite();
+        if (!channel.isOpen()) {
+          throw new IllegalStateException("Channel should only be closed by its owner: " + channel);
+        }
       }
       FileResult result = new FileResult(filename);
       LOG.debug("Result for bundle {}: {}", this.id, filename);

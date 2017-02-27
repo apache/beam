@@ -29,6 +29,10 @@
   <name>Apache Beam :: SDKs :: Java :: IO :: Kafka</name>
   <description>Library to read Kafka topics.</description>
 
+  <properties>
+    <kafka.clients.version>0.9.0.1</kafka.clients.version>
+  </properties>
+
   <build>
     <pluginManagement>
       <plugins>
@@ -75,20 +79,12 @@
     <plugins>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-compiler-plugin</artifactId>
-      </plugin>
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-surefire-plugin</artifactId>
         <configuration>
           <systemPropertyVariables>
             <beamUseDummyRunner>false</beamUseDummyRunner>
           </systemPropertyVariables>
         </configuration>
-      </plugin>
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-jar-plugin</artifactId>
       </plugin>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
@@ -106,7 +102,7 @@
     <dependency>
       <groupId>org.apache.kafka</groupId>
       <artifactId>kafka-clients</artifactId>
-      <version>0.9.0.1</version>
+      <version>${kafka.clients.version}</version>
     </dependency>
 
     <dependency>
@@ -138,6 +134,11 @@
       <groupId>com.google.auto.value</groupId>
       <artifactId>auto-value</artifactId>
       <scope>provided</scope>
+    </dependency>
+    
+    <dependency>
+      <groupId>org.springframework</groupId>
+      <artifactId>spring-expression</artifactId>
     </dependency>
 
     <!-- test dependencies-->

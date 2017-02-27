@@ -21,6 +21,7 @@ package org.apache.beam.fn.harness.control;
 import static org.apache.beam.sdk.util.WindowedValue.valueInGlobalWindow;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.empty;
+import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
@@ -93,11 +94,11 @@ public class ProcessBundleHandlerTest {
   private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
   private static final Coder<WindowedValue<String>> STRING_CODER =
       WindowedValue.getFullCoder(StringUtf8Coder.of(), GlobalWindow.Coder.INSTANCE);
-  private static final long LONG_CODER_SPEC_ID = 998L;
-  private static final long STRING_CODER_SPEC_ID = 999L;
+  private static final String LONG_CODER_SPEC_ID = "998L";
+  private static final String STRING_CODER_SPEC_ID = "999L";
   private static final BeamFnApi.RemoteGrpcPort REMOTE_PORT = BeamFnApi.RemoteGrpcPort.newBuilder()
       .setApiServiceDescriptor(BeamFnApi.ApiServiceDescriptor.newBuilder()
-          .setId(58L)
+          .setId("58L")
           .setUrl("TestUrl"))
       .build();
   private static final BeamFnApi.Coder LONG_CODER_SPEC;
@@ -141,10 +142,10 @@ public class ProcessBundleHandlerTest {
   public void testOrderOfStartAndFinishCalls() throws Exception {
     BeamFnApi.ProcessBundleDescriptor processBundleDescriptor =
         BeamFnApi.ProcessBundleDescriptor.newBuilder()
-        .addPrimitiveTransform(BeamFnApi.PrimitiveTransform.newBuilder().setId(2L))
-        .addPrimitiveTransform(BeamFnApi.PrimitiveTransform.newBuilder().setId(3L))
+        .addPrimitiveTransform(BeamFnApi.PrimitiveTransform.newBuilder().setId("2L"))
+        .addPrimitiveTransform(BeamFnApi.PrimitiveTransform.newBuilder().setId("3L"))
         .build();
-    Map<Long, Message> fnApiRegistry = ImmutableMap.of(1L, processBundleDescriptor);
+    Map<String, Message> fnApiRegistry = ImmutableMap.of("1L", processBundleDescriptor);
 
     List<BeamFnApi.PrimitiveTransform> transformsProcessed = new ArrayList<>();
     List<String> orderOfOperations = new ArrayList<>();
@@ -156,7 +157,7 @@ public class ProcessBundleHandlerTest {
       @Override
       protected <InputT, OutputT> void createConsumersForPrimitiveTransform(
           BeamFnApi.PrimitiveTransform primitiveTransform,
-          Supplier<Long> processBundleInstructionId,
+          Supplier<String> processBundleInstructionId,
           Function<BeamFnApi.Target,
                    Collection<ThrowingConsumer<WindowedValue<OutputT>>>> consumers,
           BiConsumer<BeamFnApi.Target, ThrowingConsumer<WindowedValue<InputT>>> addConsumer,
@@ -164,7 +165,7 @@ public class ProcessBundleHandlerTest {
           Consumer<ThrowingRunnable> addFinishFunction)
           throws IOException {
 
-        assertEquals((Long) 999L, processBundleInstructionId.get());
+        assertThat(processBundleInstructionId.get(), equalTo("999L"));
 
         transformsProcessed.add(primitiveTransform);
         addStartFunction.accept(
@@ -174,9 +175,9 @@ public class ProcessBundleHandlerTest {
       }
     };
     handler.processBundle(BeamFnApi.InstructionRequest.newBuilder()
-        .setInstructionId(999L)
+        .setInstructionId("999L")
         .setProcessBundle(
-            BeamFnApi.ProcessBundleRequest.newBuilder().setProcessBundleDescriptorReference(1L))
+            BeamFnApi.ProcessBundleRequest.newBuilder().setProcessBundleDescriptorReference("1L"))
         .build());
 
     // Processing of primitive transforms is performed in reverse order.
@@ -184,17 +185,17 @@ public class ProcessBundleHandlerTest {
         processBundleDescriptor.getPrimitiveTransform(1),
         processBundleDescriptor.getPrimitiveTransform(0)));
     // Start should occur in reverse order while finish calls should occur in forward order
-    assertThat(orderOfOperations, contains("Start3", "Start2", "Finish2", "Finish3"));
+    assertThat(orderOfOperations, contains("Start3L", "Start2L", "Finish2L", "Finish3L"));
   }
 
   @Test
   public void testCreatingPrimitiveTransformExceptionsArePropagated() throws Exception {
     BeamFnApi.ProcessBundleDescriptor processBundleDescriptor =
         BeamFnApi.ProcessBundleDescriptor.newBuilder()
-        .addPrimitiveTransform(BeamFnApi.PrimitiveTransform.newBuilder().setId(2L))
-        .addPrimitiveTransform(BeamFnApi.PrimitiveTransform.newBuilder().setId(3L))
+        .addPrimitiveTransform(BeamFnApi.PrimitiveTransform.newBuilder().setId("2L"))
+        .addPrimitiveTransform(BeamFnApi.PrimitiveTransform.newBuilder().setId("3L"))
         .build();
-    Map<Long, Message> fnApiRegistry = ImmutableMap.of(1L, processBundleDescriptor);
+    Map<String, Message> fnApiRegistry = ImmutableMap.of("1L", processBundleDescriptor);
 
     ProcessBundleHandler handler = new ProcessBundleHandler(
         PipelineOptionsFactory.create(),
@@ -203,7 +204,7 @@ public class ProcessBundleHandlerTest {
       @Override
       protected <InputT, OutputT> void createConsumersForPrimitiveTransform(
           BeamFnApi.PrimitiveTransform primitiveTransform,
-          Supplier<Long> processBundleInstructionId,
+          Supplier<String> processBundleInstructionId,
           Function<BeamFnApi.Target,
                    Collection<ThrowingConsumer<WindowedValue<OutputT>>>> consumers,
           BiConsumer<BeamFnApi.Target, ThrowingConsumer<WindowedValue<InputT>>> addConsumer,
@@ -217,7 +218,7 @@ public class ProcessBundleHandlerTest {
     };
     handler.processBundle(
         BeamFnApi.InstructionRequest.newBuilder().setProcessBundle(
-            BeamFnApi.ProcessBundleRequest.newBuilder().setProcessBundleDescriptorReference(1L))
+            BeamFnApi.ProcessBundleRequest.newBuilder().setProcessBundleDescriptorReference("1L"))
         .build());
   }
 
@@ -225,10 +226,10 @@ public class ProcessBundleHandlerTest {
   public void testPrimitiveTransformStartExceptionsArePropagated() throws Exception {
     BeamFnApi.ProcessBundleDescriptor processBundleDescriptor =
         BeamFnApi.ProcessBundleDescriptor.newBuilder()
-        .addPrimitiveTransform(BeamFnApi.PrimitiveTransform.newBuilder().setId(2L))
-        .addPrimitiveTransform(BeamFnApi.PrimitiveTransform.newBuilder().setId(3L))
+        .addPrimitiveTransform(BeamFnApi.PrimitiveTransform.newBuilder().setId("2L"))
+        .addPrimitiveTransform(BeamFnApi.PrimitiveTransform.newBuilder().setId("3L"))
         .build();
-    Map<Long, Message> fnApiRegistry = ImmutableMap.of(1L, processBundleDescriptor);
+    Map<String, Message> fnApiRegistry = ImmutableMap.of("1L", processBundleDescriptor);
 
     ProcessBundleHandler handler = new ProcessBundleHandler(
         PipelineOptionsFactory.create(),
@@ -237,7 +238,7 @@ public class ProcessBundleHandlerTest {
       @Override
       protected <InputT, OutputT> void createConsumersForPrimitiveTransform(
           BeamFnApi.PrimitiveTransform primitiveTransform,
-          Supplier<Long> processBundleInstructionId,
+          Supplier<String> processBundleInstructionId,
           Function<BeamFnApi.Target,
                    Collection<ThrowingConsumer<WindowedValue<OutputT>>>> consumers,
           BiConsumer<BeamFnApi.Target, ThrowingConsumer<WindowedValue<InputT>>> addConsumer,
@@ -255,7 +256,7 @@ public class ProcessBundleHandlerTest {
     };
     handler.processBundle(
         BeamFnApi.InstructionRequest.newBuilder().setProcessBundle(
-            BeamFnApi.ProcessBundleRequest.newBuilder().setProcessBundleDescriptorReference(1L))
+            BeamFnApi.ProcessBundleRequest.newBuilder().setProcessBundleDescriptorReference("1L"))
         .build());
   }
 
@@ -263,10 +264,10 @@ public class ProcessBundleHandlerTest {
   public void testPrimitiveTransformFinishExceptionsArePropagated() throws Exception {
     BeamFnApi.ProcessBundleDescriptor processBundleDescriptor =
         BeamFnApi.ProcessBundleDescriptor.newBuilder()
-        .addPrimitiveTransform(BeamFnApi.PrimitiveTransform.newBuilder().setId(2L))
-        .addPrimitiveTransform(BeamFnApi.PrimitiveTransform.newBuilder().setId(3L))
+        .addPrimitiveTransform(BeamFnApi.PrimitiveTransform.newBuilder().setId("2L"))
+        .addPrimitiveTransform(BeamFnApi.PrimitiveTransform.newBuilder().setId("3L"))
         .build();
-    Map<Long, Message> fnApiRegistry = ImmutableMap.of(1L, processBundleDescriptor);
+    Map<String, Message> fnApiRegistry = ImmutableMap.of("1L", processBundleDescriptor);
 
     ProcessBundleHandler handler = new ProcessBundleHandler(
         PipelineOptionsFactory.create(),
@@ -275,7 +276,7 @@ public class ProcessBundleHandlerTest {
       @Override
       protected <InputT, OutputT> void createConsumersForPrimitiveTransform(
           BeamFnApi.PrimitiveTransform primitiveTransform,
-          Supplier<Long> processBundleInstructionId,
+          Supplier<String> processBundleInstructionId,
           Function<BeamFnApi.Target,
                    Collection<ThrowingConsumer<WindowedValue<OutputT>>>> consumers,
           BiConsumer<BeamFnApi.Target, ThrowingConsumer<WindowedValue<InputT>>> addConsumer,
@@ -293,7 +294,7 @@ public class ProcessBundleHandlerTest {
     };
     handler.processBundle(
         BeamFnApi.InstructionRequest.newBuilder().setProcessBundle(
-            BeamFnApi.ProcessBundleRequest.newBuilder().setProcessBundleDescriptorReference(1L))
+            BeamFnApi.ProcessBundleRequest.newBuilder().setProcessBundleDescriptorReference("1L"))
         .build());
   }
 
@@ -325,8 +326,8 @@ public class ProcessBundleHandlerTest {
    */
   @Test
   public void testCreatingAndProcessingDoFn() throws Exception {
-    Map<Long, Message> fnApiRegistry = ImmutableMap.of(STRING_CODER_SPEC_ID, STRING_CODER_SPEC);
-    long primitiveTransformId = 100L;
+    Map<String, Message> fnApiRegistry = ImmutableMap.of(STRING_CODER_SPEC_ID, STRING_CODER_SPEC);
+    String primitiveTransformId = "100L";
     long mainOutputId = 101L;
     long sideOutputId = 102L;
 
@@ -340,22 +341,22 @@ public class ProcessBundleHandlerTest {
             mainOutputId, TestDoFn.mainOutput,
             sideOutputId, TestDoFn.sideOutput));
     BeamFnApi.FunctionSpec functionSpec = BeamFnApi.FunctionSpec.newBuilder()
-        .setId(1L)
+        .setId("1L")
         .setUrn(JAVA_DO_FN_URN)
         .setData(Any.pack(BytesValue.newBuilder()
             .setValue(ByteString.copyFrom(SerializableUtils.serializeToByteArray(doFnInfo)))
             .build()))
         .build();
     BeamFnApi.Target inputATarget1 = BeamFnApi.Target.newBuilder()
-        .setPrimitiveTransformReference(1000L)
+        .setPrimitiveTransformReference("1000L")
         .setName("inputATarget1")
         .build();
     BeamFnApi.Target inputATarget2 = BeamFnApi.Target.newBuilder()
-        .setPrimitiveTransformReference(1001L)
+        .setPrimitiveTransformReference("1001L")
         .setName("inputATarget1")
         .build();
     BeamFnApi.Target inputBTarget = BeamFnApi.Target.newBuilder()
-        .setPrimitiveTransformReference(1002L)
+        .setPrimitiveTransformReference("1002L")
         .setName("inputBTarget")
         .build();
     BeamFnApi.PrimitiveTransform primitiveTransform = BeamFnApi.PrimitiveTransform.newBuilder()
@@ -401,7 +402,7 @@ public class ProcessBundleHandlerTest {
         beamFnDataClient);
     handler.createConsumersForPrimitiveTransform(
         primitiveTransform,
-        Suppliers.ofInstance(57L)::get,
+        Suppliers.ofInstance("57L")::get,
         existingConsumers::get,
         newConsumers::put,
         startFunctions::add,
@@ -435,12 +436,12 @@ public class ProcessBundleHandlerTest {
 
   @Test
   public void testCreatingAndProcessingSource() throws Exception {
-    Map<Long, Message> fnApiRegistry = ImmutableMap.of(LONG_CODER_SPEC_ID, LONG_CODER_SPEC);
-    long primitiveTransformId = 100L;
+    Map<String, Message> fnApiRegistry = ImmutableMap.of(LONG_CODER_SPEC_ID, LONG_CODER_SPEC);
+    String primitiveTransformId = "100L";
     long outputId = 101L;
 
     BeamFnApi.Target inputTarget = BeamFnApi.Target.newBuilder()
-        .setPrimitiveTransformReference(1000L)
+        .setPrimitiveTransformReference("1000L")
         .setName("inputTarget")
         .build();
 
@@ -459,7 +460,7 @@ public class ProcessBundleHandlerTest {
     List<ThrowingRunnable> finishFunctions = new ArrayList<>();
 
     BeamFnApi.FunctionSpec functionSpec = BeamFnApi.FunctionSpec.newBuilder()
-        .setId(1L)
+        .setId("1L")
         .setUrn(JAVA_SOURCE_URN)
         .setData(Any.pack(BytesValue.newBuilder()
             .setValue(ByteString.copyFrom(
@@ -483,7 +484,7 @@ public class ProcessBundleHandlerTest {
 
     handler.createConsumersForPrimitiveTransform(
         primitiveTransform,
-        Suppliers.ofInstance(57L)::get,
+        Suppliers.ofInstance("57L")::get,
         existingConsumers::get,
         newConsumers::put,
         startFunctions::add,
@@ -511,9 +512,9 @@ public class ProcessBundleHandlerTest {
 
   @Test
   public void testCreatingAndProcessingBeamFnDataReadRunner() throws Exception {
-    Map<Long, Message> fnApiRegistry = ImmutableMap.of(STRING_CODER_SPEC_ID, STRING_CODER_SPEC);
-    long bundleId = 57L;
-    long primitiveTransformId = 100L;
+    Map<String, Message> fnApiRegistry = ImmutableMap.of(STRING_CODER_SPEC_ID, STRING_CODER_SPEC);
+    String bundleId = "57L";
+    String primitiveTransformId = "100L";
     long outputId = 101L;
 
     List<WindowedValue<String>> outputValues = new ArrayList<>();
@@ -530,7 +531,7 @@ public class ProcessBundleHandlerTest {
     List<ThrowingRunnable> finishFunctions = new ArrayList<>();
 
     BeamFnApi.FunctionSpec functionSpec = BeamFnApi.FunctionSpec.newBuilder()
-        .setId(1L)
+        .setId("1L")
         .setUrn(DATA_INPUT_URN)
         .setData(Any.pack(REMOTE_PORT))
         .build();
@@ -585,13 +586,13 @@ public class ProcessBundleHandlerTest {
 
   @Test
   public void testCreatingAndProcessingBeamFnDataWriteRunner() throws Exception {
-    Map<Long, Message> fnApiRegistry = ImmutableMap.of(STRING_CODER_SPEC_ID, STRING_CODER_SPEC);
-    long bundleId = 57L;
-    long primitiveTransformId = 100L;
+    Map<String, Message> fnApiRegistry = ImmutableMap.of(STRING_CODER_SPEC_ID, STRING_CODER_SPEC);
+    String bundleId = "57L";
+    String primitiveTransformId = "100L";
     long outputId = 101L;
 
     BeamFnApi.Target inputTarget = BeamFnApi.Target.newBuilder()
-        .setPrimitiveTransformReference(1000L)
+        .setPrimitiveTransformReference("1000L")
         .setName("inputTarget")
         .build();
 
@@ -603,7 +604,7 @@ public class ProcessBundleHandlerTest {
     List<ThrowingRunnable> finishFunctions = new ArrayList<>();
 
     BeamFnApi.FunctionSpec functionSpec = BeamFnApi.FunctionSpec.newBuilder()
-        .setId(1L)
+        .setId("1L")
         .setUrn(DATA_OUTPUT_URN)
         .setData(Any.pack(REMOTE_PORT))
         .build();

@@ -18,9 +18,10 @@
 """
 The classes in this file are interfaces for metrics. They are not intended
 to be subclassed or created directly by users. To work with and access metrics,
- users should use the classes and methods exposed in metric.py.
+users should use the classes and methods exposed in metric.py.
 
 Available classes:
+
 - Metric - Base interface of a metrics object.
 - Counter - Counter metric interface. Allows a count to be incremented or
     decremented during pipeline execution.

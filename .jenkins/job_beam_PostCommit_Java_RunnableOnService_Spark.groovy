@@ -37,7 +37,7 @@ mavenJob('beam_PostCommit_Java_RunnableOnService_Spark') {
   common_job_properties.enablePhraseTriggeringFromPullRequest(
     delegate,
     'Apache Spark Runner RunnableOnService Tests',
-    'Run Spark RunableOnService')
+    'Run Spark RunnableOnService')
 
   // Maven goals for this job.
   goals('-B -e clean verify -am -pl runners/spark -Prunnable-on-service-tests -Plocal-runnable-on-service-tests -Dspark.port.maxRetries=64 -Dspark.ui.enabled=false')

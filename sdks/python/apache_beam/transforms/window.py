@@ -230,7 +230,7 @@ class GlobalWindows(WindowFn):
 
   @classmethod
   def windowed_value(cls, value, timestamp=MIN_TIMESTAMP):
-    return WindowedValue(value, timestamp, [GlobalWindow()])
+    return WindowedValue(value, timestamp, (GlobalWindow(),))
 
   def assign(self, assign_context):
     return [GlobalWindow()]

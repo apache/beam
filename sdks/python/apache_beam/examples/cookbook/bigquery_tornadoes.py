@@ -24,8 +24,9 @@ is a boolean field.
 
 The workflow will compute the number of tornadoes in each month and output
 the results to a table (created if needed) with the following schema:
-  - month: number
-  - tornado_count: number
+
+- month: number
+- tornado_count: number
 
 This example uses the default behavior for BigQuery source and sinks that
 represents table rows as plain Python dictionaries.

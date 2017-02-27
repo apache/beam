@@ -213,10 +213,6 @@ public class ApexRunner extends PipelineRunner<ApexRunnerResult> {
       return new CreateApexPCollectionView<>(view);
     }
 
-    public PCollectionView<ViewT> getView() {
-      return view;
-    }
-
     @Override
     public PCollectionView<ViewT> expand(PCollection<List<ElemT>> input) {
       return view;

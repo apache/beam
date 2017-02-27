@@ -42,7 +42,7 @@ mavenJob('beam_PostCommit_Java_RunnableOnService_Gearpump') {
   common_job_properties.enablePhraseTriggeringFromPullRequest(
     delegate,
     'Apache Gearpump Runner RunnableOnService Tests',
-    'Run Gearpump RunableOnService')
+    'Run Gearpump RunnableOnService')
 
   // Maven goals for this job.
   goals('-B -e clean verify -am -pl runners/gearpump -DforkCount=0 -DrunnableOnServicePipelineOptions=\'[ "--runner=TestGearpumpRunner", "--streaming=false" ]\'')

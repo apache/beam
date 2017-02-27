@@ -25,12 +25,16 @@ of test pipeline job. Customized verifier should extend
 import hashlib
 import logging
 
-from apitools.base.py.exceptions import HttpError
 from hamcrest.core.base_matcher import BaseMatcher
 
 from apache_beam.io.fileio import ChannelFactory
 from apache_beam.runners.runner import PipelineState
 from apache_beam.utils import retry
+
+try:
+  from apitools.base.py.exceptions import HttpError
+except ImportError:
+  HttpError = None
 
 MAX_RETRIES = 4
 
@@ -61,8 +65,8 @@ class PipelineStateMatcher(BaseMatcher):
 
 def retry_on_io_error_and_server_error(exception):
   """Filter allowing retries on file I/O errors and service error."""
-  if isinstance(exception, HttpError) or \
-          isinstance(exception, IOError):
+  if isinstance(exception, IOError) or \
+          (HttpError is not None and isinstance(exception, HttpError)):
     return True
   else:
     return False

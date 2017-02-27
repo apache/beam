@@ -42,7 +42,7 @@ import org.slf4j.LoggerFactory;
  * <p>TODO: Handle closing clients that are currently not a consumer nor are being consumed.
  */
 public class BeamFnDataGrpcClient implements BeamFnDataClient {
-  private static final Logger LOGGER = LoggerFactory.getLogger(BeamFnDataGrpcClient.class);
+  private static final Logger LOG = LoggerFactory.getLogger(BeamFnDataGrpcClient.class);
 
   private final ConcurrentMap<BeamFnApi.ApiServiceDescriptor, BeamFnDataGrpcMultiplexer> cache;
   private final Function<BeamFnApi.ApiServiceDescriptor, ManagedChannel> channelFactory;
@@ -75,10 +75,10 @@ public class BeamFnDataGrpcClient implements BeamFnDataClient {
   @Override
   public <T> CompletableFuture<Void> forInboundConsumer(
       BeamFnApi.ApiServiceDescriptor apiServiceDescriptor,
-      KV<Long, BeamFnApi.Target> inputLocation,
+      KV<String, BeamFnApi.Target> inputLocation,
       Coder<WindowedValue<T>> coder,
       ThrowingConsumer<WindowedValue<T>> consumer) {
-    LOGGER.debug("Registering consumer instruction {} for target {}",
+    LOG.debug("Registering consumer instruction {} for target {}",
         inputLocation.getKey(),
         inputLocation.getValue());
 
@@ -102,7 +102,7 @@ public class BeamFnDataGrpcClient implements BeamFnDataClient {
   @Override
   public <T> CloseableThrowingConsumer<WindowedValue<T>> forOutboundConsumer(
       BeamFnApi.ApiServiceDescriptor apiServiceDescriptor,
-      KV<Long, BeamFnApi.Target> outputLocation,
+      KV<String, BeamFnApi.Target> outputLocation,
       Coder<WindowedValue<T>> coder) {
     BeamFnDataGrpcMultiplexer client = getClientFor(apiServiceDescriptor);
 

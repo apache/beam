@@ -364,28 +364,29 @@ def assertSplitAtFractionSucceedsAndConsistent(source,
                                                split_fraction):
   """Verifies some consistency properties of dynamic work rebalancing.
 
-  Equivalent to the following pseudocode:
+  Equivalent to the following pseudocode:::
 
-  original_range_tracker = source.getRangeTracker(None, None)
-  original_reader = source.read(original_range_tracker)
-  items_before_split = read N items from original_reader
-  suggested_split_position = original_range_tracker.position_for_fraction(
-    split_fraction)
-  original_stop_position - original_range_tracker.stop_position()
-  split_result = range_tracker.try_split()
-  split_position, split_fraction = split_result
-  primary_range_tracker = source.get_range_tracker(
-    original_range_tracker.start_position(), split_position)
-  residual_range_tracker = source.get_range_tracker(split_position,
-    original_stop_position)
+    original_range_tracker = source.getRangeTracker(None, None)
+    original_reader = source.read(original_range_tracker)
+    items_before_split = read N items from original_reader
+    suggested_split_position = original_range_tracker.position_for_fraction(
+      split_fraction)
+    original_stop_position - original_range_tracker.stop_position()
+    split_result = range_tracker.try_split()
+    split_position, split_fraction = split_result
+    primary_range_tracker = source.get_range_tracker(
+      original_range_tracker.start_position(), split_position)
+    residual_range_tracker = source.get_range_tracker(split_position,
+      original_stop_position)
 
-  assert that: items when reading source.read(primary_range_tracker) ==
-    items_before_split + items from continuing to read 'original_reader'
-  assert that: items when reading source.read(original_range_tracker) =
-    items when reading source.read(primary_range_tracker) + items when reading
+    assert that: items when reading source.read(primary_range_tracker) ==
+      items_before_split + items from continuing to read 'original_reader'
+    assert that: items when reading source.read(original_range_tracker) =
+      items when reading source.read(primary_range_tracker) + items when reading
     source.read(residual_range_tracker)
 
   Args:
+
     source: source to perform dynamic work rebalancing on.
     num_items_to_read_before_split: number of items to read before splitting.
     split_fraction: fraction to split at.

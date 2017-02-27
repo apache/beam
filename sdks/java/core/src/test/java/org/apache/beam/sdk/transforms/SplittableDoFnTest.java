@@ -310,7 +310,8 @@ public class SplittableDoFnTest {
         p.apply(stream)
             .apply(
                 Window.<String>into(FixedWindows.of(Duration.standardMinutes(1)))
-                    .withAllowedLateness(Duration.standardMinutes(1)));
+                    .withAllowedLateness(Duration.standardMinutes(1))
+                    .discardingFiredPanes());
 
     PCollection<KV<String, Integer>> afterSDF =
         input

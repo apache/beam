@@ -90,7 +90,6 @@
                     org.apache.beam.sdk.testing.FlattenWithHeterogeneousCoders,
                     org.apache.beam.sdk.testing.UsesSetState,
                     org.apache.beam.sdk.testing.UsesMapState,
-                    org.apache.beam.sdk.testing.UsesTimersInParDo,
                     org.apache.beam.sdk.testing.UsesSplittableParDo,
                     org.apache.beam.sdk.testing.UsesAttemptedMetrics,
                     org.apache.beam.sdk.testing.UsesCommittedMetrics
@@ -176,6 +175,17 @@
       </exclusions>
     </dependency>
 
+    <dependency>
+      <groupId>org.apache.beam</groupId>
+      <artifactId>beam-runners-core-construction-java</artifactId>
+      <exclusions>
+        <exclusion>
+          <groupId>org.slf4j</groupId>
+          <artifactId>slf4j-jdk14</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+
     <!-- Test scoped -->
 
     <dependency>
@@ -220,6 +230,12 @@
       <artifactId>flink-test-utils_2.10</artifactId>
       <version>${flink.version}</version>
       <scope>test</scope>
+        <exclusions>
+            <exclusion>
+                <artifactId>apacheds-jdbm1</artifactId>
+                <groupId>org.apache.directory.jdbm</groupId>
+            </exclusion>
+        </exclusions>
     </dependency>
 
     <!-- Optional Pipeline Registration -->

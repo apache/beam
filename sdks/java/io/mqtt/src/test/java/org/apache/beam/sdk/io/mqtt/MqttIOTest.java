@@ -27,7 +27,6 @@ import java.util.Set;
 
 import org.apache.activemq.broker.BrokerService;
 import org.apache.activemq.broker.Connection;
-import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.RunnableOnService;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -41,6 +40,7 @@ import org.fusesource.mqtt.client.QoS;
 import org.fusesource.mqtt.client.Topic;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.slf4j.Logger;
@@ -56,6 +56,9 @@ public class MqttIOTest {
   private static transient BrokerService brokerService;
 
   private static int port;
+
+  @Rule
+  public final transient TestPipeline pipeline = TestPipeline.create();
 
   @Before
   public void startBroker() throws Exception {
@@ -77,8 +80,6 @@ public class MqttIOTest {
   @Test(timeout = 60 * 1000)
   @Category(RunnableOnService.class)
   public void testRead() throws Exception {
-    final Pipeline pipeline = TestPipeline.create();
-
     PCollection<byte[]> output = pipeline.apply(
         MqttIO.read()
             .withConnectionConfiguration(
@@ -161,8 +162,6 @@ public class MqttIOTest {
       }
     };
     subscriber.start();
-
-    Pipeline pipeline = TestPipeline.create();
 
     ArrayList<byte[]> data = new ArrayList<>();
     for (int i = 0; i < 200; i++) {

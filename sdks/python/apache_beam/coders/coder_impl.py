@@ -24,11 +24,12 @@ encode many elements with minimal overhead.
 This module may be optionally compiled with Cython, using the corresponding
 coder_impl.pxd file for type hints.
 """
-
 from types import NoneType
 
 from apache_beam.coders import observable
 from apache_beam.utils.timestamp import Timestamp
+from apache_beam.utils.timestamp import MAX_TIMESTAMP
+from apache_beam.utils.timestamp import MIN_TIMESTAMP
 from apache_beam.utils import windowed_value
 
 # pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
@@ -570,6 +571,18 @@ class IterableCoderImpl(SequenceCoderImpl):
 class WindowedValueCoderImpl(StreamCoderImpl):
   """A coder for windowed values."""
 
+  # Ensure that lexicographic ordering of the bytes corresponds to
+  # chronological order of timestamps.
+  # TODO(BEAM-1524): Clean this up once we have a BEAM wide consensus on
+  # byte representation of timestamps.
+  def _to_normal_time(self, value):
+    """Convert "lexicographically ordered unsigned" to signed."""
+    return value - (1 << 63)
+
+  def _from_normal_time(self, value):
+    """Convert signed to "lexicographically ordered unsigned"."""
+    return value + (1 << 63)
+
   def __init__(self, value_coder, timestamp_coder, window_coder):
     # TODO(lcwik): Remove the timestamp coder field
     self._value_coder = value_coder
@@ -578,17 +591,48 @@ class WindowedValueCoderImpl(StreamCoderImpl):
 
   def encode_to_stream(self, value, out, nested):
     wv = value  # type cast
-    self._value_coder.encode_to_stream(wv.value, out, True)
     # Avoid creation of Timestamp object.
-    out.write_bigendian_int64(wv.timestamp_micros)
+    restore_sign = -1 if wv.timestamp_micros < 0 else 1
+    out.write_bigendian_uint64(
+        # Convert to postive number and divide, since python rounds off to the
+        # lower negative number. For ex: -3 / 2 = -2, but we expect it to be -1,
+        # to be consistent across SDKs.
+        # TODO(BEAM-1524): Clean this up once we have a BEAM wide consensus on
+        # precision of timestamps.
+        self._from_normal_time(
+            restore_sign * (abs(wv.timestamp_micros) / 1000)))
     self._windows_coder.encode_to_stream(wv.windows, out, True)
+    # Default PaneInfo encoded byte representing NO_FIRING.
+    # TODO(BEAM-1522): Remove the hard coding here once PaneInfo is supported.
+    out.write_byte(0xF)
+    self._value_coder.encode_to_stream(wv.value, out, nested)
 
   def decode_from_stream(self, in_stream, nested):
+    timestamp = self._to_normal_time(in_stream.read_bigendian_uint64())
+    # Restore MIN/MAX timestamps to their actual values as encoding incurs loss
+    # of precision while converting to millis.
+    # Note: This is only a best effort here as there is no way to know if these
+    # were indeed MIN/MAX timestamps.
+    # TODO(BEAM-1524): Clean this up once we have a BEAM wide consensus on
+    # precision of timestamps.
+    if timestamp == -(abs(MIN_TIMESTAMP.micros) / 1000):
+      timestamp = MIN_TIMESTAMP.micros
+    elif timestamp == (MAX_TIMESTAMP.micros / 1000):
+      timestamp = MAX_TIMESTAMP.micros
+    else:
+      timestamp *= 1000
+
+    windows = self._windows_coder.decode_from_stream(in_stream, True)
+    # Read PaneInfo encoded byte.
+    # TODO(BEAM-1522): Ignored for now but should be converted to pane info once
+    # it is supported.
+    in_stream.read_byte()
+    value = self._value_coder.decode_from_stream(in_stream, nested)
     return windowed_value.create(
-        self._value_coder.decode_from_stream(in_stream, True),
+        value,
         # Avoid creation of Timestamp object.
-        in_stream.read_bigendian_int64(),
-        self._windows_coder.decode_from_stream(in_stream, True))
+        timestamp,
+        windows)
 
   def get_estimated_size_and_observables(self, value, nested=False):
     """Returns estimated size of value along with any nested observables."""
@@ -600,13 +644,15 @@ class WindowedValueCoderImpl(StreamCoderImpl):
     observables = []
     value_estimated_size, value_observables = (
         self._value_coder.get_estimated_size_and_observables(
-            value.value, nested=True))
+            value.value, nested=nested))
     estimated_size += value_estimated_size
     observables += value_observables
     estimated_size += (
         self._timestamp_coder.estimate_size(value.timestamp, nested=True))
     estimated_size += (
         self._windows_coder.estimate_size(value.windows, nested=True))
+    # for pane info
+    estimated_size += 1
     return estimated_size, observables
 
 

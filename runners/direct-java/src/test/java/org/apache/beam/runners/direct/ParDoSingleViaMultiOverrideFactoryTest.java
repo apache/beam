@@ -33,7 +33,8 @@ import org.junit.runners.JUnit4;
  */
 @RunWith(JUnit4.class)
 public class ParDoSingleViaMultiOverrideFactoryTest {
-  private ParDoSingleViaMultiOverrideFactory factory = new ParDoSingleViaMultiOverrideFactory();
+  private ParDoSingleViaMultiOverrideFactory<Integer, Integer> factory =
+      new ParDoSingleViaMultiOverrideFactory<>();
 
   @Test
   public void getInputSucceeds() {

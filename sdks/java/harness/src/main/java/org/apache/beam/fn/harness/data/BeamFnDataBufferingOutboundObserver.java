@@ -54,20 +54,20 @@ public class BeamFnDataBufferingOutboundObserver<T>
     implements CloseableThrowingConsumer<WindowedValue<T>> {
   private static final String BEAM_FN_API_DATA_BUFFER_LIMIT = "beam_fn_api_data_buffer_limit=";
   private static final int DEFAULT_BUFFER_LIMIT_BYTES = 1_000_000;
-  private static final Logger LOGGER =
+  private static final Logger LOG =
       LoggerFactory.getLogger(BeamFnDataBufferingOutboundObserver.class);
 
   private long byteCounter;
   private long counter;
   private final int bufferLimit;
   private final Coder<WindowedValue<T>> coder;
-  private final KV<Long, BeamFnApi.Target> outputLocation;
+  private final KV<String, BeamFnApi.Target> outputLocation;
   private final StreamObserver<BeamFnApi.Elements> outboundObserver;
   private final ByteString.Output bufferedElements;
 
   public BeamFnDataBufferingOutboundObserver(
       PipelineOptions options,
-      KV<Long, BeamFnApi.Target> outputLocation,
+      KV<String, BeamFnApi.Target> outputLocation,
       Coder<WindowedValue<T>> coder,
       StreamObserver<BeamFnApi.Elements> outboundObserver) {
     this.bufferLimit = getBufferLimit(options);
@@ -99,7 +99,7 @@ public class BeamFnDataBufferingOutboundObserver<T>
         .setInstructionReference(outputLocation.getKey())
         .setTarget(outputLocation.getValue());
 
-    LOGGER.debug("Closing stream for instruction {} and "
+    LOG.debug("Closing stream for instruction {} and "
         + "target {} having transmitted {} values {} bytes",
         outputLocation.getKey(),
         outputLocation.getValue(),

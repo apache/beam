@@ -157,7 +157,7 @@ public class ApexPipelineTranslator implements Pipeline.PipelineVisitor {
     @Override
     public void translate(CreateApexPCollectionView<ElemT, ViewT> transform,
         TranslationContext context) {
-      PCollectionView<ViewT> view = transform.getView();
+      PCollectionView<ViewT> view = (PCollectionView<ViewT>) context.getOutput();
       context.addView(view);
       LOG.debug("view {}", view.getName());
     }
@@ -168,9 +168,9 @@ public class ApexPipelineTranslator implements Pipeline.PipelineVisitor {
     private static final long serialVersionUID = 1L;
 
     @Override
-    public void translate(CreatePCollectionView<ElemT, ViewT> transform,
-        TranslationContext context) {
-      PCollectionView<ViewT> view = transform.getView();
+    public void translate(
+        CreatePCollectionView<ElemT, ViewT> transform, TranslationContext context) {
+      PCollectionView<ViewT> view = (PCollectionView<ViewT>) context.getOutput();
       context.addView(view);
       LOG.debug("view {}", view.getName());
     }

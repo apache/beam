@@ -21,6 +21,7 @@ import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisp
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasKey;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.includesDisplayDataFor;
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.isOneOf;
 import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertEquals;
@@ -42,6 +43,7 @@ import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.util.WindowingStrategy.AccumulationMode;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.hamcrest.Matchers;
 import org.joda.time.Duration;
@@ -93,6 +95,26 @@ public class WindowTest implements Serializable {
     assertEquals(fixed10, strategy.getWindowFn());
     assertEquals(trigger, strategy.getTrigger());
     assertEquals(AccumulationMode.ACCUMULATING_FIRED_PANES, strategy.getMode());
+  }
+
+  @Test
+  public void testWindowIntoAccumulatingLatenessNoTrigger() {
+    FixedWindows fixed = FixedWindows.of(Duration.standardMinutes(10));
+    WindowingStrategy<?, ?> strategy =
+        pipeline
+            .apply(Create.of("hello", "world").withCoder(StringUtf8Coder.of()))
+            .apply(
+                "Lateness",
+                Window.<String>into(fixed)
+                    .withAllowedLateness(Duration.standardDays(1))
+                    .accumulatingFiredPanes())
+            .getWindowingStrategy();
+
+    assertThat(strategy.isTriggerSpecified(), is(false));
+    assertThat(strategy.isModeSpecified(), is(true));
+    assertThat(strategy.isAllowedLatenessSpecified(), is(true));
+    assertThat(strategy.getMode(), equalTo(AccumulationMode.ACCUMULATING_FIRED_PANES));
+    assertThat(strategy.getAllowedLateness(), equalTo(Duration.standardDays(1)));
   }
 
   @Test
@@ -159,13 +181,29 @@ public class WindowTest implements Serializable {
     FixedWindows fixed10 = FixedWindows.of(Duration.standardMinutes(10));
     Repeatedly trigger = Repeatedly.forever(AfterPane.elementCountAtLeast(5));
 
+    PCollection<String> input =
+        pipeline
+            .apply(Create.of("hello", "world").withCoder(StringUtf8Coder.of()))
+            .apply("Window", Window.<String>into(fixed10));
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("requires that the accumulation mode");
-    pipeline
-      .apply(Create.of("hello", "world").withCoder(StringUtf8Coder.of()))
-      .apply("Window", Window.<String>into(fixed10))
-      .apply("Lateness", Window.<String>withAllowedLateness(Duration.standardDays(1)))
-      .apply("Trigger", Window.<String>triggering(trigger));
+    input.apply(
+        "Triggering",
+        Window.<String>withAllowedLateness(Duration.standardDays(1)).triggering(trigger));
+  }
+
+  @Test
+  public void testMissingModeViaLateness() {
+    FixedWindows fixed = FixedWindows.of(Duration.standardMinutes(10));
+    PCollection<String> input =
+        pipeline
+            .apply(Create.of("hello", "world").withCoder(StringUtf8Coder.of()))
+            .apply("Window", Window.<String>into(fixed));
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("allowed lateness");
+    thrown.expectMessage("accumulation mode be specified");
+    input
+        .apply("Lateness", Window.<String>withAllowedLateness(Duration.standardDays(1)));
   }
 
   @Test

@@ -201,7 +201,9 @@ class EvaluationContext(object):
           and result.output_bundles[0].pcollection in self.views):
         if committed_bundles:
           assert len(committed_bundles) == 1
-          side_input_result = committed_bundles[0].elements
+          # side_input must be materialized.
+          side_input_result = committed_bundles[0].get_elements_iterable(
+              make_copy=True)
         else:
           side_input_result = []
         tasks = self._side_inputs_container.set_value_and_get_callables(

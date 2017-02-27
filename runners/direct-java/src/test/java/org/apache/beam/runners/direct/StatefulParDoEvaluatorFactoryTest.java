@@ -45,6 +45,7 @@ import org.apache.beam.runners.direct.DirectRunner.UncommittedBundle;
 import org.apache.beam.runners.direct.ParDoMultiOverrideFactory.StatefulParDo;
 import org.apache.beam.runners.direct.WatermarkManager.TimerUpdate;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.Create;
@@ -66,6 +67,8 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.TupleTagList;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Before;
@@ -122,17 +125,23 @@ public class StatefulParDoEvaluatorFactoryTest implements Serializable {
             .apply(Create.of(KV.of("hello", 1), KV.of("hello", 2)))
             .apply(Window.<KV<String, Integer>>into(FixedWindows.of(Duration.millis(10))));
 
+    TupleTag<Integer> mainOutput = new TupleTag<>();
     PCollection<Integer> produced =
-        input.apply(
-            ParDo.of(
-                new DoFn<KV<String, Integer>, Integer>() {
-                  @StateId(stateId)
-                  private final StateSpec<Object, ValueState<String>> spec =
-                      StateSpecs.value(StringUtf8Coder.of());
+        input
+            .apply(
+                new ParDoMultiOverrideFactory.GbkThenStatefulParDo<>(
+                    ParDo.of(
+                            new DoFn<KV<String, Integer>, Integer>() {
+                              @StateId(stateId)
+                              private final StateSpec<Object, ValueState<String>> spec =
+                                  StateSpecs.value(StringUtf8Coder.of());
 
-                  @ProcessElement
-                  public void process(ProcessContext c) {}
-                }));
+                              @ProcessElement
+                              public void process(ProcessContext c) {}
+                            })
+                        .withOutputTags(mainOutput, TupleTagList.empty())))
+            .get(mainOutput)
+            .setCoder(VarIntCoder.of());
 
     StatefulParDoEvaluatorFactory<String, Integer, Integer> factory =
         new StatefulParDoEvaluatorFactory(mockEvaluationContext);
@@ -229,18 +238,24 @@ public class StatefulParDoEvaluatorFactoryTest implements Serializable {
             .apply("Window side input", Window.<Integer>into(FixedWindows.of(Duration.millis(10))))
             .apply("View side input", View.<Integer>asList());
 
+    TupleTag<Integer> mainOutput = new TupleTag<>();
     PCollection<Integer> produced =
-        mainInput.apply(
-            ParDo.withSideInputs(sideInput)
-                .of(
-                    new DoFn<KV<String, Integer>, Integer>() {
-                      @StateId(stateId)
-                      private final StateSpec<Object, ValueState<String>> spec =
-                          StateSpecs.value(StringUtf8Coder.of());
+        mainInput
+            .apply(
+                new ParDoMultiOverrideFactory.GbkThenStatefulParDo<>(
+                    ParDo.withSideInputs(sideInput)
+                        .of(
+                            new DoFn<KV<String, Integer>, Integer>() {
+                              @StateId(stateId)
+                              private final StateSpec<Object, ValueState<String>> spec =
+                                  StateSpecs.value(StringUtf8Coder.of());
 
-                      @ProcessElement
-                      public void process(ProcessContext c) {}
-                    }));
+                              @ProcessElement
+                              public void process(ProcessContext c) {}
+                            })
+                        .withOutputTags(mainOutput, TupleTagList.empty())))
+            .get(mainOutput)
+            .setCoder(VarIntCoder.of());
 
     StatefulParDoEvaluatorFactory<String, Integer, Integer> factory =
         new StatefulParDoEvaluatorFactory(mockEvaluationContext);

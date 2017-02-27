@@ -21,6 +21,7 @@ Internal classes for Metrics API.
 The classes in this file keep shared state, and organize metrics information.
 
 Available classes:
+
 - MetricKey - Internal key for a metric.
 - MetricResult - Current status of a metric's updates/commits.
 - MetricsEnvironment - Keeps track of MetricsContainer and other metrics

@@ -18,25 +18,25 @@
 """Python Dataflow error classes."""
 
 
-class DataflowError(Exception):
-  """Base class for all Dataflow errors."""
+class BeamError(Exception):
+  """Base class for all Beam errors."""
 
 
-class PipelineError(DataflowError):
+class PipelineError(BeamError):
   """An error in the pipeline object (e.g. a PValue not linked to it)."""
 
 
-class PValueError(DataflowError):
+class PValueError(BeamError):
   """An error related to a PValue object (e.g. value is not computed)."""
 
 
-class RunnerError(DataflowError):
+class RunnerError(BeamError):
   """An error related to a Runner object (e.g. cannot find a runner to run)."""
 
 
-class SideInputError(DataflowError):
+class SideInputError(BeamError):
   """An error related to a side input to a parallel Do operation."""
 
 
-class TransformError(DataflowError):
+class TransformError(BeamError):
   """An error related to a PTransform object."""

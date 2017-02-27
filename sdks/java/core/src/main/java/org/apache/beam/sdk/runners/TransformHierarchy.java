@@ -103,8 +103,29 @@ public class TransformHierarchy {
         "Replacing a node when the graph has an unexpanded input. This is an SDK bug.");
     Node replacement =
         new Node(existing.getEnclosingNode(), transform, existing.getFullName(), input);
+    for (TaggedPValue output : existing.getOutputs()) {
+      Node producer = producers.get(output.getValue());
+      boolean producedInExisting = false;
+      do {
+        if (producer.equals(existing)) {
+          producedInExisting = true;
+        } else {
+          producer = producer.getEnclosingNode();
+        }
+      } while (!producedInExisting && !producer.isRootNode());
+      if (producedInExisting) {
+        producers.remove(output.getValue());
+        LOG.debug("Removed producer for value {} as it is part of a replaced composite {}",
+            output.getValue(),
+            existing.getFullName());
+      } else {
+        LOG.debug(
+            "Value {} not produced in existing node {}", output.getValue(), existing.getFullName());
+      }
+    }
     existing.getEnclosingNode().replaceChild(existing, replacement);
     unexpandedInputs.remove(existing);
+    unexpandedInputs.put(replacement, input);
     current = replacement;
     return replacement;
   }
@@ -290,7 +311,7 @@ public class TransformHierarchy {
           "Tried to replace a node %s that doesn't exist as a component of node %s",
           existing.getFullName(),
           getFullName());
-      LOG.info(
+      LOG.debug(
           "Replaced original node {} with replacement {} at index {}",
           existing,
           replacement,
@@ -399,9 +420,10 @@ public class TransformHierarchy {
             // This Node produced the replacement PCollection. The structure of this if statement
             // requires the replacement transform to produce only new outputs; otherwise the
             // producers map will not be appropriately updated. TODO: investigate alternatives
-            producers.put(mapping.getOriginal().getValue(), this);
-            producers.remove(mapping.getReplacement().getValue());
             producerInput.remove(mapping.getReplacement().getValue());
+            // original and replacement might be identical
+            producers.remove(mapping.getReplacement().getValue());
+            producers.put(mapping.getOriginal().getValue(), this);
           }
           LOG.debug(
               "Replacing output {} with original {}",

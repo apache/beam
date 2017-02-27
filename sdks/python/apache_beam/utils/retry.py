@@ -29,7 +29,14 @@ import sys
 import time
 import traceback
 
-from apitools.base.py.exceptions import HttpError
+# Protect against environments where apitools library is not available.
+# pylint: disable=wrong-import-order, wrong-import-position
+# TODO(sourabhbajaj): Remove the GCP specific error code to a submodule
+try:
+  from apitools.base.py.exceptions import HttpError
+except ImportError:
+  HttpError = None
+# pylint: enable=wrong-import-order, wrong-import-position
 
 
 class PermanentException(Exception):
@@ -78,7 +85,7 @@ class FuzzedExponentialIntervals(object):
 
 def retry_on_server_errors_filter(exception):
   """Filter allowing retries on server errors and non-HttpErrors."""
-  if isinstance(exception, HttpError):
+  if (HttpError is not None) and isinstance(exception, HttpError):
     if exception.status_code >= 500:
       return True
     else:
@@ -92,7 +99,7 @@ def retry_on_server_errors_filter(exception):
 
 
 def retry_on_server_errors_and_timeout_filter(exception):
-  if isinstance(exception, HttpError):
+  if HttpError is not None and isinstance(exception, HttpError):
     if exception.status_code == 408:  # 408 Request Timeout
       return True
   return retry_on_server_errors_filter(exception)

@@ -154,9 +154,9 @@ cdef class InputStream(object):
 
   cpdef long read_byte(self) except? -1:
     self.pos += 1
-    # Note: the C++ compiler on Dataflow workers treats the char array below as
-    # a signed char.  This causes incorrect coder behavior unless explicitly
-    # cast to an unsigned char here.
+    # Note: Some C++ compilers treats the char array below as a signed char.
+    # This causes incorrect coder behavior unless explicitly cast to an
+    # unsigned char here.
     return <long>(<unsigned char> self.allc[self.pos - 1])
 
   cpdef size_t size(self) except? -1:

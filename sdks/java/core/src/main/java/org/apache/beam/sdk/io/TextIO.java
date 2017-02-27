@@ -281,6 +281,10 @@ public class TextIO {
             return
                 CompressedSource.from(new TextSource(filepattern))
                     .withDecompression(CompressedSource.CompressionMode.ZIP);
+          case DEFLATE:
+            return
+                CompressedSource.from(new TextSource(filepattern))
+                    .withDecompression(CompressedSource.CompressionMode.DEFLATE);
           default:
             throw new IllegalArgumentException("Unknown compression type: " + compressionType);
         }
@@ -762,7 +766,11 @@ public class TextIO {
     /**
      * Zipped.
      */
-    ZIP(".zip");
+    ZIP(".zip"),
+    /**
+     * Deflate compressed.
+     */
+    DEFLATE(".deflate");
 
     private String filenameSuffix;
 
@@ -1101,15 +1109,18 @@ public class TextIO {
       }
 
       @Override
-      protected void writeFooter() throws Exception {
-        writeIfNotNull(footer);
-        // Flush here because there is currently no other natural place to do this. [BEAM-1465]
-        out.flush();
+      public void write(String value) throws Exception {
+        writeLine(value);
       }
 
       @Override
-      public void write(String value) throws Exception {
-        writeLine(value);
+      protected void writeFooter() throws Exception {
+        writeIfNotNull(footer);
+      }
+
+      @Override
+      protected void finishWrite() throws Exception {
+        out.flush();
       }
     }
   }

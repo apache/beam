@@ -19,6 +19,7 @@
 """
 
 import json
+import logging
 import os.path
 import sys
 import unittest
@@ -27,8 +28,26 @@ import yaml
 
 from apache_beam import coders
 from apache_beam.coders import coder_impl
+from apache_beam.utils import windowed_value
 from apache_beam.utils.timestamp import Timestamp
 from apache_beam.transforms.window import IntervalWindow
+from apache_beam.transforms import window
+
+STANDARD_CODERS_YAML = os.path.join(
+    os.path.dirname(__file__), '..', 'tests', 'data', 'standard_coders.yaml')
+
+
+def _load_test_cases(test_yaml):
+  """Load test data from yaml file and return an iterable of test cases.
+
+  See ``standard_coders.yaml`` for more details.
+  """
+  if not os.path.exists(test_yaml):
+    raise ValueError('Could not find the test spec: %s' % test_yaml)
+  for ix, spec in enumerate(yaml.load_all(open(test_yaml))):
+    spec['index'] = ix
+    name = spec.get('name', spec['coder']['urn'].split(':')[-2])
+    yield [name, spec]
 
 
 class StandardCodersTest(unittest.TestCase):
@@ -37,8 +56,11 @@ class StandardCodersTest(unittest.TestCase):
       'urn:beam:coders:bytes:0.1': coders.BytesCoder,
       'urn:beam:coders:varint:0.1': coders.VarIntCoder,
       'urn:beam:coders:kv:0.1': lambda k, v: coders.TupleCoder((k, v)),
-      'urn:beam:coders:intervalwindow:0.1': coders.IntervalWindowCoder,
+      'urn:beam:coders:interval_window:0.1': coders.IntervalWindowCoder,
       'urn:beam:coders:stream:0.1': lambda t: coders.IterableCoder(t),
+      'urn:beam:coders:global_window:0.1': coders.GlobalWindowCoder,
+      'urn:beam:coders:windowed_value:0.1':
+          lambda v, w: coders.WindowedValueCoder(v, w)
   }
 
   _urn_to_json_value_parser = {
@@ -47,37 +69,24 @@ class StandardCodersTest(unittest.TestCase):
       'urn:beam:coders:kv:0.1':
           lambda x, key_parser, value_parser: (key_parser(x['key']),
                                                value_parser(x['value'])),
-      'urn:beam:coders:intervalwindow:0.1':
+      'urn:beam:coders:interval_window:0.1':
           lambda x: IntervalWindow(
               start=Timestamp(micros=(x['end'] - x['span']) * 1000),
               end=Timestamp(micros=x['end'] * 1000)),
-      'urn:beam:coders:stream:0.1': lambda x, parser: map(parser, x)
+      'urn:beam:coders:stream:0.1': lambda x, parser: map(parser, x),
+      'urn:beam:coders:global_window:0.1': lambda x: window.GlobalWindow(),
+      'urn:beam:coders:windowed_value:0.1':
+          lambda x, value_parser, window_parser: windowed_value.create(
+              value_parser(x['value']), x['timestamp'] * 1000,
+              tuple([window_parser(w) for w in x['windows']]))
   }
 
-  # We must prepend an underscore to this name so that the open-source unittest
-  # runner does not execute this method directly as a test.
-  @classmethod
-  def _create_test(cls, spec):
-    counter = 0
-    name = spec.get('name', spec['coder']['urn'].split(':')[-2])
-    unique_name = 'test_' + name
-    while hasattr(cls, unique_name):
-      counter += 1
-      unique_name = 'test_%s_%d' % (name, counter)
-    setattr(cls, unique_name, lambda self: self._run_coder_test(spec))
+  def test_standard_coders(self):
+    for name, spec in _load_test_cases(STANDARD_CODERS_YAML):
+      logging.info('Executing %s test.', name)
+      self._run_standard_coder(name, spec)
 
-  # We must prepend an underscore to this name so that the open-source unittest
-  # runner does not execute this method directly as a test.
-  @classmethod
-  def _create_tests(cls, coder_test_specs):
-    if not os.path.exists(STANDARD_CODERS_YAML):
-      raise ValueError(
-          "Could not find the test spec: %s" % STANDARD_CODERS_YAML)
-    for ix, spec in enumerate(yaml.load_all(open(coder_test_specs))):
-      spec['index'] = ix
-      cls._create_test(spec)
-
-  def _run_coder_test(self, spec):
+  def _run_standard_coder(self, name, spec):
     coder = self.parse_coder(spec['coder'])
     parse_value = self.json_value_parser(spec['coder'])
     nested_list = [spec['nested']] if 'nested' in spec else [True, False]
@@ -122,11 +131,6 @@ class StandardCodersTest(unittest.TestCase):
         docs[doc_ix] = docs[doc_ix].replace(
             quote(expected_encoded) + ':', quote(actual_encoded) + ':')
       open(STANDARD_CODERS_YAML, 'w').write(doc_sep.join(docs))
-
-
-STANDARD_CODERS_YAML = os.path.join(
-    os.path.dirname(__file__), '..', 'tests', 'data', 'standard_coders.yaml')
-StandardCodersTest._create_tests(STANDARD_CODERS_YAML)
 
 
 def encode_nested(coder, value, nested=True):

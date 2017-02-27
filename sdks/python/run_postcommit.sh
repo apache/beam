@@ -41,13 +41,13 @@ pip install virtualenv --user
 pip install tox --user
 
 # Tox runs unit tests in a virtual environment
-${LOCAL_PATH}/tox -e py27 -c sdks/python/tox.ini
+${LOCAL_PATH}/tox -e ALL -c sdks/python/tox.ini
 
 # Virtualenv for the rest of the script to run setup & e2e tests
 ${LOCAL_PATH}/virtualenv sdks/python
 . sdks/python/bin/activate
 cd sdks/python
-python setup.py install
+pip install -e .[gcp,test]
 
 # Run wordcount in the Direct Runner and validate output.
 echo ">>> RUNNING DIRECT RUNNER py-wordcount"
@@ -68,7 +68,7 @@ PROJECT=apache-beam-testing
 # Create a tarball
 python setup.py sdist
 
-SDK_LOCATION=$(find dist/apache-beam-sdk-*.tar.gz)
+SDK_LOCATION=$(find dist/apache-beam-*.tar.gz)
 
 # Install test dependencies for ValidatesRunner tests.
 echo "pyhamcrest" > postcommit_requirements.txt

@@ -76,6 +76,7 @@ import java.util.concurrent.TimeUnit;
 import org.apache.beam.sdk.options.GcsOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.FastNanoClockAndSleeper;
+import org.apache.beam.sdk.util.GcsUtil.StorageObjectOrIOException;
 import org.apache.beam.sdk.util.gcsfs.GcsPath;
 import org.junit.Rule;
 import org.junit.Test;
@@ -394,18 +395,24 @@ public class GcsUtilTest {
     JsonFactory jsonFactory = new JacksonFactory();
 
     String contentBoundary = "batch_foobarbaz";
+    String contentBoundaryLine = "--" + contentBoundary;
+    String endOfContentBoundaryLine = "--" + contentBoundary + "--";
 
     GenericJson error = new GenericJson()
         .set("error", new GenericJson().set("code", 404));
     error.setFactory(jsonFactory);
 
-    String content = contentBoundary + "\n"
+    String content = contentBoundaryLine + "\n"
         + "Content-Type: application/http\n"
         + "\n"
         + "HTTP/1.1 404 Not Found\n"
-        + "Content-Length: 105\n"
+        + "Content-Length: -1\n"
         + "\n"
-        + error.toString();
+        + error.toString()
+        + "\n"
+        + "\n"
+        + endOfContentBoundaryLine
+        + "\n";
     thrown.expect(FileNotFoundException.class);
     MockLowLevelHttpResponse notFoundResponse = new MockLowLevelHttpResponse()
         .setContentType("multipart/mixed; boundary=" + contentBoundary)
@@ -426,18 +433,24 @@ public class GcsUtilTest {
     JsonFactory jsonFactory = new JacksonFactory();
 
     String contentBoundary = "batch_foobarbaz";
+    String contentBoundaryLine = "--" + contentBoundary;
+    String endOfContentBoundaryLine = "--" + contentBoundary + "--";
 
     GenericJson error = new GenericJson()
         .set("error", new GenericJson().set("code", 404));
     error.setFactory(jsonFactory);
 
-    String content = contentBoundary + "\n"
+    String content = contentBoundaryLine + "\n"
         + "Content-Type: application/http\n"
         + "\n"
         + "HTTP/1.1 404 Not Found\n"
-        + "Content-Length: 105\n"
+        + "Content-Length: -1\n"
         + "\n"
-        + error.toString();
+        + error.toString()
+        + "\n"
+        + "\n"
+        + endOfContentBoundaryLine
+        + "\n";
     thrown.expect(FileNotFoundException.class);
 
     final LowLevelHttpResponse mockResponse = Mockito.mock(LowLevelHttpResponse.class);
@@ -755,7 +768,7 @@ public class GcsUtilTest {
     GcsUtil gcsUtil = gcsOptionsWithTestCredential().getGcsUtil();
 
     // Small number of files fits in 1 batch
-    List<StorageObject[]> results = Lists.newArrayList();
+    List<StorageObjectOrIOException[]> results = Lists.newArrayList();
     List<BatchRequest> batches = gcsUtil.makeGetBatches(makeGcsPaths("s", 3), results);
     assertThat(batches.size(), equalTo(1));
     assertThat(sumBatchSizes(batches), equalTo(3));

@@ -56,7 +56,7 @@ public class FnHarness {
   private static final String CONTROL_API_SERVICE_DESCRIPTOR = "CONTROL_API_SERVICE_DESCRIPTOR";
   private static final String LOGGING_API_SERVICE_DESCRIPTOR = "LOGGING_API_SERVICE_DESCRIPTOR";
   private static final String PIPELINE_OPTIONS = "PIPELINE_OPTIONS";
-  private static final Logger LOGGER = LoggerFactory.getLogger(FnHarness.class);
+  private static final Logger LOG = LoggerFactory.getLogger(FnHarness.class);
 
   private static BeamFnApi.ApiServiceDescriptor getApiServiceDescriptor(String env)
       throws TextFormat.ParseException {
@@ -99,7 +99,7 @@ public class FnHarness {
         channelFactory::forDescriptor,
         streamObserverFactory::from)) {
 
-      LOGGER.info("Fn Harness started");
+      LOG.info("Fn Harness started");
       EnumMap<BeamFnApi.InstructionRequest.RequestCase,
               ThrowingFunction<BeamFnApi.InstructionRequest,
                                BeamFnApi.InstructionResponse.Builder>> handlers =
@@ -120,7 +120,7 @@ public class FnHarness {
           streamObserverFactory::from,
           handlers);
 
-      LOGGER.info("Entering instruction processing loop");
+      LOG.info("Entering instruction processing loop");
       control.processInstructionRequests(options.as(GcsOptions.class).getExecutorService());
     } catch (Throwable t) {
       t.printStackTrace(originalErrStream);

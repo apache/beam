@@ -46,12 +46,12 @@ import org.slf4j.LoggerFactory;
  * {@link #blockTillReadFinishes()} to finish.
  */
 public class BeamFnDataReadRunner<OutputT> {
-  private static final Logger LOGGER = LoggerFactory.getLogger(BeamFnDataReadRunner.class);
+  private static final Logger LOG = LoggerFactory.getLogger(BeamFnDataReadRunner.class);
   private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
   private final BeamFnApi.ApiServiceDescriptor apiServiceDescriptor;
   private final Collection<ThrowingConsumer<WindowedValue<OutputT>>> consumers;
-  private final Supplier<Long> processBundleInstructionIdSupplier;
+  private final Supplier<String> processBundleInstructionIdSupplier;
   private final BeamFnDataClient beamFnDataClientFactory;
   private final Coder<WindowedValue<OutputT>> coder;
   private final BeamFnApi.Target inputTarget;
@@ -60,7 +60,7 @@ public class BeamFnDataReadRunner<OutputT> {
 
   public BeamFnDataReadRunner(
       BeamFnApi.FunctionSpec functionSpec,
-      Supplier<Long> processBundleInstructionIdSupplier,
+      Supplier<String> processBundleInstructionIdSupplier,
       BeamFnApi.Target inputTarget,
       BeamFnApi.Coder coderSpec,
       BeamFnDataClient beamFnDataClientFactory,
@@ -91,7 +91,7 @@ public class BeamFnDataReadRunner<OutputT> {
   }
 
   public void blockTillReadFinishes() throws Exception {
-    LOGGER.debug("Waiting for process bundle instruction {} and target {} to close.",
+    LOG.debug("Waiting for process bundle instruction {} and target {} to close.",
         processBundleInstructionIdSupplier.get(), inputTarget);
     readFuture.get();
   }

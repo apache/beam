@@ -39,6 +39,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.commons.compress.compressors.bzip2.BZip2CompressorInputStream;
+import org.apache.commons.compress.compressors.deflate.DeflateCompressorInputStream;
 import org.apache.commons.compress.compressors.gzip.GzipCompressorInputStream;
 
 /**
@@ -54,14 +55,17 @@ import org.apache.commons.compress.compressors.gzip.GzipCompressorInputStream;
  *     .withDecompression(CompressedSource.CompressionMode.GZIP)));
  * } </pre>
  *
- * <p>Supported compression algorithms are {@link CompressionMode#GZIP} and
- * {@link CompressionMode#BZIP2}. User-defined compression types are supported by implementing
+ * <p>Supported compression algorithms are {@link CompressionMode#GZIP},
+ * {@link CompressionMode#BZIP2}, {@link CompressionMode#ZIP} and {@link CompressionMode#DEFLATE}.
+ * User-defined compression types are supported by implementing
  * {@link DecompressingChannelFactory}.
  *
  * <p>By default, the compression algorithm is selected from those supported in
  * {@link CompressionMode} based on the file name provided to the source, namely
- * {@code ".bz2"} indicates {@link CompressionMode#BZIP2} and {@code ".gz"} indicates
- * {@link CompressionMode#GZIP}. If the file name does not match any of the supported
+ * {@code ".bz2"} indicates {@link CompressionMode#BZIP2}, {@code ".gz"} indicates
+ * {@link CompressionMode#GZIP}, {@code ".zip"} indicates {@link CompressionMode#ZIP} and
+ * {@code ".deflate"} indicates {@link CompressionMode#DEFLATE}. If the file name does not match
+ * any of the supported
  * algorithms, it is assumed to be uncompressed data.
  *
  * @param <T> The type to read from the compressed file.
@@ -164,6 +168,22 @@ public class CompressedSource<T> extends FileBasedSource<T> {
         throws IOException {
         FullZipInputStream zip = new FullZipInputStream(Channels.newInputStream(channel));
         return Channels.newChannel(zip);
+      }
+    },
+
+    /**
+     * Reads a byte channel assuming it is compressed with deflate.
+     */
+    DEFLATE {
+      @Override
+      public boolean matches(String fileName) {
+        return fileName.toLowerCase().endsWith(".deflate");
+      }
+
+      public ReadableByteChannel createDecompressingChannel(ReadableByteChannel channel)
+          throws IOException {
+        return Channels.newChannel(
+            new DeflateCompressorInputStream(Channels.newInputStream(channel)));
       }
     };
 
@@ -385,8 +405,8 @@ public class CompressedSource<T> extends FileBasedSource<T> {
           .withLabel("Read Source"));
 
     if (channelFactory instanceof Enum) {
-      // GZIP and BZIP are implemented as enums; Enum classes are anonymous, so use the .name()
-      // value instead
+      // GZIP, BZIP, ZIP and DEFLATE are implemented as enums; Enum classes are anonymous, so use
+      // the .name() value instead
       builder.add(DisplayData.item("compressionMode", ((Enum) channelFactory).name())
         .withLabel("Compression Mode"));
     } else {

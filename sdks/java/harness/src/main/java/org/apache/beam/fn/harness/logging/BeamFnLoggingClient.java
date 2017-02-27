@@ -79,9 +79,11 @@ public class BeamFnLoggingClient implements AutoCloseable {
 
   private static final Formatter FORMATTER = new SimpleFormatter();
 
+  private static final String FAKE_INSTRUCTION_ID = "FAKE_INSTRUCTION_ID";
+
   /* Used to signal to a thread processing a queue to finish its work gracefully. */
   private static final BeamFnApi.LogEntry POISON_PILL =
-      BeamFnApi.LogEntry.newBuilder().setInstructionReference(Long.MIN_VALUE).build();
+      BeamFnApi.LogEntry.newBuilder().setInstructionReference(FAKE_INSTRUCTION_ID).build();
 
   /**
    * The number of log messages that will be buffered. Assuming log messages are at most 1 KiB,

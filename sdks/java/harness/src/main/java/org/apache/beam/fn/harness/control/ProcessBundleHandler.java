@@ -82,15 +82,15 @@ public class ProcessBundleHandler {
   private static final String JAVA_DO_FN_URN = "urn:org.apache.beam:dofn:java:0.1";
   private static final String JAVA_SOURCE_URN = "urn:org.apache.beam:source:java:0.1";
 
-  private static final Logger LOGGER = LoggerFactory.getLogger(ProcessBundleHandler.class);
+  private static final Logger LOG = LoggerFactory.getLogger(ProcessBundleHandler.class);
 
   private final PipelineOptions options;
-  private final Function<Long, Message> fnApiRegistry;
+  private final Function<String, Message> fnApiRegistry;
   private final BeamFnDataClient beamFnDataClient;
 
   public ProcessBundleHandler(
       PipelineOptions options,
-      Function<Long, Message> fnApiRegistry,
+      Function<String, Message> fnApiRegistry,
       BeamFnDataClient beamFnDataClient) {
     this.options = options;
     this.fnApiRegistry = fnApiRegistry;
@@ -99,7 +99,7 @@ public class ProcessBundleHandler {
 
   protected <InputT, OutputT> void createConsumersForPrimitiveTransform(
       BeamFnApi.PrimitiveTransform primitiveTransform,
-      Supplier<Long> processBundleInstructionId,
+      Supplier<String> processBundleInstructionId,
       Function<BeamFnApi.Target, Collection<ThrowingConsumer<WindowedValue<OutputT>>>> consumers,
       BiConsumer<BeamFnApi.Target, ThrowingConsumer<WindowedValue<InputT>>> addConsumer,
       Consumer<ThrowingRunnable> addStartFunction,
@@ -209,7 +209,7 @@ public class ProcessBundleHandler {
         BeamFnApi.InstructionResponse.newBuilder()
             .setProcessBundle(BeamFnApi.ProcessBundleResponse.getDefaultInstance());
 
-    long bundleId = request.getProcessBundle().getProcessBundleDescriptorReference();
+    String bundleId = request.getProcessBundle().getProcessBundleDescriptorReference();
     BeamFnApi.ProcessBundleDescriptor bundleDescriptor =
         (BeamFnApi.ProcessBundleDescriptor) fnApiRegistry.apply(bundleId);
 
@@ -234,13 +234,13 @@ public class ProcessBundleHandler {
 
     // Already in reverse order so we don't need to do anything.
     for (ThrowingRunnable startFunction : startFunctions) {
-      LOGGER.debug("Starting function {}", startFunction);
+      LOG.debug("Starting function {}", startFunction);
       startFunction.run();
     }
 
     // Need to reverse this since we want to call finish in topological order.
     for (ThrowingRunnable finishFunction : Lists.reverse(finishFunctions)) {
-      LOGGER.debug("Finishing function {}", finishFunction);
+      LOG.debug("Finishing function {}", finishFunction);
       finishFunction.run();
     }
 
@@ -293,9 +293,9 @@ public class ProcessBundleHandler {
               Collection<ThrowingConsumer<WindowedValue<?>>> consumers =
                   tupleTagToOutput.get(tag);
               if (consumers == null) {
-                // TODO: Should we handle undeclared outputs, if so how?
-                throw new UnsupportedOperationException(String.format(
-                    "Unable to output %s on unknown output %s", output, tag));
+                /* This is a normal case, e.g., if a DoFn has output but that output is not
+                 * consumed. Drop the output. */
+                return;
               }
               for (ThrowingConsumer<WindowedValue<?>> consumer : consumers) {
                 consumer.accept(output);

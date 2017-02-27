@@ -44,13 +44,13 @@ public class BeamFnDataWriteRunner<InputT> {
   private final BeamFnApi.Target outputTarget;
   private final Coder<WindowedValue<InputT>> coder;
   private final BeamFnDataClient beamFnDataClientFactory;
-  private final Supplier<Long> processBundleInstructionIdSupplier;
+  private final Supplier<String> processBundleInstructionIdSupplier;
 
   private CloseableThrowingConsumer<WindowedValue<InputT>> consumer;
 
   public BeamFnDataWriteRunner(
       BeamFnApi.FunctionSpec functionSpec,
-      Supplier<Long> processBundleInstructionIdSupplier,
+      Supplier<String> processBundleInstructionIdSupplier,
       BeamFnApi.Target outputTarget,
       BeamFnApi.Coder coderSpec,
       BeamFnDataClient beamFnDataClientFactory)

@@ -19,14 +19,17 @@ package org.apache.beam.runners.core.construction;
 
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
+import org.apache.beam.sdk.io.Write;
 import org.apache.beam.sdk.runners.PTransformMatcher;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.ProcessElementMethod;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
+import org.apache.beam.sdk.values.PCollection;
 
 /**
  * A {@link PTransformMatcher} that matches {@link PTransform PTransforms} based on the class of the
@@ -38,25 +41,6 @@ import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 @Experimental(Kind.CORE_RUNNERS_ONLY)
 public class PTransformMatchers {
   private PTransformMatchers() {}
-
-  /**
-   * Returns a {@link PTransformMatcher} which matches a {@link PTransform} if any of the provided
-   * matchers match the {@link PTransform}.
-   */
-  public static PTransformMatcher anyOf(
-      final PTransformMatcher matcher, final PTransformMatcher... matchers) {
-    return new PTransformMatcher() {
-      @Override
-      public boolean matches(AppliedPTransform<?, ?, ?> application) {
-        for (PTransformMatcher component : matchers) {
-          if (component.matches(application)) {
-            return true;
-          }
-        }
-        return matcher.matches(application);
-      }
-    };
-  }
 
   /**
    * Returns a {@link PTransformMatcher} that matches a {@link PTransform} if the class of the
@@ -153,6 +137,53 @@ public class PTransformMatchers {
           DoFn<?, ?> fn = ((ParDo.BoundMulti<?, ?>) transform).getFn();
           DoFnSignature signature = DoFnSignatures.signatureForDoFn(fn);
           return signature.usesState() || signature.usesTimers();
+        }
+        return false;
+      }
+    };
+  }
+
+  /**
+   * A {@link PTransformMatcher} which matches a {@link ParDo.Bound} or {@link ParDo.BoundMulti}
+   * where the {@link DoFn} is of the provided type.
+   */
+  public static PTransformMatcher parDoWithFnType(final Class<? extends DoFn> fnType) {
+    return new PTransformMatcher() {
+      @Override
+      public boolean matches(AppliedPTransform<?, ?, ?> application) {
+        DoFn<?, ?> fn;
+        if (application.getTransform() instanceof ParDo.Bound) {
+          fn = ((ParDo.Bound) application.getTransform()).getFn();
+        } else if (application.getTransform() instanceof ParDo.BoundMulti) {
+          fn = ((ParDo.BoundMulti) application.getTransform()).getFn();
+        } else {
+          return false;
+        }
+        return fnType.equals(fn.getClass());
+      }
+    };
+  }
+
+  /**
+   * A {@link PTransformMatcher} which matches a {@link Flatten.FlattenPCollectionList} which
+   * consumes no input {@link PCollection PCollections}.
+   */
+  public static PTransformMatcher emptyFlatten() {
+    return new PTransformMatcher() {
+      @Override
+      public boolean matches(AppliedPTransform<?, ?, ?> application) {
+        return (application.getTransform() instanceof Flatten.FlattenPCollectionList)
+            && application.getInputs().isEmpty();
+      }
+    };
+  }
+
+  public static PTransformMatcher writeWithRunnerDeterminedSharding() {
+    return new PTransformMatcher() {
+      @Override
+      public boolean matches(AppliedPTransform<?, ?, ?> application) {
+        if (application.getTransform() instanceof Write.Bound) {
+          return ((Write.Bound) application.getTransform()).getSharding() == null;
         }
         return false;
       }

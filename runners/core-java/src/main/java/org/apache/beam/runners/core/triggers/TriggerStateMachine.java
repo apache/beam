@@ -456,7 +456,7 @@ public abstract class TriggerStateMachine implements Serializable {
    * <p>Note that if {@code t1} is {@link OnceTriggerStateMachine}, then {@code t1.orFinally(t2)} is
    * the same as {@code AfterFirst.of(t1, t2)}.
    */
-  public TriggerStateMachine orFinally(OnceTriggerStateMachine until) {
+  public TriggerStateMachine orFinally(TriggerStateMachine until) {
     return new OrFinallyStateMachine(this, until);
   }
 

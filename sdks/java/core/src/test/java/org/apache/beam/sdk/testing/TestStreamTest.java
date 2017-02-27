@@ -24,12 +24,9 @@ import static org.hamcrest.Matchers.lessThanOrEqualTo;
 import static org.junit.Assert.assertThat;
 
 import java.io.Serializable;
-import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
-import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.TestStream.Builder;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Flatten;
@@ -313,20 +310,6 @@ public class TestStreamTest implements Serializable {
             .advanceWatermarkTo(BoundedWindow.TIMESTAMP_MAX_VALUE.minus(1L));
     thrown.expect(IllegalArgumentException.class);
     stream.advanceWatermarkTo(BoundedWindow.TIMESTAMP_MAX_VALUE);
-  }
-
-  @Test
-  public void testUnsupportedRunnerThrows() {
-    PipelineOptions opts = PipelineOptionsFactory.create();
-    opts.setRunner(CrashingRunner.class);
-
-    Pipeline p = Pipeline.create(opts);
-
-    thrown.expect(IllegalStateException.class);
-    thrown.expectMessage("does not provide a required override");
-    thrown.expectMessage(TestStream.class.getSimpleName());
-    thrown.expectMessage(CrashingRunner.class.getSimpleName());
-    p.apply(TestStream.create(VarIntCoder.of()).advanceWatermarkToInfinity());
   }
 
   @Test

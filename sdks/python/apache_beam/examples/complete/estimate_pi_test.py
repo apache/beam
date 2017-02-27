@@ -23,14 +23,14 @@ import unittest
 from apache_beam.examples.complete import estimate_pi
 from apache_beam.test_pipeline import TestPipeline
 from apache_beam.transforms.util import assert_that
-from apache_beam.transforms.util import DataflowAssertException
+from apache_beam.transforms.util import BeamAssertException
 
 
 def in_between(lower, upper):
   def _in_between(actual):
     _, _, estimate = actual[0]
     if estimate < lower or estimate > upper:
-      raise DataflowAssertException(
+      raise BeamAssertException(
           'Failed assert: %f not in [%f, %f]' % (estimate, lower, upper))
   return _in_between
 

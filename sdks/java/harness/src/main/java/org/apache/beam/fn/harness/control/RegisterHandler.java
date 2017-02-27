@@ -36,14 +36,14 @@ import org.slf4j.LoggerFactory;
  * occurs.
  */
 public class RegisterHandler {
-  private static final Logger LOGGER = LoggerFactory.getLogger(RegisterHandler.class);
-  private final ConcurrentMap<Long, CompletableFuture<Message>> idToObject;
+  private static final Logger LOG = LoggerFactory.getLogger(RegisterHandler.class);
+  private final ConcurrentMap<String, CompletableFuture<Message>> idToObject;
 
   public RegisterHandler() {
     idToObject = new ConcurrentHashMap<>();
   }
 
-  public <T extends Message> T getById(long id) {
+  public <T extends Message> T getById(String id) {
     try {
       @SuppressWarnings("unchecked")
       CompletableFuture<T> returnValue = (CompletableFuture<T>) computeIfAbsent(id);
@@ -71,12 +71,12 @@ public class RegisterHandler {
     BeamFnApi.RegisterRequest registerRequest = request.getRegister();
     for (BeamFnApi.ProcessBundleDescriptor processBundleDescriptor
         : registerRequest.getProcessBundleDescriptorList()) {
-      LOGGER.debug("Registering {} with type {}",
+      LOG.debug("Registering {} with type {}",
           processBundleDescriptor.getId(),
           processBundleDescriptor.getClass());
       computeIfAbsent(processBundleDescriptor.getId()).complete(processBundleDescriptor);
       for (BeamFnApi.Coder coder : processBundleDescriptor.getCodersList()) {
-        LOGGER.debug("Registering {} with type {}",
+        LOG.debug("Registering {} with type {}",
             coder.getFunctionSpec().getId(),
             coder.getClass());
         computeIfAbsent(coder.getFunctionSpec().getId()).complete(coder);
@@ -86,7 +86,7 @@ public class RegisterHandler {
     return response;
   }
 
-  private CompletableFuture<Message> computeIfAbsent(long id) {
-    return idToObject.computeIfAbsent(id, (Long ignored) -> new CompletableFuture<>());
+  private CompletableFuture<Message> computeIfAbsent(String id) {
+    return idToObject.computeIfAbsent(id, (String ignored) -> new CompletableFuture<>());
   }
 }

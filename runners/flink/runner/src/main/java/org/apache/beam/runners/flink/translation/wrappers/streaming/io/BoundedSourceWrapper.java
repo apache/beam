@@ -28,7 +28,6 @@ import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.flink.api.common.functions.StoppableFunction;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
-import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
@@ -82,10 +81,6 @@ public class BoundedSourceWrapper<OutputT>
 
   @Override
   public void run(SourceContext<WindowedValue<OutputT>> ctx) throws Exception {
-    if (!(ctx instanceof StreamSource.ManualWatermarkContext)) {
-      throw new RuntimeException(
-          "Cannot emit watermarks, this hints at a misconfiguration/bug.");
-    }
 
     // figure out which split sources we're responsible for
     int subtaskIndex = getRuntimeContext().getIndexOfThisSubtask();

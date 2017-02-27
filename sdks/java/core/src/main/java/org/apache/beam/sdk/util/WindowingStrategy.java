@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.util;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.MoreObjects;
 import java.io.Serializable;
 import java.util.Collections;
@@ -50,7 +51,7 @@ public class WindowingStrategy<T, W extends BoundedWindow> implements Serializab
    */
   public enum AccumulationMode {
     DISCARDING_FIRED_PANES,
-    ACCUMULATING_FIRED_PANES
+    ACCUMULATING_FIRED_PANES;
   }
 
   private static final Duration DEFAULT_ALLOWED_LATENESS = Duration.ZERO;
@@ -99,7 +100,7 @@ public class WindowingStrategy<T, W extends BoundedWindow> implements Serializab
         DefaultTrigger.of(), false,
         AccumulationMode.DISCARDING_FIRED_PANES, false,
         DEFAULT_ALLOWED_LATENESS, false,
-        OutputTimeFns.outputAtEndOfWindow(), false,
+        new CombineWindowFnOutputTimes(OutputTimeFns.outputAtEndOfWindow(), windowFn), false,
         ClosingBehavior.FIRE_IF_NON_EMPTY);
   }
 
@@ -235,6 +236,21 @@ public class WindowingStrategy<T, W extends BoundedWindow> implements Serializab
         closingBehavior);
   }
 
+  /**
+   * Fixes all the defaults so that equals can be used to check that two strategies are the same,
+   * regardless of the state of "defaulted-ness".
+   */
+  @VisibleForTesting
+  public WindowingStrategy<T, W> fixDefaults() {
+    return new WindowingStrategy<>(
+        windowFn,
+        trigger, true,
+        mode, true,
+        allowedLateness, true,
+        outputTimeFn, true,
+        closingBehavior);
+  }
+
   @Override
   public String toString() {
     return MoreObjects.toStringHelper(this)
@@ -283,7 +299,7 @@ public class WindowingStrategy<T, W extends BoundedWindow> implements Serializab
    *       is calculated using {@link OutputTimeFn#merge}.</li>
    * </ul>
    */
-  private static class CombineWindowFnOutputTimes<W extends BoundedWindow>
+  public static class CombineWindowFnOutputTimes<W extends BoundedWindow>
       extends OutputTimeFn<W> {
 
     private final OutputTimeFn<? super W> outputTimeFn;
@@ -293,6 +309,10 @@ public class WindowingStrategy<T, W extends BoundedWindow> implements Serializab
         OutputTimeFn<? super W> outputTimeFn, WindowFn<?, W> windowFn) {
       this.outputTimeFn = outputTimeFn;
       this.windowFn = windowFn;
+    }
+
+    public OutputTimeFn<? super W> getOutputTimeFn() {
+      return outputTimeFn;
     }
 
     @Override
@@ -319,6 +339,33 @@ public class WindowingStrategy<T, W extends BoundedWindow> implements Serializab
     @Override
     public boolean dependsOnlyOnEarliestInputTimestamp() {
       return outputTimeFn.dependsOnlyOnEarliestInputTimestamp();
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+      if (obj == this) {
+        return true;
+      }
+
+      if (!(obj instanceof CombineWindowFnOutputTimes)) {
+        return false;
+      }
+
+      CombineWindowFnOutputTimes<?> that = (CombineWindowFnOutputTimes<?>) obj;
+      return outputTimeFn.equals(that.outputTimeFn) && windowFn.equals(that.windowFn);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(outputTimeFn, windowFn);
+    }
+
+    @Override
+    public String toString() {
+      return MoreObjects.toStringHelper(this)
+          .add("outputTimeFn", outputTimeFn)
+          .add("windowFn", windowFn)
+          .toString();
     }
   }
 }

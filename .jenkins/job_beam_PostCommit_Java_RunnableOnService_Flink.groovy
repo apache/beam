@@ -37,7 +37,7 @@ mavenJob('beam_PostCommit_Java_RunnableOnService_Flink') {
   common_job_properties.enablePhraseTriggeringFromPullRequest(
     delegate,
     'Apache Flink Runner RunnableOnService Tests',
-    'Run Flink RunableOnService')
+    'Run Flink RunnableOnService')
 
   // Maven goals for this job.
   goals('-B -e clean verify -am -pl runners/flink/runner -Plocal-runnable-on-service-tests -Prunnable-on-service-tests')
