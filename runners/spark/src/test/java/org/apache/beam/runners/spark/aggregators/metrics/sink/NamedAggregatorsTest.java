@@ -26,12 +26,12 @@ import com.google.common.collect.ImmutableSet;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
+import org.apache.beam.runners.spark.PipelineRule;
 import org.apache.beam.runners.spark.SparkPipelineOptions;
 import org.apache.beam.runners.spark.aggregators.ClearAggregatorsRule;
 import org.apache.beam.runners.spark.aggregators.SparkAggregators;
 import org.apache.beam.runners.spark.examples.WordCount;
 import org.apache.beam.runners.spark.translation.SparkContextFactory;
-import org.apache.beam.runners.spark.translation.streaming.utils.SparkTestPipelineOptions;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -56,12 +56,11 @@ public class NamedAggregatorsTest {
   public ClearAggregatorsRule clearAggregators = new ClearAggregatorsRule();
 
   @Rule
-  public final SparkTestPipelineOptions pipelineOptions = new SparkTestPipelineOptions();
+  public final PipelineRule pipelineRule = PipelineRule.batch();
 
   private Pipeline createSparkPipeline() {
-    SparkPipelineOptions options = pipelineOptions.getOptions();
-    options.setEnableSparkMetricSinks(true);
-    return Pipeline.create(options);
+    pipelineRule.getOptions().setEnableSparkMetricSinks(true);
+    return pipelineRule.createPipeline();
   }
 
   private void runPipeline() {

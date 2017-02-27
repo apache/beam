@@ -30,8 +30,8 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
+import org.apache.beam.runners.spark.PipelineRule;
 import org.apache.beam.runners.spark.examples.WordCount;
-import org.apache.beam.runners.spark.translation.streaming.utils.SparkTestPipelineOptions;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.TextIO;
@@ -59,7 +59,7 @@ public class NumShardsTest {
   public final TemporaryFolder tmpDir = new TemporaryFolder();
 
   @Rule
-  public final SparkTestPipelineOptions pipelineOptions = new SparkTestPipelineOptions();
+  public final PipelineRule pipelineRule = PipelineRule.batch();
 
   @Before
   public void setUp() throws IOException {
@@ -69,7 +69,7 @@ public class NumShardsTest {
 
   @Test
   public void testText() throws Exception {
-    Pipeline p = Pipeline.create(pipelineOptions.getOptions());
+    Pipeline p = pipelineRule.createPipeline();
     PCollection<String> inputWords = p.apply(Create.of(WORDS).withCoder(StringUtf8Coder.of()));
     PCollection<String> output = inputWords.apply(new WordCount.CountWords())
         .apply(MapElements.via(new WordCount.FormatAsTextFn()));
