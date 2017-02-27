@@ -12,9 +12,10 @@ import (
 )
 
 var (
-	worker     = flag.Bool("worker", false, "Whether binary is running in worker mode.")
-	endpoint   = flag.String("endpoint", "", "Local gRPC endpoint (required in worker mode).")
-	persistDir = flag.String("persist_dir", "", "Local semi-persistent directory (required in worker mode).")
+	worker          = flag.Bool("worker", false, "Whether binary is running in worker mode.")
+	loggingEndpoint = flag.String("logging_endpoint", "", "Local logging gRPC endpoint (required in worker mode).")
+	controlEndpoint = flag.String("control_endpoint", "", "Local control gRPC endpoint (required in worker mode).")
+	persistDir      = flag.String("persist_dir", "", "Local semi-persistent directory (required in worker mode).")
 
 	runner = flag.String("runner", "local", "Pipeline runner (required in non-worker mode).")
 )
@@ -25,9 +26,10 @@ func Init(ctx context.Context) {
 		return
 	}
 
-	if err := harness.Main(ctx, *endpoint); err != nil {
+	if err := harness.Main(ctx, *loggingEndpoint, *controlEndpoint); err != nil {
 		log.Fatalf("Worker failed: %v", err)
 	}
+	log.Fatal("Worker exited")
 }
 
 var runners = map[string]func(context.Context, *beam.Pipeline) error{
