@@ -25,10 +25,10 @@ import org.apache.beam.runners.apex.ApexPipelineOptions;
 import org.apache.beam.runners.apex.ApexRunner.CreateApexPCollectionView;
 import org.apache.beam.runners.apex.translation.operators.ApexReadUnboundedInputOperator;
 import org.apache.beam.runners.core.UnboundedReadFromBoundedSource.BoundedToUnboundedSourceAdapter;
+import org.apache.beam.runners.core.construction.PrimitiveCreate;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.runners.TransformHierarchy;
-import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -66,7 +66,7 @@ public class ApexPipelineTranslator implements Pipeline.PipelineVisitor {
     registerTransformTranslator(GroupByKey.class, new GroupByKeyTranslator());
     registerTransformTranslator(Flatten.FlattenPCollectionList.class,
         new FlattenPCollectionTranslator());
-    registerTransformTranslator(Create.Values.class, new CreateValuesTranslator());
+    registerTransformTranslator(PrimitiveCreate.class, new CreateValuesTranslator());
     registerTransformTranslator(CreateApexPCollectionView.class,
         new CreateApexPCollectionViewTranslator());
     registerTransformTranslator(CreatePCollectionView.class,
@@ -175,5 +175,4 @@ public class ApexPipelineTranslator implements Pipeline.PipelineVisitor {
       LOG.debug("view {}", view.getName());
     }
   }
-
 }
