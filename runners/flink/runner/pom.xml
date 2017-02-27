@@ -186,6 +186,15 @@
       </exclusions>
     </dependency>
 
+    <!--
+    Force an upgrade on the version of Apache Commons from Flink to support DEFLATE compression.
+    -->
+    <dependency>
+      <groupId>org.apache.commons</groupId>
+      <artifactId>commons-compress</artifactId>
+      <version>[1.9,)</version>
+    </dependency>
+
     <!-- Test scoped -->
 
     <dependency>
