@@ -21,26 +21,13 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import com.datastax.driver.core.BoundStatement;
-import com.datastax.driver.core.Cluster;
-import com.datastax.driver.core.ConsistencyLevel;
-import com.datastax.driver.core.HostDistance;
-import com.datastax.driver.core.PoolingOptions;
-import com.datastax.driver.core.ProtocolVersion;
-import com.datastax.driver.core.QueryOptions;
 import com.datastax.driver.core.RegularStatement;
 import com.datastax.driver.core.Row;
 import com.datastax.driver.core.Session;
-import com.datastax.driver.core.SocketOptions;
-import com.datastax.driver.core.policies.ConstantReconnectionPolicy;
-import com.datastax.driver.core.policies.DowngradingConsistencyRetryPolicy;
-import com.datastax.driver.core.policies.LatencyAwarePolicy;
-import com.datastax.driver.core.policies.RoundRobinPolicy;
 import com.datastax.driver.core.querybuilder.QueryBuilder;
-
 import java.util.ArrayList;
 import java.util.List;
 
-import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -51,7 +38,6 @@ import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.commons.pool2.impl.GenericObjectPoolConfig;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.Before;
@@ -62,6 +48,8 @@ import org.junit.experimental.categories.Category;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+
+
 
 
 /**
@@ -75,86 +63,39 @@ public class CassandraIOTest {
     @Rule
     public ExpectedException thrown = ExpectedException.none();
 
-    private static Cluster cluster;
     private CassandraIO.ClusterConfiguration clusterConfiguration;
 
     private static final String TESTKEYSPACE = "testbeam";
+
+    @SuppressWarnings("unused")
+    private static Integer cassandraPort = 9042;
+    @SuppressWarnings("unused")
+    private static String cassandraHosts = "Cassandra-ip1";
+    @SuppressWarnings("unused")
+    private static String cassandraUsername = "admin";
+    @SuppressWarnings("unused")
+    private static String cassandraPasswd = "";
 
     @Rule
     public final transient TestPipeline pipeline = TestPipeline.create();
 
     @BeforeClass
     public static void beforeClass() throws Exception {
-
-        int maxIdle = 5;
-        int maxTotal = 100;
-        int minIdle = 3;
-        int maxWaitMillis = 60 * 100;
-
-        int localCoreConnectionsPerHost = 8;
-        int localMaxConnectionsPerHost = 8;
-        int localMaxRequestsPerConnection = 100;
-
-        int poolTimeoutMillis = 60 * 1000;
-        int connectTimeoutMillis = 60 * 1000;
-        int readTimeoutMillis = 60 * 1000;
-
-        GenericObjectPoolConfig conf = new GenericObjectPoolConfig();
-        conf.setMaxIdle(maxIdle);
-        conf.setMaxTotal(maxTotal);
-        conf.setMinIdle(minIdle);
-        conf.setMaxWaitMillis(maxWaitMillis);
-        conf.setTestOnBorrow(false);
-        conf.setTestWhileIdle(false);
-        conf.setTestOnReturn(false);
-        int cassandraPort = 9042;
-        String cassandraHosts = "Cassandra-ip1";
-        String cassandraUser = "admin";
-        String cassandraPassword = "";
-        String[] nodes = cassandraHosts.split(",");
-        PoolingOptions poolingOptions = new PoolingOptions();
-        poolingOptions.setCoreConnectionsPerHost
-            (HostDistance.LOCAL, localCoreConnectionsPerHost);
-        poolingOptions.setMaxConnectionsPerHost(HostDistance.LOCAL,
-                localMaxConnectionsPerHost);
-        poolingOptions.setMaxRequestsPerConnection(HostDistance.LOCAL,
-                localMaxRequestsPerConnection);
-        poolingOptions.setPoolTimeoutMillis(poolTimeoutMillis);
-        SocketOptions socketOptions = new SocketOptions();
-        socketOptions.setKeepAlive(true);
-        socketOptions.setReceiveBufferSize(100 * 1024 * 1024);
-        socketOptions.setTcpNoDelay(true);
-        socketOptions.setReadTimeoutMillis(readTimeoutMillis);
-        socketOptions.setConnectTimeoutMillis
-                        (connectTimeoutMillis);
-        cluster = Cluster.builder().addContactPoints(nodes)
-                .withPort(cassandraPort)
-                .withLoadBalancingPolicy(LatencyAwarePolicy
-                        .builder(new RoundRobinPolicy()).build())
-                .withQueryOptions(new QueryOptions()
-                        .setConsistencyLevel(ConsistencyLevel.ONE))
-                .withReconnectionPolicy(new ConstantReconnectionPolicy(1000))
-                .withProtocolVersion(ProtocolVersion.V3)
-                .withRetryPolicy(DowngradingConsistencyRetryPolicy.INSTANCE)
-                .withReconnectionPolicy(new ConstantReconnectionPolicy(100L))
-                .withPoolingOptions(poolingOptions)
-                .withSocketOptions(socketOptions)
-                .withCredentials(cassandraUser, cassandraPassword)
-                .build();
-
+        cassandraPort = 9042;
+        cassandraHosts = "Cassandra-ip1";
+        cassandraUsername = "admin";
+        cassandraPasswd = "";
     }
 
     @AfterClass
     public static void afterClass() throws Exception {
-        if (cluster != null) {
-            cluster.close();
-        }
     }
 
     @Before
     public void setup() throws Exception {
-        clusterConfiguration = CassandraIO.ClusterConfiguration.create(cluster);
-        Session session = cluster.connect();
+        clusterConfiguration = CassandraIO.ClusterConfiguration
+            .create(cassandraHosts, cassandraPort);
+        Session session = clusterConfiguration.getSession();
         session.execute("CREATE KEYSPACE IF NOT EXISTS " + TESTKEYSPACE
                 + " WITH replication = {'class':'SimpleStrategy',"
                 + "'replication_factor': 1};");
@@ -253,7 +194,7 @@ KV<String, String> kv = KV.of("name", row.getString("name"));
                     }
                 }));
         pipeline.run();
-        try (Session session = cluster.connect()) {
+        try (Session session = clusterConfiguration.getSession()) {
             com.datastax.driver.core.ResultSet resultSet = session
                     .execute("select count(*) count from test.atable");
             List<Row> resultAll = resultSet.all();
@@ -261,6 +202,8 @@ KV<String, String> kv = KV.of("name", row.getString("name"));
             Assert.assertEquals(1, resultAll.size());
             int count = resultAll.get(0).getInt("count");
             Assert.assertEquals(1000, count);
+        } catch (Exception e) {
+            e.printStackTrace();
         }
     }
 

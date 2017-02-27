@@ -21,12 +21,22 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 import com.datastax.driver.core.BoundStatement;
 import com.datastax.driver.core.Cluster;
+import com.datastax.driver.core.ConsistencyLevel;
+import com.datastax.driver.core.HostDistance;
+import com.datastax.driver.core.PoolingOptions;
 import com.datastax.driver.core.PreparedStatement;
+import com.datastax.driver.core.ProtocolVersion;
+import com.datastax.driver.core.QueryOptions;
 import com.datastax.driver.core.ResultSet;
 import com.datastax.driver.core.Row;
 import com.datastax.driver.core.Session;
+import com.datastax.driver.core.SocketOptions;
+import com.datastax.driver.core.policies.ConstantReconnectionPolicy;
+import com.datastax.driver.core.policies.DowngradingConsistencyRetryPolicy;
+import com.datastax.driver.core.policies.LatencyAwarePolicy;
+import com.datastax.driver.core.policies.RoundRobinPolicy;
 import com.google.auto.value.AutoValue;
-import java.io.Closeable;
+
 import java.io.Serializable;
 import java.util.Random;
 
@@ -46,8 +56,10 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
+import org.apache.commons.pool2.impl.GenericObjectPoolConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
 
 
 
@@ -169,7 +181,10 @@ public class CassandraIO {
     @AutoValue
     public abstract static class ClusterConfiguration implements Serializable {
         @Nullable
-        abstract Cluster getCluster();
+        abstract String getCassandraHosts();
+        abstract Integer getCassandraPort();
+        @Nullable abstract String getCassandraUsername();
+        @Nullable abstract String getCassandraPasswd();
 
         @Nullable
         abstract String getKeyspace();
@@ -180,46 +195,168 @@ public class CassandraIO {
         abstract static class Builder {
             abstract Builder setKeyspace(String keyspace);
 
-            abstract Builder setCluster(Cluster cluster);
+            abstract Builder setCassandraHosts(String cassandraHosts);
+
+            abstract Builder setCassandraPort(Integer cassandraPort);
+
+            abstract Builder setCassandraUsername(String cassandraUsername);
+
+            abstract Builder setCassandraPasswd(String cassandraPasswd);
 
             abstract ClusterConfiguration build();
         }
 
-        public static ClusterConfiguration create(Cluster cluster) {
-            checkArgument(cluster != null,
+        public static ClusterConfiguration create(String cassandraHosts, Integer cassandraPort) {
+            checkArgument(cassandraHosts != null,
                     "ClusterConfiguration.create(cluster) called with "
                             + "null data cluster");
-            checkArgument(cluster instanceof Closeable,
-                    "ClusterConfiguration.create(cluster) called with a cluster not Closeable");
+            checkArgument(cassandraHosts instanceof Serializable,
+                    "ClusterConfiguration.create(cassandraHosts) called with "
+                    + "a cassandraHosts not Serializable");
+            if (cassandraPort == null){
+                cassandraPort = 9042;
+            }
             return new AutoValue_CassandraIO_ClusterConfiguration.Builder()
-                    .setCluster(cluster).build();
+                    .setCassandraHosts(cassandraHosts)
+                    .setCassandraPort(cassandraPort).build();
         }
-        public static ClusterConfiguration create(Cluster cluster, String keyspace) {
-            checkArgument(cluster != null,
-                    "ClusterConfiguration.create(cluster,keyspace) called with "
-                            + "null data cluster");
-            checkArgument(cluster != null,
-                    "ClusterConfiguration.create(cluster,keyspace) called with "
-                            + "null data cluster");
-            checkArgument(cluster instanceof Closeable,
-                    "ClusterConfiguration.create(cluster,keyspace) "
-                    + "called with a cluster not Closeable");
+        public static ClusterConfiguration create(String cassandraHosts, int cassandraPort,
+                String cassandraUsername, String cassandraPasswd) {
+            checkArgument(cassandraHosts != null,
+                    "ClusterConfiguration.create(cassandraHosts,cassandraPort,"
+                    + "cassandraUsername,cassandraPasswd) called with "
+                            + "null data cluster configuration");
+            checkArgument(cassandraUsername != null,
+                    "ClusterConfiguration.create(cassandraHosts,cassandraPort,"
+                    + "cassandraUsername,cassandraPasswd) called with "
+                            + "null data cluster configuration");
+            checkArgument(cassandraPasswd != null,
+                    "ClusterConfiguration.create(cassandraHosts,cassandraPort,"
+                    + "cassandraUsername,cassandraPasswd) called with "
+                            + "null data cluster configuration");
+
             return new AutoValue_CassandraIO_ClusterConfiguration.Builder()
-                    .setCluster(cluster).setKeyspace(keyspace).build();
+                    .setCassandraHosts(cassandraHosts)
+                    .setCassandraPort(cassandraPort)
+                    .setCassandraUsername(cassandraUsername)
+                    .setCassandraPasswd(cassandraPasswd).build();
+        }
+
+        public static ClusterConfiguration create(String cassandraHosts,
+                int cassandraPort, String cassandraUsername, String cassandraPasswd,
+                String keyspace) {
+            checkArgument(cassandraHosts != null,
+                    "ClusterConfiguration.create(cassandraHosts,cassandraPort,"
+                    + "cassandraUsername,cassandraPasswd,keyspace) called with "
+                            + "null data cluster configuration");
+            checkArgument(cassandraUsername != null,
+                    "ClusterConfiguration.create(cassandraHosts,cassandraPort,"
+                    + "cassandraUsername,cassandraPasswd,keyspace) called with "
+                            + "null data cluster configuration");
+            checkArgument(cassandraPasswd != null,
+                    "ClusterConfiguration.create(cassandraHosts,cassandraPort,"
+                    + "cassandraUsername,cassandraPasswd,keyspace) called with "
+                            + "null data cluster configuration");
+            checkArgument(keyspace != null,
+                    "ClusterConfiguration.create(cassandraHosts,cassandraPort,"
+                    + "cassandraUsername,cassandraPasswd,keyspace) called with "
+                            + "null data cluster configuration");
+            return new AutoValue_CassandraIO_ClusterConfiguration.Builder()
+                    .setCassandraHosts(cassandraHosts)
+                    .setCassandraPort(cassandraPort)
+                    .setCassandraUsername(cassandraUsername)
+                    .setCassandraPasswd(cassandraPasswd)
+                    .setKeyspace(keyspace).build();
         }
 
         private void populateDisplayData(DisplayData.Builder builder) {
-            if (getCluster() != null) {
-                builder.addIfNotNull(DisplayData.item("cluster",
-                        getCluster().getClass().getName()));
+            if (getCassandraHosts() != null) {
+                builder.addIfNotNull(DisplayData.item("cassandraHosts",
+                        getCassandraHosts().getClass().getName()));
             }
         }
 
         Session getSession() throws Exception {
-            if (getKeyspace() != null) {
-                return getCluster().connect(getKeyspace());
+             int maxIdle = 5;
+                int maxTotal = 100;
+                int minIdle = 3;
+                int maxWaitMillis = 60 * 100;
+
+                int localCoreConnectionsPerHost = 8;
+                int localMaxConnectionsPerHost = 8;
+                int localMaxRequestsPerConnection = 100;
+
+                int poolTimeoutMillis = 60 * 1000;
+                int connectTimeoutMillis = 60 * 1000;
+                int readTimeoutMillis = 60 * 1000;
+
+                GenericObjectPoolConfig conf = new GenericObjectPoolConfig();
+                conf.setMaxIdle(maxIdle);
+                conf.setMaxTotal(maxTotal);
+                conf.setMinIdle(minIdle);
+                conf.setMaxWaitMillis(maxWaitMillis);
+                conf.setTestOnBorrow(false);
+                conf.setTestWhileIdle(false);
+                conf.setTestOnReturn(false);
+                PoolingOptions poolingOptions = new PoolingOptions();
+                poolingOptions.setCoreConnectionsPerHost
+                    (HostDistance.LOCAL, localCoreConnectionsPerHost);
+                poolingOptions.setMaxConnectionsPerHost(HostDistance.LOCAL,
+                        localMaxConnectionsPerHost);
+                poolingOptions.setMaxRequestsPerConnection(HostDistance.LOCAL,
+                        localMaxRequestsPerConnection);
+                poolingOptions.setPoolTimeoutMillis(poolTimeoutMillis);
+                SocketOptions socketOptions = new SocketOptions();
+                socketOptions.setKeepAlive(true);
+                socketOptions.setReceiveBufferSize(100 * 1024 * 1024);
+                socketOptions.setTcpNoDelay(true);
+                socketOptions.setReadTimeoutMillis(readTimeoutMillis);
+                socketOptions.setConnectTimeoutMillis
+                                (connectTimeoutMillis);
+            String[] nodes = getCassandraHosts().split(",");
+            if (getCassandraUsername() == null
+                    || getCassandraUsername().length() == 0) {
+                Cluster cluster = Cluster.builder()
+                        .addContactPoints(nodes)
+                        .withPort(getCassandraPort())
+                        .withLoadBalancingPolicy(LatencyAwarePolicy
+                                .builder(new RoundRobinPolicy()).build())
+                        .withQueryOptions(new QueryOptions()
+                                .setConsistencyLevel(ConsistencyLevel.ONE))
+                        .withReconnectionPolicy(new ConstantReconnectionPolicy(1000))
+                        .withProtocolVersion(ProtocolVersion.V3)
+                        .withRetryPolicy(DowngradingConsistencyRetryPolicy.INSTANCE)
+                        .withReconnectionPolicy(new ConstantReconnectionPolicy(100L))
+                        .withPoolingOptions(poolingOptions)
+                        .withSocketOptions(socketOptions)
+                        .build();
+                if (getKeyspace() != null) {
+                    return cluster.connect(getKeyspace());
+                } else {
+                    return cluster.connect();
+                }
             } else {
-                return getCluster().connect();
+                Cluster cluster = Cluster.builder()
+                        .addContactPoints(nodes)
+                        .withPort(getCassandraPort())
+                        .withCredentials(getCassandraUsername(),
+                                getCassandraPasswd())
+                        .withLoadBalancingPolicy(LatencyAwarePolicy
+                                .builder(new RoundRobinPolicy()).build())
+                        .withQueryOptions(new QueryOptions()
+                                .setConsistencyLevel(ConsistencyLevel.ONE))
+                        .withReconnectionPolicy(new ConstantReconnectionPolicy(1000))
+                        .withProtocolVersion(ProtocolVersion.V3)
+                        .withRetryPolicy(DowngradingConsistencyRetryPolicy.INSTANCE)
+                        .withReconnectionPolicy(new ConstantReconnectionPolicy(100L))
+                        .withPoolingOptions(poolingOptions)
+                        .withSocketOptions(socketOptions)
+                        .build();
+                if (getKeyspace() != null) {
+                    return cluster.connect(getKeyspace());
+                } else {
+                    return cluster.connect();
+                }
             }
         }
     }
