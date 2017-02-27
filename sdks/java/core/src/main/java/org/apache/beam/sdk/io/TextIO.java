@@ -281,6 +281,10 @@ public class TextIO {
             return
                 CompressedSource.from(new TextSource(filepattern))
                     .withDecompression(CompressedSource.CompressionMode.ZIP);
+          case DEFLATE:
+            return
+                CompressedSource.from(new TextSource(filepattern))
+                    .withDecompression(CompressedSource.CompressionMode.DEFLATE);
           default:
             throw new IllegalArgumentException("Unknown compression type: " + compressionType);
         }
@@ -762,7 +766,11 @@ public class TextIO {
     /**
      * Zipped.
      */
-    ZIP(".zip");
+    ZIP(".zip"),
+    /**
+     * Deflate compressed.
+     */
+    DEFLATE(".deflate");
 
     private String filenameSuffix;
 

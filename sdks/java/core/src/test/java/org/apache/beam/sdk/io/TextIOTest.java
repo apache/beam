@@ -22,6 +22,7 @@ import static org.apache.beam.sdk.TestUtils.LINES_ARRAY;
 import static org.apache.beam.sdk.TestUtils.NO_LINES_ARRAY;
 import static org.apache.beam.sdk.io.TextIO.CompressionType.AUTO;
 import static org.apache.beam.sdk.io.TextIO.CompressionType.BZIP2;
+import static org.apache.beam.sdk.io.TextIO.CompressionType.DEFLATE;
 import static org.apache.beam.sdk.io.TextIO.CompressionType.GZIP;
 import static org.apache.beam.sdk.io.TextIO.CompressionType.UNCOMPRESSED;
 import static org.apache.beam.sdk.io.TextIO.CompressionType.ZIP;
@@ -100,6 +101,7 @@ import org.apache.beam.sdk.util.IOChannelUtils;
 import org.apache.beam.sdk.util.gcsfs.GcsPath;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.commons.compress.compressors.bzip2.BZip2CompressorOutputStream;
+import org.apache.commons.compress.compressors.deflate.DeflateCompressorOutputStream;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Ignore;
@@ -141,6 +143,9 @@ public class TextIOTest {
   private static File emptyZip;
   private static File tinyZip;
   private static File largeZip;
+  private static File emptyDeflate;
+  private static File tinyDeflate;
+  private static File largeDeflate;
 
   @Rule
   public TestPipeline p = TestPipeline.create();
@@ -166,6 +171,9 @@ public class TextIOTest {
         zipOutput.putNextEntry(new ZipEntry("entry"));
         output = zipOutput;
         break;
+      case DEFLATE:
+        output = new DeflateCompressorOutputStream(output);
+        break;
       default:
         throw new UnsupportedOperationException(compression.toString());
     }
@@ -182,16 +190,19 @@ public class TextIOTest {
     emptyGz = writeToFile(EMPTY, "empty.gz", GZIP);
     emptyBzip2 = writeToFile(EMPTY, "empty.bz2", BZIP2);
     emptyZip = writeToFile(EMPTY, "empty.zip", ZIP);
+    emptyDeflate = writeToFile(EMPTY, "empty.deflate", DEFLATE);
     // tiny files
     tinyTxt = writeToFile(TINY, "tiny.txt", CompressionType.UNCOMPRESSED);
     tinyGz = writeToFile(TINY, "tiny.gz", GZIP);
     tinyBzip2 = writeToFile(TINY, "tiny.bz2", BZIP2);
     tinyZip = writeToFile(TINY, "tiny.zip", ZIP);
+    tinyDeflate = writeToFile(TINY, "tiny.deflate", DEFLATE);
     // large files
     largeTxt = writeToFile(LARGE, "large.txt", CompressionType.UNCOMPRESSED);
     largeGz = writeToFile(LARGE, "large.gz", GZIP);
     largeBzip2 = writeToFile(LARGE, "large.bz2", BZIP2);
     largeZip = writeToFile(LARGE, "large.zip", ZIP);
+    largeDeflate = writeToFile(LARGE, "large.deflate", DEFLATE);
   }
 
   @AfterClass
@@ -794,6 +805,24 @@ public class TextIOTest {
     // Zip files with non-zip extension should work in ZIP mode.
     File zipFile = writeToFile(TINY, "tiny_zip_no_extension", ZIP);
     assertReadingCompressedFileMatchesExpected(zipFile, ZIP, TINY);
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testDeflateCompressedRead() throws Exception {
+    // Files with the right extensions should work in AUTO and ZIP modes.
+    for (CompressionType type : new CompressionType[]{AUTO, DEFLATE}) {
+      assertReadingCompressedFileMatchesExpected(emptyDeflate, type, EMPTY);
+      assertReadingCompressedFileMatchesExpected(tinyDeflate, type, TINY);
+      assertReadingCompressedFileMatchesExpected(largeDeflate, type, LARGE);
+    }
+
+    // Sanity check that we're properly testing compression.
+    assertThat(largeTxt.length(), greaterThan(largeDeflate.length()));
+
+    // Deflate files with non-deflate extension should work in DEFLATE mode.
+    File deflateFile = writeToFile(TINY, "tiny_deflate_no_extension", DEFLATE);
+    assertReadingCompressedFileMatchesExpected(deflateFile, DEFLATE, TINY);
   }
 
   /**
