@@ -15,14 +15,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.spark.util;
+package org.apache.beam.runners.core;
 
 import com.google.common.base.Function;
 import com.google.common.base.Predicate;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.Iterables;
 import javax.annotation.Nullable;
-import org.apache.beam.runners.core.TimerInternals;
 import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowTracing;
@@ -36,10 +35,7 @@ import org.apache.beam.sdk.util.WindowingStrategy;
 public class LateDataUtils {
 
   /**
-   * Returns an {@code Iterable<WindowedValue<InputT>>} that only contains non-late input
-   * elements.
-   * Taken from Thomas Groh's implementation in the DirectRunner's
-   * GroupAlsoByWindowEvaluatorFactory.
+   * Returns an {@code Iterable<WindowedValue<InputT>>} that only contains non-late input elements.
    */
   public static <K, V> Iterable<WindowedValue<V>> dropExpiredWindows(
       final K key,
