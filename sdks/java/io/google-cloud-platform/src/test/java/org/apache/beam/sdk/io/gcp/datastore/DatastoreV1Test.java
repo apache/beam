@@ -31,6 +31,7 @@ import static org.apache.beam.sdk.io.gcp.datastore.DatastoreV1.Read.DEFAULT_BUND
 import static org.apache.beam.sdk.io.gcp.datastore.DatastoreV1.Read.QUERY_BATCH_LIMIT;
 import static org.apache.beam.sdk.io.gcp.datastore.DatastoreV1.Read.getEstimatedSizeBytes;
 import static org.apache.beam.sdk.io.gcp.datastore.DatastoreV1.Read.makeRequest;
+import static org.apache.beam.sdk.io.gcp.datastore.DatastoreV1.Read.translateGqlQueryWithLimitCheck;
 import static org.apache.beam.sdk.io.gcp.datastore.DatastoreV1.isValidKey;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
@@ -60,8 +61,10 @@ import com.google.datastore.v1.QueryResultBatch;
 import com.google.datastore.v1.RunQueryRequest;
 import com.google.datastore.v1.RunQueryResponse;
 import com.google.datastore.v1.client.Datastore;
+import com.google.datastore.v1.client.DatastoreException;
 import com.google.datastore.v1.client.QuerySplitter;
 import com.google.protobuf.Int32Value;
+import com.google.rpc.Code;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashSet;
@@ -74,7 +77,6 @@ import org.apache.beam.sdk.io.gcp.datastore.DatastoreV1.DeleteEntity;
 import org.apache.beam.sdk.io.gcp.datastore.DatastoreV1.DeleteEntityFn;
 import org.apache.beam.sdk.io.gcp.datastore.DatastoreV1.DeleteKey;
 import org.apache.beam.sdk.io.gcp.datastore.DatastoreV1.DeleteKeyFn;
-import org.apache.beam.sdk.io.gcp.datastore.DatastoreV1.Read.GqlQueryTranslatorFn;
 import org.apache.beam.sdk.io.gcp.datastore.DatastoreV1.Read.ReadFn;
 import org.apache.beam.sdk.io.gcp.datastore.DatastoreV1.Read.SplitQueryFn;
 import org.apache.beam.sdk.io.gcp.datastore.DatastoreV1.Read.V1Options;
@@ -95,7 +97,6 @@ import org.apache.beam.sdk.transforms.display.DisplayDataEvaluator;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.POutput;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -191,12 +192,6 @@ public class DatastoreV1Test {
     thrown.expect(NullPointerException.class);
     thrown.expectMessage("projectId");
     read.validate(null);
-
-    read = DatastoreIO.v1().read().withQuery(QUERY)
-        .withProjectId(StaticValueProvider.<String>of(null));
-    thrown.expect(NullPointerException.class);
-    thrown.expectMessage("project");
-    read.validate(null);
   }
 
   @Test
@@ -215,7 +210,8 @@ public class DatastoreV1Test {
         .withQuery(QUERY);
 
     thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage("Only one of query or gql query ValueProvider should be provided");
+    thrown.expectMessage(
+        "Only one of query or gql query ValueProvider should be provided");
     read.validate(null);
   }
 
@@ -276,7 +272,7 @@ public class DatastoreV1Test {
   @Category(RunnableOnService.class)
   public void testSourcePrimitiveDisplayData() {
     DisplayDataEvaluator evaluator = DisplayDataEvaluator.create();
-    PTransform<PBegin, ? extends POutput> read = DatastoreIO.v1().read().withProjectId(
+    PTransform<PBegin, PCollection<Entity>> read = DatastoreIO.v1().read().withProjectId(
         "myProject").withQuery(Query.newBuilder().build());
 
     Set<DisplayData> displayData = evaluator.displayDataForPrimitiveSourceTransforms(read);
@@ -288,7 +284,7 @@ public class DatastoreV1Test {
   @Category(RunnableOnService.class)
   public void testSourcePrimitiveDisplayDataWithGqlQuery() {
     DisplayDataEvaluator evaluator = DisplayDataEvaluator.create();
-    PTransform<PBegin, ? extends POutput> read = DatastoreIO.v1().read().withProjectId(
+    PTransform<PBegin, PCollection<Entity>> read = DatastoreIO.v1().read().withProjectId(
         "myProject").withGqlQuery(GQL_QUERY);
 
     Set<DisplayData> displayData = evaluator.displayDataForPrimitiveSourceTransforms(read);
@@ -316,8 +312,11 @@ public class DatastoreV1Test {
     thrown.expect(NullPointerException.class);
     thrown.expectMessage("projectId ValueProvider");
     write.validate(null);
+  }
 
-    write = DatastoreIO.v1().write().withProjectId(StaticValueProvider.<String>of(null));
+  @Test
+  public void testWriteValidationFailsWithNoProjectInStaticValueProvider() throws Exception {
+    Write write = DatastoreIO.v1().write().withProjectId(StaticValueProvider.<String>of(null));
     thrown.expect(NullPointerException.class);
     thrown.expectMessage("projectId");
     write.validate(null);
@@ -358,8 +357,11 @@ public class DatastoreV1Test {
     thrown.expect(NullPointerException.class);
     thrown.expectMessage("projectId ValueProvider");
     deleteEntity.validate(null);
+  }
 
-    deleteEntity = DatastoreIO.v1().deleteEntity()
+  @Test
+  public void testDeleteEntityValidationFailsWithNoProjectInStaticValueProvider() throws Exception {
+    DeleteEntity deleteEntity = DatastoreIO.v1().deleteEntity()
         .withProjectId(StaticValueProvider.<String>of(null));
     thrown.expect(NullPointerException.class);
     thrown.expectMessage("projectId");
@@ -401,8 +403,12 @@ public class DatastoreV1Test {
     thrown.expect(NullPointerException.class);
     thrown.expectMessage("projectId ValueProvider");
     deleteKey.validate(null);
+  }
 
-    deleteKey = DatastoreIO.v1().deleteKey().withProjectId(StaticValueProvider.<String>of(null));
+  @Test
+  public void testDeleteKeyValidationFailsWithNoProjectInStaticValueProvider() throws Exception {
+    DeleteKey deleteKey = DatastoreIO.v1().deleteKey().withProjectId(
+        StaticValueProvider.<String>of(null));
     thrown.expect(NullPointerException.class);
     thrown.expectMessage("projectId");
     deleteKey.validate(null);
@@ -785,50 +791,43 @@ public class DatastoreV1Test {
     readFnTest(5 * QUERY_BATCH_LIMIT);
   }
 
+
+
   @Test
-  public void testGqlTranslatorFnWithGqlQuery() throws Exception {
-    GqlQueryTranslatorFn translatorFn = new GqlQueryTranslatorFn(V_1_OPTIONS, mockDatastoreFactory);
-    DoFnTester<ValueProvider<String>, Query> doFnTester = DoFnTester.of(translatorFn);
-    doFnTester.setCloningBehavior(CloningBehavior.DO_NOT_CLONE);
-    ValueProvider<String> gqlQuery = StaticValueProvider.of(GQL_QUERY);
-    String gqlQueryWithZeroLimit = gqlQuery.get() + " limit 0";
-    GqlQuery gql = GqlQuery.newBuilder().setQueryString(gqlQueryWithZeroLimit)
+  public void testTranslateGqlQueryWithLimit() throws Exception {
+    String gql = "SELECT * from DummyKind LIMIT 10";
+    String gqlWithZeroLimit = gql + " LIMIT 0";
+    GqlQuery gqlQuery = GqlQuery.newBuilder().setQueryString(gql).setAllowLiterals(true).build();
+    GqlQuery gqlQueryWithZeroLimit = GqlQuery.newBuilder().setQueryString(gqlWithZeroLimit)
         .setAllowLiterals(true).build();
-    RunQueryRequest gqlRequest = makeRequest(gql, V_1_OPTIONS.getNamespace());
+    RunQueryRequest gqlRequest = makeRequest(gqlQuery, V_1_OPTIONS.getNamespace());
+    RunQueryRequest gqlRequestWithZeroLimit = makeRequest(gqlQueryWithZeroLimit,
+        V_1_OPTIONS.getNamespace());
+    when(mockDatastore.runQuery(gqlRequestWithZeroLimit))
+        .thenThrow(new DatastoreException("runQuery", Code.INVALID_ARGUMENT, "invalid query",
+            // dummy
+            new RuntimeException()));
     when(mockDatastore.runQuery(gqlRequest))
         .thenReturn(RunQueryResponse.newBuilder().setQuery(QUERY).build());
-
-    List<Query> queries = doFnTester.processBundle(gqlQuery);
-
-    assertEquals(queries.size(), 1);
-    assertEquals(queries.get(0), QUERY);
+    assertEquals(translateGqlQueryWithLimitCheck(gql, mockDatastore, V_1_OPTIONS.getNamespace()),
+        QUERY);
     verify(mockDatastore, times(1)).runQuery(gqlRequest);
+    verify(mockDatastore, times(1)).runQuery(gqlRequestWithZeroLimit);
   }
 
   @Test
-  public void testGqlTranslatorFnWithGqlQueryWithLimit() throws Exception {
-    GqlQueryTranslatorFn translatorFn = new GqlQueryTranslatorFn(V_1_OPTIONS, mockDatastoreFactory);
-    DoFnTester<ValueProvider<String>, Query> doFnTester = DoFnTester.of(translatorFn);
-    doFnTester.setCloningBehavior(CloningBehavior.DO_NOT_CLONE);
-    int limit = 100;
-    Query queryWithLimit = QUERY.toBuilder().setLimit(
-        Int32Value.newBuilder().setValue(limit).build()).build();
-    ValueProvider<String> gqlQuery = StaticValueProvider.of(
-        String.format("%s limit %d", GQL_QUERY, limit));
-
-    String gqlQueryWithZeroLimit = gqlQuery.get() + " limit 0";
-    GqlQuery gql = GqlQuery.newBuilder().setQueryString(gqlQueryWithZeroLimit)
+  public void testTranslateGqlQueryWithNoLimit() throws Exception {
+    String gql = "SELECT * from DummyKind";
+    String gqlWithZeroLimit = gql + " LIMIT 0";
+    GqlQuery gqlQueryWithZeroLimit = GqlQuery.newBuilder().setQueryString(gqlWithZeroLimit)
         .setAllowLiterals(true).build();
-
-    RunQueryRequest gqlRequest = makeRequest(gql, V_1_OPTIONS.getNamespace());
-    when(mockDatastore.runQuery(gqlRequest))
-        .thenReturn(RunQueryResponse.newBuilder().setQuery(queryWithLimit).build());
-
-    List<Query> queries = doFnTester.processBundle(gqlQuery);
-
-    assertEquals(queries.size(), 1);
-    assertEquals(queries.get(0), queryWithLimit);
-    verify(mockDatastore, times(1)).runQuery(gqlRequest);
+    RunQueryRequest gqlRequestWithZeroLimit = makeRequest(gqlQueryWithZeroLimit,
+        V_1_OPTIONS.getNamespace());
+    when(mockDatastore.runQuery(gqlRequestWithZeroLimit))
+        .thenReturn(RunQueryResponse.newBuilder().setQuery(QUERY).build());
+    assertEquals(translateGqlQueryWithLimitCheck(gql, mockDatastore, V_1_OPTIONS.getNamespace()),
+        QUERY);
+    verify(mockDatastore, times(1)).runQuery(gqlRequestWithZeroLimit);
   }
 
   /** Test options. **/
@@ -850,7 +849,8 @@ public class DatastoreV1Test {
     pipeline
         .apply(DatastoreIO.v1().read()
             .withProjectId(options.getDatastoreProject())
-            .withQuery(QUERY))
+            .withQuery(QUERY)
+            .withNamespace(options.getNamespace()))
         .apply(DatastoreIO.v1().write().withProjectId(options.getDatastoreProject()));
   }
 
@@ -862,18 +862,6 @@ public class DatastoreV1Test {
         .apply(DatastoreIO.v1().read()
             .withProjectId(options.getDatastoreProject())
             .withGqlQuery(options.getGqlQuery()))
-        .apply(DatastoreIO.v1().write().withProjectId(options.getDatastoreProject()));
-  }
-
-  @Test
-  public void testRuntimeOptionsNotCalledInApplyNamespace() {
-    RuntimeTestOptions options =  PipelineOptionsFactory.as(RuntimeTestOptions.class);
-    Pipeline pipeline = TestPipeline.create(options);
-    pipeline
-        .apply(DatastoreIO.v1().read()
-            .withProjectId(options.getDatastoreProject())
-            .withGqlQuery(options.getGqlQuery())
-            .withNamespace(options.getNamespace()))
         .apply(DatastoreIO.v1().write().withProjectId(options.getDatastoreProject()));
   }
 

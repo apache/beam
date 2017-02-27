@@ -71,7 +71,7 @@ public class V1ReadIT {
   /**
    * An end-to-end test for {@link DatastoreV1.Read#withQuery(Query)}
    *
-   * <p>Write some test entities to datastore and then run a dataflow pipeline that
+   * <p>Write some test entities to datastore and then run a pipeline that
    * reads and counts the total number of entities. Verify that the count matches the
    * number of entities written.
    */
@@ -96,20 +96,33 @@ public class V1ReadIT {
     p.run();
   }
 
+  @Test
+  public void testE2EV1ReadWithGQLQueryWithNoLimit() throws Exception {
+    testE2EV1ReadWithGQLQuery(0);
+  }
 
+  @Test
+  public void testE2EV1ReadWithGQLQueryWithLimit() throws Exception {
+    testE2EV1ReadWithGQLQuery(99);
+  }
 
   /**
    * An end-to-end test for {@link DatastoreV1.Read#withGqlQuery(String)}.
    *
-   * <p>Write some test entities to datastore and then run a dataflow pipeline that
+   * <p>Write some test entities to datastore and then run a pipeline that
    * reads and counts the total number of entities. Verify that the count matches
    * the number of entities written.
    */
-  @Test
-  public void testE2EV1ReadWithGQLQuery() throws Exception {
-    // Read from datastore
-    String gqlQuery = String.format("SELECT * from %s WHERE __key__ HAS ANCESTOR KEY(%s, '%s') LIMIT 10",
+  private void testE2EV1ReadWithGQLQuery(long limit) throws Exception {
+    String gqlQuery = String.format(
+        "SELECT * from %s WHERE __key__ HAS ANCESTOR KEY(%s, '%s')",
         options.getKind(), options.getKind(), ancestor);
+
+    long expectedNumEntities = numEntities;
+    if (limit > 0) {
+      gqlQuery = String.format("%s %s %d", gqlQuery, "LIMIT", limit);
+      expectedNumEntities = limit;
+    }
 
     DatastoreV1.Read read = DatastoreIO.v1().read()
         .withProjectId(project)
@@ -122,7 +135,7 @@ public class V1ReadIT {
         .apply(read)
         .apply(Count.<Entity>globally());
 
-    PAssert.thatSingleton(count).isEqualTo(numEntities);
+    PAssert.thatSingleton(count).isEqualTo(expectedNumEntities);
     p.run();
   }
 

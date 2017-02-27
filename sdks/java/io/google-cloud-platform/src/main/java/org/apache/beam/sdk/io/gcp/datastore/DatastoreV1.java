@@ -62,13 +62,13 @@ import com.google.datastore.v1.client.DatastoreHelper;
 import com.google.datastore.v1.client.DatastoreOptions;
 import com.google.datastore.v1.client.QuerySplitter;
 import com.google.protobuf.Int32Value;
+import com.google.rpc.Code;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.NoSuchElementException;
 import javax.annotation.Nullable;
-import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.SerializableCoder;
@@ -193,7 +193,6 @@ import org.slf4j.LoggerFactory;
  *
  * @see org.apache.beam.sdk.runners.PipelineRunner
  */
-@Experimental(Experimental.Kind.SOURCE_SINK)
 public class DatastoreV1 {
 
   // A package-private constructor to prevent direct instantiation from outside of this package
@@ -391,6 +390,51 @@ public class DatastoreV1 {
     }
 
     /**
+     * Translates a Cloud Datastore gql query string to {@link Query}.
+     *
+     * <p>Currently, the only way to translate a gql query string to a Query is to run the query
+     * against Cloud Datastore and extract the {@code Query} from the response. To prevent reading
+     * any data, we set the {@code LIMIT} to 0 but if the gql query already has a limit set, we
+     * catch the exception with {@code INVALID_ARGUMENT} error code and retry the translation
+     * without the zero limit.
+     *
+     * <p>Note: This may result in reading actual data from Cloud Datastore but the service has a
+     * cap on the number of entities returned for a single rpc request, so this should not be a
+     * problem in practice.
+     */
+    @VisibleForTesting
+    static Query translateGqlQueryWithLimitCheck(String gql, Datastore datastore,
+        String namespace) throws DatastoreException {
+      String gqlQueryWithZeroLimit = gql + " LIMIT 0";
+      try {
+        Query translatedQuery = translateGqlQuery(gqlQueryWithZeroLimit, datastore, namespace);
+        // Clear the limit that we set.
+        return translatedQuery.toBuilder().clearLimit().build();
+      } catch (DatastoreException e) {
+        // Note: There is no specific error code or message to detect if the query already has a
+        // limit, so we just check for INVALID_ARGUMENT and assume that that the query might have
+        // a limit already set.
+        if (e.getCode() == Code.INVALID_ARGUMENT) {
+          LOG.warn("Failed to translate Gql query '{}': {}", gqlQueryWithZeroLimit, e.getMessage());
+          LOG.warn("User query might have a limit already set, so trying without zero limit");
+          // Retry without the zero limit.
+          return translateGqlQuery(gql, datastore, namespace);
+        } else {
+          throw e;
+        }
+      }
+    }
+
+    /** Translates a gql query string to {@link Query}.*/
+    private static Query translateGqlQuery(String gql, Datastore datastore, String namespace)
+        throws DatastoreException {
+      GqlQuery gqlQuery = GqlQuery.newBuilder().setQueryString(gql)
+          .setAllowLiterals(true).build();
+      RunQueryRequest req = makeRequest(gqlQuery, namespace);
+      return datastore.runQuery(req).getQuery();
+    }
+
+    /**
      * Returns a new {@link DatastoreV1.Read} that reads from the Cloud Datastore for the specified
      * project.
      */
@@ -429,7 +473,7 @@ public class DatastoreV1 {
      */
     @Experimental(Kind.SOURCE_SINK)
     public DatastoreV1.Read withGqlQuery(String gqlQuery) {
-      checkNotNull(gqlQuery, "gql query");
+      checkNotNull(gqlQuery, "gqlQuery");
       return toBuilder().setGqlQuery(StaticValueProvider.of(gqlQuery)).build();
     }
 
@@ -519,7 +563,7 @@ public class DatastoreV1 {
         inputQuery = input
             .apply(Create.of(getGqlQuery())
                 .withCoder(SerializableCoder.of(new TypeDescriptor<ValueProvider<String>>() {})))
-            .apply(ParDo.of(new GqlQueryTranslatorFn(v1Options)));
+            .apply(ParDo.of(new GqlQueryTranslateFn(v1Options)));
       }
 
       PCollection<KV<Integer, Query>> splitQueries = inputQuery
@@ -626,59 +670,33 @@ public class DatastoreV1 {
     /**
      * A DoFn that translates a Cloud Datastore gql query string to {@code Query}.
      */
-    static class GqlQueryTranslatorFn
-        extends DoFn<ValueProvider<String>, Query> {
-      private final V1Options options;
+    static class GqlQueryTranslateFn extends DoFn<ValueProvider<String>, Query> {
+      private final V1Options v1Options;
       private transient Datastore datastore;
       private final V1DatastoreFactory datastoreFactory;
 
-      GqlQueryTranslatorFn(V1Options options) {
+      GqlQueryTranslateFn(V1Options options) {
         this(options, new V1DatastoreFactory());
       }
 
-      @VisibleForTesting
-      GqlQueryTranslatorFn(V1Options options, V1DatastoreFactory datastoreFactory) {
-        this.options = options;
+      GqlQueryTranslateFn(V1Options options, V1DatastoreFactory datastoreFactory) {
+        this.v1Options = options;
         this.datastoreFactory = datastoreFactory;
       }
 
       @StartBundle
       public void startBundle(Context c) throws Exception {
-        datastore = datastoreFactory.getDatastore(c.getPipelineOptions(), options.getProjectId());
+        datastore = datastoreFactory.getDatastore(c.getPipelineOptions(), v1Options.getProjectId());
       }
 
       @ProcessElement
       public void processElement(ProcessContext c) throws Exception {
         ValueProvider<String> gqlQuery = c.element();
         LOG.info("User query: '{}'", gqlQuery.get());
-        // Gql query is provided, convert it to query
-        // Note: If user's query already has a limit, then that limit could take precedence
-        // over limit 0. resulting in actually reading entities but should not be a large
-        // number since service has a cap on the number of entities returned in a single request.
-        String gqlQueryWithZeroLimit = gqlQuery.get() + " limit 0";
-        GqlQuery gql = GqlQuery.newBuilder().setQueryString(gqlQueryWithZeroLimit)
-            .setAllowLiterals(true).build();
-
-        RunQueryRequest req = makeRequest(gql, options.getNamespace());
-        RunQueryResponse resp = datastore.runQuery(req);
-        Query translatedQuery = resp.getQuery();
-
-        if (translatedQuery.getLimit().getValue() == 0) {
-          // Clear the limit if we set it to 0
-          translatedQuery = translatedQuery.toBuilder().clearLimit().build();
-        }
-        LOG.info("User gql query translated to Query({})", translatedQuery);
-        c.output(translatedQuery);
-      }
-
-      @Override
-      public void populateDisplayData(DisplayData.Builder builder) {
-        super.populateDisplayData(builder);
-        builder
-            .addIfNotNull(DisplayData.item("projectId", options.getProjectValueProvider())
-                .withLabel("ProjectId"))
-            .addIfNotNull(DisplayData.item("namespace", options.getNamespaceValueProvider())
-                .withLabel("Namespace"));
+        Query query = translateGqlQueryWithLimitCheck(gqlQuery.get(), datastore,
+            v1Options.getNamespace());
+        LOG.info("User gql query translated to Query({})", query);
+        c.output(query);
       }
     }
 
