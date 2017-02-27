@@ -25,6 +25,8 @@ import com.datastax.driver.core.RegularStatement;
 import com.datastax.driver.core.Row;
 import com.datastax.driver.core.Session;
 import com.datastax.driver.core.querybuilder.QueryBuilder;
+
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -45,7 +47,6 @@ import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
-import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
@@ -56,12 +57,10 @@ import org.junit.runners.JUnit4;
  * Test CassandraIO.
  */
 @RunWith(JUnit4.class)
-public class CassandraIOTest {
+public class CassandraIOTest implements Serializable{
 
     @Rule
     public final transient TestPipeline p = TestPipeline.create();
-    @Rule
-    public ExpectedException thrown = ExpectedException.none();
 
     private CassandraIO.ClusterConfiguration clusterConfiguration;
 
@@ -119,7 +118,7 @@ public class CassandraIOTest {
 
     @Test
     public void testReadBuildsCorrectly() {
-        String query = "select * from test.person";
+        String query = "select * from " + TESTKEYSPACE + ".person";
         CassandraIO.Read read = CassandraIO.read()
                 .withClusterConfiguration(clusterConfiguration)
                 .withQuery(query);
@@ -130,7 +129,7 @@ public class CassandraIOTest {
     @Test
     @Category(NeedsRunner.class)
     public void testRead() throws Exception {
-        String query = "select * from test.person";
+        String query = "select * from " + TESTKEYSPACE + ".person";
         PCollection<List<KV<String, String>>> output = pipeline
                 .apply(CassandraIO.<List<KV<String, String>>> read()
                 .withClusterConfiguration(clusterConfiguration)
@@ -152,7 +151,7 @@ KV<String, String> kv = KV.of("name", row.getString("name"));
                 .withCoder(ListCoder.of(KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()))));
 
         PAssert.thatSingleton(output.apply("Count All",
-                Count.<List<KV<String, String>>> globally())).isEqualTo(1000L);
+                Count.<List<KV<String, String>>> globally())).isEqualTo(1L);
         pipeline.run();
     }
     @Test

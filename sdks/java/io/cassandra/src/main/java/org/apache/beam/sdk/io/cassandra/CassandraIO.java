@@ -518,7 +518,9 @@ public class CassandraIO {
                 String query = context.element();
                 PreparedStatement statement = session.prepare(query);
                 BoundStatement boundStatementLast = new BoundStatement(statement);
-                this.spec.getStatementPreparator().setParameters(boundStatementLast);
+                if (this.spec.getStatementPreparator() != null){
+                    this.spec.getStatementPreparator().setParameters(boundStatementLast);
+                }
                 ResultSet resultSet = session.execute(boundStatementLast);
                 for (Row row : resultSet) {
                     context.output(spec.getRowMapper().mapRow(row));
