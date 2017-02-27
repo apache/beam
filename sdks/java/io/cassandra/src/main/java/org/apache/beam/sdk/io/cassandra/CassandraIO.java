@@ -38,12 +38,17 @@ import com.datastax.driver.core.policies.RoundRobinPolicy;
 import com.google.auto.value.AutoValue;
 
 import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Random;
 
 import javax.annotation.Nullable;
 import javax.sql.DataSource;
 
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.coders.ListCoder;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Flatten;
@@ -66,20 +71,25 @@ import org.slf4j.LoggerFactory;
 /**
  * IO to read and write data on Cassandra.
  *
- * <h3>Reading from Cassandra datasource</h3>
+ * <h3>Reading from Cassandra Cluster</h3>
  *
  *<p>CassandraIO source returns a bounded collection of {@code T} as a
  * {@code PCollection<T>}. T is the type returned by the provided
  * {@link RowMapper}.
  * <pre>{@code
  * pipeline.apply(CassandraIO.<KV<Integer, String>>read()
- *   .withClusterConfiguration(CassandraIO.ClusterConfiguration.create(
- *   .withQuery("select id,name from Person")
- *   .withRowMapper(new CassandraIO.RowMapper<KV<Integer, String>>() {
- *     public KV<Integer, String> mapRow(ResultSet resultSet) throws Exception {
- *       return KV.of(resultSet.getInt(1), resultSet.getString(2));
+ *   .withClusterConfiguration(CassandraIO.ClusterConfiguration
+ *   			.create(cassandraHosts, cassandraPort))
+ *   .withQuery("select id,name from testbeam.person")
+ *   .withRowMapper(new CassandraIO.RowMapper<KV<Integer, String>>() {		
+ *     public List<KV<String, String>> mapRow(Row row) throws Exception {
+ *       List<KV<String, String>> rsult = new ArrayList<KV<String, String>>();
+ *       KV<String, String> kv = KV.of("name", row.getString("name"));
+ *       rsult.add(kv);
+ *       return rsult;
  *     }
  *   })
+ *   .withCoder(ListCoder.of(KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()))));
  * }</pre>
  *
  *
@@ -89,7 +99,7 @@ import org.slf4j.LoggerFactory;
  * <pre>{@code
  * pipeline.apply(CassandraIO.<KV<Integer, String>>read()
  *   .withClusterConfiguration(CassandraIO.ClusterConfiguration.create(cluster)
- *   .withQuery("select id,name from Person where name = ?")
+ *   .withQuery("select id,name from testbeam.person where name = ?")
  *   .withStatementPreparator(new CassandraIO.StatementPreparator() {
  *     public void setParameters(BoundStatementLast boundStatementLast) throws Exception {
  *       boundStatementLast.bind("Darwin");
@@ -106,9 +116,9 @@ import org.slf4j.LoggerFactory;
  *
  * <p>Cassandra sink supports writing records into a database.
  * It writes a {@link PCollection} to the
- * database by converting each T into a {@link PreparedStatement}
+ * database by converting each T into a {@link BoundStatement}
  * via a user-provided {@link
- * PreparedStatementSetter}.
+ * BoundStatementSetter}.
  *
  * <p>Like the source, to configure the sink, you have to provide
  * a {@link ClusterConfiguration}.
@@ -116,24 +126,28 @@ import org.slf4j.LoggerFactory;
  * pipeline
  *   .apply(...)
  *   .apply(CassandraIO.<KV<Integer, String>>write()
- *      .withDataSourceConfiguration(CassandraIO.ClusterConfiguration
- *      .create(cluster)
- *      .withStatement("insert into Person values(?, ?)")
- *      .withPreparedStatementSetter(new CassandraIO.
- *      PreparedStatementSetter<KV<Integer, String>>() {
- *        public void setParameters(KV<Integer, String> element,
- *        BoundStatement query) {
- *          boundStatement.bind(1, kv.getKey());
- *        }
- *      })
+ *      .withClusterConfiguration(CassandraIO.ClusterConfiguration
+ *                  .create(cassandraHosts, cassandraPort))
+ *      .withStatement("insert into testbeam.person values(?, ?)")
+ *      ..withBoundStatementSetter(
+ *              new CassandraIO.BoundStatementSetter< List<KV<Integer, String>>>() {
+ *                  @Override
+ *                  public void setParameters(List<KV<Integer, String>> element,
+ *                          BoundStatement boundStatement)
+ *                          throws Exception {
+ *                      List<String> d = new ArrayList<String>();
+ *                      for (KV<Integer, String> kv : element){
+ *                           d.add(kv.getValue());
+ *                      }
+ *                      boundStatement.bind(d.toArray());
+ *                  }
+ *              }));
  * }</pre>
  *
  * <p>NB: in case of transient failures, Beam runners may execute parts of
  * CassandraIO.Write multiple times for fault tolerance. Because of that, you
  * should avoid using {@code INSERT} statements, since that risks duplicating
- * records in the database, or failing due to primary key conflicts. Consider
- * using <a href="https://en.wikipedia.org/wiki/Merge_(SQL)">MERGE ("upsert")
- * statements</a> supported by your database instead.
+ * records in the cluster databases, or failing due to primary key conflicts. 
  */
 
 public class CassandraIO {
@@ -174,9 +188,9 @@ public class CassandraIO {
     }
 
     /**
-     * A POJO describing a {@link DataSource}, either providing directly a
-     * {@link DataSource} or all properties allowing to create a
-     * {@link DataSource}.
+     * A POJO describing a {@link Cluster}, either providing directly a
+     * {@link Cluster} or all properties allowing to create a
+     * {@link Cluster}.
      */
     @AutoValue
     public abstract static class ClusterConfiguration implements Serializable {
@@ -277,7 +291,7 @@ public class CassandraIO {
         }
 
         Session getSession() throws Exception {
-             int maxIdle = 5;
+                int maxIdle = 5;
                 int maxTotal = 100;
                 int minIdle = 3;
                 int maxWaitMillis = 60 * 100;
@@ -363,7 +377,7 @@ public class CassandraIO {
 
     /**
      * An interface used by the CassandraIO Write to set the parameters of the
-     * {@link PreparedStatement} used to setParameters into the database.
+     * {@link BoundStatement} used to setParameters into the cluster database.
      */
     public interface StatementPreparator extends Serializable {
         void setParameters(BoundStatement boundStatement)
@@ -448,13 +462,6 @@ public class CassandraIO {
         public PCollection<T> expand(PBegin input) {
             return input.apply(Create.of(getQuery()))
                     .apply(ParDo.of(new ReadFn<>(this))).setCoder(getCoder())
-                    // generate a random key followed by a GroupByKey and then
-                    // ungroup
-                    // to prevent fusion
-                    // see
-                    // https://cloud.google.com/dataflow/service
-                    //dataflow-service-desc#preventing-fusion
-                    // for details
                     .apply(ParDo.of(new DoFn<T, KV<Integer, T>>() {
                         private Random random;
 
@@ -484,7 +491,7 @@ public class CassandraIO {
                     "CassandraIO.read() requires a coder to be set via withCoder(coder)");
             checkState(getClusterConfiguration() != null,
                     "CassandraIO.read() requires a Cluster configuration to be set via "
-                            + "withClusterConfiguration(cluster)");
+                            + "withClusterConfiguration(clusterConfiguration)");
         }
 
         @Override
