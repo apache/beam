@@ -25,6 +25,7 @@ The Java SDK supports all features currently supported by the Beam model.
 
 * Amazon Kinesis
 * Apache Hadoop's `FileInputFormat` in Hadoop Distributed File System (HDFS)
+* Apache HBase
 * Apache Kafka
 * Avro Files
 * Google BigQuery
