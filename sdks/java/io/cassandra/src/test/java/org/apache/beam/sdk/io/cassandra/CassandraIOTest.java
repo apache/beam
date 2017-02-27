@@ -171,10 +171,10 @@ KV<String, String> kv = KV.of("name", row.getString("name"));
     public void testWrite() {
         String statement = "INSERT INTO " + TESTKEYSPACE + ".atable (a1,a2,a3) VALUES (?,?,?) ";
 
-        List<List> data = new ArrayList<List>();
+        List<List<String>> data = new ArrayList<List<String>>();
         int countAll = 20000;
         for (int i = 0; i < countAll; i++) {
-            List kv = new ArrayList<String>();
+            List<String> kv = new ArrayList<String>();
             
             kv.add("a" + i);
             kv.add("b" + i);
@@ -183,17 +183,16 @@ KV<String, String> kv = KV.of("name", row.getString("name"));
         }
         Coder coder =  ListCoder.of(StringUtf8Coder.of());
         pipeline.apply(Create.of(data).withCoder(coder))
-                .apply(CassandraIO.<List> write()
+                .apply(CassandraIO.<List<String>> write()
                 .withClusterConfiguration(clusterConfiguration)
                 .withStatement(statement)
                 .withBoundStatementSetter(
-                new CassandraIO.BoundStatementSetter< List>() {
+                new CassandraIO.BoundStatementSetter< List<String>>() {
                     @Override
-                    public void setParameters( List element,
+                    public void setParameters( List<String> element,
                             BoundStatement boundStatement)
                             throws Exception {
-                        boundStatement.
-                        bind(element.toArray());
+                        boundStatement.bind(element.toArray());
                     }
                 }));
         pipeline.run();
