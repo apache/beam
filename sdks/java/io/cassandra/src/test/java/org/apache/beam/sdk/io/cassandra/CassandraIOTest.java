@@ -27,10 +27,10 @@ import com.datastax.driver.core.Session;
 import com.datastax.driver.core.querybuilder.QueryBuilder;
 
 import java.io.Serializable;
-import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.ListCoder;
@@ -171,28 +171,31 @@ KV<String, String> kv = KV.of("name", row.getString("name"));
     public void testWrite() {
         String statement = "INSERT INTO " + TESTKEYSPACE + ".atable (a1,a2,a3) VALUES (?,?,?) ";
 
-        List<List<String>> data = new ArrayList<List<String>>();
+        List<List<KV<Integer, String>>> data = new ArrayList<List<KV<Integer, String>>>();
         int countAll = 20000;
         for (int i = 0; i < countAll; i++) {
-            List<String> kv = new ArrayList<String>();
-            
-            kv.add("a" + i);
-            kv.add("b" + i);
-            kv.add("c" + i);
+            List<KV<Integer, String>> kv = new ArrayList<KV<Integer, String>>();
+            kv.add(KV.of(i, "a" + i));
+            kv.add(KV.of(i, "a" + i));
+            kv.add(KV.of(i, "a" + i));
             data.add(kv);
         }
-        Coder coder =  ListCoder.of(StringUtf8Coder.of());
+        Coder coder =  ListCoder.of(KvCoder.of(BigEndianIntegerCoder.of(), StringUtf8Coder.of()));
         pipeline.apply(Create.of(data).withCoder(coder))
-                .apply(CassandraIO.<List<String>> write()
+                .apply(CassandraIO.<List<KV<Integer, String>>> write()
                 .withClusterConfiguration(clusterConfiguration)
                 .withStatement(statement)
                 .withBoundStatementSetter(
-                new CassandraIO.BoundStatementSetter< List<String>>() {
+                new CassandraIO.BoundStatementSetter< List<KV<Integer, String>>>() {
                     @Override
-                    public void setParameters( List<String> element,
+                    public void setParameters(List<KV<Integer, String>> element,
                             BoundStatement boundStatement)
                             throws Exception {
-                        boundStatement.bind(element.toArray());
+                        List<String> d = new ArrayList<String>();
+                        for (KV<Integer, String> kv : element){
+                            d.add(kv.getValue());
+                        }
+                        boundStatement.bind(d.toArray());
                     }
                 }));
         pipeline.run();
@@ -202,7 +205,7 @@ KV<String, String> kv = KV.of("name", row.getString("name"));
             List<Row> resultAll = resultSet.all();
             Assert.assertNotNull(resultAll);
             Assert.assertEquals(1, resultAll.size());
-            long count = resultAll.get(0).get(0,Long.class);
+            long count = resultAll.get(0).get(0, Long.class);
             Assert.assertEquals(countAll, count);
         } catch (Exception e) {
             e.printStackTrace();
