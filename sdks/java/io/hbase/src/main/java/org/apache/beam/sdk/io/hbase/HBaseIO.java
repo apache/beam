@@ -39,9 +39,9 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.io.BoundedSource;
+import org.apache.beam.sdk.io.hadoop.SerializableConfiguration;
 import org.apache.beam.sdk.io.hbase.coders.HBaseMutationCoder;
 import org.apache.beam.sdk.io.hbase.coders.HBaseResultCoder;
-import org.apache.beam.sdk.io.hbase.coders.SerializableConfiguration;
 import org.apache.beam.sdk.io.hbase.coders.SerializableScan;
 import org.apache.beam.sdk.io.range.ByteKey;
 import org.apache.beam.sdk.io.range.ByteKeyRange;
@@ -267,7 +267,7 @@ public class HBaseIO {
                     "Configuration not provided");
             checkArgument(!tableId.isEmpty(), "Table ID not specified");
             try (Connection connection = ConnectionFactory.createConnection(
-                    serializableConfiguration.getConfiguration())) {
+                    serializableConfiguration.get())) {
                 Admin admin = connection.getAdmin();
                 checkArgument(admin.tableExists(TableName.valueOf(tableId)),
                         "Table %s does not exist", tableId);
@@ -280,7 +280,7 @@ public class HBaseIO {
         public void populateDisplayData(DisplayData.Builder builder) {
             super.populateDisplayData(builder);
             builder.add(DisplayData.item("configuration",
-                    serializableConfiguration.getConfiguration().toString()));
+                    serializableConfiguration.get().toString()));
             builder.add(DisplayData.item("tableId", tableId));
             builder.addIfNotNull(DisplayData.item("scan", serializableScan.getScan().toString()));
         }
@@ -290,7 +290,7 @@ public class HBaseIO {
         }
 
         public Configuration getConfiguration() {
-            return serializableConfiguration.getConfiguration();
+            return serializableConfiguration.get();
         }
 
         /**
@@ -333,7 +333,7 @@ public class HBaseIO {
         private long estimateSizeBytes() throws Exception {
             // This code is based on RegionSizeCalculator in hbase-server
             long estimatedSizeBytes = 0L;
-            Configuration configuration = this.read.serializableConfiguration.getConfiguration();
+            Configuration configuration = this.read.serializableConfiguration.get();
             try (Connection connection = ConnectionFactory.createConnection(configuration)) {
                 // filter regions for the given table/scan
                 List<HRegionLocation> regionLocations = getRegionLocations(connection);
@@ -490,7 +490,7 @@ public class HBaseIO {
 
         @Override
         public boolean start() throws IOException {
-            Configuration configuration = source.read.serializableConfiguration.getConfiguration();
+            Configuration configuration = source.read.serializableConfiguration.get();
             String tableId = source.read.tableId;
             connection = ConnectionFactory.createConnection(configuration);
             TableName tableName = TableName.valueOf(tableId);
@@ -592,7 +592,7 @@ public class HBaseIO {
             checkArgument(serializableConfiguration != null, "Configuration not specified");
             checkArgument(!tableId.isEmpty(), "Table ID not specified");
             try (Connection connection = ConnectionFactory.createConnection(
-                    serializableConfiguration.getConfiguration())) {
+                    serializableConfiguration.get())) {
                 Admin admin = connection.getAdmin();
                 checkArgument(admin.tableExists(TableName.valueOf(tableId)),
                         "Table %s does not exist", tableId);
@@ -605,7 +605,7 @@ public class HBaseIO {
         public void populateDisplayData(DisplayData.Builder builder) {
             super.populateDisplayData(builder);
             builder.add(DisplayData.item("configuration",
-                    serializableConfiguration.getConfiguration().toString()));
+                    serializableConfiguration.get().toString()));
             builder.add(DisplayData.item("tableId", tableId));
         }
 
@@ -614,7 +614,7 @@ public class HBaseIO {
         }
 
         public Configuration getConfiguration() {
-            return serializableConfiguration.getConfiguration();
+            return serializableConfiguration.get();
         }
 
         private final String tableId;
@@ -631,7 +631,7 @@ public class HBaseIO {
 
             @Setup
             public void setup() throws Exception {
-                Configuration configuration = this.serializableConfiguration.getConfiguration();
+                Configuration configuration = this.serializableConfiguration.get();
                 connection = ConnectionFactory.createConnection(configuration);
 
                 TableName tableName = TableName.valueOf(tableId);
