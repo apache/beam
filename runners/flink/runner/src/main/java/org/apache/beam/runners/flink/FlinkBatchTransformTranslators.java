@@ -396,7 +396,7 @@ class FlinkBatchTransformTranslators {
           inputDataSet.groupBy(new KvKeySelector<InputT, K>(inputCoder.getKeyCoder()));
 
       // construct a map from side input to WindowingStrategy so that
-      // the OldDoFn runner can map main-input windows to side input windows
+      // the DoFn runner can map main-input windows to side input windows
       Map<PCollectionView<?>, WindowingStrategy<?, ?>> sideInputStrategies = new HashMap<>();
       for (PCollectionView<?> sideInput: transform.getSideInputs()) {
         sideInputStrategies.put(sideInput, sideInput.getWindowingStrategyInternal());
@@ -544,7 +544,7 @@ class FlinkBatchTransformTranslators {
       List<PCollectionView<?>> sideInputs = transform.getSideInputs();
 
       // construct a map from side input to WindowingStrategy so that
-      // the OldDoFn runner can map main-input windows to side input windows
+      // the DoFn runner can map main-input windows to side input windows
       Map<PCollectionView<?>, WindowingStrategy<?, ?>> sideInputStrategies = new HashMap<>();
       for (PCollectionView<?> sideInput: sideInputs) {
         sideInputStrategies.put(sideInput, sideInput.getWindowingStrategyInternal());
@@ -627,7 +627,7 @@ class FlinkBatchTransformTranslators {
       List<PCollectionView<?>> sideInputs = transform.getSideInputs();
 
       // construct a map from side input to WindowingStrategy so that
-      // the OldDoFn runner can map main-input windows to side input windows
+      // the DoFn runner can map main-input windows to side input windows
       Map<PCollectionView<?>, WindowingStrategy<?, ?>> sideInputStrategies = new HashMap<>();
       for (PCollectionView<?> sideInput: sideInputs) {
         sideInputStrategies.put(sideInput, sideInput.getWindowingStrategyInternal());
@@ -640,7 +640,8 @@ class FlinkBatchTransformTranslators {
               windowingStrategy,
               sideInputStrategies,
               context.getPipelineOptions(),
-              outputMap);
+              outputMap,
+              transform.getMainOutputTag());
 
       MapPartitionOperator<WindowedValue<InputT>, WindowedValue<RawUnionValue>> taggedDataSet =
           new MapPartitionOperator<>(

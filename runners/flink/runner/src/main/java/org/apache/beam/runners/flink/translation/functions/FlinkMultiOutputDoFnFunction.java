@@ -17,24 +17,27 @@
  */
 package org.apache.beam.runners.flink.translation.functions;
 
+import java.util.Collections;
 import java.util.Map;
-import org.apache.beam.runners.core.DoFnAdapters;
-import org.apache.beam.runners.core.OldDoFn;
+import org.apache.beam.runners.core.DoFnRunner;
+import org.apache.beam.runners.core.DoFnRunners;
 import org.apache.beam.runners.flink.translation.utils.SerializedPipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.join.RawUnionValue;
-import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
+import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
+import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.flink.api.common.functions.RichMapPartitionFunction;
+import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.Collector;
 
 /**
- * Encapsulates a {@link OldDoFn} that can emit to multiple
+ * Encapsulates a {@link DoFn} that can emit to multiple
  * outputs inside a Flink {@link org.apache.flink.api.common.functions.RichMapPartitionFunction}.
  *
  * <p>We get a mapping from {@link org.apache.beam.sdk.values.TupleTag} to output index
@@ -44,33 +47,30 @@ import org.apache.flink.util.Collector;
 public class FlinkMultiOutputDoFnFunction<InputT, OutputT>
     extends RichMapPartitionFunction<WindowedValue<InputT>, WindowedValue<RawUnionValue>> {
 
-  private final OldDoFn<InputT, OutputT> doFn;
+  private final DoFn<InputT, OutputT> doFn;
   private final SerializedPipelineOptions serializedOptions;
 
   private final Map<TupleTag<?>, Integer> outputMap;
 
   private final Map<PCollectionView<?>, WindowingStrategy<?, ?>> sideInputs;
-
-  private final boolean requiresWindowAccess;
-  private final boolean hasSideInputs;
-
   private final WindowingStrategy<?, ?> windowingStrategy;
+  private TupleTag<OutputT> mainOutputTag;
+  private transient DoFnInvoker<InputT, OutputT> doFnInvoker;
 
   public FlinkMultiOutputDoFnFunction(
       DoFn<InputT, OutputT> doFn,
       WindowingStrategy<?, ?> windowingStrategy,
       Map<PCollectionView<?>, WindowingStrategy<?, ?>> sideInputs,
       PipelineOptions options,
-      Map<TupleTag<?>, Integer> outputMap) {
-    this.doFn = DoFnAdapters.toOldDoFn(doFn);
+      Map<TupleTag<?>, Integer> outputMap,
+      TupleTag<OutputT> mainOutputTag) {
+    this.doFn = doFn;
     this.serializedOptions = new SerializedPipelineOptions(options);
     this.outputMap = outputMap;
 
-    this.requiresWindowAccess =
-        DoFnSignatures.signatureForDoFn(doFn).processElement().observesWindow();
-    this.hasSideInputs = !sideInputs.isEmpty();
     this.windowingStrategy = windowingStrategy;
     this.sideInputs = sideInputs;
+    this.mainOutputTag = mainOutputTag;
   }
 
   @Override
@@ -78,49 +78,54 @@ public class FlinkMultiOutputDoFnFunction<InputT, OutputT>
       Iterable<WindowedValue<InputT>> values,
       Collector<WindowedValue<RawUnionValue>> out) throws Exception {
 
-    FlinkMultiOutputProcessContext<InputT, OutputT> context =
-        new FlinkMultiOutputProcessContext<>(
-            serializedOptions.getPipelineOptions(),
-            getRuntimeContext(),
-            doFn,
-            windowingStrategy,
-            sideInputs, out,
-            outputMap
-        );
+    RuntimeContext runtimeContext = getRuntimeContext();
 
-    this.doFn.startBundle(context);
+    DoFnRunner<InputT, OutputT> doFnRunner = DoFnRunners.simpleRunner(
+        serializedOptions.getPipelineOptions(), doFn,
+        new FlinkSideInputReader(sideInputs, runtimeContext),
+        new DoFnOutputManager(out),
+        mainOutputTag,
+        // see SimpleDoFnRunner, just use it to limit number of side outputs
+        Collections.<TupleTag<?>>emptyList(),
+        new FlinkNoOpStepContext(),
+        new FlinkAggregatorFactory(runtimeContext),
+        windowingStrategy);
 
-    if (!requiresWindowAccess || hasSideInputs) {
-      // we don't need to explode the windows
-      for (WindowedValue<InputT> value : values) {
-        context.setWindowedValue(value);
-        doFn.processElement(context);
-      }
-    } else {
-      // we need to explode the windows because we have per-window
-      // side inputs and window access also only works if an element
-      // is in only one window
-      for (WindowedValue<InputT> value : values) {
-        for (WindowedValue<InputT> explodedValue : value.explodeWindows()) {
-          context.setWindowedValue(value);
-          doFn.processElement(context);
-        }
-      }
+    doFnRunner.startBundle();
+
+    for (WindowedValue<InputT> value : values) {
+      doFnRunner.processElement(value);
     }
 
-    // set the windowed value to null so that the special logic for outputting
-    // in startBundle/finishBundle kicks in
-    context.setWindowedValue(null);
-    this.doFn.finishBundle(context);
+    doFnRunner.finishBundle();
+
   }
 
   @Override
   public void open(Configuration parameters) throws Exception {
-    doFn.setup();
+    doFnInvoker = DoFnInvokers.invokerFor(doFn);
+    doFnInvoker.invokeSetup();
   }
 
   @Override
   public void close() throws Exception {
-    doFn.teardown();
+    doFnInvoker.invokeTeardown();
   }
+
+  private class DoFnOutputManager
+      implements DoFnRunners.OutputManager {
+
+    private Collector<WindowedValue<RawUnionValue>> collector;
+
+    DoFnOutputManager(Collector<WindowedValue<RawUnionValue>> collector) {
+      this.collector = collector;
+    }
+
+    @Override
+    public <T> void output(TupleTag<T> tag, WindowedValue<T> output) {
+      collector.collect(WindowedValue.of(new RawUnionValue(outputMap.get(tag), output.getValue()),
+          output.getTimestamp(), output.getWindows(), output.getPane()));
+    }
+  }
+
 }
