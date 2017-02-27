@@ -640,7 +640,8 @@ class FlinkBatchTransformTranslators {
               windowingStrategy,
               sideInputStrategies,
               context.getPipelineOptions(),
-              outputMap);
+              outputMap,
+              transform.getMainOutputTag());
 
       MapPartitionOperator<WindowedValue<InputT>, WindowedValue<RawUnionValue>> taggedDataSet =
           new MapPartitionOperator<>(
