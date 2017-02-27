@@ -18,6 +18,7 @@
 
 package org.apache.beam.runners.spark;
 
+import static com.google.common.base.Preconditions.checkNotNull;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
 
@@ -33,7 +34,6 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsValidator;
 import org.apache.beam.sdk.runners.PipelineRunner;
 import org.apache.beam.sdk.testing.PAssert;
-import org.apache.beam.sdk.testing.TestPipelineOptions;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.util.ValueWithRecordId;
@@ -76,15 +76,15 @@ public final class TestSparkRunner extends PipelineRunner<SparkPipelineResult> {
   private boolean isForceStreaming;
   private int expectedNumberOfAssertions = 0;
 
-  private TestSparkRunner(SparkPipelineOptions options) {
+  private TestSparkRunner(TestSparkPipelineOptions options) {
     this.delegate = SparkRunner.fromOptions(options);
     this.isForceStreaming = options.isForceStreaming();
   }
 
   public static TestSparkRunner fromOptions(PipelineOptions options) {
     // Default options suffice to set it up as a test runner
-    SparkPipelineOptions sparkOptions =
-        PipelineOptionsValidator.validate(SparkPipelineOptions.class, options);
+    TestSparkPipelineOptions sparkOptions =
+        PipelineOptionsValidator.validate(TestSparkPipelineOptions.class, options);
     return new TestSparkRunner(sparkOptions);
   }
 
@@ -115,22 +115,22 @@ public final class TestSparkRunner extends PipelineRunner<SparkPipelineResult> {
 
   @Override
   public SparkPipelineResult run(Pipeline pipeline) {
-    SparkPipelineOptions sparkOptions = pipeline.getOptions().as(SparkPipelineOptions.class);
+    TestSparkPipelineOptions testSparkPipelineOptions =
+        pipeline.getOptions().as(TestSparkPipelineOptions.class);
     SparkPipelineResult result = null;
     // clear state of Aggregators, Metrics and Watermarks.
     AggregatorsAccumulator.clear();
     SparkMetricsContainer.clear();
     GlobalWatermarkHolder.clear();
 
-    TestPipelineOptions testPipelineOptions = pipeline.getOptions().as(TestPipelineOptions.class);
-    LOG.info("About to run test pipeline " + sparkOptions.getJobName());
+    LOG.info("About to run test pipeline " + testSparkPipelineOptions.getJobName());
 
     // if the pipeline was executed in streaming mode, validate aggregators.
     if (isForceStreaming) {
       try {
         result = delegate.run(pipeline);
-        long timeout = sparkOptions.getForcedTimeout();
-        result.waitUntilFinish(Duration.millis(timeout));
+        Long timeout = testSparkPipelineOptions.getTestTimeoutSeconds();
+        result.waitUntilFinish(Duration.standardSeconds(checkNotNull(timeout)));
         // validate assertion succeeded (at least once).
         int successAssertions = result.getAggregatorValue(PAssert.SUCCESS_COUNTER, Integer.class);
         assertThat(
@@ -149,12 +149,12 @@ public final class TestSparkRunner extends PipelineRunner<SparkPipelineResult> {
         LOG.info(
             String.format(
                 "Successfully asserted pipeline %s with %d successful assertions.",
-                sparkOptions.getJobName(),
+                testSparkPipelineOptions.getJobName(),
                 successAssertions));
-        } finally {
+      } finally {
         try {
           // cleanup checkpoint dir.
-          FileUtils.deleteDirectory(new File(sparkOptions.getCheckpointDir()));
+          FileUtils.deleteDirectory(new File(testSparkPipelineOptions.getCheckpointDir()));
         } catch (IOException e) {
           throw new RuntimeException("Failed to clear checkpoint tmp dir.", e);
         }
@@ -164,8 +164,8 @@ public final class TestSparkRunner extends PipelineRunner<SparkPipelineResult> {
       result = delegate.run(pipeline);
       result.waitUntilFinish();
       // assert via matchers.
-      assertThat(result, testPipelineOptions.getOnCreateMatcher());
-      assertThat(result, testPipelineOptions.getOnSuccessMatcher());
+      assertThat(result, testSparkPipelineOptions.getOnCreateMatcher());
+      assertThat(result, testSparkPipelineOptions.getOnSuccessMatcher());
     }
     return result;
   }

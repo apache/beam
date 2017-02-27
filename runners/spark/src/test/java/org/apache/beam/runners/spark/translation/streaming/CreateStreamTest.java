@@ -24,10 +24,9 @@ import static org.junit.Assert.assertThat;
 
 import java.io.IOException;
 import java.io.Serializable;
+import org.apache.beam.runners.spark.PipelineRule;
 import org.apache.beam.runners.spark.ReuseSparkContextRule;
-import org.apache.beam.runners.spark.SparkPipelineOptions;
 import org.apache.beam.runners.spark.io.CreateStream;
-import org.apache.beam.runners.spark.translation.streaming.utils.SparkTestPipelineOptionsForStreaming;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
@@ -59,8 +58,6 @@ import org.joda.time.Instant;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
-import org.junit.rules.TemporaryFolder;
-import org.junit.rules.TestName;
 
 
 /**
@@ -76,27 +73,18 @@ import org.junit.rules.TestName;
 public class CreateStreamTest implements Serializable {
 
   @Rule
-  public transient TemporaryFolder checkpointParentDir = new TemporaryFolder();
+  public final transient PipelineRule pipelineRule = PipelineRule.streaming();
   @Rule
-  public transient SparkTestPipelineOptionsForStreaming commonOptions =
-      new SparkTestPipelineOptionsForStreaming();
+  public final transient ReuseSparkContextRule noContextResue = ReuseSparkContextRule.no();
   @Rule
-  public transient ReuseSparkContextRule noContextResue = ReuseSparkContextRule.no();
-  @Rule
-  public transient TestName testName = new TestName();
-  @Rule
-  public transient ExpectedException thrown = ExpectedException.none();
+  public final transient ExpectedException thrown = ExpectedException.none();
 
   @Test
   public void testLateDataAccumulating() throws IOException {
-    SparkPipelineOptions options = commonOptions.withTmpCheckpointDir(checkpointParentDir);
-    Pipeline p = Pipeline.create(options);
-    options.setJobName(testName.getMethodName());
-    Duration batchDuration = Duration.millis(options.getBatchIntervalMillis());
-
+    Pipeline p = pipelineRule.createPipeline();
     Instant instant = new Instant(0);
     CreateStream<TimestampedValue<Integer>> source =
-        CreateStream.<TimestampedValue<Integer>>withBatchInterval(batchDuration)
+        CreateStream.<TimestampedValue<Integer>>withBatchInterval(pipelineRule.batchDuration())
             .nextBatch()
             .advanceWatermarkForNextBatch(instant.plus(Duration.standardMinutes(6)))
             .nextBatch(
@@ -167,13 +155,9 @@ public class CreateStreamTest implements Serializable {
 
   @Test
   public void testDiscardingMode() throws IOException {
-    SparkPipelineOptions options = commonOptions.withTmpCheckpointDir(checkpointParentDir);
-    Pipeline p = Pipeline.create(options);
-    options.setJobName(testName.getMethodName());
-    Duration batchDuration = Duration.millis(options.getBatchIntervalMillis());
-
+    Pipeline p = pipelineRule.createPipeline();
     CreateStream<TimestampedValue<String>> source =
-        CreateStream.<TimestampedValue<String>>withBatchInterval(batchDuration)
+        CreateStream.<TimestampedValue<String>>withBatchInterval(pipelineRule.batchDuration())
             .nextBatch(
                 TimestampedValue.of("firstPane", new Instant(100)),
                 TimestampedValue.of("alsoFirstPane", new Instant(200)))
@@ -221,14 +205,10 @@ public class CreateStreamTest implements Serializable {
 
   @Test
   public void testFirstElementLate() throws IOException {
-    SparkPipelineOptions options = commonOptions.withTmpCheckpointDir(checkpointParentDir);
-    Pipeline p = Pipeline.create(options);
-    options.setJobName(testName.getMethodName());
-    Duration batchDuration = Duration.millis(options.getBatchIntervalMillis());
-
+    Pipeline p = pipelineRule.createPipeline();
     Instant lateElementTimestamp = new Instant(-1_000_000);
     CreateStream<TimestampedValue<String>> source =
-        CreateStream.<TimestampedValue<String>>withBatchInterval(batchDuration)
+        CreateStream.<TimestampedValue<String>>withBatchInterval(pipelineRule.batchDuration())
             .nextBatch()
             .advanceWatermarkForNextBatch(new Instant(0))
             .nextBatch(
@@ -261,14 +241,10 @@ public class CreateStreamTest implements Serializable {
 
   @Test
   public void testElementsAtAlmostPositiveInfinity() throws IOException {
-    SparkPipelineOptions options = commonOptions.withTmpCheckpointDir(checkpointParentDir);
-    Pipeline p = Pipeline.create(options);
-    options.setJobName(testName.getMethodName());
-    Duration batchDuration = Duration.millis(options.getBatchIntervalMillis());
-
+    Pipeline p = pipelineRule.createPipeline();
     Instant endOfGlobalWindow = GlobalWindow.INSTANCE.maxTimestamp();
     CreateStream<TimestampedValue<String>> source =
-        CreateStream.<TimestampedValue<String>>withBatchInterval(batchDuration)
+        CreateStream.<TimestampedValue<String>>withBatchInterval(pipelineRule.batchDuration())
             .nextBatch(
                 TimestampedValue.of("foo", endOfGlobalWindow),
                 TimestampedValue.of("bar", endOfGlobalWindow))
@@ -292,17 +268,13 @@ public class CreateStreamTest implements Serializable {
 
   @Test
   public void testMultipleStreams() throws IOException {
-    SparkPipelineOptions options = commonOptions.withTmpCheckpointDir(checkpointParentDir);
-    Pipeline p = Pipeline.create(options);
-    options.setJobName(testName.getMethodName());
-    Duration batchDuration = Duration.millis(options.getBatchIntervalMillis());
-
+    Pipeline p = pipelineRule.createPipeline();
     CreateStream<String> source =
-        CreateStream.<String>withBatchInterval(batchDuration)
+        CreateStream.<String>withBatchInterval(pipelineRule.batchDuration())
             .nextBatch("foo", "bar")
             .advanceNextBatchWatermarkToInfinity();
     CreateStream<Integer> other =
-        CreateStream.<Integer>withBatchInterval(batchDuration)
+        CreateStream.<Integer>withBatchInterval(pipelineRule.batchDuration())
             .nextBatch(1, 2, 3, 4)
             .advanceNextBatchWatermarkToInfinity();
 
@@ -327,14 +299,10 @@ public class CreateStreamTest implements Serializable {
 
   @Test
   public void testFlattenedWithWatermarkHold() throws IOException {
-    SparkPipelineOptions options = commonOptions.withTmpCheckpointDir(checkpointParentDir);
-    Pipeline p = Pipeline.create(options);
-    options.setJobName(testName.getMethodName());
-    Duration batchDuration = Duration.millis(options.getBatchIntervalMillis());
-
+    Pipeline p = pipelineRule.createPipeline();
     Instant instant = new Instant(0);
     CreateStream<TimestampedValue<Integer>> source1 =
-        CreateStream.<TimestampedValue<Integer>>withBatchInterval(batchDuration)
+        CreateStream.<TimestampedValue<Integer>>withBatchInterval(pipelineRule.batchDuration())
             .nextBatch()
             .advanceWatermarkForNextBatch(instant.plus(Duration.standardMinutes(5)))
             .nextBatch(
@@ -343,7 +311,7 @@ public class CreateStreamTest implements Serializable {
                 TimestampedValue.of(3, instant))
             .advanceWatermarkForNextBatch(instant.plus(Duration.standardMinutes(10)));
     CreateStream<TimestampedValue<Integer>> source2 =
-        CreateStream.<TimestampedValue<Integer>>withBatchInterval(batchDuration)
+        CreateStream.<TimestampedValue<Integer>>withBatchInterval(pipelineRule.batchDuration())
             .nextBatch()
             .advanceWatermarkForNextBatch(instant.plus(Duration.standardMinutes(1)))
             .nextBatch(
@@ -384,9 +352,8 @@ public class CreateStreamTest implements Serializable {
 
   @Test
   public void testElementAtPositiveInfinityThrows() {
-    Duration batchDuration = Duration.millis(commonOptions.getOptions().getBatchIntervalMillis());
     CreateStream<TimestampedValue<Integer>> source =
-        CreateStream.<TimestampedValue<Integer>>withBatchInterval(batchDuration)
+        CreateStream.<TimestampedValue<Integer>>withBatchInterval(pipelineRule.batchDuration())
             .nextBatch(TimestampedValue.of(-1, BoundedWindow.TIMESTAMP_MAX_VALUE.minus(1L)));
     thrown.expect(IllegalArgumentException.class);
     source.nextBatch(TimestampedValue.of(1, BoundedWindow.TIMESTAMP_MAX_VALUE));
@@ -394,9 +361,8 @@ public class CreateStreamTest implements Serializable {
 
   @Test
   public void testAdvanceWatermarkNonMonotonicThrows() {
-    Duration batchDuration = Duration.millis(commonOptions.getOptions().getBatchIntervalMillis());
     CreateStream<Integer> source =
-        CreateStream.<Integer>withBatchInterval(batchDuration)
+        CreateStream.<Integer>withBatchInterval(pipelineRule.batchDuration())
             .advanceWatermarkForNextBatch(new Instant(0L));
     thrown.expect(IllegalArgumentException.class);
     source.advanceWatermarkForNextBatch(new Instant(-1L));
@@ -404,9 +370,8 @@ public class CreateStreamTest implements Serializable {
 
   @Test
   public void testAdvanceWatermarkEqualToPositiveInfinityThrows() {
-    Duration batchDuration = Duration.millis(commonOptions.getOptions().getBatchIntervalMillis());
     CreateStream<Integer> source =
-        CreateStream.<Integer>withBatchInterval(batchDuration)
+        CreateStream.<Integer>withBatchInterval(pipelineRule.batchDuration())
             .advanceWatermarkForNextBatch(BoundedWindow.TIMESTAMP_MAX_VALUE.minus(1L));
     thrown.expect(IllegalArgumentException.class);
     source.advanceWatermarkForNextBatch(BoundedWindow.TIMESTAMP_MAX_VALUE);

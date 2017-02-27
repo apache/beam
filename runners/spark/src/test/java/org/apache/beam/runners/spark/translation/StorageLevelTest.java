@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.spark.translation;
 
-import org.apache.beam.runners.spark.translation.streaming.utils.SparkTestPipelineOptions;
+import org.apache.beam.runners.spark.PipelineRule;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.transforms.Count;
@@ -32,12 +32,12 @@ import org.junit.Test;
 public class StorageLevelTest {
 
   @Rule
-  public final transient SparkTestPipelineOptions pipelineOptions = new SparkTestPipelineOptions();
+  public final transient PipelineRule pipelineRule = PipelineRule.batch();
 
   @Test
   public void test() throws Exception {
-    pipelineOptions.getOptions().setStorageLevel("DISK_ONLY");
-    Pipeline p = Pipeline.create(pipelineOptions.getOptions());
+    pipelineRule.getOptions().setStorageLevel("DISK_ONLY");
+    Pipeline p = pipelineRule.createPipeline();
 
     PCollection<String> pCollection = p.apply(Create.of("foo"));
 

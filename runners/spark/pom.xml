@@ -80,7 +80,6 @@
                     org.apache.beam.sdk.testing.UsesCommittedMetrics
                   </excludedGroups>
                   <parallel>none</parallel>
-                  <threadCount>4</threadCount>
                   <forkCount>1</forkCount>
                   <reuseForks>false</reuseForks>
                   <failIfNoTests>true</failIfNoTests>
