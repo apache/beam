@@ -15,40 +15,41 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io.hbase.coders;
+package org.apache.beam.sdk.io.hbase;
 
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.io.Serializable;
-
-import org.apache.beam.sdk.coders.AtomicCoder;
-import org.apache.beam.sdk.coders.Coder;
-import org.apache.hadoop.hbase.client.Result;
+import org.apache.hadoop.hbase.client.Scan;
 import org.apache.hadoop.hbase.protobuf.ProtobufUtil;
 import org.apache.hadoop.hbase.protobuf.generated.ClientProtos;
 
 /**
- * A {@link Coder} that serializes and deserializes the {@link Result} objects using {@link
- * ProtobufUtil}.
+ * This is just a wrapper class to serialize HBase {@link Scan} using Protobuf.
  */
-public class HBaseResultCoder extends AtomicCoder<Result> implements Serializable {
+class SerializableScan implements Serializable {
+    private transient Scan scan;
 
-  private static final HBaseResultCoder INSTANCE = new HBaseResultCoder();
+    public SerializableScan() {
+    }
 
-  public static HBaseResultCoder of() {
-    return INSTANCE;
-  }
+    public SerializableScan(Scan scan) {
+        if (scan == null) {
+            throw new NullPointerException("Scan must not be null.");
+        }
+        this.scan = scan;
+    }
 
-  @Override
-  public Result decode(InputStream inputStream, Coder.Context context)
-      throws IOException {
-    return ProtobufUtil.toResult(ClientProtos.Result.parseDelimitedFrom(inputStream));
-  }
+    private void writeObject(ObjectOutputStream out) throws IOException {
+        ProtobufUtil.toScan(scan).writeDelimitedTo(out);
+    }
 
-  @Override
-  public void encode(Result value, OutputStream outputStream, Coder.Context context)
-      throws IOException {
-    ProtobufUtil.toResult(value).writeDelimitedTo(outputStream);
-  }
+    private void readObject(ObjectInputStream in) throws IOException {
+        scan = ProtobufUtil.toScan(ClientProtos.Scan.parseDelimitedFrom(in));
+    }
+
+    public Scan get() {
+        return scan;
+    }
 }

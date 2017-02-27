@@ -15,10 +15,27 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.beam.sdk.io.hbase;
+
+import org.apache.beam.sdk.testing.CoderProperties;
+import org.apache.hadoop.hbase.client.Result;
+import org.junit.Rule;
+import org.junit.Test;
+import org.junit.rules.ExpectedException;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 
 /**
- * Defines coders used while reading and writing from/to HBase.
- *
- * @see org.apache.beam.sdk.io.hbase.HBaseIO
+ * Tests for HBaseResultCoder.
  */
-package org.apache.beam.sdk.io.hbase.coders;
+@RunWith(JUnit4.class)
+public class HBaseResultCoderTest {
+  @Rule public final ExpectedException thrown = ExpectedException.none();
+  private static final HBaseResultCoder CODER = HBaseResultCoder.of();
+
+  @Test
+  public void testResultEncoding() throws Exception {
+    Result value = Result.EMPTY_RESULT;
+    CoderProperties.structuralValueDecodeEncodeEqual(CODER, value);
+  }
+}
