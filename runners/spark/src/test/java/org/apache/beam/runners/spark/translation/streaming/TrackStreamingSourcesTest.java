@@ -77,11 +77,11 @@ public class TrackStreamingSourcesTest {
     Pipeline p = Pipeline.create(options);
 
     CreateStream<Integer> emptyStream =
-        CreateStream.<Integer>withBatchInterval(
-            Duration.millis(options.getBatchIntervalMillis())).nextBatch();
+        CreateStream.of(
+            VarIntCoder.of(),
+            Duration.millis(options.getBatchIntervalMillis())).emptyBatch();
 
-    p.apply(emptyStream).setCoder(VarIntCoder.of())
-        .apply(ParDo.of(new PassthroughFn<>()));
+    p.apply(emptyStream).apply(ParDo.of(new PassthroughFn<>()));
 
     p.traverseTopologically(new StreamingSourceTracker(jssc, p, ParDo.Bound.class,  0));
     assertThat(StreamingSourceTracker.numAssertions, equalTo(1));
@@ -97,14 +97,16 @@ public class TrackStreamingSourcesTest {
     Pipeline p = Pipeline.create(options);
 
     CreateStream<Integer> queueStream1 =
-        CreateStream.<Integer>withBatchInterval(
-            Duration.millis(options.getBatchIntervalMillis())).nextBatch();
+        CreateStream.of(
+            VarIntCoder.of(),
+            Duration.millis(options.getBatchIntervalMillis())).emptyBatch();
     CreateStream<Integer> queueStream2 =
-        CreateStream.<Integer>withBatchInterval(
-            Duration.millis(options.getBatchIntervalMillis())).nextBatch();
+        CreateStream.of(
+            VarIntCoder.of(),
+            Duration.millis(options.getBatchIntervalMillis())).emptyBatch();
 
-    PCollection<Integer> pcol1 = p.apply(queueStream1).setCoder(VarIntCoder.of());
-    PCollection<Integer> pcol2 = p.apply(queueStream2).setCoder(VarIntCoder.of());
+    PCollection<Integer> pcol1 = p.apply(queueStream1);
+    PCollection<Integer> pcol2 = p.apply(queueStream2);
     PCollection<Integer> flattened =
         PCollectionList.of(pcol1).and(pcol2).apply(Flatten.<Integer>pCollections());
     flattened.apply(ParDo.of(new PassthroughFn<>()));

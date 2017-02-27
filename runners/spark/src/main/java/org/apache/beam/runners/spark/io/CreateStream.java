@@ -19,11 +19,16 @@ package org.apache.beam.runners.spark.io;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
+import com.google.common.collect.Lists;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Deque;
 import java.util.LinkedList;
+import java.util.List;
 import java.util.Queue;
 import org.apache.beam.runners.spark.util.GlobalWatermarkHolder.SparkWatermarks;
+import org.apache.beam.sdk.coders.CannotProvideCoderException;
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowingStrategy;
@@ -83,20 +88,22 @@ import org.joda.time.Instant;
 public final class CreateStream<T> extends PTransform<PBegin, PCollection<T>> {
 
   private final Duration batchInterval;
-  private final Instant initialSystemTime;
-  private final Queue<Iterable<T>> batches = new LinkedList<>();
+  private final Queue<Iterable<TimestampedValue<T>>> batches = new LinkedList<>();
   private final Deque<SparkWatermarks> times = new LinkedList<>();
+  private final Coder<T> coder;
+  private Instant initialSystemTime;
 
   private Instant lowWatermark = BoundedWindow.TIMESTAMP_MIN_VALUE; //for test purposes.
 
-  private CreateStream(Duration batchInterval, Instant initialSystemTime) {
+  private CreateStream(Duration batchInterval, Instant initialSystemTime, Coder<T> coder) {
     this.batchInterval = batchInterval;
     this.initialSystemTime = initialSystemTime;
+    this.coder = coder;
   }
 
   /** Set the batch interval for the stream. */
-  public static <T> CreateStream<T> withBatchInterval(Duration batchInterval) {
-    return new CreateStream<>(batchInterval, new Instant(0));
+  public static <T> CreateStream<T> of(Coder<T> coder, Duration batchInterval) {
+    return new CreateStream<>(batchInterval, new Instant(0), coder);
   }
 
   /**
@@ -104,25 +111,46 @@ public final class CreateStream<T> extends PTransform<PBegin, PCollection<T>> {
    * This is backed by a {@link Queue} so stream input order would keep the population order (FIFO).
    */
   @SafeVarargs
-  public final CreateStream<T> nextBatch(T... batchElements) {
+  public final CreateStream<T> nextBatch(TimestampedValue<T>... batchElements) {
     // validate timestamps if timestamped elements.
-    for (T element: batchElements) {
-      if (element instanceof TimestampedValue) {
-        TimestampedValue timestampedValue = (TimestampedValue) element;
-        checkArgument(
-            timestampedValue.getTimestamp().isBefore(BoundedWindow.TIMESTAMP_MAX_VALUE),
-            "Elements must have timestamps before %s. Got: %s",
-            BoundedWindow.TIMESTAMP_MAX_VALUE,
-            timestampedValue.getTimestamp());
-      }
+    for (TimestampedValue<T> element: batchElements) {
+      TimestampedValue timestampedValue = (TimestampedValue) element;
+      checkArgument(
+          timestampedValue.getTimestamp().isBefore(BoundedWindow.TIMESTAMP_MAX_VALUE),
+          "Elements must have timestamps before %s. Got: %s",
+          BoundedWindow.TIMESTAMP_MAX_VALUE,
+          timestampedValue.getTimestamp());
     }
     batches.offer(Arrays.asList(batchElements));
     return this;
   }
 
+  /**
+   * For non-timestamped elements.
+   */
+  @SafeVarargs
+  public final CreateStream<T> nextBatch(T... batchElements) {
+    List<TimestampedValue<T>> timestamped = Lists.newArrayListWithCapacity(batchElements.length);
+    // as TimestampedValue.
+    for (T element: batchElements) {
+      timestamped.add(TimestampedValue.atMinimumTimestamp(element));
+    }
+    batches.offer(timestamped);
+    return this;
+  }
+
+  /**
+   * Adds an empty batch.
+   */
+  public CreateStream<T> emptyBatch() {
+    batches.offer(Collections.<TimestampedValue<T>>emptyList());
+    return this;
+  }
+
   /** Set the initial synchronized processing time. */
   public CreateStream<T> initialSystemTimeAt(Instant initialSystemTime) {
-    return new CreateStream<>(batchInterval, initialSystemTime);
+    this.initialSystemTime = initialSystemTime;
+    return this;
   }
 
   /**
@@ -160,7 +188,7 @@ public final class CreateStream<T> extends PTransform<PBegin, PCollection<T>> {
   }
 
   /** Get the underlying queue representing the mock stream of micro-batches. */
-  public Queue<Iterable<T>> getBatches() {
+  public Queue<Iterable<TimestampedValue<T>>> getBatches() {
     return batches;
   }
 
@@ -178,4 +206,8 @@ public final class CreateStream<T> extends PTransform<PBegin, PCollection<T>> {
         input.getPipeline(), WindowingStrategy.globalDefault(), PCollection.IsBounded.UNBOUNDED);
   }
 
+  @Override
+  protected Coder<T> getDefaultOutputCoder() throws CannotProvideCoderException {
+    return coder;
+  }
 }

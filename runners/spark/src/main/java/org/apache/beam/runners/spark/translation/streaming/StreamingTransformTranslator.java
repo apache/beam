@@ -31,6 +31,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Queue;
 import java.util.concurrent.LinkedBlockingQueue;
+import javax.annotation.Nonnull;
 import org.apache.beam.runners.spark.aggregators.NamedAggregators;
 import org.apache.beam.runners.spark.aggregators.SparkAggregators;
 import org.apache.beam.runners.spark.coders.CoderHelpers;
@@ -67,6 +68,8 @@ import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
+import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.CombineFnUtil;
@@ -75,6 +78,7 @@ import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TaggedPValue;
+import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.spark.Accumulator;
 import org.apache.spark.api.java.JavaPairRDD;
@@ -85,6 +89,7 @@ import org.apache.spark.streaming.api.java.JavaDStream;
 import org.apache.spark.streaming.api.java.JavaInputDStream;
 import org.apache.spark.streaming.api.java.JavaPairDStream;
 import org.apache.spark.streaming.api.java.JavaStreamingContext;
+
 
 
 /**
@@ -127,14 +132,25 @@ final class StreamingTransformTranslator {
       public void evaluate(CreateStream<T> transform, EvaluationContext context) {
         Coder<T> coder = context.getOutput(transform).getCoder();
         JavaStreamingContext jssc = context.getStreamingContext();
-        Queue<Iterable<T>> values = transform.getBatches();
-        WindowedValue.ValueOnlyWindowedValueCoder<T> windowCoder =
-            WindowedValue.getValueOnlyCoder(coder);
+        Queue<Iterable<TimestampedValue<T>>> values = transform.getBatches();
+        WindowedValue.FullWindowedValueCoder<T> windowCoder =
+            WindowedValue.FullWindowedValueCoder.of(coder, GlobalWindow.Coder.INSTANCE);
         // create the DStream from queue.
         Queue<JavaRDD<WindowedValue<T>>> rddQueue = new LinkedBlockingQueue<>();
-        for (Iterable<T> v : values) {
+        for (Iterable<TimestampedValue<T>> tv : values) {
           Iterable<WindowedValue<T>> windowedValues =
-              Iterables.transform(v, WindowingHelpers.<T>windowValueFunction());
+              Iterables.transform(
+                  tv,
+                  new com.google.common.base.Function<TimestampedValue<T>, WindowedValue<T>>() {
+                    @Override
+                    public WindowedValue<T> apply(@Nonnull TimestampedValue<T> timestampedValue) {
+                      return WindowedValue.of(
+                          timestampedValue.getValue(),
+                          timestampedValue.getTimestamp(),
+                          GlobalWindow.INSTANCE,
+                          PaneInfo.NO_FIRING);
+                    }
+              });
           JavaRDD<WindowedValue<T>> rdd =
               jssc.sparkContext()
                   .parallelize(CoderHelpers.toByteArrays(windowedValues, windowCoder))
