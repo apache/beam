@@ -349,5 +349,4 @@ class StreamingViewOverrides {
       return ListCoder.of(inputCoder);
     }
   }
-
 }

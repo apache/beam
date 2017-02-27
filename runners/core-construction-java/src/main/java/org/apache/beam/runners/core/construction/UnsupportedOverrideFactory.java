@@ -60,14 +60,12 @@ public final class UnsupportedOverrideFactory<
   }
 
   @Override
-  public InputT getInput(
-      List<TaggedPValue> inputs, Pipeline p) {
+  public InputT getInput(List<TaggedPValue> inputs, Pipeline p) {
     throw new UnsupportedOperationException(message);
   }
 
   @Override
-  public Map<PValue, ReplacementOutput> mapOutputs(
-      List<TaggedPValue> outputs, OutputT newOutput) {
+  public Map<PValue, ReplacementOutput> mapOutputs(List<TaggedPValue> outputs, OutputT newOutput) {
     throw new UnsupportedOperationException(message);
   }
 }
