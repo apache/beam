@@ -19,8 +19,10 @@
 package org.apache.beam.sdk.io.hadoop.inputformat.coders;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+
 import java.io.InputStream;
 import java.io.OutputStream;
+
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.hadoop.io.NullWritable;
 

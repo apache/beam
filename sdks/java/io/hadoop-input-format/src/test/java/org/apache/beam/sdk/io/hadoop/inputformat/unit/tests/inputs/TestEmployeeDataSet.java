@@ -14,23 +14,21 @@
  */
 package org.apache.beam.sdk.io.hadoop.inputformat.unit.tests.inputs;
 
+import com.google.common.base.Function;
+import com.google.common.collect.Lists;
+
 import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.beam.sdk.values.KV;
 import org.apache.hadoop.io.Text;
-
-import com.google.common.base.Function;
-import com.google.common.collect.Lists;
-
+/**
+ * Test Utils used in {@link EmployeeInputFormat} and {@link ReuseObjectsEmployeeInputFormat} for
+ * computing splits.
+ */
 public class TestEmployeeDataSet {
-  /**
-   * Test Utils used in {@link EmployeeInputFormat} and {@link ReuseObjectsEmployeeInputFormat}
-   * for computing splits.
-   */
   public static final long NUMBER_OF_RECORDS_IN_EACH_SPLIT = 5L;
   public static final long NUMBER_OF_SPLITS = 3L;
-
   private static final List<KV<String, String>> data = new ArrayList<KV<String, String>>();
 
   /**
@@ -75,5 +73,4 @@ public class TestEmployeeDataSet {
           }
         });
   }
-
 }

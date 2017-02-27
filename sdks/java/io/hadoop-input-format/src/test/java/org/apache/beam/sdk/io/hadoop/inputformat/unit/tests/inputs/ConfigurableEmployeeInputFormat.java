@@ -74,6 +74,9 @@ public class ConfigurableEmployeeInputFormat extends InputFormat<Text, Employee>
     return splits;
   }
 
+  /**
+   * InputSplit implementation for ConfigurableEmployeeInputFormat.
+   */
   public class ConfigurableEmployeeInputSplit extends InputSplit implements Writable {
 
     @Override
@@ -91,9 +94,11 @@ public class ConfigurableEmployeeInputFormat extends InputFormat<Text, Employee>
     public String[] getLocations() throws IOException, InterruptedException {
       return null;
     }
-
   }
 
+  /**
+   * RecordReader for ConfigurableEmployeeInputFormat.
+   */
   public class ConfigurableEmployeeRecordReader extends RecordReader<Text, Employee> {
 
     @Override

@@ -15,9 +15,7 @@
 package org.apache.beam.sdk.io.hadoop.inputformat;
 
 /**
- * 
  * All Constants are maintained.
- *
  */
 public class HadoopInputFormatIOConstants {
   public static final String MISSING_CONFIGURATION_SOURCE_ERROR_MSG =
@@ -32,7 +30,8 @@ public class HadoopInputFormatIOConstants {
   public static final String NULL_VALUE_TRANSLATIONFUNC_ERROR_MSG =
       "Simple function for value translation cannot be null.";
   public static final String MISSING_CONFIGURATION_ERROR_MSG =
-      "Need to set the configuration of a HadoopInputFormatIO Read using method Read.withConfiguration().";
+      "Need to set the configuration of a HadoopInputFormatIO Read "
+      + "using method Read.withConfiguration().";
   public static final String MISSING_INPUTFORMAT_ERROR_MSG = "Hadoop InputFormat class property "
       + "\"mapreduce.job.inputformat.class\" is not set in configuration.";
   public static final String MISSING_INPUTFORMAT_KEY_CLASS_ERROR_MSG =
@@ -60,7 +59,8 @@ public class HadoopInputFormatIOConstants {
       "null RecordReader object returned by %s";
   public static final String GET_CURRENT_ERROR_MSG = "Unable to read data: ";
   public static final String GETFRACTIONSCONSUMED_ERROR_MSG =
-      "Error in computing the fractions consumed as RecordReader.getProgress() throws an exception : ";
+      "Error in computing the fractions consumed as "
+      + "RecordReader.getProgress() throws an exception : ";
   public static final String SERIALIZABLE_SPLIT_WRITABLE_ERROR_MSG =
       "Split is not of type Writable: %s";
   public static final String INPUTFORMAT_CLASSNAME = "mapreduce.job.inputformat.class";

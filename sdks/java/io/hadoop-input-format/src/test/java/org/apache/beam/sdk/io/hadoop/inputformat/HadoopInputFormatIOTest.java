@@ -5,7 +5,7 @@
  * "License"); you may not use this file except in compliance with the License. You may obtain a
  * copy of the License at
  *
- * http:www.apache.org/licenses/LICENSE-2.0
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software distributed under the License
  * is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express
@@ -25,18 +25,14 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map.Entry;
 
-import org.apache.beam.runners.direct.DirectOptions;
-import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.Pipeline.PipelineExecutionException;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.BoundedSource.BoundedReader;
 import org.apache.beam.sdk.io.hadoop.inputformat.HadoopInputFormatIO.HadoopInputFormatBoundedSource;
-import org.apache.beam.sdk.io.hadoop.inputformat.HadoopInputFormatIO.HadoopInputFormatBoundedSource.SerializableSplit;
-import org.apache.beam.sdk.io.hadoop.inputformat.HadoopInputFormatIO.Read;
 import org.apache.beam.sdk.io.hadoop.inputformat.HadoopInputFormatIO.SerializableConfiguration;
+import org.apache.beam.sdk.io.hadoop.inputformat.HadoopInputFormatIO.SerializableSplit;
 import org.apache.beam.sdk.io.hadoop.inputformat.coders.WritableCoder;
 import org.apache.beam.sdk.io.hadoop.inputformat.unit.tests.inputs.ConfigurableEmployeeInputFormat;
 import org.apache.beam.sdk.io.hadoop.inputformat.unit.tests.inputs.Employee;
@@ -45,18 +41,14 @@ import org.apache.beam.sdk.io.hadoop.inputformat.unit.tests.inputs.EmployeeInput
 import org.apache.beam.sdk.io.hadoop.inputformat.unit.tests.inputs.EmployeeInputFormat.NewObjectsEmployeeInputSplit;
 import org.apache.beam.sdk.io.hadoop.inputformat.unit.tests.inputs.ReuseObjectsEmployeeInputFormat;
 import org.apache.beam.sdk.io.hadoop.inputformat.unit.tests.inputs.TestEmployeeDataSet;
-import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.sdk.testing.CoderProperties;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.SourceTestUtils;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
-import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.MapWritable;
@@ -66,7 +58,6 @@ import org.apache.hadoop.mapreduce.InputFormat;
 import org.apache.hadoop.mapreduce.InputSplit;
 import org.apache.hadoop.mapreduce.JobContext;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
-import org.elasticsearch.hadoop.mr.LinkedMapWritable;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
@@ -74,8 +65,6 @@ import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.mockito.Mockito;
-
-import com.datastax.driver.core.Row;
 
 /**
  * Unit tests for {@link HadoopInputFormatIO}.
@@ -171,7 +160,8 @@ public class HadoopInputFormatIOTest {
     assertEquals(null, read.getValueTranslationFunction());
     assertEquals(myKeyTranslate.getOutputTypeDescriptor(), read.getKeyClass());
     assertEquals(diffConf.getHadoopConfiguration()
-        .getClass(HadoopInputFormatIOConstants.VALUE_CLASS, Object.class), read.getValueClass().getRawType());
+        .getClass(HadoopInputFormatIOConstants.VALUE_CLASS, Object.class),
+        read.getValueClass().getRawType());
   }
 
   /**
@@ -402,9 +392,10 @@ public class HadoopInputFormatIOTest {
   }
 
   /**
-   * This test validates functionality of {@link HadoopInputFormatIO.Read#validate() Read.validate()} function when myValueTranslate's (simple
-   * function provided by user for value translation) input type is not same as Hadoop InputFormat's
-   * valueClass(Which is property set in configuration as "value.class").
+   * This test validates functionality of {@link HadoopInputFormatIO.Read#validate()
+   * Read.validate()} function when myValueTranslate's (simple function provided by user for value
+   * translation) input type is not same as Hadoop InputFormat's valueClass(Which is property set in
+   * configuration as "value.class").
    */
   @Test
   public void testReadValidationFailsWithWrongInputTypeValueTranslationFunction() {
@@ -536,9 +527,10 @@ public class HadoopInputFormatIOTest {
   }
 
   /**
-   * This test validates behavior of {@link HadoopInputFormatBoundedSource.HadoopInputFormatReader#start()
-   * start()} method if InputFormat's {@link InputFormat#getSplits() getSplits()} returns
-   * InputSplitList having zero records.
+   * This test validates behavior of
+   * {@link HadoopInputFormatBoundedSource.HadoopInputFormatReader#start() start()} method if
+   * InputFormat's {@link InputFormat#getSplits() getSplits()} returns InputSplitList having zero
+   * records.
    */
   @Test
   public void testReadersStartWhenZeroRecords() throws Exception {
@@ -651,9 +643,9 @@ public class HadoopInputFormatIOTest {
             null, // No key translation required.
             null, // No value translation required.
             split);
-    BoundedReader<KV<Text, Employee>> HIFReader = source.createReader(p.getOptions());
-    BoundedSource<KV<Text, Employee>> HIFSource = HIFReader.getCurrentSource();
-    assertEquals(HIFSource, source);
+    BoundedReader<KV<Text, Employee>> hifReader = source.createReader(p.getOptions());
+    BoundedSource<KV<Text, Employee>> hifSource = hifReader.getCurrentSource();
+    assertEquals(hifSource, source);
   }
 
   /**
@@ -675,9 +667,9 @@ public class HadoopInputFormatIOTest {
   }
 
   /**
-   * This test validates behavior of {@link HadoopInputFormatBoundedSource#computeSplitsIfNecessary()
-   * computeSplits()} when Hadoop InputFormat's {@link InputFormat#getSplits() getSplits()}
-   * returns empty list.
+   * This test validates behavior of
+   * {@link HadoopInputFormatBoundedSource#computeSplitsIfNecessary() computeSplits()} when Hadoop
+   * InputFormat's {@link InputFormat#getSplits() getSplits()} returns empty list.
    */
   @Test
   public void testComputeSplitsIfGetSplitsReturnsEmptyList() throws Exception {
@@ -700,9 +692,9 @@ public class HadoopInputFormatIOTest {
   }
 
   /**
-   * This test validates behavior of {@link HadoopInputFormatBoundedSource#computeSplitsIfNecessary()
-   * computeSplits()} when Hadoop InputFormat's {@link InputFormat#getSplits() getSplits()}
-   * returns NULL value.
+   * This test validates behavior of
+   * {@link HadoopInputFormatBoundedSource#computeSplitsIfNecessary() computeSplits()} when Hadoop
+   * InputFormat's {@link InputFormat#getSplits() getSplits()} returns NULL value.
    */
   @Test
   public void testComputeSplitsIfGetSplitsReturnsNullValue() throws Exception {
@@ -724,9 +716,10 @@ public class HadoopInputFormatIOTest {
   }
 
   /**
-   * This test validates behavior of {@link HadoopInputFormatBoundedSource#computeSplitsIfNecessary()
-   * computeSplits()} if Hadoop InputFormat's {@link InputFormat#getSplits() getSplits()} returns
-   * InputSplit list having some null values.
+   * This test validates behavior of
+   * {@link HadoopInputFormatBoundedSource#computeSplitsIfNecessary() computeSplits()} if Hadoop
+   * InputFormat's {@link InputFormat#getSplits() getSplits()} returns InputSplit list having some
+   * null values.
    */
   @Test
   public void testComputeSplitsIfGetSplitsReturnsListHavingNullValues() throws Exception {
@@ -820,84 +813,6 @@ public class HadoopInputFormatIOTest {
     assertThat(bundleRecords, containsInAnyOrder(referenceRecords.toArray()));
   }
 
-  /**
-   * This test validates {@link WritableCoder WritableCoder's} encoding and decoding process.
-   */
-  @Test
-  public void testLinkedMapWritableEncoding() throws Exception {
-    LinkedMapWritable map = new LinkedMapWritable();
-    map.put(new Text("path"), new Text("/home/asharma/MOCK1.csv"));
-    map.put(new Text("country"), new Text("Czech Republic"));
-    map.put(new Text("@timestamp"), new Text("2016-11-11T08:06:42.260Z"));
-    map.put(new Text("gender"), new Text("Male"));
-    map.put(new Text("@version"), new Text("1"));
-    map.put(new Text("Id"), new Text("131"));
-    map.put(new Text("salary"), new Text("$8.65"));
-    map.put(new Text("email"), new Text("alex@example.com"));
-    map.put(new Text("desc"), new Text("Other contact with macaw, subsequent encounter"));
-    WritableCoder<LinkedMapWritable> coder = WritableCoder.of(LinkedMapWritable.class);
-    CoderUtils.clone(coder, map);
-    CoderProperties.coderDecodeEncodeEqual(coder, map);
-  }
-
-  /**
-   * This test validates if a method {@link Read#getDefaultCoder() getDefaultCoder()} gives
-   * {@link VarLongCoder} if input class is Long.
-   */
-  @Test
-  public void testDefaultCoderFromCodeRegistry() {
-    Configuration conf =
-        loadTestConfiguration(
-            org.elasticsearch.hadoop.mr.EsInputFormat.class,
-            Text.class,
-            MapWritable.class)
-        .getHadoopConfiguration();
-    TypeDescriptor<Long> typedesc = new TypeDescriptor<Long>() {};
-    Pipeline pipeline = TestPipeline.create();
-    Read<Text, String> read = HadoopInputFormatIO.<Text, String>read().withConfiguration(conf);
-    Coder<Long> coder = read.getDefaultCoder(typedesc, pipeline.getCoderRegistry());
-    assertEquals(coder.getClass(), VarLongCoder.class);
-  }
-
-  /**
-   * This test validates if a method {@link Read#getDefaultCoder() getDefaultCoder()} gives
-   * WritableCoder if input class is instance of Writable class.
-   */
-  @Test
-  public void testWritableCoder() {
-    Configuration conf =
-        loadTestConfiguration(
-            org.elasticsearch.hadoop.mr.EsInputFormat.class,
-            Text.class,
-            MapWritable.class)
-        .getHadoopConfiguration();
-    TypeDescriptor<MapWritable> typedesc = new TypeDescriptor<MapWritable>() {};
-    DirectOptions directRunnerOptions = PipelineOptionsFactory.as(DirectOptions.class);
-    Pipeline pipeline = Pipeline.create(directRunnerOptions);
-    Read<Text, String> read = HadoopInputFormatIO.<Text, String>read().withConfiguration(conf);
-    Coder<MapWritable> coder = read.getDefaultCoder(typedesc, pipeline.getCoderRegistry());
-    assertEquals(coder.getClass(), WritableCoder.class);
-  }
-
-  /**
-   * This test validates if IllegalStateException with message CoderNotFoundException is thrown if
-   * Beam Coder is not available for the given input class.
-   */
-  @Test(expected = IllegalStateException.class)
-  public void testNonRegisteredCustomCoder() {
-    Configuration conf =
-        loadTestConfiguration(
-            org.elasticsearch.hadoop.mr.EsInputFormat.class,
-            Text.class,
-            MapWritable.class)
-        .getHadoopConfiguration();
-    TypeDescriptor<Row> typedesc = new TypeDescriptor<Row>() {};
-    DirectOptions directRunnerOptions = PipelineOptionsFactory.as(DirectOptions.class);
-    Pipeline pipeline = Pipeline.create(directRunnerOptions);
-    Read<Text, String> read = HadoopInputFormatIO.<Text, String>read().withConfiguration(conf);
-    read.getDefaultCoder(typedesc, pipeline.getCoderRegistry());
-  }
-
   private static SerializableConfiguration loadTestConfiguration(
       Class<?> inputFormatClassName,
       Class<?> keyClass,
@@ -927,7 +842,7 @@ public class HadoopInputFormatIOTest {
             keyCoder,
             valueCoder,
             null, // No key translation required.
-            null);// No value translation required.
+            null); // No value translation required.
   }
 
   private <K, V> List<BoundedSource<KV<K, V>>> getBoundedSourceList(

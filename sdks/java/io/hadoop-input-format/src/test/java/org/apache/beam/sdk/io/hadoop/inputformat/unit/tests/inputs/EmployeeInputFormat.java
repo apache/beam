@@ -62,6 +62,9 @@ public class EmployeeInputFormat extends InputFormat<Text, Employee> {
     return inputSplitList;
   }
 
+  /**
+   * InputSplit implementation for EmployeeInputFormat.
+   */
   public static class NewObjectsEmployeeInputSplit extends InputSplit implements Writable {
     // Start and end map index of each split of employeeData.
     private long startIndex;
@@ -108,6 +111,9 @@ public class EmployeeInputFormat extends InputFormat<Text, Employee> {
     }
   }
 
+  /**
+   * RecordReader for EmployeeInputFormat.
+   */
   public class EmployeeRecordReader extends RecordReader<Text, Employee> {
 
     private NewObjectsEmployeeInputSplit split;
