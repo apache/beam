@@ -382,8 +382,8 @@ def stage_job_resources(
           raise RuntimeError('Cannot find default Dataflow SDK tar file "%s"',
                              sdk_path)
         elif not setup_options.sdk_location:
-          logging.warning('Dataflow SDK is not provided. Unless this is a test,'
-                          'set --sdk_location command line option correctly.')
+          logging.info('Dataflow SDK will not be staged since '
+                       '--sdk_location is empty.')
         else:
           raise RuntimeError(
               'The file "%s" cannot be found. Its location was specified by '
