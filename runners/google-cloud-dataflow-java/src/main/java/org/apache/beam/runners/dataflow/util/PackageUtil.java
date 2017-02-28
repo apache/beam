@@ -28,6 +28,7 @@ import com.google.common.collect.Lists;
 import com.google.common.hash.Funnels;
 import com.google.common.hash.Hasher;
 import com.google.common.hash.Hashing;
+import com.google.common.io.Closer;
 import com.google.common.io.CountingOutputStream;
 import com.google.common.io.Files;
 import com.google.common.util.concurrent.Futures;
