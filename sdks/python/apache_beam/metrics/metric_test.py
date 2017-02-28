@@ -81,6 +81,7 @@ class MetricResultsTest(unittest.TestCase):
     key = MetricKey('Top1/Outer1/Inner1', name)
     self.assertFalse(MetricResults.matches(filter, key))
 
+
 class MetricsTest(unittest.TestCase):
   def test_get_namespace_class(self):
     class MyClass(object):
