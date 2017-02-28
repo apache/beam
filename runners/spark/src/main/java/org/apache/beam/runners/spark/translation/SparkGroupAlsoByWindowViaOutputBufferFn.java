@@ -30,6 +30,7 @@ import org.apache.beam.runners.core.StateInternals;
 import org.apache.beam.runners.core.StateInternalsFactory;
 import org.apache.beam.runners.core.SystemReduceFn;
 import org.apache.beam.runners.core.TimerInternals;
+import org.apache.beam.runners.core.UnsupportedSideInputReader;
 import org.apache.beam.runners.core.triggers.ExecutableTriggerStateMachine;
 import org.apache.beam.runners.core.triggers.TriggerStateMachines;
 import org.apache.beam.runners.spark.aggregators.NamedAggregators;
@@ -38,11 +39,9 @@ import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.Triggers;
-import org.apache.beam.sdk.util.SideInputReader;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.KV;
-import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.spark.Accumulator;
 import org.apache.spark.api.java.function.FlatMapFunction;
@@ -52,7 +51,7 @@ import org.joda.time.Instant;
  * An implementation of {@link GroupAlsoByWindowViaOutputBufferDoFn}
  * for the Spark runner.
  */
-public class SparkGroupAlsoByWindowFn<K, InputT, W extends BoundedWindow>
+public class SparkGroupAlsoByWindowViaOutputBufferFn<K, InputT, W extends BoundedWindow>
     implements FlatMapFunction<WindowedValue<KV<K, Iterable<WindowedValue<InputT>>>>,
         WindowedValue<KV<K, Iterable<InputT>>>> {
 
@@ -63,7 +62,7 @@ public class SparkGroupAlsoByWindowFn<K, InputT, W extends BoundedWindow>
   private final Aggregator<Long, Long> droppedDueToClosedWindow;
 
 
-  public SparkGroupAlsoByWindowFn(
+  public SparkGroupAlsoByWindowViaOutputBufferFn(
       WindowingStrategy<?, W> windowingStrategy,
       StateInternalsFactory<K> stateInternalsFactory,
       SystemReduceFn<K, InputT, Iterable<InputT>, Iterable<InputT>, W> reduceFn,
@@ -107,25 +106,7 @@ public class SparkGroupAlsoByWindowFn<K, InputT, W extends BoundedWindow>
             stateInternals,
             timerInternals,
             outputter,
-            new SideInputReader() {
-              @Override
-              public <T> T get(PCollectionView<T> view, BoundedWindow sideInputWindow) {
-                throw new UnsupportedOperationException(
-                    "GroupAlsoByWindow must not have side inputs");
-              }
-
-              @Override
-              public <T> boolean contains(PCollectionView<T> view) {
-                throw new UnsupportedOperationException(
-                    "GroupAlsoByWindow must not have side inputs");
-              }
-
-              @Override
-              public boolean isEmpty() {
-                throw new UnsupportedOperationException(
-                    "GroupAlsoByWindow must not have side inputs");
-              }
-            },
+            new UnsupportedSideInputReader("GroupAlsoByWindow"),
             droppedDueToClosedWindow,
             reduceFn,
             runtimeContext.getPipelineOptions());

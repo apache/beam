@@ -15,23 +15,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.beam.runners.spark;
 
-package org.apache.beam.runners.spark.translation.streaming.utils;
-
-import java.io.IOException;
-import org.apache.beam.runners.spark.SparkPipelineOptions;
-import org.junit.rules.TemporaryFolder;
+import org.apache.beam.sdk.options.Default;
+import org.apache.beam.sdk.options.Description;
+import org.apache.beam.sdk.testing.TestPipelineOptions;
 
 
 /**
- * A rule to create a common {@link SparkPipelineOptions} for testing streaming pipelines.
+ * A {@link SparkPipelineOptions} for tests.
  */
-public class SparkTestPipelineOptionsForStreaming extends SparkTestPipelineOptions {
+public interface TestSparkPipelineOptions extends SparkPipelineOptions, TestPipelineOptions {
 
-  public SparkPipelineOptions withTmpCheckpointDir(TemporaryFolder parent)
-      throws IOException {
-    // tests use JUnit's TemporaryFolder path in the form of: /.../junit/...
-    options.setCheckpointDir(parent.newFolder(options.getJobName()).toURI().toURL().toString());
-    return options;
-  }
+  @Description("A special flag that forces streaming in tests.")
+  @Default.Boolean(false)
+  boolean isForceStreaming();
+  void setForceStreaming(boolean forceStreaming);
+
 }

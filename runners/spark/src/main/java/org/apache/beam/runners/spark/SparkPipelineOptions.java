@@ -40,7 +40,7 @@ public interface SparkPipelineOptions
   void setSparkMaster(String master);
 
   @Description("Batch interval for Spark streaming in milliseconds.")
-  @Default.Long(1000)
+  @Default.Long(500)
   Long getBatchIntervalMillis();
   void setBatchIntervalMillis(Long batchInterval);
 
@@ -101,8 +101,4 @@ public interface SparkPipelineOptions
   boolean getUsesProvidedSparkContext();
   void setUsesProvidedSparkContext(boolean value);
 
-  @Description("A special flag that forces streaming in tests.")
-  @Default.Boolean(false)
-  boolean isForceStreaming();
-  void setForceStreaming(boolean forceStreaming);
 }

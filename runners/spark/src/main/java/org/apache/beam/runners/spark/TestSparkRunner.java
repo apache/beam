@@ -18,21 +18,22 @@
 
 package org.apache.beam.runners.spark;
 
+import static com.google.common.base.Preconditions.checkNotNull;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
 
+import java.io.File;
+import java.io.IOException;
 import org.apache.beam.runners.core.UnboundedReadFromBoundedSource;
 import org.apache.beam.runners.spark.aggregators.AggregatorsAccumulator;
 import org.apache.beam.runners.spark.metrics.SparkMetricsContainer;
 import org.apache.beam.runners.spark.util.GlobalWatermarkHolder;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.PipelineResult.State;
 import org.apache.beam.sdk.io.BoundedReadFromUnboundedSource;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsValidator;
 import org.apache.beam.sdk.runners.PipelineRunner;
 import org.apache.beam.sdk.testing.PAssert;
-import org.apache.beam.sdk.testing.TestPipelineOptions;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.util.ValueWithRecordId;
@@ -40,6 +41,10 @@ import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
+import org.apache.commons.io.FileUtils;
+import org.joda.time.Duration;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 
 /**
@@ -65,19 +70,21 @@ import org.apache.beam.sdk.values.POutput;
  */
 public final class TestSparkRunner extends PipelineRunner<SparkPipelineResult> {
 
+  private static final Logger LOG = LoggerFactory.getLogger(TestSparkRunner.class);
+
   private SparkRunner delegate;
   private boolean isForceStreaming;
   private int expectedNumberOfAssertions = 0;
 
-  private TestSparkRunner(SparkPipelineOptions options) {
+  private TestSparkRunner(TestSparkPipelineOptions options) {
     this.delegate = SparkRunner.fromOptions(options);
     this.isForceStreaming = options.isForceStreaming();
   }
 
   public static TestSparkRunner fromOptions(PipelineOptions options) {
     // Default options suffice to set it up as a test runner
-    SparkPipelineOptions sparkOptions =
-        PipelineOptionsValidator.validate(SparkPipelineOptions.class, options);
+    TestSparkPipelineOptions sparkOptions =
+        PipelineOptionsValidator.validate(TestSparkPipelineOptions.class, options);
     return new TestSparkRunner(sparkOptions);
   }
 
@@ -87,7 +94,7 @@ public final class TestSparkRunner extends PipelineRunner<SparkPipelineResult> {
   @SuppressWarnings("unchecked")
   @Override
   public <OutputT extends POutput, InputT extends PInput> OutputT apply(
-          PTransform<InputT, OutputT> transform, InputT input) {
+      PTransform<InputT, OutputT> transform, InputT input) {
     // if the pipeline forces execution as a streaming pipeline,
     // and the source is an adapted unbounded source (as bounded),
     // read it as unbounded source via UnboundedReadFromBoundedSource.
@@ -108,38 +115,57 @@ public final class TestSparkRunner extends PipelineRunner<SparkPipelineResult> {
 
   @Override
   public SparkPipelineResult run(Pipeline pipeline) {
-    // clear state of Aggregators, Metrics and Watermarks if exists.
+    TestSparkPipelineOptions testSparkPipelineOptions =
+        pipeline.getOptions().as(TestSparkPipelineOptions.class);
+    SparkPipelineResult result = null;
+    // clear state of Aggregators, Metrics and Watermarks.
     AggregatorsAccumulator.clear();
     SparkMetricsContainer.clear();
     GlobalWatermarkHolder.clear();
 
-    TestPipelineOptions testPipelineOptions = pipeline.getOptions().as(TestPipelineOptions.class);
-    SparkPipelineResult result = delegate.run(pipeline);
-    result.waitUntilFinish();
-
-
-    // make sure the test pipeline finished successfully.
-    State resultState = result.getState();
-    assertThat(
-        String.format("Test pipeline result state was %s instead of %s", resultState, State.DONE),
-        resultState,
-        is(State.DONE));
-    assertThat(result, testPipelineOptions.getOnCreateMatcher());
-    assertThat(result, testPipelineOptions.getOnSuccessMatcher());
+    LOG.info("About to run test pipeline " + testSparkPipelineOptions.getJobName());
 
     // if the pipeline was executed in streaming mode, validate aggregators.
     if (isForceStreaming) {
-      // validate assertion succeeded (at least once).
-      int success = result.getAggregatorValue(PAssert.SUCCESS_COUNTER, Integer.class);
-      assertThat(
-          String.format(
-              "Expected %d successful assertions, but found %d.",
-              expectedNumberOfAssertions, success),
-          success,
-          is(expectedNumberOfAssertions));
-      // validate assertion didn't fail.
-      int failure = result.getAggregatorValue(PAssert.FAILURE_COUNTER, Integer.class);
-      assertThat("Failure aggregator should be zero.", failure, is(0));
+      try {
+        result = delegate.run(pipeline);
+        Long timeout = testSparkPipelineOptions.getTestTimeoutSeconds();
+        result.waitUntilFinish(Duration.standardSeconds(checkNotNull(timeout)));
+        // validate assertion succeeded (at least once).
+        int successAssertions = result.getAggregatorValue(PAssert.SUCCESS_COUNTER, Integer.class);
+        assertThat(
+            String.format(
+                "Expected %d successful assertions, but found %d.",
+                expectedNumberOfAssertions, successAssertions),
+            successAssertions,
+            is(expectedNumberOfAssertions));
+        // validate assertion didn't fail.
+        int failedAssertions = result.getAggregatorValue(PAssert.FAILURE_COUNTER, Integer.class);
+        assertThat(
+            String.format("Found %d failed assertions.", failedAssertions),
+            failedAssertions,
+            is(0));
+
+        LOG.info(
+            String.format(
+                "Successfully asserted pipeline %s with %d successful assertions.",
+                testSparkPipelineOptions.getJobName(),
+                successAssertions));
+      } finally {
+        try {
+          // cleanup checkpoint dir.
+          FileUtils.deleteDirectory(new File(testSparkPipelineOptions.getCheckpointDir()));
+        } catch (IOException e) {
+          throw new RuntimeException("Failed to clear checkpoint tmp dir.", e);
+        }
+      }
+    } else {
+      // for batch test pipelines, run and block until done.
+      result = delegate.run(pipeline);
+      result.waitUntilFinish();
+      // assert via matchers.
+      assertThat(result, testSparkPipelineOptions.getOnCreateMatcher());
+      assertThat(result, testSparkPipelineOptions.getOnSuccessMatcher());
     }
     return result;
   }

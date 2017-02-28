@@ -53,9 +53,6 @@ public class MetricsAccumulator {
     if (instance == null) {
       synchronized (MetricsAccumulator.class) {
         if (instance == null) {
-          // TODO: currently when recovering from checkpoint, Spark does not recover the
-          // last known Accumulator value. The SparkRunner should be able to persist and recover
-          // the SparkMetricsContainer in order to recover metrics as well.
           SparkMetricsContainer initialValue = new SparkMetricsContainer();
           instance = jsc.sc().accumulator(initialValue, "Beam.Metrics",
               new MetricsAccumulatorParam());
@@ -94,7 +91,6 @@ public class MetricsAccumulator {
     }
   }
 
-  @SuppressWarnings("unused")
   @VisibleForTesting
   static void clear() {
     synchronized (MetricsAccumulator.class) {

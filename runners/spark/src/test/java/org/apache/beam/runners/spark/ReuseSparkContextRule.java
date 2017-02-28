@@ -23,20 +23,20 @@ import org.junit.rules.ExternalResource;
 /**
  * Explicitly set {@link org.apache.spark.SparkContext} to be reused (or not) in tests.
  */
-public class ReuseSparkContext extends ExternalResource {
+public class ReuseSparkContextRule extends ExternalResource {
 
   private final boolean reuse;
 
-  private ReuseSparkContext(boolean reuse) {
+  private ReuseSparkContextRule(boolean reuse) {
     this.reuse = reuse;
   }
 
-  public static ReuseSparkContext no() {
-    return new ReuseSparkContext(false);
+  public static ReuseSparkContextRule no() {
+    return new ReuseSparkContextRule(false);
   }
 
-  public static ReuseSparkContext yes() {
-    return new ReuseSparkContext(true);
+  public static ReuseSparkContextRule yes() {
+    return new ReuseSparkContextRule(true);
   }
 
   @Override

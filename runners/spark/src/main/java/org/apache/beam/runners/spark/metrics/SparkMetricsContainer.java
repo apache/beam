@@ -145,10 +145,7 @@ public class SparkMetricsContainer implements Serializable {
   @VisibleForTesting
   public static void clear() {
     try {
-      SparkMetricsContainer instance = getInstance();
-      instance.initializeMetricsContainers();
-      instance.counters.clear();
-      instance.distributions.clear();
+      MetricsAccumulator.clear();
     } catch (IllegalStateException ignored) {
     }
   }
