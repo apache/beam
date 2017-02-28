@@ -87,6 +87,7 @@ import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.DisplayData.Builder;
+import org.apache.beam.sdk.transforms.display.HasDisplayData;
 import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.sdk.util.RetryHttpRequestInitializer;
 import org.apache.beam.sdk.values.KV;
@@ -470,6 +471,11 @@ public class DatastoreV1 {
      * Returns a new {@link DatastoreV1.Read} that reads the results of the specified GQL query.
      * See <a href="https://cloud.google.com/datastore/docs/reference/gql_reference">GQL Reference
      * </a> to know more about GQL grammar.
+     *
+     * <p><b><i>Experimental</i></b>: Cloud Datastore does not a provide a clean way to translate
+     * a gql query string to {@link Query}, so we end up making a query to the service for
+     * translation but this may read the actual data. It needs more validation through production
+     * use cases before marking it as stable.
      */
     @Experimental(Kind.SOURCE_SINK)
     public DatastoreV1.Read withGqlQuery(String gqlQuery) {
@@ -618,7 +624,7 @@ public class DatastoreV1 {
     }
 
     @VisibleForTesting
-    static class V1Options implements Serializable {
+    static class V1Options implements HasDisplayData, Serializable {
       private final ValueProvider<String> project;
       @Nullable
       private final ValueProvider<String> namespace;
@@ -665,6 +671,14 @@ public class DatastoreV1 {
         return localhost;
       }
 
+      @Override
+      public void populateDisplayData(DisplayData.Builder builder) {
+        builder
+            .addIfNotNull(DisplayData.item("projectId", getProjectValueProvider())
+                .withLabel("ProjectId"))
+            .addIfNotNull(DisplayData.item("namespace", getNamespaceValueProvider())
+                .withLabel("Namespace"));
+      }
     }
 
     /**
@@ -773,11 +787,7 @@ public class DatastoreV1 {
       @Override
       public void populateDisplayData(DisplayData.Builder builder) {
         super.populateDisplayData(builder);
-        builder
-            .addIfNotNull(DisplayData.item("projectId", options.getProjectValueProvider())
-                .withLabel("ProjectId"))
-            .addIfNotNull(DisplayData.item("namespace", options.getNamespaceValueProvider())
-                .withLabel("Namespace"));
+        options.populateDisplayData(builder);
       }
     }
 
@@ -861,11 +871,7 @@ public class DatastoreV1 {
       @Override
       public void populateDisplayData(DisplayData.Builder builder) {
         super.populateDisplayData(builder);
-        builder
-            .addIfNotNull(DisplayData.item("projectId", options.getProjectValueProvider())
-                .withLabel("ProjectId"))
-            .addIfNotNull(DisplayData.item("namespace", options.getNamespaceValueProvider())
-                .withLabel("Namespace"));
+        options.populateDisplayData(builder);
       }
     }
   }

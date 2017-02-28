@@ -121,6 +121,7 @@ public class DatastoreV1Test {
   private static final String LOCALHOST = "localhost:9955";
   private static final String GQL_QUERY = "SELECT * from " + KIND;
   private static final V1Options V_1_OPTIONS;
+
   static {
     Query.Builder q = Query.newBuilder();
     q.addKindBuilder().setName(KIND);
@@ -177,7 +178,7 @@ public class DatastoreV1Test {
    */
   @Test
   public void testBuildReadAlt() throws Exception {
-    DatastoreV1.Read read =  DatastoreIO.v1().read()
+    DatastoreV1.Read read = DatastoreIO.v1().read()
         .withProjectId(PROJECT_ID).withNamespace(NAMESPACE).withQuery(QUERY)
         .withLocalhost(LOCALHOST);
     assertEquals(QUERY, read.getQuery());
@@ -235,14 +236,14 @@ public class DatastoreV1Test {
 
   @Test
   public void testReadValidationSucceedsNamespace() throws Exception {
-    DatastoreV1.Read read =  DatastoreIO.v1().read().withProjectId(PROJECT_ID).withQuery(QUERY);
+    DatastoreV1.Read read = DatastoreIO.v1().read().withProjectId(PROJECT_ID).withQuery(QUERY);
     /* Should succeed, as a null namespace is fine. */
     read.validate(null);
   }
 
   @Test
   public void testReadDisplayData() {
-    DatastoreV1.Read read =  DatastoreIO.v1().read()
+    DatastoreV1.Read read = DatastoreIO.v1().read()
         .withProjectId(PROJECT_ID)
         .withQuery(QUERY)
         .withNamespace(NAMESPACE);
@@ -256,7 +257,7 @@ public class DatastoreV1Test {
 
   @Test
   public void testReadDisplayDataWithGqlQuery() {
-    DatastoreV1.Read read =  DatastoreIO.v1().read()
+    DatastoreV1.Read read = DatastoreIO.v1().read()
         .withProjectId(PROJECT_ID)
         .withGqlQuery(GQL_QUERY)
         .withNamespace(NAMESPACE);
@@ -308,7 +309,7 @@ public class DatastoreV1Test {
 
   @Test
   public void testWriteValidationFailsWithNoProject() throws Exception {
-    Write write =  DatastoreIO.v1().write();
+    Write write = DatastoreIO.v1().write();
     thrown.expect(NullPointerException.class);
     thrown.expectMessage("projectId ValueProvider");
     write.validate(null);
@@ -324,13 +325,13 @@ public class DatastoreV1Test {
 
   @Test
   public void testWriteValidationSucceedsWithProject() throws Exception {
-    Write write =  DatastoreIO.v1().write().withProjectId(PROJECT_ID);
+    Write write = DatastoreIO.v1().write().withProjectId(PROJECT_ID);
     write.validate(null);
   }
 
   @Test
   public void testWriteDisplayData() {
-    Write write =  DatastoreIO.v1().write().withProjectId(PROJECT_ID);
+    Write write = DatastoreIO.v1().write().withProjectId(PROJECT_ID);
 
     DisplayData displayData = DisplayData.from(write);
 
@@ -376,7 +377,7 @@ public class DatastoreV1Test {
 
   @Test
   public void testDeleteEntityDisplayData() {
-    DeleteEntity deleteEntity =  DatastoreIO.v1().deleteEntity().withProjectId(PROJECT_ID);
+    DeleteEntity deleteEntity = DatastoreIO.v1().deleteEntity().withProjectId(PROJECT_ID);
 
     DisplayData displayData = DisplayData.from(deleteEntity);
 
@@ -422,7 +423,7 @@ public class DatastoreV1Test {
 
   @Test
   public void testDeleteKeyDisplayData() {
-    DeleteKey deleteKey =  DatastoreIO.v1().deleteKey().withProjectId(PROJECT_ID);
+    DeleteKey deleteKey = DatastoreIO.v1().deleteKey().withProjectId(PROJECT_ID);
 
     DisplayData displayData = DisplayData.from(deleteKey);
 
@@ -441,7 +442,6 @@ public class DatastoreV1Test {
         displayData, hasItem(hasDisplayItem("projectId")));
     assertThat("DatastoreIO write should include the upsertFn in its primitive display data",
         displayData, hasItem(hasDisplayItem("upsertFn")));
-
   }
 
   @Test
@@ -456,7 +456,6 @@ public class DatastoreV1Test {
         displayData, hasItem(hasDisplayItem("projectId")));
     assertThat("DatastoreIO write should include the deleteEntityFn in its primitive display data",
         displayData, hasItem(hasDisplayItem("deleteEntityFn")));
-
   }
 
   @Test
@@ -471,7 +470,6 @@ public class DatastoreV1Test {
         displayData, hasItem(hasDisplayItem("projectId")));
     assertThat("DatastoreIO write should include the deleteKeyFn in its primitive display data",
         displayData, hasItem(hasDisplayItem("deleteKeyFn")));
-
   }
 
   /**
@@ -479,7 +477,7 @@ public class DatastoreV1Test {
    */
   @Test
   public void testBuildWrite() throws Exception {
-    DatastoreV1.Write write =  DatastoreIO.v1().write().withProjectId(PROJECT_ID);
+    DatastoreV1.Write write = DatastoreIO.v1().write().withProjectId(PROJECT_ID);
     assertEquals(PROJECT_ID, write.getProjectId());
   }
 
@@ -791,8 +789,6 @@ public class DatastoreV1Test {
     readFnTest(5 * QUERY_BATCH_LIMIT);
   }
 
-
-
   @Test
   public void testTranslateGqlQueryWithLimit() throws Exception {
     String gql = "SELECT * from DummyKind LIMIT 10";
@@ -844,7 +840,7 @@ public class DatastoreV1Test {
 
   @Test
   public void testRuntimeOptionsNotCalledInApplyQuery() {
-    RuntimeTestOptions options =  PipelineOptionsFactory.as(RuntimeTestOptions.class);
+    RuntimeTestOptions options = PipelineOptionsFactory.as(RuntimeTestOptions.class);
     Pipeline pipeline = TestPipeline.create(options);
     pipeline
         .apply(DatastoreIO.v1().read()
@@ -856,7 +852,7 @@ public class DatastoreV1Test {
 
   @Test
   public void testRuntimeOptionsNotCalledInApplyGqlQuery() {
-    RuntimeTestOptions options =  PipelineOptionsFactory.as(RuntimeTestOptions.class);
+    RuntimeTestOptions options = PipelineOptionsFactory.as(RuntimeTestOptions.class);
     Pipeline pipeline = TestPipeline.create(options);
     pipeline
         .apply(DatastoreIO.v1().read()
@@ -870,7 +866,7 @@ public class DatastoreV1Test {
   /** A helper function that verifies if all the queries have unique keys. */
   private void verifyUniqueKeys(List<KV<Integer, Query>> queries) {
     Set<Integer> keys = new HashSet<>();
-    for (KV<Integer, Query> kv: queries) {
+    for (KV<Integer, Query> kv : queries) {
       keys.add(kv.getKey());
     }
     assertEquals(keys.size(), queries.size());
@@ -999,7 +995,6 @@ public class DatastoreV1Test {
     timestampQuery.setLimit(Int32Value.newBuilder().setValue(1));
     return timestampQuery.build();
   }
-
 
   /** Generate dummy query splits. */
   private List<Query> splitQuery(Query query, int numSplits) {
