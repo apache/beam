@@ -123,7 +123,10 @@ class PackageUtil {
     } catch (IOException e) {
       throw new RuntimeException("Package setup failure for " + source, e);
     } finally {
-      closer.close();
+      try {
+        closer.close();
+      } catch (IOException ioe) {
+      }
     }
   }
 
