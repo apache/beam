@@ -546,6 +546,8 @@ class RangeTracker(object):
     the range (current_position, stop_position). Note that, this should not
     include the split point that is currently being consumed by the source.
 
+    This function must be implemented by subclasses before being used.
+
     Args:
       callback: a function that takes a single parameter, a stop position,
                 and returns unclaimed number of split points for the source read
@@ -553,7 +555,7 @@ class RangeTracker(object):
                 callback should be either an integer larger than or equal to
                 zero or ``RangeTracker.SPLIT_POINTS_UNKNOWN``.
     """
-    pass
+    raise NotImplementedError
 
 
 class Sink(HasDisplayData):

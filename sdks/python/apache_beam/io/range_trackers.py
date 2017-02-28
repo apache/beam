@@ -440,6 +440,9 @@ class UnsplittableRangeTracker(iobase.RangeTracker):
     # An unsplittable range only contains a single split point.
     return (0, 1)
 
+  def set_split_points_unclaimed_callback(self, callback):
+    self._range_tracker.set_split_points_unclaimed_callback(callback)
+
 
 class LexicographicKeyRangeTracker(OrderedPositionRangeTracker):
   """
