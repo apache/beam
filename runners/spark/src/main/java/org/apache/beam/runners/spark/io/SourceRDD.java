@@ -20,15 +20,20 @@ package org.apache.beam.runners.spark.io;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
+import java.io.Closeable;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
+import org.apache.beam.runners.spark.metrics.SparkMetricsContainer;
 import org.apache.beam.runners.spark.translation.SparkRuntimeContext;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.Source;
 import org.apache.beam.sdk.io.UnboundedSource;
+import org.apache.beam.sdk.metrics.MetricsContainer;
+import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.spark.Accumulator;
 import org.apache.spark.Dependency;
 import org.apache.spark.InterruptibleIterator;
 import org.apache.spark.Partition;
@@ -38,7 +43,6 @@ import org.apache.spark.api.java.JavaSparkContext$;
 import org.apache.spark.rdd.RDD;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 
 
 /**
@@ -57,15 +61,20 @@ public class SourceRDD {
     private final BoundedSource<T> source;
     private final SparkRuntimeContext runtimeContext;
     private final int numPartitions;
+    private final String stepName;
+    private final Accumulator<SparkMetricsContainer> metricsAccum;
 
     // to satisfy Scala API.
     private static final scala.collection.immutable.Seq<Dependency<?>> NIL =
         scala.collection.JavaConversions
           .asScalaBuffer(Collections.<Dependency<?>>emptyList()).toList();
 
-    public Bounded(SparkContext sc,
-                   BoundedSource<T> source,
-                   SparkRuntimeContext runtimeContext) {
+    public Bounded(
+        SparkContext sc,
+        BoundedSource<T> source,
+        SparkRuntimeContext runtimeContext,
+        Accumulator<SparkMetricsContainer> metricsAccum,
+        String stepName) {
       super(sc, NIL, JavaSparkContext$.MODULE$.<WindowedValue<T>>fakeClassTag());
       this.source = source;
       this.runtimeContext = runtimeContext;
@@ -77,6 +86,8 @@ public class SourceRDD {
       // ** the configuration "spark.default.parallelism" takes precedence over all of the above **
       this.numPartitions = sc.defaultParallelism();
       checkArgument(this.numPartitions > 0, "Number of partitions must be greater than zero.");
+      this.stepName = stepName;
+      this.metricsAccum = metricsAccum;
     }
 
     private static final long DEFAULT_BUNDLE_SIZE = 64 * 1024 * 1024;
@@ -108,6 +119,8 @@ public class SourceRDD {
     @Override
     public scala.collection.Iterator<WindowedValue<T>> compute(final Partition split,
                                                                TaskContext context) {
+      final MetricsContainer metricsContainer = metricsAccum.localValue().getContainer(stepName);
+
       final Iterator<WindowedValue<T>> iter = new Iterator<WindowedValue<T>>() {
         @SuppressWarnings("unchecked")
         SourcePartition<T> partition = (SourcePartition<T>) split;
@@ -119,21 +132,25 @@ public class SourceRDD {
 
         @Override
         public boolean hasNext() {
-          try {
-            if (!started) {
-              started = true;
-              finished = !reader.start();
-            } else {
-              finished = !reader.advance();
-            }
-            if (finished) {
-              // safely close the reader if there are no more elements left to read.
+          try (Closeable ignored = MetricsEnvironment.scopedMetricsContainer(metricsContainer)) {
+            try {
+              if (!started) {
+                started = true;
+                finished = !reader.start();
+              } else {
+                finished = !reader.advance();
+              }
+              if (finished) {
+                // safely close the reader if there are no more elements left to read.
+                closeIfNotClosed();
+              }
+              return !finished;
+            } catch (IOException e) {
               closeIfNotClosed();
+              throw new RuntimeException("Failed to read from reader.", e);
             }
-            return !finished;
           } catch (IOException e) {
-            closeIfNotClosed();
-            throw new RuntimeException("Failed to read from reader.", e);
+            throw new RuntimeException(e);
           }
         }
 

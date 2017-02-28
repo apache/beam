@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.io;
 
+import static org.apache.beam.sdk.metrics.MetricMatchers.attemptedMetricsResult;
+import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.lessThan;
 import static org.junit.Assert.assertEquals;
@@ -25,15 +27,21 @@ import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
 import java.util.List;
+
+import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.io.BoundedSource.BoundedReader;
 import org.apache.beam.sdk.io.CountingSource.CounterMark;
 import org.apache.beam.sdk.io.CountingSource.UnboundedCountingSource;
 import org.apache.beam.sdk.io.UnboundedSource.UnboundedReader;
+import org.apache.beam.sdk.metrics.MetricNameFilter;
+import org.apache.beam.sdk.metrics.MetricQueryResults;
+import org.apache.beam.sdk.metrics.MetricsFilter;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.RunnableOnService;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.testing.UsesAttemptedMetrics;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Distinct;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -125,6 +133,24 @@ public class CountingSourceTest {
 
     addCountingAsserts(input, numElements);
     p.run();
+  }
+
+  @Test
+  @Category({RunnableOnService.class, UsesAttemptedMetrics.class})
+  public void testBoundedSourceMetrics() {
+    long numElements = 1000;
+    PCollection<Long> input = p.apply(Read.from(CountingSource.upTo(numElements)));
+
+    addCountingAsserts(input, numElements);
+
+    PipelineResult pipelineResult = p.run();
+
+    MetricQueryResults metrics = pipelineResult.metrics().queryMetrics(
+        MetricsFilter.builder().addNameFilter(MetricNameFilter.named("io", "elementsRead"))
+            .build());
+
+    assertThat(metrics.counters(), hasItem(
+        attemptedMetricsResult("io", "elementsRead", "Read(BoundedCountingSource)", 1000L)));
   }
 
   @Test
@@ -248,6 +274,26 @@ public class CountingSourceTest {
 
     addCountingAsserts(input, numElements);
     p.run();
+  }
+
+  @Test
+  @Category({RunnableOnService.class, UsesAttemptedMetrics.class})
+  public void testUnboundedSourceMetrics() {
+    long numElements = 1000;
+
+    PCollection<Long> input = p
+        .apply(Read.from(CountingSource.unbounded()).withMaxNumRecords(numElements));
+
+    addCountingAsserts(input, numElements);
+
+    PipelineResult pipelineResult = p.run();
+
+    MetricQueryResults metrics = pipelineResult.metrics().queryMetrics(
+        MetricsFilter.builder().addNameFilter(MetricNameFilter.named("io", "elementsRead"))
+            .build());
+
+    assertThat(metrics.counters(), hasItem(
+        attemptedMetricsResult("io", "elementsRead", "Read(UnboundedCountingSource)", 1000L)));
   }
 
   @Test

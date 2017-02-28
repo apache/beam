@@ -18,6 +18,7 @@
 package org.apache.beam.runners.spark.translation.streaming;
 
 import static org.apache.beam.sdk.metrics.MetricMatchers.attemptedMetricsResult;
+import static org.apache.beam.sdk.metrics.MetricMatchers.distributionAttemptedMinMax;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasItem;
 import static org.junit.Assert.assertThat;
@@ -42,7 +43,11 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.kafka.KafkaIO;
 import org.apache.beam.sdk.metrics.Counter;
+import org.apache.beam.sdk.metrics.DistributionResult;
+import org.apache.beam.sdk.metrics.MetricMatchers;
 import org.apache.beam.sdk.metrics.MetricNameFilter;
+import org.apache.beam.sdk.metrics.MetricQueryResults;
+import org.apache.beam.sdk.metrics.MetricResult;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.metrics.MetricsFilter;
 import org.apache.beam.sdk.transforms.Aggregator;
@@ -86,6 +91,7 @@ public class ResumeFromCheckpointStreamingTest {
   private static final long EXPECTED_COUNTER_FIRST = 4L;
   private static final long EXPECTED_AGG_SECOND = 8L;
   private static final long EXPECTED_COUNTER_SECOND = 8L;
+  private static final String READ_STEP = "readFromKafka";
 
   @Rule
   public TemporaryFolder checkpointParentDir = new TemporaryFolder();
@@ -142,27 +148,54 @@ public class ResumeFromCheckpointStreamingTest {
     MetricsFilter metricsFilter =
         MetricsFilter.builder()
             .addNameFilter(MetricNameFilter.inNamespace(ResumeFromCheckpointStreamingTest.class))
+            .addNameFilter(MetricNameFilter.inNamespace("io"))
             .build();
 
     // first run will read from Kafka backlog - "auto.offset.reset=smallest"
     SparkPipelineResult res = run(options);
+
     long processedMessages1 = res.getAggregatorValue("processedMessages", Long.class);
+
     assertThat(String.format("Expected %d processed messages count but "
         + "found %d", EXPECTED_AGG_FIRST, processedMessages1), processedMessages1,
             equalTo(EXPECTED_AGG_FIRST));
-    assertThat(res.metrics().queryMetrics(metricsFilter).counters(),
+
+    MetricQueryResults metrics = res.metrics().queryMetrics(metricsFilter);
+    Iterable<MetricResult<Long>> counters = metrics.counters();
+    Iterable<MetricResult<DistributionResult>> distributions = metrics.distributions();
+
+    assertThat(counters,
         hasItem(attemptedMetricsResult(ResumeFromCheckpointStreamingTest.class.getName(),
             "aCounter", "formatKV", EXPECTED_COUNTER_FIRST)));
 
+    assertThat(counters, hasItem(
+        MetricMatchers.attemptedMetricsResult("io", "messagesConsumed", READ_STEP, 4L)));
+
+    assertThat(distributions, hasItem(
+        distributionAttemptedMinMax("io", "backlog.messages", READ_STEP, 0L, 0L)));
+
     // recovery should resume from last read offset, and read the second batch of input.
     res = runAgain(options);
+
+    metrics = res.metrics().queryMetrics(metricsFilter);
+    counters = metrics.counters();
+    distributions = metrics.distributions();
+
     long processedMessages2 = res.getAggregatorValue("processedMessages", Long.class);
+
     assertThat(String.format("Expected %d processed messages count but "
         + "found %d", EXPECTED_AGG_SECOND, processedMessages2), processedMessages2,
             equalTo(EXPECTED_AGG_SECOND));
-    assertThat(res.metrics().queryMetrics(metricsFilter).counters(),
+
+    assertThat(counters,
         hasItem(attemptedMetricsResult(ResumeFromCheckpointStreamingTest.class.getName(),
             "aCounter", "formatKV", EXPECTED_COUNTER_SECOND)));
+
+    assertThat(counters, hasItem(
+        MetricMatchers.attemptedMetricsResult("io", "messagesConsumed", READ_STEP, 8L)));
+
+    assertThat(distributions, hasItem(
+        distributionAttemptedMinMax("io", "backlog.messages", READ_STEP, 0L, 0L)));
   }
 
   private SparkPipelineResult runAgain(SparkPipelineOptions options) {
@@ -195,7 +228,7 @@ public class ResumeFromCheckpointStreamingTest {
     final PCollectionView<List<String>> expectedView = expectedCol.apply(View.<String>asList());
 
     PCollection<String> formattedKV =
-        p.apply(read.withoutMetadata())
+        p.apply(READ_STEP, read.withoutMetadata())
             .apply("formatKV", ParDo.of(new DoFn<KV<String, String>, KV<String, String>>() {
               Counter counter =
                   Metrics.counter(ResumeFromCheckpointStreamingTest.class, "aCounter");

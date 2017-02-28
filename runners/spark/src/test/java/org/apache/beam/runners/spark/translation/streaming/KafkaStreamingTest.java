@@ -17,6 +17,11 @@
  */
 package org.apache.beam.runners.spark.translation.streaming;
 
+import static org.apache.beam.sdk.metrics.MetricMatchers.attemptedMetricsResult;
+import static org.apache.beam.sdk.metrics.MetricMatchers.distributionAttemptedMinMax;
+import static org.hamcrest.Matchers.hasItem;
+import static org.junit.Assert.assertThat;
+
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.google.common.collect.ImmutableMap;
 import java.io.IOException;
@@ -30,6 +35,7 @@ import java.util.Map;
 import java.util.Properties;
 import org.apache.beam.runners.spark.SparkContextOptions;
 import org.apache.beam.runners.spark.SparkPipelineOptions;
+import org.apache.beam.runners.spark.SparkPipelineResult;
 import org.apache.beam.runners.spark.translation.streaming.utils.EmbeddedKafkaCluster;
 import org.apache.beam.runners.spark.translation.streaming.utils.KafkaWriteOnBatchCompleted;
 import org.apache.beam.runners.spark.translation.streaming.utils.PAssertStreaming;
@@ -41,6 +47,11 @@ import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.kafka.KafkaIO;
+import org.apache.beam.sdk.metrics.DistributionResult;
+import org.apache.beam.sdk.metrics.MetricNameFilter;
+import org.apache.beam.sdk.metrics.MetricQueryResults;
+import org.apache.beam.sdk.metrics.MetricResult;
+import org.apache.beam.sdk.metrics.MetricsFilter;
 import org.apache.beam.sdk.transforms.Distinct;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -168,6 +179,8 @@ public class KafkaStreamingTest {
         "auto.offset.reset", "latest"
     );
 
+    String readStep = "readFromKafka";
+
     KafkaIO.Read<String, String> read = KafkaIO.<String, String>read()
         .withBootstrapServers(EMBEDDED_KAFKA_CLUSTER.getBrokerList())
         .withTopics(Collections.singletonList(topic))
@@ -176,7 +189,7 @@ public class KafkaStreamingTest {
         .updateConsumerProperties(consumerProps);
 
     PCollection<String> formatted =
-        p.apply(read.withoutMetadata()).setCoder(
+        p.apply(readStep, read.withoutMetadata()).setCoder(
             KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()))
         .apply(Window.<KV<String, String>>into(FixedWindows.of(batchIntervalDuration)))
         .apply(ParDo.of(new FormatKVFn()));
@@ -184,7 +197,41 @@ public class KafkaStreamingTest {
     // run for more than 1 batch interval, so that reading of latest is attempted in the
     // first batch with no luck, while the OnBatchCompleted injected-input afterwards will be read
     // in the second interval.
-    PAssertStreaming.runAndAssertContents(p, formatted, expected, Duration.standardSeconds(3));
+    SparkPipelineResult result = PAssertStreaming.runAndAssertContents(p, formatted,
+        expected, Duration.standardSeconds(3));
+
+    MetricQueryResults metrics = result.metrics().queryMetrics(
+        MetricsFilter.builder()
+            .addNameFilter(MetricNameFilter.inNamespace("io"))
+            .addNameFilter(MetricNameFilter.inNamespace("io.splits"))
+            .build());
+
+    Iterable<MetricResult<Long>> counters = metrics.counters();
+    Iterable<MetricResult<DistributionResult>> distributions = metrics.distributions();
+
+    assertThat(counters, hasItem(
+        attemptedMetricsResult("io", "messagesConsumed", readStep, 4L)));
+
+    assertThat(counters, hasItem(
+        attemptedMetricsResult("io.splits", "0.messagesConsumed", readStep, 4L)));
+
+    assertThat(counters, hasItem(
+        attemptedMetricsResult("io", "bytesConsumed", readStep, 16L)));
+
+    assertThat(counters, hasItem(
+        attemptedMetricsResult("io.splits", "0.bytesConsumed", readStep, 16L)));
+
+    assertThat(distributions, hasItem(
+        distributionAttemptedMinMax("io", "backlog.bytes", readStep, 0L, 0L)));
+
+    assertThat(distributions, hasItem(
+        distributionAttemptedMinMax("io.splits", "0.backlog.bytes", readStep, 0L, 0L)));
+
+    assertThat(distributions, hasItem(
+        distributionAttemptedMinMax("io", "backlog.messages", readStep, 0L, 0L)));
+
+    assertThat(distributions, hasItem(
+        distributionAttemptedMinMax("io.splits", "0.backlog.messages", readStep, 0L, 0L)));
   }
 
   private static void produce(String topic, Map<String, String> messages) {

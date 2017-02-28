@@ -20,8 +20,11 @@ package org.apache.beam.runners.spark.io;
 
 import java.io.Serializable;
 import java.util.Collections;
+import java.util.Iterator;
 import org.apache.beam.runners.spark.SparkPipelineOptions;
 import org.apache.beam.runners.spark.coders.CoderHelpers;
+import org.apache.beam.runners.spark.metrics.MetricsAccumulator;
+import org.apache.beam.runners.spark.metrics.SparkMetricsContainer;
 import org.apache.beam.runners.spark.stateful.StateSpecFunctions;
 import org.apache.beam.runners.spark.translation.SparkRuntimeContext;
 import org.apache.beam.runners.spark.translation.streaming.UnboundedDataset;
@@ -33,10 +36,12 @@ import org.apache.beam.sdk.io.UnboundedSource.CheckpointMark;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.spark.Accumulator;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext$;
 import org.apache.spark.api.java.function.FlatMapFunction;
 import org.apache.spark.api.java.function.Function;
+import org.apache.spark.api.java.function.VoidFunction;
 import org.apache.spark.rdd.RDD;
 import org.apache.spark.streaming.Duration;
 import org.apache.spark.streaming.StateSpec;
@@ -62,7 +67,7 @@ import scala.runtime.BoxedUnit;
  * <li>Create a single-element (per-partition) stream, that contains the (partitioned)
  * {@link Source} and an optional {@link CheckpointMark} to start from.</li>
  * <li>Read from within a stateful operation {@link JavaPairInputDStream#mapWithState(StateSpec)}
- * using the {@link StateSpecFunctions#mapSourceFunction(SparkRuntimeContext)} mapping function,
+ * using the {@link StateSpecFunctions#mapSourceFunction} mapping function,
  * which manages the state of the CheckpointMark per partition.</li>
  * <li>Since the stateful operation is a map operation, the read iterator needs to be flattened,
  * while reporting the properties of the read (such as number of records) to the tracker.</li>
@@ -73,7 +78,8 @@ public class SparkUnboundedSource {
   public static <T, CheckpointMarkT extends CheckpointMark> UnboundedDataset<T> read(
       JavaStreamingContext jssc,
       SparkRuntimeContext rc,
-      UnboundedSource<T, CheckpointMarkT> source) {
+      UnboundedSource<T, CheckpointMarkT> source,
+      String stepName) {
 
     SparkPipelineOptions options = rc.getPipelineOptions().as(SparkPipelineOptions.class);
     Long maxRecordsPerBatch = options.getMaxRecordsPerBatch();
@@ -90,7 +96,8 @@ public class SparkUnboundedSource {
     // call mapWithState to read from a checkpointable sources.
     JavaMapWithStateDStream<Source<T>, CheckpointMarkT, Tuple2<byte[], Instant>,
         Tuple2<Iterable<byte[]>, Metadata>> mapWithStateDStream = inputDStream.mapWithState(
-            StateSpec.function(StateSpecFunctions.<T, CheckpointMarkT>mapSourceFunction(rc)));
+            StateSpec.function(StateSpecFunctions.<T, CheckpointMarkT>mapSourceFunction(rc,
+                stepName)));
 
     // set checkpoint duration for read stream, if set.
     checkpointStream(mapWithStateDStream, options);
@@ -106,6 +113,23 @@ public class SparkUnboundedSource {
             return t2._2();
           }
         });
+
+    // Accumulate unbounded source metrics
+    metadataDStream.foreachRDD(new VoidFunction<JavaRDD<Metadata>>() {
+      @Override
+      public void call(JavaRDD<Metadata> metadataRDD) throws Exception {
+        final Accumulator<SparkMetricsContainer> metricsAccum = MetricsAccumulator.getInstance();
+        metadataRDD.foreachPartition(new VoidFunction<Iterator<Metadata>>() {
+          @Override
+          public void call(Iterator<Metadata> metadatas) throws Exception {
+            while (metadatas.hasNext()) {
+              Metadata metadata = metadatas.next();
+              metricsAccum.localValue().update(metadata.getMetricsContainer());
+            }
+          }
+        });
+      }
+    });
 
     // register the ReportingDStream op.
     new ReportingDStream(metadataDStream.dstream(), id, getSourceName(source, id)).register();
@@ -232,25 +256,36 @@ public class SparkUnboundedSource {
    */
   public static class Metadata implements Serializable {
     private final long numRecords;
+    private final SparkMetricsContainer metricsContainer;
     private final Instant lowWatermark;
     private final Instant highWatermark;
 
-    public Metadata(long numRecords, Instant lowWatermark, Instant highWatermark) {
+    public Metadata(
+        long numRecords,
+        Instant lowWatermark,
+        Instant highWatermark,
+        SparkMetricsContainer metricsContainer) {
       this.numRecords = numRecords;
+      this.metricsContainer = metricsContainer;
       this.lowWatermark = lowWatermark;
       this.highWatermark = highWatermark;
     }
 
-    public long getNumRecords() {
+    long getNumRecords() {
       return numRecords;
     }
 
-    public Instant getLowWatermark() {
+
+    Instant getLowWatermark() {
       return lowWatermark;
     }
 
-    public Instant getHighWatermark() {
+    Instant getHighWatermark() {
       return highWatermark;
+    }
+
+    SparkMetricsContainer getMetricsContainer() {
+      return metricsContainer;
     }
   }
 }

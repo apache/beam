@@ -165,7 +165,7 @@ public class MetricMatchers {
     };
   }
 
-  static Matcher<MetricResult<DistributionResult>> distributionAttemptedMinMax(
+  public static Matcher<MetricResult<DistributionResult>> distributionAttemptedMinMax(
       final String namespace, final String name, final String step,
       final Long attemptedMin, final Long attemptedMax) {
     return new TypeSafeMatcher<MetricResult<DistributionResult>>() {

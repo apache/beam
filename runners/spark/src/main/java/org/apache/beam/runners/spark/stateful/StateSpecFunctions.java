@@ -20,6 +20,7 @@ package org.apache.beam.runners.spark.stateful;
 
 import com.google.common.base.Stopwatch;
 import com.google.common.collect.Iterators;
+import java.io.Closeable;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -30,11 +31,14 @@ import org.apache.beam.runners.spark.coders.CoderHelpers;
 import org.apache.beam.runners.spark.io.EmptyCheckpointMark;
 import org.apache.beam.runners.spark.io.MicrobatchSource;
 import org.apache.beam.runners.spark.io.SparkUnboundedSource.Metadata;
+import org.apache.beam.runners.spark.metrics.SparkMetricsContainer;
 import org.apache.beam.runners.spark.translation.SparkRuntimeContext;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.Source;
 import org.apache.beam.sdk.io.UnboundedSource;
+import org.apache.beam.sdk.metrics.MetricsContainer;
+import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
@@ -97,7 +101,7 @@ public class StateSpecFunctions {
   public static <T, CheckpointMarkT extends UnboundedSource.CheckpointMark>
   scala.Function3<Source<T>, scala.Option<CheckpointMarkT>, State<Tuple2<byte[], Instant>>,
       Tuple2<Iterable<byte[]>, Metadata>> mapSourceFunction(
-           final SparkRuntimeContext runtimeContext) {
+           final SparkRuntimeContext runtimeContext, final String stepName) {
 
     return new SerializableFunction3<Source<T>, Option<CheckpointMarkT>,
         State<Tuple2<byte[], Instant>>, Tuple2<Iterable<byte[]>, Metadata>>() {
@@ -108,9 +112,12 @@ public class StateSpecFunctions {
           scala.Option<CheckpointMarkT> startCheckpointMark,
           State<Tuple2<byte[], Instant>> state) {
 
-        // source as MicrobatchSource
-        MicrobatchSource<T, CheckpointMarkT> microbatchSource =
-            (MicrobatchSource<T, CheckpointMarkT>) source;
+        SparkMetricsContainer sparkMetricsContainer = new SparkMetricsContainer();
+        MetricsContainer metricsContainer = sparkMetricsContainer.getContainer(stepName);
+        try (Closeable ignored = MetricsEnvironment.scopedMetricsContainer(metricsContainer)) {
+          // source as MicrobatchSource
+          MicrobatchSource<T, CheckpointMarkT> microbatchSource =
+              (MicrobatchSource<T, CheckpointMarkT>) source;
 
         // Initial high/low watermarks.
         Instant lowWatermark = BoundedWindow.TIMESTAMP_MIN_VALUE;
@@ -188,13 +195,18 @@ public class StateSpecFunctions {
           throw new RuntimeException("Failed to read from reader.", e);
         }
 
-        Iterable <byte[]> iterable = new Iterable<byte[]>() {
-          @Override
-          public Iterator<byte[]> iterator() {
-            return Iterators.unmodifiableIterator(readValues.iterator());
-          }
-        };
-        return new Tuple2<>(iterable, new Metadata(readValues.size(), lowWatermark, highWatermark));
+          Iterable <byte[]> iterable = new Iterable<byte[]>() {
+            @Override
+            public Iterator<byte[]> iterator() {
+              return Iterators.unmodifiableIterator(readValues.iterator());
+            }
+          };
+          sparkMetricsContainer.materialize();
+          return new Tuple2<>(iterable,
+              new Metadata(readValues.size(), lowWatermark, highWatermark, sparkMetricsContainer));
+        } catch (IOException e) {
+          throw new RuntimeException(e);
+        }
       }
     };
   }
