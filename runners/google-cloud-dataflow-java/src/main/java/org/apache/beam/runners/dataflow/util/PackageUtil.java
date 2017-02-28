@@ -90,14 +90,15 @@ class PackageUtil {
    */
   static PackageAttributes createPackageAttributes(File source,
       String stagingPath, @Nullable String overridePackageName) {
-    CountingOutputStream countingOutputStream = null;
+    Closer closer = Closer.create();
     try {
       boolean directory = source.isDirectory();
 
       // Compute size and hash in one pass over file or directory.
       Hasher hasher = Hashing.md5().newHasher();
       OutputStream hashStream = Funnels.asOutputStream(hasher);
-      countingOutputStream = new CountingOutputStream(hashStream);
+      CountingOutputStream countingOutputStream = new CountingOutputStream(hashStream);
+      closer.register(countingOutputStream);
 
       if (!directory) {
         // Files are staged as-is.
@@ -121,9 +122,7 @@ class PackageUtil {
     } catch (IOException e) {
       throw new RuntimeException("Package setup failure for " + source, e);
     } finally {
-      if (countingOutputStream != null) {
-        countingOutputStream.close();
-      }
+      closer.close();
     }
   }
 
