@@ -166,7 +166,7 @@ public class ResumeFromCheckpointStreamingTest {
 
     // first run will read from Kafka backlog - "auto.offset.reset=smallest"
     SparkPipelineResult res = run(options);
-    res.waitUntilFinish(Duration.standardSeconds(2));
+    res.waitUntilFinish(Duration.standardSeconds(5));
     // assertions 1:
     long processedMessages1 = res.getAggregatorValue("processedMessages", Long.class);
     assertThat(
@@ -193,7 +193,7 @@ public class ResumeFromCheckpointStreamingTest {
 
     // recovery should resume from last read offset, and read the second batch of input.
     res = runAgain(options);
-    res.waitUntilFinish(Duration.standardSeconds(2));
+    res.waitUntilFinish(Duration.standardSeconds(5));
     // assertions 2:
     long processedMessages2 = res.getAggregatorValue("processedMessages", Long.class);
     assertThat(
