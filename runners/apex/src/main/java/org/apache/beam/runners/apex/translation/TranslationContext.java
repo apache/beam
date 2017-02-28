@@ -57,6 +57,7 @@ class TranslationContext {
   private final Map<PCollection, Pair<OutputPort<?>, List<InputPort<?>>>> streams = new HashMap<>();
   private final Map<String, Operator> operators = new HashMap<>();
   private final Map<PCollectionView<?>, PInput> viewInputs = new HashMap<>();
+  private Map<PInput, PInput> aliasCollections = new HashMap<>();
 
   public void addView(PCollectionView<?> view) {
     this.viewInputs.put(view, this.getInput());
@@ -145,9 +146,22 @@ class TranslationContext {
   }
 
   public void addStream(PInput input, InputPort inputPort) {
+    while (aliasCollections.containsKey(input)) {
+      input = aliasCollections.get(input);
+    }
     Pair<OutputPort<?>, List<InputPort<?>>> stream = this.streams.get(input);
     checkArgument(stream != null, "no upstream operator defined for %s", input);
     stream.getRight().add(inputPort);
+  }
+
+  /**
+   * Set the given output as alias for another input,
+   * i.e. there won't be a stream representation in the target DAG.
+   * @param alias
+   * @param source
+   */
+  public void addAlias(PValue alias, PInput source) {
+    aliasCollections.put(alias, source);
   }
 
   public void populateDAG(DAG dag) {
