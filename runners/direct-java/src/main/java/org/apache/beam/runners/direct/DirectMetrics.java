@@ -275,13 +275,40 @@ class DirectMetrics extends MetricResults {
         && matchesScope(key.stepName(), filter.steps());
   }
 
-  private boolean matchesScope(String actualScope, Set<String> scopes) {
+  /**
+  * {@code subPathMatches(haystack, needle)} returns true if {@code needle}
+  * represents a path within {@code haystack}. For example, "foo/bar" is in "a/foo/bar/b",
+  * but not "a/fool/bar/b" or "a/foo/bart/b".
+  */
+  public boolean subPathMatches(String haystack, String needle) {
+    int location = haystack.indexOf(needle);
+    int end = location + needle.length();
+    if (location == -1) {
+      return false;  // needle not found
+    } else if (location != 0 && haystack.charAt(location - 1) != '/') {
+      return false; // the first entry in needle wasn't exactly matched
+    } else if (end != haystack.length() && haystack.charAt(end) != '/') {
+      return false; // the last entry in needle wasn't exactly matched
+    } else {
+      return true;
+    }
+  }
+
+  /**
+   * {@code matchesScope(actualScope, scopes)} returns true if the scope of a metric is matched
+   * by any of the filters in {@code scopes}. A metric scope is a path of type "A/B/D". A
+   * path is matched by a filter if the filter is equal to the path (e.g. "A/B/D", or
+   * if it represents a subpath within it (e.g. "A/B" or "B/D", but not "A/D"). */
+  public boolean matchesScope(String actualScope, Set<String> scopes) {
     if (scopes.isEmpty() || scopes.contains(actualScope)) {
       return true;
     }
 
+    // If there is no perfect match, a stage name-level match is tried.
+    // This is done by a substring search over the levels of the scope.
+    // e.g. a scope "A/B/C/D" is matched by "A/B", but not by "A/C".
     for (String scope : scopes) {
-      if (actualScope.startsWith(scope)) {
+      if (subPathMatches(actualScope, scope)) {
         return true;
       }
     }
