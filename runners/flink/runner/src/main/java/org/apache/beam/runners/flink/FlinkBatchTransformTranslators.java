@@ -498,20 +498,6 @@ class FlinkBatchTransformTranslators {
     }
   }
 
-  private static void rejectTimers(DoFn<?, ?> doFn) {
-    DoFnSignature signature = DoFnSignatures.getSignature(doFn.getClass());
-
-    if (signature.timerDeclarations().size() > 0) {
-      throw new UnsupportedOperationException(
-          String.format(
-              "Found %s annotations on %s, but %s cannot yet be used with timers in the %s.",
-              DoFn.TimerId.class.getSimpleName(),
-              doFn.getClass().getName(),
-              DoFn.class.getSimpleName(),
-              FlinkRunner.class.getSimpleName()));
-    }
-  }
-
   private static class ParDoBoundTranslatorBatch<InputT, OutputT>
       implements FlinkBatchPipelineTranslator.BatchTransformTranslator<
           ParDo.Bound<InputT, OutputT>> {
@@ -524,7 +510,6 @@ class FlinkBatchTransformTranslators {
         FlinkBatchTranslationContext context) {
       DoFn<InputT, OutputT> doFn = transform.getFn();
       rejectSplittable(doFn);
-      rejectTimers(doFn);
 
       DataSet<WindowedValue<InputT>> inputDataSet =
           context.getInputDataSet(context.getInput(transform));
@@ -597,7 +582,6 @@ class FlinkBatchTransformTranslators {
         FlinkBatchTranslationContext context) {
       DoFn<InputT, OutputT> doFn = transform.getFn();
       rejectSplittable(doFn);
-      rejectTimers(doFn);
       DataSet<WindowedValue<InputT>> inputDataSet =
           context.getInputDataSet(context.getInput(transform));
 
