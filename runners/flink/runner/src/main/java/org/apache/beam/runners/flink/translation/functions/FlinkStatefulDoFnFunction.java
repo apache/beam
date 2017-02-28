@@ -17,19 +17,26 @@
  */
 package org.apache.beam.runners.flink.translation.functions;
 
+import static org.apache.flink.util.Preconditions.checkArgument;
+
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.Map;
 import org.apache.beam.runners.core.DoFnRunner;
 import org.apache.beam.runners.core.DoFnRunners;
 import org.apache.beam.runners.core.InMemoryStateInternals;
+import org.apache.beam.runners.core.InMemoryTimerInternals;
 import org.apache.beam.runners.core.StateInternals;
+import org.apache.beam.runners.core.StateNamespace;
+import org.apache.beam.runners.core.StateNamespaces;
+import org.apache.beam.runners.core.TimerInternals;
 import org.apache.beam.runners.flink.translation.utils.SerializedPipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.KV;
@@ -39,6 +46,7 @@ import org.apache.flink.api.common.functions.RichGroupReduceFunction;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.Collector;
+import org.joda.time.Instant;
 
 /**
  * A {@link RichGroupReduceFunction} for stateful {@link ParDo} in Flink Batch Runner.
@@ -93,6 +101,14 @@ public class FlinkStatefulDoFnFunction<K, V, OutputT>
     final K key = currentValue.getValue().getKey();
 
     final InMemoryStateInternals<K> stateInternals = InMemoryStateInternals.forKey(key);
+
+    // Used with Batch, we know that all the data is available for this key. We can't use the
+    // timer manager from the context because it doesn't exist. So we create one and emulate the
+    // watermark, knowing that we have all data and it is in timestamp order.
+    final InMemoryTimerInternals timerInternals = new InMemoryTimerInternals();
+    timerInternals.advanceProcessingTime(Instant.now());
+    timerInternals.advanceSynchronizedProcessingTime(Instant.now());
+
     DoFnRunner<KV<K, V>, OutputT> doFnRunner = DoFnRunners.simpleRunner(
         serializedOptions.getPipelineOptions(), dofn,
         new FlinkSideInputReader(sideInputs, runtimeContext),
@@ -104,6 +120,10 @@ public class FlinkStatefulDoFnFunction<K, V, OutputT>
           @Override
           public StateInternals<?> stateInternals() {
             return stateInternals;
+          }
+          @Override
+          public TimerInternals timerInternals() {
+            return timerInternals;
           }
         },
         new FlinkAggregatorFactory(runtimeContext),
@@ -117,7 +137,51 @@ public class FlinkStatefulDoFnFunction<K, V, OutputT>
       doFnRunner.processElement(currentValue);
     }
 
+    // Finish any pending windows by advancing the input watermark to infinity.
+    timerInternals.advanceInputWatermark(BoundedWindow.TIMESTAMP_MAX_VALUE);
+
+    // Finally, advance the processing time to infinity to fire any timers.
+    timerInternals.advanceProcessingTime(BoundedWindow.TIMESTAMP_MAX_VALUE);
+    timerInternals.advanceSynchronizedProcessingTime(BoundedWindow.TIMESTAMP_MAX_VALUE);
+
+    fireEligibleTimers(timerInternals, doFnRunner);
+
     doFnRunner.finishBundle();
+  }
+
+  private void fireEligibleTimers(
+      InMemoryTimerInternals timerInternals, DoFnRunner<KV<K, V>, OutputT> runner)
+      throws Exception {
+
+    while (true) {
+
+      TimerInternals.TimerData timer;
+      boolean hasFired = false;
+
+      while ((timer = timerInternals.removeNextEventTimer()) != null) {
+        hasFired = true;
+        fireTimer(timer, runner);
+      }
+      while ((timer = timerInternals.removeNextProcessingTimer()) != null) {
+        hasFired = true;
+        fireTimer(timer, runner);
+      }
+      while ((timer = timerInternals.removeNextSynchronizedProcessingTimer()) != null) {
+        hasFired = true;
+        fireTimer(timer, runner);
+      }
+      if (!hasFired) {
+        break;
+      }
+    }
+  }
+
+  private void fireTimer(
+      TimerInternals.TimerData timer, DoFnRunner<KV<K, V>, OutputT> doFnRunner) {
+    StateNamespace namespace = timer.getNamespace();
+    checkArgument(namespace instanceof StateNamespaces.WindowNamespace);
+    BoundedWindow window = ((StateNamespaces.WindowNamespace) namespace).getWindow();
+    doFnRunner.onTimer(timer.getTimerId(), window, timer.getTimestamp(), timer.getDomain());
   }
 
   @Override
