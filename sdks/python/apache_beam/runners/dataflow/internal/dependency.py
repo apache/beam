@@ -110,12 +110,12 @@ def _dependency_file_download(from_url, to_folder):
     response, content = __import__('httplib2').Http().request(from_url)
     if int(response['status']) >= 400:
       raise RuntimeError(
-          'Dataflow SDK not found at %s (response: %s)' % (from_url, response))
-    local_download_file = os.path.join(to_folder, 'dataflow-sdk.tar.gz')
+          'Beam SDK not found at %s (response: %s)' % (from_url, response))
+    local_download_file = os.path.join(to_folder, 'beam-sdk.tar.gz')
     with open(local_download_file, 'w') as f:
       f.write(content)
   except Exception:
-    logging.info('Failed to download SDK from %s', from_url)
+    logging.info('Failed to download Beam SDK from %s', from_url)
     raise
   return local_download_file
 
@@ -333,7 +333,7 @@ def stage_job_resources(
     file_copy(pickled_session_file, staged_path)
     resources.append(names.PICKLED_MAIN_SESSION_FILE)
 
-  if hasattr(setup_options, 'sdk_location') and setup_options.sdk_location:
+  if hasattr(setup_options, 'sdk_location'):
     if setup_options.sdk_location == 'default':
       stage_tarball_from_remote_location = True
     elif (setup_options.sdk_location.startswith('gs://') or
@@ -359,10 +359,10 @@ def stage_job_resources(
         sdk_remote_location = 'pypi'
       else:
         sdk_remote_location = setup_options.sdk_location
-      _stage_dataflow_sdk_tarball(sdk_remote_location, staged_path, temp_dir)
+      _stage_beam_sdk_tarball(sdk_remote_location, staged_path, temp_dir)
       resources.append(names.DATAFLOW_SDK_TARBALL_FILE)
     else:
-      # Check if we have a local Dataflow SDK tarball present. This branch is
+      # Check if we have a local Beam SDK tarball present. This branch is
       # used by tests running with the SDK built at head.
       if setup_options.sdk_location == 'default':
         module_path = os.path.abspath(__file__)
@@ -375,13 +375,16 @@ def stage_job_resources(
       else:
         sdk_path = setup_options.sdk_location
       if os.path.isfile(sdk_path):
-        logging.info('Copying dataflow SDK "%s" to staging location.', sdk_path)
+        logging.info('Copying Beam SDK "%s" to staging location.', sdk_path)
         file_copy(sdk_path, staged_path)
         resources.append(names.DATAFLOW_SDK_TARBALL_FILE)
       else:
         if setup_options.sdk_location == 'default':
-          raise RuntimeError('Cannot find default Dataflow SDK tar file "%s"',
+          raise RuntimeError('Cannot find default Beam SDK tar file "%s"',
                              sdk_path)
+        elif not setup_options.sdk_location:
+          logging.info('Beam SDK will not be staged since --sdk_location '
+                       'is empty.')
         else:
           raise RuntimeError(
               'The file "%s" cannot be found. Its location was specified by '
@@ -412,11 +415,11 @@ def _build_setup_package(setup_file, temp_dir, build_setup_args=None):
     os.chdir(saved_current_directory)
 
 
-def _stage_dataflow_sdk_tarball(sdk_remote_location, staged_path, temp_dir):
-  """Stage a Dataflow SDK tarball with the appropriate version.
+def _stage_beam_sdk_tarball(sdk_remote_location, staged_path, temp_dir):
+  """Stage a Beam SDK tarball with the appropriate version.
 
   Args:
-    sdk_remote_location: A GCS path to a Dataflow SDK tarball or a URL from
+    sdk_remote_location: A GCS path to a SDK tarball or a URL from
       the file can be downloaded.
     staged_path: GCS path where the found SDK tarball should be copied.
     temp_dir: path to temporary location where the file should be downloaded.
@@ -428,7 +431,7 @@ def _stage_dataflow_sdk_tarball(sdk_remote_location, staged_path, temp_dir):
   if (sdk_remote_location.startswith('http://') or
       sdk_remote_location.startswith('https://')):
     logging.info(
-        'Staging Dataflow SDK tarball from %s to %s',
+        'Staging Beam SDK tarball from %s to %s',
         sdk_remote_location, staged_path)
     local_download_file = _dependency_file_download(
         sdk_remote_location, temp_dir)
@@ -436,7 +439,7 @@ def _stage_dataflow_sdk_tarball(sdk_remote_location, staged_path, temp_dir):
   elif sdk_remote_location.startswith('gs://'):
     # Stage the file to the GCS staging area.
     logging.info(
-        'Staging Dataflow SDK tarball from %s to %s',
+        'Staging Beam SDK tarball from %s to %s',
         sdk_remote_location, staged_path)
     _dependency_file_copy(sdk_remote_location, staged_path)
   elif sdk_remote_location == 'pypi':
