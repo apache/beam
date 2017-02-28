@@ -103,6 +103,7 @@ GCP_REQUIREMENTS = [
   'google-apitools>=0.5.6,<1.0.0',
   'proto-google-cloud-datastore-v1==0.90.0',
   'googledatastore==7.0.0',
+  'google-cloud-bigquery>=0.22.1,<1.0.0',
 ]
 
 

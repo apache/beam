@@ -17,10 +17,22 @@
 
 """Utility methods for testing"""
 
+import hashlib
 import imp
 from mock import Mock, patch
 
 from apache_beam.utils import retry
+
+DEFAULT_HASHING_ALG = 'sha1'
+
+
+def compute_hash(list, hashing_alg=DEFAULT_HASHING_ALG):
+  """Compute a hash value from a list of string."""
+  list.sort()
+  m = hashlib.new(hashing_alg)
+  for elem in list:
+    m.update(str(elem))
+  return m.hexdigest()
 
 
 def patch_retry(testcase, module):

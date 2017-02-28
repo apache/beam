@@ -25,9 +25,9 @@ from hamcrest.core.core.allof import all_of
 from nose.plugins.attrib import attr
 
 from apache_beam.examples.cookbook import bigquery_tornadoes
+from apache_beam.io.gcp.tests.bigquery_matcher import BigqueryMatcher
 from apache_beam.test_pipeline import TestPipeline
 from apache_beam.tests.pipeline_verifiers import PipelineStateMatcher
-from apache_beam.tests.pipeline_verifiers import BigqueryMatcher
 
 
 class BigqueryTornadoesIT(unittest.TestCase):
