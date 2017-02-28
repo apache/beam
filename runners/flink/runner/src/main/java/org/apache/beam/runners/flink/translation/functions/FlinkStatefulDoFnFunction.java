@@ -17,11 +17,7 @@
  */
 package org.apache.beam.runners.flink.translation.functions;
 
-import com.google.common.collect.Iterables;
-import com.google.common.collect.Lists;
-import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.Iterator;
 import java.util.Map;
 import org.apache.beam.runners.core.DoFnRunner;
@@ -89,27 +85,7 @@ public class FlinkStatefulDoFnFunction<K, V, OutputT>
           new FlinkDoFnFunction.MultiDoFnOutputManager((Collector) out, outputMap);
     }
 
-    // get all elements so that we can sort them, has to fit into memory
-    // this seems very unprudent, but correct, for now
-    ArrayList<WindowedValue<KV<K, V>>> sortedInput = Lists.newArrayList();
-    for (WindowedValue<KV<K, V>> inputValue: values) {
-      for (WindowedValue<KV<K, V>> exploded: inputValue.explodeWindows()) {
-        sortedInput.add(exploded);
-      }
-    }
-    Collections.sort(sortedInput, new Comparator<WindowedValue<KV<K, V>>>() {
-      @Override
-      public int compare(
-          WindowedValue<KV<K, V>> o1,
-          WindowedValue<KV<K, V>> o2) {
-        return Iterables.getOnlyElement(o1.getWindows()).maxTimestamp()
-            .compareTo(Iterables.getOnlyElement(o2.getWindows()).maxTimestamp());
-      }
-    });
-
-    // iterate over the elements that are sorted by window timestamp
-    //
-    final Iterator<WindowedValue<KV<K, V>>> iterator = sortedInput.iterator();
+    final Iterator<WindowedValue<KV<K, V>>> iterator = values.iterator();
 
     // get the first value
     WindowedValue<KV<K, V>> currentValue = iterator.next();
