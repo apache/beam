@@ -119,6 +119,8 @@ class PackageUtil {
       return new PackageAttributes(size, hash, directory, target, source.getPath());
     } catch (IOException e) {
       throw new RuntimeException("Package setup failure for " + source, e);
+    } finally {
+      hashStream.close();
     }
   }
 
