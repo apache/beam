@@ -44,9 +44,7 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TupleTag;
 import org.joda.time.Instant;
 import org.junit.Before;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.mockito.Mock;
@@ -120,8 +118,8 @@ public class StatefulDoFnRunnerTest {
     runner.processElement(
         WindowedValue.of(KV.of("hello", 1), elementTime, intervalWindow, PaneInfo.NO_FIRING));
 
-    InMemoryStateInternals.InMemoryValue<Integer> valueState
-        = (InMemoryStateInternals.InMemoryValue<Integer>) stateInternals
+    InMemoryStateInternals.InMemoryValue<Integer> valueState =
+        (InMemoryStateInternals.InMemoryValue<Integer>) stateInternals
         .inMemoryState.values().iterator().next();
 
     assertEquals(new Integer(1), valueState.read());
