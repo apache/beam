@@ -509,7 +509,29 @@ class TupleCoderImpl(AbstractComponentCoderImpl):
 
 
 class SequenceCoderImpl(StreamCoderImpl):
-  """A coder for sequences of known length."""
+  """A coder for sequences.
+
+  If the length of the sequence in known we encode the length as a 32 bit
+  ``int`` followed by the encoded bytes.
+
+  If the length of the sequence is unknown, we encode the length as ``-1``
+  followed by the encoding of elements buffered up to 64K bytes before prefixing
+  the count of number of elements. A ``0`` is encoded at the end to indicate the
+  end of stream.
+
+  The resulting encoding would look like this::
+
+    -1
+    countA element(0) element(1) ... element(countA - 1)
+    countB element(0) element(1) ... element(countB - 1)
+    ...
+    countX element(0) element(1) ... element(countX - 1)
+    0
+
+  """
+
+  # Default buffer size of 64kB of handling iterables of unknown length.
+  _DEFAULT_BUFFER_SIZE = 64 * 1024
 
   def __init__(self, elem_coder):
     self._elem_coder = elem_coder
@@ -530,13 +552,19 @@ class SequenceCoderImpl(StreamCoderImpl):
 
       # -1 to indicate that the length is not known.
       out.write_bigendian_int32(-1)
-      # TODO(BEAM-1538): Need a fast version of this stream.
-      from slow_stream import BufferedElementCountingOutputStream
-      buffered_stream = BufferedElementCountingOutputStream(out)
-      for elem in value:
-        buffered_stream.mark_element_start()
-        self._elem_coder.encode_to_stream(elem, buffered_stream, True)
-      buffered_stream.finish()
+      buffer = create_OutputStream()
+      prev_index = index = -1
+      for index, elem in enumerate(value):
+        self._elem_coder.encode_to_stream(elem, buffer, True)
+        if out.size() > self._DEFAULT_BUFFER_SIZE:
+          out.write_var_int64(index - prev_index)
+          out.write(buffer.get())
+          prev_index = index
+          buffer = create_OutputStream()
+      if index > prev_index:
+        out.write_var_int64(index - prev_index)
+        out.write(buffer.get())
+      out.write_var_int64(0)
 
   def decode_from_stream(self, in_stream, nested):
     size = in_stream.read_bigendian_int32()
@@ -548,10 +576,9 @@ class SequenceCoderImpl(StreamCoderImpl):
       elements = []
       count = in_stream.read_var_int64()
       while count > 0:
-        elements.append(self._elem_coder.decode_from_stream(in_stream, True))
-        count -= 1
-        if not count:
-          count = in_stream.read_var_int64()
+        for _ in range(count):
+          elements.append(self._elem_coder.decode_from_stream(in_stream, True))
+        count = in_stream.read_var_int64()
 
     return self._construct_from_sequence(elements)
 

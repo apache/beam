@@ -134,6 +134,8 @@ examples:
 coder:
   urn: "urn:beam:coders:stream:0.1"
   components: [{urn: "urn:beam:coders:bytes:0.1"}]
+  # This is for iterables of unknown length, where the encoding is not
+  # deterministic.
   non_deterministic: True
 examples:
   "\u00ff\u00ff\u00ff\u00ff\u0000": []
