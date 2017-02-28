@@ -116,4 +116,24 @@ public class DoFnRunners {
         stepContext.timerInternals(),
         droppedDueToLatenessAggregator);
   }
+
+  /**
+   * Returns an implementation of {@link DoFnRunner} that handles
+   * late data dropping and garbage collect for stateParDo.
+   */
+  public static <InputT, OutputT, W extends BoundedWindow>
+  DoFnRunner<InputT, OutputT> statefulDoFnRunner(
+      DoFn<InputT, OutputT> fn,
+      SimpleDoFnRunner<InputT, OutputT> doFnRunner,
+      StepContext stepContext,
+      AggregatorFactory aggregatorFactory,
+      WindowingStrategy<?, ?> windowingStrategy) {
+    return new StatefulDoFnRunner<>(
+        fn,
+        doFnRunner,
+        stepContext,
+        aggregatorFactory,
+        windowingStrategy);
+  }
+
 }

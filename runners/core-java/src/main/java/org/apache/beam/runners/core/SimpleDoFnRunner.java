@@ -190,7 +190,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     invoker.invokeOnTimer(timerId, argumentProvider);
   }
 
-  private void invokeProcessElement(WindowedValue<InputT> elem) {
+  void invokeProcessElement(WindowedValue<InputT> elem) {
     final DoFnProcessContext<InputT, OutputT> processContext = createProcessContext(elem);
 
     // This can contain user code. Wrap it in case it throws an exception.
