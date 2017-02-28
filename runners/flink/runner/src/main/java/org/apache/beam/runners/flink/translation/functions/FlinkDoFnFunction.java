@@ -24,6 +24,7 @@ import org.apache.beam.runners.core.DoFnRunners;
 import org.apache.beam.runners.flink.translation.utils.SerializedPipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.join.RawUnionValue;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -38,6 +39,10 @@ import org.apache.flink.util.Collector;
 /**
  * Encapsulates a {@link DoFn}
  * inside a Flink {@link org.apache.flink.api.common.functions.RichMapPartitionFunction}.
+ *
+ * <p>We get a mapping from {@link org.apache.beam.sdk.values.TupleTag} to output index
+ * and must tag all outputs with the output number. Afterwards a filter will filter out
+ * those elements that are not to be in a specific output.
  */
 public class FlinkDoFnFunction<InputT, OutputT>
     extends RichMapPartitionFunction<WindowedValue<InputT>, WindowedValue<OutputT>> {
@@ -49,18 +54,25 @@ public class FlinkDoFnFunction<InputT, OutputT>
 
   private final WindowingStrategy<?, ?> windowingStrategy;
 
+  private final Map<TupleTag<?>, Integer> outputMap;
+  private final TupleTag<OutputT> mainOutputTag;
+
   private transient DoFnInvoker<InputT, OutputT> doFnInvoker;
 
   public FlinkDoFnFunction(
       DoFn<InputT, OutputT> doFn,
       WindowingStrategy<?, ?> windowingStrategy,
       Map<PCollectionView<?>, WindowingStrategy<?, ?>> sideInputs,
-      PipelineOptions options) {
+      PipelineOptions options,
+      Map<TupleTag<?>, Integer> outputMap,
+      TupleTag<OutputT> mainOutputTag) {
 
     this.doFn = doFn;
     this.sideInputs = sideInputs;
     this.serializedOptions = new SerializedPipelineOptions(options);
     this.windowingStrategy = windowingStrategy;
+    this.outputMap = outputMap;
+    this.mainOutputTag = mainOutputTag;
 
   }
 
@@ -71,12 +83,21 @@ public class FlinkDoFnFunction<InputT, OutputT>
 
     RuntimeContext runtimeContext = getRuntimeContext();
 
+    DoFnRunners.OutputManager outputManager;
+    if (outputMap == null) {
+      outputManager = new FlinkDoFnFunction.DoFnOutputManager(out);
+    } else {
+      // it has some sideOutputs
+      outputManager =
+          new FlinkDoFnFunction.MultiDoFnOutputManager((Collector) out, outputMap);
+    }
+
     DoFnRunner<InputT, OutputT> doFnRunner = DoFnRunners.simpleRunner(
         serializedOptions.getPipelineOptions(), doFn,
         new FlinkSideInputReader(sideInputs, runtimeContext),
-        new DoFnOutputManager(out),
-        new TupleTag<OutputT>() {
-        },
+        outputManager,
+        mainOutputTag,
+        // see SimpleDoFnRunner, just use it to limit number of side outputs
         Collections.<TupleTag<?>>emptyList(),
         new FlinkNoOpStepContext(),
         new FlinkAggregatorFactory(runtimeContext),
@@ -102,12 +123,12 @@ public class FlinkDoFnFunction<InputT, OutputT>
     doFnInvoker.invokeTeardown();
   }
 
-  private class DoFnOutputManager
+  static class DoFnOutputManager
       implements DoFnRunners.OutputManager {
 
     private Collector collector;
 
-    DoFnOutputManager(Collector<WindowedValue<OutputT>> collector) {
+    DoFnOutputManager(Collector collector) {
       this.collector = collector;
     }
 
@@ -115,6 +136,25 @@ public class FlinkDoFnFunction<InputT, OutputT>
     @SuppressWarnings("unchecked")
     public <T> void output(TupleTag<T> tag, WindowedValue<T> output) {
       collector.collect(output);
+    }
+  }
+
+  static class MultiDoFnOutputManager
+      implements DoFnRunners.OutputManager {
+
+    private Collector<WindowedValue<RawUnionValue>> collector;
+    private Map<TupleTag<?>, Integer> outputMap;
+
+    MultiDoFnOutputManager(Collector<WindowedValue<RawUnionValue>> collector,
+                      Map<TupleTag<?>, Integer> outputMap) {
+      this.collector = collector;
+      this.outputMap = outputMap;
+    }
+
+    @Override
+    public <T> void output(TupleTag<T> tag, WindowedValue<T> output) {
+      collector.collect(WindowedValue.of(new RawUnionValue(outputMap.get(tag), output.getValue()),
+          output.getTimestamp(), output.getWindows(), output.getPane()));
     }
   }
 
