@@ -215,10 +215,9 @@ message ParDoPayload {
   // (may force runners to execute the ParDo differently)
   repeated Parameter parameters = 2;
 
-  // (Optional) An ordered list of side inputs, describing for each local name
-  // to the data to be provided and the expected access pattern.
-  // (the SDK may not be order-sensitive)
-  repeated SideInput side_inputs = 3;
+  // (Optional) A mapping of local input names to side inputs, describing
+  // the expected access pattern.
+  map<string, SideInput> side_inputs = 3;
 
   // (Optional) if the DoFn uses state, a list of the specs for cells.
   repeated StateSpec state_specs = 4;
@@ -298,10 +297,9 @@ message CombinePayload {
   // (may force runners to execute the ParDo differently)
   repeated Parameter parameters = 3;
 
-  // (Optional) An ordered list of side inputs, describing for each local name
-  // to the data to be provided and the expected access pattern.
-  // (the SDK may not be order-sensitive)
-  repeated SideInput side_inputs = 4;
+  // (Optional) A mapping of local input names to side inputs, describing
+  // the expected access pattern.
+  map<string, SideInput> side_inputs = 4;
 }
 
 // A coder, the binary format for serialization and deserialization of data in
@@ -575,11 +573,6 @@ message TimestampTransform {
 
 // A specification for how to "side input" a PCollection.
 message SideInput {
-
-  // (Required) A local name for this side input, as interpreted by its
-  // parent PTransform (and/or its PTransform's UDFs).
-  string name = 1;
-
   // (Required) URN of the access pattern required by the `view_fn` to present
   // the desired SDK-specific interface to a UDF.
   //
@@ -589,14 +582,14 @@ message SideInput {
   // The only access pattern intended for Beam, because of its superior
   // performance possibilities, is "urn:beam:sideinput:multimap" (or some such
   // URN)
-  UrnWithParameter access_pattern = 3;
+  UrnWithParameter access_pattern = 1;
 
   // (Required) The pipeline-scoped id for the FunctionSpec of the UDF that
   // adapts a particular access_pattern to a user-facing view type.
   //
   // For example, View.asSingleton() may include a `view_fn` that adapts a
   // specially-designed multimap to a single value per window.
-  string view_fn_id = 4;
+  string view_fn_id = 2;
 
   // (Required) The pipeline-scoped id for the FunctionSpec of the UDF that
   // maps a main input window to a side input window.
@@ -604,7 +597,7 @@ message SideInput {
   // For example, when the main input is in fixed windows of one hour, this
   // can specify that the side input should be accessed according to the day
   // in which that hour falls.
-  string window_mapping_fn_id = 5;
+  string window_mapping_fn_id = 3;
 }
 
 // An environment for executing UDFs. Generally an SDK container URL, but
