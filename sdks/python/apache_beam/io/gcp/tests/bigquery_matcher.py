@@ -15,7 +15,7 @@
 # limitations under the License.
 #
 
-"""Bigquery data verifier for End-to-end test."""
+"""Bigquery data verifier for end-to-end test."""
 
 import logging
 
@@ -24,11 +24,14 @@ from hamcrest.core.base_matcher import BaseMatcher
 from apache_beam.tests.test_utils import compute_hash
 from apache_beam.utils import retry
 
+# Protect against environments where bigquery library is not available.
+# pylint: disable=wrong-import-order, wrong-import-position
 try:
   from google.cloud import bigquery
   from google.cloud.exceptions import GoogleCloudError
 except ImportError:
-  GoogleCloudError = None
+  bigquery = None
+# pylint: enable=wrong-import-order, wrong-import-position
 
 MAX_RETRIES = 4
 
@@ -50,6 +53,9 @@ class BigqueryMatcher(BaseMatcher):
   """
 
   def __init__(self, project, query, checksum):
+    if bigquery is None:
+      raise ImportError(
+          'Bigquery dependencies are not installed.')
     if not query or not isinstance(query, str):
       raise ValueError(
           'Invalid argument: query. Please use non-empty string')
