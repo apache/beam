@@ -283,7 +283,8 @@ public class PAssert {
   }
 
   /**
-   * Constructs an {@link IterableAssert} for the elements of the provided {@link PCollection}.
+   * Constructs an {@link IterableAssert} for the elements of the provided {@link PCollection}
+   * with the specified reason.
    */
   public static <T> IterableAssert<T> that(String reason, PCollection<T> actual) {
     return new PCollectionContentsAssert<>(reason, actual);
@@ -299,8 +300,8 @@ public class PAssert {
   }
 
   /**
-   * Constructs an {@link IterableAssert} for the value of the provided {@link PCollection} which
-   * must contain a single {@code Iterable<T>} value.
+   * Constructs an {@link IterableAssert} for the value of the provided {@link PCollection } with
+   * the specified reason. The provided PCollection must contain a single {@code Iterable<T>} value.
    */
   public static <T> IterableAssert<T> thatSingletonIterable(
       String reason, PCollection<? extends Iterable<T>> actual) {
@@ -329,7 +330,8 @@ public class PAssert {
 
   /**
    * Constructs a {@link SingletonAssert} for the value of the provided
-   * {@code PCollection PCollection<T>}, which must be a singleton.
+   * {@code PCollection PCollection<T>} with the specified reason. The provided PCollection must be
+   * a singleton.
    */
   public static <T> SingletonAssert<T> thatSingleton(String reason, PCollection<T> actual) {
     return new PCollectionViewAssert<>(actual, View.<T>asSingleton(), actual.getCoder(), reason);
@@ -347,7 +349,8 @@ public class PAssert {
   }
 
   /**
-   * Constructs a {@link SingletonAssert} for the value of the provided {@link PCollection}.
+   * Constructs a {@link SingletonAssert} for the value of the provided {@link PCollection} with the
+   * specified reason.
    *
    * <p>Note that the actual value must be coded by a {@link KvCoder}, not just any
    * {@code Coder<K, V>}.
@@ -375,8 +378,8 @@ public class PAssert {
   }
 
   /**
-   * Constructs a {@link SingletonAssert} for the value of the provided {@link PCollection}, which
-   * must have at most one value per key.
+   * Constructs a {@link SingletonAssert} for the value of the provided {@link PCollection} with
+   * the specified reason. The {@link PCollection} must have at most one value per key.
    *
    * <p>Note that the actual value must be coded by a {@link KvCoder}, not just any
    * {@code Coder<K, V>}.
