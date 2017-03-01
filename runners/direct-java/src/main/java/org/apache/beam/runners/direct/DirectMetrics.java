@@ -23,8 +23,6 @@ import com.google.auto.value.AutoValue;
 import com.google.common.base.Objects;
 import com.google.common.collect.ImmutableList;
 import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
@@ -277,41 +275,30 @@ class DirectMetrics extends MetricResults {
         && matchesScope(key.stepName(), filter.steps());
   }
 
-  /** Convert a list of Strings into a Map of String to its index in the list. */
-  private Map<String, List<Integer>> makeScopeIndex(String[] scopeSplit) {
-    Map<String, List<Integer>> result = new HashMap<String, List<Integer>>();
-    for (int i = 0; i < scopeSplit.length; i++) {
-      String stage = scopeSplit[i];
-      if (!result.containsKey(stage)) {
-        result.put(stage, new ArrayList<Integer>());
-      }
-      result.get(stage).add(i);
+  /**
+  * {@code subPathMatches(actualScope, filterScope)} returns true if {@code filterScope}
+  * represents a path within {@code actualScope}. For example, "foo/bar" is in "a/foo/bar/b",
+  * but not "a/fool/bar/b" or "a/foo/bart/b".
+  */
+  public boolean subPathMatches(String actualScope, String filterScope) {
+    int location = actualScope.indexOf(filterScope);
+    int end = location + filterScope.length();
+    if (location == -1) {
+      return false;  // needle not found
+    } else if (location != 0 && actualScope.charAt(location - 1) != '/') {
+      return false; // the first entry in needle wasn't exactly matched
+    } else if (end != actualScope.length() && actualScope.charAt(end) != '/') {
+      return false; // the last entry in needle wasn't exactly matched
+    } else {
+      return true;
     }
-    return result;
   }
 
-  /** Realize a substring search between the actual scope and the filter scope. */
-  private boolean matchesDeepScope(String[] actualScopeSplit,
-      Map<String, List<Integer>> actualScopeIndex, String filterScope) {
-    String[] splitScope = filterScope.split("/");
-    if (!actualScopeIndex.containsKey(splitScope[0])) {
-      return false;
-    }
-    for (int startingIndex : actualScopeIndex.get(splitScope[0])) {
-      int i = 0;
-      while (i < splitScope.length && startingIndex + i < actualScopeSplit.length) {
-        if (!splitScope[i].equals(actualScopeSplit[startingIndex + i])) {
-          break;
-        }
-        i++;
-      }
-      if (i == splitScope.length) {
-        return true;
-      }
-    }
-    return false;
-  }
-  /** Check if the scope of a metric is matched by any of the filters. */
+  /**
+   * {@code matchesScope(actualScope, scopes)} returns true if the scope of a metric is matched
+   * by any of the filters in {@code scopes}. A metric scope is a path of type "A/B/D". A
+   * path is matched by a filter if the filter is equal to the path (e.g. "A/B/D", or
+   * if it represents a subpath within it (e.g. "A/B" or "B/D", but not "A/D"). */
   public boolean matchesScope(String actualScope, Set<String> scopes) {
     if (scopes.isEmpty() || scopes.contains(actualScope)) {
       return true;
@@ -320,10 +307,8 @@ class DirectMetrics extends MetricResults {
     // If there is no perfect match, a stage name-level match is tried.
     // This is done by a substring search over the levels of the scope.
     // e.g. a scope "A/B/C/D" is matched by "A/B", but not by "A/C".
-    String[] actualScopeSplit = actualScope.split("/");
-    Map<String, List<Integer>> actualScopeIndex = makeScopeIndex(actualScopeSplit);
     for (String scope : scopes) {
-      if (matchesDeepScope(actualScopeSplit, actualScopeIndex, scope)) {
+      if (subPathMatches(actualScope, scope)) {
         return true;
       }
     }

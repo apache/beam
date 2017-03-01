@@ -129,6 +129,25 @@ public class DirectMetricsTest {
             committedMetricsResult("ns1", "name1", "step2", 0L)));
   }
 
+  private boolean matchesSubPath(String actualScope, String subPath) {
+    return metrics.subPathMatches(actualScope, subPath);
+  }
+
+  @SuppressWarnings("unchecked")
+  @Test
+  public void testMatchesSubPath() {
+    // Match of the first element
+    assertTrue(matchesSubPath("Top1/Outer1/Inner1/Bottom1", "Top1"));
+    // Match of the first elements
+    assertTrue(matchesSubPath("Top1/Outer1/Inner1/Bottom1", "Top1/Outer1"));
+    // Match of the last elements
+    assertTrue(matchesSubPath("Top1/Outer1/Inner1/Bottom1", "Inner1/Bottom1"));
+    // Substring match but no subpath match
+    assertFalse(matchesSubPath("Top1/Outer1/Inner1/Bottom1", "op1/Outer1/Inner1"));
+    // Substring match from start - but no subpath match
+    assertFalse(matchesSubPath("Top1/Outer1/Inner1/Bottom1", "Top"));
+  }
+
   private boolean matchesScopeWithSingleFilter(String actualScope, String filter) {
     Set<String> scopeFilter = new HashSet<String>();
     scopeFilter.add(filter);
@@ -144,7 +163,7 @@ public class DirectMetricsTest {
     assertTrue(matchesScopeWithSingleFilter("Top1/Outer1/Inner1/Bottom1", "Top1/Outer1"));
     assertTrue(matchesScopeWithSingleFilter("Top1/Outer1/Inner1/Bottom1", "Top1/Outer1/Inner1"));
     assertFalse(matchesScopeWithSingleFilter("Top1/Outer1/Inner1/Bottom1", "Top1/Inner1"));
-    assertFalse(matchesScopeWithSingleFilter("Top1/Outer1/Inner1/Bottom1", "Top1/Outer1/Bottom1"));
+    assertFalse(matchesScopeWithSingleFilter("Top1/Outer1/Inner1/Bottom1", "Top1/Outer1/Inn"));
   }
 
   @SuppressWarnings("unchecked")
