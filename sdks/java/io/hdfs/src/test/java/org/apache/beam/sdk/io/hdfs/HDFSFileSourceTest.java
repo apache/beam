@@ -63,8 +63,23 @@ public class HDFSFileSourceTest {
     File file = createFileWithData("tmp.seq", expectedResults);
 
     HDFSFileSource<KV<IntWritable, Text>, IntWritable, Text> source =
-        HDFSFileSource.from(
-            file.toString(), SequenceFileInputFormat.class, IntWritable.class, Text.class);
+            HDFSFileSource.from(
+                    file.toString(), SequenceFileInputFormat.class, IntWritable.class, Text.class);
+
+    assertEquals(file.length(), source.getEstimatedSizeBytes(null));
+
+    assertThat(expectedResults, containsInAnyOrder(readFromSource(source, options).toArray()));
+  }
+
+  @Test
+  public void testFullyReadSingleFileWithSpaces() throws Exception {
+    PipelineOptions options = PipelineOptionsFactory.create();
+    List<KV<IntWritable, Text>> expectedResults = createRandomRecords(3, 10, 0);
+    File file = createFileWithData("tmp data.seq", expectedResults);
+
+    HDFSFileSource<KV<IntWritable, Text>, IntWritable, Text> source =
+            HDFSFileSource.from(
+                    file.toString(), SequenceFileInputFormat.class, IntWritable.class, Text.class);
 
     assertEquals(file.length(), source.getEstimatedSizeBytes(null));
 
