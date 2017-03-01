@@ -297,6 +297,42 @@ public class PAssertTest implements Serializable {
   }
 
   /**
+   * Test that we throw an error for false assertion on singleton.
+   */
+  @Test
+  @Category(RunnableOnService.class)
+  public void testPAssertEqualsSingletonFalse() throws Exception {
+    PCollection<Integer> pcollection = pipeline.apply(Create.of(42));
+    PAssert.thatSingleton("The value was not equal to 44", pcollection).isEqualTo(44);
+
+    Throwable thrown = runExpectingAssertionFailure(pipeline);
+
+    String message = thrown.getMessage();
+
+    assertThat(message, containsString("The value was not equal to 44"));
+    assertThat(message, containsString("Expected: <44>"));
+    assertThat(message, containsString("but: was <42>"));
+  }
+
+  /**
+   * Test that we throw an error for false assertion on singleton.
+   */
+  @Test
+  @Category(RunnableOnService.class)
+  public void testPAssertEqualsSingletonFalseDefaultReasonString() throws Exception {
+    PCollection<Integer> pcollection = pipeline.apply(Create.of(42));
+    PAssert.thatSingleton(pcollection).isEqualTo(44);
+
+    Throwable thrown = runExpectingAssertionFailure(pipeline);
+
+    String message = thrown.getMessage();
+
+    assertThat(message, containsString("Create.Values/Read(CreateSource).out"));
+    assertThat(message, containsString("Expected: <44>"));
+    assertThat(message, containsString("but: was <42>"));
+  }
+
+  /**
    * Tests that {@code containsInAnyOrder} is actually order-independent.
    */
   @Test
