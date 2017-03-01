@@ -32,8 +32,7 @@ from apache_beam.metrics.metricbase import MetricName
 
 
 class Metrics(object):
-  """Lets users create/access metric objects during pipeline execution.
-  """
+  """Lets users create/access metric objects during pipeline execution."""
   @staticmethod
   def get_namespace(namespace):
     if inspect.isclass(namespace):
@@ -108,31 +107,26 @@ class MetricResults(object):
       return False
 
   @staticmethod
-  def _sublist_search(list_, list_index, sublist):
-    if not sublist or sublist[0] not in list_index:
-      return False
+  def _matches_sub_path(actual_scope, filter_scope):
+    start_pos = actual_scope.find(filter_scope)
+    end_pos = start_pos + len(filter_scope)
 
-    i = 0
-    list_offset = list_index[sublist[0]]
-    while i < len(sublist) and i + list_offset < len(list_):
-      if sublist[i] != list_[i + list_offset]:
-        break
-      i += 1
-    if i == len(sublist):
-      return True
+    if start_pos == -1:
+      return False  # No match at all
+    elif start_pos != 0 and actual_scope[start_pos - 1] != '/':
+      return False  # The first entry was not exactly matched
+    elif end_pos != len(actual_scope) and actual_scope[end_pos] != '/':
+      return False  # The last entry was not exactly matched
     else:
-      return False
+      return True
 
   @staticmethod
   def _matches_scope(filter, metric_key):
     if not filter.steps:
       return True
 
-    split_scope = metric_key.step.split("/")
-    scope_map = {key: index for index, key in enumerate(split_scope)}
     for step in filter.steps:
-      split_step = step.split("/")
-      if MetricResults._sublist_search(split_scope, scope_map, split_step):
+      if MetricResults._matches_sub_path(metric_key.step, step):
         return True
 
     return False
