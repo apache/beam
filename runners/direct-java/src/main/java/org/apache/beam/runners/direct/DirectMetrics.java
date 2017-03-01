@@ -276,18 +276,18 @@ class DirectMetrics extends MetricResults {
   }
 
   /**
-  * {@code subPathMatches(actualScope, filterScope)} returns true if {@code filterScope}
-  * represents a path within {@code actualScope}. For example, "foo/bar" is in "a/foo/bar/b",
+  * {@code subPathMatches(haystack, needle)} returns true if {@code needle}
+  * represents a path within {@code haystack}. For example, "foo/bar" is in "a/foo/bar/b",
   * but not "a/fool/bar/b" or "a/foo/bart/b".
   */
-  public boolean subPathMatches(String actualScope, String filterScope) {
-    int location = actualScope.indexOf(filterScope);
-    int end = location + filterScope.length();
+  public boolean subPathMatches(String haystack, String needle) {
+    int location = haystack.indexOf(needle);
+    int end = location + needle.length();
     if (location == -1) {
       return false;  // needle not found
-    } else if (location != 0 && actualScope.charAt(location - 1) != '/') {
+    } else if (location != 0 && haystack.charAt(location - 1) != '/') {
       return false; // the first entry in needle wasn't exactly matched
-    } else if (end != actualScope.length() && actualScope.charAt(end) != '/') {
+    } else if (end != haystack.length() && haystack.charAt(end) != '/') {
       return false; // the last entry in needle wasn't exactly matched
     } else {
       return true;
