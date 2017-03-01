@@ -26,13 +26,17 @@ from mock import Mock, patch
 from apache_beam.io.gcp.tests import bigquery_matcher as bq_verifier
 from apache_beam.tests.test_utils import patch_retry
 
+# Protect against environments where bigquery library is not available.
+# pylint: disable=wrong-import-order, wrong-import-position
 try:
   from google.cloud import bigquery
   from google.cloud.exceptions import NotFound
 except ImportError:
-  NotFound = None
+  bigquery = None
+# pylint: enable=wrong-import-order, wrong-import-position
 
 
+@unittest.skipIf(bigquery is None, 'Bigquery dependencies are not installed.')
 class BigqueryMatcherTest(unittest.TestCase):
 
   def setUp(self):
