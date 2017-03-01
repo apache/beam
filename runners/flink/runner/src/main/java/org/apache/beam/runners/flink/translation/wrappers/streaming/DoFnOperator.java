@@ -37,7 +37,6 @@ import org.apache.beam.runners.core.ExecutionContext;
 import org.apache.beam.runners.core.GroupAlsoByWindowViaWindowSetNewDoFn;
 import org.apache.beam.runners.core.PushbackSideInputDoFnRunner;
 import org.apache.beam.runners.core.SideInputHandler;
-import org.apache.beam.runners.core.SimpleDoFnRunner;
 import org.apache.beam.runners.core.StateInternals;
 import org.apache.beam.runners.core.StateNamespace;
 import org.apache.beam.runners.core.StateNamespaces;
@@ -294,9 +293,8 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
           ((GroupAlsoByWindowViaWindowSetNewDoFn) doFn).getDroppedDueToLatenessAggregator());
     } else if (keyCoder != null) {
       // It is a statefulDoFn
-      doFnRunner = DoFnRunners.statefulDoFnRunner(
-          doFn, (SimpleDoFnRunner<InputT, FnOutputT>) doFnRunner,
-          stepContext, aggregatorFactory, windowingStrategy);
+      doFnRunner = DoFnRunners.defaultStatefulDoFnRunner(
+          doFn, doFnRunner, stepContext, aggregatorFactory, windowingStrategy);
     }
 
     pushbackDoFnRunner =
