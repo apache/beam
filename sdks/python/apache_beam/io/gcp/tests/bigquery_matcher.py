@@ -38,11 +38,8 @@ MAX_RETRIES = 4
 
 def retry_on_http_and_value_error(exception):
   """Filter allowing retries on Bigquery errors and value error."""
-  if isinstance(exception, GoogleCloudError) or \
-          isinstance(exception, ValueError):
-    return True
-  else:
-    return False
+  return isinstance(exception, GoogleCloudError) or \
+          isinstance(exception, ValueError)
 
 
 class BigqueryMatcher(BaseMatcher):
@@ -71,11 +68,12 @@ class BigqueryMatcher(BaseMatcher):
     # Run query
     bigquery_client = bigquery.Client(project=self.project)
     response = self._query_with_retry(bigquery_client)
+    logging.info('Read from given query (%s), total rows %d',
+                 self.query, len(response))
 
     # Compute checksum
     self.checksum = compute_hash(response)
-    logging.info('Read from given query (%s), total rows %d, checksum %s',
-                 self.query, len(response), self.checksum)
+    logging.info('Generate checksum: %s', self.checksum)
 
     # Verify result
     return self.checksum == self.expected_checksum
