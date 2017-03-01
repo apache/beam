@@ -39,6 +39,7 @@ import static org.junit.Assert.assertThat;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.google.common.base.MoreObjects;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
@@ -55,8 +56,12 @@ import java.util.Map;
 import java.util.Set;
 import org.apache.beam.sdk.Pipeline.PipelineExecutionException;
 import org.apache.beam.sdk.coders.AtomicCoder;
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
+import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.coders.ListCoder;
+import org.apache.beam.sdk.coders.SetCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.io.CountingInput;
@@ -1036,6 +1041,71 @@ public class ParDoTest implements Serializable {
      }
   }
 
+  private static class MyInteger implements Comparable<MyInteger> {
+    private final int value;
+
+    MyInteger(int value) {
+      this.value = value;
+    }
+
+    public int getValue() {
+      return value;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+
+      if (!(o instanceof MyInteger)) {
+        return false;
+      }
+
+      MyInteger myInteger = (MyInteger) o;
+
+      return value == myInteger.value;
+
+    }
+
+    @Override
+    public int hashCode() {
+      return value;
+    }
+
+    @Override
+    public int compareTo(MyInteger o) {
+      return Integer.compare(this.getValue(), o.getValue());
+    }
+
+    @Override
+    public String toString() {
+      return "MyInteger{" + "value=" + value + '}';
+    }
+  }
+
+  private static class MyIntegerCoder extends CustomCoder<MyInteger> {
+    private static final MyIntegerCoder INSTANCE = new MyIntegerCoder();
+
+    private final VarIntCoder delegate = VarIntCoder.of();
+
+    public static MyIntegerCoder of() {
+      return INSTANCE;
+    }
+
+    @Override
+    public void encode(MyInteger value, OutputStream outStream, Context context)
+        throws CoderException, IOException {
+      delegate.encode(value.getValue(), outStream, context);
+    }
+
+    @Override
+    public MyInteger decode(InputStream inStream, Context context) throws CoderException,
+        IOException {
+      return new MyInteger(delegate.decode(inStream, context));
+    }
+  }
+
   /** PAssert "matcher" for expected output. */
   static class HasExpectedOutput
       implements SerializableFunction<Iterable<String>, Void>, Serializable {
@@ -1619,6 +1689,132 @@ public class ParDoTest implements Serializable {
 
   @Test
   @Category({ValidatesRunner.class, UsesStatefulParDo.class})
+  public void testValueStateCoderInference() {
+    final String stateId = "foo";
+    MyIntegerCoder myIntegerCoder = MyIntegerCoder.of();
+    pipeline.getCoderRegistry().registerCoder(MyInteger.class, myIntegerCoder);
+
+    DoFn<KV<String, Integer>, MyInteger> fn =
+        new DoFn<KV<String, Integer>, MyInteger>() {
+
+          @StateId(stateId)
+          private final StateSpec<Object, ValueState<MyInteger>> intState =
+              StateSpecs.value();
+
+          @ProcessElement
+          public void processElement(
+              ProcessContext c, @StateId(stateId) ValueState<MyInteger> state) {
+            MyInteger currentValue = MoreObjects.firstNonNull(state.read(), new MyInteger(0));
+            c.output(currentValue);
+            state.write(new MyInteger(currentValue.getValue() + 1));
+          }
+        };
+
+    PCollection<MyInteger> output =
+        pipeline.apply(Create.of(KV.of("hello", 42), KV.of("hello", 97), KV.of("hello", 84)))
+            .apply(ParDo.of(fn)).setCoder(myIntegerCoder);
+
+    PAssert.that(output).containsInAnyOrder(new MyInteger(0), new MyInteger(1), new MyInteger(2));
+    pipeline.run();
+  }
+
+  @Test
+  @Category({ValidatesRunner.class, UsesStatefulParDo.class})
+  public void testValueStateCoderInferenceFailure() throws Exception {
+    final String stateId = "foo";
+    MyIntegerCoder myIntegerCoder = MyIntegerCoder.of();
+
+    DoFn<KV<String, Integer>, MyInteger> fn =
+        new DoFn<KV<String, Integer>, MyInteger>() {
+
+          @StateId(stateId)
+          private final StateSpec<Object, ValueState<MyInteger>> intState =
+              StateSpecs.value();
+
+          @ProcessElement
+          public void processElement(
+              ProcessContext c, @StateId(stateId) ValueState<MyInteger> state) {
+            MyInteger currentValue = MoreObjects.firstNonNull(state.read(), new MyInteger(0));
+            c.output(currentValue);
+            state.write(new MyInteger(currentValue.getValue() + 1));
+          }
+        };
+
+    thrown.expect(RuntimeException.class);
+    thrown.expectMessage("Unable to infer a coder for ValueState and no Coder was specified.");
+
+    pipeline.apply(Create.of(KV.of("hello", 42), KV.of("hello", 97), KV.of("hello", 84)))
+        .apply(ParDo.of(fn)).setCoder(myIntegerCoder);
+
+    pipeline.run();
+  }
+
+  @Test
+  @Category({ValidatesRunner.class, UsesStatefulParDo.class})
+  public void testValueStateCoderInferenceFromInputCoder() {
+    final String stateId = "foo";
+    MyIntegerCoder myIntegerCoder = MyIntegerCoder.of();
+
+    DoFn<KV<String, MyInteger>, MyInteger> fn =
+        new DoFn<KV<String, MyInteger>, MyInteger>() {
+
+          @StateId(stateId)
+          private final StateSpec<Object, ValueState<MyInteger>> intState =
+              StateSpecs.value();
+
+          @ProcessElement
+          public void processElement(
+              ProcessContext c, @StateId(stateId) ValueState<MyInteger> state) {
+            MyInteger currentValue = MoreObjects.firstNonNull(state.read(), new MyInteger(0));
+            c.output(currentValue);
+            state.write(new MyInteger(currentValue.getValue() + 1));
+          }
+        };
+
+        pipeline
+            .apply(Create.of(KV.of("hello", new MyInteger(42)),
+                KV.of("hello", new MyInteger(97)), KV.of("hello", new MyInteger(84)))
+                .withCoder(KvCoder.of(StringUtf8Coder.of(), myIntegerCoder)))
+            .apply(ParDo.of(fn)).setCoder(myIntegerCoder);
+
+    pipeline.run();
+  }
+
+  @Test
+  @Category({ValidatesRunner.class, UsesStatefulParDo.class})
+  public void testCoderInferenceOfList() {
+    final String stateId = "foo";
+    MyIntegerCoder myIntegerCoder = MyIntegerCoder.of();
+    pipeline.getCoderRegistry().registerCoder(MyInteger.class, myIntegerCoder);
+
+    DoFn<KV<String, Integer>, List<MyInteger>> fn =
+        new DoFn<KV<String, Integer>, List<MyInteger>>() {
+
+          @StateId(stateId)
+          private final StateSpec<Object, ValueState<List<MyInteger>>> intState =
+              StateSpecs.value();
+
+          @ProcessElement
+          public void processElement(
+              ProcessContext c, @StateId(stateId) ValueState<List<MyInteger>> state) {
+            MyInteger myInteger = new MyInteger(c.element().getValue());
+            List<MyInteger> currentValue = state.read();
+            List<MyInteger> newValue = currentValue != null
+                ? ImmutableList.<MyInteger>builder().addAll(currentValue).add(myInteger).build()
+                : Collections.singletonList(myInteger);
+            c.output(newValue);
+            state.write(newValue);
+          }
+        };
+
+    pipeline.apply(Create.of(KV.of("hello", 42), KV.of("hello", 97), KV.of("hello", 84)))
+        .apply(ParDo.of(fn)).setCoder(ListCoder.of(myIntegerCoder));
+
+    pipeline.run();
+  }
+
+  @Test
+  @Category({ValidatesRunner.class, UsesStatefulParDo.class})
   public void testValueStateFixedWindows() {
     final String stateId = "foo";
 
@@ -1801,6 +1997,82 @@ public class ParDoTest implements Serializable {
   }
 
   @Test
+  @Category({ValidatesRunner.class, UsesStatefulParDo.class})
+  public void testBagStateCoderInference() {
+    final String stateId = "foo";
+    Coder<MyInteger> myIntegerCoder = MyIntegerCoder.of();
+    pipeline.getCoderRegistry().registerCoder(MyInteger.class, myIntegerCoder);
+
+    DoFn<KV<String, Integer>, List<MyInteger>> fn =
+        new DoFn<KV<String, Integer>, List<MyInteger>>() {
+
+          @StateId(stateId)
+          private final StateSpec<Object, BagState<MyInteger>> bufferState =
+              StateSpecs.bag();
+
+          @ProcessElement
+          public void processElement(
+              ProcessContext c, @StateId(stateId) BagState<MyInteger> state) {
+            Iterable<MyInteger> currentValue = state.read();
+            state.add(new MyInteger(c.element().getValue()));
+            if (Iterables.size(state.read()) >= 4) {
+              List<MyInteger> sorted = Lists.newArrayList(currentValue);
+              Collections.sort(sorted);
+              c.output(sorted);
+            }
+          }
+        };
+
+    PCollection<List<MyInteger>> output =
+        pipeline.apply(
+            Create.of(
+                KV.of("hello", 97), KV.of("hello", 42), KV.of("hello", 84), KV.of("hello", 12)))
+            .apply(ParDo.of(fn)).setCoder(ListCoder.of(myIntegerCoder));
+
+    PAssert.that(output).containsInAnyOrder(Lists.newArrayList(new MyInteger(12), new MyInteger(42),
+        new MyInteger(84), new MyInteger(97)));
+
+    pipeline.run();
+  }
+
+  @Test
+  @Category({ValidatesRunner.class, UsesStatefulParDo.class})
+  public void testBagStateCoderInferenceFailure() throws Exception {
+    final String stateId = "foo";
+    Coder<MyInteger> myIntegerCoder = MyIntegerCoder.of();
+
+    DoFn<KV<String, Integer>, List<MyInteger>> fn =
+        new DoFn<KV<String, Integer>, List<MyInteger>>() {
+
+          @StateId(stateId)
+          private final StateSpec<Object, BagState<MyInteger>> bufferState =
+              StateSpecs.bag();
+
+          @ProcessElement
+          public void processElement(
+              ProcessContext c, @StateId(stateId) BagState<MyInteger> state) {
+            Iterable<MyInteger> currentValue = state.read();
+            state.add(new MyInteger(c.element().getValue()));
+            if (Iterables.size(state.read()) >= 4) {
+              List<MyInteger> sorted = Lists.newArrayList(currentValue);
+              Collections.sort(sorted);
+              c.output(sorted);
+            }
+          }
+        };
+
+    thrown.expect(RuntimeException.class);
+    thrown.expectMessage("Unable to infer a coder for BagState and no Coder was specified.");
+
+    pipeline.apply(
+        Create.of(
+            KV.of("hello", 97), KV.of("hello", 42), KV.of("hello", 84), KV.of("hello", 12)))
+        .apply(ParDo.of(fn)).setCoder(ListCoder.of(myIntegerCoder));
+
+    pipeline.run();
+  }
+
+  @Test
   @Category({ValidatesRunner.class, UsesStatefulParDo.class, UsesSetState.class})
   public void testSetState() {
     final String stateId = "foo";
@@ -1839,6 +2111,93 @@ public class ParDoTest implements Serializable {
             .apply(ParDo.of(fn));
 
     PAssert.that(output).containsInAnyOrder(Sets.newHashSet(97, 42, 12));
+    pipeline.run();
+  }
+
+  @Test
+  @Category({ValidatesRunner.class, UsesStatefulParDo.class, UsesSetState.class})
+  public void testSetStateCoderInference() {
+    final String stateId = "foo";
+    final String countStateId = "count";
+    Coder<MyInteger> myIntegerCoder = MyIntegerCoder.of();
+    pipeline.getCoderRegistry().registerCoder(MyInteger.class, myIntegerCoder);
+
+    DoFn<KV<String, Integer>, Set<MyInteger>> fn =
+        new DoFn<KV<String, Integer>, Set<MyInteger>>() {
+
+          @StateId(stateId)
+          private final StateSpec<Object, SetState<MyInteger>> setState = StateSpecs.set();
+
+          @StateId(countStateId)
+          private final StateSpec<Object, AccumulatorCombiningState<Integer, int[], Integer>>
+              countState = StateSpecs.combiningValueFromInputInternal(VarIntCoder.of(),
+              Sum.ofIntegers());
+
+          @ProcessElement
+          public void processElement(
+              ProcessContext c,
+              @StateId(stateId) SetState<MyInteger> state,
+              @StateId(countStateId) AccumulatorCombiningState<Integer, int[], Integer> count) {
+            state.add(new MyInteger(c.element().getValue()));
+            count.add(1);
+            if (count.read() >= 4) {
+              Set<MyInteger> set = Sets.newHashSet(state.read());
+              c.output(set);
+            }
+          }
+        };
+
+    PCollection<Set<MyInteger>> output =
+        pipeline.apply(
+            Create.of(
+                KV.of("hello", 97), KV.of("hello", 42), KV.of("hello", 42), KV.of("hello", 12)))
+            .apply(ParDo.of(fn)).setCoder(SetCoder.of(myIntegerCoder));
+
+    PAssert.that(output).containsInAnyOrder(
+        Sets.newHashSet(new MyInteger(97), new MyInteger(42), new MyInteger(12)));
+    pipeline.run();
+  }
+
+  @Test
+  @Category({ValidatesRunner.class, UsesStatefulParDo.class, UsesSetState.class})
+  public void testSetStateCoderInferenceFailure() throws Exception {
+    final String stateId = "foo";
+    final String countStateId = "count";
+    Coder<MyInteger> myIntegerCoder = MyIntegerCoder.of();
+
+    DoFn<KV<String, Integer>, Set<MyInteger>> fn =
+        new DoFn<KV<String, Integer>, Set<MyInteger>>() {
+
+          @StateId(stateId)
+          private final StateSpec<Object, SetState<MyInteger>> setState = StateSpecs.set();
+
+          @StateId(countStateId)
+          private final StateSpec<Object, AccumulatorCombiningState<Integer, int[], Integer>>
+              countState = StateSpecs.combiningValueFromInputInternal(VarIntCoder.of(),
+              Sum.ofIntegers());
+
+          @ProcessElement
+          public void processElement(
+              ProcessContext c,
+              @StateId(stateId) SetState<MyInteger> state,
+              @StateId(countStateId) AccumulatorCombiningState<Integer, int[], Integer> count) {
+            state.add(new MyInteger(c.element().getValue()));
+            count.add(1);
+            if (count.read() >= 4) {
+              Set<MyInteger> set = Sets.newHashSet(state.read());
+              c.output(set);
+            }
+          }
+        };
+
+    thrown.expect(RuntimeException.class);
+    thrown.expectMessage("Unable to infer a coder for SetState and no Coder was specified.");
+
+    pipeline.apply(
+        Create.of(
+            KV.of("hello", 97), KV.of("hello", 42), KV.of("hello", 42), KV.of("hello", 12)))
+        .apply(ParDo.of(fn)).setCoder(SetCoder.of(myIntegerCoder));
+
     pipeline.run();
   }
 
@@ -1888,6 +2247,99 @@ public class ParDoTest implements Serializable {
   }
 
   @Test
+  @Category({ValidatesRunner.class, UsesStatefulParDo.class, UsesMapState.class})
+  public void testMapStateCoderInference() {
+    final String stateId = "foo";
+    final String countStateId = "count";
+    Coder<MyInteger> myIntegerCoder = MyIntegerCoder.of();
+    pipeline.getCoderRegistry().registerCoder(MyInteger.class, myIntegerCoder);
+
+    DoFn<KV<String, KV<String, Integer>>, KV<String, MyInteger>> fn =
+        new DoFn<KV<String, KV<String, Integer>>, KV<String, MyInteger>>() {
+
+          @StateId(stateId)
+          private final StateSpec<Object, MapState<String, MyInteger>> mapState = StateSpecs.map();
+          @StateId(countStateId)
+          private final StateSpec<Object, AccumulatorCombiningState<Integer, int[], Integer>>
+              countState = StateSpecs.combiningValueFromInputInternal(VarIntCoder.of(),
+              Sum.ofIntegers());
+
+          @ProcessElement
+          public void processElement(
+              ProcessContext c, @StateId(stateId) MapState<String, MyInteger> state,
+              @StateId(countStateId) AccumulatorCombiningState<Integer, int[], Integer>
+                  count) {
+            KV<String, Integer> value = c.element().getValue();
+            state.put(value.getKey(), new MyInteger(value.getValue()));
+            count.add(1);
+            if (count.read() >= 4) {
+              Iterable<Map.Entry<String, MyInteger>> iterate = state.iterate();
+              for (Map.Entry<String, MyInteger> entry : iterate) {
+                c.output(KV.of(entry.getKey(), entry.getValue()));
+              }
+            }
+          }
+        };
+
+    PCollection<KV<String, MyInteger>> output =
+        pipeline.apply(
+            Create.of(
+                KV.of("hello", KV.of("a", 97)), KV.of("hello", KV.of("b", 42)),
+                KV.of("hello", KV.of("b", 42)), KV.of("hello", KV.of("c", 12))))
+            .apply(ParDo.of(fn)).setCoder(KvCoder.of(StringUtf8Coder.of(), myIntegerCoder));
+
+    PAssert.that(output).containsInAnyOrder(KV.of("a", new MyInteger(97)),
+        KV.of("b", new MyInteger(42)), KV.of("c", new MyInteger(12)));
+    pipeline.run();
+  }
+
+  @Test
+  @Category({ValidatesRunner.class, UsesStatefulParDo.class, UsesMapState.class})
+  public void testMapStateCoderInferenceFailure() throws Exception {
+    final String stateId = "foo";
+    final String countStateId = "count";
+    Coder<MyInteger> myIntegerCoder = MyIntegerCoder.of();
+
+    DoFn<KV<String, KV<String, Integer>>, KV<String, MyInteger>> fn =
+        new DoFn<KV<String, KV<String, Integer>>, KV<String, MyInteger>>() {
+
+          @StateId(stateId)
+          private final StateSpec<Object, MapState<String, MyInteger>> mapState = StateSpecs.map();
+          @StateId(countStateId)
+          private final StateSpec<Object, AccumulatorCombiningState<Integer, int[], Integer>>
+              countState = StateSpecs.combiningValueFromInputInternal(VarIntCoder.of(),
+              Sum.ofIntegers());
+
+          @ProcessElement
+          public void processElement(
+              ProcessContext c, @StateId(stateId) MapState<String, MyInteger> state,
+              @StateId(countStateId) AccumulatorCombiningState<Integer, int[], Integer>
+                  count) {
+            KV<String, Integer> value = c.element().getValue();
+            state.put(value.getKey(), new MyInteger(value.getValue()));
+            count.add(1);
+            if (count.read() >= 4) {
+              Iterable<Map.Entry<String, MyInteger>> iterate = state.iterate();
+              for (Map.Entry<String, MyInteger> entry : iterate) {
+                c.output(KV.of(entry.getKey(), entry.getValue()));
+              }
+            }
+          }
+        };
+
+    thrown.expect(RuntimeException.class);
+    thrown.expectMessage("Unable to infer a coder for MapState and no Coder was specified.");
+
+    pipeline.apply(
+        Create.of(
+            KV.of("hello", KV.of("a", 97)), KV.of("hello", KV.of("b", 42)),
+            KV.of("hello", KV.of("b", 42)), KV.of("hello", KV.of("c", 12))))
+        .apply(ParDo.of(fn)).setCoder(KvCoder.of(StringUtf8Coder.of(), myIntegerCoder));
+
+    pipeline.run();
+  }
+
+  @Test
   @Category({ValidatesRunner.class, UsesStatefulParDo.class})
   public void testCombiningState() {
     final String stateId = "foo";
@@ -1923,6 +2375,132 @@ public class ParDoTest implements Serializable {
 
     // There should only be one moment at which the average is exactly 0.5
     PAssert.that(output).containsInAnyOrder("right on");
+    pipeline.run();
+  }
+
+  @Test
+  @Category({ValidatesRunner.class, UsesStatefulParDo.class})
+  public void testCombiningStateCoderInference() {
+    pipeline.getCoderRegistry().registerCoder(MyInteger.class, MyIntegerCoder.of());
+
+    final String stateId = "foo";
+
+    DoFn<KV<String, Integer>, String> fn =
+        new DoFn<KV<String, Integer>, String>() {
+          private static final int EXPECTED_SUM = 16;
+
+          @StateId(stateId)
+          private final StateSpec<
+              Object, AccumulatorCombiningState<Integer, MyInteger, Integer>>
+              combiningState =
+              StateSpecs.combiningValue(new Combine.CombineFn<Integer, MyInteger, Integer>() {
+                @Override
+                public MyInteger createAccumulator() {
+                  return new MyInteger(0);
+                }
+
+                @Override
+                public MyInteger addInput(MyInteger accumulator, Integer input) {
+                  return new MyInteger(accumulator.getValue() + input);
+                }
+
+                @Override
+                public MyInteger mergeAccumulators(Iterable<MyInteger> accumulators) {
+                  int newValue = 0;
+                  for (MyInteger myInteger : accumulators) {
+                    newValue += myInteger.getValue();
+                  }
+                  return new MyInteger(newValue);
+                }
+
+                @Override
+                public Integer extractOutput(MyInteger accumulator) {
+                  return accumulator.getValue();
+                }
+              });
+
+          @ProcessElement
+          public void processElement(
+              ProcessContext c,
+              @StateId(stateId)
+                  AccumulatorCombiningState<Integer, MyInteger, Integer> state) {
+            state.add(c.element().getValue());
+            Integer currentValue = state.read();
+            if (currentValue == EXPECTED_SUM) {
+              c.output("right on");
+            }
+          }
+        };
+
+    PCollection<String> output =
+        pipeline
+            .apply(Create.of(KV.of("hello", 3), KV.of("hello", 6), KV.of("hello", 7)))
+            .apply(ParDo.of(fn));
+
+    // There should only be one moment at which the average is exactly 16
+    PAssert.that(output).containsInAnyOrder("right on");
+    pipeline.run();
+  }
+
+  @Test
+  @Category({ValidatesRunner.class, UsesStatefulParDo.class})
+  public void testCombiningStateCoderInferenceFailure() throws Exception {
+    final String stateId = "foo";
+
+    DoFn<KV<String, Integer>, String> fn =
+        new DoFn<KV<String, Integer>, String>() {
+          private static final int EXPECTED_SUM = 16;
+
+          @StateId(stateId)
+          private final StateSpec<
+              Object, AccumulatorCombiningState<Integer, MyInteger, Integer>>
+              combiningState =
+              StateSpecs.combiningValue(new Combine.CombineFn<Integer, MyInteger, Integer>() {
+                @Override
+                public MyInteger createAccumulator() {
+                  return new MyInteger(0);
+                }
+
+                @Override
+                public MyInteger addInput(MyInteger accumulator, Integer input) {
+                  return new MyInteger(accumulator.getValue() + input);
+                }
+
+                @Override
+                public MyInteger mergeAccumulators(Iterable<MyInteger> accumulators) {
+                  int newValue = 0;
+                  for (MyInteger myInteger : accumulators) {
+                    newValue += myInteger.getValue();
+                  }
+                  return new MyInteger(newValue);
+                }
+
+                @Override
+                public Integer extractOutput(MyInteger accumulator) {
+                  return accumulator.getValue();
+                }
+              });
+
+          @ProcessElement
+          public void processElement(
+              ProcessContext c,
+              @StateId(stateId)
+                  AccumulatorCombiningState<Integer, MyInteger, Integer> state) {
+            state.add(c.element().getValue());
+            Integer currentValue = state.read();
+            if (currentValue == EXPECTED_SUM) {
+              c.output("right on");
+            }
+          }
+        };
+
+    thrown.expect(RuntimeException.class);
+    thrown.expectMessage("Unable to infer a coder for CombiningState and no Coder was specified.");
+
+    pipeline
+        .apply(Create.of(KV.of("hello", 3), KV.of("hello", 6), KV.of("hello", 7)))
+        .apply(ParDo.of(fn));
+
     pipeline.run();
   }
 
