@@ -68,7 +68,7 @@ PROJECT=apache-beam-testing
 # Create a tarball
 python setup.py sdist
 
-SDK_LOCATION=$(find dist/apache-beam-sdk-*.tar.gz)
+SDK_LOCATION=$(find dist/apache-beam-*.tar.gz)
 
 # Install test dependencies for ValidatesRunner tests.
 echo "pyhamcrest" > postcommit_requirements.txt

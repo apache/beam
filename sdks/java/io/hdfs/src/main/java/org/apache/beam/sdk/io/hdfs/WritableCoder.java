@@ -43,7 +43,7 @@ import org.apache.hadoop.io.Writable;
  * }
  * </pre>
  *
- * @param <T> the type of elements handled by this coder
+ * @param <T> the type of elements handled by this coder.
  */
 public class WritableCoder<T extends Writable> extends StandardCoder<T> {
   private static final long serialVersionUID = 0L;

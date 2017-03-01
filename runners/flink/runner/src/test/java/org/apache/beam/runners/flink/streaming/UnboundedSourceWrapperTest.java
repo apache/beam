@@ -28,17 +28,25 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.io.UnboundedSourceWrapper;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.accumulators.Accumulator;
+import org.apache.flink.api.common.state.ListState;
+import org.apache.flink.api.common.state.ListStateDescriptor;
+import org.apache.flink.api.common.state.OperatorStateStore;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
+import org.apache.flink.runtime.state.StateInitializationContext;
+import org.apache.flink.runtime.state.StateSnapshotContextSynchronousImpl;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.Output;
@@ -53,6 +61,7 @@ import org.junit.Test;
 import org.junit.experimental.runners.Enclosed;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
+import org.mockito.Matchers;
 
 /**
  * Tests for {@link UnboundedSourceWrapper}.
@@ -180,6 +189,22 @@ public class UnboundedSourceWrapperTest {
               KV<Integer, Integer>,
               TestCountingSource.CounterMark>> sourceOperator = new StreamSource<>(flinkWrapper);
 
+
+      OperatorStateStore backend = mock(OperatorStateStore.class);
+
+      TestingListState<KV<UnboundedSource, TestCountingSource.CounterMark>>
+          listState = new TestingListState<>();
+
+      when(backend.getOperatorState(Matchers.any(ListStateDescriptor.class)))
+          .thenReturn(listState);
+
+      StateInitializationContext initializationContext = mock(StateInitializationContext.class);
+
+      when(initializationContext.getOperatorStateStore()).thenReturn(backend);
+      when(initializationContext.isRestored()).thenReturn(false, true);
+
+      flinkWrapper.initializeState(initializationContext);
+
       setupSourceOperator(sourceOperator, numTasks);
 
       final Set<KV<Integer, Integer>> emittedElements = new HashSet<>();
@@ -224,7 +249,16 @@ public class UnboundedSourceWrapperTest {
       assertTrue("Did not successfully read first batch of elements.", readFirstBatchOfElements);
 
       // draw a snapshot
-      byte[] snapshot = flinkWrapper.snapshotState(0, 0);
+      flinkWrapper.snapshotState(new StateSnapshotContextSynchronousImpl(0, 0));
+
+      // test snapshot offsets
+      assertEquals(flinkWrapper.getLocalSplitSources().size(),
+          listState.getList().size());
+      int totalEmit = 0;
+      for (KV<UnboundedSource, TestCountingSource.CounterMark> kv : listState.get()) {
+        totalEmit += kv.getValue().current + 1;
+      }
+      assertEquals(numElements / 2, totalEmit);
 
       // test that finalizeCheckpoint on CheckpointMark is called
       final ArrayList<Integer> finalizeList = new ArrayList<>();
@@ -250,7 +284,7 @@ public class UnboundedSourceWrapperTest {
       setupSourceOperator(restoredSourceOperator, numTasks);
 
       // restore snapshot
-      restoredFlinkWrapper.restoreState(snapshot);
+      restoredFlinkWrapper.initializeState(initializationContext);
 
       boolean readSecondBatchOfElements = false;
 
@@ -295,6 +329,58 @@ public class UnboundedSourceWrapperTest {
 
       // verify that we saw all NUM_ELEMENTS elements
       assertTrue(emittedElements.size() == numElements);
+    }
+
+    @Test
+    public void testNullCheckpoint() throws Exception {
+      final int numElements = 20;
+      PipelineOptions options = PipelineOptionsFactory.create();
+
+      TestCountingSource source = new TestCountingSource(numElements) {
+        @Override
+        public Coder<CounterMark> getCheckpointMarkCoder() {
+          return null;
+        }
+      };
+      UnboundedSourceWrapper<KV<Integer, Integer>, TestCountingSource.CounterMark> flinkWrapper =
+          new UnboundedSourceWrapper<>(options, source, numSplits);
+
+      OperatorStateStore backend = mock(OperatorStateStore.class);
+
+      TestingListState<KV<UnboundedSource, TestCountingSource.CounterMark>>
+          listState = new TestingListState<>();
+
+      when(backend.getOperatorState(Matchers.any(ListStateDescriptor.class)))
+          .thenReturn(listState);
+
+      StateInitializationContext initializationContext = mock(StateInitializationContext.class);
+
+      when(initializationContext.getOperatorStateStore()).thenReturn(backend);
+      when(initializationContext.isRestored()).thenReturn(false, true);
+
+      flinkWrapper.initializeState(initializationContext);
+
+      StreamSource sourceOperator = new StreamSource<>(flinkWrapper);
+      setupSourceOperator(sourceOperator, numTasks);
+      sourceOperator.open();
+
+      flinkWrapper.snapshotState(new StateSnapshotContextSynchronousImpl(0, 0));
+
+      assertEquals(0, listState.getList().size());
+
+      UnboundedSourceWrapper<
+          KV<Integer, Integer>, TestCountingSource.CounterMark> restoredFlinkWrapper =
+          new UnboundedSourceWrapper<>(options, new TestCountingSource(numElements),
+              numSplits);
+
+      StreamSource restoredSourceOperator = new StreamSource<>(flinkWrapper);
+      setupSourceOperator(restoredSourceOperator, numTasks);
+      sourceOperator.open();
+
+      restoredFlinkWrapper.initializeState(initializationContext);
+
+      assertEquals(Math.max(1, numSplits / numTasks), flinkWrapper.getLocalSplitSources().size());
+
     }
 
     @SuppressWarnings("unchecked")
@@ -349,4 +435,30 @@ public class UnboundedSourceWrapperTest {
     }
 
   }
+
+  private static final class TestingListState<T> implements ListState<T> {
+
+    private final List<T> list = new ArrayList<>();
+
+    @Override
+    public void clear() {
+      list.clear();
+    }
+
+    @Override
+    public Iterable<T> get() throws Exception {
+      return list;
+    }
+
+    @Override
+    public void add(T value) throws Exception {
+      list.add(value);
+    }
+
+    public List<T> getList() {
+      return list;
+    }
+
+  }
+
 }

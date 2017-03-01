@@ -128,7 +128,12 @@ public class NameUtils {
       return ((NameOverride) object).getNameOverride();
     }
 
-    Class<?> clazz = object.getClass();
+    Class<?> clazz;
+    if (object instanceof Class) {
+      clazz = (Class<?>) object;
+    } else {
+      clazz = object.getClass();
+    }
     if (clazz.isAnonymousClass()) {
       return anonymousValue;
     }

@@ -31,8 +31,8 @@ from apache_beam.io.range_trackers import *
 # Protect against environments where clientslibrary is not available.
 # pylint: disable=wrong-import-order, wrong-import-position
 try:
-  from apache_beam.io.google_cloud_platform.bigquery import *
-  from apache_beam.io.google_cloud_platform.pubsub import *
+  from apache_beam.io.gcp.bigquery import *
+  from apache_beam.io.gcp.pubsub import *
 except ImportError:
   pass
 # pylint: enable=wrong-import-order, wrong-import-position

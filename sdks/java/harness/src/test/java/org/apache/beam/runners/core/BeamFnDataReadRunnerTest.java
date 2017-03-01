@@ -42,7 +42,7 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 import org.apache.beam.fn.harness.data.BeamFnDataClient;
 import org.apache.beam.fn.harness.fn.ThrowingConsumer;
 import org.apache.beam.fn.harness.test.TestExecutors;
@@ -85,7 +85,7 @@ public class BeamFnDataReadRunnerTest {
     }
   }
   private static final BeamFnApi.Target INPUT_TARGET = BeamFnApi.Target.newBuilder()
-      .setPrimitiveTransformReference(1)
+      .setPrimitiveTransformReference("1")
       .setName("out")
       .build();
 
@@ -112,7 +112,7 @@ public class BeamFnDataReadRunnerTest {
     Map<String, Collection<ThrowingConsumer<WindowedValue<String>>>> outputMap = ImmutableMap.of(
         "outA", ImmutableList.of(valuesA::add),
         "outB", ImmutableList.of(valuesB::add));
-    AtomicLong bundleId = new AtomicLong(0);
+    AtomicReference<String> bundleId = new AtomicReference<>("0");
     BeamFnDataReadRunner<String> readRunner = new BeamFnDataReadRunner<>(
         FUNCTION_SPEC,
         bundleId::get,
@@ -151,7 +151,7 @@ public class BeamFnDataReadRunnerTest {
     assertThat(valuesB, contains(valueInGlobalWindow("ABC"), valueInGlobalWindow("DEF")));
 
     // Process for bundle id 1
-    bundleId.incrementAndGet();
+    bundleId.set("1");
     valuesA.clear();
     valuesB.clear();
     readRunner.registerInputLocation();

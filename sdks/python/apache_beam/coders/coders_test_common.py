@@ -249,6 +249,26 @@ class CodersTest(unittest.TestCase):
                            coders.IterableCoder(coders.VarIntCoder()))),
         (1, [1, 2, 3]))
 
+  def test_iterable_coder_unknown_length(self):
+    # Empty
+    self._test_iterable_coder_of_unknown_length(0)
+    # Single element
+    self._test_iterable_coder_of_unknown_length(1)
+    # Multiple elements
+    self._test_iterable_coder_of_unknown_length(100)
+    # Multiple elements with underlying stream buffer overflow.
+    self._test_iterable_coder_of_unknown_length(80000)
+
+  def _test_iterable_coder_of_unknown_length(self, count):
+    def iter_generator(count):
+      for i in range(count):
+        yield i
+
+    iterable_coder = coders.IterableCoder(coders.VarIntCoder())
+    self.assertItemsEqual(list(iter_generator(count)),
+                          iterable_coder.decode(
+                              iterable_coder.encode(iter_generator(count))))
+
   def test_windowed_value_coder(self):
     coder = coders.WindowedValueCoder(coders.VarIntCoder(),
                                       coders.GlobalWindowCoder())
@@ -264,13 +284,20 @@ class CodersTest(unittest.TestCase):
         },
         coder.as_cloud_object())
     # Test binary representation
-    self.assertEqual('\x01\x80\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x01',
+    self.assertEqual('\x7f\xdf;dZ\x1c\xac\t\x00\x00\x00\x01\x0f\x01',
                      coder.encode(window.GlobalWindows.windowed_value(1)))
     # Test unnested
     self.check_coder(
         coders.WindowedValueCoder(coders.VarIntCoder()),
         windowed_value.WindowedValue(3, -100, ()),
         windowed_value.WindowedValue(-1, 100, (1, 2, 3)))
+
+    # Test Global Window
+    self.check_coder(
+        coders.WindowedValueCoder(coders.VarIntCoder(),
+                                  coders.GlobalWindowCoder()),
+        window.GlobalWindows.windowed_value(1))
+
     # Test nested
     self.check_coder(
         coders.TupleCoder((

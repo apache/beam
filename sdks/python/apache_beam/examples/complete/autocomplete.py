@@ -78,7 +78,8 @@ class TopPerPrefix(beam.PTransform):
             | beam.combiners.Top.LargestPerKey(self._count))
 
 
-def extract_prefixes((word, count)):
+def extract_prefixes(element):
+  word, count = element
   for k in range(1, len(word) + 1):
     prefix = word[:k]
     yield prefix, (count, word)

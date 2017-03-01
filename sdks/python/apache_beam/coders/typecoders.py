@@ -117,11 +117,7 @@ class CoderRegistry(object):
             'Coder registry has no fallback coder. This can happen if the '
             'fast_coders module could not be imported.')
       if isinstance(typehint, typehints.IterableTypeConstraint):
-        # In this case, we suppress the warning message for using the fallback
-        # coder, since Iterable is hinted as the output of a GroupByKey
-        # operation and that direct output will not be coded.
-        # TODO(ccy): refine this behavior.
-        pass
+        return coders.IterableCoder.from_type_hint(typehint, self)
       elif typehint is None:
         # In some old code, None is used for Any.
         # TODO(robertwb): Clean this up.

@@ -28,12 +28,12 @@ set -o pipefail
 
 # Following generated files are excluded from lint checks.
 EXCLUDED_GENERATED_FILES=(
-"apache_beam/internal/clients/bigquery/bigquery_v2_client.py"
-"apache_beam/internal/clients/bigquery/bigquery_v2_messages.py"
-"apache_beam/internal/clients/dataflow/dataflow_v1b3_client.py"
-"apache_beam/internal/clients/dataflow/dataflow_v1b3_messages.py"
-"apache_beam/internal/clients/storage/storage_v1_client.py"
-"apache_beam/internal/clients/storage/storage_v1_messages.py"
+"apache_beam/io/gcp/internal/clients/bigquery/bigquery_v2_client.py"
+"apache_beam/io/gcp/internal/clients/bigquery/bigquery_v2_messages.py"
+"apache_beam/runners/dataflow/internal/clients/dataflow/dataflow_v1b3_client.py"
+"apache_beam/runners/dataflow/internal/clients/dataflow/dataflow_v1b3_messages.py"
+"apache_beam/io/gcp/internal/clients/storage/storage_v1_client.py"
+"apache_beam/io/gcp/internal/clients/storage/storage_v1_messages.py"
 "apache_beam/coders/proto2_coder_test_messages_pb2.py")
 
 FILES_TO_IGNORE=""

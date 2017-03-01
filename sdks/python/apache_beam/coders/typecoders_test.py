@@ -112,6 +112,13 @@ class TypeCodersTest(unittest.TestCase):
         real_coder.encode('abc'), expected_coder.encode('abc'))
     self.assertEqual('abc', real_coder.decode(real_coder.encode('abc')))
 
+  def test_iterable_coder(self):
+    real_coder = typecoders.registry.get_coder(typehints.Iterable[str])
+    expected_coder = coders.IterableCoder(coders.BytesCoder())
+    values = ['abc', 'xyz']
+    self.assertEqual(expected_coder, real_coder)
+    self.assertEqual(real_coder.encode(values), expected_coder.encode(values))
+
 
 if __name__ == '__main__':
   unittest.main()

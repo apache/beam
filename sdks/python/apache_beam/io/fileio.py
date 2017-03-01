@@ -37,7 +37,7 @@ from apache_beam.transforms.display import DisplayDataItem
 # Protect against environments where apitools library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position
 try:
-  from apache_beam.io.google_cloud_platform import gcsio
+  from apache_beam.io.gcp import gcsio
   DEFAULT_READ_BUFFER_SIZE = gcsio.DEFAULT_READ_BUFFER_SIZE
   MAX_BATCH_OPERATION_SIZE = gcsio.MAX_BATCH_OPERATION_SIZE
 except ImportError:

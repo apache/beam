@@ -84,11 +84,6 @@ sudo apt-get install \
 
 Then please use the standard `mvn clean install` command.
 
-
-### Flink Runner
-
-See the Flink Runner [README](https://github.com/apache/beam/tree/master/runners/flink).
-
 ### Spark Runner
 
 See the Spark Runner [README](https://github.com/apache/beam/tree/master/runners/spark).

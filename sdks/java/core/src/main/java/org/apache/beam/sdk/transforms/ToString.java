@@ -18,8 +18,7 @@
 
 package org.apache.beam.sdk.transforms;
 
-import java.util.Iterator;
-
+import com.google.common.base.Joiner;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 
@@ -38,74 +37,70 @@ public final class ToString {
   }
 
   /**
-   * Returns a {@code PTransform<PCollection, PCollection<String>>} which transforms each
-   * element of the input {@link PCollection} to a {@link String} using the
-   * {@link Object#toString} method.
+   * Transforms each element of the input {@link PCollection} to a {@link String} using the {@link
+   * Object#toString} method.
    */
   public static PTransform<PCollection<?>, PCollection<String>> elements() {
-    return new SimpleToString();
+    return new Elements();
   }
 
   /**
-   * Returns a {@code PTransform<PCollection<KV<?,?>, PCollection<String>>} which transforms each
-   * element of the input {@link PCollection} to a {@link String} by using the
+   * Transforms each element of the input {@link PCollection} to a {@link String} by using the
    * {@link Object#toString} on the key followed by a "," followed by the {@link Object#toString}
    * of the value.
    */
-  public static PTransform<PCollection<? extends KV<?, ?>>, PCollection<String>> kv() {
-    return kv(",");
+  public static PTransform<PCollection<? extends KV<?, ?>>, PCollection<String>> kvs() {
+    return kvs(",");
   }
 
   /**
-   * Returns a {@code PTransform<PCollection<KV<?,?>, PCollection<String>>} which transforms each
-   * element of the input {@link PCollection} to a {@link String} by using the
-   * {@link Object#toString} on the key followed by the specified delimeter followed by the
-   * {@link Object#toString} of the value.
+   * Transforms each element of the input {@link PCollection} to a {@link String} by using the
+   * {@link Object#toString} on the key followed by the specified delimiter followed by the {@link
+   * Object#toString} of the value.
+   *
    * @param delimiter The delimiter to put between the key and value
    */
-  public static PTransform<PCollection<? extends KV<?, ?>>,
-          PCollection<String>> kv(String delimiter) {
-    return new KVToString(delimiter);
+  public static PTransform<PCollection<? extends KV<?, ?>>, PCollection<String>> kvs(
+      String delimiter) {
+    return new KVs(delimiter);
   }
 
   /**
-   * Returns a {@code PTransform<PCollection<Iterable<?>, PCollection<String>>} which
-   * transforms each item in the iterable of the input {@link PCollection} to a {@link String}
+   * Transforms each item in the iterable of the input {@link PCollection} to a {@link String}
    * using the {@link Object#toString} method followed by a "," until
    * the last element in the iterable. There is no trailing delimiter.
    */
-  public static PTransform<PCollection<? extends Iterable<?>>, PCollection<String>> iterable() {
-    return iterable(",");
+  public static PTransform<PCollection<? extends Iterable<?>>, PCollection<String>> iterables() {
+    return iterables(",");
   }
 
   /**
-   * Returns a {@code PTransform<PCollection<Iterable<?>, PCollection<String>>} which
-   * transforms each item in the iterable of the input {@link PCollection} to a {@link String}
-   * using the {@link Object#toString} method followed by the specified delimiter until
-   * the last element in the iterable. There is no trailing delimiter.
+   * Transforms each item in the iterable of the input {@link PCollection} to a {@link String} using
+   * the {@link Object#toString} method followed by the specified delimiter until the last element
+   * in the iterable. There is no trailing delimiter.
+   *
    * @param delimiter The delimiter to put between the items in the iterable.
    */
-  public static PTransform<PCollection<? extends Iterable<?>>,
-          PCollection<String>> iterable(String delimiter) {
-    return new IterablesToString(delimiter);
+  public static PTransform<PCollection<? extends Iterable<?>>, PCollection<String>> iterables(
+      String delimiter) {
+    return new Iterables(delimiter);
   }
 
   /**
-   * A {@link PTransform} that converts a {@code PCollection} to a {@code PCollection<String>}
-   * using the {@link  Object#toString} method.
+   * A {@link PTransform} that converts a {@code PCollection} to a {@code PCollection<String>} using
+   * the {@link Object#toString} method.
    *
    * <p>Example of use:
+   *
    * <pre>{@code
    * PCollection<Long> longs = ...;
    * PCollection<String> strings = longs.apply(ToString.elements());
    * }</pre>
    *
-   *
    * <p><b>Note</b>: For any custom string conversion and formatting, we recommend applying your own
    * {@link SerializableFunction} using {@link MapElements#via(SerializableFunction)}
    */
-  private static final class SimpleToString extends
-          PTransform<PCollection<?>, PCollection<String>> {
+  private static final class Elements extends PTransform<PCollection<?>, PCollection<String>> {
     @Override
     public PCollection<String> expand(PCollection<?> input) {
       return input.apply(MapElements.via(new SimpleFunction<Object, String>() {
@@ -118,25 +113,25 @@ public final class ToString {
   }
 
   /**
-   * A {@link PTransform} that converts a {@code PCollection} of {@code KV} to a
-   * {@code PCollection<String>} using the {@link  Object#toString} method for
-   * the key and value and an optional delimiter.
+   * A {@link PTransform} that converts a {@code PCollection} of {@code KV} to a {@code
+   * PCollection<String>} using the {@link Object#toString} method for the key and value and an
+   * optional delimiter.
    *
    * <p>Example of use:
+   *
    * <pre>{@code
    * PCollection<KV<String, Long>> nameToLong = ...;
    * PCollection<String> strings = nameToLong.apply(ToString.kv());
    * }</pre>
    *
-   *
-   * <p><b>Note</b>: For any custom string conversion and formatting, we recommend applying your
-   * own {@link SerializableFunction} using {@link MapElements#via(SerializableFunction)}
+   * <p><b>Note</b>: For any custom string conversion and formatting, we recommend applying your own
+   * {@link SerializableFunction} using {@link MapElements#via(SerializableFunction)}
    */
-  private static final class KVToString extends
-          PTransform<PCollection<? extends KV<?, ?>>, PCollection<String>> {
+  private static final class KVs
+      extends PTransform<PCollection<? extends KV<?, ?>>, PCollection<String>> {
     private final String delimiter;
 
-    public KVToString(String delimiter) {
+    public KVs(String delimiter) {
       this.delimiter = delimiter;
     }
 
@@ -152,25 +147,24 @@ public final class ToString {
   }
 
   /**
-   * A {@link PTransform} that converts a {@code PCollection} of {@link Iterable} to a
-   * {@code PCollection<String>} using the {@link  Object#toString} method and
-   * an optional delimiter.
+   * A {@link PTransform} that converts a {@code PCollection} of {@link Iterable} to a {@code
+   * PCollection<String>} using the {@link Object#toString} method and an optional delimiter.
    *
    * <p>Example of use:
+   *
    * <pre>{@code
    * PCollection<Iterable<Long>> longs = ...;
    * PCollection<String> strings = nameToLong.apply(ToString.iterable());
    * }</pre>
    *
-   *
-   * <p><b>Note</b>: For any custom string conversion and formatting, we recommend applying your
-   * own {@link SerializableFunction} using {@link MapElements#via(SerializableFunction)}
+   * <p><b>Note</b>: For any custom string conversion and formatting, we recommend applying your own
+   * {@link SerializableFunction} using {@link MapElements#via(SerializableFunction)}
    */
-  private static final class IterablesToString extends
-          PTransform<PCollection<? extends Iterable<?>>, PCollection<String>> {
+  private static final class Iterables
+      extends PTransform<PCollection<? extends Iterable<?>>, PCollection<String>> {
     private final String delimiter;
 
-    public IterablesToString(String delimiter) {
+    public Iterables(String delimiter) {
       this.delimiter = delimiter;
     }
 
@@ -179,18 +173,7 @@ public final class ToString {
       return input.apply(MapElements.via(new SimpleFunction<Iterable<?>, String>() {
         @Override
         public String apply(Iterable<?> input) {
-          StringBuilder builder = new StringBuilder();
-          Iterator iterator = input.iterator();
-
-          while (iterator.hasNext()) {
-            builder.append(iterator.next().toString());
-
-            if (iterator.hasNext()) {
-              builder.append(delimiter);
-            }
-          }
-
-          return builder.toString();
+          return Joiner.on(delimiter).join(input);
         }
       }));
     }

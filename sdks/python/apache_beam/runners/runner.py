@@ -36,7 +36,7 @@ def _get_runner_map(runner_names, module_path):
 
 _DIRECT_RUNNER_PATH = 'apache_beam.runners.direct.direct_runner.'
 _DATAFLOW_RUNNER_PATH = (
-    'apache_beam.runners.google_cloud_dataflow.dataflow_runner.')
+    'apache_beam.runners.dataflow.dataflow_runner.')
 _TEST_RUNNER_PATH = 'apache_beam.runners.test.'
 
 _KNOWN_DIRECT_RUNNERS = ('DirectRunner', 'EagerRunner')

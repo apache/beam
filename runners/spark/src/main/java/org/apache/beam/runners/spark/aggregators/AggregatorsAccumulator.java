@@ -34,7 +34,7 @@ import org.slf4j.LoggerFactory;
 
 
 /**
- * For resilience, {@link Accumulator}s are required to be wrapped in a Singleton.
+ * For resilience, {@link Accumulator Accumulators} are required to be wrapped in a Singleton.
  * @see <a href="https://spark.apache.org/docs/1.6.3/streaming-programming-guide.html#accumulators-and-broadcast-variables">accumulators</a>
  */
 public class AggregatorsAccumulator {

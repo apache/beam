@@ -28,6 +28,9 @@ import java.io.Serializable;
 import java.util.Collections;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
+import org.apache.beam.sdk.io.FileBasedSink;
+import org.apache.beam.sdk.io.Write;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.runners.PTransformMatcher;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
@@ -36,6 +39,7 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
@@ -51,6 +55,7 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.PCollectionList;
+import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.TaggedPValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
@@ -322,7 +327,7 @@ public class PTransformMatchersTest implements Serializable {
   public void emptyFlattenWithEmptyFlatten() {
     AppliedPTransform application =
         AppliedPTransform
-            .<PCollectionList<Object>, PCollection<Object>, Flatten.FlattenPCollectionList<Object>>
+            .<PCollectionList<Object>, PCollection<Object>, Flatten.PCollections<Object>>
                 of(
                     "EmptyFlatten",
                     Collections.<TaggedPValue>emptyList(),
@@ -341,7 +346,7 @@ public class PTransformMatchersTest implements Serializable {
   public void emptyFlattenWithNonEmptyFlatten() {
     AppliedPTransform application =
         AppliedPTransform
-            .<PCollectionList<Object>, PCollection<Object>, Flatten.FlattenPCollectionList<Object>>
+            .<PCollectionList<Object>, PCollection<Object>, Flatten.PCollections<Object>>
                 of(
                     "Flatten",
                     Collections.singletonList(
@@ -364,7 +369,7 @@ public class PTransformMatchersTest implements Serializable {
   public void emptyFlattenWithNonFlatten() {
     AppliedPTransform application =
         AppliedPTransform
-            .<PCollection<Iterable<Object>>, PCollection<Object>, Flatten.FlattenIterables<Object>>
+            .<PCollection<Iterable<Object>>, PCollection<Object>, Flatten.Iterables<Object>>
                 of(
                     "EmptyFlatten",
                     Collections.<TaggedPValue>emptyList(),
@@ -378,5 +383,43 @@ public class PTransformMatchersTest implements Serializable {
                     p);
 
     assertThat(PTransformMatchers.emptyFlatten().matches(application), is(false));
+  }
+
+  @Test
+  public void writeWithRunnerDeterminedSharding() {
+    Write<Integer> write =
+        Write.to(
+            new FileBasedSink<Integer>("foo", "bar") {
+              @Override
+              public FileBasedWriteOperation<Integer> createWriteOperation(
+                  PipelineOptions options) {
+                return null;
+              }
+            });
+    assertThat(
+        PTransformMatchers.writeWithRunnerDeterminedSharding().matches(appliedWrite(write)),
+        is(true));
+
+    Write<Integer> withStaticSharding = write.withNumShards(3);
+    assertThat(
+        PTransformMatchers.writeWithRunnerDeterminedSharding()
+            .matches(appliedWrite(withStaticSharding)),
+        is(false));
+
+    Write<Integer> withCustomSharding =
+        write.withSharding(Sum.integersGlobally().asSingletonView());
+    assertThat(
+        PTransformMatchers.writeWithRunnerDeterminedSharding()
+            .matches(appliedWrite(withCustomSharding)),
+        is(false));
+  }
+
+  private AppliedPTransform<?, ?, ?> appliedWrite(Write<Integer> write) {
+    return AppliedPTransform.<PCollection<Integer>, PDone, Write<Integer>>of(
+        "Write",
+        Collections.<TaggedPValue>emptyList(),
+        Collections.<TaggedPValue>emptyList(),
+        write,
+        p);
   }
 }

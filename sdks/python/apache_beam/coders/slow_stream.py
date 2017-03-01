@@ -64,6 +64,9 @@ class OutputStream(object):
   def get(self):
     return ''.join(self.data)
 
+  def size(self):
+    return len(self.data)
+
 
 class ByteCountingOutputStream(OutputStream):
   """A pure Python implementation of stream.ByteCountingOutputStream."""

@@ -21,6 +21,9 @@ import static com.google.common.base.MoreObjects.firstNonNull;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasItem;
+import static org.hamcrest.Matchers.instanceOf;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
@@ -40,14 +43,19 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.util.Collections;
+import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.Coder.Context;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow.IntervalWindowCoder;
+import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.CoderUtils;
+import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -69,21 +77,26 @@ public class CommonCoderTest {
       .put("urn:beam:coders:bytes:0.1", ByteCoder.class)
       .put("urn:beam:coders:kv:0.1", KvCoder.class)
       .put("urn:beam:coders:varint:0.1", VarLongCoder.class)
-      .put("urn:beam:coders:intervalwindow:0.1", IntervalWindowCoder.class)
+      .put("urn:beam:coders:interval_window:0.1", IntervalWindowCoder.class)
       .put("urn:beam:coders:stream:0.1", IterableCoder.class)
+      .put("urn:beam:coders:global_window:0.1", GlobalWindow.Coder.class)
+      .put("urn:beam:coders:windowed_value:0.1", WindowedValue.FullWindowedValueCoder.class)
       .build();
 
   @AutoValue
   abstract static class CommonCoder {
     abstract String getUrn();
     abstract List<CommonCoder> getComponents();
+    abstract Boolean getNonDeterministic();
     @JsonCreator
     static CommonCoder create(
         @JsonProperty("urn") String urn,
-        @JsonProperty("components") @Nullable List<CommonCoder> components) {
+        @JsonProperty("components") @Nullable List<CommonCoder> components,
+        @JsonProperty("non_deterministic") @Nullable Boolean nonDeterministic) {
       return new AutoValue_CommonCoderTest_CommonCoder(
           checkNotNull(urn, "urn"),
-          firstNonNull(components, Collections.<CommonCoder>emptyList()));
+          firstNonNull(components, Collections.<CommonCoder>emptyList()),
+          firstNonNull(nonDeterministic, Boolean.FALSE));
     }
   }
 
@@ -191,15 +204,16 @@ public class CommonCoderTest {
         Object v = convertValue(kvMap.get("value"), coderSpec.getComponents().get(1), valueCoder);
         return KV.of(k, v);
       }
-      case "urn:beam:coders:varint:0.1":
+      case "urn:beam:coders:varint:0.1": {
         return ((Number) value).longValue();
-      case "urn:beam:coders:intervalwindow:0.1": {
+      }
+      case "urn:beam:coders:interval_window:0.1": {
         Map<String, Object> kvMap = (Map<String, Object>) value;
         Instant end = new Instant(((Number) kvMap.get("end")).longValue());
         Duration span = Duration.millis(((Number) kvMap.get("span")).longValue());
         return new IntervalWindow(end.minus(span), span);
       }
-      case "urn:beam:coders:stream:0.1":
+      case "urn:beam:coders:stream:0.1": {
         Coder elementCoder = ((IterableCoder) coder).getElemCoder();
         List<Object> elements = (List<Object>) value;
         List<Object> convertedElements = new LinkedList<>();
@@ -208,6 +222,33 @@ public class CommonCoderTest {
               convertValue(element, coderSpec.getComponents().get(0), elementCoder));
         }
         return convertedElements;
+      }
+      case "urn:beam:coders:global_window:0.1": {
+        return GlobalWindow.INSTANCE;
+      }
+      case "urn:beam:coders:windowed_value:0.1": {
+        Map<String, Object> kvMap = (Map<String, Object>) value;
+        Coder valueCoder = ((WindowedValue.FullWindowedValueCoder) coder).getValueCoder();
+        Coder windowCoder = ((WindowedValue.FullWindowedValueCoder) coder).getWindowCoder();
+        Object windowValue = convertValue(
+            kvMap.get("value"), coderSpec.getComponents().get(0), valueCoder);
+        Instant timestamp = new Instant(((Number) kvMap.get("timestamp")).longValue());
+        List<BoundedWindow> windows = new LinkedList<>();
+        for (Object window : ((List<Object>) kvMap.get("windows"))) {
+          windows.add((BoundedWindow) convertValue(window, coderSpec.getComponents().get(1),
+              windowCoder));
+        }
+
+        Map<String, Object> paneInfoMap = (Map<String, Object>) kvMap.get("pane");
+        PaneInfo paneInfo = PaneInfo.createPane(
+            (boolean) paneInfoMap.get("is_first"),
+            (boolean) paneInfoMap.get("is_last"),
+            PaneInfo.Timing.valueOf((String) paneInfoMap.get("timing")),
+            (int) paneInfoMap.get("index"),
+            (int) paneInfoMap.get("on_time_index"));
+
+        return WindowedValue.of(windowValue, timestamp, windows, paneInfo);
+      }
       default:
         throw new IllegalStateException("Unknown coder URN: " + coderSpec.getUrn());
     }
@@ -225,10 +266,15 @@ public class CommonCoderTest {
         return KvCoder.of(components.get(0), components.get(1));
       case "urn:beam:coders:varint:0.1":
         return VarLongCoder.of();
-      case "urn:beam:coders:intervalwindow:0.1":
+      case "urn:beam:coders:interval_window:0.1":
         return IntervalWindowCoder.of();
       case "urn:beam:coders:stream:0.1":
         return IterableCoder.of(components.get(0));
+      case "urn:beam:coders:global_window:0.1":
+        return GlobalWindow.Coder.INSTANCE;
+      case "urn:beam:coders:windowed_value:0.1":
+        return WindowedValue.FullWindowedValueCoder.of(components.get(0),
+            (Coder<BoundedWindow>) components.get(1));
       default:
         throw new IllegalStateException("Unknown coder URN: " + coder.getUrn());
     }
@@ -241,7 +287,50 @@ public class CommonCoderTest {
     Object testValue = convertValue(testSpec.getValue(), testSpec.getCoder(), coder);
     Context context = testSpec.getNested() ? Context.NESTED : Context.OUTER;
     byte[] encoded = CoderUtils.encodeToByteArray(coder, testValue, context);
-    assertThat(testSpec.toString(), encoded, equalTo(testSpec.getSerialized()));
+    Object decodedValue = CoderUtils.decodeFromByteArray(coder, testSpec.getSerialized(), context);
+
+    if (!testSpec.getCoder().getNonDeterministic()) {
+      assertThat(testSpec.toString(), encoded, equalTo(testSpec.getSerialized()));
+    }
+    verifyDecodedValue(testSpec.getCoder(), decodedValue, testValue);
+  }
+
+  private void verifyDecodedValue(CommonCoder coder, Object expectedValue, Object actualValue) {
+    switch (coder.getUrn()) {
+      case "urn:beam:coders:bytes:0.1":
+        assertThat(expectedValue, equalTo(actualValue));
+        break;
+      case "urn:beam:coders:kv:0.1":
+        assertThat(actualValue, instanceOf(KV.class));
+        verifyDecodedValue(coder.getComponents().get(0),
+            ((KV) expectedValue).getKey(), ((KV) actualValue).getKey());
+        verifyDecodedValue(coder.getComponents().get(0),
+            ((KV) expectedValue).getValue(), ((KV) actualValue).getValue());
+        break;
+      case "urn:beam:coders:varint:0.1":
+        assertEquals(expectedValue, actualValue);
+        break;
+      case "urn:beam:coders:interval_window:0.1":
+        assertEquals(expectedValue, actualValue);
+        break;
+      case "urn:beam:coders:stream:0.1":
+        assertThat(actualValue, instanceOf(Iterable.class));
+        CommonCoder componentCoder = coder.getComponents().get(0);
+        Iterator<Object> expectedValueIterator = ((Iterable<Object>) expectedValue).iterator();
+        for (Object value: (Iterable<Object>) actualValue) {
+          verifyDecodedValue(componentCoder, expectedValueIterator.next(), value);
+        }
+        assertFalse(expectedValueIterator.hasNext());
+        break;
+      case "urn:beam:coders:global_window:0.1":
+        assertEquals(expectedValue, actualValue);
+        break;
+      case "urn:beam:coders:windowed_value:0.1":
+        assertEquals(expectedValue, actualValue);
+        break;
+      default:
+        throw new IllegalStateException("Unknown coder URN: " + coder.getUrn());
+    }
   }
 
   /**

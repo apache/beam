@@ -242,7 +242,7 @@ public class DataflowPipelineJob implements PipelineResult {
   @VisibleForTesting
   State waitUntilFinish(
       Duration duration,
-      MonitoringUtil.JobMessagesHandler messageHandler,
+      @Nullable MonitoringUtil.JobMessagesHandler messageHandler,
       Sleeper sleeper,
       NanoClock nanoClock) throws IOException, InterruptedException {
     MonitoringUtil monitor = new MonitoringUtil(dataflowClient);

@@ -19,6 +19,7 @@
 """
 
 import json
+import logging
 import os.path
 import sys
 import unittest
@@ -27,10 +28,10 @@ import yaml
 
 from apache_beam import coders
 from apache_beam.coders import coder_impl
+from apache_beam.utils import windowed_value
 from apache_beam.utils.timestamp import Timestamp
 from apache_beam.transforms.window import IntervalWindow
-
-from nose_parameterized import parameterized
+from apache_beam.transforms import window
 
 STANDARD_CODERS_YAML = os.path.join(
     os.path.dirname(__file__), '..', 'tests', 'data', 'standard_coders.yaml')
@@ -55,8 +56,11 @@ class StandardCodersTest(unittest.TestCase):
       'urn:beam:coders:bytes:0.1': coders.BytesCoder,
       'urn:beam:coders:varint:0.1': coders.VarIntCoder,
       'urn:beam:coders:kv:0.1': lambda k, v: coders.TupleCoder((k, v)),
-      'urn:beam:coders:intervalwindow:0.1': coders.IntervalWindowCoder,
+      'urn:beam:coders:interval_window:0.1': coders.IntervalWindowCoder,
       'urn:beam:coders:stream:0.1': lambda t: coders.IterableCoder(t),
+      'urn:beam:coders:global_window:0.1': coders.GlobalWindowCoder,
+      'urn:beam:coders:windowed_value:0.1':
+          lambda v, w: coders.WindowedValueCoder(v, w)
   }
 
   _urn_to_json_value_parser = {
@@ -65,15 +69,24 @@ class StandardCodersTest(unittest.TestCase):
       'urn:beam:coders:kv:0.1':
           lambda x, key_parser, value_parser: (key_parser(x['key']),
                                                value_parser(x['value'])),
-      'urn:beam:coders:intervalwindow:0.1':
+      'urn:beam:coders:interval_window:0.1':
           lambda x: IntervalWindow(
               start=Timestamp(micros=(x['end'] - x['span']) * 1000),
               end=Timestamp(micros=x['end'] * 1000)),
-      'urn:beam:coders:stream:0.1': lambda x, parser: map(parser, x)
+      'urn:beam:coders:stream:0.1': lambda x, parser: map(parser, x),
+      'urn:beam:coders:global_window:0.1': lambda x: window.GlobalWindow(),
+      'urn:beam:coders:windowed_value:0.1':
+          lambda x, value_parser, window_parser: windowed_value.create(
+              value_parser(x['value']), x['timestamp'] * 1000,
+              tuple([window_parser(w) for w in x['windows']]))
   }
 
-  @parameterized.expand(_load_test_cases(STANDARD_CODERS_YAML))
-  def test_standard_coder(self, name, spec):
+  def test_standard_coders(self):
+    for name, spec in _load_test_cases(STANDARD_CODERS_YAML):
+      logging.info('Executing %s test.', name)
+      self._run_standard_coder(name, spec)
+
+  def _run_standard_coder(self, name, spec):
     coder = self.parse_coder(spec['coder'])
     parse_value = self.json_value_parser(spec['coder'])
     nested_list = [spec['nested']] if 'nested' in spec else [True, False]
@@ -81,13 +94,18 @@ class StandardCodersTest(unittest.TestCase):
       for expected_encoded, json_value in spec['examples'].items():
         value = parse_value(json_value)
         expected_encoded = expected_encoded.encode('latin1')
-        actual_encoded = encode_nested(coder, value, nested)
-        if self.fix and actual_encoded != expected_encoded:
-          self.to_fix[spec['index'], expected_encoded] = actual_encoded
+        if not spec['coder'].get('non_deterministic', False):
+          actual_encoded = encode_nested(coder, value, nested)
+          if self.fix and actual_encoded != expected_encoded:
+            self.to_fix[spec['index'], expected_encoded] = actual_encoded
+          else:
+            self.assertEqual(expected_encoded, actual_encoded)
+            self.assertEqual(decode_nested(coder, expected_encoded, nested),
+                             value)
         else:
+          # Only verify decoding for a non-deterministic coder
           self.assertEqual(decode_nested(coder, expected_encoded, nested),
                            value)
-          self.assertEqual(expected_encoded, actual_encoded)
 
   def parse_coder(self, spec):
     return self._urn_to_coder_class[spec['urn']](

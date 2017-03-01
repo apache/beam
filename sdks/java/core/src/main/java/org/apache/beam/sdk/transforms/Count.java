@@ -34,31 +34,39 @@ import org.apache.beam.sdk.values.PCollection;
 
 
 /**
- * {@code PTransorm}s to count the elements in a {@link PCollection}.
+ * {@link PTransform PTransforms} to count the elements in a {@link PCollection}.
  *
  * <p>{@link Count#perElement()} can be used to count the number of occurrences of each
  * distinct element in the PCollection, {@link Count#perKey()} can be used to count the
  * number of values per key, and {@link Count#globally()} can be used to count the total
  * number of elements in a PCollection.
+ *
+ * <p>{@link #combineFn} can also be used manually, in combination with state and with the
+ * {@link Combine} transform.
  */
 public class Count {
   private Count() {
     // do not instantiate
   }
 
+  /** Returns a {@link CombineFn} that counts the number of its inputs. */
+  public static <T> CombineFn<T, ?, Long> combineFn() {
+    return new CountFn<T>();
+  }
+
   /**
-   * Returns a {@link Combine.Globally} {@link PTransform} that counts the number of elements in
+   * Returns a {@link PTransform} that counts the number of elements in
    * its input {@link PCollection}.
    */
-  public static <T> Combine.Globally<T, Long> globally() {
+  public static <T> PTransform<PCollection<T>, PCollection<Long>> globally() {
     return Combine.globally(new CountFn<T>());
   }
 
   /**
-   * Returns a {@link Combine.PerKey} {@link PTransform} that counts the number of elements
+   * Returns a {@link PTransform} that counts the number of elements
    * associated with each key of its input {@link PCollection}.
    */
-  public static <K, V> Combine.PerKey<K, V, Long> perKey() {
+  public static <K, V> PTransform<PCollection<KV<K, V>>, PCollection<KV<K, Long>>> perKey() {
     return Combine.<K, V, Long>perKey(new CountFn<V>());
   }
 
@@ -68,7 +76,7 @@ public class Count {
    *
    * <p>See {@link PerElement Count.PerElement} for more details.
    */
-  public static <T> PerElement<T> perElement() {
+  public static <T> PTransform<PCollection<T>, PCollection<KV<T, Long>>> perElement() {
     return new PerElement<>();
   }
 
@@ -97,10 +105,10 @@ public class Count {
    * @param <T> the type of the elements of the input {@code PCollection}, and the type of the keys
    * of the output {@code PCollection}
    */
-  public static class PerElement<T>
+  private static class PerElement<T>
       extends PTransform<PCollection<T>, PCollection<KV<T, Long>>> {
 
-    public PerElement() { }
+    private PerElement() { }
 
     @Override
     public PCollection<KV<T, Long>> expand(PCollection<T> input) {

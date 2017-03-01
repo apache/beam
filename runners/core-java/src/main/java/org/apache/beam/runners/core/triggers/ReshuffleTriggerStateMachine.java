@@ -25,7 +25,11 @@ import org.apache.beam.sdk.util.Reshuffle;
  */
 public class ReshuffleTriggerStateMachine extends TriggerStateMachine {
 
-  public ReshuffleTriggerStateMachine() {
+  public static ReshuffleTriggerStateMachine create() {
+    return new ReshuffleTriggerStateMachine();
+  }
+
+  private ReshuffleTriggerStateMachine() {
     super(null);
   }
 

@@ -46,8 +46,13 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class BeamFnDataBufferingOutboundObserverTest {
   private static final int DEFAULT_BUFFER_LIMIT = 1_000_000;
-  private static final KV<Long, BeamFnApi.Target> OUTPUT_LOCATION = KV.of(777L,
-      BeamFnApi.Target.newBuilder().setPrimitiveTransformReference(555L).setName("Test").build());
+  private static final KV<String, BeamFnApi.Target> OUTPUT_LOCATION =
+      KV.of(
+          "777L",
+          BeamFnApi.Target.newBuilder()
+              .setPrimitiveTransformReference("555L")
+              .setName("Test")
+              .build());
   private static final Coder<WindowedValue<byte[]>> CODER =
       LengthPrefixCoder.of(WindowedValue.getValueOnlyCoder(ByteArrayCoder.of()));
 

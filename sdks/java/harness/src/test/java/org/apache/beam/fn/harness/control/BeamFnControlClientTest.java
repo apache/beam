@@ -51,33 +51,33 @@ import org.junit.runners.JUnit4;
 public class BeamFnControlClientTest {
   private static final BeamFnApi.InstructionRequest SUCCESSFUL_REQUEST =
       BeamFnApi.InstructionRequest.newBuilder()
-      .setInstructionId(1L)
+      .setInstructionId("1L")
       .setProcessBundle(BeamFnApi.ProcessBundleRequest.getDefaultInstance())
       .build();
   private static final BeamFnApi.InstructionResponse SUCCESSFUL_RESPONSE =
       BeamFnApi.InstructionResponse.newBuilder()
-      .setInstructionId(1L)
+      .setInstructionId("1L")
       .setProcessBundle(BeamFnApi.ProcessBundleResponse.getDefaultInstance())
       .build();
   private static final BeamFnApi.InstructionRequest UNKNOWN_HANDLER_REQUEST =
       BeamFnApi.InstructionRequest.newBuilder()
-      .setInstructionId(2L)
+      .setInstructionId("2L")
       .build();
   private static final BeamFnApi.InstructionResponse UNKNOWN_HANDLER_RESPONSE =
       BeamFnApi.InstructionResponse.newBuilder()
-      .setInstructionId(2L)
+      .setInstructionId("2L")
       .setError("Unknown InstructionRequest type "
           + BeamFnApi.InstructionRequest.RequestCase.REQUEST_NOT_SET)
       .build();
   private static final RuntimeException FAILURE = new RuntimeException("TestFailure");
   private static final BeamFnApi.InstructionRequest FAILURE_REQUEST =
       BeamFnApi.InstructionRequest.newBuilder()
-      .setInstructionId(3L)
+      .setInstructionId("3L")
       .setRegister(BeamFnApi.RegisterRequest.getDefaultInstance())
       .build();
   private static final BeamFnApi.InstructionResponse FAILURE_RESPONSE =
       BeamFnApi.InstructionResponse.newBuilder()
-      .setInstructionId(3L)
+      .setInstructionId("3L")
       .setError(getStackTraceAsString(FAILURE))
       .build();
 

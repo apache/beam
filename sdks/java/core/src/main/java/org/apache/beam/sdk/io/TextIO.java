@@ -281,6 +281,10 @@ public class TextIO {
             return
                 CompressedSource.from(new TextSource(filepattern))
                     .withDecompression(CompressedSource.CompressionMode.ZIP);
+          case DEFLATE:
+            return
+                CompressedSource.from(new TextSource(filepattern))
+                    .withDecompression(CompressedSource.CompressionMode.DEFLATE);
           default:
             throw new IllegalArgumentException("Unknown compression type: " + compressionType);
         }
@@ -658,7 +662,7 @@ public class TextIO {
           throw new IllegalStateException(
               "need to set the filename prefix of a TextIO.Write transform");
         }
-        org.apache.beam.sdk.io.Write.Bound<String> write =
+        org.apache.beam.sdk.io.Write<String> write =
             org.apache.beam.sdk.io.Write.to(
                 new TextSink(filenamePrefix, filenameSuffix, header, footer, shardTemplate,
                     writableByteChannelFactory));
@@ -762,7 +766,11 @@ public class TextIO {
     /**
      * Zipped.
      */
-    ZIP(".zip");
+    ZIP(".zip"),
+    /**
+     * Deflate compressed.
+     */
+    DEFLATE(".deflate");
 
     private String filenameSuffix;
 
@@ -1101,15 +1109,18 @@ public class TextIO {
       }
 
       @Override
-      protected void writeFooter() throws Exception {
-        writeIfNotNull(footer);
-        // Flush here because there is currently no other natural place to do this. [BEAM-1465]
-        out.flush();
+      public void write(String value) throws Exception {
+        writeLine(value);
       }
 
       @Override
-      public void write(String value) throws Exception {
-        writeLine(value);
+      protected void writeFooter() throws Exception {
+        writeIfNotNull(footer);
+      }
+
+      @Override
+      protected void finishWrite() throws Exception {
+        out.flush();
       }
     }
   }
