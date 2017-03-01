@@ -88,6 +88,7 @@ class ConsumerSpEL {
     try {
       return (long) timestampMethod.invoke(rawRecord);
     } catch (IllegalAccessException | IllegalArgumentException | InvocationTargetException e) {
+      //should not go to here, as it's confirmed that method timestamp() is there.
       throw new RuntimeException(e);
     }
   }
