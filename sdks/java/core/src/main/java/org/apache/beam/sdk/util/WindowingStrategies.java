@@ -195,10 +195,6 @@ public class WindowingStrategies implements Serializable {
   public static RunnerApi.MessageWithComponents toProto(WindowingStrategy<?, ?> windowingStrategy)
       throws IOException {
 
-    // TODO: have an inverted components to find the id for a thing already
-    // in the components
-    String windowFnId = UUID.randomUUID().toString();
-
     RunnerApi.MessageWithComponents windowFnWithComponents =
         toProto(windowingStrategy.getWindowFn());
 
@@ -209,16 +205,11 @@ public class WindowingStrategies implements Serializable {
             .setClosingBehavior(toProto(windowingStrategy.getClosingBehavior()))
             .setAllowedLateness(windowingStrategy.getAllowedLateness().getMillis())
             .setTrigger(Triggers.toProto(windowingStrategy.getTrigger()))
-            .setFnId(windowFnId);
+            .setWindowFn(windowFnWithComponents.getFunctionSpec());
 
     return RunnerApi.MessageWithComponents.newBuilder()
         .setWindowingStrategy(windowingStrategyProto)
-        .setComponents(
-            windowFnWithComponents
-                .getComponents()
-                .toBuilder()
-                .putFunctionSpecs(windowFnId, windowFnWithComponents.getFunctionSpec()))
-        .build();
+        .setComponents(windowFnWithComponents.getComponents()).build();
   }
 
   /**
@@ -246,10 +237,7 @@ public class WindowingStrategies implements Serializable {
       RunnerApi.WindowingStrategy proto, RunnerApi.Components components)
       throws InvalidProtocolBufferException {
 
-    FunctionSpec windowFnSpec =
-        components
-            .getFunctionSpecsMap()
-            .get(proto.getFnId());
+    FunctionSpec windowFnSpec = proto.getWindowFn();
 
     checkArgument(
         windowFnSpec.getSpec().getUrn().equals(CUSTOM_WINDOWFN_URN),
