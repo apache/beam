@@ -195,10 +195,6 @@ public class WindowingStrategies implements Serializable {
   public static RunnerApi.MessageWithComponents toProto(WindowingStrategy<?, ?> windowingStrategy)
       throws IOException {
 
-    // TODO: have an inverted components to find the id for a thing already
-    // in the components
-    String windowFnId = UUID.randomUUID().toString();
-
     RunnerApi.MessageWithComponents windowFnWithComponents =
         toProto(windowingStrategy.getWindowFn());
 
