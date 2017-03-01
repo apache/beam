@@ -716,7 +716,6 @@ public class KafkaIO {
 
     //Add SpEL instance to cover the interface difference of Kafka client
     private transient ConsumerSpEL consumerSpEL;
-    private boolean hasEventTimestamp = false;
 //        ReflectionUtils.findMethod(ConsumerRecord.class, "timestamp") != null;
 
     /** watermark before any records have been read. */
@@ -773,7 +772,6 @@ public class KafkaIO {
         UnboundedKafkaSource<K, V> source,
         @Nullable KafkaCheckpointMark checkpointMark) {
       this.consumerSpEL = new ConsumerSpEL();
-      this.hasEventTimestamp = consumerSpEL.hasTimestamp();
 
       this.source = source;
       this.name = "Reader-" + source.id;
@@ -959,8 +957,7 @@ public class KafkaIO {
               rawRecord.topic(),
               rawRecord.partition(),
               rawRecord.offset(),
-              hasEventTimestamp ? consumerSpEL.getEventTimestamp(rawRecord)
-                  : System.currentTimeMillis(),
+              consumerSpEL.getEventTimestamp(rawRecord),
               decode(rawRecord.key(), source.spec.getKeyCoder()),
               decode(rawRecord.value(), source.spec.getValueCoder()));
 
