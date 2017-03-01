@@ -66,6 +66,7 @@ public class KafkaRecordCoder<K, V> extends StandardCoder<KafkaRecord<K, V>> {
     stringCoder.encode(value.getTopic(), outStream, nested);
     intCoder.encode(value.getPartition(), outStream, nested);
     longCoder.encode(value.getOffset(), outStream, nested);
+    longCoder.encode(value.getEventTimestamp(), outStream, nested);
     kvCoder.encode(value.getKV(), outStream, context);
   }
 
@@ -76,6 +77,7 @@ public class KafkaRecordCoder<K, V> extends StandardCoder<KafkaRecord<K, V>> {
     return new KafkaRecord<K, V>(
         stringCoder.decode(inStream, nested),
         intCoder.decode(inStream, nested),
+        longCoder.decode(inStream, nested),
         longCoder.decode(inStream, nested),
         kvCoder.decode(inStream, context));
   }
@@ -106,6 +108,7 @@ public class KafkaRecordCoder<K, V> extends StandardCoder<KafkaRecord<K, V>> {
           value.getTopic(),
           value.getPartition(),
           value.getOffset(),
+          value.getEventTimestamp(),
           (KV<Object, Object>) kvCoder.structuralValue(value.getKV()));
     }
   }

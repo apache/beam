@@ -716,6 +716,8 @@ public class KafkaIO {
 
     //Add SpEL instance to cover the interface difference of Kafka client
     private transient ConsumerSpEL consumerSpEL;
+    private boolean hasEventTimestamp = false;
+//        ReflectionUtils.findMethod(ConsumerRecord.class, "timestamp") != null;
 
     /** watermark before any records have been read. */
     private static Instant initialWatermark = new Instant(Long.MIN_VALUE);
@@ -770,6 +772,8 @@ public class KafkaIO {
     public UnboundedKafkaReader(
         UnboundedKafkaSource<K, V> source,
         @Nullable KafkaCheckpointMark checkpointMark) {
+      this.consumerSpEL = new ConsumerSpEL();
+      this.hasEventTimestamp = consumerSpEL.hasTimestamp();
 
       this.source = source;
       this.name = "Reader-" + source.id;
@@ -856,7 +860,6 @@ public class KafkaIO {
 
     @Override
     public boolean start() throws IOException {
-      this.consumerSpEL = new ConsumerSpEL();
       Read<K, V> spec = source.spec;
       consumer = spec.getConsumerFactoryFn().apply(spec.getConsumerConfig());
       consumerSpEL.evaluateAssign(consumer, spec.getTopicPartitions());
@@ -956,11 +959,14 @@ public class KafkaIO {
               rawRecord.topic(),
               rawRecord.partition(),
               rawRecord.offset(),
+              hasEventTimestamp ? consumerSpEL.getEventTimestamp(rawRecord)
+                  : System.currentTimeMillis(),
               decode(rawRecord.key(), source.spec.getKeyCoder()),
               decode(rawRecord.value(), source.spec.getValueCoder()));
 
           curTimestamp = (source.spec.getTimestampFn() == null)
-              ? Instant.now() : source.spec.getTimestampFn().apply(record);
+              ? new Instant(record.getEventTimestamp())
+                  : source.spec.getTimestampFn().apply(record);
           curRecord = record;
 
           int recordSize = (rawRecord.key() == null ? 0 : rawRecord.key().length)
