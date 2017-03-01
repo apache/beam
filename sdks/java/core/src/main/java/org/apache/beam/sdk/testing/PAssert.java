@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.testing;
 
+import static com.google.common.base.Preconditions.checkState;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.not;
@@ -32,6 +33,7 @@ import java.util.Collections;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.Pipeline.PipelineVisitor;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.IterableCoder;
@@ -40,6 +42,7 @@ import org.apache.beam.sdk.coders.MapCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.runners.PipelineRunner;
+import org.apache.beam.sdk.runners.TransformHierarchy.Node;
 import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -1332,6 +1335,67 @@ public class PAssert {
           c.output(c.element());
         }
       }
+    }
+  }
+
+  public static int countAsserts(Pipeline pipeline) {
+    AssertionCountingVisitor visitor = new AssertionCountingVisitor();
+    pipeline.traverseTopologically(visitor);
+    return visitor.getPAssertCount();
+  }
+
+  /**
+   * A {@link PipelineVisitor} that counts the number of total {@link PAssert PAsserts} in a
+   * {@link Pipeline}.
+   */
+  private static class AssertionCountingVisitor extends PipelineVisitor.Defaults {
+    private int assertCount;
+    private boolean pipelineVisited;
+
+    private AssertionCountingVisitor() {
+      assertCount = 0;
+      pipelineVisited = false;
+    }
+
+    @Override
+    public CompositeBehavior enterCompositeTransform(Node node) {
+      if (node.isRootNode()) {
+        checkState(
+            !pipelineVisited,
+            "Tried to visit a pipeline with an already used %s",
+            AssertionCountingVisitor.class.getSimpleName());
+      }
+      if (!node.isRootNode()
+          && (node.getTransform() instanceof PAssert.OneSideInputAssert
+          || node.getTransform() instanceof PAssert.GroupThenAssert
+          || node.getTransform() instanceof PAssert.GroupThenAssertForSingleton)) {
+        assertCount++;
+      }
+      return CompositeBehavior.ENTER_TRANSFORM;
+    }
+
+    public void leaveCompositeTransform(Node node) {
+      if (node.isRootNode()) {
+        pipelineVisited = true;
+      }
+    }
+
+    @Override
+    public void visitPrimitiveTransform(Node node) {
+      if
+          (node.getTransform() instanceof PAssert.OneSideInputAssert
+          || node.getTransform() instanceof PAssert.GroupThenAssert
+          || node.getTransform() instanceof PAssert.GroupThenAssertForSingleton) {
+        assertCount++;
+      }
+    }
+
+    /**
+     * Gets the number of {@link PAssert PAsserts} in the pipeline.
+     */
+    int getPAssertCount() {
+      checkState(pipelineVisited);
+      return assertCount;
     }
   }
 }

@@ -417,7 +417,7 @@ public class Pipeline {
     try {
       transforms.finishSpecifyingInput();
       transform.validate(input);
-      OutputT output = runner.apply(transform, input);
+      OutputT output = transform.expand(input);
       transforms.setOutput(output);
 
       return output;
@@ -444,7 +444,7 @@ public class Pipeline {
     LOG.debug("Replacing {} with {}", original, replacement);
     transforms.replaceNode(original, originalInput, replacement);
     try {
-      OutputT newOutput = runner.apply(replacement, originalInput);
+      OutputT newOutput = replacement.expand(originalInput);
       Map<PValue, ReplacementOutput> originalToReplacement =
           replacementFactory.mapOutputs(original.getOutputs(), newOutput);
       // Ensure the internal TransformHierarchy data structures are consistent.

@@ -24,10 +24,7 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.PipelineOptionsValidator;
 import org.apache.beam.sdk.runners.PipelineRunner;
-import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.util.UserCodeException;
-import org.apache.beam.sdk.values.PInput;
-import org.apache.beam.sdk.values.POutput;
 
 /**
  * Test Flink runner.
@@ -53,12 +50,6 @@ public class TestFlinkRunner extends PipelineRunner<PipelineResult> {
     flinkOptions.setRunner(TestFlinkRunner.class);
     flinkOptions.setStreaming(streaming);
     return TestFlinkRunner.fromOptions(flinkOptions);
-  }
-
-  @Override
-  public <OutputT extends POutput, InputT extends PInput>
-      OutputT apply(PTransform<InputT, OutputT> transform, InputT input) {
-    return delegate.apply(transform, input);
   }
 
   @Override

@@ -18,14 +18,10 @@
 package org.apache.beam.runners.apex;
 
 import java.io.IOException;
-
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsValidator;
 import org.apache.beam.sdk.runners.PipelineRunner;
-import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.values.PInput;
-import org.apache.beam.sdk.values.POutput;
 import org.joda.time.Duration;
 
 /**
@@ -46,12 +42,6 @@ public class TestApexRunner extends PipelineRunner<ApexRunnerResult> {
     ApexPipelineOptions apexOptions = PipelineOptionsValidator
         .validate(ApexPipelineOptions.class, options);
     return new TestApexRunner(apexOptions);
-  }
-
-  @Override
-  public <OutputT extends POutput, InputT extends PInput>
-      OutputT apply(PTransform<InputT, OutputT> transform, InputT input) {
-    return delegate.apply(transform, input);
   }
 
   @Override
