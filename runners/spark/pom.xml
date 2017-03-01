@@ -227,13 +227,6 @@
     <dependency>
       <groupId>org.apache.beam</groupId>
       <artifactId>beam-runners-core-construction-java</artifactId>
-      <exclusions>
-        <!-- Use Hadoop/Spark's backend logger instead of jdk14 for tests -->
-        <exclusion>
-          <groupId>org.slf4j</groupId>
-          <artifactId>slf4j-jdk14</artifactId>
-        </exclusion>
-      </exclusions>
     </dependency>
     <dependency>
       <groupId>org.apache.beam</groupId>
@@ -336,10 +329,6 @@
       <type>test-jar</type>
       <scope>test</scope>
     </dependency>
-      <dependency>
-          <groupId>org.apache.beam</groupId>
-          <artifactId>beam-runners-core-construction-java</artifactId>
-      </dependency>
   </dependencies>
 
   <build>

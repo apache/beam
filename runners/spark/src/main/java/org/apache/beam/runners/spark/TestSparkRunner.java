@@ -28,7 +28,6 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.runners.core.UnboundedReadFromBoundedSource;
-import org.apache.beam.runners.core.construction.AssertionCountingVisitor;
 import org.apache.beam.runners.core.construction.PTransformMatchers;
 import org.apache.beam.runners.core.construction.ReplacementOutputs;
 import org.apache.beam.runners.spark.aggregators.AggregatorsAccumulator;
@@ -80,7 +79,6 @@ public final class TestSparkRunner extends PipelineRunner<SparkPipelineResult> {
 
   private SparkRunner delegate;
   private boolean isForceStreaming;
-  private int expectedNumberOfAssertions = 0;
 
   private TestSparkRunner(TestSparkPipelineOptions options) {
     this.delegate = SparkRunner.fromOptions(options);
@@ -106,10 +104,8 @@ public final class TestSparkRunner extends PipelineRunner<SparkPipelineResult> {
       adaptBoundedReads(pipeline);
     }
     SparkPipelineResult result = null;
-    // clear state of Aggregators, Metrics and Watermarks.
-    AssertionCountingVisitor assertionCountingVisitor = AssertionCountingVisitor.create();
-    pipeline.traverseTopologically(assertionCountingVisitor);
-    expectedNumberOfAssertions = assertionCountingVisitor.getPAssertCount();
+
+    int expectedNumberOfAssertions = PAssert.countAsserts(pipeline);
 
     // clear state of Aggregators, Metrics and Watermarks if exists.
     AggregatorsAccumulator.clear();

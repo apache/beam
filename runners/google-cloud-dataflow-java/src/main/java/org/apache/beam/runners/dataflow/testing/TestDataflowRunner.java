@@ -34,7 +34,6 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import javax.annotation.Nullable;
-import org.apache.beam.runners.core.construction.AssertionCountingVisitor;
 import org.apache.beam.runners.dataflow.DataflowClient;
 import org.apache.beam.runners.dataflow.DataflowPipelineJob;
 import org.apache.beam.runners.dataflow.DataflowRunner;
@@ -184,9 +183,7 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
 
   @VisibleForTesting
   void updatePAssertCount(Pipeline pipeline) {
-    AssertionCountingVisitor assertionCounter = AssertionCountingVisitor.create();
-    pipeline.traverseTopologically(assertionCounter);
-    expectedNumberOfAssertions = assertionCounter.getPAssertCount();
+    expectedNumberOfAssertions = PAssert.countAsserts(pipeline);
   }
 
   /**

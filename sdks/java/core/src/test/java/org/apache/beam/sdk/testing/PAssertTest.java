@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.testing;
 
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
@@ -29,6 +30,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.Serializable;
+import java.util.Collections;
 import java.util.regex.Pattern;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.AtomicCoder;
@@ -37,12 +39,14 @@ import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.io.CountingInput;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.SlidingWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.joda.time.Duration;
@@ -402,5 +406,31 @@ public class PAssertTest implements Serializable {
     }
     fail("assertion should have failed");
     throw new RuntimeException("unreachable");
+  }
+
+  @Test
+  public void countAssertsSucceeds() {
+    PCollection<Integer> create = pipeline.apply("FirstCreate", Create.of(1, 2, 3));
+
+    PAssert.that(create).containsInAnyOrder(1, 2, 3);
+    PAssert.thatSingleton(create.apply(Sum.integersGlobally())).isEqualTo(6);
+    PAssert.thatMap(pipeline.apply("CreateMap", Create.of(KV.of(1, 2))))
+        .isEqualTo(Collections.singletonMap(1, 2));
+
+    assertThat(PAssert.countAsserts(pipeline), equalTo(3));
+  }
+
+  @Test
+  public void countAssertsMultipleCallsIndependent() {
+    PCollection<Integer> create = pipeline.apply("FirstCreate", Create.of(1, 2, 3));
+
+    PAssert.that(create).containsInAnyOrder(1, 2, 3);
+    PAssert.thatSingleton(create.apply(Sum.integersGlobally())).isEqualTo(6);
+    assertThat(PAssert.countAsserts(pipeline), equalTo(2));
+
+    PAssert.thatMap(pipeline.apply("CreateMap", Create.of(KV.of(1, 2))))
+        .isEqualTo(Collections.singletonMap(1, 2));
+
+    assertThat(PAssert.countAsserts(pipeline), equalTo(3));
   }
 }
