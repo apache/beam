@@ -15,8 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
-package org.apache.beam.runners.spark.coders;
+package org.apache.beam.sdk.io.hadoop;
 
 import org.apache.beam.sdk.testing.CoderProperties;
 import org.apache.hadoop.io.IntWritable;
@@ -38,8 +37,9 @@ public class WritableCoderTest {
 
   @Test
   public void testNullWritableEncoding() throws Exception {
+    NullWritable value = NullWritable.get();
     WritableCoder<NullWritable> coder = WritableCoder.of(NullWritable.class);
 
-    CoderProperties.coderDecodeEncodeEqual(coder, NullWritable.get());
+    CoderProperties.coderDecodeEncodeEqual(coder, value);
   }
 }
