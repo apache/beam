@@ -50,6 +50,7 @@ class ConsumerSpEL {
       parser.parseExpression("#consumer.assign(#tp)");
 
   private Method timestampMethod;
+  private boolean hasEventTimestamp = false;
 
   public ConsumerSpEL() {
     try {
@@ -57,6 +58,7 @@ class ConsumerSpEL {
     } catch (NoSuchMethodException | SecurityException e) {
       LOG.debug("Timestamp for Kafka message is not available.");
     }
+    hasEventTimestamp = hasTimestamp();
   }
 
   public void evaluateSeek2End(Consumer consumer, TopicPartition topicPartitions) {
@@ -73,7 +75,7 @@ class ConsumerSpEL {
     assignExpression.getValue(mapContext);
   }
 
-  public boolean hasTimestamp(){
+  private boolean hasTimestamp(){
     boolean hasEventTimestamp = false;
     try {
       hasEventTimestamp = timestampMethod != null
@@ -85,6 +87,9 @@ class ConsumerSpEL {
   }
 
   public long getEventTimestamp(ConsumerRecord<byte[], byte[]> rawRecord) {
+    if (!hasEventTimestamp){
+      return System.currentTimeMillis();
+    }
     try {
       return (long) timestampMethod.invoke(rawRecord);
     } catch (IllegalAccessException | IllegalArgumentException | InvocationTargetException e) {
