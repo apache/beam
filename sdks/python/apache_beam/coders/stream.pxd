@@ -20,7 +20,7 @@ cimport libc.stdint
 
 cdef class OutputStream(object):
   cdef char* data
-  cdef size_t _size
+  cdef size_t buffer_size
   cdef size_t pos
 
   cpdef write(self, bytes b, bint nested=*)
