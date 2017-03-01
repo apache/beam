@@ -30,7 +30,6 @@ import java.io.ObjectInput;
 import java.io.ObjectOutput;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-import java.net.URI;
 import java.security.PrivilegedExceptionAction;
 import java.util.List;
 import java.util.ListIterator;
@@ -337,9 +336,10 @@ public abstract class HDFSFileSource<T, K, V> extends BoundedSource<T> {
         UGIHelper.getBestUGI(username()).doAs(new PrivilegedExceptionAction<Void>() {
               @Override
               public Void run() throws Exception {
-                FileSystem fs = FileSystem.get(new URI(filepattern()),
+                final Path pathPattern = new Path(filepattern());
+                FileSystem fs = FileSystem.get(pathPattern.toUri(),
                     SerializableConfiguration.newConfiguration(serializableConfiguration()));
-                FileStatus[] fileStatuses = fs.globStatus(new Path(filepattern()));
+                FileStatus[] fileStatuses = fs.globStatus(pathPattern);
                 checkState(
                     fileStatuses != null && fileStatuses.length > 0,
                     "Unable to find any files matching %s", filepattern());
