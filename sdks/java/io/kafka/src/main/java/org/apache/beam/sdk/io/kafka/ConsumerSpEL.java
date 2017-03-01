@@ -17,11 +17,15 @@
  */
 package org.apache.beam.sdk.io.kafka;
 
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.util.Collection;
 
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.common.TopicPartition;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.expression.Expression;
 import org.springframework.expression.ExpressionParser;
 import org.springframework.expression.spel.SpelParserConfiguration;
@@ -34,19 +38,26 @@ import org.springframework.expression.spel.support.StandardEvaluationContext;
  * to eliminate the method definition differences.
  */
 class ConsumerSpEL {
-  SpelParserConfiguration config = new SpelParserConfiguration(true, true);
-  ExpressionParser parser = new SpelExpressionParser(config);
+  private static final Logger LOG = LoggerFactory.getLogger(ConsumerSpEL.class);
 
-  Expression seek2endExpression =
+  private SpelParserConfiguration config = new SpelParserConfiguration(true, true);
+  private ExpressionParser parser = new SpelExpressionParser(config);
+
+  private Expression seek2endExpression =
       parser.parseExpression("#consumer.seekToEnd(#tp)");
 
-  Expression assignExpression =
+  private Expression assignExpression =
       parser.parseExpression("#consumer.assign(#tp)");
 
-  Expression eventTimestampExpression =
-      parser.parseExpression("#this?.timestamp()");
+  private Method timestampMethod;
 
-  public ConsumerSpEL() {}
+  public ConsumerSpEL() {
+    try {
+      timestampMethod = ConsumerRecord.class.getMethod("timestamp", (Class<?>[]) null);
+    } catch (NoSuchMethodException | SecurityException e) {
+      LOG.debug("Timestamp for Kafka message is not available.");
+    }
+  }
 
   public void evaluateSeek2End(Consumer consumer, TopicPartition topicPartitions) {
     StandardEvaluationContext mapContext = new StandardEvaluationContext();
@@ -62,7 +73,22 @@ class ConsumerSpEL {
     assignExpression.getValue(mapContext);
   }
 
+  public boolean hasTimestamp(){
+    boolean hasEventTimestamp = false;
+    try {
+      hasEventTimestamp = timestampMethod != null
+          && timestampMethod.getReturnType().equals(Long.class);
+    } catch (SecurityException e) {
+      hasEventTimestamp = false;
+    }
+    return hasEventTimestamp;
+  }
+
   public long getEventTimestamp(ConsumerRecord<byte[], byte[]> rawRecord) {
-    return eventTimestampExpression.getValue(rawRecord, Long.class);
+    try {
+      return (long) timestampMethod.invoke(rawRecord);
+    } catch (IllegalAccessException | IllegalArgumentException | InvocationTargetException e) {
+      throw new RuntimeException(e);
+    }
   }
 }
