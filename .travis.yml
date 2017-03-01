@@ -58,9 +58,10 @@ matrix:
     - os: linux
       env: TEST_PYTHON="1"
 
-
 before_install:
-  - echo 'MAVEN_OPTS="$MAVEN_OPTS -Xmx1024m -XX:MaxPermSize=512m -XX:+BytecodeVerificationLocal"' >> ~/.mavenrc
+  # The -XX:+TieredCompilation -XX:TieredStopAtLevel=1 JVM options enable
+  # tiered compilation to make the JVM startup times faster during the tests.
+  - echo 'MAVEN_OPTS="$MAVEN_OPTS -Xmx1024m -XX:MaxPermSize=512m -XX:+TieredCompilation -XX:TieredStopAtLevel=1 -XX:+BytecodeVerificationLocal"' >> ~/.mavenrc
   - echo $'MAVEN_OPTS="$MAVEN_OPTS -Dorg.slf4j.simpleLogger.showDateTime=true -Dorg.slf4j.simpleLogger.dateTimeFormat=yyyy-MM-dd\'T\'HH:mm:ss.SSS"' >> ~/.mavenrc
   - cat ~/.mavenrc
   - if [ "$TRAVIS_OS_NAME" == "osx" ]; then export JAVA_HOME=$(/usr/libexec/java_home); fi
@@ -80,7 +81,7 @@ install:
 
 script:
   - if [ "$TEST_PYTHON" ]; then travis_retry $TOX_HOME/tox -e $TOX_ENV -c sdks/python/tox.ini; fi
-  - if [ ! "$TEST_PYTHON" ]; then travis_retry mvn --batch-mode --update-snapshots --no-snapshot-updates $MAVEN_OVERRIDE install && travis_retry bash -ex .travis/test_wordcount.sh; fi
+  - if [ ! "$TEST_PYTHON" ]; then travis_retry mvn --batch-mode --update-snapshots --no-snapshot-updates --threads 1C $MAVEN_OVERRIDE install && travis_retry bash -ex .travis/test_wordcount.sh; fi
 
 cache:
   directories:
