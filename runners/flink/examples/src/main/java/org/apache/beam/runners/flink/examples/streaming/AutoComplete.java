@@ -85,7 +85,7 @@ public class AutoComplete {
     public PCollection<KV<String, List<CompletionCandidate>>> expand(PCollection<String> input) {
       PCollection<CompletionCandidate> candidates = input
         // First count how often each token appears.
-        .apply(new Count.PerElement<String>())
+        .apply(Count.<String>perElement())
 
         // Map the KV outputs of Count into our own CompletionCandiate class.
         .apply("CreateCompletionCandidates", ParDo.of(

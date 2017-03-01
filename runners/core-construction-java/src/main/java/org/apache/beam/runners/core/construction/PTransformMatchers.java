@@ -165,14 +165,14 @@ public class PTransformMatchers {
   }
 
   /**
-   * A {@link PTransformMatcher} which matches a {@link Flatten.FlattenPCollectionList} which
+   * A {@link PTransformMatcher} which matches a {@link Flatten.PCollections} which
    * consumes no input {@link PCollection PCollections}.
    */
   public static PTransformMatcher emptyFlatten() {
     return new PTransformMatcher() {
       @Override
       public boolean matches(AppliedPTransform<?, ?, ?> application) {
-        return (application.getTransform() instanceof Flatten.FlattenPCollectionList)
+        return (application.getTransform() instanceof Flatten.PCollections)
             && application.getInputs().isEmpty();
       }
     };
@@ -182,8 +182,8 @@ public class PTransformMatchers {
     return new PTransformMatcher() {
       @Override
       public boolean matches(AppliedPTransform<?, ?, ?> application) {
-        if (application.getTransform() instanceof Write.Bound) {
-          return ((Write.Bound) application.getTransform()).getSharding() == null;
+        if (application.getTransform() instanceof Write) {
+          return ((Write) application.getTransform()).getSharding() == null;
         }
         return false;
       }

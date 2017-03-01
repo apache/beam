@@ -374,7 +374,7 @@ public class GroupByKeyTest {
   @Test
   public void testDisplayData() {
     GroupByKey<String, String> groupByKey = GroupByKey.create();
-    GroupByKey<String, String> groupByFewKeys = GroupByKey.create(true);
+    GroupByKey<String, String> groupByFewKeys = GroupByKey.createWithFewKeys();
 
     DisplayData gbkDisplayData = DisplayData.from(groupByKey);
     DisplayData fewKeysDisplayData = DisplayData.from(groupByFewKeys);

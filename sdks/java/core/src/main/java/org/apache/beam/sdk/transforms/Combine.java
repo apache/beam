@@ -43,7 +43,6 @@ import org.apache.beam.sdk.coders.StandardCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.transforms.Combine.AccumulatingCombineFn;
 import org.apache.beam.sdk.transforms.CombineFnBase.AbstractGlobalCombineFn;
 import org.apache.beam.sdk.transforms.CombineFnBase.AbstractPerKeyCombineFn;
 import org.apache.beam.sdk.transforms.CombineFnBase.GlobalCombineFn;
@@ -1877,9 +1876,11 @@ public class Combine {
     @Override
     public PCollection<KV<K, OutputT>> expand(PCollection<KV<K, InputT>> input) {
       return input
-          .apply(GroupByKey.<K, InputT>create(fewKeys))
-          .apply(Combine.<K, InputT, OutputT>groupedValues(fn, fnDisplayData)
-              .withSideInputs(sideInputs));
+          .apply(
+              fewKeys ? GroupByKey.<K, InputT>createWithFewKeys() : GroupByKey.<K, InputT>create())
+          .apply(
+              Combine.<K, InputT, OutputT>groupedValues(fn, fnDisplayData)
+                  .withSideInputs(sideInputs));
     }
 
     @Override

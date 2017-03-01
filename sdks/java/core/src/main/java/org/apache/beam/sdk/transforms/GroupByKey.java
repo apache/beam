@@ -142,17 +142,17 @@ public class GroupByKey<K, V>
   }
 
   /**
-   * Returns a {@code GroupByKey<K, V>} {@code PTransform}.
+   * Returns a {@code GroupByKey<K, V>} {@code PTransform} that assumes it will be grouping
+   * a small number of keys.
    *
    * @param <K> the type of the keys of the input and output
    * {@code PCollection}s
    * @param <V> the type of the values of the input {@code PCollection}
    * and the elements of the {@code Iterable}s in the output
    * {@code PCollection}
-   * @param fewKeys whether it groups just few keys.
    */
-  static <K, V> GroupByKey<K, V> create(boolean fewKeys) {
-    return new GroupByKey<>(fewKeys);
+  static <K, V> GroupByKey<K, V> createWithFewKeys() {
+    return new GroupByKey<>(true);
   }
 
   /**

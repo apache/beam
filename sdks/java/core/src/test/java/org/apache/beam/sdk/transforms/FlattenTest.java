@@ -81,7 +81,7 @@ public class FlattenTest implements Serializable {
 
   @Test
   @Category(RunnableOnService.class)
-  public void testFlattenPCollectionList() {
+  public void testFlattenPCollections() {
     List<List<String>> inputs = Arrays.asList(
       LINES, NO_LINES, LINES2, NO_LINES, LINES, NO_LINES);
 
@@ -95,7 +95,7 @@ public class FlattenTest implements Serializable {
 
   @Test
   @Category(RunnableOnService.class)
-  public void testFlattenPCollectionListThenParDo() {
+  public void testFlattenPCollectionsThenParDo() {
     List<List<String>> inputs = Arrays.asList(
       LINES, NO_LINES, LINES2, NO_LINES, LINES, NO_LINES);
 
@@ -110,7 +110,7 @@ public class FlattenTest implements Serializable {
 
   @Test
   @Category(RunnableOnService.class)
-  public void testFlattenPCollectionListEmpty() {
+  public void testFlattenPCollectionsEmpty() {
     PCollection<String> output =
         PCollectionList.<String>empty(p)
         .apply(Flatten.<String>pCollections()).setCoder(StringUtf8Coder.of());
@@ -198,7 +198,7 @@ public class FlattenTest implements Serializable {
 
   @Test
   @Category(RunnableOnService.class)
-  public void testFlattenPCollectionListEmptyThenParDo() {
+  public void testFlattenPCollectionsEmptyThenParDo() {
     PCollection<String> output =
         PCollectionList.<String>empty(p)
         .apply(Flatten.<String>pCollections()).setCoder(StringUtf8Coder.of())
@@ -366,8 +366,8 @@ public class FlattenTest implements Serializable {
 
   @Test
   public void testFlattenGetName() {
-    Assert.assertEquals("Flatten.FlattenIterables", Flatten.<String>iterables().getName());
-    Assert.assertEquals("Flatten.FlattenPCollectionList", Flatten.<String>pCollections().getName());
+    Assert.assertEquals("Flatten.Iterables", Flatten.<String>iterables().getName());
+    Assert.assertEquals("Flatten.PCollections", Flatten.<String>pCollections().getName());
   }
 
   /////////////////////////////////////////////////////////////////////////////

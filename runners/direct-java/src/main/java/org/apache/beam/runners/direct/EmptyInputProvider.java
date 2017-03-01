@@ -27,7 +27,7 @@ import org.apache.beam.sdk.values.PCollectionList;
 
 /** A {@link RootInputProvider} that provides a singleton empty bundle. */
 class EmptyInputProvider<T>
-    implements RootInputProvider<T, Void, PCollectionList<T>, Flatten.FlattenPCollectionList<T>> {
+    implements RootInputProvider<T, Void, PCollectionList<T>, Flatten.PCollections<T>> {
   EmptyInputProvider() {}
 
   /**
@@ -37,7 +37,7 @@ class EmptyInputProvider<T>
    */
   @Override
   public Collection<CommittedBundle<Void>> getInitialInputs(
-      AppliedPTransform<PCollectionList<T>, PCollection<T>, Flatten.FlattenPCollectionList<T>>
+      AppliedPTransform<PCollectionList<T>, PCollection<T>, Flatten.PCollections<T>>
           transform,
       int targetParallelism) {
     return Collections.emptyList();

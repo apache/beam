@@ -27,7 +27,6 @@ import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.runners.PTransformOverrideFactory;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.Flatten;
-import org.apache.beam.sdk.transforms.Flatten.FlattenPCollectionList;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
@@ -36,11 +35,11 @@ import org.apache.beam.sdk.values.TaggedPValue;
 
 /**
  * A {@link PTransformOverrideFactory} that provides an empty {@link Create} to replace a {@link
- * Flatten.FlattenPCollectionList} that takes no input {@link PCollection PCollections}.
+ * Flatten.PCollections} that takes no input {@link PCollection PCollections}.
  */
 public class EmptyFlattenAsCreateFactory<T>
     implements PTransformOverrideFactory<
-        PCollectionList<T>, PCollection<T>, Flatten.FlattenPCollectionList<T>> {
+        PCollectionList<T>, PCollection<T>, Flatten.PCollections<T>> {
   private static final EmptyFlattenAsCreateFactory<Object> INSTANCE =
       new EmptyFlattenAsCreateFactory<>();
 
@@ -52,7 +51,7 @@ public class EmptyFlattenAsCreateFactory<T>
 
   @Override
   public PTransform<PCollectionList<T>, PCollection<T>> getReplacementTransform(
-      FlattenPCollectionList<T> transform) {
+      Flatten.PCollections<T> transform) {
     return (PTransform) Create.empty(VoidCoder.of());
   }
 

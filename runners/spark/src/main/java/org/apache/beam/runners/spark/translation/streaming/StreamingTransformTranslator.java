@@ -170,11 +170,11 @@ final class StreamingTransformTranslator {
     };
   }
 
-  private static <T> TransformEvaluator<Flatten.FlattenPCollectionList<T>> flattenPColl() {
-    return new TransformEvaluator<Flatten.FlattenPCollectionList<T>>() {
+  private static <T> TransformEvaluator<Flatten.PCollections<T>> flattenPColl() {
+    return new TransformEvaluator<Flatten.PCollections<T>>() {
       @SuppressWarnings("unchecked")
       @Override
-      public void evaluate(Flatten.FlattenPCollectionList<T> transform, EvaluationContext context) {
+      public void evaluate(Flatten.PCollections<T> transform, EvaluationContext context) {
         List<TaggedPValue> pcs = context.getInputs(transform);
         // since this is a streaming pipeline, at least one of the PCollections to "flatten" are
         // unbounded, meaning it represents a DStream.
@@ -445,7 +445,7 @@ final class StreamingTransformTranslator {
     EVALUATORS.put(ConsoleIO.Write.Unbound.class, print());
     EVALUATORS.put(CreateStream.class, createFromQueue());
     EVALUATORS.put(Window.Bound.class, window());
-    EVALUATORS.put(Flatten.FlattenPCollectionList.class, flattenPColl());
+    EVALUATORS.put(Flatten.PCollections.class, flattenPColl());
   }
 
   /**

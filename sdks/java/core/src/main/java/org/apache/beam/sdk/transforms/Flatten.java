@@ -64,8 +64,8 @@ public class Flatten {
    * @param <T> the type of the elements in the input and output
    * {@code PCollection}s.
    */
-  public static <T> FlattenPCollectionList<T> pCollections() {
-    return new FlattenPCollectionList<>();
+  public static <T> PCollections<T> pCollections() {
+    return new PCollections<>();
   }
 
   /**
@@ -86,8 +86,8 @@ public class Flatten {
    * @param <T> the type of the elements of the input {@code Iterable} and
    * the output {@code PCollection}
    */
-  public static <T> FlattenIterables<T> iterables() {
-    return new FlattenIterables<>();
+  public static <T> Iterables<T> iterables() {
+    return new Iterables<>();
   }
 
   /**
@@ -99,10 +99,10 @@ public class Flatten {
    * @param <T> the type of the elements in the input and output
    * {@code PCollection}s.
    */
-  public static class FlattenPCollectionList<T>
+  public static class PCollections<T>
       extends PTransform<PCollectionList<T>, PCollection<T>> {
 
-    private FlattenPCollectionList() { }
+    private PCollections() { }
 
     @Override
     public PCollection<T> expand(PCollectionList<T> inputs) {
@@ -159,8 +159,9 @@ public class Flatten {
    * @param <T> the type of the elements of the input {@code Iterable}s and
    * the output {@code PCollection}
    */
-  public static class FlattenIterables<T>
+  public static class Iterables<T>
       extends PTransform<PCollection<? extends Iterable<T>>, PCollection<T>> {
+    private Iterables() {}
 
     @Override
     public PCollection<T> expand(PCollection<? extends Iterable<T>> in) {
