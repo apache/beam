@@ -44,6 +44,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Random;
+import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -507,10 +508,20 @@ public class KafkaIO {
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
-      builder.add(DisplayData.item("topics", Joiner.on(",").join(getTopics())));
+      List<String> topics = getTopics();
+      List<TopicPartition> topicPartitions = getTopicPartitions();
+      if (topics.size() > 0) {
+        builder.add(DisplayData.item("topics", Joiner.on(",").join(topics)).withLabel("Topic/s"));
+      } else if (topicPartitions.size() > 0) {
+        builder.add(DisplayData.item("topicPartitions", Joiner.on(",").join(topicPartitions))
+            .withLabel("Topic Partition/s"));
+      }
+      Set<String> ignoredConsumerPropertiesKeys = IGNORED_CONSUMER_PROPERTIES.keySet();
       for (Map.Entry<String, Object> conf : getConsumerConfig().entrySet()) {
-        builder.add(DisplayData.item(conf.getKey(),
-            ValueProvider.StaticValueProvider.of(conf.getValue())));
+        String key = conf.getKey();
+        if (!ignoredConsumerPropertiesKeys.contains(key)) {
+          builder.add(DisplayData.item(key, ValueProvider.StaticValueProvider.of(conf.getValue())));
+        }
       }
     }
   }
@@ -1245,9 +1256,13 @@ public class KafkaIO {
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
-      builder.addIfNotNull(DisplayData.item("topic", getTopic()));
+      builder.addIfNotNull(DisplayData.item("topic", getTopic()).withLabel("Topic"));
+      Set<String> ignoredProducerPropertiesKeys = IGNORED_PRODUCER_PROPERTIES.keySet();
       for (Map.Entry<String, Object> conf : getProducerConfig().entrySet()) {
-        builder.add(DisplayData.item(conf.getKey(), conf.getValue().toString()));
+        String key = conf.getKey();
+        if (!ignoredProducerPropertiesKeys.contains(key)) {
+          builder.add(DisplayData.item(key, ValueProvider.StaticValueProvider.of(conf.getValue())));
+        }
       }
     }
   }

@@ -25,6 +25,7 @@ import static org.junit.Assert.assertTrue;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Lists;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
@@ -630,10 +631,26 @@ public class KafkaIOTest {
     assertThat(displayData, hasDisplayItem("topics", "topic_a,topic_b"));
     assertThat(displayData, hasDisplayItem("enable.auto.commit", false));
     assertThat(displayData, hasDisplayItem("bootstrap.servers", "myServer1:9092,myServer2:9092"));
-    assertThat(displayData, hasDisplayItem("value.deserializer",
-        org.apache.kafka.common.serialization.ByteArrayDeserializer.class.getName()));
-    assertThat(displayData, hasDisplayItem("key.deserializer",
-        org.apache.kafka.common.serialization.ByteArrayDeserializer.class.getName()));
+    assertThat(displayData, hasDisplayItem("auto.offset.reset", "latest"));
+    assertThat(displayData, hasDisplayItem("receive.buffer.bytes", 524288));
+  }
+
+  @Test
+  public void testSourceWithExplicitPartitionsDisplayData() {
+    KafkaIO.Read<byte[], Long> read = KafkaIO.<byte[], Long>read()
+        .withBootstrapServers("myServer1:9092,myServer2:9092")
+        .withTopicPartitions(ImmutableList.of(new TopicPartition("test", 5),
+            new TopicPartition("test", 6)))
+        .withConsumerFactoryFn(new ConsumerFactoryFn(
+            Lists.newArrayList("test"), 10, 10, OffsetResetStrategy.EARLIEST)) // 10 partitions
+        .withKeyCoder(ByteArrayCoder.of())
+        .withValueCoder(BigEndianLongCoder.of());
+
+    DisplayData displayData = DisplayData.from(read);
+
+    assertThat(displayData, hasDisplayItem("topicPartitions", "test-5,test-6"));
+    assertThat(displayData, hasDisplayItem("enable.auto.commit", false));
+    assertThat(displayData, hasDisplayItem("bootstrap.servers", "myServer1:9092,myServer2:9092"));
     assertThat(displayData, hasDisplayItem("auto.offset.reset", "latest"));
     assertThat(displayData, hasDisplayItem("receive.buffer.bytes", 524288));
   }
@@ -650,11 +667,7 @@ public class KafkaIOTest {
 
     assertThat(displayData, hasDisplayItem("topic", "myTopic"));
     assertThat(displayData, hasDisplayItem("bootstrap.servers", "myServerA:9092,myServerB:9092"));
-    assertThat(displayData, hasDisplayItem("value.serializer",
-        "class " + KafkaIO.CoderBasedKafkaSerializer.class.getName()));
-    assertThat(displayData, hasDisplayItem("key.serializer",
-        "class " + KafkaIO.CoderBasedKafkaSerializer.class.getName()));
-    assertThat(displayData, hasDisplayItem("retries", "3"));
+    assertThat(displayData, hasDisplayItem("retries", 3));
   }
 
   private static void verifyProducerRecords(String topic, int numElements, boolean keyIsAbsent) {
