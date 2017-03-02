@@ -26,7 +26,7 @@ import logging
 
 from hamcrest.core.base_matcher import BaseMatcher
 
-from apache_beam.io.fileio import ChannelFactory
+from apache_beam.io.filesystems_util import get_filesystem
 from apache_beam.runners.runner import PipelineState
 from apache_beam.tests import test_utils as utils
 from apache_beam.utils import retry
@@ -81,6 +81,7 @@ class FileChecksumMatcher(BaseMatcher):
 
   def __init__(self, file_path, expected_checksum):
     self.file_path = file_path
+    self.file_system = get_filesystem(self.file_path)
     self.expected_checksum = expected_checksum
 
   @retry.with_exponential_backoff(
@@ -89,11 +90,12 @@ class FileChecksumMatcher(BaseMatcher):
   def _read_with_retry(self):
     """Read path with retry if I/O failed"""
     read_lines = []
-    matched_path = ChannelFactory.glob(self.file_path)
+    match_result = self.file_system.match([self.file_path])[0]
+    matched_path = [f.path for f in match_result.metadata_list]
     if not matched_path:
       raise IOError('No such file or directory: %s' % self.file_path)
     for path in matched_path:
-      with ChannelFactory.open(path, 'r') as f:
+      with self.file_system.open(path, 'r') as f:
         for line in f:
           read_lines.append(line)
     return read_lines

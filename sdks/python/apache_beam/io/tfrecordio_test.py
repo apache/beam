@@ -29,7 +29,7 @@ import unittest
 
 import apache_beam as beam
 from apache_beam import coders
-from apache_beam.io import fileio
+from apache_beam.io.filesystem import CompressionTypes
 from apache_beam.io.tfrecordio import _TFRecordSink
 from apache_beam.io.tfrecordio import _TFRecordSource
 from apache_beam.io.tfrecordio import _TFRecordUtil
@@ -175,7 +175,7 @@ class TestTFRecordSink(_TestCaseWithTempDirCleanUp):
         file_name_suffix='',
         num_shards=0,
         shard_name_template=None,
-        compression_type=fileio.CompressionTypes.UNCOMPRESSED)
+        compression_type=CompressionTypes.UNCOMPRESSED)
     self._write_lines(sink, path, ['foo'])
 
     with open(path, 'r') as f:
@@ -190,7 +190,7 @@ class TestTFRecordSink(_TestCaseWithTempDirCleanUp):
         file_name_suffix='',
         num_shards=0,
         shard_name_template=None,
-        compression_type=fileio.CompressionTypes.UNCOMPRESSED)
+        compression_type=CompressionTypes.UNCOMPRESSED)
     self._write_lines(sink, path, ['foo', 'bar'])
 
     with open(path, 'r') as f:
@@ -205,7 +205,7 @@ class TestWriteToTFRecord(TestTFRecordSink):
     with TestPipeline() as p:
       input_data = ['foo', 'bar']
       _ = p | beam.Create(input_data) | WriteToTFRecord(
-          file_path_prefix, compression_type=fileio.CompressionTypes.GZIP)
+          file_path_prefix, compression_type=CompressionTypes.GZIP)
 
     actual = []
     file_name = glob.glob(file_path_prefix + '-*')[0]
@@ -252,7 +252,7 @@ class TestTFRecordSource(_TestCaseWithTempDirCleanUp):
                     _TFRecordSource(
                         path,
                         coder=coders.BytesCoder(),
-                        compression_type=fileio.CompressionTypes.AUTO,
+                        compression_type=CompressionTypes.AUTO,
                         validate=True)))
       beam.assert_that(result, beam.equal_to(['foo']))
 
@@ -265,7 +265,7 @@ class TestTFRecordSource(_TestCaseWithTempDirCleanUp):
                     _TFRecordSource(
                         path,
                         coder=coders.BytesCoder(),
-                        compression_type=fileio.CompressionTypes.AUTO,
+                        compression_type=CompressionTypes.AUTO,
                         validate=True)))
       beam.assert_that(result, beam.equal_to(['foo', 'bar']))
 
@@ -278,7 +278,7 @@ class TestTFRecordSource(_TestCaseWithTempDirCleanUp):
                     _TFRecordSource(
                         path,
                         coder=coders.BytesCoder(),
-                        compression_type=fileio.CompressionTypes.GZIP,
+                        compression_type=CompressionTypes.GZIP,
                         validate=True)))
       beam.assert_that(result, beam.equal_to(['foo', 'bar']))
 
@@ -291,7 +291,7 @@ class TestTFRecordSource(_TestCaseWithTempDirCleanUp):
                     _TFRecordSource(
                         path,
                         coder=coders.BytesCoder(),
-                        compression_type=fileio.CompressionTypes.AUTO,
+                        compression_type=CompressionTypes.AUTO,
                         validate=True)))
       beam.assert_that(result, beam.equal_to(['foo', 'bar']))
 
@@ -304,7 +304,7 @@ class TestReadFromTFRecordSource(TestTFRecordSource):
     with TestPipeline() as p:
       result = (p
                 | ReadFromTFRecord(
-                    path, compression_type=fileio.CompressionTypes.GZIP))
+                    path, compression_type=CompressionTypes.GZIP))
       beam.assert_that(result, beam.equal_to(['foo', 'bar']))
 
   def test_process_gzip_auto(self):
@@ -313,7 +313,7 @@ class TestReadFromTFRecordSource(TestTFRecordSource):
     with TestPipeline() as p:
       result = (p
                 | ReadFromTFRecord(
-                    path, compression_type=fileio.CompressionTypes.AUTO))
+                    path, compression_type=CompressionTypes.AUTO))
       beam.assert_that(result, beam.equal_to(['foo', 'bar']))
 
 
