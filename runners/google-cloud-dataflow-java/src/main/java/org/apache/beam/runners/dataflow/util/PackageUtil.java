@@ -90,14 +90,12 @@ class PackageUtil {
    */
   static PackageAttributes createPackageAttributes(File source,
       String stagingPath, @Nullable String overridePackageName) {
-    try {
-      boolean directory = source.isDirectory();
+    boolean directory = source.isDirectory();
 
-      // Compute size and hash in one pass over file or directory.
-      Hasher hasher = Hashing.md5().newHasher();
-      OutputStream hashStream = Funnels.asOutputStream(hasher);
-      CountingOutputStream countingOutputStream = new CountingOutputStream(hashStream);
-
+    // Compute size and hash in one pass over file or directory.
+    Hasher hasher = Hashing.md5().newHasher();
+    OutputStream hashStream = Funnels.asOutputStream(hasher);
+    try (CountingOutputStream countingOutputStream = new CountingOutputStream(hashStream)) {
       if (!directory) {
         // Files are staged as-is.
         Files.asByteSource(source).copyTo(countingOutputStream);
@@ -105,6 +103,7 @@ class PackageUtil {
         // Directories are recursively zipped.
         ZipFiles.zipDirectory(source, countingOutputStream);
       }
+      countingOutputStream.flush();
 
       long size = countingOutputStream.getCount();
       String hash = Base64Variants.MODIFIED_FOR_URL.encode(hasher.hash().asBytes());
