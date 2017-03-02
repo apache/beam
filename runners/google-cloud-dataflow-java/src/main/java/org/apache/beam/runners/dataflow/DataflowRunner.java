@@ -341,6 +341,12 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
           UnsupportedOverrideFactory.withMessage(
               "The DataflowRunner in batch mode does not support Read.Unbounded"));
       ptoverrides
+          // State and timer pardos are implemented by expansion to GBK-then-ParDo
+          .put(PTransformMatchers.stateOrTimerParDoMulti(),
+              BatchStatefulParDoOverrides.multiOutputOverrideFactory())
+          .put(PTransformMatchers.stateOrTimerParDoSingle(),
+              BatchStatefulParDoOverrides.singleOutputOverrideFactory())
+
           // Write uses views internally
           .put(PTransformMatchers.classEqualTo(Write.class), new BatchWriteFactory(this))
           .put(
