@@ -330,7 +330,7 @@ class PackageUtil {
 
     LOG.info(
         "Staging files complete: {} files cached, {} files newly uploaded",
-        numUploaded.get(), numCached.get());
+        numCached.get(), numUploaded.get());
 
     return packages;
   }
