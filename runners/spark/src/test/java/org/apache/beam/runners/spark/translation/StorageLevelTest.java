@@ -37,9 +37,9 @@ public class StorageLevelTest {
   @Test
   public void test() throws Exception {
     pipelineRule.getOptions().setStorageLevel("DISK_ONLY");
-    Pipeline p = pipelineRule.createPipeline();
+    Pipeline pipeline = pipelineRule.createPipeline();
 
-    PCollection<String> pCollection = p.apply(Create.of("foo"));
+    PCollection<String> pCollection = pipeline.apply(Create.of("foo"));
 
     // by default, the Spark runner doesn't cache the RDD if it accessed only one time.
     // So, to "force" the caching of the RDD, we have to call the RDD at least two time.
@@ -50,7 +50,7 @@ public class StorageLevelTest {
 
     PAssert.thatSingleton(output).isEqualTo("Disk Serialized 1x Replicated");
 
-    p.run();
+    pipeline.run();
   }
 
 }
