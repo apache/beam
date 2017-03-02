@@ -24,6 +24,7 @@ import struct
 from apache_beam import coders
 from apache_beam.io import filebasedsource
 from apache_beam.io import fileio
+from apache_beam.io.filesystem import CompressionTypes
 from apache_beam.io.iobase import Read
 from apache_beam.io.iobase import Write
 from apache_beam.transforms import PTransform
@@ -180,7 +181,7 @@ class ReadFromTFRecord(PTransform):
   def __init__(self,
                file_pattern,
                coder=coders.BytesCoder(),
-               compression_type=fileio.CompressionTypes.AUTO,
+               compression_type=CompressionTypes.AUTO,
                validate=True,
                **kwargs):
     """Initialize a ReadFromTFRecord transform.
@@ -239,7 +240,7 @@ class WriteToTFRecord(PTransform):
                file_name_suffix='',
                num_shards=0,
                shard_name_template=fileio.DEFAULT_SHARD_NAME_TEMPLATE,
-               compression_type=fileio.CompressionTypes.AUTO,
+               compression_type=CompressionTypes.AUTO,
                **kwargs):
     """Initialize WriteToTFRecord transform.
 
