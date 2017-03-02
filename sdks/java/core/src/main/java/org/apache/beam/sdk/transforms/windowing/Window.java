@@ -22,6 +22,7 @@ import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.Coder.NonDeterministicException;
+import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -30,6 +31,7 @@ import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.util.WindowingStrategy.AccumulationMode;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionList;
 import org.joda.time.Duration;
 
 /**
@@ -152,7 +154,7 @@ public class Window {
      *
      * <p>This is the default behavior.
      */
-    FIRE_IF_NON_EMPTY;
+    FIRE_IF_NON_EMPTY
 
   }
 
@@ -469,8 +471,16 @@ public class Window {
     public PCollection<T> expand(PCollection<T> input) {
       WindowingStrategy<?, ?> outputStrategy =
           getOutputStrategyInternal(input.getWindowingStrategy());
-      return PCollection.createPrimitiveOutputInternal(
-          input.getPipeline(), outputStrategy, input.isBounded());
+      if (windowFn == null) {
+        // A new PCollection must be created in case input is reused in a different location as the
+        // two PCollections will, in general, have a different windowing strategy.
+        return PCollectionList.of(input)
+            .apply(Flatten.<T>pCollections())
+            .setWindowingStrategyInternal(outputStrategy);
+      } else {
+        // This is the AssignWindows primitive
+        return input.apply(new Assign<T>(outputStrategy));
+      }
     }
 
     @Override
@@ -519,6 +529,33 @@ public class Window {
     @Override
     protected String getKindString() {
       return "Window.Into()";
+    }
+  }
+
+
+  /**
+   * A Primitive {@link PTransform} that assigns windows to elements based on a {@link WindowFn}.
+   */
+  public static class Assign<T> extends PTransform<PCollection<T>, PCollection<T>> {
+    private final WindowingStrategy<T, ?> updatedStrategy;
+
+    /**
+     * Create a new {@link Assign} where the output is windowed with the updated {@link
+     * WindowingStrategy}. Windows should be assigned using the {@link WindowFn} returned by
+     * {@link #getWindowFn()}.
+     */
+    private Assign(WindowingStrategy updatedStrategy) {
+      this.updatedStrategy = updatedStrategy;
+    }
+
+    @Override
+    public PCollection<T> expand(PCollection<T> input) {
+      return PCollection.createPrimitiveOutputInternal(
+          input.getPipeline(), updatedStrategy, input.isBounded());
+    }
+
+    public WindowFn<T, ?> getWindowFn() {
+      return updatedStrategy.getWindowFn();
     }
   }
 

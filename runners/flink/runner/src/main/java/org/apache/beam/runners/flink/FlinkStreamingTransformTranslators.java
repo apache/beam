@@ -124,7 +124,7 @@ class FlinkStreamingTransformTranslators {
     TRANSLATORS.put(ParDo.Bound.class, new ParDoBoundStreamingTranslator());
     TRANSLATORS.put(ParDo.BoundMulti.class, new ParDoBoundMultiStreamingTranslator());
 
-    TRANSLATORS.put(Window.Bound.class, new WindowBoundTranslator());
+    TRANSLATORS.put(Window.Assign.class, new WindowAssignTranslator());
     TRANSLATORS.put(Flatten.PCollections.class, new FlattenPCollectionTranslator());
     TRANSLATORS.put(
         FlinkStreamingViewOverrides.CreateFlinkPCollectionView.class,
@@ -702,12 +702,12 @@ class FlinkStreamingTransformTranslators {
     }
   }
 
-  private static class WindowBoundTranslator<T>
-      extends FlinkStreamingPipelineTranslator.StreamTransformTranslator<Window.Bound<T>> {
+  private static class WindowAssignTranslator<T>
+      extends FlinkStreamingPipelineTranslator.StreamTransformTranslator<Window.Assign<T>> {
 
     @Override
     public void translateNode(
-        Window.Bound<T> transform,
+        Window.Assign<T> transform,
         FlinkStreamingTranslationContext context) {
 
       @SuppressWarnings("unchecked")

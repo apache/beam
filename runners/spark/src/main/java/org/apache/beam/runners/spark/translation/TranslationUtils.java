@@ -101,14 +101,14 @@ public final class TranslationUtils {
    * with triggering or allowed lateness).
    * </p>
    *
-   * @param transform The {@link Window.Bound} transformation.
+   * @param transform The {@link Window.Assign} transformation.
    * @param context   The {@link EvaluationContext}.
    * @param <T>       PCollection type.
    * @param <W>       {@link BoundedWindow} type.
    * @return if to apply the transformation.
    */
   public static <T, W extends BoundedWindow> boolean
-  skipAssignWindows(Window.Bound<T> transform, EvaluationContext context) {
+  skipAssignWindows(Window.Assign<T> transform, EvaluationContext context) {
     @SuppressWarnings("unchecked")
     WindowFn<? super T, W> windowFn = (WindowFn<? super T, W>) transform.getWindowFn();
     return windowFn == null

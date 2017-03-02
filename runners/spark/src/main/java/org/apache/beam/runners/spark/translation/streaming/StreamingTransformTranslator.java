@@ -210,10 +210,10 @@ final class StreamingTransformTranslator {
     };
   }
 
-  private static <T, W extends BoundedWindow> TransformEvaluator<Window.Bound<T>> window() {
-    return new TransformEvaluator<Window.Bound<T>>() {
+  private static <T, W extends BoundedWindow> TransformEvaluator<Window.Assign<T>> window() {
+    return new TransformEvaluator<Window.Assign<T>>() {
       @Override
-      public void evaluate(final Window.Bound<T> transform, EvaluationContext context) {
+      public void evaluate(final Window.Assign<T> transform, EvaluationContext context) {
         @SuppressWarnings("unchecked")
         UnboundedDataset<T> unboundedDataset =
             ((UnboundedDataset<T>) context.borrowDataset(transform));
@@ -444,7 +444,7 @@ final class StreamingTransformTranslator {
     EVALUATORS.put(ParDo.BoundMulti.class, multiDo());
     EVALUATORS.put(ConsoleIO.Write.Unbound.class, print());
     EVALUATORS.put(CreateStream.class, createFromQueue());
-    EVALUATORS.put(Window.Bound.class, window());
+    EVALUATORS.put(Window.Assign.class, window());
     EVALUATORS.put(Flatten.PCollections.class, flattenPColl());
   }
 

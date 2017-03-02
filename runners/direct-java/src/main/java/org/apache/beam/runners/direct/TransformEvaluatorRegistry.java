@@ -55,7 +55,7 @@ class TransformEvaluatorRegistry implements TransformEvaluatorFactory {
             .put(StatefulParDo.class, new StatefulParDoEvaluatorFactory<>(ctxt))
             .put(PCollections.class, new FlattenEvaluatorFactory(ctxt))
             .put(ViewEvaluatorFactory.WriteView.class, new ViewEvaluatorFactory(ctxt))
-            .put(Window.Bound.class, new WindowEvaluatorFactory(ctxt))
+            .put(Window.Assign.class, new WindowEvaluatorFactory(ctxt))
             // Runner-specific primitives used in expansion of GroupByKey
             .put(DirectGroupByKeyOnly.class, new GroupByKeyOnlyEvaluatorFactory(ctxt))
             .put(DirectGroupAlsoByWindow.class, new GroupAlsoByWindowEvaluatorFactory(ctxt))
