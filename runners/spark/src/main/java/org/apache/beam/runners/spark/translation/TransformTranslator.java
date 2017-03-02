@@ -27,6 +27,7 @@ import static org.apache.beam.runners.spark.io.hadoop.ShardNameBuilder.replaceSh
 import static org.apache.beam.runners.spark.translation.TranslationUtils.rejectSplittable;
 import static org.apache.beam.runners.spark.translation.TranslationUtils.rejectStateAndTimers;
 
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import java.io.IOException;
@@ -73,6 +74,7 @@ import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TaggedPValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.hadoop.conf.Configuration;
@@ -331,38 +333,19 @@ public final class TransformTranslator {
     };
   }
 
-  private static <InputT, OutputT> TransformEvaluator<ParDo.Bound<InputT, OutputT>> parDo() {
-    return new TransformEvaluator<ParDo.Bound<InputT, OutputT>>() {
-      @Override
-      public void evaluate(ParDo.Bound<InputT, OutputT> transform, EvaluationContext context) {
-        String stepName = context.getCurrentTransform().getFullName();
-        DoFn<InputT, OutputT> doFn = transform.getFn();
-        rejectSplittable(doFn);
-        rejectStateAndTimers(doFn);
-        @SuppressWarnings("unchecked")
-        JavaRDD<WindowedValue<InputT>> inRDD =
-            ((BoundedDataset<InputT>) context.borrowDataset(transform)).getRDD();
-        WindowingStrategy<?, ?> windowingStrategy =
-            context.getInput(transform).getWindowingStrategy();
-        JavaSparkContext jsc = context.getSparkContext();
-        Accumulator<NamedAggregators> aggAccum =
-            SparkAggregators.getNamedAggregators(jsc);
-        Accumulator<SparkMetricsContainer> metricsAccum =
-            MetricsAccumulator.getInstance();
-        Map<TupleTag<?>, KV<WindowingStrategy<?, ?>, SideInputBroadcast<?>>> sideInputs =
-            TranslationUtils.getSideInputs(transform.getSideInputs(), context);
-        context.putDataset(transform,
-            new BoundedDataset<>(inRDD.mapPartitions(new DoFnFunction<>(aggAccum, metricsAccum,
-                stepName, doFn, context.getRuntimeContext(), sideInputs, windowingStrategy))));
-      }
-    };
-  }
-
-  private static <InputT, OutputT> TransformEvaluator<ParDo.BoundMulti<InputT, OutputT>>
-  multiDo() {
+  private static <InputT, OutputT> TransformEvaluator<ParDo.BoundMulti<InputT, OutputT>> parDo() {
     return new TransformEvaluator<ParDo.BoundMulti<InputT, OutputT>>() {
       @Override
       public void evaluate(ParDo.BoundMulti<InputT, OutputT> transform, EvaluationContext context) {
+        if (transform.getSideOutputTags().size() == 0) {
+          evaluateSingle(transform, context);
+        } else {
+          evaluateMulti(transform, context);
+        }
+      }
+
+      private void evaluateMulti(
+          ParDo.BoundMulti<InputT, OutputT> transform, EvaluationContext context) {
         String stepName = context.getCurrentTransform().getFullName();
         DoFn<InputT, OutputT> doFn = transform.getFn();
         rejectSplittable(doFn);
@@ -373,16 +356,21 @@ public final class TransformTranslator {
         WindowingStrategy<?, ?> windowingStrategy =
             context.getInput(transform).getWindowingStrategy();
         JavaSparkContext jsc = context.getSparkContext();
-        Accumulator<NamedAggregators> aggAccum =
-            SparkAggregators.getNamedAggregators(jsc);
-        Accumulator<SparkMetricsContainer> metricsAccum =
-            MetricsAccumulator.getInstance();
-        JavaPairRDD<TupleTag<?>, WindowedValue<?>> all = inRDD
-            .mapPartitionsToPair(
-                new MultiDoFnFunction<>(aggAccum, metricsAccum, stepName, doFn,
-                    context.getRuntimeContext(), transform.getMainOutputTag(),
-                    TranslationUtils.getSideInputs(transform.getSideInputs(), context),
-                    windowingStrategy)).cache();
+        Accumulator<NamedAggregators> aggAccum = SparkAggregators.getNamedAggregators(jsc);
+        Accumulator<SparkMetricsContainer> metricsAccum = MetricsAccumulator.getInstance();
+        JavaPairRDD<TupleTag<?>, WindowedValue<?>> all =
+            inRDD
+                .mapPartitionsToPair(
+                    new MultiDoFnFunction<>(
+                        aggAccum,
+                        metricsAccum,
+                        stepName,
+                        doFn,
+                        context.getRuntimeContext(),
+                        transform.getMainOutputTag(),
+                        TranslationUtils.getSideInputs(transform.getSideInputs(), context),
+                        windowingStrategy))
+                .cache();
         List<TaggedPValue> pct = context.getOutputs(transform);
         for (TaggedPValue e : pct) {
           @SuppressWarnings("unchecked")
@@ -394,6 +382,37 @@ public final class TransformTranslator {
               (JavaRDD<WindowedValue<Object>>) (JavaRDD<?>) filtered.values();
           context.putDataset(e.getValue(), new BoundedDataset<>(values));
         }
+      }
+
+      private void evaluateSingle(
+          ParDo.BoundMulti<InputT, OutputT> transform, EvaluationContext context) {
+        String stepName = context.getCurrentTransform().getFullName();
+        DoFn<InputT, OutputT> doFn = transform.getFn();
+        rejectSplittable(doFn);
+        rejectStateAndTimers(doFn);
+        @SuppressWarnings("unchecked")
+        JavaRDD<WindowedValue<InputT>> inRDD =
+            ((BoundedDataset<InputT>) context.borrowDataset(transform)).getRDD();
+        WindowingStrategy<?, ?> windowingStrategy =
+            context.getInput(transform).getWindowingStrategy();
+        JavaSparkContext jsc = context.getSparkContext();
+        Accumulator<NamedAggregators> aggAccum = SparkAggregators.getNamedAggregators(jsc);
+        Accumulator<SparkMetricsContainer> metricsAccum = MetricsAccumulator.getInstance();
+        Map<TupleTag<?>, KV<WindowingStrategy<?, ?>, SideInputBroadcast<?>>> sideInputs =
+            TranslationUtils.getSideInputs(transform.getSideInputs(), context);
+        PValue onlyOutput = Iterables.getOnlyElement(context.getOutputs(transform)).getValue();
+        context.putDataset(
+            onlyOutput,
+            new BoundedDataset<>(
+                inRDD.mapPartitions(
+                    new DoFnFunction<>(
+                        aggAccum,
+                        metricsAccum,
+                        stepName,
+                        doFn,
+                        context.getRuntimeContext(),
+                        sideInputs,
+                        windowingStrategy))));
       }
     };
   }
@@ -723,8 +742,7 @@ public final class TransformTranslator {
     EVALUATORS.put(Read.Bounded.class, readBounded());
     EVALUATORS.put(HadoopIO.Read.Bound.class, readHadoop());
     EVALUATORS.put(HadoopIO.Write.Bound.class, writeHadoop());
-    EVALUATORS.put(ParDo.Bound.class, parDo());
-    EVALUATORS.put(ParDo.BoundMulti.class, multiDo());
+    EVALUATORS.put(ParDo.BoundMulti.class, parDo());
     EVALUATORS.put(GroupByKey.class, groupByKey());
     EVALUATORS.put(Combine.GroupedValues.class, combineGrouped());
     EVALUATORS.put(Combine.Globally.class, combineGlobally());
