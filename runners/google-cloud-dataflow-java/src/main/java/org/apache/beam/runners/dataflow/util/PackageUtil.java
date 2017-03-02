@@ -92,13 +92,12 @@ class PackageUtil {
   static PackageAttributes createPackageAttributes(File source,
       String stagingPath, @Nullable String overridePackageName) {
     Closer closer = Closer.create();
-    try {
       boolean directory = source.isDirectory();
 
-      // Compute size and hash in one pass over file or directory.
-      Hasher hasher = Hashing.md5().newHasher();
-      OutputStream hashStream = Funnels.asOutputStream(hasher);
-      CountingOutputStream countingOutputStream = new CountingOutputStream(hashStream);
+    // Compute size and hash in one pass over file or directory.
+    Hasher hasher = Hashing.md5().newHasher();
+    OutputStream hashStream = Funnels.asOutputStream(hasher);
+    try (CountingOutputStream countingOutputStream = new CountingOutputStream(hashStream)) {
       closer.register(countingOutputStream);
 
       if (!directory) {
@@ -122,11 +121,6 @@ class PackageUtil {
       return new PackageAttributes(size, hash, directory, target, source.getPath());
     } catch (IOException e) {
       throw new RuntimeException("Package setup failure for " + source, e);
-    } finally {
-      try {
-        closer.close();
-      } catch (IOException ioe) {
-      }
     }
   }
 
