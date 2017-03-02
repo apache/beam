@@ -28,6 +28,7 @@ import com.google.common.collect.Lists;
 import com.google.common.hash.Funnels;
 import com.google.common.hash.Hasher;
 import com.google.common.hash.Hashing;
+import com.google.common.io.Closer;
 import com.google.common.io.CountingOutputStream;
 import com.google.common.io.Files;
 import com.google.common.util.concurrent.Futures;
@@ -90,13 +91,14 @@ class PackageUtil {
    */
   static PackageAttributes createPackageAttributes(File source,
       String stagingPath, @Nullable String overridePackageName) {
-    try {
+    Closer closer = Closer.create();
       boolean directory = source.isDirectory();
 
-      // Compute size and hash in one pass over file or directory.
-      Hasher hasher = Hashing.md5().newHasher();
-      OutputStream hashStream = Funnels.asOutputStream(hasher);
-      CountingOutputStream countingOutputStream = new CountingOutputStream(hashStream);
+    // Compute size and hash in one pass over file or directory.
+    Hasher hasher = Hashing.md5().newHasher();
+    OutputStream hashStream = Funnels.asOutputStream(hasher);
+    try (CountingOutputStream countingOutputStream = new CountingOutputStream(hashStream)) {
+      closer.register(countingOutputStream);
 
       if (!directory) {
         // Files are staged as-is.
