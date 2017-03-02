@@ -39,7 +39,6 @@
     <copy todir="${collect.dir}">
       <fileset dir="../../../runners">
         <include name="**/src/main/java/**/*.java"/>
-        <exclude name="**/maven-archetypes/**"/>
       </fileset>
       <!-- For each pathname, turn X/src/main/java/Y to Y. This
            results in one Java source tree. -->
@@ -90,7 +89,6 @@
       <excludepackage name="org.apache.beam.runners.flink.translation.*"/>
       <excludepackage name="org.apache.beam.runners.spark.examples.*"/>
       <excludepackage name="org.apache.beam.runners.spark.translation.*"/>
-      <excludepackage name="org.openjdk.jmh.infra.generated"/>
     </javadoc>
     <!-- make a jar file to push to central -->
     <jar destfile="${output.jar}" basedir="${output.dir}"/>
