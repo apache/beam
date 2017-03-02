@@ -47,6 +47,11 @@ If there’s an existing JIRA issue for your intended contribution, please comme
 
 For moderate or large contributions, you should not start coding or writing a design document unless there is a corresponding JIRA issue assigned to you for that work. Simple changes, like fixing typos, do not require an associated issue.
 
+### Online discussions
+We don't have an official IRC channel. Most of the online discussions happen in the [Apache Beam Slack channel](https://apachebeam.slack.com/). If you want access, you need to send an email to the user mailing list to [request access](mailto:user@beam.apache.org?subject=Regarding Beam Slack Channel&body=Hello%0D%0A%0ACan someone please add me to the Beam slack channel?%0D%0A%0AThanks.).
+
+Chat rooms are great for quick questions or discussions on specialized topics. Remember that we strongly encourage communication via the mailing lists, and we prefer to discuss more complex subjects by email. Developers should be careful to move or duplicate all the official or useful discussions to the issue tracking system and/or the dev mailing list.
+
 ## Design
 
 To avoid potential frustration during the code review cycle, we encourage you to clearly scope and design non-trivial contributions with the Beam community before you start coding.
