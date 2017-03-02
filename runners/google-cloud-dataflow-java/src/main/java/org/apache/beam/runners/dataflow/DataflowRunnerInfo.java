@@ -29,14 +29,12 @@ import org.slf4j.LoggerFactory;
  * Populates versioning and other information for {@link DataflowRunner}.
  */
 public final class DataflowRunnerInfo {
-
   private static final Logger LOG = LoggerFactory.getLogger(DataflowRunnerInfo.class);
 
   private static final String PROPERTIES_PATH =
       "/org/apache/beam/runners/dataflow/dataflow.properties";
 
   private static class LazyInit {
-
     private static final DataflowRunnerInfo INSTANCE = new DataflowRunnerInfo(PROPERTIES_PATH);
   }
 
@@ -67,11 +65,11 @@ public final class DataflowRunnerInfo {
   public String getFnApiEnvironmentMajorVersion() {
     checkState(
         properties.containsKey(FNAPI_ENVIRONMENT_MAJOR_VERSION_KEY),
-        "Unknown FbAPI environment major version");
+        "Unknown FnAPI environment major version");
     return properties.getProperty(FNAPI_ENVIRONMENT_MAJOR_VERSION_KEY);
   }
 
-  /** Provides the batch worker harness container image name. */
+  /** Provides the container version that will be used for constructing harness image paths. */
   public String getContainerVersion() {
     checkState(
         properties.containsKey(CONTAINER_VERSION_KEY),
