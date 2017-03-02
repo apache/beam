@@ -91,6 +91,10 @@ public class SparkRunnerStreamingContextFactory implements JavaStreamingContextF
     return jssc;
   }
 
+  public EvaluationContext getEvaluationContext() {
+    return this.ctxt;
+  }
+
   private void checkpoint(JavaStreamingContext jssc) {
     Path rootCheckpointPath = checkpointDir.getRootCheckpointDir();
     Path sparkCheckpointPath = checkpointDir.getSparkCheckpointDir();

@@ -38,6 +38,7 @@ import org.apache.beam.runners.spark.translation.TransformEvaluator;
 import org.apache.beam.runners.spark.translation.TransformTranslator;
 import org.apache.beam.runners.spark.translation.streaming.Checkpoint.CheckpointDir;
 import org.apache.beam.runners.spark.translation.streaming.SparkRunnerStreamingContextFactory;
+import org.apache.beam.runners.spark.translation.streaming.StreamingTransformTranslator;
 import org.apache.beam.runners.spark.util.GlobalWatermarkHolder.WatermarksListener;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.Read;
@@ -90,10 +91,13 @@ import org.slf4j.LoggerFactory;
 public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
 
   private static final Logger LOG = LoggerFactory.getLogger(SparkRunner.class);
+
   /**
    * Options used in this pipeline runner.
    */
   private final SparkPipelineOptions mOptions;
+
+  private SparkPipelineTranslator translator;
 
   /**
    * Creates and returns a new SparkRunner with default options. In particular, against a
@@ -147,6 +151,7 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
 
     MetricsEnvironment.setMetricsSupported(true);
 
+    // visit the pipeline to determine the translation mode
     detectTranslationMode(pipeline);
 
     if (mOptions.isStreaming()) {
@@ -156,6 +161,12 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
       final JavaStreamingContext jssc =
           JavaStreamingContext.getOrCreate(checkpointDir.getSparkCheckpointDir().toString(),
               contextFactory);
+
+      // update cache candidates
+      translator = new StreamingTransformTranslator.Translator(
+          new TransformTranslator.Translator());
+      updateCacheCandidates(pipeline, translator,
+          contextFactory.getEvaluationContext());
 
       // Checkpoint aggregator/metrics values
       jssc.addStreamingListener(
@@ -191,8 +202,14 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
 
       result = new SparkPipelineResult.StreamingMode(startPipeline, jssc);
     } else {
+      // create the evaluation context
       final JavaSparkContext jsc = SparkContextFactory.getSparkContext(mOptions);
-      final EvaluationContext evaluationContext = new EvaluationContext(jsc, pipeline);
+      final EvaluationContext evaluationContext =
+          new EvaluationContext(jsc, pipeline);
+      translator = new TransformTranslator.Translator();
+
+      // update the cache candidates
+      updateCacheCandidates(pipeline, translator, evaluationContext);
 
       initAccumulators(mOptions, jsc);
 
@@ -200,8 +217,7 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
 
         @Override
         public void run() {
-          pipeline.traverseTopologically(new Evaluator(new TransformTranslator.Translator(),
-                                                       evaluationContext));
+          pipeline.traverseTopologically(new Evaluator(translator, evaluationContext));
           evaluationContext.computeOutputs();
           LOG.info("Batch pipeline execution complete.");
         }
@@ -240,9 +256,7 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
   }
 
   /**
-   * Detect the translation mode for the pipeline and change options in case streaming
-   * translation is needed.
-   * @param pipeline
+   * Visit the pipeline to determine the translation mode (batch/streaming).
    */
   private void detectTranslationMode(Pipeline pipeline) {
     TranslationModeDetector detector = new TranslationModeDetector();
@@ -251,6 +265,17 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
       // set streaming mode if it's a streaming pipeline
       this.mOptions.setStreaming(true);
     }
+  }
+
+  /**
+   * Evaluator that update/populate the cache candidates.
+   */
+  private void updateCacheCandidates(Pipeline pipeline,
+                                     SparkPipelineTranslator translator,
+                                     EvaluationContext evaluationContext) {
+     CacheVisitor updater =
+         new CacheVisitor(translator, evaluationContext);
+     pipeline.traverseTopologically(updater);
   }
 
   /**
@@ -292,6 +317,40 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
         if (UNBOUNDED_INPUTS.contains(transformClass)) {
           LOG.info("Found {}. Switching to streaming execution.", transformClass);
           translationMode = TranslationMode.STREAMING;
+        }
+      }
+    }
+  }
+
+  /**
+   * Traverses the pipeline to determine the {@link TranslationMode} for this pipeline, and
+   * populate the candidates for caching. It's the preparation step of the runner.
+   */
+  static class CacheVisitor extends Evaluator {
+
+    public CacheVisitor(SparkPipelineTranslator translator,
+                        EvaluationContext evaluationContext) {
+      super(translator, evaluationContext);
+    }
+
+    @Override
+    public void doVisitTransform(TransformHierarchy.Node node) {
+      // we populate cache candidates by updating the map with inputs of each node.
+      // The goal is to detect the PCollections accessed more than one time, and so enable cache
+      // on the underlying RDDs or DStreams.
+      // A PCollection (RDD/DStream) needs to be cached only if it's used as an input of more
+      // than one transformation, so it won't be evaluated again all the way throughout its lineage.
+
+      // update cache candidates with node inputs
+
+      for (TaggedPValue input : node.getInputs()) {
+        PValue value = input.getValue();
+        if (value instanceof PCollection) {
+          long count = 1L;
+          if (ctxt.getCacheCandidates().get(value) != null) {
+            count = ctxt.getCacheCandidates().get(value) + 1;
+          }
+          ctxt.getCacheCandidates().put((PCollection) value, count);
         }
       }
     }

@@ -15,42 +15,45 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.spark.translation;
+package org.apache.beam.runners.spark;
 
-import org.apache.beam.runners.spark.PipelineRule;
+import static org.junit.Assert.assertEquals;
+
+import org.apache.beam.runners.spark.translation.EvaluationContext;
+import org.apache.beam.runners.spark.translation.SparkContextFactory;
+import org.apache.beam.runners.spark.translation.TransformTranslator;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.spark.api.java.JavaSparkContext;
 import org.junit.Rule;
 import org.junit.Test;
 
 /**
- * Test the RDD storage level defined by user.
+ * This test checks how the cache candidates map is populated by the runner when evaluating the
+ * pipeline.
  */
-public class StorageLevelTest {
+public class CacheTest {
 
   @Rule
   public final transient PipelineRule pipelineRule = PipelineRule.batch();
 
   @Test
-  public void test() throws Exception {
-    pipelineRule.getOptions().setStorageLevel("DISK_ONLY");
+  public void cacheCandidatesUpdaterTest() throws Exception {
     Pipeline pipeline = pipelineRule.createPipeline();
+    PCollection pCollection = pipeline.apply(Create.of("foo", "bar"));
+    // first read
+    pCollection.apply(Count.globally());
+    // second read
+    pCollection.apply(Count.globally());
 
-    PCollection<String> pCollection = pipeline.apply(Create.of("foo"));
-
-    // by default, the Spark runner doesn't cache the RDD if it accessed only one time.
-    // So, to "force" the caching of the RDD, we have to call the RDD at least two time.
-    // That's why we are using Count fn on the PCollection.
-    pCollection.apply(Count.<String>globally());
-
-    PCollection<String> output = pCollection.apply(new StorageLevelPTransform());
-
-    PAssert.thatSingleton(output).isEqualTo("Disk Serialized 1x Replicated");
-
-    pipeline.run();
+    JavaSparkContext jsc = SparkContextFactory.getSparkContext(pipelineRule.getOptions());
+    EvaluationContext ctxt = new EvaluationContext(jsc, pipeline);
+    SparkRunner.CacheVisitor updater =
+        new SparkRunner.CacheVisitor(new TransformTranslator.Translator(), ctxt);
+    pipeline.traverseTopologically(updater);
+    assertEquals(2L, (long) ctxt.getCacheCandidates().get(pCollection));
   }
 
 }

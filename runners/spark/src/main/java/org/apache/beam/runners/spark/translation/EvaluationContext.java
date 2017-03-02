@@ -21,12 +21,15 @@ package org.apache.beam.runners.spark.translation;
 import static com.google.common.base.Preconditions.checkArgument;
 
 import com.google.common.collect.Iterables;
+
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import org.apache.beam.runners.spark.SparkPipelineOptions;
+import org.apache.beam.runners.spark.coders.CoderHelpers;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
@@ -52,10 +55,10 @@ public class EvaluationContext {
   private final Map<PValue, Dataset> datasets = new LinkedHashMap<>();
   private final Map<PValue, Dataset> pcollections = new LinkedHashMap<>();
   private final Set<Dataset> leaves = new LinkedHashSet<>();
-  private final Set<PValue> multiReads = new LinkedHashSet<>();
   private final Map<PValue, Object> pobjects = new LinkedHashMap<>();
   private AppliedPTransform<?, ?, ?> currentTransform;
   private final SparkPCollectionView pviews = new SparkPCollectionView();
+  private final Map<PCollection, Long> cacheCandidates = new HashMap<>();
 
   public EvaluationContext(JavaSparkContext jsc, Pipeline pipeline) {
     this.jsc = jsc;
@@ -116,6 +119,15 @@ public class EvaluationContext {
     return currentTransform.getOutputs();
   }
 
+  private boolean shouldCache(PValue pvalue) {
+    if ((pvalue instanceof PCollection)
+        && cacheCandidates.containsKey(pvalue)
+        && cacheCandidates.get(pvalue) > 1) {
+      return true;
+    }
+    return false;
+  }
+
   public void putDataset(PTransform<?, ? extends PValue> transform, Dataset dataset) {
     putDataset(getOutput(transform), dataset);
   }
@@ -126,13 +138,30 @@ public class EvaluationContext {
     } catch (IllegalStateException e) {
       // name not set, ignore
     }
+    if (shouldCache(pvalue)) {
+      dataset.cache(storageLevel());
+    }
     datasets.put(pvalue, dataset);
     leaves.add(dataset);
   }
 
   <T> void putBoundedDatasetFromValues(
       PTransform<?, ? extends PValue> transform, Iterable<T> values, Coder<T> coder) {
-    datasets.put(getOutput(transform), new BoundedDataset<>(values, jsc, coder));
+    PValue output = getOutput(transform);
+    if (shouldCache(output)) {
+      // eagerly create the RDD, as it will be reused.
+      Iterable<WindowedValue<T>> elems = Iterables.transform(values,
+          WindowingHelpers.<T>windowValueFunction());
+      WindowedValue.ValueOnlyWindowedValueCoder<T> windowCoder =
+          WindowedValue.getValueOnlyCoder(coder);
+      JavaRDD<WindowedValue<T>> rdd =
+          getSparkContext().parallelize(CoderHelpers.toByteArrays(elems, windowCoder))
+          .map(CoderHelpers.fromByteFunction(windowCoder));
+      // create a BoundedDataset that would create a RDD on demand
+      putDataset(transform, new BoundedDataset<>(rdd));
+    } else {
+      datasets.put(getOutput(transform), new BoundedDataset<>(values, jsc, coder));
+    }
   }
 
   public Dataset borrowDataset(PTransform<? extends PValue, ?> transform) {
@@ -142,12 +171,6 @@ public class EvaluationContext {
   public Dataset borrowDataset(PValue pvalue) {
     Dataset dataset = datasets.get(pvalue);
     leaves.remove(dataset);
-    if (multiReads.contains(pvalue)) {
-      // Ensure the RDD is marked as cached
-      dataset.cache(storageLevel());
-    } else {
-      multiReads.add(pvalue);
-    }
     return dataset;
   }
 
@@ -157,8 +180,6 @@ public class EvaluationContext {
    */
   public void computeOutputs() {
     for (Dataset dataset : leaves) {
-      // cache so that any subsequent get() is cheap.
-      dataset.cache(storageLevel());
       dataset.action(); // force computation.
     }
   }
@@ -229,6 +250,10 @@ public class EvaluationContext {
 
   private String storageLevel() {
     return runtime.getPipelineOptions().as(SparkPipelineOptions.class).getStorageLevel();
+  }
+
+  public Map<PCollection, Long> getCacheCandidates() {
+    return this.cacheCandidates;
   }
 
 }
