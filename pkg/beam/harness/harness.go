@@ -3,7 +3,6 @@ package harness
 import (
 	"context"
 	"fmt"
-	"github.com/golang/protobuf/ptypes"
 	pb "github.com/apache/beam/sdks/go/third_party/beam/org_apache_beam_fn_v1"
 	"google.golang.org/grpc"
 	"io"
@@ -17,48 +16,18 @@ import (
 // "pipeline-construction time" -- on each worker. It is a Fn API client and
 // ultimately responsible for correctly executing user code.
 func Main(ctx context.Context, loggingEndpoint, controlEndpoint string) error {
-	lconn, err := connect(loggingEndpoint, 20)
-	if err != nil {
-		return fmt.Errorf("Failed to connect: %v", err)
-	}
-	defer lconn.Close()
+	setupRemoteLogging(ctx, loggingEndpoint)
 
-	// (1) Redirect logging to logging api.
-
-	if client, err := pb.NewBeamFnLoggingClient(lconn).Logging(ctx); err == nil {
-		defer client.CloseSend()
-
-		now, _ := ptypes.TimestampProto(time.Now())
-
-		list := &pb.LogEntry_List{
-			LogEntries: []*pb.LogEntry{
-				{
-					Message:   "Gophers are majestic creatures!",
-					Timestamp: now,
-					Severity:  pb.LogEntry_CRITICAL,
-				},
-			},
-		}
-		if err := client.Send(list); err != nil {
-			log.Printf("Didn't send: %v", err)
-		}
-
-		// TODO: actually setup redirection, similarly to the fluentd logger
-	} else {
-		return fmt.Errorf("Failed to connect to logging service: %v", err)
-	}
-
-	// (2) Connect to FnAPI control server. Receive and execute work.
-
+	// Connect to FnAPI control server. Receive and execute work.
 	// TODO: setup data manager, DoFn register
 
-	cconn, err := connect(controlEndpoint, 5)
+	conn, err := connect(controlEndpoint, 20)
 	if err != nil {
 		return fmt.Errorf("Failed to connect: %v", err)
 	}
-	defer cconn.Close()
+	defer conn.Close()
 
-	client, err := pb.NewBeamFnControlClient(cconn).Control(ctx)
+	client, err := pb.NewBeamFnControlClient(conn).Control(ctx)
 	if err != nil {
 		return fmt.Errorf("Failed to connect to control service: %v", err)
 	}
@@ -123,7 +92,7 @@ func connect(endpoint string, attempts int) (*grpc.ClientConn, error) {
 		}
 
 		log.Printf("Failed to connect to %s: %v", endpoint, err)
-		time.Sleep(10 * time.Second)
+		time.Sleep(5 * time.Second)
 	}
 	return nil, fmt.Errorf("failed to connect to %s in %v attempts", endpoint, attempts)
 }

@@ -65,6 +65,14 @@ func translate(edges []*graph.MultiEdge) ([]*df.Step, error) {
 			}
 			prop.OutputInfo = append(prop.OutputInfo, info)
 		}
+		if len(prop.OutputInfo) == 0 {
+			// NOTE: Dataflow seems to require at least one output.
+			prop.OutputInfo = []output{{
+				UserName:   "bogus",
+				OutputName: "bogus",
+				Encoding:   translateCoder(edge.Input[0].From),
+			}}
+		}
 
 		step := &df.Step{
 			Name:       stepID(edge.ID()),
