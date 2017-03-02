@@ -306,12 +306,12 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
             PTransformMatchers.parDoWithFnType(unsupported),
             UnsupportedOverrideFactory.withMessage(getUnsupportedMessage(unsupported, true)));
       }
-      if (hasExperiment(options, "enable_custom_pubsub_source")) {
+      if (!hasExperiment(options, "enable_custom_pubsub_source")) {
         ptoverrides.put(
             PTransformMatchers.classEqualTo(PubsubUnboundedSource.class),
             new ReflectiveRootOverrideFactory(StreamingPubsubIORead.class, this));
       }
-      if (hasExperiment(options, "enable_custom_pubsub_sink")) {
+      if (!hasExperiment(options, "enable_custom_pubsub_sink")) {
         ptoverrides.put(
             PTransformMatchers.classEqualTo(PubsubUnboundedSink.class),
             new StreamingPubsubIOWriteOverrideFactory(this));
