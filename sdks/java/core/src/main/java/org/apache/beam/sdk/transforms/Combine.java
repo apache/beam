@@ -1484,7 +1484,7 @@ public class Combine {
       final OutputT defaultValue = fn.defaultValue();
       PCollection<OutputT> defaultIfEmpty = maybeEmpty.getPipeline()
           .apply("CreateVoid", Create.of((Void) null).withCoder(VoidCoder.of()))
-          .apply("ProduceDefault", ParDo.withSideInputs(maybeEmptyView).of(
+          .apply("ProduceDefault", ParDo.of(
               new DoFn<Void, OutputT>() {
                 @ProcessElement
                 public void processElement(ProcessContext c) {
@@ -1493,7 +1493,7 @@ public class Combine {
                     c.output(defaultValue);
                   }
                 }
-              }))
+              }).withSideInputs(maybeEmptyView))
           .setCoder(maybeEmpty.getCoder())
           .setWindowingStrategyInternal(maybeEmpty.getWindowingStrategy());
 

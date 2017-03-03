@@ -851,7 +851,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
     pipeline
         .apply(Create.of(KV.of(1, 1)))
         .apply(
-            ParDo.withOutputTags(mainOutputTag, TupleTagList.empty()).of(
+            ParDo.of(
                 new DoFn<KV<Integer, Integer>, Integer>() {
                   @StateId("unused")
                   final StateSpec<Object, ValueState<Integer>> stateSpec =
@@ -861,7 +861,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
                   public void process(ProcessContext c) {
                     // noop
                   }
-                }));
+                }).withOutputTags(mainOutputTag, TupleTagList.empty()));
 
     runner.replaceTransforms(pipeline);
 

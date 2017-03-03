@@ -207,7 +207,7 @@ public class MetricsTest implements Serializable {
             bundleDist.update(40L);
           }
         }))
-        .apply("MyStep2", ParDo.withOutputTags(output1, TupleTagList.of(output2))
+        .apply("MyStep2", ParDo
             .of(new DoFn<Integer, Integer>() {
               @SuppressWarnings("unused")
               @ProcessElement
@@ -221,7 +221,8 @@ public class MetricsTest implements Serializable {
                 c.output(element);
                 c.sideOutput(output2, element);
               }
-            }));
+            })
+            .withOutputTags(output1, TupleTagList.of(output2)));
     PipelineResult result = pipeline.run();
 
     result.waitUntilFinish();
