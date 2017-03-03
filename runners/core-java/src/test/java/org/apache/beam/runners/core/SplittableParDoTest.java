@@ -135,7 +135,7 @@ public class SplittableParDoTest {
 
   private static final TupleTag<String> MAIN_OUTPUT_TAG = new TupleTag<String>() {};
 
-  private ParDo.BoundMulti<Integer, String> makeParDo(DoFn<Integer, String> fn) {
+  private ParDo.MultiOutput<Integer, String> makeParDo(DoFn<Integer, String> fn) {
     return ParDo.of(fn).withOutputTags(MAIN_OUTPUT_TAG, TupleTagList.empty());
   }
 

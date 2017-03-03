@@ -33,7 +33,6 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.ParDo.BoundMulti;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -76,7 +75,7 @@ public class BatchStatefulParDoOverrides {
   public static <K, InputT, OutputT>
       PTransformOverrideFactory<
               PCollection<KV<K, InputT>>, PCollectionTuple,
-              ParDo.BoundMulti<KV<K, InputT>, OutputT>>
+              ParDo.MultiOutput<KV<K, InputT>, OutputT>>
           multiOutputOverrideFactory() {
     return new MultiOutputOverrideFactory<>();
   }
@@ -107,12 +106,12 @@ public class BatchStatefulParDoOverrides {
 
   private static class MultiOutputOverrideFactory<K, InputT, OutputT>
       implements PTransformOverrideFactory<
-          PCollection<KV<K, InputT>>, PCollectionTuple, ParDo.BoundMulti<KV<K, InputT>, OutputT>> {
+          PCollection<KV<K, InputT>>, PCollectionTuple, ParDo.MultiOutput<KV<K, InputT>, OutputT>> {
 
     @Override
     @SuppressWarnings("unchecked")
     public PTransform<PCollection<KV<K, InputT>>, PCollectionTuple> getReplacementTransform(
-        BoundMulti<KV<K, InputT>, OutputT> originalParDo) {
+        ParDo.MultiOutput<KV<K, InputT>, OutputT> originalParDo) {
       return new StatefulMultiOutputParDo<>(originalParDo);
     }
 
@@ -159,9 +158,9 @@ public class BatchStatefulParDoOverrides {
   static class StatefulMultiOutputParDo<K, InputT, OutputT>
       extends PTransform<PCollection<KV<K, InputT>>, PCollectionTuple> {
 
-    private final BoundMulti<KV<K, InputT>, OutputT> originalParDo;
+    private final ParDo.MultiOutput<KV<K, InputT>, OutputT> originalParDo;
 
-    StatefulMultiOutputParDo(ParDo.BoundMulti<KV<K, InputT>, OutputT> originalParDo) {
+    StatefulMultiOutputParDo(ParDo.MultiOutput<KV<K, InputT>, OutputT> originalParDo) {
       this.originalParDo = originalParDo;
     }
 
@@ -182,7 +181,7 @@ public class BatchStatefulParDoOverrides {
       return input.apply(new GbkBeforeStatefulParDo<K, InputT>()).apply(statefulParDo);
     }
 
-    public BoundMulti<KV<K, InputT>, OutputT> getOriginalParDo() {
+    public ParDo.MultiOutput<KV<K, InputT>, OutputT> getOriginalParDo() {
       return originalParDo;
     }
   }

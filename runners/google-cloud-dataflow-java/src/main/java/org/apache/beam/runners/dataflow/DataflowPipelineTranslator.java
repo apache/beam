@@ -821,15 +821,15 @@ public class DataflowPipelineTranslator {
         });
 
     registerTransformTranslator(
-        ParDo.BoundMulti.class,
-        new TransformTranslator<ParDo.BoundMulti>() {
+        ParDo.MultiOutput.class,
+        new TransformTranslator<ParDo.MultiOutput>() {
           @Override
-          public void translate(ParDo.BoundMulti transform, TranslationContext context) {
+          public void translate(ParDo.MultiOutput transform, TranslationContext context) {
             translateMultiHelper(transform, context);
           }
 
           private <InputT, OutputT> void translateMultiHelper(
-              ParDo.BoundMulti<InputT, OutputT> transform, TranslationContext context) {
+              ParDo.MultiOutput<InputT, OutputT> transform, TranslationContext context) {
 
             StepTranslationContext stepContext = context.addStep(transform, "ParallelDo");
             translateInputs(
