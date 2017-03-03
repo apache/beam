@@ -547,9 +547,9 @@ public class ParDo {
      *
      * <p>See the discussion of Side Outputs above for more explanation.
      */
-    public BoundMulti<InputT, OutputT> withOutputTags(
+    public MultiOutput<InputT, OutputT> withOutputTags(
         TupleTag<OutputT> mainOutputTag, TupleTagList sideOutputTags) {
-      return new BoundMulti<>(fn, sideInputs, mainOutputTag, sideOutputTags, fnDisplayData);
+      return new MultiOutput<>(fn, sideInputs, mainOutputTag, sideOutputTags, fnDisplayData);
     }
 
     @Override
@@ -606,7 +606,7 @@ public class ParDo {
    * @param <InputT> the type of the (main) input {@code PCollection} elements
    * @param <OutputT> the type of the main output {@code PCollection} elements
    */
-  public static class BoundMulti<InputT, OutputT>
+  public static class MultiOutput<InputT, OutputT>
       extends PTransform<PCollection<? extends InputT>, PCollectionTuple> {
     private final List<PCollectionView<?>> sideInputs;
     private final TupleTag<OutputT> mainOutputTag;
@@ -614,7 +614,7 @@ public class ParDo {
     private final DisplayData.ItemSpec<? extends Class<?>> fnDisplayData;
     private final DoFn<InputT, OutputT> fn;
 
-    BoundMulti(
+    MultiOutput(
         DoFn<InputT, OutputT> fn,
         List<PCollectionView<?>> sideInputs,
         TupleTag<OutputT> mainOutputTag,
@@ -634,7 +634,7 @@ public class ParDo {
      *
      * <p>See the discussion of Side Inputs above for more explanation.
      */
-    public BoundMulti<InputT, OutputT> withSideInputs(
+    public MultiOutput<InputT, OutputT> withSideInputs(
         PCollectionView<?>... sideInputs) {
       return withSideInputs(Arrays.asList(sideInputs));
     }
@@ -646,9 +646,9 @@ public class ParDo {
      *
      * <p>See the discussion of Side Inputs above for more explanation.
      */
-    public BoundMulti<InputT, OutputT> withSideInputs(
+    public MultiOutput<InputT, OutputT> withSideInputs(
         Iterable<? extends PCollectionView<?>> sideInputs) {
-      return new BoundMulti<>(
+      return new MultiOutput<>(
           fn,
           ImmutableList.<PCollectionView<?>>builder()
               .addAll(this.sideInputs)

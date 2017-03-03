@@ -71,9 +71,9 @@ class AggregatorPipelineExtractor {
       if (transform != null) {
         if (transform instanceof ParDo.SingleOutput) {
           return AggregatorRetriever.getAggregators(((ParDo.SingleOutput<?, ?>) transform).getFn());
-        } else if (transform instanceof ParDo.BoundMulti) {
+        } else if (transform instanceof ParDo.MultiOutput) {
           return AggregatorRetriever.getAggregators(
-              ((ParDo.BoundMulti<?, ?>) transform).getFn());
+              ((ParDo.MultiOutput<?, ?>) transform).getFn());
         }
       }
       return Collections.emptyList();

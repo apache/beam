@@ -92,9 +92,9 @@ public class AggregatorPipelineExtractorTest {
 
   @SuppressWarnings("unchecked")
   @Test
-  public void testGetAggregatorStepsWithParDoBoundMultiExtractsSteps() {
+  public void testGetAggregatorStepsWithParDoMultiOutputExtractsSteps() {
     @SuppressWarnings("rawtypes")
-    ParDo.BoundMulti parDo = mock(ParDo.BoundMulti.class, "parDo");
+    ParDo.MultiOutput parDo = mock(ParDo.MultiOutput.class, "parDo");
     AggregatorProvidingDoFn<Object, Void> fn = new AggregatorProvidingDoFn<>();
     when(parDo.getFn()).thenReturn(fn);
 
@@ -124,7 +124,7 @@ public class AggregatorPipelineExtractorTest {
     @SuppressWarnings("rawtypes")
     ParDo.SingleOutput parDo = mock(ParDo.SingleOutput.class, "parDo");
     @SuppressWarnings("rawtypes")
-    ParDo.BoundMulti otherParDo = mock(ParDo.BoundMulti.class, "otherParDo");
+    ParDo.MultiOutput otherParDo = mock(ParDo.MultiOutput.class, "otherParDo");
     AggregatorProvidingDoFn<String, Math> fn = new AggregatorProvidingDoFn<>();
     when(parDo.getFn()).thenReturn(fn);
     when(otherParDo.getFn()).thenReturn(fn);
@@ -165,7 +165,7 @@ public class AggregatorPipelineExtractorTest {
     when(parDo.getFn()).thenReturn(fn);
 
     @SuppressWarnings("rawtypes")
-    ParDo.BoundMulti otherParDo = mock(ParDo.BoundMulti.class, "otherParDo");
+    ParDo.MultiOutput otherParDo = mock(ParDo.MultiOutput.class, "otherParDo");
 
     AggregatorProvidingDoFn<Long, Long> otherFn = new AggregatorProvidingDoFn<>();
     Aggregator<Double, Double> aggregatorTwo = otherFn.addAggregator(Sum.ofDoubles());

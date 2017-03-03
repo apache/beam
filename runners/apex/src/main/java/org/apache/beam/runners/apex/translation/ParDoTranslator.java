@@ -44,15 +44,15 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * {@link ParDo.BoundMulti} is translated to {@link ApexParDoOperator} that wraps the {@link DoFn}.
+ * {@link ParDo.MultiOutput} is translated to {@link ApexParDoOperator} that wraps the {@link DoFn}.
  */
 class ParDoTranslator<InputT, OutputT>
-    implements TransformTranslator<ParDo.BoundMulti<InputT, OutputT>> {
+    implements TransformTranslator<ParDo.MultiOutput<InputT, OutputT>> {
   private static final long serialVersionUID = 1L;
   private static final Logger LOG = LoggerFactory.getLogger(ParDoTranslator.class);
 
   @Override
-  public void translate(ParDo.BoundMulti<InputT, OutputT> transform, TranslationContext context) {
+  public void translate(ParDo.MultiOutput<InputT, OutputT> transform, TranslationContext context) {
     DoFn<InputT, OutputT> doFn = transform.getFn();
     DoFnSignature signature = DoFnSignatures.getSignature(doFn.getClass());
 
@@ -105,7 +105,7 @@ class ParDoTranslator<InputT, OutputT>
       checkArgument(
           output.getValue() instanceof PCollection,
           "%s %s outputs non-PCollection %s of type %s",
-          ParDo.BoundMulti.class.getSimpleName(),
+          ParDo.MultiOutput.class.getSimpleName(),
           context.getFullName(),
           output.getValue(),
           output.getValue().getClass().getSimpleName());

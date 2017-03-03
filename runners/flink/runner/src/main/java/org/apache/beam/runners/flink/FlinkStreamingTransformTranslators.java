@@ -121,7 +121,7 @@ class FlinkStreamingTransformTranslators {
     TRANSLATORS.put(Write.class, new WriteSinkStreamingTranslator());
     TRANSLATORS.put(TextIO.Write.Bound.class, new TextIOWriteBoundStreamingTranslator());
 
-    TRANSLATORS.put(ParDo.BoundMulti.class, new ParDoStreamingTranslator());
+    TRANSLATORS.put(ParDo.MultiOutput.class, new ParDoStreamingTranslator());
 
     TRANSLATORS.put(Window.Assign.class, new WindowAssignTranslator());
     TRANSLATORS.put(Flatten.PCollections.class, new FlattenPCollectionTranslator());
@@ -398,11 +398,11 @@ class FlinkStreamingTransformTranslators {
 
   private static class ParDoStreamingTranslator<InputT, OutputT>
       extends FlinkStreamingPipelineTranslator.StreamTransformTranslator<
-      ParDo.BoundMulti<InputT, OutputT>> {
+      ParDo.MultiOutput<InputT, OutputT>> {
 
     @Override
     public void translateNode(
-        ParDo.BoundMulti<InputT, OutputT> transform,
+        ParDo.MultiOutput<InputT, OutputT> transform,
         FlinkStreamingTranslationContext context) {
 
       DoFn<InputT, OutputT> doFn = transform.getFn();

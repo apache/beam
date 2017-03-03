@@ -355,11 +355,12 @@ public final class TransformTranslator {
     };
   }
 
-  private static <InputT, OutputT> TransformEvaluator<ParDo.BoundMulti<InputT, OutputT>>
+  private static <InputT, OutputT> TransformEvaluator<ParDo.MultiOutput<InputT, OutputT>>
   parDo() {
-    return new TransformEvaluator<ParDo.BoundMulti<InputT, OutputT>>() {
+    return new TransformEvaluator<ParDo.MultiOutput<InputT, OutputT>>() {
       @Override
-      public void evaluate(ParDo.BoundMulti<InputT, OutputT> transform, EvaluationContext context) {
+      public void evaluate(
+          ParDo.MultiOutput<InputT, OutputT> transform, EvaluationContext context) {
         String stepName = context.getCurrentTransform().getFullName();
         DoFn<InputT, OutputT> doFn = transform.getFn();
         rejectSplittable(doFn);
@@ -847,7 +848,7 @@ public final class TransformTranslator {
     EVALUATORS.put(Read.Bounded.class, readBounded());
     EVALUATORS.put(HadoopIO.Read.Bound.class, readHadoop());
     EVALUATORS.put(HadoopIO.Write.Bound.class, writeHadoop());
-    EVALUATORS.put(ParDo.BoundMulti.class, parDo());
+    EVALUATORS.put(ParDo.MultiOutput.class, parDo());
     EVALUATORS.put(GroupByKey.class, groupByKey());
     EVALUATORS.put(Combine.GroupedValues.class, combineGrouped());
     EVALUATORS.put(Combine.Globally.class, combineGlobally());

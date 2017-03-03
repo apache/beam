@@ -366,11 +366,11 @@ public final class StreamingTransformTranslator {
     };
   }
 
-  private static <InputT, OutputT> TransformEvaluator<ParDo.BoundMulti<InputT, OutputT>>
+  private static <InputT, OutputT> TransformEvaluator<ParDo.MultiOutput<InputT, OutputT>>
   multiDo() {
-    return new TransformEvaluator<ParDo.BoundMulti<InputT, OutputT>>() {
+    return new TransformEvaluator<ParDo.MultiOutput<InputT, OutputT>>() {
       public void evaluate(
-          final ParDo.BoundMulti<InputT, OutputT> transform, final EvaluationContext context) {
+          final ParDo.MultiOutput<InputT, OutputT> transform, final EvaluationContext context) {
         final DoFn<InputT, OutputT> doFn = transform.getFn();
         rejectSplittable(doFn);
         rejectStateAndTimers(doFn);
@@ -523,7 +523,7 @@ public final class StreamingTransformTranslator {
     EVALUATORS.put(Read.Unbounded.class, readUnbounded());
     EVALUATORS.put(GroupByKey.class, groupByKey());
     EVALUATORS.put(Combine.GroupedValues.class, combineGrouped());
-    EVALUATORS.put(ParDo.BoundMulti.class, multiDo());
+    EVALUATORS.put(ParDo.MultiOutput.class, multiDo());
     EVALUATORS.put(ConsoleIO.Write.Unbound.class, print());
     EVALUATORS.put(CreateStream.class, createFromQueue());
     EVALUATORS.put(Window.Assign.class, window());

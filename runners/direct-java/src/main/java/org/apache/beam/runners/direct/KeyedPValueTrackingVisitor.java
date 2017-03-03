@@ -116,8 +116,8 @@ class KeyedPValueTrackingVisitor implements PipelineVisitor {
     // The most obvious alternative would be a package-private marker interface, but
     // better to make this obviously hacky so it is less likely to proliferate. Meanwhile
     // we intend to allow explicit expression of key-preserving DoFn in the model.
-    if (transform instanceof ParDo.BoundMulti) {
-      ParDo.BoundMulti<?, ?> parDo = (ParDo.BoundMulti<?, ?>) transform;
+    if (transform instanceof ParDo.MultiOutput) {
+      ParDo.MultiOutput<?, ?> parDo = (ParDo.MultiOutput<?, ?>) transform;
       return parDo.getFn() instanceof ParDoMultiOverrideFactory.ToKeyedWorkItem;
     } else {
       return false;

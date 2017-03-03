@@ -898,7 +898,7 @@ public class ParDoTest implements Serializable {
           }
         };
 
-    ParDo.BoundMulti<Long, Long> parDo =
+    ParDo.MultiOutput<Long, Long> parDo =
         ParDo.of(fn).withOutputTags(mainOut, TupleTagList.of(sideOutOne).and(sideOutTwo));
     PCollectionTuple firstApplication = longs.apply("first", parDo);
     PCollectionTuple secondApplication = longs.apply("second", parDo);
@@ -1161,7 +1161,7 @@ public class ParDoTest implements Serializable {
 
     final TupleTag<Integer> mainOutputTag = new TupleTag<Integer>("main");
     final TupleTag<TestDummy> sideOutputTag = new TupleTag<TestDummy>("unregisteredSide");
-    ParDo.BoundMulti<Integer, Integer> pardo = ParDo.of(new SideOutputDummyFn(sideOutputTag))
+    ParDo.MultiOutput<Integer, Integer> pardo = ParDo.of(new SideOutputDummyFn(sideOutputTag))
         .withOutputTags(mainOutputTag, TupleTagList.of(sideOutputTag));
     PCollectionTuple outputTuple = input.apply(pardo);
 
@@ -2301,7 +2301,7 @@ public class ParDoTest implements Serializable {
       }
     };
 
-    ParDo.BoundMulti<String, String> parDo = ParDo
+    ParDo.MultiOutput<String, String> parDo = ParDo
             .of(fn)
             .withOutputTags(new TupleTag<String>(), TupleTagList.empty());
 
