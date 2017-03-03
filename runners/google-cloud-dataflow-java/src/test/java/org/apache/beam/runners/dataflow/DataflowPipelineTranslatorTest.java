@@ -1013,8 +1013,8 @@ public class DataflowPipelineTranslatorTest implements Serializable {
       }
     };
 
-    ParDo.Bound<Integer, Integer> parDo1 = ParDo.of(fn1);
-    ParDo.Bound<Integer, Integer> parDo2 = ParDo.of(fn2);
+    ParDo.SingleOutput<Integer, Integer> parDo1 = ParDo.of(fn1);
+    ParDo.SingleOutput<Integer, Integer> parDo2 = ParDo.of(fn2);
     pipeline
       .apply(Create.of(1, 2, 3))
       .apply(parDo1)

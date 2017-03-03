@@ -168,7 +168,7 @@ public class DirectRunner extends PipelineRunner<DirectPipelineResult> {
   /** The set of {@link PTransform PTransforms} that execute a UDF. Useful for some enforcements. */
   private static final Set<Class<? extends PTransform>> CONTAINS_UDF =
       ImmutableSet.of(
-          Read.Bounded.class, Read.Unbounded.class, ParDo.Bound.class, ParDo.BoundMulti.class);
+          Read.Bounded.class, Read.Unbounded.class, ParDo.SingleOutput.class, ParDo.BoundMulti.class);
 
   enum Enforcement {
     ENCODABILITY {
@@ -221,7 +221,7 @@ public class DirectRunner extends PipelineRunner<DirectPipelineResult> {
         enabledParDoEnforcements.add(ImmutabilityEnforcementFactory.create());
       }
       Collection<ModelEnforcementFactory> parDoEnforcements = enabledParDoEnforcements.build();
-      enforcements.put(ParDo.Bound.class, parDoEnforcements);
+      enforcements.put(ParDo.SingleOutput.class, parDoEnforcements);
       enforcements.put(ParDo.BoundMulti.class, parDoEnforcements);
       return enforcements.build();
     }

@@ -58,12 +58,13 @@ import org.joda.time.Instant;
 public class BatchStatefulParDoOverrides {
 
   /**
-   * Returns a {@link PTransformOverrideFactory} that replaces a single-output
-   * {@link ParDo} with a composite transform specialized for the {@link DataflowRunner}.
+   * Returns a {@link PTransformOverrideFactory} that replaces a single-output {@link ParDo} with a
+   * composite transform specialized for the {@link DataflowRunner}.
    */
   public static <K, InputT, OutputT>
       PTransformOverrideFactory<
-              PCollection<KV<K, InputT>>, PCollection<OutputT>, ParDo.Bound<KV<K, InputT>, OutputT>>
+              PCollection<KV<K, InputT>>, PCollection<OutputT>,
+              ParDo.SingleOutput<KV<K, InputT>, OutputT>>
           singleOutputOverrideFactory() {
     return new SingleOutputOverrideFactory<>();
   }
@@ -82,12 +83,13 @@ public class BatchStatefulParDoOverrides {
 
   private static class SingleOutputOverrideFactory<K, InputT, OutputT>
       implements PTransformOverrideFactory<
-          PCollection<KV<K, InputT>>, PCollection<OutputT>, ParDo.Bound<KV<K, InputT>, OutputT>> {
+          PCollection<KV<K, InputT>>, PCollection<OutputT>,
+          ParDo.SingleOutput<KV<K, InputT>, OutputT>> {
 
     @Override
     @SuppressWarnings("unchecked")
     public PTransform<PCollection<KV<K, InputT>>, PCollection<OutputT>> getReplacementTransform(
-        ParDo.Bound<KV<K, InputT>, OutputT> originalParDo) {
+        ParDo.SingleOutput<KV<K, InputT>, OutputT> originalParDo) {
       return new StatefulSingleOutputParDo<>(originalParDo);
     }
 
@@ -129,13 +131,13 @@ public class BatchStatefulParDoOverrides {
   static class StatefulSingleOutputParDo<K, InputT, OutputT>
       extends PTransform<PCollection<KV<K, InputT>>, PCollection<OutputT>> {
 
-    private final ParDo.Bound<KV<K, InputT>, OutputT> originalParDo;
+    private final ParDo.SingleOutput<KV<K, InputT>, OutputT> originalParDo;
 
-    StatefulSingleOutputParDo(ParDo.Bound<KV<K, InputT>, OutputT> originalParDo) {
+    StatefulSingleOutputParDo(ParDo.SingleOutput<KV<K, InputT>, OutputT> originalParDo) {
       this.originalParDo = originalParDo;
     }
 
-    ParDo.Bound<KV<K, InputT>, OutputT> getOriginalParDo() {
+    ParDo.SingleOutput<KV<K, InputT>, OutputT> getOriginalParDo() {
       return originalParDo;
     }
 
