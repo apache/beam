@@ -129,7 +129,7 @@ import org.apache.beam.sdk.values.PCollectionView;
  * }
  * </pre>
  *
- * <p>See {@link ParDo#withSideInputs} for details on how to access
+ * <p>See {@link ParDo.SingleOutput#withSideInputs} for details on how to access
  * this variable inside a {@link ParDo} over another {@link PCollection}.
  */
 public class View {

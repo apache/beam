@@ -151,7 +151,7 @@ import org.apache.beam.sdk.values.TypedPValue;
  * {@link PCollectionView PCollectionViews} express styles of accessing
  * {@link PCollection PCollections} computed by earlier pipeline operations,
  * passed in to the {@link ParDo} transform using
- * {@link ParDo.Bound#withSideInputs}, and their contents accessible to each of
+ * {@link SingleOutput#withSideInputs}, and their contents accessible to each of
  * the {@link DoFn} operations via {@link DoFn.ProcessContext#sideInput sideInput}.
  * For example:
  *
@@ -181,7 +181,7 @@ import org.apache.beam.sdk.values.TypedPValue;
  * {@link PCollection PCollections}, each keyed by a distinct {@link TupleTag},
  * and bundled in a {@link PCollectionTuple}. The {@link TupleTag TupleTags}
  * to be used for the output {@link PCollectionTuple} are specified by
- * invoking {@link ParDo.Bound#withOutputTags}. Unconsumed side outputs do not
+ * invoking {@link SingleOutput#withOutputTags}. Unconsumed side outputs do not
  * necessarily need to be explicitly specified, even if the {@link DoFn}
  * generates them. Within the {@link DoFn}, an element is added to the
  * main output {@link PCollection} as normal, using
@@ -421,9 +421,9 @@ public class ParDo {
    * <p>The resulting {@link PTransform PTransform} is ready to be applied, or further
    * properties can be set on it first.
    */
-  public static <InputT, OutputT> Bound<InputT, OutputT> of(DoFn<InputT, OutputT> fn) {
+  public static <InputT, OutputT> SingleOutput<InputT, OutputT> of(DoFn<InputT, OutputT> fn) {
     validate(fn);
-    return new Bound<InputT, OutputT>(
+    return new SingleOutput<InputT, OutputT>(
         fn, Collections.<PCollectionView<?>>emptyList(), displayDataForFn(fn));
   }
 
@@ -491,18 +491,18 @@ public class ParDo {
    * {@code PCollection<OutputT>}.
    *
    * <p>A multi-output form of this transform can be created with
-   * {@link ParDo.Bound#withOutputTags}.
+   * {@link SingleOutput#withOutputTags}.
    *
    * @param <InputT> the type of the (main) input {@link PCollection} elements
    * @param <OutputT> the type of the (main) output {@link PCollection} elements
    */
-  public static class Bound<InputT, OutputT>
+  public static class SingleOutput<InputT, OutputT>
       extends PTransform<PCollection<? extends InputT>, PCollection<OutputT>> {
     private final List<PCollectionView<?>> sideInputs;
     private final DoFn<InputT, OutputT> fn;
     private final DisplayData.ItemSpec<? extends Class<?>> fnDisplayData;
 
-    Bound(
+    SingleOutput(
         DoFn<InputT, OutputT> fn,
         List<PCollectionView<?>> sideInputs,
         DisplayData.ItemSpec<? extends Class<?>> fnDisplayData) {
@@ -518,7 +518,7 @@ public class ParDo {
      *
      * <p>See the discussion of Side Inputs above for more explanation.
      */
-    public Bound<InputT, OutputT> withSideInputs(PCollectionView<?>... sideInputs) {
+    public SingleOutput<InputT, OutputT> withSideInputs(PCollectionView<?>... sideInputs) {
       return withSideInputs(Arrays.asList(sideInputs));
     }
 
@@ -529,9 +529,9 @@ public class ParDo {
      *
      * <p>See the discussion of Side Inputs above for more explanation.
      */
-    public Bound<InputT, OutputT> withSideInputs(
+    public SingleOutput<InputT, OutputT> withSideInputs(
         Iterable<? extends PCollectionView<?>> sideInputs) {
-      return new Bound<>(
+      return new SingleOutput<>(
           fn,
           ImmutableList.<PCollectionView<?>>builder()
               .addAll(this.sideInputs)

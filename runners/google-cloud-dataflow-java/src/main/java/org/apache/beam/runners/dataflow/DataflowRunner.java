@@ -371,7 +371,9 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
         .put(
             PTransformMatchers.classEqualTo(Combine.GroupedValues.class),
             new PrimitiveCombineGroupedValuesOverrideFactory())
-        .put(PTransformMatchers.classEqualTo(ParDo.Bound.class), new PrimitiveParDoSingleFactory());
+        .put(
+            PTransformMatchers.classEqualTo(ParDo.SingleOutput.class),
+            new PrimitiveParDoSingleFactory());
     return ptoverrides.build();
   }
 
