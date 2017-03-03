@@ -64,6 +64,7 @@ import org.apache.beam.runners.core.construction.ReplacementOutputs;
 import org.apache.beam.runners.core.construction.SingleInputOutputOverrideFactory;
 import org.apache.beam.runners.core.construction.UnsupportedOverrideFactory;
 import org.apache.beam.runners.dataflow.DataflowPipelineTranslator.JobSpecification;
+import org.apache.beam.runners.dataflow.StreamingViewOverrides.StreamingCreatePCollectionViewFactory;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineDebugOptions;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineWorkerPoolOptions;
@@ -75,6 +76,8 @@ import org.apache.beam.sdk.Pipeline.PipelineVisitor;
 import org.apache.beam.sdk.PipelineResult.State;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.Coder.NonDeterministicException;
+import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.FileBasedSink;
@@ -94,18 +97,12 @@ import org.apache.beam.sdk.runners.PipelineRunner;
 import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.transforms.Combine;
-import org.apache.beam.sdk.transforms.Combine.GloballyAsSingletonView;
 import org.apache.beam.sdk.transforms.Combine.GroupedValues;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.View;
-import org.apache.beam.sdk.transforms.View.AsIterable;
-import org.apache.beam.sdk.transforms.View.AsList;
-import org.apache.beam.sdk.transforms.View.AsMap;
-import org.apache.beam.sdk.transforms.View.AsMultimap;
-import org.apache.beam.sdk.transforms.View.AsSingleton;
 import org.apache.beam.sdk.transforms.WithKeys;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -326,29 +323,8 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
               PTransformMatchers.classEqualTo(Read.Unbounded.class),
               new ReflectiveRootOverrideFactory(StreamingUnboundedRead.class, this))
           .put(
-              PTransformMatchers.classEqualTo(GloballyAsSingletonView.class),
-              new ReflectiveOneToOneOverrideFactory(
-                  StreamingViewOverrides.StreamingCombineGloballyAsSingletonView.class, this))
-          .put(
-              PTransformMatchers.classEqualTo(AsMap.class),
-              new ReflectiveOneToOneOverrideFactory(
-                  StreamingViewOverrides.StreamingViewAsMap.class, this))
-          .put(
-              PTransformMatchers.classEqualTo(AsMultimap.class),
-              new ReflectiveOneToOneOverrideFactory(
-                  StreamingViewOverrides.StreamingViewAsMultimap.class, this))
-          .put(
-              PTransformMatchers.classEqualTo(AsSingleton.class),
-              new ReflectiveOneToOneOverrideFactory(
-                  StreamingViewOverrides.StreamingViewAsSingleton.class, this))
-          .put(
-              PTransformMatchers.classEqualTo(AsList.class),
-              new ReflectiveOneToOneOverrideFactory(
-                  StreamingViewOverrides.StreamingViewAsList.class, this))
-          .put(
-              PTransformMatchers.classEqualTo(AsIterable.class),
-              new ReflectiveOneToOneOverrideFactory(
-                  StreamingViewOverrides.StreamingViewAsIterable.class, this));
+              PTransformMatchers.classEqualTo(View.CreatePCollectionView.class),
+              new StreamingCreatePCollectionViewFactory());
     } else {
       // In batch mode must use the custom Pubsub bounded source/sink.
       for (Class<? extends PTransform> unsupported :
@@ -719,30 +695,40 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     // have just recorded the full names during apply time.
     if (!ptransformViewsWithNonDeterministicKeyCoders.isEmpty()) {
       final SortedSet<String> ptransformViewNamesWithNonDeterministicKeyCoders = new TreeSet<>();
-      pipeline.traverseTopologically(new PipelineVisitor() {
-        @Override
-        public void visitValue(PValue value, TransformHierarchy.Node producer) {
-        }
+      pipeline.traverseTopologically(
+          new PipelineVisitor() {
+            @Override
+            public void visitValue(PValue value, TransformHierarchy.Node producer) {}
 
-        @Override
-        public void visitPrimitiveTransform(TransformHierarchy.Node node) {
-          if (ptransformViewsWithNonDeterministicKeyCoders.contains(node.getTransform())) {
-            ptransformViewNamesWithNonDeterministicKeyCoders.add(node.getFullName());
-          }
-        }
+            @Override
+            public void visitPrimitiveTransform(TransformHierarchy.Node node) {
+              if (ptransformViewsWithNonDeterministicKeyCoders.contains(node.getTransform())) {
+                ptransformViewNamesWithNonDeterministicKeyCoders.add(node.getFullName());
+              }
+            }
 
-        @Override
-        public CompositeBehavior enterCompositeTransform(TransformHierarchy.Node node) {
-          if (ptransformViewsWithNonDeterministicKeyCoders.contains(node.getTransform())) {
-            ptransformViewNamesWithNonDeterministicKeyCoders.add(node.getFullName());
-          }
-          return CompositeBehavior.ENTER_TRANSFORM;
-        }
+            @Override
+            public CompositeBehavior enterCompositeTransform(TransformHierarchy.Node node) {
+              if (node.getTransform() instanceof View.AsMap
+                  || node.getTransform() instanceof View.AsMultimap) {
+                PCollection<KV<?, ?>> input =
+                    (PCollection<KV<?, ?>>) Iterables.getOnlyElement(node.getInputs()).getValue();
+                KvCoder<?, ?> inputCoder = (KvCoder) input.getCoder();
+                try {
+                  inputCoder.getKeyCoder().verifyDeterministic();
+                } catch (NonDeterministicException e) {
+                  ptransformViewNamesWithNonDeterministicKeyCoders.add(node.getFullName());
+                }
+              }
+              if (ptransformViewsWithNonDeterministicKeyCoders.contains(node.getTransform())) {
+                ptransformViewNamesWithNonDeterministicKeyCoders.add(node.getFullName());
+              }
+              return CompositeBehavior.ENTER_TRANSFORM;
+            }
 
-        @Override
-        public void leaveCompositeTransform(TransformHierarchy.Node node) {
-        }
-      });
+            @Override
+            public void leaveCompositeTransform(TransformHierarchy.Node node) {}
+          });
 
       LOG.warn("Unable to use indexed implementation for View.AsMap and View.AsMultimap for {} "
           + "because the key coder is not deterministic. Falling back to singleton implementation "
