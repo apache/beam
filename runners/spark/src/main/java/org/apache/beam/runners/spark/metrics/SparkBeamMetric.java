@@ -23,6 +23,7 @@ import com.google.common.annotations.VisibleForTesting;
 import java.util.HashMap;
 import java.util.Map;
 import org.apache.beam.sdk.metrics.DistributionResult;
+import org.apache.beam.sdk.metrics.GaugeResult;
 import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.metrics.MetricQueryResults;
 import org.apache.beam.sdk.metrics.MetricResult;
@@ -52,6 +53,9 @@ class SparkBeamMetric implements Metric {
       metrics.put(renderName(metricResult) + ".min", result.min());
       metrics.put(renderName(metricResult) + ".max", result.max());
       metrics.put(renderName(metricResult) + ".mean", result.mean());
+    }
+    for (MetricResult<GaugeResult> metricResult : metricQueryResults.gauges()) {
+      metrics.put(renderName(metricResult), metricResult.attempted().value());
     }
     return metrics;
   }

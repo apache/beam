@@ -17,20 +17,32 @@
  */
 package org.apache.beam.sdk.metrics;
 
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
+import static org.hamcrest.Matchers.equalTo;
+import static org.junit.Assert.assertThat;
+import org.junit.Test;
 
 /**
- * The results of a query for metrics. Allows accessing all of the metrics that matched the filter.
+ * Tests for {@link GaugeCell}.
  */
-@Experimental(Kind.METRICS)
-public interface MetricQueryResults {
-  /** Return the metric results for the counters that matched the filter. */
-  Iterable<MetricResult<Long>> counters();
+public class GaugeCellTest {
+  private GaugeCell cell = new GaugeCell();
 
-  /** Return the metric results for the distributions that matched the filter. */
-  Iterable<MetricResult<DistributionResult>> distributions();
+  @Test
+  public void testDeltaAndCumulative() {
+    cell.set(5);
+    cell.set(7);
+    assertThat(cell.getCumulative().value(), equalTo(GaugeData.create(7).value()));
+    assertThat("getCumulative is idempotent",
+        cell.getCumulative().value(), equalTo(7L));
 
-  /** Return the metric results for the gauges that matched the filter. */
-  Iterable<MetricResult<GaugeResult>> gauges();
+    assertThat(cell.getDirty().beforeCommit(), equalTo(true));
+    cell.getDirty().afterCommit();
+    assertThat(cell.getDirty().beforeCommit(), equalTo(false));
+
+    cell.set(30);
+    assertThat(cell.getCumulative().value(), equalTo(30L));
+
+    assertThat("Adding a new value made the cell dirty",
+        cell.getDirty().beforeCommit(), equalTo(true));
+  }
 }

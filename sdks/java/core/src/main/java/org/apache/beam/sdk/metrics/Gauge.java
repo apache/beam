@@ -18,19 +18,15 @@
 package org.apache.beam.sdk.metrics;
 
 import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 
 /**
- * The results of a query for metrics. Allows accessing all of the metrics that matched the filter.
+ * A metric that reports the latest value out of reported values.
+ *
+ * <p>Since metrics are collected from many workers the value may not be the absolute last,
+ * but one of the latest values.</p>
  */
-@Experimental(Kind.METRICS)
-public interface MetricQueryResults {
-  /** Return the metric results for the counters that matched the filter. */
-  Iterable<MetricResult<Long>> counters();
-
-  /** Return the metric results for the distributions that matched the filter. */
-  Iterable<MetricResult<DistributionResult>> distributions();
-
-  /** Return the metric results for the gauges that matched the filter. */
-  Iterable<MetricResult<GaugeResult>> gauges();
+@Experimental(Experimental.Kind.METRICS)
+public interface Gauge extends Metric {
+  /** Set current value for this gauge. */
+  void set(long value);
 }
