@@ -45,7 +45,6 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Supplier;
 import com.google.common.collect.BiMap;
 import com.google.common.collect.ImmutableBiMap;
-import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -845,34 +844,6 @@ public class DataflowPipelineTranslator {
                 context,
                 outputMap.inverse().get(transform.getMainOutputTag()),
                 outputMap);
-          }
-        });
-
-    registerTransformTranslator(
-        ParDo.Bound.class,
-        new TransformTranslator<ParDo.Bound>() {
-          @Override
-          public void translate(ParDo.Bound transform, TranslationContext context) {
-            translateSingleHelper(transform, context);
-          }
-
-          private <InputT, OutputT> void translateSingleHelper(
-              ParDo.Bound<InputT, OutputT> transform, TranslationContext context) {
-
-            StepTranslationContext stepContext = context.addStep(transform, "ParallelDo");
-            translateInputs(
-                stepContext, context.getInput(transform), transform.getSideInputs(), context);
-            long mainOutput = stepContext.addOutput(context.getOutput(transform));
-            translateFn(
-                stepContext,
-                transform.getFn(),
-                context.getInput(transform).getWindowingStrategy(),
-                transform.getSideInputs(),
-                context.getInput(transform).getCoder(),
-                context,
-                mainOutput,
-                ImmutableMap.<Long, TupleTag<?>>of(
-                    mainOutput, new TupleTag<>(PropertyNames.OUTPUT)));
           }
         });
 
