@@ -17,20 +17,18 @@
  */
 package org.apache.beam.sdk.metrics;
 
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
+import com.google.auto.value.AutoValue;
 
 /**
- * The results of a query for metrics. Allows accessing all of the metrics that matched the filter.
+ * The result of a {@link Gauge} metric.
  */
-@Experimental(Kind.METRICS)
-public interface MetricQueryResults {
-  /** Return the metric results for the counters that matched the filter. */
-  Iterable<MetricResult<Long>> counters();
+@AutoValue
+public abstract class GaugeResult {
+  public abstract long value();
 
-  /** Return the metric results for the distributions that matched the filter. */
-  Iterable<MetricResult<DistributionResult>> distributions();
+  public static final GaugeResult ZERO = create(-1L);
 
-  /** Return the metric results for the gauges that matched the filter. */
-  Iterable<MetricResult<GaugeResult>> gauges();
+  public static GaugeResult create(long value) {
+    return new AutoValue_GaugeResult(value);
+  }
 }

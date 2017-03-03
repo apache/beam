@@ -17,20 +17,33 @@
  */
 package org.apache.beam.sdk.metrics;
 
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
+import com.google.auto.value.AutoValue;
+
+import java.io.Serializable;
 
 /**
- * The results of a query for metrics. Allows accessing all of the metrics that matched the filter.
+ * Data describing the the gauge. This should retain enough detail that it can be combined with
+ * other {@link GaugeData}.
+ *
+ * <p>This is kept distinct from {@link GaugeResult} to allow generifcation of the metrics reporting
+ * process in the future.
  */
-@Experimental(Kind.METRICS)
-public interface MetricQueryResults {
-  /** Return the metric results for the counters that matched the filter. */
-  Iterable<MetricResult<Long>> counters();
+@AutoValue
+public abstract class GaugeData implements Serializable {
 
-  /** Return the metric results for the distributions that matched the filter. */
-  Iterable<MetricResult<DistributionResult>> distributions();
+  public static final GaugeData EMPTY = create(-1L);
 
-  /** Return the metric results for the gauges that matched the filter. */
-  Iterable<MetricResult<GaugeResult>> gauges();
+  public abstract long value();
+
+  public static GaugeData create(long value) {
+    return new AutoValue_GaugeData(value);
+  }
+
+  public GaugeData combine(GaugeData other) {
+    return create(other.value());
+  }
+
+  public GaugeResult extractResult() {
+    return GaugeResult.create(value());
+  }
 }
