@@ -2311,22 +2311,6 @@ public class ParDoTest implements Serializable {
     assertThat(displayData, hasDisplayItem("fn", fn.getClass()));
   }
 
-  private abstract static class SomeTracker implements RestrictionTracker<Object> {}
-  private static class TestSplittableDoFn extends DoFn<Integer, String> {
-    @ProcessElement
-    public void processElement(ProcessContext context, SomeTracker tracker) {}
-
-    @GetInitialRestriction
-    public Object getInitialRestriction(Integer element) {
-      return null;
-    }
-
-    @NewTracker
-    public SomeTracker newTracker(Object restriction) {
-      return null;
-    }
-  }
-
   @Test
   public void testRejectsWrongWindowType() {
 
