@@ -66,35 +66,6 @@ class StreamingViewOverrides {
     }
   }
 
-  private static class SingletonCombine<T> extends Combine.BinaryCombineFn<T> {
-    private boolean hasDefaultValue;
-    private T defaultValue;
-
-    SingletonCombine(boolean hasDefaultValue, T defaultValue) {
-      this.hasDefaultValue = hasDefaultValue;
-      this.defaultValue = defaultValue;
-    }
-
-    @Override
-    public T apply(T left, T right) {
-      throw new IllegalArgumentException(
-          "PCollection with more than one element "
-              + "accessed as a singleton view. Consider using Combine.globally().asSingleton() to "
-              + "combine the PCollection into a single value");
-    }
-
-    @Override
-    public T identity() {
-      if (hasDefaultValue) {
-        return defaultValue;
-      } else {
-        throw new IllegalArgumentException(
-            "Empty PCollection accessed as a singleton view. "
-                + "Consider setting withDefault to provide a default value");
-      }
-    }
-  }
-
   /**
    * Combiner that combines {@code T}s into a single {@code List<T>} containing all inputs.
    *
