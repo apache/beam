@@ -792,12 +792,24 @@ public class DataflowPipelineTranslatorTest implements Serializable {
     assertAllStepOutputsHaveUniqueIds(job);
 
     List<Step> steps = job.getSteps();
-    assertEquals(2, steps.size());
+    assertEquals(6, steps.size());
 
     Step createStep = steps.get(0);
     assertEquals("ParallelRead", createStep.getKind());
 
-    Step collectionToSingletonStep = steps.get(1);
+    Step addNullKeyStep = steps.get(1);
+    assertEquals("ParallelDo", addNullKeyStep.getKind());
+
+    Step groupByKeyStep = steps.get(2);
+    assertEquals("GroupByKey", groupByKeyStep.getKind());
+
+    Step combineGroupedValuesStep = steps.get(3);
+    assertEquals("ParallelDo", combineGroupedValuesStep.getKind());
+
+    Step dropKeysStep = steps.get(4);
+    assertEquals("ParallelDo", dropKeysStep.getKind());
+
+    Step collectionToSingletonStep = steps.get(5);
     assertEquals("CollectionToSingleton", collectionToSingletonStep.getKind());
   }
 

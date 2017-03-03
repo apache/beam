@@ -51,6 +51,7 @@ import org.apache.beam.sdk.transforms.CombineWithContext.CombineFnWithContext;
 import org.apache.beam.sdk.transforms.CombineWithContext.Context;
 import org.apache.beam.sdk.transforms.CombineWithContext.KeyedCombineFnWithContext;
 import org.apache.beam.sdk.transforms.CombineWithContext.RequiresContextInternal;
+import org.apache.beam.sdk.transforms.View.CreatePCollectionView;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.DisplayData.Builder;
 import org.apache.beam.sdk.transforms.display.HasDisplayData;
@@ -60,6 +61,7 @@ import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.util.AppliedCombineFn;
 import org.apache.beam.sdk.util.NameUtils;
 import org.apache.beam.sdk.util.NameUtils.NameOverride;
+import org.apache.beam.sdk.util.PCollectionViews;
 import org.apache.beam.sdk.util.PropertyNames;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.util.WindowingStrategy;
@@ -1577,17 +1579,16 @@ public class Combine {
 
     @Override
     public PCollectionView<OutputT> expand(PCollection<InputT> input) {
-      Globally<InputT, OutputT> combineGlobally =
-          Combine.<InputT, OutputT>globally(fn).withoutDefaults().withFanout(fanout);
-      if (insertDefault) {
-        return input
-            .apply(combineGlobally)
-            .apply(View.<OutputT>asSingleton().withDefaultValue(fn.defaultValue()));
-      } else {
-        return input
-            .apply(combineGlobally)
-            .apply(View.<OutputT>asSingleton());
-      }
+      PCollection<OutputT> combined =
+          input.apply(Combine.<InputT, OutputT>globally(fn).withoutDefaults().withFanout(fanout));
+      return combined.apply(
+          CreatePCollectionView.<OutputT, OutputT>of(
+              PCollectionViews.singletonView(
+                  input.getPipeline(),
+                  input.getWindowingStrategy(),
+                  insertDefault,
+                  insertDefault ? fn.defaultValue() : null,
+                  combined.getCoder())));
     }
 
     public int getFanout() {
