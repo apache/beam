@@ -26,8 +26,8 @@ import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.testing.PAssert;
-import org.apache.beam.sdk.testing.RunnableOnService;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.junit.Rule;
@@ -46,7 +46,7 @@ public class DistinctTest {
   public final TestPipeline p = TestPipeline.create();
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testDistinct() {
     List<String> strings = Arrays.asList(
         "k1",
@@ -70,7 +70,7 @@ public class DistinctTest {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testDistinctEmpty() {
     List<String> strings = Arrays.asList();
 
@@ -108,7 +108,7 @@ public class DistinctTest {
 
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testDistinctWithRepresentativeValue() {
     List<KV<String, String>> strings = Arrays.asList(
         KV.of("k1", "v1"),

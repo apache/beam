@@ -15,10 +15,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.beam.sdk.testing;
 
 /**
- * Provides utilities for integration testing and {@link
- * org.apache.beam.sdk.testing.ValidatesRunner} tests of the Google Cloud Dataflow
- * runner.
+ * Category tag for tests which validate that a Beam runner is correctly implemented.
  */
-package org.apache.beam.runners.dataflow.testing;
+public interface ValidatesRunner extends RunnableOnService {}

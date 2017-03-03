@@ -36,8 +36,8 @@ import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.coders.StandardCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.testing.PAssert;
-import org.apache.beam.sdk.testing.RunnableOnService;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.Combine.BinaryCombineFn;
 import org.apache.beam.sdk.transforms.CombineFns.CoCombineResult;
 import org.apache.beam.sdk.transforms.CombineWithContext.KeyedCombineFnWithContext;
@@ -119,7 +119,7 @@ public class  CombineFnsTest {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testComposedCombine() {
     p.getCoderRegistry().registerCoder(UserString.class, UserStringCoder.of());
 
@@ -173,7 +173,7 @@ public class  CombineFnsTest {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testComposedCombineWithContext() {
     p.getCoderRegistry().registerCoder(UserString.class, UserStringCoder.of());
 
@@ -234,7 +234,7 @@ public class  CombineFnsTest {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testComposedCombineNullValues() {
     p.getCoderRegistry().registerCoder(UserString.class, NullableCoder.of(UserStringCoder.of()));
     p.getCoderRegistry().registerCoder(String.class, NullableCoder.of(StringUtf8Coder.of()));

@@ -42,8 +42,8 @@ import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.CountingInput;
 import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.testing.PAssert;
-import org.apache.beam.sdk.testing.RunnableOnService;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupByKey;
@@ -312,7 +312,7 @@ public class WindowTest implements Serializable {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testNoWindowFnDoesNotReassignWindows() {
     pipeline.enableAbandonedNodeEnforcement(true);
 
@@ -364,7 +364,7 @@ public class WindowTest implements Serializable {
    * with the windowing function default, the end of the window.
    */
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testOutputTimeFnDefault() {
     pipeline.enableAbandonedNodeEnforcement(true);
 
@@ -398,7 +398,7 @@ public class WindowTest implements Serializable {
    * with the windowing function customized to use the end of the window.
    */
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testOutputTimeFnEndOfWindow() {
     pipeline.enableAbandonedNodeEnforcement(true);
 
@@ -449,7 +449,7 @@ public class WindowTest implements Serializable {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testPrimitiveDisplayData() {
     FixedWindows windowFn = FixedWindows.of(Duration.standardHours(5));
     AfterWatermark.FromEndOfWindow triggerBuilder = AfterWatermark.pastEndOfWindow();
