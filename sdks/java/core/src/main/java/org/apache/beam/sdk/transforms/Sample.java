@@ -146,12 +146,9 @@ public class Sample {
     @Override
     public PCollection<T> expand(PCollection<T> in) {
       PCollectionView<Iterable<T>> iterableView = in.apply(View.<T>asIterable());
-      return
-          in.getPipeline()
+      return in.getPipeline()
           .apply(Create.of((Void) null).withCoder(VoidCoder.of()))
-          .apply(ParDo
-                 .withSideInputs(iterableView)
-                 .of(new SampleAnyDoFn<>(limit, iterableView)))
+          .apply(ParDo.of(new SampleAnyDoFn<>(limit, iterableView)).withSideInputs(iterableView))
           .setCoder(in.getCoder());
     }
 

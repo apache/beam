@@ -23,6 +23,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import java.io.Serializable;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.Pipeline;
@@ -153,7 +154,7 @@ import org.apache.beam.sdk.values.TypedPValue;
  * {@link PCollectionView PCollectionViews} express styles of accessing
  * {@link PCollection PCollections} computed by earlier pipeline operations,
  * passed in to the {@link ParDo} transform using
- * {@link #withSideInputs}, and their contents accessible to each of
+ * {@link ParDo.Bound#withSideInputs}, and their contents accessible to each of
  * the {@link DoFn} operations via {@link DoFn.ProcessContext#sideInput sideInput}.
  * For example:
  *
@@ -183,7 +184,7 @@ import org.apache.beam.sdk.values.TypedPValue;
  * {@link PCollection PCollections}, each keyed by a distinct {@link TupleTag},
  * and bundled in a {@link PCollectionTuple}. The {@link TupleTag TupleTags}
  * to be used for the output {@link PCollectionTuple} are specified by
- * invoking {@link #withOutputTags}. Unconsumed side outputs do not
+ * invoking {@link ParDo.Bound#withOutputTags}. Unconsumed side outputs do not
  * necessarily need to be explicitly specified, even if the {@link DoFn}
  * generates them. Within the {@link DoFn}, an element is added to the
  * main output {@link PCollection} as normal, using
@@ -206,11 +207,6 @@ import org.apache.beam.sdk.values.TypedPValue;
  * PCollectionTuple results =
  *     words.apply(
  *         ParDo
- *         // Specify the main and consumed side output tags of the
- *         // PCollectionTuple result:
- *         .withOutputTags(wordsBelowCutOffTag,
- *                         TupleTagList.of(wordLengthsAboveCutOffTag)
- *                                     .and(markedWordsTag))
  *         .of(new DoFn<String, String>() {
  *             // Create a tag for the unconsumed side output.
  *             final TupleTag<String> specialWordsTag =
@@ -233,7 +229,12 @@ import org.apache.beam.sdk.values.TypedPValue;
  *                 // Emit this word to the unconsumed side output.
  *                 c.sideOutput(specialWordsTag, word);
  *               }
- *             }}));
+ *             }})
+ *             // Specify the main and consumed side output tags of the
+ *             // PCollectionTuple result:
+ *         .withOutputTags(wordsBelowCutOffTag,
+ *             TupleTagList.of(wordLengthsAboveCutOffTag)
+ *                         .and(markedWordsTag)));
  * // Extract the PCollection results, by tag.
  * PCollection<String> wordsBelowCutOff =
  *     results.get(wordsBelowCutOffTag);
@@ -242,35 +243,6 @@ import org.apache.beam.sdk.values.TypedPValue;
  * PCollection<String> markedWords =
  *     results.get(markedWordsTag);
  * }</pre>
- *
- * <h2>Properties May Be Specified In Any Order</h2>
- *
- * <p>Several properties can be specified for a {@link ParDo}
- * {@link PTransform}, including side inputs, side output tags,
- * and {@link DoFn} to invoke. Only the {@link DoFn} is required; side inputs and side
- * output tags are only specified when they're needed. These
- * properties can be specified in any order, as long as they're
- * specified before the {@link ParDo} {@link PTransform} is applied.
- *
- * <p>The approach used to allow these properties to be specified in
- * any order, with some properties omitted, is to have each of the
- * property "setter" methods defined as static factory methods on
- * {@link ParDo} itself, which return an instance of either
- * {@link ParDo.Unbound} or
- * {@link ParDo.Bound} nested classes, each of which offer
- * property setter instance methods to enable setting additional
- * properties. {@link ParDo.Bound} is used for {@link ParDo}
- * transforms whose {@link DoFn} is specified and whose input and
- * output static types have been bound. {@link ParDo.Unbound ParDo.Unbound} is used
- * for {@link ParDo} transforms that have not yet had their
- * {@link DoFn} specified. Only {@link ParDo.Bound} instances can be
- * applied.
- *
- * <p>Another benefit of this approach is that it reduces the number
- * of type parameters that need to be specified manually. In
- * particular, the input and output types of the {@link ParDo}
- * {@link PTransform} are inferred automatically from the type
- * parameters of the {@link DoFn} argument passed to {@link ParDo#of}.
  *
  * <h2>Output Coders</h2>
  *
@@ -446,91 +418,16 @@ import org.apache.beam.sdk.values.TypedPValue;
 public class ParDo {
 
   /**
-   * Creates a {@link ParDo} {@link PTransform} with the given
-   * side inputs.
-   *
-   * <p>Side inputs are {@link PCollectionView PCollectionViews}, whose contents are
-   * computed during pipeline execution and then made accessible to
-   * {@link DoFn} code via {@link DoFn.ProcessContext#sideInput sideInput}. Each
-   * invocation of the {@link DoFn} receives the same values for these
-   * side inputs.
-   *
-   * <p>See the discussion of Side Inputs above for more explanation.
-   *
-   * <p>The resulting {@link PTransform} is incomplete, and its
-   * input/output types are not yet bound. Use
-   * {@link ParDo.Unbound#of} to specify the {@link DoFn} to
-   * invoke, which will also bind the input/output types of this
-   * {@link PTransform}.
-   */
-  public static Unbound withSideInputs(PCollectionView<?>... sideInputs) {
-    return new Unbound().withSideInputs(sideInputs);
-  }
-
-  /**
-    * Creates a {@link ParDo} with the given side inputs.
-    *
-   * <p>Side inputs are {@link PCollectionView}s, whose contents are
-   * computed during pipeline execution and then made accessible to
-   * {@link DoFn} code via {@link DoFn.ProcessContext#sideInput sideInput}.
-   *
-   * <p>See the discussion of Side Inputs above for more explanation.
-   *
-   * <p>The resulting {@link PTransform} is incomplete, and its
-   * input/output types are not yet bound. Use
-   * {@link ParDo.Unbound#of} to specify the {@link DoFn} to
-   * invoke, which will also bind the input/output types of this
-   * {@link PTransform}.
-   */
-  public static Unbound withSideInputs(
-      Iterable<? extends PCollectionView<?>> sideInputs) {
-    return new Unbound().withSideInputs(sideInputs);
-  }
-
-  /**
-   * Creates a multi-output {@link ParDo} {@link PTransform} whose
-   * output {@link PCollection}s will be referenced using the given main
-   * output and side output tags.
-   *
-   * <p>{@link TupleTag TupleTags} are used to name (with its static element
-   * type {@code T}) each main and side output {@code PCollection<T>}.
-   * This {@link PTransform PTransform's} {@link DoFn} emits elements to the main
-   * output {@link PCollection} as normal, using
-   * {@link DoFn.Context#output}. The {@link DoFn} emits elements to
-   * a side output {@code PCollection} using
-   * {@link DoFn.Context#sideOutput}, passing that side output's tag
-   * as an argument. The result of invoking this {@link PTransform}
-   * will be a {@link PCollectionTuple}, and any of the the main and
-   * side output {@code PCollection}s can be retrieved from it via
-   * {@link PCollectionTuple#get}, passing the output's tag as an
-   * argument.
-   *
-   * <p>See the discussion of Side Outputs above for more explanation.
-   *
-   * <p>The resulting {@link PTransform} is incomplete, and its input
-   * type is not yet bound. Use {@link ParDo.UnboundMulti#of}
-   * to specify the {@link DoFn} to invoke, which will also bind the
-   * input type of this {@link PTransform}.
-   */
-  public static <OutputT> UnboundMulti<OutputT> withOutputTags(
-      TupleTag<OutputT> mainOutputTag,
-      TupleTagList sideOutputTags) {
-    return new Unbound().withOutputTags(mainOutputTag, sideOutputTags);
-  }
-
-  /**
    * Creates a {@link ParDo} {@link PTransform} that will invoke the
    * given {@link DoFn} function.
    *
-   * <p>The resulting {@link PTransform PTransform's} types have been bound, with the
-   * input being a {@code PCollection<InputT>} and the output a
-   * {@code PCollection<OutputT>}, inferred from the types of the argument
-   * {@code DoFn<InputT, OutputT>}. It is ready to be applied, or further
+   * <p>The resulting {@link PTransform PTransform} is ready to be applied, or further
    * properties can be set on it first.
    */
   public static <InputT, OutputT> Bound<InputT, OutputT> of(DoFn<InputT, OutputT> fn) {
     validate(fn);
-    return new Unbound().of(fn, displayDataForFn(fn));
+    return new Bound<InputT, OutputT>(
+        fn, Collections.<PCollectionView<?>>emptyList(), displayDataForFn(fn));
   }
 
   private static <T> DisplayData.ItemSpec<? extends Class<?>> displayDataForFn(T fn) {
@@ -591,85 +488,6 @@ public class ParDo {
   }
 
   /**
-   * An incomplete {@link ParDo} transform, with unbound input/output types.
-   *
-   * <p>Before being applied, {@link ParDo.Unbound#of} must be
-   * invoked to specify the {@link DoFn} to invoke, which will also
-   * bind the input/output types of this {@link PTransform}.
-   */
-  public static class Unbound {
-    private final List<PCollectionView<?>> sideInputs;
-
-    Unbound() {
-      this(ImmutableList.<PCollectionView<?>>of());
-    }
-
-    Unbound(List<PCollectionView<?>> sideInputs) {
-      this.sideInputs = sideInputs;
-    }
-
-    /**
-     * Returns a new {@link ParDo} transform that's like this
-     * transform but with the specified additional side inputs.
-     * Does not modify this transform. The resulting transform is
-     * still incomplete.
-     *
-     * <p>See the discussion of Side Inputs above and on
-     * {@link ParDo#withSideInputs} for more explanation.
-     */
-    public Unbound withSideInputs(PCollectionView<?>... sideInputs) {
-      return withSideInputs(Arrays.asList(sideInputs));
-    }
-
-    /**
-     * Returns a new {@link ParDo} transform that is like this
-     * transform but with the specified additional side inputs. Does not modify
-     * this transform. The resulting transform is still incomplete.
-     *
-     * <p>See the discussion of Side Inputs above and on
-     * {@link ParDo#withSideInputs} for more explanation.
-     */
-    public Unbound withSideInputs(
-        Iterable<? extends PCollectionView<?>> sideInputs) {
-      ImmutableList.Builder<PCollectionView<?>> builder = ImmutableList.builder();
-      builder.addAll(this.sideInputs);
-      builder.addAll(sideInputs);
-      return new Unbound(builder.build());
-    }
-
-    /**
-     * Returns a new {@link ParDo} {@link PTransform} that's like this
-     * transform but which will invoke the given {@link DoFn}
-     * function, and which has its input and output types bound. Does
-     * not modify this transform. The resulting {@link PTransform} is
-     * sufficiently specified to be applied, but more properties can
-     * still be specified.
-     */
-    public <InputT, OutputT> Bound<InputT, OutputT> of(DoFn<InputT, OutputT> fn) {
-      validate(fn);
-      return of(fn, displayDataForFn(fn));
-    }
-
-    /**
-     * Returns a new multi-output {@link ParDo} transform that's like this transform but with the
-     * specified main and side output tags. Does not modify this transform. The resulting transform
-     * is still incomplete.
-     *
-     * <p>See the discussion of Side Outputs above and on {@link ParDo#withOutputTags} for more
-     * explanation.
-     */
-    public <OutputT> UnboundMulti<OutputT> withOutputTags(
-        TupleTag<OutputT> mainOutputTag, TupleTagList sideOutputTags) {
-      return new UnboundMulti<>(sideInputs, mainOutputTag, sideOutputTags);
-    }
-
-    private <InputT, OutputT> Bound<InputT, OutputT> of(
-        DoFn<InputT, OutputT> doFn, DisplayData.ItemSpec<? extends Class<?>> fnDisplayData) {
-      return new Bound<>(doFn, sideInputs, fnDisplayData);
-    }
-  }
-
-  /**
    * A {@link PTransform} that, when applied to a {@code PCollection<InputT>},
    * invokes a user-specified {@code DoFn<InputT, OutputT>} on all its elements,
    * with all its outputs collected into an output
@@ -701,8 +519,7 @@ public class ParDo {
      * {@link PTransform} but with the specified additional side inputs. Does not
      * modify this {@link PTransform}.
      *
-     * <p>See the discussion of Side Inputs above and on
-     * {@link ParDo#withSideInputs} for more explanation.
+     * <p>See the discussion of Side Inputs above for more explanation.
      */
     public Bound<InputT, OutputT> withSideInputs(PCollectionView<?>... sideInputs) {
       return withSideInputs(Arrays.asList(sideInputs));
@@ -713,8 +530,7 @@ public class ParDo {
      * {@link PTransform} but with the specified additional side inputs. Does not
      * modify this {@link PTransform}.
      *
-     * <p>See the discussion of Side Inputs above and on
-     * {@link ParDo#withSideInputs} for more explanation.
+     * <p>See the discussion of Side Inputs above for more explanation.
      */
     public Bound<InputT, OutputT> withSideInputs(
         Iterable<? extends PCollectionView<?>> sideInputs) {
@@ -732,8 +548,7 @@ public class ParDo {
      * PTransform} but with the specified main and side output tags. Does not modify this {@link
      * PTransform}.
      *
-     * <p>See the discussion of Side Outputs above and on {@link ParDo#withOutputTags} for more
-     * explanation.
+     * <p>See the discussion of Side Outputs above for more explanation.
      */
     public BoundMulti<InputT, OutputT> withOutputTags(
         TupleTag<OutputT> mainOutputTag, TupleTagList sideOutputTags) {
@@ -798,82 +613,6 @@ public class ParDo {
   }
 
   /**
-   * An incomplete multi-output {@link ParDo} transform, with unbound
-   * input type.
-   *
-   * <p>Before being applied, {@link ParDo.UnboundMulti#of} must be
-   * invoked to specify the {@link DoFn} to invoke, which will also
-   * bind the input type of this {@link PTransform}.
-   *
-   * @param <OutputT> the type of the main output {@code PCollection} elements
-   */
-  public static class UnboundMulti<OutputT> {
-    private final List<PCollectionView<?>> sideInputs;
-    private final TupleTag<OutputT> mainOutputTag;
-    private final TupleTagList sideOutputTags;
-
-    UnboundMulti(List<PCollectionView<?>> sideInputs,
-                 TupleTag<OutputT> mainOutputTag,
-                 TupleTagList sideOutputTags) {
-      this.sideInputs = sideInputs;
-      this.mainOutputTag = mainOutputTag;
-      this.sideOutputTags = sideOutputTags;
-    }
-
-    /**
-     * Returns a new multi-output {@link ParDo} transform that's like
-     * this transform but with the specified side inputs. Does not
-     * modify this transform. The resulting transform is still
-     * incomplete.
-     *
-     * <p>See the discussion of Side Inputs above and on
-     * {@link ParDo#withSideInputs} for more explanation.
-     */
-    public UnboundMulti<OutputT> withSideInputs(
-        PCollectionView<?>... sideInputs) {
-      return withSideInputs(Arrays.asList(sideInputs));
-    }
-
-    /**
-     * Returns a new multi-output {@link ParDo} transform that's like
-     * this transform but with the specified additional side inputs. Does not
-     * modify this transform. The resulting transform is still
-     * incomplete.
-     *
-     * <p>See the discussion of Side Inputs above and on
-     * {@link ParDo#withSideInputs} for more explanation.
-     */
-    public UnboundMulti<OutputT> withSideInputs(
-        Iterable<? extends PCollectionView<?>> sideInputs) {
-      return new UnboundMulti<>(
-          ImmutableList.<PCollectionView<?>>builder()
-              .addAll(this.sideInputs)
-              .addAll(sideInputs)
-              .build(),
-          mainOutputTag,
-          sideOutputTags);
-    }
-
-    /**
-     * Returns a new multi-output {@link ParDo} {@link PTransform}
-     * that's like this transform but which will invoke the given
-     * {@link DoFn} function, and which has its input type bound.
-     * Does not modify this transform. The resulting
-     * {@link PTransform} is sufficiently specified to be applied, but
-     * more properties can still be specified.
-     */
-    public <InputT> BoundMulti<InputT, OutputT> of(DoFn<InputT, OutputT> fn) {
-      validate(fn);
-      return of(fn, displayDataForFn(fn));
-    }
-
-    private <InputT> BoundMulti<InputT, OutputT> of(
-        DoFn<InputT, OutputT> fn, DisplayData.ItemSpec<? extends Class<?>> fnDisplayData) {
-      return new BoundMulti<>(fn, sideInputs, mainOutputTag, sideOutputTags, fnDisplayData);
-    }
-  }
-
-  /**
    * A {@link PTransform} that, when applied to a
    * {@code PCollection<InputT>}, invokes a user-specified
    * {@code DoFn<InputT, OutputT>} on all its elements, which can emit elements
@@ -910,8 +649,7 @@ public class ParDo {
      * that's like this {@link PTransform} but with the specified additional side
      * inputs. Does not modify this {@link PTransform}.
      *
-     * <p>See the discussion of Side Inputs above and on
-     * {@link ParDo#withSideInputs} for more explanation.
+     * <p>See the discussion of Side Inputs above for more explanation.
      */
     public BoundMulti<InputT, OutputT> withSideInputs(
         PCollectionView<?>... sideInputs) {
@@ -923,8 +661,7 @@ public class ParDo {
      * PTransform} but with the specified additional side inputs. Does not modify this {@link
      * PTransform}.
      *
-     * <p>See the discussion of Side Inputs above and on {@link ParDo#withSideInputs} for more
-     * explanation.
+     * <p>See the discussion of Side Inputs above for more explanation.
      */
     public BoundMulti<InputT, OutputT> withSideInputs(
         Iterable<? extends PCollectionView<?>> sideInputs) {

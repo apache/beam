@@ -243,7 +243,7 @@ public class StatefulParDoEvaluatorFactoryTest implements Serializable {
         mainInput
             .apply(
                 new ParDoMultiOverrideFactory.GbkThenStatefulParDo<>(
-                    ParDo.withSideInputs(sideInput)
+                    ParDo
                         .of(
                             new DoFn<KV<String, Integer>, Integer>() {
                               @StateId(stateId)
@@ -253,6 +253,7 @@ public class StatefulParDoEvaluatorFactoryTest implements Serializable {
                               @ProcessElement
                               public void process(ProcessContext c) {}
                             })
+                        .withSideInputs(sideInput)
                         .withOutputTags(mainOutput, TupleTagList.empty())))
             .get(mainOutput)
             .setCoder(VarIntCoder.of());

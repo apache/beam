@@ -59,8 +59,8 @@ public class TypedPValueTest {
     PCollection<Integer> input = p.apply(Create.of(1, 2, 3));
     PCollectionTuple tuple = input.apply(
         ParDo
-        .withOutputTags(mainOutputTag, TupleTagList.of(sideOutputTag))
-        .of(new IdentityDoFn()));
+        .of(new IdentityDoFn())
+        .withOutputTags(mainOutputTag, TupleTagList.of(sideOutputTag)));
     return tuple;
   }
 
