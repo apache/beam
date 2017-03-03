@@ -712,10 +712,10 @@ public class BigQueryIOTest implements Serializable {
     assertEquals(dataset, write.getTable().get().getDatasetId());
     assertEquals(table, write.getTable().get().getTableId());
     assertEquals(schema, write.getSchema());
-    assertEquals(createDisposition, write.createDisposition);
-    assertEquals(writeDisposition, write.writeDisposition);
-    assertEquals(tableDescription, write.tableDescription);
-    assertEquals(validate, write.validate);
+    assertEquals(createDisposition, write.getCreateDisposition());
+    assertEquals(writeDisposition, write.getWriteDisposition());
+    assertEquals(tableDescription, write.getTableDescription());
+    assertEquals(validate, write.getValidate());
   }
 
   @Before
