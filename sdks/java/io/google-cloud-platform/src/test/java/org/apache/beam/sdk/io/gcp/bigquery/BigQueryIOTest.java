@@ -665,28 +665,28 @@ public class BigQueryIOTest implements Serializable {
   @Mock(extraInterfaces = Serializable.class) private transient DatasetService mockDatasetService;
 
   private void checkReadTableObject(
-      BigQueryIO.Read.Bound bound, String project, String dataset, String table) {
-    checkReadTableObjectWithValidate(bound, project, dataset, table, true);
+      BigQueryIO.Read read, String project, String dataset, String table) {
+    checkReadTableObjectWithValidate(read, project, dataset, table, true);
   }
 
-  private void checkReadQueryObject(BigQueryIO.Read.Bound bound, String query) {
-    checkReadQueryObjectWithValidate(bound, query, true);
+  private void checkReadQueryObject(BigQueryIO.Read read, String query) {
+    checkReadQueryObjectWithValidate(read, query, true);
   }
 
   private void checkReadTableObjectWithValidate(
-      BigQueryIO.Read.Bound bound, String project, String dataset, String table, boolean validate) {
-    assertEquals(project, bound.getTable().getProjectId());
-    assertEquals(dataset, bound.getTable().getDatasetId());
-    assertEquals(table, bound.getTable().getTableId());
-    assertNull(bound.query);
-    assertEquals(validate, bound.getValidate());
+      BigQueryIO.Read read, String project, String dataset, String table, boolean validate) {
+    assertEquals(project, read.getTable().getProjectId());
+    assertEquals(dataset, read.getTable().getDatasetId());
+    assertEquals(table, read.getTable().getTableId());
+    assertNull(read.query);
+    assertEquals(validate, read.getValidate());
   }
 
   private void checkReadQueryObjectWithValidate(
-      BigQueryIO.Read.Bound bound, String query, boolean validate) {
-    assertNull(bound.getTable());
-    assertEquals(query, bound.getQuery());
-    assertEquals(validate, bound.getValidate());
+      BigQueryIO.Read read, String query, boolean validate) {
+    assertNull(read.getTable());
+    assertEquals(query, read.getQuery());
+    assertEquals(validate, read.getValidate());
   }
 
   private void checkWriteObject(
@@ -728,39 +728,39 @@ public class BigQueryIOTest implements Serializable {
 
   @Test
   public void testBuildTableBasedSource() {
-    BigQueryIO.Read.Bound bound = BigQueryIO.Read.from("foo.com:project:somedataset.sometable");
-    checkReadTableObject(bound, "foo.com:project", "somedataset", "sometable");
+    BigQueryIO.Read read = BigQueryIO.Read.from("foo.com:project:somedataset.sometable");
+    checkReadTableObject(read, "foo.com:project", "somedataset", "sometable");
   }
 
   @Test
   public void testBuildQueryBasedSource() {
-    BigQueryIO.Read.Bound bound = BigQueryIO.Read.fromQuery("foo_query");
-    checkReadQueryObject(bound, "foo_query");
+    BigQueryIO.Read read = BigQueryIO.Read.fromQuery("foo_query");
+    checkReadQueryObject(read, "foo_query");
   }
 
   @Test
   public void testBuildTableBasedSourceWithoutValidation() {
     // This test just checks that using withoutValidation will not trigger object
     // construction errors.
-    BigQueryIO.Read.Bound bound =
+    BigQueryIO.Read read =
         BigQueryIO.Read.from("foo.com:project:somedataset.sometable").withoutValidation();
-    checkReadTableObjectWithValidate(bound, "foo.com:project", "somedataset", "sometable", false);
+    checkReadTableObjectWithValidate(read, "foo.com:project", "somedataset", "sometable", false);
   }
 
   @Test
   public void testBuildQueryBasedSourceWithoutValidation() {
     // This test just checks that using withoutValidation will not trigger object
     // construction errors.
-    BigQueryIO.Read.Bound bound =
+    BigQueryIO.Read read =
         BigQueryIO.Read.fromQuery("some_query").withoutValidation();
-    checkReadQueryObjectWithValidate(bound, "some_query", false);
+    checkReadQueryObjectWithValidate(read, "some_query", false);
   }
 
   @Test
   public void testBuildTableBasedSourceWithDefaultProject() {
-    BigQueryIO.Read.Bound bound =
+    BigQueryIO.Read read =
         BigQueryIO.Read.from("somedataset.sometable");
-    checkReadTableObject(bound, null, "somedataset", "sometable");
+    checkReadTableObject(read, null, "somedataset", "sometable");
   }
 
   @Test
@@ -769,8 +769,8 @@ public class BigQueryIOTest implements Serializable {
         .setProjectId("foo.com:project")
         .setDatasetId("somedataset")
         .setTableId("sometable");
-    BigQueryIO.Read.Bound bound = BigQueryIO.Read.from(table);
-    checkReadTableObject(bound, "foo.com:project", "somedataset", "sometable");
+    BigQueryIO.Read read = BigQueryIO.Read.from(table);
+    checkReadTableObject(read, "foo.com:project", "somedataset", "sometable");
   }
 
   @Test
@@ -803,39 +803,6 @@ public class BigQueryIOTest implements Serializable {
     thrown.expectMessage(Matchers.containsString("Unsupported"));
     p.apply(BigQueryIO.Read.from(tableRef)
         .withTestServices(fakeBqServices));
-  }
-
-  @Test
-  @Category(NeedsRunner.class)
-  public void testBuildSourceWithoutTableQueryOrValidation() {
-    BigQueryOptions bqOptions = TestPipeline.testingPipelineOptions().as(BigQueryOptions.class);
-    bqOptions.setProject("defaultProject");
-    bqOptions.setTempLocation("gs://testbucket/testdir");
-
-    Pipeline p = TestPipeline.create(bqOptions);
-    thrown.expect(IllegalStateException.class);
-    thrown.expectMessage(
-        "Invalid BigQueryIO.Read: one of table reference and query must be set");
-    p.apply(BigQueryIO.Read.withoutValidation());
-    p.run();
-  }
-
-  @Test
-  @Category(NeedsRunner.class)
-  public void testBuildSourceWithTableAndQuery() {
-    BigQueryOptions bqOptions = TestPipeline.testingPipelineOptions().as(BigQueryOptions.class);
-    bqOptions.setProject("defaultProject");
-    bqOptions.setTempLocation("gs://testbucket/testdir");
-
-    Pipeline p = TestPipeline.create(bqOptions);
-    thrown.expect(IllegalStateException.class);
-    thrown.expectMessage(
-        "Invalid BigQueryIO.Read: table reference and query may not both be set");
-    p.apply("ReadMyTable",
-        BigQueryIO.Read
-            .from("foo.com:project:somedataset.sometable")
-            .fromQuery("query"));
-    p.run();
   }
 
   @Test
@@ -1291,12 +1258,11 @@ public class BigQueryIOTest implements Serializable {
   }
 
   @Test
-  public void testBuildSourceDisplayData() {
+  public void testBuildSourceDisplayDataTable() {
     String tableSpec = "project:dataset.tableid";
 
-    BigQueryIO.Read.Bound read = BigQueryIO.Read
+    BigQueryIO.Read read = BigQueryIO.Read
         .from(tableSpec)
-        .fromQuery("myQuery")
         .withoutResultFlattening()
         .usingStandardSql()
         .withoutValidation();
@@ -1304,6 +1270,21 @@ public class BigQueryIOTest implements Serializable {
     DisplayData displayData = DisplayData.from(read);
 
     assertThat(displayData, hasDisplayItem("table", tableSpec));
+    assertThat(displayData, hasDisplayItem("flattenResults", false));
+    assertThat(displayData, hasDisplayItem("useLegacySql", false));
+    assertThat(displayData, hasDisplayItem("validation", false));
+  }
+
+  @Test
+  public void testBuildSourceDisplayDataQuery() {
+    BigQueryIO.Read read = BigQueryIO.Read
+        .fromQuery("myQuery")
+        .withoutResultFlattening()
+        .usingStandardSql()
+        .withoutValidation();
+
+    DisplayData displayData = DisplayData.from(read);
+
     assertThat(displayData, hasDisplayItem("query", "myQuery"));
     assertThat(displayData, hasDisplayItem("flattenResults", false));
     assertThat(displayData, hasDisplayItem("useLegacySql", false));
@@ -1315,7 +1296,7 @@ public class BigQueryIOTest implements Serializable {
   @Ignore("[BEAM-436] DirectRunner RunnableOnService tempLocation configuration insufficient")
   public void testTableSourcePrimitiveDisplayData() throws IOException, InterruptedException {
     DisplayDataEvaluator evaluator = DisplayDataEvaluator.create();
-    BigQueryIO.Read.Bound read = BigQueryIO.Read
+    BigQueryIO.Read read = BigQueryIO.Read
         .from("project:dataset.tableId")
         .withTestServices(new FakeBigQueryServices()
             .withDatasetService(mockDatasetService)
@@ -1332,7 +1313,7 @@ public class BigQueryIOTest implements Serializable {
   @Ignore("[BEAM-436] DirectRunner RunnableOnService tempLocation configuration insufficient")
   public void testQuerySourcePrimitiveDisplayData() throws IOException, InterruptedException {
     DisplayDataEvaluator evaluator = DisplayDataEvaluator.create();
-    BigQueryIO.Read.Bound read = BigQueryIO.Read
+    BigQueryIO.Read read = BigQueryIO.Read
         .fromQuery("foobar")
         .withTestServices(new FakeBigQueryServices()
             .withDatasetService(mockDatasetService)
@@ -2375,7 +2356,7 @@ public class BigQueryIOTest implements Serializable {
     BigQueryOptions bqOptions = options.as(BigQueryOptions.class);
     bqOptions.setTempLocation("gs://testbucket/testdir");
     Pipeline pipeline = TestPipeline.create(options);
-    BigQueryIO.Read.Bound read = BigQueryIO.Read.from(
+    BigQueryIO.Read read = BigQueryIO.Read.from(
         options.getInputTable()).withoutValidation();
     pipeline.apply(read);
     // Test that this doesn't throw.
@@ -2388,7 +2369,7 @@ public class BigQueryIOTest implements Serializable {
     BigQueryOptions bqOptions = options.as(BigQueryOptions.class);
     bqOptions.setTempLocation("gs://testbucket/testdir");
     Pipeline pipeline = TestPipeline.create(options);
-    BigQueryIO.Read.Bound read = BigQueryIO.Read.fromQuery(
+    BigQueryIO.Read read = BigQueryIO.Read.fromQuery(
         options.getInputQuery()).withoutValidation();
     pipeline.apply(read);
     // Test that this doesn't throw.
@@ -2497,10 +2478,10 @@ public class BigQueryIOTest implements Serializable {
     BigQueryOptions bqOptions = options.as(BigQueryOptions.class);
     Pipeline pipeline = TestPipeline.create(options);
     bqOptions.setTempLocation("gs://testbucket/testdir");
-    BigQueryIO.Read.Bound read1 = BigQueryIO.Read.fromQuery(
+    BigQueryIO.Read read1 = BigQueryIO.Read.fromQuery(
         options.getInputQuery()).withoutValidation();
     pipeline.apply(read1);
-    BigQueryIO.Read.Bound read2 = BigQueryIO.Read.fromQuery(
+    BigQueryIO.Read read2 = BigQueryIO.Read.fromQuery(
         options.getInputQuery()).withoutValidation();
     pipeline.apply(read2);
     assertNotEquals(read1.stepUuid, read2.stepUuid);
