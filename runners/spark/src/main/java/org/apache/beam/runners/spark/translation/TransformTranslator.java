@@ -121,6 +121,11 @@ public final class TransformTranslator {
         }
         context.putDataset(transform, new BoundedDataset<>(unionRDD));
       }
+
+      @Override
+      public String toNativeString() {
+        return "sparkContext.union(...)";
+      }
     };
   }
 
@@ -162,6 +167,11 @@ public final class TransformTranslator {
 
         context.putDataset(transform, new BoundedDataset<>(groupedAlsoByWindow));
       }
+
+      @Override
+      public String toNativeString() {
+        return "groupByKey()";
+      }
     };
   }
 
@@ -200,6 +210,11 @@ public final class TransformTranslator {
                              }
                        });
                context.putDataset(transform, new BoundedDataset<>(outRDD));
+            }
+
+            @Override
+            public String toNativeString() {
+              return "map(new <fn>())";
             }
           };
   }
@@ -267,6 +282,11 @@ public final class TransformTranslator {
             }
             context.putDataset(transform, new BoundedDataset<>(outRdd));
           }
+
+          @Override
+          public String toNativeString () {
+            return "aggregate(..., new <fn>(), ...)";
+          }
         };
   }
 
@@ -321,6 +341,11 @@ public final class TransformTranslator {
 
         context.putDataset(transform, new BoundedDataset<>(outRdd));
       }
+
+      @Override
+      public String toNativeString() {
+        return "combineByKey(..., new <fn>(), ...)";
+      }
     };
   }
 
@@ -347,6 +372,11 @@ public final class TransformTranslator {
         context.putDataset(transform,
             new BoundedDataset<>(inRDD.mapPartitions(new DoFnFunction<>(aggAccum, metricsAccum,
                 stepName, doFn, context.getRuntimeContext(), sideInputs, windowingStrategy))));
+      }
+
+      @Override
+      public String toNativeString() {
+        return "mapPartitions(new <fn>())";
       }
     };
   }
@@ -388,6 +418,11 @@ public final class TransformTranslator {
           context.putDataset(e.getValue(), new BoundedDataset<>(values));
         }
       }
+
+      @Override
+      public String toNativeString() {
+        return "mapPartitions(new <fn>())";
+      }
     };
   }
 
@@ -400,6 +435,11 @@ public final class TransformTranslator {
         JavaRDD<WindowedValue<String>> rdd = context.getSparkContext().textFile(pattern)
             .map(WindowingHelpers.<String>windowFunction());
         context.putDataset(transform, new BoundedDataset<>(rdd));
+      }
+
+      @Override
+      public String toNativeString() {
+        return "sparkContext.textFile(...)";
       }
     };
   }
@@ -426,6 +466,11 @@ public final class TransformTranslator {
         writeHadoopFile(last, new Configuration(), shardTemplateInfo, Text.class,
             NullWritable.class, TemplatedTextOutputFormat.class);
       }
+
+      @Override
+      public String toNativeString() {
+        return "saveAsNewAPIHadoopFile(...)";
+      }
     };
   }
 
@@ -449,6 +494,11 @@ public final class TransformTranslator {
               }
             }).map(WindowingHelpers.<T>windowFunction());
         context.putDataset(transform, new BoundedDataset<>(rdd));
+      }
+
+      @Override
+      public String toNativeString() {
+        return "sparkContext.newAPIHadoopFile(...)";
       }
     };
   }
@@ -481,6 +531,11 @@ public final class TransformTranslator {
         writeHadoopFile(last, job.getConfiguration(), shardTemplateInfo,
             AvroKey.class, NullWritable.class, TemplatedAvroKeyOutputFormat.class);
       }
+
+      @Override
+      public String toNativeString() {
+        return "mapToPair(<objectToAvroKeyFn>).saveAsNewAPIHadoopFile(...)";
+      }
     };
   }
 
@@ -495,6 +550,11 @@ public final class TransformTranslator {
             jsc.sc(), transform.getSource(), runtimeContext).toJavaRDD();
         // cache to avoid re-evaluation of the source by Spark's lazy DAG evaluation.
         context.putDataset(transform, new BoundedDataset<>(input.cache()));
+      }
+
+      @Override
+      public String toNativeString() {
+        return "sparkContext.<readFrom(<source>)>()";
       }
     };
   }
@@ -518,6 +578,11 @@ public final class TransformTranslator {
           }
         }).map(WindowingHelpers.<KV<K, V>>windowFunction());
         context.putDataset(transform, new BoundedDataset<>(rdd));
+      }
+
+      @Override
+      public String toNativeString() {
+        return "sparkContext.newAPIHadoopFile(...)";
       }
     };
   }
@@ -546,6 +611,11 @@ public final class TransformTranslator {
         }
         writeHadoopFile(last, conf, shardTemplateInfo,
             transform.getKeyClass(), transform.getValueClass(), transform.getFormatClass());
+      }
+
+      @Override
+      public String toNativeString() {
+        return "saveAsNewAPIHadoopFile(...)";
       }
     };
   }
@@ -619,6 +689,11 @@ public final class TransformTranslator {
               inRDD.map(new SparkAssignWindowFn<>(transform.getWindowFn()))));
         }
       }
+
+      @Override
+      public String toNativeString() {
+        return "map(new <windowFn>())";
+      }
     };
   }
 
@@ -631,6 +706,11 @@ public final class TransformTranslator {
         // can be transferred over the network.
         Coder<T> coder = context.getOutput(transform).getCoder();
         context.putBoundedDatasetFromValues(transform, elems, coder);
+      }
+
+      @Override
+      public String toNativeString() {
+        return "sparkContext.parallelize(Arrays.asList(...))";
       }
     };
   }
@@ -649,6 +729,11 @@ public final class TransformTranslator {
 
         context.putPView(output, iterCast, coderInternal);
       }
+
+      @Override
+      public String toNativeString() {
+        return "collect()";
+      }
     };
   }
 
@@ -665,6 +750,11 @@ public final class TransformTranslator {
         Iterable<WindowedValue<?>> iterCast =  (Iterable<WindowedValue<?>>) iter;
 
         context.putPView(output, iterCast, coderInternal);
+      }
+
+      @Override
+      public String toNativeString() {
+        return "collect()";
       }
     };
   }
@@ -684,6 +774,11 @@ public final class TransformTranslator {
         Iterable<WindowedValue<?>> iterCast =  (Iterable<WindowedValue<?>>) iter;
 
         context.putPView(output, iterCast, coderInternal);
+      }
+
+      @Override
+      public String toNativeString() {
+        return "<createPCollectionView>";
       }
     };
   }
@@ -705,6 +800,11 @@ public final class TransformTranslator {
             .map(CoderHelpers.fromByteFunction(windowCoder));
 
         context.putDataset(transform, new BoundedDataset<String>(output));
+      }
+
+      @Override
+      public String toNativeString() {
+        return "sparkContext.parallelize(rdd.getStorageLevel().description())";
       }
     };
   }
@@ -731,6 +831,11 @@ public final class TransformTranslator {
             GroupCombineFunctions.reshuffle(inRDD, keyCoder, wvCoder);
 
         context.putDataset(transform, new BoundedDataset<>(reshuffled));
+      }
+
+      @Override
+      public String toNativeString() {
+        return "repartition(...)";
       }
     };
   }

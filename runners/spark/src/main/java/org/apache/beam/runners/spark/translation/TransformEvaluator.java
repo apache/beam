@@ -26,4 +26,5 @@ import org.apache.beam.sdk.transforms.PTransform;
  */
 public interface TransformEvaluator<TransformT extends PTransform<?, ?>> extends Serializable {
   void evaluate(TransformT transform, EvaluationContext context);
+  String toNativeString();
 }

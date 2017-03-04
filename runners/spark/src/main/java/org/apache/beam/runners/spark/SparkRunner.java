@@ -297,11 +297,12 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
   /**
    * Evaluator on the pipeline.
    */
+  @SuppressWarnings("WeakerAccess")
   public static class Evaluator extends Pipeline.PipelineVisitor.Defaults {
     private static final Logger LOG = LoggerFactory.getLogger(Evaluator.class);
 
-    private final EvaluationContext ctxt;
-    private final SparkPipelineTranslator translator;
+    protected final EvaluationContext ctxt;
+    protected final SparkPipelineTranslator translator;
 
     public Evaluator(SparkPipelineTranslator translator, EvaluationContext ctxt) {
       this.translator = translator;
@@ -324,7 +325,7 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
       return CompositeBehavior.ENTER_TRANSFORM;
     }
 
-    private boolean shouldDefer(TransformHierarchy.Node node) {
+    protected boolean shouldDefer(TransformHierarchy.Node node) {
       // if the input is not a PCollection, or it is but with non merging windows, don't defer.
       if (node.getInputs().size() != 1) {
         return false;
@@ -361,7 +362,7 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
     }
 
     <TransformT extends PTransform<? super PInput, POutput>> void
-        doVisitTransform(TransformHierarchy.Node node) {
+    doVisitTransform(TransformHierarchy.Node node) {
       @SuppressWarnings("unchecked")
       TransformT transform = (TransformT) node.getTransform();
       @SuppressWarnings("unchecked")
@@ -379,8 +380,8 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
      * Determine if this Node belongs to a Bounded branch of the pipeline, or Unbounded, and
      * translate with the proper translator.
      */
-    private <TransformT extends PTransform<? super PInput, POutput>>
-        TransformEvaluator<TransformT> translate(
+    protected <TransformT extends PTransform<? super PInput, POutput>>
+    TransformEvaluator<TransformT> translate(
             TransformHierarchy.Node node, TransformT transform, Class<TransformT> transformClass) {
       //--- determine if node is bounded/unbounded.
       // usually, the input determines if the PCollection to apply the next transformation to
@@ -400,7 +401,7 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
               : translator.translateUnbounded(transformClass);
     }
 
-    private PCollection.IsBounded isBoundedCollection(Collection<TaggedPValue> pValues) {
+    protected PCollection.IsBounded isBoundedCollection(Collection<TaggedPValue> pValues) {
       // anything that is not a PCollection, is BOUNDED.
       // For PCollections:
       // BOUNDED behaves as the Identity Element, BOUNDED + BOUNDED = BOUNDED
@@ -417,4 +418,3 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
     }
   }
 }
-
