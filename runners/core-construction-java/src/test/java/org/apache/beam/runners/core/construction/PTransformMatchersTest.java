@@ -190,96 +190,44 @@ public class PTransformMatchersTest implements Serializable {
         }
       };
 
-  /**
-   * Demonstrates that a {@link ParDo.Bound} does not match any ParDo matcher.
-   */
   @Test
-  public void parDoSingle() {
-    AppliedPTransform<?, ?, ?> parDoApplication = getAppliedTransform(ParDo.of(doFn));
-
-    assertThat(PTransformMatchers.splittableParDoMulti().matches(parDoApplication), is(false));
-    assertThat(PTransformMatchers.stateOrTimerParDoMulti().matches(parDoApplication), is(false));
-    assertThat(PTransformMatchers.splittableParDoSingle().matches(parDoApplication), is(false));
-    assertThat(PTransformMatchers.stateOrTimerParDoSingle().matches(parDoApplication), is(false));
-  }
-
-  @Test
-  public void parDoSingleSplittable() {
-    AppliedPTransform<?, ?, ?> parDoApplication = getAppliedTransform(ParDo.of(splittableDoFn));
-    assertThat(PTransformMatchers.splittableParDoSingle().matches(parDoApplication), is(true));
-
-    assertThat(PTransformMatchers.splittableParDoMulti().matches(parDoApplication), is(false));
-    assertThat(PTransformMatchers.stateOrTimerParDoMulti().matches(parDoApplication), is(false));
-    assertThat(PTransformMatchers.stateOrTimerParDoSingle().matches(parDoApplication), is(false));
-  }
-
-  @Test
-  public void parDoSingleWithState() {
-    AppliedPTransform<?, ?, ?> parDoApplication = getAppliedTransform(ParDo.of(doFnWithState));
-    assertThat(PTransformMatchers.stateOrTimerParDoSingle().matches(parDoApplication), is(true));
-
-    assertThat(PTransformMatchers.splittableParDoMulti().matches(parDoApplication), is(false));
-    assertThat(PTransformMatchers.stateOrTimerParDoMulti().matches(parDoApplication), is(false));
-    assertThat(PTransformMatchers.splittableParDoSingle().matches(parDoApplication), is(false));
-  }
-
-  @Test
-  public void parDoSingleWithTimers() {
-    AppliedPTransform<?, ?, ?> parDoApplication =
-        getAppliedTransform(ParDo.of(doFnWithTimers));
-    assertThat(PTransformMatchers.stateOrTimerParDoSingle().matches(parDoApplication), is(true));
-
-    assertThat(PTransformMatchers.splittableParDoMulti().matches(parDoApplication), is(false));
-    assertThat(PTransformMatchers.stateOrTimerParDoMulti().matches(parDoApplication), is(false));
-    assertThat(PTransformMatchers.splittableParDoSingle().matches(parDoApplication), is(false));
-  }
-
-  @Test
-  public void parDoMulti() {
+  public void parDo() {
     AppliedPTransform<?, ?, ?> parDoApplication =
         getAppliedTransform(
             ParDo.of(doFn).withOutputTags(new TupleTag<Integer>(), TupleTagList.empty()));
 
-    assertThat(PTransformMatchers.splittableParDoMulti().matches(parDoApplication), is(false));
-    assertThat(PTransformMatchers.stateOrTimerParDoMulti().matches(parDoApplication), is(false));
-    assertThat(PTransformMatchers.splittableParDoSingle().matches(parDoApplication), is(false));
-    assertThat(PTransformMatchers.stateOrTimerParDoSingle().matches(parDoApplication), is(false));
+    assertThat(PTransformMatchers.splittableParDo().matches(parDoApplication), is(false));
+    assertThat(PTransformMatchers.stateOrTimerParDo().matches(parDoApplication), is(false));
   }
 
   @Test
-  public void parDoMultiSplittable() {
+  public void parDoSplittable() {
     AppliedPTransform<?, ?, ?> parDoApplication =
         getAppliedTransform(
             ParDo.of(splittableDoFn).withOutputTags(new TupleTag<Integer>(), TupleTagList.empty()));
-    assertThat(PTransformMatchers.splittableParDoMulti().matches(parDoApplication), is(true));
+    assertThat(PTransformMatchers.splittableParDo().matches(parDoApplication), is(true));
 
-    assertThat(PTransformMatchers.stateOrTimerParDoMulti().matches(parDoApplication), is(false));
-    assertThat(PTransformMatchers.splittableParDoSingle().matches(parDoApplication), is(false));
-    assertThat(PTransformMatchers.stateOrTimerParDoSingle().matches(parDoApplication), is(false));
+    assertThat(PTransformMatchers.stateOrTimerParDo().matches(parDoApplication), is(false));
   }
 
   @Test
-  public void parDoMultiWithState() {
+  public void parDoWithState() {
     AppliedPTransform<?, ?, ?> parDoApplication =
         getAppliedTransform(
             ParDo.of(doFnWithState).withOutputTags(new TupleTag<Integer>(), TupleTagList.empty()));
-    assertThat(PTransformMatchers.stateOrTimerParDoMulti().matches(parDoApplication), is(true));
+    assertThat(PTransformMatchers.stateOrTimerParDo().matches(parDoApplication), is(true));
 
-    assertThat(PTransformMatchers.splittableParDoMulti().matches(parDoApplication), is(false));
-    assertThat(PTransformMatchers.splittableParDoSingle().matches(parDoApplication), is(false));
-    assertThat(PTransformMatchers.stateOrTimerParDoSingle().matches(parDoApplication), is(false));
+    assertThat(PTransformMatchers.splittableParDo().matches(parDoApplication), is(false));
   }
 
   @Test
-  public void parDoMultiWithTimers() {
+  public void parDoWithTimers() {
     AppliedPTransform<?, ?, ?> parDoApplication =
         getAppliedTransform(
             ParDo.of(doFnWithTimers).withOutputTags(new TupleTag<Integer>(), TupleTagList.empty()));
-    assertThat(PTransformMatchers.stateOrTimerParDoMulti().matches(parDoApplication), is(true));
+    assertThat(PTransformMatchers.stateOrTimerParDo().matches(parDoApplication), is(true));
 
-    assertThat(PTransformMatchers.splittableParDoMulti().matches(parDoApplication), is(false));
-    assertThat(PTransformMatchers.splittableParDoSingle().matches(parDoApplication), is(false));
-    assertThat(PTransformMatchers.stateOrTimerParDoSingle().matches(parDoApplication), is(false));
+    assertThat(PTransformMatchers.splittableParDo().matches(parDoApplication), is(false));
   }
 
   @Test
@@ -289,14 +237,12 @@ public class PTransformMatchersTest implements Serializable {
       public void process(ProcessContext ctxt) {
       }
     };
-    AppliedPTransform<?, ?, ?> parDoSingle = getAppliedTransform(ParDo.of(fn));
-    AppliedPTransform<?, ?, ?> parDoMulti =
+    AppliedPTransform<?, ?, ?> parDo =
         getAppliedTransform(
             ParDo.of(fn).withOutputTags(new TupleTag<Object>(), TupleTagList.empty()));
 
     PTransformMatcher matcher = PTransformMatchers.parDoWithFnType(fn.getClass());
-    assertThat(matcher.matches(parDoSingle), is(true));
-    assertThat(matcher.matches(parDoMulti), is(true));
+    assertThat(matcher.matches(parDo), is(true));
   }
 
   @Test
@@ -306,14 +252,12 @@ public class PTransformMatchersTest implements Serializable {
       public void process(ProcessContext ctxt) {
       }
     };
-    AppliedPTransform<?, ?, ?> parDoSingle = getAppliedTransform(ParDo.of(fn));
-    AppliedPTransform<?, ?, ?> parDoMulti =
+    AppliedPTransform<?, ?, ?> parDo =
         getAppliedTransform(
             ParDo.of(fn).withOutputTags(new TupleTag<Object>(), TupleTagList.empty()));
 
     PTransformMatcher matcher = PTransformMatchers.parDoWithFnType(doFnWithState.getClass());
-    assertThat(matcher.matches(parDoSingle), is(false));
-    assertThat(matcher.matches(parDoMulti), is(false));
+    assertThat(matcher.matches(parDo), is(false));
   }
 
   @Test

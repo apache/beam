@@ -333,9 +333,9 @@ public class DirectRunner extends PipelineRunner<DirectPipelineResult> {
             PTransformMatchers.classEqualTo(TestStream.class),
             new DirectTestStreamFactory(this)) /* primitive */
         // SplittableParDo is implemented in terms of GroupByKeys and Primitives
-        .put(PTransformMatchers.splittableParDoMulti(), new ParDoMultiOverrideFactory())
+        .put(PTransformMatchers.splittableParDo(), new ParDoMultiOverrideFactory())
         // state and timer ParDos are implemented in terms of GroupByKeys and Primitives
-        .put(PTransformMatchers.stateOrTimerParDoMulti(), new ParDoMultiOverrideFactory())
+        .put(PTransformMatchers.stateOrTimerParDo(), new ParDoMultiOverrideFactory())
         .put(
             PTransformMatchers.classEqualTo(GBKIntoKeyedWorkItems.class),
             new DirectGBKIntoKeyedWorkItemsOverrideFactory()) /* Returns a GBKO */
