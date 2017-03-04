@@ -33,34 +33,29 @@ import org.junit.runners.model.Statement;
  */
 public class PipelineRule implements TestRule {
 
-  private final TestName testName = new TestName();
-
   private final SparkPipelineRule delegate;
   private final RuleChain chain;
 
-  private PipelineRule() {
-    this.delegate = new SparkPipelineRule(testName);
-    this.chain = RuleChain.outerRule(testName).around(this.delegate);
-  }
-
-  private PipelineRule(Duration forcedTimeout) {
-    this.delegate = new SparkStreamingPipelineRule(forcedTimeout, testName);
+  private PipelineRule(SparkPipelineRule delegate) {
+    TestName testName = new TestName();
+    this.delegate = delegate;
+    this.delegate.setTestName(testName);
     this.chain = RuleChain.outerRule(testName).around(this.delegate);
   }
 
   public static PipelineRule streaming() {
-    return new PipelineRule(Duration.standardSeconds(5));
+    return new PipelineRule(new SparkStreamingPipelineRule());
   }
 
   public static PipelineRule batch() {
-    return new PipelineRule();
+    return new PipelineRule(new SparkPipelineRule());
   }
 
   public Duration batchDuration() {
     return Duration.millis(delegate.options.getBatchIntervalMillis());
   }
 
-  public SparkPipelineOptions getOptions() {
+  public TestSparkPipelineOptions getOptions() {
     return delegate.options;
   }
 
@@ -76,19 +71,12 @@ public class PipelineRule implements TestRule {
   private static class SparkStreamingPipelineRule extends SparkPipelineRule {
 
     private final TemporaryFolder temporaryFolder = new TemporaryFolder();
-    private final Duration forcedTimeout;
-
-    SparkStreamingPipelineRule(Duration forcedTimeout, TestName testName) {
-      super(testName);
-      this.forcedTimeout = forcedTimeout;
-    }
 
     @Override
     protected void before() throws Throwable {
       super.before();
       temporaryFolder.create();
       options.setForceStreaming(true);
-      options.setTestTimeoutSeconds(forcedTimeout.getStandardSeconds());
       options.setCheckpointDir(
           temporaryFolder.newFolder(options.getJobName()).toURI().toURL().toString());
     }
@@ -104,9 +92,9 @@ public class PipelineRule implements TestRule {
     protected final TestSparkPipelineOptions options =
         PipelineOptionsFactory.as(TestSparkPipelineOptions.class);
 
-    private final TestName testName;
+    private TestName testName;
 
-    private SparkPipelineRule(TestName testName) {
+    public void setTestName(TestName testName) {
       this.testName = testName;
     }
 
@@ -114,7 +102,8 @@ public class PipelineRule implements TestRule {
     protected void before() throws Throwable {
       options.setRunner(TestSparkRunner.class);
       options.setEnableSparkMetricSinks(false);
-      options.setJobName(testName.getMethodName());
+      options.setJobName(
+          testName != null ? testName.getMethodName() : "test-at-" + System.currentTimeMillis());
     }
   }
 }
