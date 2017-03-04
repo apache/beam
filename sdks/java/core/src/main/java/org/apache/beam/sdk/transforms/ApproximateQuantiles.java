@@ -19,6 +19,7 @@ package org.apache.beam.sdk.transforms;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import com.google.common.collect.UnmodifiableIterator;
@@ -40,8 +41,8 @@ import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.CoderRegistry;
-import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.ListCoder;
+import org.apache.beam.sdk.coders.StandardCoder;
 import org.apache.beam.sdk.transforms.Combine.AccumulatingCombineFn;
 import org.apache.beam.sdk.transforms.Combine.AccumulatingCombineFn.Accumulator;
 import org.apache.beam.sdk.transforms.display.DisplayData;
@@ -668,7 +669,7 @@ public class ApproximateQuantiles {
    * Coder for QuantileState.
    */
   private static class QuantileStateCoder<T, ComparatorT extends Comparator<T> & Serializable>
-      extends CustomCoder<QuantileState<T, ComparatorT>> {
+      extends StandardCoder<QuantileState<T, ComparatorT>> {
     private final ComparatorT compareFn;
     private final Coder<T> elementCoder;
     private final Coder<List<T>> elementListCoder;
@@ -716,6 +717,11 @@ public class ApproximateQuantiles {
       }
       return new QuantileState<T, ComparatorT>(
           compareFn, numQuantiles, min, max, numBuffers, bufferSize, unbufferedElements, buffers);
+    }
+
+    @Override
+    public List<? extends Coder<?>> getCoderArguments() {
+      return ImmutableList.of(elementCoder);
     }
 
     private void encodeBuffer(
