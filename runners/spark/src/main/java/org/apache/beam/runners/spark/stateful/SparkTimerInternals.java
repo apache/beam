@@ -19,6 +19,7 @@ package org.apache.beam.runners.spark.stateful;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
+import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import java.util.Collection;
 import java.util.Collections;
@@ -40,7 +41,7 @@ import org.joda.time.Instant;
 /**
  * An implementation of {@link TimerInternals} for the SparkRunner.
  */
-class SparkTimerInternals implements TimerInternals {
+public class SparkTimerInternals implements TimerInternals {
   private final Instant highWatermark;
   private final Instant synchronizedProcessingTime;
   private final Set<TimerData> timers = Sets.newHashSet();
@@ -90,6 +91,13 @@ class SparkTimerInternals implements TimerInternals {
     }
     return new SparkTimerInternals(
         slowestLowWatermark, slowestHighWatermark, synchronizedProcessingTime);
+  }
+
+  /** Build a global {@link TimerInternals} for all feeding streams.*/
+  public static SparkTimerInternals forStreamFromSources(
+      @Nullable Broadcast<Map<Integer, SparkWatermarks>> broadcast) {
+    return broadcast == null ? forStreamFromSources(Collections.<Integer>emptyList(), null)
+        : forStreamFromSources(Lists.newArrayList(broadcast.getValue().keySet()), broadcast);
   }
 
   Collection<TimerData> getTimers() {
