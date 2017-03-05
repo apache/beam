@@ -159,6 +159,18 @@ public final class TranslationUtils {
         };
       }
 
+  /** Extract window from a {@link KV} with {@link WindowedValue} value. */
+  static <K, V> Function<KV<K, WindowedValue<V>>, WindowedValue<KV<K, V>>> toKVByWindowInValue() {
+    return new Function<KV<K, WindowedValue<V>>, WindowedValue<KV<K, V>>>() {
+      @Override public WindowedValue<KV<K, V>> call(KV<K, WindowedValue<V>> kwv) throws Exception {
+        K k = kwv.getKey();
+        WindowedValue<V> wv = kwv.getValue();
+        V v = wv.getValue();
+        return WindowedValue.of(KV.of(k, v), wv.getTimestamp(), wv.getWindows(), wv.getPane());
+      }
+    };
+  }
+
   /**
    * A utility class to filter {@link TupleTag}s.
    *

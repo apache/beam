@@ -203,4 +203,26 @@ public class GroupCombineFunctions {
 
     return accumulatedBytes.mapToPair(CoderHelpers.fromByteFunction(keyCoder, iterAccumCoder));
   }
+
+  /**
+   * An implementation of
+   * {@link org.apache.beam.sdk.util.Reshuffle} for the Spark runner.
+   */
+  public static <K, V> JavaRDD<WindowedValue<KV<K, V>>> reshuffle(
+      JavaRDD<WindowedValue<KV<K, V>>> rdd,
+      Coder<K> keyCoder,
+      WindowedValueCoder<V> wvCoder) {
+
+    // Use coders to convert objects in the PCollection to byte arrays, so they
+    // can be transferred over the network for the shuffle.
+    return rdd
+        .map(new ReifyTimestampsAndWindowsFunction<K, V>())
+        .map(WindowingHelpers.<KV<K, WindowedValue<V>>>unwindowFunction())
+        .mapToPair(TranslationUtils.<K, WindowedValue<V>>toPairFunction())
+        .mapToPair(CoderHelpers.toByteFunction(keyCoder, wvCoder))
+        .repartition(rdd.getNumPartitions())
+        .mapToPair(CoderHelpers.fromByteFunction(keyCoder, wvCoder))
+        .map(TranslationUtils.<K, WindowedValue<V>>fromPairFunction())
+        .map(TranslationUtils.<K, V>toKVByWindowInValue());
+  }
 }
