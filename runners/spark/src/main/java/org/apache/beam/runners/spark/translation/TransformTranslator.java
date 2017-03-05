@@ -319,15 +319,7 @@ public final class TransformTranslator {
                         return sparkCombineFn.extractOutput(iter);
                       }
                 }).map(TranslationUtils.<K, WindowedValue<OutputT>>fromPairFunction())
-                  .map(new Function<KV<K, WindowedValue<OutputT>>,
-                      WindowedValue<KV<K, OutputT>>>() {
-                        @Override
-                          public WindowedValue<KV<K, OutputT>> call(
-                              KV<K, WindowedValue<OutputT>> kv) throws Exception {
-                                WindowedValue<OutputT> wv = kv.getValue();
-                                return wv.withValue(KV.of(kv.getKey(), wv.getValue()));
-                              }
-                      });
+                  .map(TranslationUtils.<K, OutputT>toKVByWindowInValue());
 
         context.putDataset(transform, new BoundedDataset<>(outRdd));
       }
