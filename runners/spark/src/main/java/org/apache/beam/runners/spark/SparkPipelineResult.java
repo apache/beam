@@ -184,12 +184,12 @@ public abstract class SparkPipelineResult implements PipelineResult {
       // been thrown during the "grace period".
       try {
         javaStreamingContext.awaitTermination(0);
+        SparkContextFactory.stopSparkContext(javaSparkContext);
+        if (Objects.equals(state, State.RUNNING)) {
+          state = State.STOPPED;
+        }
       } catch (Exception e) {
         throw beamExceptionFrom(e);
-      }
-      SparkContextFactory.stopSparkContext(javaSparkContext);
-      if (Objects.equals(state, State.RUNNING)) {
-        state = State.STOPPED;
       }
     }
 
