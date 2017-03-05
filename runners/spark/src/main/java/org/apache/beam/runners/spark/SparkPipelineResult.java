@@ -186,10 +186,11 @@ public abstract class SparkPipelineResult implements PipelineResult {
         javaStreamingContext.awaitTermination(0);
       } catch (Exception e) {
         throw beamExceptionFrom(e);
-      }
-      SparkContextFactory.stopSparkContext(javaSparkContext);
-      if (Objects.equals(state, State.RUNNING)) {
-        state = State.STOPPED;
+      } finally {
+        SparkContextFactory.stopSparkContext(javaSparkContext);
+        if (Objects.equals(state, State.RUNNING)) {
+          state = State.STOPPED;
+        }
       }
     }
 
