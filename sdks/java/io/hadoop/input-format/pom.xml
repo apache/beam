@@ -14,7 +14,8 @@
     WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
     See the License for the specific language governing permissions and
     limitations under the License.
---><project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
   <parent>
     <groupId>org.apache.beam</groupId>
@@ -24,9 +25,7 @@
   </parent>
   <groupId>org.apache.beam</groupId>
   <artifactId>beam-sdks-java-io-hadoop-input-format</artifactId>
-  <name>Apache Beam :: SDKs :: Java :: IO :: Hadoop :: input-format</name>
-
-  <properties>
+  <name>Apache Beam :: SDKs :: Java :: IO :: Hadoop :: input-format</name>  <properties>
     <log4j.core.version>2.6.2</log4j.core.version>
     <hadoop.common.version>2.7.0</hadoop.common.version>
     <guava.version>19.0</guava.version>
@@ -91,6 +90,27 @@
     <dependency>
       <groupId>org.hamcrest</groupId>
       <artifactId>hamcrest-all</artifactId>
+=======
+  <modules>
+    <module>jdk1.8-hifio-tests</module>
+    <module>hifio</module>
+  </modules>
+
+  <dependencies>
+    <dependency>
+      <groupId>org.apache.beam</groupId>
+      <artifactId>beam-sdks-java-core</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>junit</groupId>
+      <artifactId>junit</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.mockito</groupId>
+      <artifactId>mockito-all</artifactId>
+>>>>>>> HadoopInputFormatIO with junits:sdks/java/io/hadoop-input-format/pom.xml
       <scope>test</scope>
     </dependency>
   </dependencies>
