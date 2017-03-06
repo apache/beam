@@ -70,6 +70,30 @@
           </execution>
         </executions>
       </plugin>
+
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-dependency-plugin</artifactId>
+        <version>3.0.0</version>
+        <executions>
+          <execution>
+            <goals><goal>analyze-only</goal></goals>
+            <configuration>
+              <!-- Ignore runtime-only dependencies in analysis -->
+              <ignoreNonCompile>true</ignoreNonCompile>
+              <failOnWarning>true</failOnWarning>
+              <usedDependencies>
+                <!--
+                  BEAM-1632: Conflicting classes are brought in by bigtable-protos resulting in
+                  maven-dependency:analyze `unused dependency` error. Marking this as a
+                  `usedDependency` until the issue is resolved.
+                 -->
+                <usedDependency>com.google.api.grpc:grpc-google-common-protos</usedDependency>
+              </usedDependencies>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
     </plugins>
   </build>
 
@@ -257,5 +281,4 @@
       <scope>test</scope>
     </dependency>
   </dependencies>
-
 </project>
