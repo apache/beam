@@ -76,7 +76,8 @@ public class SparkMetricsContainer implements Serializable {
     return sparkMetricsContainer.distributions.values();
   }
 
-  SparkMetricsContainer update(SparkMetricsContainer other) {
+  public SparkMetricsContainer update(SparkMetricsContainer other) {
+    other.materialize();
     this.updateCounters(other.counters.values());
     this.updateDistributions(other.distributions.values());
     return this;
@@ -96,12 +97,14 @@ public class SparkMetricsContainer implements Serializable {
   }
 
   private void materialize() {
+    // Nullifying metricsContainers makes this method idempotent.
     if (metricsContainers != null) {
       for (MetricsContainer container : metricsContainers.asMap().values()) {
         MetricUpdates cumulative = container.getCumulative();
         this.updateCounters(cumulative.counterUpdates());
         this.updateDistributions(cumulative.distributionUpdates());
       }
+      metricsContainers = null;
     }
   }
 
