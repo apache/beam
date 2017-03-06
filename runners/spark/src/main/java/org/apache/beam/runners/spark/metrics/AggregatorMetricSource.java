@@ -34,8 +34,8 @@ public class AggregatorMetricSource implements Source {
   private final MetricRegistry metricRegistry = new MetricRegistry();
 
   public AggregatorMetricSource(final String appName, final NamedAggregators aggregators) {
-    sourceName = appName;
-    metricRegistry.register("Beam.Aggregators", AggregatorMetric.of(aggregators));
+    sourceName = appName + ".Beam";
+    metricRegistry.register("Aggregators", AggregatorMetric.of(aggregators));
   }
 
   @Override

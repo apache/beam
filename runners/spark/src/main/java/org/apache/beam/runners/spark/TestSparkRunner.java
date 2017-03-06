@@ -34,7 +34,7 @@ import org.apache.beam.runners.core.UnboundedReadFromBoundedSource;
 import org.apache.beam.runners.core.construction.PTransformMatchers;
 import org.apache.beam.runners.core.construction.ReplacementOutputs;
 import org.apache.beam.runners.spark.aggregators.AggregatorsAccumulator;
-import org.apache.beam.runners.spark.metrics.SparkMetricsContainer;
+import org.apache.beam.runners.spark.metrics.MetricsAccumulator;
 import org.apache.beam.runners.spark.stateful.SparkTimerInternals;
 import org.apache.beam.runners.spark.util.GlobalWatermarkHolder;
 import org.apache.beam.sdk.Pipeline;
@@ -115,7 +115,7 @@ public final class TestSparkRunner extends PipelineRunner<SparkPipelineResult> {
 
     // clear state of Aggregators, Metrics and Watermarks if exists.
     AggregatorsAccumulator.clear();
-    SparkMetricsContainer.clear();
+    MetricsAccumulator.clear();
     GlobalWatermarkHolder.clear();
 
     LOG.info("About to run test pipeline " + testSparkPipelineOptions.getJobName());

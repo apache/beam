@@ -18,7 +18,6 @@
 
 package org.apache.beam.runners.spark;
 
-import com.google.common.base.Optional;
 import com.google.common.collect.Iterables;
 import java.util.Arrays;
 import java.util.Collection;
@@ -27,13 +26,8 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import org.apache.beam.runners.spark.aggregators.AggregatorsAccumulator;
-import org.apache.beam.runners.spark.aggregators.NamedAggregators;
-import org.apache.beam.runners.spark.aggregators.SparkAggregators;
 import org.apache.beam.runners.spark.io.CreateStream;
-import org.apache.beam.runners.spark.metrics.AggregatorMetricSource;
-import org.apache.beam.runners.spark.metrics.CompositeSource;
 import org.apache.beam.runners.spark.metrics.MetricsAccumulator;
-import org.apache.beam.runners.spark.metrics.SparkBeamMetricSource;
 import org.apache.beam.runners.spark.translation.EvaluationContext;
 import org.apache.beam.runners.spark.translation.SparkContextFactory;
 import org.apache.beam.runners.spark.translation.SparkPipelineTranslator;
@@ -59,10 +53,7 @@ import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TaggedPValue;
-import org.apache.spark.Accumulator;
-import org.apache.spark.SparkEnv$;
 import org.apache.spark.api.java.JavaSparkContext;
-import org.apache.spark.metrics.MetricsSystem;
 import org.apache.spark.streaming.api.java.JavaStreamingContext;
 import org.apache.spark.streaming.api.java.JavaStreamingListener;
 import org.apache.spark.streaming.api.java.JavaStreamingListenerWrapper;
@@ -141,31 +132,6 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
     mOptions = options;
   }
 
-  private void registerMetrics(final SparkPipelineOptions opts, final JavaSparkContext jsc) {
-    Optional<CheckpointDir> maybeCheckpointDir =
-        opts.isStreaming() ? Optional.of(new CheckpointDir(opts.getCheckpointDir()))
-            : Optional.<CheckpointDir>absent();
-    final Accumulator<NamedAggregators> aggregatorsAccumulator =
-        SparkAggregators.getOrCreateNamedAggregators(jsc, maybeCheckpointDir);
-    // Instantiate metrics accumulator
-    MetricsAccumulator.init(jsc, maybeCheckpointDir);
-    final NamedAggregators initialValue = aggregatorsAccumulator.value();
-    if (opts.getEnableSparkMetricSinks()) {
-      final MetricsSystem metricsSystem = SparkEnv$.MODULE$.get().metricsSystem();
-      String appName = opts.getAppName();
-      final AggregatorMetricSource aggregatorMetricSource =
-          new AggregatorMetricSource(appName, initialValue);
-      final SparkBeamMetricSource metricsSource =
-          new SparkBeamMetricSource(appName);
-      final CompositeSource compositeSource =
-          new CompositeSource(appName,
-              metricsSource.metricRegistry(), aggregatorMetricSource.metricRegistry());
-      // re-register the metrics in case of context re-use
-      metricsSystem.removeSource(compositeSource);
-      metricsSystem.registerSource(compositeSource);
-    }
-  }
-
   @Override
   public SparkPipelineResult run(final Pipeline pipeline) {
     LOG.info("Executing pipeline using the SparkRunner.");
@@ -203,11 +169,12 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
       // register Watermarks listener to broadcast the advanced WMs.
       jssc.addStreamingListener(new JavaStreamingListenerWrapper(new WatermarksListener(jssc)));
 
+      initAccumulators(mOptions, jssc.sparkContext());
+
       startPipeline = executorService.submit(new Runnable() {
 
         @Override
         public void run() {
-          registerMetrics(mOptions, jssc.sparkContext());
           LOG.info("Starting streaming pipeline execution.");
           jssc.start();
         }
@@ -218,11 +185,12 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
       final JavaSparkContext jsc = SparkContextFactory.getSparkContext(mOptions);
       final EvaluationContext evaluationContext = new EvaluationContext(jsc, pipeline);
 
+      initAccumulators(mOptions, jsc);
+
       startPipeline = executorService.submit(new Runnable() {
 
         @Override
         public void run() {
-          registerMetrics(mOptions, jsc);
           pipeline.traverseTopologically(new Evaluator(new TransformTranslator.Translator(),
                                                        evaluationContext));
           evaluationContext.computeOutputs();
@@ -234,6 +202,15 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
     }
 
     return result;
+  }
+
+  /**
+   * Init Metrics/Aggregators accumulators. This method is idempotent.
+   */
+  public static void initAccumulators(SparkPipelineOptions opts, JavaSparkContext jsc) {
+    // Init metrics accumulators
+    MetricsAccumulator.init(opts, jsc);
+    AggregatorsAccumulator.init(opts, jsc);
   }
 
   /**

@@ -79,6 +79,9 @@ public class SparkRunnerStreamingContextFactory implements JavaStreamingContextF
     JavaSparkContext jsc = SparkContextFactory.getSparkContext(options);
     JavaStreamingContext jssc = new JavaStreamingContext(jsc, batchDuration);
 
+    // Init metrics accumulators
+    SparkRunner.initAccumulators(options, jsc);
+
     ctxt = new EvaluationContext(jsc, pipeline, jssc);
     pipeline.traverseTopologically(new SparkRunner.Evaluator(translator, ctxt));
     ctxt.computeOutputs();

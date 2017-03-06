@@ -40,7 +40,7 @@ import org.apache.beam.runners.spark.SparkPipelineResult;
 import org.apache.beam.runners.spark.TestSparkPipelineOptions;
 import org.apache.beam.runners.spark.aggregators.AggregatorsAccumulator;
 import org.apache.beam.runners.spark.coders.CoderHelpers;
-import org.apache.beam.runners.spark.metrics.SparkMetricsContainer;
+import org.apache.beam.runners.spark.metrics.MetricsAccumulator;
 import org.apache.beam.runners.spark.translation.streaming.utils.EmbeddedKafkaCluster;
 import org.apache.beam.runners.spark.util.GlobalWatermarkHolder;
 import org.apache.beam.sdk.Pipeline;
@@ -171,7 +171,7 @@ public class ResumeFromCheckpointStreamingTest {
 
     //- clear state.
     AggregatorsAccumulator.clear();
-    SparkMetricsContainer.clear();
+    MetricsAccumulator.clear();
     GlobalWatermarkHolder.clear();
 
     //- write a bit more.

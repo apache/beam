@@ -34,8 +34,8 @@ public class SparkBeamMetricSource implements Source {
   private final MetricRegistry metricRegistry = new MetricRegistry();
 
   public SparkBeamMetricSource(final String appName) {
-    sourceName = appName;
-    metricRegistry.register("Beam.Metrics", new SparkBeamMetric());
+    sourceName = appName + ".Beam.Metrics";
+    metricRegistry.register("Steps", new SparkBeamMetric());
   }
 
   @Override
