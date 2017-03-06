@@ -525,8 +525,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
 
     assertEquals(13, job.getSteps().size());
     Step step = job.getSteps().get(1);
-    assertEquals(
-        stepName + "/ParMultiDo(NoOp)", getString(step.getProperties(), PropertyNames.USER_NAME));
+    assertEquals(stepName, getString(step.getProperties(), PropertyNames.USER_NAME));
     assertAllStepOutputsHaveUniqueIds(job);
     return step;
   }
@@ -972,7 +971,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
             .put("type", "JAVA_CLASS")
             .put("value", fn1.getClass().getName())
             .put("shortValue", fn1.getClass().getSimpleName())
-            .put("namespace", ParDo.BoundMulti.class.getName())
+            .put("namespace", parDo1.getClass().getName())
             .build(),
         ImmutableMap.<String, Object>builder()
             .put("key", "foo2")
@@ -992,7 +991,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
             .put("type", "JAVA_CLASS")
             .put("value", fn2.getClass().getName())
             .put("shortValue", fn2.getClass().getSimpleName())
-            .put("namespace", ParDo.BoundMulti.class.getName())
+            .put("namespace", parDo2.getClass().getName())
             .build(),
         ImmutableMap.<String, Object>builder()
             .put("key", "foo3")
