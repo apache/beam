@@ -18,7 +18,6 @@
 
 package org.apache.beam.runners.spark.metrics;
 
-import com.google.common.annotations.VisibleForTesting;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
@@ -66,11 +65,15 @@ public class SparkMetricsContainer implements Serializable {
   }
 
   static Collection<MetricUpdate<Long>> getCounters() {
-    return getInstance().counters.values();
+    SparkMetricsContainer sparkMetricsContainer = getInstance();
+    sparkMetricsContainer.materialize();
+    return sparkMetricsContainer.counters.values();
   }
 
   static Collection<MetricUpdate<DistributionData>> getDistributions() {
-    return getInstance().distributions.values();
+    SparkMetricsContainer sparkMetricsContainer = getInstance();
+    sparkMetricsContainer.materialize();
+    return sparkMetricsContainer.distributions.values();
   }
 
   SparkMetricsContainer update(SparkMetricsContainer other) {
@@ -140,13 +143,5 @@ public class SparkMetricsContainer implements Serializable {
       sb.append(metric.getKey()).append(": ").append(metric.getValue()).append(" ");
     }
     return sb.toString();
-  }
-
-  @VisibleForTesting
-  public static void clear() {
-    try {
-      MetricsAccumulator.clear();
-    } catch (IllegalStateException ignored) {
-    }
   }
 }

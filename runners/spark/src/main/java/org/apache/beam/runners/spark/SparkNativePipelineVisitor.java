@@ -19,7 +19,6 @@
 package org.apache.beam.runners.spark;
 
 import com.google.common.base.Joiner;
-import com.google.common.base.Optional;
 import com.google.common.base.Predicate;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
@@ -27,11 +26,9 @@ import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.List;
-import org.apache.beam.runners.spark.metrics.MetricsAccumulator;
 import org.apache.beam.runners.spark.translation.EvaluationContext;
 import org.apache.beam.runners.spark.translation.SparkPipelineTranslator;
 import org.apache.beam.runners.spark.translation.TransformEvaluator;
-import org.apache.beam.runners.spark.translation.streaming.Checkpoint;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.transforms.MapElements;
@@ -55,7 +52,6 @@ public class SparkNativePipelineVisitor extends SparkRunner.Evaluator {
   SparkNativePipelineVisitor(SparkPipelineTranslator translator, EvaluationContext ctxt) {
     super(translator, ctxt);
     this.transforms = new ArrayList<>();
-    MetricsAccumulator.init(ctxt.getSparkContext(), Optional.<Checkpoint.CheckpointDir>absent());
   }
 
   @Override

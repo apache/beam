@@ -28,19 +28,20 @@ import org.apache.spark.metrics.source.Source;
  * wrapping an underlying {@link NamedAggregators} instance.
  */
 public class AggregatorMetricSource implements Source {
+  private static final String METRIC_NAME = "Aggregators";
 
-  private final String sourceName;
+  private final String name;
 
   private final MetricRegistry metricRegistry = new MetricRegistry();
 
-  public AggregatorMetricSource(final String appName, final NamedAggregators aggregators) {
-    sourceName = appName;
-    metricRegistry.register("Beam.Aggregators", AggregatorMetric.of(aggregators));
+  public AggregatorMetricSource(final String name, final NamedAggregators aggregators) {
+    this.name = name;
+    metricRegistry.register(METRIC_NAME, AggregatorMetric.of(aggregators));
   }
 
   @Override
   public String sourceName() {
-    return sourceName;
+    return name;
   }
 
   @Override
