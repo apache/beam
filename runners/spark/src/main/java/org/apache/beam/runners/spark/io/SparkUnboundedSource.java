@@ -94,8 +94,6 @@ public class SparkUnboundedSource {
 
     // set checkpoint duration for read stream, if set.
     checkpointStream(mapWithStateDStream, options);
-    // cache since checkpointing is less frequent.
-    mapWithStateDStream.cache();
 
     // report the number of input elements for this InputDStream to the InputInfoTracker.
     int id = inputDStream.inputDStream().id();
