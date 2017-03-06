@@ -68,11 +68,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * integration test for {@link ParDoTranslator}.
+ * integration test for {@link ParDoBoundTranslator}.
  */
 @RunWith(JUnit4.class)
-public class ParDoTranslatorTest {
-  private static final Logger LOG = LoggerFactory.getLogger(ParDoTranslatorTest.class);
+public class ParDoBoundTranslatorTest {
+  private static final Logger LOG = LoggerFactory.getLogger(ParDoBoundTranslatorTest.class);
   private static final long SLEEP_MILLIS = 500;
   private static final long TIMEOUT_MILLIS = 30000;
 
@@ -98,7 +98,7 @@ public class ParDoTranslatorTest {
     Assert.assertNotNull(om);
     Assert.assertEquals(om.getOperator().getClass(), ApexReadUnboundedInputOperator.class);
 
-    om = dag.getOperatorMeta("ParDo(Add)/ParMultiDo(Add)");
+    om = dag.getOperatorMeta("ParDo(Add)");
     Assert.assertNotNull(om);
     Assert.assertEquals(om.getOperator().getClass(), ApexParDoOperator.class);
 

@@ -83,7 +83,7 @@ public class TrackStreamingSourcesTest {
 
     p.apply(emptyStream).apply(ParDo.of(new PassthroughFn<>()));
 
-    p.traverseTopologically(new StreamingSourceTracker(jssc, p, ParDo.BoundMulti.class,  0));
+    p.traverseTopologically(new StreamingSourceTracker(jssc, p, ParDo.Bound.class,  0));
     assertThat(StreamingSourceTracker.numAssertions, equalTo(1));
   }
 
@@ -111,7 +111,7 @@ public class TrackStreamingSourcesTest {
         PCollectionList.of(pcol1).and(pcol2).apply(Flatten.<Integer>pCollections());
     flattened.apply(ParDo.of(new PassthroughFn<>()));
 
-    p.traverseTopologically(new StreamingSourceTracker(jssc, p, ParDo.BoundMulti.class, 0, 1));
+    p.traverseTopologically(new StreamingSourceTracker(jssc, p, ParDo.Bound.class, 0, 1));
     assertThat(StreamingSourceTracker.numAssertions, equalTo(1));
   }
 

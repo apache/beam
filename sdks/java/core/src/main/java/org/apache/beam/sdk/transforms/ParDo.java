@@ -738,8 +738,12 @@ public class ParDo {
 
     @Override
     public PCollection<OutputT> expand(PCollection<? extends InputT> input) {
-      TupleTag<OutputT> mainOutput = new TupleTag<>();
-      return input.apply(withOutputTags(mainOutput, TupleTagList.empty())).get(mainOutput);
+      validateWindowType(input, fn);
+      return PCollection.<OutputT>createPrimitiveOutputInternal(
+              input.getPipeline(),
+              input.getWindowingStrategy(),
+              input.isBounded())
+          .setTypeDescriptor(getFn().getOutputTypeDescriptor());
     }
 
     @Override
