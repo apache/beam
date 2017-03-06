@@ -223,7 +223,7 @@ public class JdbcIOTest implements Serializable {
                      .withDataSourceConfiguration(JdbcIO.DataSourceConfiguration.create(dataSource))
                      .withQuery(String.format("select name,id from %s where name = ?",
                          JdbcTestDataSet.READ_TABLE_NAME))
-                     .withStatementPrepator(new JdbcIO.StatementPreparator() {
+                     .withStatementPreparator(new JdbcIO.StatementPreparator() {
                        @Override
                        public void setParameters(PreparedStatement preparedStatement)
                                throws Exception {

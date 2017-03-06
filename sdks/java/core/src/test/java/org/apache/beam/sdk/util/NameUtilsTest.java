@@ -20,6 +20,7 @@ package org.apache.beam.sdk.util;
 
 import static org.junit.Assert.assertEquals;
 
+import com.google.auto.value.AutoValue;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.util.NameUtils.NameOverride;
@@ -133,7 +134,18 @@ public class NameUtilsTest {
     assertEquals(
         "NameUtilsTest.EmbeddedPTransform",
         NameUtils.approximatePTransformName(transform.getBound().getClass()));
+    assertEquals(
+        "NameUtilsTest.SomeTransform",
+        NameUtils.approximatePTransformName(AutoValue_NameUtilsTest_SomeTransform.class));
     assertEquals("TextIO.Write", NameUtils.approximatePTransformName(TextIO.Write.Bound.class));
+  }
+
+  @AutoValue
+  abstract static class SomeTransform extends PTransform<PBegin, PDone> {
+    @Override
+    public PDone expand(PBegin input) {
+      return null;
+    }
   }
 
   @Test

@@ -32,8 +32,8 @@ import java.util.Map;
 import java.util.Queue;
 import java.util.concurrent.LinkedBlockingQueue;
 import javax.annotation.Nonnull;
+import org.apache.beam.runners.spark.aggregators.AggregatorsAccumulator;
 import org.apache.beam.runners.spark.aggregators.NamedAggregators;
-import org.apache.beam.runners.spark.aggregators.SparkAggregators;
 import org.apache.beam.runners.spark.coders.CoderHelpers;
 import org.apache.beam.runners.spark.io.ConsoleIO;
 import org.apache.beam.runners.spark.io.CreateStream;
@@ -92,11 +92,10 @@ import org.apache.spark.streaming.api.java.JavaPairDStream;
 import org.apache.spark.streaming.api.java.JavaStreamingContext;
 
 
-
 /**
  * Supports translation between a Beam transform, and Spark's operations on DStreams.
  */
-final class StreamingTransformTranslator {
+public final class StreamingTransformTranslator {
 
   private StreamingTransformTranslator() {
   }
@@ -109,6 +108,11 @@ final class StreamingTransformTranslator {
         JavaDStream<WindowedValue<T>> dstream =
             ((UnboundedDataset<T>) (context).borrowDataset(transform)).getDStream();
         dstream.map(WindowingHelpers.<T>unwindowFunction()).print(transform.getNum());
+      }
+
+      @Override
+      public String toNativeString() {
+        return ".print(...)";
       }
     };
   }
@@ -123,6 +127,11 @@ final class StreamingTransformTranslator {
                 context.getStreamingContext(),
                 context.getRuntimeContext(),
                 transform.getSource()));
+      }
+
+      @Override
+      public String toNativeString() {
+        return "streamingContext.<readFrom(<source>)>()";
       }
     };
   }
@@ -168,6 +177,11 @@ final class StreamingTransformTranslator {
             ImmutableMap.of(unboundedDataset.getStreamSources().get(0), times));
         context.putDataset(transform, unboundedDataset);
       }
+
+      @Override
+      public String toNativeString() {
+        return "streamingContext.queueStream(...)";
+      }
     };
   }
 
@@ -208,6 +222,11 @@ final class StreamingTransformTranslator {
             context.getStreamingContext().union(dStreams.remove(0), dStreams);
         context.putDataset(transform, new UnboundedDataset<>(unifiedStreams, streamingSources));
       }
+
+      @Override
+      public String toNativeString() {
+        return "streamingContext.union(...)";
+      }
     };
   }
 
@@ -234,6 +253,11 @@ final class StreamingTransformTranslator {
         }
         context.putDataset(transform,
             new UnboundedDataset<>(outputStream, unboundedDataset.getStreamSources()));
+      }
+
+      @Override
+      public String toNativeString() {
+        return "map(new <windowFn>())";
       }
     };
   }
@@ -283,6 +307,11 @@ final class StreamingTransformTranslator {
 
         context.putDataset(transform, new UnboundedDataset<>(outStream, streamSources));
       }
+
+      @Override
+      public String toNativeString() {
+        return "groupByKey()";
+      }
     };
   }
 
@@ -329,6 +358,11 @@ final class StreamingTransformTranslator {
         context.putDataset(transform,
             new UnboundedDataset<>(outStream, unboundedDataset.getStreamSources()));
       }
+
+      @Override
+      public String toNativeString() {
+        return "map(new <fn>())";
+      }
     };
   }
 
@@ -359,8 +393,7 @@ final class StreamingTransformTranslator {
           public JavaRDD<WindowedValue<OutputT>> call(JavaRDD<WindowedValue<InputT>> rdd) throws
               Exception {
             final JavaSparkContext jsc = new JavaSparkContext(rdd.context());
-            final Accumulator<NamedAggregators> aggAccum =
-                SparkAggregators.getNamedAggregators(jsc);
+            final Accumulator<NamedAggregators> aggAccum = AggregatorsAccumulator.getInstance();
             final Accumulator<SparkMetricsContainer> metricsAccum =
                 MetricsAccumulator.getInstance();
             final Map<TupleTag<?>, KV<WindowingStrategy<?, ?>, SideInputBroadcast<?>>> sideInputs =
@@ -374,6 +407,11 @@ final class StreamingTransformTranslator {
 
         context.putDataset(transform,
             new UnboundedDataset<>(outStream, unboundedDataset.getStreamSources()));
+      }
+
+      @Override
+      public String toNativeString() {
+        return "mapPartitions(new <fn>())";
       }
     };
   }
@@ -404,9 +442,7 @@ final class StreamingTransformTranslator {
           public JavaPairRDD<TupleTag<?>, WindowedValue<?>> call(
               JavaRDD<WindowedValue<InputT>> rdd) throws Exception {
             String stepName = context.getCurrentTransform().getFullName();
-            JavaSparkContext jsc = new JavaSparkContext(rdd.context());
-            final Accumulator<NamedAggregators> aggAccum =
-                SparkAggregators.getNamedAggregators(jsc);
+            final Accumulator<NamedAggregators> aggAccum = AggregatorsAccumulator.getInstance();
             final Accumulator<SparkMetricsContainer> metricsAccum =
                 MetricsAccumulator.getInstance();
             final Map<TupleTag<?>, KV<WindowingStrategy<?, ?>, SideInputBroadcast<?>>> sideInputs =
@@ -430,6 +466,11 @@ final class StreamingTransformTranslator {
           context.putDataset(e.getValue(),
               new UnboundedDataset<>(values, unboundedDataset.getStreamSources()));
         }
+      }
+
+      @Override
+      public String toNativeString() {
+        return "mapPartitions(new <fn>())";
       }
     };
   }
@@ -465,6 +506,10 @@ final class StreamingTransformTranslator {
 
         context.putDataset(transform, new UnboundedDataset<>(reshuffledStream, streamSources));
       }
+
+      @Override public String toNativeString() {
+        return "repartition(...)";
+      }
     };
   }
 
@@ -491,7 +536,7 @@ final class StreamingTransformTranslator {
 
     private final SparkPipelineTranslator batchTranslator;
 
-    Translator(SparkPipelineTranslator batchTranslator) {
+    public Translator(SparkPipelineTranslator batchTranslator) {
       this.batchTranslator = batchTranslator;
     }
 

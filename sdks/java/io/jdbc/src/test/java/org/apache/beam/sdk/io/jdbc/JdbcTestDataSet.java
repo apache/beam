@@ -41,8 +41,9 @@ public class JdbcTestDataSet {
    * Use this to create the read tables before IT read tests.
    *
    * <p>To invoke this class, you can use this command line:
+   * (run from the jdbc root directory)
    * mvn test-compile exec:java -Dexec.mainClass=org.apache.beam.sdk.io.jdbc.JdbcTestDataSet \
-   *   -Dexec.args="--postgresIp=1.1.1.1 --postgresUsername=postgres
+   *   -Dexec.args="--postgresServerName=127.0.0.1 --postgresUsername=postgres \
    *   --postgresDatabaseName=myfancydb \
    *   --postgresPassword=yourpassword --postgresSsl=false" \
    *   -Dexec.classpathScope=test

@@ -71,7 +71,7 @@ public class BatchStatefulParDoOverridesTest implements Serializable {
     DummyStatefulDoFn fn = new DummyStatefulDoFn();
     pipeline.apply(Create.of(KV.of(1, 2))).apply(ParDo.of(fn));
 
-    DataflowRunner runner = (DataflowRunner) pipeline.getRunner();
+    DataflowRunner runner = DataflowRunner.fromOptions(options);
     runner.replaceTransforms(pipeline);
     assertThat(findBatchStatefulDoFn(pipeline), equalTo((DoFn) fn));
   }
@@ -89,7 +89,7 @@ public class BatchStatefulParDoOverridesTest implements Serializable {
         .apply(Create.of(KV.of(1, 2)))
         .apply(ParDo.withOutputTags(mainOutputTag, TupleTagList.empty()).of(fn));
 
-    DataflowRunner runner = (DataflowRunner) pipeline.getRunner();
+    DataflowRunner runner = DataflowRunner.fromOptions(options);
     runner.replaceTransforms(pipeline);
     assertThat(findBatchStatefulDoFn(pipeline), equalTo((DoFn) fn));
   }
