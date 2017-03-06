@@ -327,7 +327,8 @@ public class DataflowPipelineTranslator {
       workerPool.setNumWorkers(options.getNumWorkers());
 
       if (options.isStreaming()
-          && !DataflowRunner.hasExperiment(options, "enable_windmill_service")) {
+          && (options.getExperiments() == null
+              || !options.getExperiments().contains("enable_windmill_service"))) {
         // Use separate data disk for streaming.
         Disk disk = new Disk();
         disk.setDiskType(options.getWorkerDiskType());
