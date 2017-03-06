@@ -107,7 +107,7 @@ The following example code shows how to `apply` a `TextIO.Read` root transform t
 
 ```java
 PCollection<String> lines = p.apply(
-  apply("ReadLines", TextIO.Read.from("gs://some/inputData.txt"));
+  "ReadLines", TextIO.Read.from("gs://some/inputData.txt"));
 ```
 
 ## Applying Transforms to Process Pipeline Data
