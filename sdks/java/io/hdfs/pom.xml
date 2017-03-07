@@ -58,6 +58,9 @@
                     <shadedPattern>org.apache.beam.sdk.io.hdfs.repackaged.com.google.thirdparty</shadedPattern>
                   </relocation>
                 </relocations>
+                <transformers>
+                  <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
+                </transformers>
               </configuration>
             </execution>
           </executions>
