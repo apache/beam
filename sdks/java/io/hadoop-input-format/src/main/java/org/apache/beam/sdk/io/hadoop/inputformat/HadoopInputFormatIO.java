@@ -603,6 +603,8 @@ public class HadoopInputFormatIO {
      * Returns parameterized type of the InputFormat class.
      */
     private ParameterizedType determineGenericType() {
+      // It is considered that user provided inputFormatClass will always inherit from
+      // ParameterizedType.
       Class<?> inputFormatClass = inputFormatObj.getClass();
       Type genericSuperclass = null;
       for (;;) {
