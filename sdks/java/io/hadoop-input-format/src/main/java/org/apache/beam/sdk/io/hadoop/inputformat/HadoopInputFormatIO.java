@@ -722,6 +722,7 @@ public class HadoopInputFormatIO {
             recordReader.initialize(split.getSplit(), taskAttemptContext);
             if (recordReader.nextKeyValue()) {
               recordsReturned++;
+              doneReading = false;
               return true;
             }
           } else {
