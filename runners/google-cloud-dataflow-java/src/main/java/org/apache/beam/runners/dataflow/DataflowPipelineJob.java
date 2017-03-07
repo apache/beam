@@ -29,7 +29,6 @@ import com.google.api.services.dataflow.model.JobMessage;
 import com.google.api.services.dataflow.model.JobMetrics;
 import com.google.api.services.dataflow.model.MetricUpdate;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.MoreObjects;
 import java.io.IOException;
 import java.net.SocketTimeoutException;
 import java.util.List;
@@ -37,8 +36,6 @@ import java.util.Map;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.runners.dataflow.util.MonitoringUtil;
-import org.apache.beam.sdk.AggregatorRetrievalException;
-import org.apache.beam.sdk.AggregatorValues;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.metrics.MetricResults;
 import org.apache.beam.sdk.transforms.Aggregator;
@@ -433,30 +430,6 @@ public class DataflowPipelineJob implements PipelineResult {
         Thread.currentThread().interrupt();
       }
       throw new RuntimeException(e);
-    }
-  }
-
-  @Override
-  public <OutputT> AggregatorValues<OutputT> getAggregatorValues(Aggregator<?, OutputT> aggregator)
-      throws AggregatorRetrievalException {
-    try {
-      final Map<String, OutputT> stepValues = fromMetricUpdates(aggregator);
-      return new AggregatorValues<OutputT>() {
-        @Override
-        public Map<String, OutputT> getValuesAtSteps() {
-          return stepValues;
-        }
-
-        @Override
-        public String toString() {
-          return MoreObjects.toStringHelper(this)
-              .add("stepValues", stepValues)
-              .toString();
-        }
-      };
-    } catch (IOException e) {
-      throw new AggregatorRetrievalException(
-          "IOException when retrieving Aggregator values for Aggregator " + aggregator, e);
     }
   }
 
