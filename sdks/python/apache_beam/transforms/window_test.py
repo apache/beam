@@ -19,6 +19,7 @@
 
 import unittest
 
+from apache_beam import pipeline
 from apache_beam.test_pipeline import TestPipeline
 from apache_beam.transforms import CombinePerKey
 from apache_beam.transforms import combiners
@@ -32,6 +33,7 @@ from apache_beam.transforms.timeutil import MIN_TIMESTAMP
 from apache_beam.transforms.util import assert_that, equal_to
 from apache_beam.transforms.window import FixedWindows
 from apache_beam.transforms.window import GlobalWindow
+from apache_beam.transforms.window import GlobalWindows
 from apache_beam.transforms.window import IntervalWindow
 from apache_beam.transforms.window import Sessions
 from apache_beam.transforms.window import SlidingWindows
@@ -224,6 +226,15 @@ class WindowTest(unittest.TestCase):
                 label='assert:mean')
     p.run()
 
+  def test_runner_api(self):
+    for window_fn in (GlobalWindows(),
+                      FixedWindows(37),
+                      SlidingWindows(2, 389),
+                      Sessions(5077)):
+      context = pipeline.PipelineContext()
+      self.assertEqual(
+          window_fn,
+          WindowFn.from_runner_api(window_fn.to_runner_api(context), context))
 
 if __name__ == '__main__':
   unittest.main()
