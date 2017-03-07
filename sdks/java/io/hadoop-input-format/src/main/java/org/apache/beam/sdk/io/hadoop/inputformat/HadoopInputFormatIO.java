@@ -765,11 +765,7 @@ public class HadoopInputFormatIO {
                   valueCoder);
         } catch (IOException | InterruptedException e) {
           LOG.error("Unable to read data: " + "{}", e);
-<<<<<<< 1bde538f9cad21c1b3567ca631f6f7fa7ceb7c4b
           throw new IllegalStateException("Unable to read data: " + "{}", e);
-=======
-          return null;
->>>>>>> Removed HadoopInputFormatIOConstants file and removed the use of constants from related classes.
         }
         return KV.of(key, value);
       }
@@ -850,11 +846,7 @@ public class HadoopInputFormatIO {
       private Double getProgress() throws IOException, InterruptedException {
         try {
           return (double) recordReader.getProgress();
-<<<<<<< 1bde538f9cad21c1b3567ca631f6f7fa7ceb7c4b
         } catch (IOException e) {
-=======
-        } catch (IOException | InterruptedException e) {
->>>>>>> Removed HadoopInputFormatIOConstants file and removed the use of constants from related classes.
           LOG.error(
               "Error in computing the fractions consumed as RecordReader.getProgress() throws an "
               + "exception : " + "{}", e);
