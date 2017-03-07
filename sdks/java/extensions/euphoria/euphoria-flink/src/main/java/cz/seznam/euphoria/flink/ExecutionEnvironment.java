@@ -22,6 +22,7 @@ import cz.seznam.euphoria.core.client.dataset.windowing.TimeInterval;
 import cz.seznam.euphoria.core.client.dataset.windowing.WindowedElement;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.util.Pair;
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -66,6 +67,16 @@ public class ExecutionEnvironment {
       toRegister.forEach(streamEnv::registerType);
     }
     LOG.info("Registered classes {} within flink's runtime", toRegister);
+  }
+
+  public ExecutionConfig getExecutionConfig() {
+    if (batchEnv != null) {
+      return batchEnv.getConfig();
+    } else if (streamEnv != null) {
+      return streamEnv.getConfig();
+    } else {
+      throw new IllegalStateException("No execution environment initialized");
+    }
   }
 
   public void execute() throws Exception {
