@@ -464,7 +464,7 @@
 
 <p>In such roles, <code class="highlighter-rouge">ParDo</code> is a common intermediate step in a pipeline. You might use it to extract certain fields from a set of raw input records, or convert raw input into a different format; you might also use <code class="highlighter-rouge">ParDo</code> to convert processed data into a format suitable for output, like database table rows or printable strings.</p>
 
-<p>When you apply a <code class="highlighter-rouge">ParDo</code> transform, you’ll need to provide user code in the form of a <code class="highlighter-rouge">DoFn</code> object. <code class="highlighter-rouge">DoFn</code> is a Beam SDK class that defines a distribured processing function.</p>
+<p>When you apply a <code class="highlighter-rouge">ParDo</code> transform, you’ll need to provide user code in the form of a <code class="highlighter-rouge">DoFn</code> object. <code class="highlighter-rouge">DoFn</code> is a Beam SDK class that defines a distributed processing function.</p>
 
 <blockquote>
   <p>When you create a subclass of <code class="highlighter-rouge">DoFn</code>, note that your subclass should adhere to the <a href="#transforms-usercodereqs">General Requirements for Writing User Code for Beam Transforms</a>.</p>
