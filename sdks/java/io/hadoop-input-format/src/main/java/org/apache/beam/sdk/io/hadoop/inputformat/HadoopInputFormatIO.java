@@ -212,8 +212,8 @@ public class HadoopInputFormatIO {
       abstract Builder<K, V> setConfiguration(SerializableConfiguration configuration);
       abstract Builder<K, V> setKeyTranslationFunction(SimpleFunction<?, K> function);
       abstract Builder<K, V> setValueTranslationFunction(SimpleFunction<?, V> function);
-      abstract Builder<K, V> setKeyClass(TypeDescriptor<K> keyClass);
-      abstract Builder<K, V> setValueClass(TypeDescriptor<V> valueClass);
+      abstract Builder<K, V> setKeyTypeDescriptor(TypeDescriptor<K> keyTypeDescriptor);
+      abstract Builder<K, V> setValueTypeDescriptor(TypeDescriptor<V> valueTypeDescriptor);
       abstract Builder<K, V> setInputFormatClass(TypeDescriptor<?> inputFormatClass);
       abstract Builder<K, V> setInputFormatKeyClass(TypeDescriptor<?> inputFormatKeyClass);
       abstract Builder<K, V> setInputFormatValueClass(TypeDescriptor<?> inputFormatValueClass);
@@ -244,14 +244,14 @@ public class HadoopInputFormatIO {
        * yet.
        */
       if (getKeyTranslationFunction() == null) {
-        builder.setKeyClass((TypeDescriptor<K>) inputFormatKeyClass);
+        builder.setKeyTypeDescriptor((TypeDescriptor<K>) inputFormatKeyClass);
       }
       /*
        * Sets the output value class to InputFormat value class if withValueTranslation() is not
        * called yet.
        */
       if (getValueTranslationFunction() == null) {
-        builder.setValueClass((TypeDescriptor<V>) inputFormatValueClass);
+        builder.setValueTypeDescriptor((TypeDescriptor<V>) inputFormatValueClass);
       }
       return builder.build();
     }
@@ -266,7 +266,7 @@ public class HadoopInputFormatIO {
       checkNotNull(function, "function");
       // Sets key class to key translation function's output class type.
       return toBuilder().setKeyTranslationFunction(function)
-          .setKeyClass((TypeDescriptor<K>) function.getOutputTypeDescriptor()).build();
+          .setKeyTypeDescriptor((TypeDescriptor<K>) function.getOutputTypeDescriptor()).build();
     }
 
     /**
@@ -279,7 +279,7 @@ public class HadoopInputFormatIO {
       checkNotNull(function, "function");
       // Sets value class to value translation function's output class type.
       return toBuilder().setValueTranslationFunction(function)
-          .setValueClass((TypeDescriptor<V>) function.getOutputTypeDescriptor()).build();
+          .setValueTypeDescriptor((TypeDescriptor<V>) function.getOutputTypeDescriptor()).build();
     }
 
     @Override
@@ -764,7 +764,7 @@ public class HadoopInputFormatIO {
                   valueCoder);
         } catch (IOException | InterruptedException e) {
           LOG.error("Unable to read data: " + "{}", e);
-          return null;
+          throw new IllegalStateException("Unable to read data: " + "{}", e);
         }
         return KV.of(key, value);
       }
@@ -841,11 +841,12 @@ public class HadoopInputFormatIO {
       /**
        * Returns RecordReader's progress.
        * @throws IOException
+       * @throws InterruptedException
        */
-      private Double getProgress() throws IOException {
+      private Double getProgress() throws IOException, InterruptedException {
         try {
           return (double) recordReader.getProgress();
-        } catch (IOException | InterruptedException e) {
+        } catch (IOException e) {
           LOG.error(
               "Error in computing the fractions consumed as RecordReader.getProgress() throws an "
               + "exception : " + "{}", e);
