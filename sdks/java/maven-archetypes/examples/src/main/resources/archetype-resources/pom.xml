@@ -101,6 +101,9 @@
                   </excludes>
                 </filter>
               </filters>
+              <transformers>
+                <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
+              </transformers>
             </configuration>
           </execution>
         </executions>
@@ -192,14 +195,6 @@
           <scope>runtime</scope>
         </dependency>
       </dependencies>
-      <build>
-        <plugins>
-          <plugin>
-            <groupId>org.apache.maven.plugins</groupId>
-            <artifactId>maven-shade-plugin</artifactId>
-          </plugin>
-        </plugins>
-      </build>
     </profile>
 
     <profile>

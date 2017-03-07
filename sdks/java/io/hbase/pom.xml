@@ -72,6 +72,9 @@
                     <shadedPattern>org.apache.beam.sdk.io.hbase.repackaged.com.google.protobuf</shadedPattern>
                   </relocation>
                 </relocations>
+                <transformers>
+                  <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
+                </transformers>
               </configuration>
             </execution>
           </executions>
