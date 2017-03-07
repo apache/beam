@@ -237,7 +237,7 @@ class AfterWatermark(TriggerFn):
     if self.early:
       qualifiers.append('early=%s' % self.early)
     if self.late:
-      qualifiers.append('late=%s', self.late)
+      qualifiers.append('late=%s' % self.late)
     return 'AfterWatermark(%s)' % ', '.join(qualifiers)
 
   def is_late(self, context):
