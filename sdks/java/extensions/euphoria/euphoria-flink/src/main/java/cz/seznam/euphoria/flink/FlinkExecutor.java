@@ -21,6 +21,7 @@ import cz.seznam.euphoria.core.executor.Executor;
 import cz.seznam.euphoria.core.util.Settings;
 import cz.seznam.euphoria.flink.batch.BatchFlowTranslator;
 import cz.seznam.euphoria.flink.streaming.StreamingFlowTranslator;
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.core.memory.HeapMemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.runtime.state.AbstractStateBackend;
@@ -54,6 +55,8 @@ public class FlinkExecutor implements Executor {
   private final Set<Class<?>> registeredClasses = new HashSet<>();
   @Nullable
   private Duration checkpointInterval;
+
+  private boolean objectReuse = false;
   
   // executor to submit flows, if closed all executions should be interrupted
   private final ExecutorService submitExecutor = Executors.newCachedThreadPool();
@@ -105,7 +108,12 @@ public class FlinkExecutor implements Executor {
 
       ExecutionEnvironment environment = new ExecutionEnvironment(
           mode, localEnv, registeredClasses);
-      
+      if (objectReuse) {
+        environment.getExecutionConfig().enableObjectReuse();
+      } else{
+        environment.getExecutionConfig().disableObjectReuse();
+      }
+
       Settings settings = flow.getSettings();
 
       if (mode == ExecutionEnvironment.Mode.STREAMING) {
@@ -185,6 +193,15 @@ public class FlinkExecutor implements Executor {
                                                   Duration allowedLateness, 
                                                   Duration autoWatermarkInterval) {
     return new StreamingFlowTranslator(environment.getStreamEnv(), allowedLateness, autoWatermarkInterval);
+  }
+
+  /**
+   * See {@link ExecutionConfig#disableObjectReuse()}
+   * and {@link ExecutionConfig#disableObjectReuse()}.
+   */
+  public FlinkExecutor setObjectReuse(boolean reuse){
+    this.objectReuse = reuse;
+    return this;
   }
 
   /**
