@@ -86,6 +86,11 @@
       <version>4.5.2</version>
     </dependency>
 
+    <dependency>
+      <groupId>joda-time</groupId>
+      <artifactId>joda-time</artifactId>
+    </dependency>
+
     <!-- compile dependencies -->
     <dependency>
       <groupId>com.google.auto.value</groupId>
