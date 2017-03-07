@@ -540,11 +540,11 @@ public class HadoopInputFormatIO {
       ParameterizedType genericClassType = determineGenericType();
       RecordReader<?, ?> reader = fetchFirstRecordReader();
       boolean isCorrectKeyClassSet =
-          validateKeyClass(genericClassType.getActualTypeArguments()[0].getTypeName(), keyCoder,
-              reader.getCurrentKey());
+          validateClass(genericClassType.getActualTypeArguments()[0].getTypeName(), keyCoder,
+              reader.getCurrentKey(), HadoopInputFormatIOConstants.KEY_CLASS);
       boolean isCorrectValueClassSet =
-          validateValueClass(genericClassType.getActualTypeArguments()[1].getTypeName(),
-              valueCoder, reader.getCurrentValue());
+          validateClass(genericClassType.getActualTypeArguments()[1].getTypeName(), valueCoder,
+              reader.getCurrentValue(), HadoopInputFormatIOConstants.VALUE_CLASS);
       if (!isCorrectKeyClassSet) {
         Class<?> actualClass =
             conf.getHadoopConfiguration().getClass(HadoopInputFormatIOConstants.KEY_CLASS,
@@ -564,54 +564,33 @@ public class HadoopInputFormatIO {
     }
 
     /**
-     * Returns true if key class set by the user is compatible with the key class of a pair returned
-     * by RecordReader. User provided key class is validated against the parameterized type's type
-     * arguments of InputFormat. If parameterized type has any type arguments such as T, K, V, etc
-     * then validation is done by encoding and decoding key object of first pair returned by
-     * RecordReader.
+     * Returns true if key/value class set by the user is compatible with the key/value class of a
+     * pair returned by RecordReader. User provided key/value class is validated against the
+     * parameterized type's type arguments of InputFormat. If parameterized type has any type
+     * arguments such as T, K, V, etc then validation is done by encoding and decoding key/value
+     * object of first pair returned by RecordReader.
      */
-    private <T> boolean validateKeyClass(String inputFormatGenericClassName, Coder<K> coder,
-        Object keyObject) {
+    private <T> boolean validateClass(String inputFormatGenericClassName, Coder coder,
+        Object object, String property) {
       try {
         Class<?> inputClass = Class.forName(inputFormatGenericClassName);
         /*
-         * Validates key class with InputFormat's parameterized type.
+         * Validates key/value class with InputFormat's parameterized type.
          */
-        return (conf.getHadoopConfiguration().getClass(HadoopInputFormatIOConstants.KEY_CLASS,
+        if (property.equals(HadoopInputFormatIOConstants.KEY_CLASS)) {
+          return (conf.getHadoopConfiguration().getClass(HadoopInputFormatIOConstants.KEY_CLASS,
+              Object.class)).isAssignableFrom(inputClass);
+        }
+        return (conf.getHadoopConfiguration().getClass(HadoopInputFormatIOConstants.VALUE_CLASS,
             Object.class)).isAssignableFrom(inputClass);
       } catch (ClassNotFoundException e) {
         /*
          * Given inputFormatGenericClassName is a type parameter i.e. T, K, V, etc. In such cases
-         * class validation for user provided input key will not work correctly. Therefore the need
-         * to validate key class by encoding and decoding key object with the given coder.
+         * class validation for user provided input key/value will not work correctly. Therefore
+         * the need to validate key/value class by encoding and decoding key/value object with
+         * the given coder.
          */
-        return checkEncodingAndDecoding((Coder<T>) coder, (T) keyObject);
-      }
-    }
-
-    /**
-     * Returns true if value class set by the user is compatible with the value class of a pair
-     * returned by RecordReader. User provided value class is validated against the parameterized
-     * type's type arguments of InputFormat. If parameterized type has any type arguments such as T,
-     * K, V, etc then validation is done by encoding and decoding value object of first pair
-     * returned by RecordReader.
-     */
-    private <T> boolean validateValueClass(String inputFormatGenericClassName, Coder coder,
-        Object valueObject) {
-      try {
-        Class<?> inputClass = Class.forName(inputFormatGenericClassName);
-        /*
-         * Validates value class with InputFormat's parameterized type.
-         */
-        return (conf.getHadoopConfiguration().getClass(HadoopInputFormatIOConstants.VALUE_CLASS,
-            Object.class)).isAssignableFrom(inputClass);
-      } catch (Exception e) {
-        /*
-         * Given inputFormatGenericClassName is a type parameter i.e. T, K, V, etc. In such cases
-         * class validation for user provided input value will not work correctly. Therefore the
-         * need to validate value class by encoding and decoding value object with the given coder.
-         */
-        return checkEncodingAndDecoding((Coder<T>) coder, (T) valueObject);
+        return checkEncodingAndDecoding((Coder<T>) coder, (T) object);
       }
     }
 
