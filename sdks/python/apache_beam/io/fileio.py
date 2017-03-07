@@ -151,35 +151,36 @@ class FileSink(iobase.Sink):
     min_threads = min(num_shards, FileSink._MAX_RENAME_THREADS)
     num_threads = max(1, min_threads)
 
-    rename_sources = []
-    rename_destinations = []
+    source_files = []
+    destination_files = []
     for shard_num, shard in enumerate(writer_results):
       final_name = ''.join([
           self.file_path_prefix, self.shard_name_format % dict(
               shard_num=shard_num, num_shards=num_shards), self.file_name_suffix
       ])
-      rename_sources.append(shard)
-      rename_destinations.append(final_name)
+      source_files.append(shard)
+      destination_files.append(final_name)
 
-    source_batches = [rename_sources[i:i + MAX_BATCH_OPERATION_SIZE]
-                      for i in xrange(0, len(rename_sources),
-                                      MAX_BATCH_OPERATION_SIZE)]
-    destination_batches = [rename_destinations[i:i + MAX_BATCH_OPERATION_SIZE]
-                           for i in xrange(0, len(rename_destinations),
-                                           MAX_BATCH_OPERATION_SIZE)]
+    source_file_batch = [source_files[i:i + MAX_BATCH_OPERATION_SIZE]
+                         for i in xrange(0, len(source_files),
+                                         MAX_BATCH_OPERATION_SIZE)]
+    destination_file_batch = [destination_files[i:i + MAX_BATCH_OPERATION_SIZE]
+                              for i in xrange(0, len(destination_files),
+                                              MAX_BATCH_OPERATION_SIZE)]
 
     logging.info(
         'Starting finalize_write threads with num_shards: %d, '
         'batches: %d, num_threads: %d',
-        num_shards, len(source_batches), num_threads)
+        num_shards, len(source_file_batch), num_threads)
     start_time = time.time()
 
     # Use a thread pool for renaming operations.
     def _rename_batch(batch):
       """_rename_batch executes batch rename operations."""
-      sources, destinations = batch
+      source_files, destination_files = batch
       exceptions = []
-      exception_infos = self._file_system.rename(sources, destinations)
+      exception_infos = self._file_system.rename(source_files,
+                                                 destination_files)
       for src, dest, exception in exception_infos:
         if exception:
           logging.warning('Rename not successful: %s -> %s, %s', src, dest,
@@ -202,7 +203,8 @@ class FileSink(iobase.Sink):
       return exceptions
 
     exception_batches = util.run_using_threadpool(
-        _rename_batch, zip(source_batches, destination_batches), num_threads)
+        _rename_batch, zip(source_file_batch, destination_file_batch),
+        num_threads)
 
     all_exceptions = [e for exception_batch in exception_batches
                       for e in exception_batch]
@@ -210,14 +212,14 @@ class FileSink(iobase.Sink):
       raise Exception('Encountered exceptions in finalize_write: %s',
                       all_exceptions)
 
-    for final_name in rename_destinations:
+    for final_name in destination_files:
       yield final_name
 
     logging.info('Renamed %d shards in %.2f seconds.', num_shards,
                  time.time() - start_time)
 
     try:
-      self._file_system.delete_directory(init_result)
+      self._file_system.delete([init_result])
     except IOError:
       # May have already been removed.
       pass

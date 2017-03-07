@@ -103,7 +103,7 @@ class FileBasedSource(iobase.BoundedSource):
   def _get_concat_source(self):
     if self._concat_source is None:
       single_file_sources = []
-      files_metadata = self._file_system.match(self._pattern)
+      files_metadata = self._file_system.match([self._pattern])[0]
 
       # We create a reference for FileBasedSource that will be serialized along
       # with each _SingleFileSource. To prevent this FileBasedSource from having
@@ -145,7 +145,8 @@ class FileBasedSource(iobase.BoundedSource):
     """Validate if there are actual files in the specified glob pattern
     """
     # Limit the responses as we only want to check if something exists
-    if len(self._file_system.match(self._pattern, limit=1)) <= 0:
+    metadata_list = self._file_system.match([self._pattern], limits=[1])[0]
+    if len(metadata_list) <= 0:
       raise IOError(
           'No files found based on the file pattern %s' % self._pattern)
 
@@ -157,7 +158,7 @@ class FileBasedSource(iobase.BoundedSource):
         stop_position=stop_position)
 
   def estimate_size(self):
-    files_metadata = self._file_system.match(self._pattern)
+    files_metadata = self._file_system.match([self._pattern])[0]
     return sum([f.size_in_bytes for f in files_metadata])
 
   def read(self, range_tracker):

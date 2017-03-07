@@ -14,7 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-"""File system abstraction for file based sources and sinks."""
+"""File system abstraction for file-based sources and sinks."""
 
 from __future__ import absolute_import
 
@@ -50,7 +50,7 @@ class CompressionTypes(object):
 
   @classmethod
   def is_valid_compression_type(cls, compression_type):
-    """Returns true for valid compression types, false otherwise."""
+    """Returns True for valid compression types, False otherwise."""
     types = set([
         CompressionTypes.AUTO,
         CompressionTypes.BZIP2,
@@ -90,8 +90,7 @@ class CompressedFile(object):
                compression_type=CompressionTypes.GZIP,
                read_size=DEFAULT_READ_BUFFER_SIZE):
     if not fileobj:
-      raise ValueError('File object must be opened file but was at %s' %
-                       fileobj)
+      raise ValueError('File object must not be None')
 
     if not CompressionTypes.is_valid_compression_type(compression_type):
       raise TypeError('compression_type must be CompressionType object but '
@@ -269,6 +268,9 @@ class FileMetadata(object):
   """Metadata about a file path that is the output of FileSystem.match
   """
   def __init__(self, path, size_in_bytes):
+    assert isinstance(path, basestring) and path, "Path should be a string"
+    assert isinstance(size_in_bytes, int) and size_in_bytes >= 0, \
+        "Size of bytes should be greater than equal to zero"
     self.path = path
     self.size_in_bytes = size_in_bytes
 
@@ -289,18 +291,8 @@ class FileMetadata(object):
     return 'FileMetadata(%s, %s)' % (self.path, self.size_in_bytes)
 
 
-class abstractstatic(staticmethod):
-  __slots__ = ()
-
-  def __init__(self, function):
-    super(abstractstatic, self).__init__(function)
-    function.__isabstractmethod__ = True
-
-  __isabstractmethod__ = True
-
-
 class FileSystem(object):
-  """A class that defines that can be performed on a filesystem.
+  """A class that defines the functions that can be performed on a filesystem.
 
   All methods are abstract and they are for file system providers to
   implement. Clients should use the FileSystemUtil class to interact with
@@ -317,62 +309,96 @@ class FileSystem(object):
                       'was %s' % type(compression_type))
     return compression_type
 
-  @abstractstatic
-  def mkdirs(path):
+  @abc.abstractmethod
+  def mkdirs(self, path):
     """Recursively create directories for the provided path.
+
+    Args:
+      path: string path of the directory structure that should be created
 
     Raises:
       IOError if leaf directory already exists.
     """
-    raise NotImplementedError("Filesystem is an abstract class")
+    raise NotImplementedError
 
-  @abstractstatic
-  def match(pattern, limit=None):
-    """Find all matching paths to the pattern provided.
+  @abc.abstractmethod
+  def match(self, patterns, limits=None):
+    """Find all matching paths to the patterns provided.
 
-    Returns: List of FileMetadata objects that match the provided pattern.
+    Args:
+      patterns: list of string for the file path pattern to match against
+      limits: list of maximum number of responses that need to be fetched
+
+    Returns: list of list of ``FileMetadata`` objects that match the patterns.
     """
-    raise NotImplementedError("Filesystem is an abstract class")
+    raise NotImplementedError
 
-  @abstractstatic
-  def create(path, mime_type, compression_type):
+  @abc.abstractmethod
+  def create(self, path, mime_type, compression_type):
     """Returns a write channel for the given file path.
-    """
-    raise NotImplementedError("Filesystem is an abstract class")
 
-  @abstractstatic
-  def open(path, mime_type, compression_type):
+    Args:
+      path: string path of the file object to be written to the system
+      mime_type: MIME type to specify the type of content in the file object
+      compression_type: Type of compression to be used for this object
+
+    Returns: file handle with a close function for the user to use
+    """
+    raise NotImplementedError
+
+  @abc.abstractmethod
+  def open(self, path, mime_type, compression_type):
     """Returns a read channel for the given file path.
-    """
-    raise NotImplementedError("Filesystem is an abstract class")
 
-  @abstractstatic
-  def copy(source, destination):
+    Args:
+      path: string path of the file object to be written to the system
+      mime_type: MIME type to specify the type of content in the file object
+      compression_type: Type of compression to be used for this object
+
+    Returns: file handle with a close function for the user to use
+    """
+    raise NotImplementedError
+
+  @abc.abstractmethod
+  def copy(self, source_file_names, destination_file_names):
     """Recursively copy the file tree from the source to the destination
-    """
-    raise NotImplementedError("Filesystem is an abstract class")
 
-  @abstractstatic
-  def rename(sources, destinations):
-    """Rename the files at the source to the destination paths.
-    Sources and destinations lists should be of the same size.
+    Args:
+      source_file_names: list of source file objects that needs to be copied
+      destination_file_names: list of destination of the new object
     """
-    raise NotImplementedError("Filesystem is an abstract class")
+    raise NotImplementedError
 
-  @abstractstatic
-  def exists(path):
+  @abc.abstractmethod
+  def rename(self, source_file_names, destination_file_names):
+    """Rename the files at the source list to the destination list.
+    Source and destination lists should be of the same size.
+
+    Args:
+      source_file_names: List of file paths that need to be moved
+      destination_file_names: List of destination_file_names for the files
+
+    Returns: list of exceptions encountered in the process
+    """
+    raise NotImplementedError
+
+  @abc.abstractmethod
+  def exists(self, path):
     """Check if the provided path exists on the FileSystem.
-    """
-    raise NotImplementedError("Filesystem is an abstract class")
 
-  @abstractstatic
-  def delete(path):
-    """Recursively delete the file or directory at the provided path.
-    """
-    raise NotImplementedError("Filesystem is an abstract class")
+    Args:
+      path: string path that needs to be checked.
 
-  @abstractstatic
-  def delete_directory(path):
-    """Delete the directory at the particular path.
+    Returns: boolean flag indicating if path exists
     """
-    raise NotImplementedError("Filesystem is an abstract class")
+    raise NotImplementedError
+
+  @abc.abstractmethod
+  def delete(self, paths):
+    """Deletes files or directories at the provided paths.
+    Directories will be deleted recursively.
+
+    Args:
+      paths: list of paths that give the file objects to be deleted
+    """
+    raise NotImplementedError
