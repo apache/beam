@@ -95,7 +95,7 @@ public class DebuggingWordCount {
      * in a dashboard, etc.
      */
     private final Counter matchedWords = Metrics.counter(FilterTextFn.class, "matchedWords");
-    private final Counter unmatchedWords = Metrics.counter(FilterTextFn.class, "unMatchedWords");
+    private final Counter unmatchedWords = Metrics.counter(FilterTextFn.class, "unmatchedWords");
 
     @ProcessElement
     public void processElement(ProcessContext c) {
