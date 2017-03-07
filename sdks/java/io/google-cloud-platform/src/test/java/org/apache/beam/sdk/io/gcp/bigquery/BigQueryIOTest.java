@@ -145,6 +145,7 @@ import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.DisplayDataEvaluator;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
+import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.NonMergingWindowFn;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
@@ -154,6 +155,7 @@ import org.apache.beam.sdk.util.IOChannelUtils;
 import org.apache.beam.sdk.util.MimeTypes;
 import org.apache.beam.sdk.util.PCollectionViews;
 import org.apache.beam.sdk.util.Transport;
+import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
@@ -2472,6 +2474,21 @@ public class BigQueryIOTest implements Serializable {
   @Test
   public void testShardedKeyCoderIsSerializableWithWellKnownCoderType() {
     CoderProperties.coderSerializable(BigQueryIO.ShardedKeyCoder.of(GlobalWindow.Coder.INSTANCE));
+  }
+
+  @Test
+  public void testTableRowInfoCoderSerializable() {
+    CoderProperties.coderSerializable(BigQueryIO.TableRowInfoCoder.of());
+  }
+
+  @Test
+  public void testComplexCoderSerializable() {
+    CoderProperties.coderSerializable(
+        WindowedValue.getFullCoder(
+            KvCoder.of(
+                BigQueryIO.ShardedKeyCoder.of(StringUtf8Coder.of()),
+                BigQueryIO.TableRowInfoCoder.of()),
+            IntervalWindow.getCoder()));
   }
 
   @Test
