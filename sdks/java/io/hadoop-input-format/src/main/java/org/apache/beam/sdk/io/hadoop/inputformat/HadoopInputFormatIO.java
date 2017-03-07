@@ -199,8 +199,8 @@ public class HadoopInputFormatIO {
 
     @Nullable public abstract SimpleFunction<?, K> getKeyTranslationFunction();
     @Nullable public abstract SimpleFunction<?, V> getValueTranslationFunction();
-    @Nullable public abstract TypeDescriptor<K> getKeyClass();
-    @Nullable public abstract TypeDescriptor<V> getValueClass();
+    @Nullable public abstract TypeDescriptor<K> getKeyTypeDescriptor();
+    @Nullable public abstract TypeDescriptor<V> getValueTypeDescriptor();
     @Nullable public abstract TypeDescriptor<?> getinputFormatClass();
     @Nullable public abstract TypeDescriptor<?> getinputFormatKeyClass();
     @Nullable public abstract TypeDescriptor<?> getinputFormatValueClass();
@@ -286,8 +286,8 @@ public class HadoopInputFormatIO {
     public PCollection<KV<K, V>> expand(PBegin input) {
       // Get the key and value coders based on the key and value classes.
       CoderRegistry coderRegistry = input.getPipeline().getCoderRegistry();
-      Coder<K> keyCoder = getDefaultCoder(getKeyClass(), coderRegistry);
-      Coder<V> valueCoder = getDefaultCoder(getValueClass(), coderRegistry);
+      Coder<K> keyCoder = getDefaultCoder(getKeyTypeDescriptor(), coderRegistry);
+      Coder<V> valueCoder = getDefaultCoder(getValueTypeDescriptor(), coderRegistry);
       HadoopInputFormatBoundedSource<K, V> source = new HadoopInputFormatBoundedSource<K, V>(
           getConfiguration(),
           keyCoder,
