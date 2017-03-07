@@ -26,10 +26,11 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubIO;
+import org.apache.beam.sdk.metrics.Counter;
+import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.MapElements;
@@ -126,8 +127,7 @@ public class GameStats extends LeaderBoard {
           .apply("ProcessAndFilter", ParDo
               // use the derived mean total score as a side input
               .of(new DoFn<KV<String, Integer>, KV<String, Integer>>() {
-                private final Aggregator<Long, Long> numSpammerUsers =
-                  createAggregator("SpammerUsers", Sum.ofLongs());
+                private final Counter numSpammerUsers = Metrics.counter("main", "SpammerUsers");
                 @ProcessElement
                 public void processElement(ProcessContext c) {
                   Integer score = c.element().getValue();
@@ -135,7 +135,7 @@ public class GameStats extends LeaderBoard {
                   if (score > (gmc * SCORE_WEIGHT)) {
                     LOG.info("user " + c.element().getKey() + " spammer score " + score
                         + " with mean " + gmc);
-                    numSpammerUsers.addValue(1L);
+                    numSpammerUsers.inc();
                     c.output(c.element());
                   }
                 }
