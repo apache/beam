@@ -209,6 +209,7 @@
                 <configuration>
                   <includes>
                     <include>WordCountIT.java</include>
+                    <include>WindowedWordCountIT.java</include>
                   </includes>
                   <parallel>all</parallel>
                   <threadCount>4</threadCount>
