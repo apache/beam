@@ -41,13 +41,17 @@ public interface TestSparkPipelineOptions extends SparkPipelineOptions, TestPipe
   Integer getExpectedAssertions();
   void setExpectedAssertions(Integer expectedAssertions);
 
-  @Description("A customizable EOT watermark in Millis.")
-  @Default.InstanceFactory(DefaultEOTWatermarkFactory.class)
-  Long getEndOfTimeWatermark();
-  void setEndOfTimeWatermark(Long endOfTimeWatermark);
+  @Description("A watermark (time in millis) that causes a pipeline that reads "
+      + "from an unbounded source to stop.")
+  @Default.InstanceFactory(DefaultStopPipelineWatermarkFactory.class)
+  Long getStopPipelineWatermark();
+  void setStopPipelineWatermark(Long stopPipelineWatermark);
 
-  /** A factory to provide the default EOT Watermark in Millis. */
-  class DefaultEOTWatermarkFactory implements DefaultValueFactory<Long> {
+  /**
+   * A factory to provide the default watermark to stop a pipeline that reads
+   * from an unbounded source.
+   */
+  class DefaultStopPipelineWatermarkFactory implements DefaultValueFactory<Long> {
     @Override
     public Long create(PipelineOptions options) {
       return BoundedWindow.TIMESTAMP_MAX_VALUE.getMillis();

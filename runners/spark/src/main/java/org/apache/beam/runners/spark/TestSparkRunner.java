@@ -127,7 +127,8 @@ public final class TestSparkRunner extends PipelineRunner<SparkPipelineResult> {
         Long timeoutMillis = Duration.standardSeconds(
             checkNotNull(testSparkPipelineOptions.getTestTimeoutSeconds())).getMillis();
         Long batchDurationMillis = testSparkPipelineOptions.getBatchIntervalMillis();
-        Instant endOfTimeWatermark = new Instant(testSparkPipelineOptions.getEndOfTimeWatermark());
+        Instant stopPipelineWatermark =
+            new Instant(testSparkPipelineOptions.getStopPipelineWatermark());
         // we poll for pipeline status in batch-intervals. while this is not in-sync with Spark's
         // execution clock, this is good enough.
         // we break on timeout or end-of-time WM, which ever comes first.
@@ -141,7 +142,7 @@ public final class TestSparkRunner extends PipelineRunner<SparkPipelineResult> {
           // let another batch-interval period of execution, just to reason about WM propagation.
           Uninterruptibles.sleepUninterruptibly(batchDurationMillis, TimeUnit.MILLISECONDS);
         } while ((timeoutMillis -= batchDurationMillis) > 0
-            && globalWatermark.isBefore(endOfTimeWatermark));
+            && globalWatermark.isBefore(stopPipelineWatermark));
 
         result.stop();
         PipelineResult.State finishState = result.getState();

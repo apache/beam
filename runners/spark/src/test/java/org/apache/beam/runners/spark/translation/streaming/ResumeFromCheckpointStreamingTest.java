@@ -215,7 +215,7 @@ public class ResumeFromCheckpointStreamingTest {
 
   @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
   private static SparkPipelineResult run(
-      PipelineRule pipelineRule, Optional<Instant> endOfTimeWatermark, int expectedAssertions) {
+      PipelineRule pipelineRule, Optional<Instant> stopWatermarkOption, int expectedAssertions) {
     KafkaIO.Read<String, Instant> read = KafkaIO.<String, Instant>read()
         .withBootstrapServers(EMBEDDED_KAFKA_CLUSTER.getBrokerList())
         .withTopics(Collections.singletonList(TOPIC))
@@ -242,8 +242,8 @@ public class ResumeFromCheckpointStreamingTest {
     options.setCheckpointDurationMillis(options.getBatchIntervalMillis());
     options.setExpectedAssertions(expectedAssertions);
     // timeout is per execution so it can be injected by the caller.
-    if (endOfTimeWatermark.isPresent()) {
-      options.setEndOfTimeWatermark(endOfTimeWatermark.get().getMillis());
+    if (stopWatermarkOption.isPresent()) {
+      options.setStopPipelineWatermark(stopWatermarkOption.get().getMillis());
     }
     Pipeline p = pipelineRule.createPipeline();
 
