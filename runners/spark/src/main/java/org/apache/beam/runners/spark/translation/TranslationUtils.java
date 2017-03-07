@@ -43,6 +43,7 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.api.java.function.Function;
 import org.apache.spark.api.java.function.PairFunction;
+import org.apache.spark.api.java.function.VoidFunction;
 import org.apache.spark.streaming.api.java.JavaDStream;
 import org.apache.spark.streaming.api.java.JavaPairDStream;
 
@@ -267,4 +268,11 @@ public final class TranslationUtils {
     }
   }
 
+  public static <T> VoidFunction<T> emptyVoidFunction() {
+    return new VoidFunction<T>() {
+      @Override public void call(T t) throws Exception {
+        // Empty implementation.
+      }
+    };
+  }
 }
