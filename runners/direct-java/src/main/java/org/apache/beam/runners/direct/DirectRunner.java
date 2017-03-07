@@ -17,7 +17,6 @@
  */
 package org.apache.beam.runners.direct;
 
-import com.google.common.base.MoreObjects;
 import com.google.common.base.Supplier;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
@@ -45,7 +44,6 @@ import org.apache.beam.sdk.runners.PTransformOverride;
 import org.apache.beam.sdk.runners.PipelineRunner;
 import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.transforms.Aggregator;
-import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -372,38 +370,6 @@ public class DirectRunner extends PipelineRunner<DirectPipelineResult> {
     @Override
     public State getState() {
       return state;
-    }
-
-    @Override
-    public <T> AggregatorValues<T> getAggregatorValues(Aggregator<?, T> aggregator)
-        throws AggregatorRetrievalException {
-      AggregatorContainer aggregators = evaluationContext.getAggregatorContainer();
-      Collection<PTransform<?, ?>> steps = aggregatorSteps.get(aggregator);
-      final Map<String, T> stepValues = new HashMap<>();
-      if (steps != null) {
-        for (AppliedPTransform<?, ?, ?> transform : evaluationContext.getSteps()) {
-          if (steps.contains(transform.getTransform())) {
-            T aggregate = aggregators
-                .getAggregate(evaluationContext.getStepName(transform), aggregator.getName());
-            if (aggregate != null) {
-              stepValues.put(transform.getFullName(), aggregate);
-            }
-          }
-        }
-      }
-      return new AggregatorValues<T>() {
-        @Override
-        public Map<String, T> getValuesAtSteps() {
-          return stepValues;
-        }
-
-        @Override
-        public String toString() {
-          return MoreObjects.toStringHelper(this)
-              .add("stepValues", stepValues)
-              .toString();
-        }
-      };
     }
 
     @Override
