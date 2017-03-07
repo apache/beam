@@ -66,10 +66,10 @@ The examples subdirectory has some examples.
 import sys
 
 
-if sys.version_info.major != 2:
+if not (sys.version_info[0] == 2 and sys.version_info[1] == 7):
   raise RuntimeError(
       'Dataflow SDK for Python is supported only on Python 2.7. '
-      'It is not supported on Python [%s].' % sys.version)
+      'It is not supported on Python [%s].' % sys.version_info)
 
 # pylint: disable=wrong-import-position
 import apache_beam.internal.pickler
