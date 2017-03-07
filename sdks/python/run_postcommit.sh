@@ -32,7 +32,7 @@ set -v
 LOCAL_PATH=$HOME/.local/bin/
 
 # Remove any tox cache from previous workspace
-rm -rf sdks/python/.tox
+rm -rf sdks/python/target/.tox
 
 # INFRA does not install virtualenv
 pip install virtualenv --user
