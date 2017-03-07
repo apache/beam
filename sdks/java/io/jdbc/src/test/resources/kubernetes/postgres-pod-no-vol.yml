@@ -24,8 +24,8 @@ spec:
     - name: postgres
       image: postgres
       env:
-        - name: POSTGRES_PASS
-          value: sroim3
+        - name: POSTGRES_PASSWORD
+          value: uuinkks
         - name: PGDATA
           value: /var/lib/postgresql/data/pgdata
       ports:
