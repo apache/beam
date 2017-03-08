@@ -26,7 +26,6 @@ import java.util.List;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
-import org.apache.beam.sdk.testing.RunnableOnService;
 import org.apache.beam.sdk.testing.SourceTestUtils;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
@@ -37,7 +36,6 @@ import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.experimental.categories.Category;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -108,7 +106,7 @@ public class ElasticsearchIOIT {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+//  @Category(RunnableOnService.class)
   public void testReadVolume() throws Exception {
     PCollection<String> output =
         pipeline.apply(
@@ -119,7 +117,7 @@ public class ElasticsearchIOIT {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+//  @Category(RunnableOnService.class)
   public void testWriteVolume() throws Exception {
     ElasticsearchIO.ConnectionConfiguration writeConnectionConfiguration =
         ElasticsearchTestDataSet.getConnectionConfiguration(
