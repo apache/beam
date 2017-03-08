@@ -29,8 +29,9 @@ class common_job_properties {
 
   // Sets common top-level job properties for main repository jobs.
   static void setTopLevelMainJobProperties(context,
-                                           String defaultBranch = 'master') {
-    setTopLevelJobProperties(context, 'beam', defaultBranch, 100)
+                                           String defaultBranch = 'master',
+                                           int defaultTimeout = 100) {
+    setTopLevelJobProperties(context, 'beam', defaultBranch, defaultTimeout)
   }
 
   // Sets common top-level job properties. Accessed through one of the above
