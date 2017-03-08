@@ -70,11 +70,13 @@ import org.apache.commons.dbcp2.BasicDataSource;
  *        .withUsername("username")
  *        .withPassword("password"))
  *   .withQuery("select id,name from Person")
+ *   .withCoder(KvCoder.of(BigEndianIntegerCoder.of(), StringUtf8Coder.of()))
  *   .withRowMapper(new JdbcIO.RowMapper<KV<Integer, String>>() {
  *     public KV<Integer, String> mapRow(ResultSet resultSet) throws Exception {
  *       return KV.of(resultSet.getInt(1), resultSet.getString(2));
  *     }
  *   })
+ * );
  * }</pre>
  *
  * <p>Query parameters can be configured using a user-provided {@link StatementPreparator}.
@@ -86,7 +88,8 @@ import org.apache.commons.dbcp2.BasicDataSource;
  *       "com.mysql.jdbc.Driver", "jdbc:mysql://hostname:3306/mydb",
  *       "username", "password"))
  *   .withQuery("select id,name from Person where name = ?")
- *   .withStatementPreparator(new JdbcIO.StatementPreparator() {
+ *   .withCoder(KvCoder.of(BigEndianIntegerCoder.of(), StringUtf8Coder.of()))
+ *   .withStatementPrepator(new JdbcIO.StatementPreparator() {
  *     public void setParameters(PreparedStatement preparedStatement) throws Exception {
  *       preparedStatement.setString(1, "Darwin");
  *     }
@@ -96,6 +99,7 @@ import org.apache.commons.dbcp2.BasicDataSource;
  *       return KV.of(resultSet.getInt(1), resultSet.getString(2));
  *     }
  *   })
+ * );
  * }</pre>
  *
  * <h3>Writing to JDBC datasource</h3>
@@ -116,11 +120,13 @@ import org.apache.commons.dbcp2.BasicDataSource;
  *          .withPassword("password"))
  *      .withStatement("insert into Person values(?, ?)")
  *      .withPreparedStatementSetter(new JdbcIO.PreparedStatementSetter<KV<Integer, String>>() {
- *        public void setParameters(KV<Integer, String> element, PreparedStatement query) {
+ *        public void setParameters(KV<Integer, String> element, PreparedStatement query)
+ *          throws SQLException {
  *          query.setInt(1, kv.getKey());
  *          query.setString(2, kv.getValue());
  *        }
  *      })
+ *    );
  * }</pre>
  *
  * <p>NB: in case of transient failures, Beam runners may execute parts of JdbcIO.Write multiple
@@ -279,8 +285,8 @@ public class JdbcIO {
 
     public Read<T> withStatementPrepator(StatementPreparator statementPreparator) {
       checkArgument(statementPreparator != null,
-          "JdbcIO.read().withStatementPreparator(statementPreparator) called "
-              + "with null statementPreparator");
+          "JdbcIO.read().withStatementPrepator(statementPreparator) called "
+              + "with null statementPrepator");
       return toBuilder().setStatementPreparator(statementPreparator).build();
     }
 
