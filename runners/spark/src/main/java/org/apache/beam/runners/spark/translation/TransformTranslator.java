@@ -68,6 +68,7 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.CombineFnUtil;
+import org.apache.beam.sdk.util.Reshuffle;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.KV;
@@ -316,15 +317,7 @@ public final class TransformTranslator {
                         return sparkCombineFn.extractOutput(iter);
                       }
                 }).map(TranslationUtils.<K, WindowedValue<OutputT>>fromPairFunction())
-                  .map(new Function<KV<K, WindowedValue<OutputT>>,
-                      WindowedValue<KV<K, OutputT>>>() {
-                        @Override
-                          public WindowedValue<KV<K, OutputT>> call(
-                              KV<K, WindowedValue<OutputT>> kv) throws Exception {
-                                WindowedValue<OutputT> wv = kv.getValue();
-                                return wv.withValue(KV.of(kv.getKey(), wv.getValue()));
-                              }
-                      });
+                  .map(TranslationUtils.<K, OutputT>toKVByWindowInValue());
 
         context.putDataset(transform, new BoundedDataset<>(outRdd));
       }
@@ -611,10 +604,10 @@ public final class TransformTranslator {
     rdd.saveAsNewAPIHadoopFile(outputDir, keyClass, valueClass, formatClass, conf);
   }
 
-  private static <T, W extends BoundedWindow> TransformEvaluator<Window.Bound<T>> window() {
-    return new TransformEvaluator<Window.Bound<T>>() {
+  private static <T, W extends BoundedWindow> TransformEvaluator<Window.Assign<T>> window() {
+    return new TransformEvaluator<Window.Assign<T>>() {
       @Override
-      public void evaluate(Window.Bound<T> transform, EvaluationContext context) {
+      public void evaluate(Window.Assign<T> transform, EvaluationContext context) {
         @SuppressWarnings("unchecked")
         JavaRDD<WindowedValue<T>> inRDD =
             ((BoundedDataset<T>) context.borrowDataset(transform)).getRDD();
@@ -716,6 +709,32 @@ public final class TransformTranslator {
     };
   }
 
+  private static <K, V, W extends BoundedWindow> TransformEvaluator<Reshuffle<K, V>> reshuffle() {
+    return new TransformEvaluator<Reshuffle<K, V>>() {
+      @Override public void evaluate(Reshuffle<K, V> transform, EvaluationContext context) {
+        @SuppressWarnings("unchecked")
+        JavaRDD<WindowedValue<KV<K, V>>> inRDD =
+            ((BoundedDataset<KV<K, V>>) context.borrowDataset(transform)).getRDD();
+        @SuppressWarnings("unchecked")
+        final WindowingStrategy<?, W> windowingStrategy =
+            (WindowingStrategy<?, W>) context.getInput(transform).getWindowingStrategy();
+        @SuppressWarnings("unchecked")
+        final KvCoder<K, V> coder = (KvCoder<K, V>) context.getInput(transform).getCoder();
+        @SuppressWarnings("unchecked")
+        final WindowFn<Object, W> windowFn = (WindowFn<Object, W>) windowingStrategy.getWindowFn();
+
+        final Coder<K> keyCoder = coder.getKeyCoder();
+        final WindowedValue.WindowedValueCoder<V> wvCoder =
+            WindowedValue.FullWindowedValueCoder.of(coder.getValueCoder(), windowFn.windowCoder());
+
+        JavaRDD<WindowedValue<KV<K, V>>> reshuffled =
+            GroupCombineFunctions.reshuffle(inRDD, keyCoder, wvCoder);
+
+        context.putDataset(transform, new BoundedDataset<>(reshuffled));
+      }
+    };
+  }
+
   private static final Map<Class<? extends PTransform>, TransformEvaluator<?>> EVALUATORS = Maps
       .newHashMap();
 
@@ -734,7 +753,8 @@ public final class TransformTranslator {
     EVALUATORS.put(View.AsSingleton.class, viewAsSingleton());
     EVALUATORS.put(View.AsIterable.class, viewAsIter());
     EVALUATORS.put(View.CreatePCollectionView.class, createPCollView());
-    EVALUATORS.put(Window.Bound.class, window());
+    EVALUATORS.put(Window.Assign.class, window());
+    EVALUATORS.put(Reshuffle.class, reshuffle());
     // mostly test evaluators
     EVALUATORS.put(StorageLevelPTransform.class, storageLevel());
   }

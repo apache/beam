@@ -32,6 +32,7 @@ import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.transforms.Combine;
+import org.apache.beam.sdk.util.IOChannelUtils;
 import org.apache.spark.Accumulator;
 
 /**
@@ -40,12 +41,10 @@ import org.apache.spark.Accumulator;
  */
 public class SparkRuntimeContext implements Serializable {
   private final String serializedPipelineOptions;
-
-  /**
-   * Map fo names to Beam aggregators.
-   */
-  private final Map<String, Aggregator<?, ?>> aggregators = new HashMap<>();
   private transient CoderRegistry coderRegistry;
+
+  // map for names to Beam aggregators.
+  private final Map<String, Aggregator<?, ?>> aggregators = new HashMap<>();
 
   SparkRuntimeContext(Pipeline pipeline) {
     this.serializedPipelineOptions = serializePipelineOptions(pipeline.getOptions());
@@ -67,8 +66,8 @@ public class SparkRuntimeContext implements Serializable {
     }
   }
 
-  public synchronized PipelineOptions getPipelineOptions() {
-    return deserializePipelineOptions(serializedPipelineOptions);
+  public PipelineOptions getPipelineOptions() {
+    return PipelineOptionsHolder.getOrInit(serializedPipelineOptions);
   }
 
   /**
@@ -116,6 +115,24 @@ public class SparkRuntimeContext implements Serializable {
       coderRegistry.registerStandardCoders();
     }
     return coderRegistry;
+  }
+
+  private static class PipelineOptionsHolder {
+    // on executors, this should deserialize once.
+    private static transient volatile PipelineOptions pipelineOptions = null;
+
+    static PipelineOptions getOrInit(String serializedPipelineOptions) {
+      if (pipelineOptions == null) {
+        synchronized (PipelineOptionsHolder.class) {
+          if (pipelineOptions == null) {
+            pipelineOptions = deserializePipelineOptions(serializedPipelineOptions);
+          }
+        }
+        // register IO factories.
+        IOChannelUtils.registerIOFactoriesAllowOverride(pipelineOptions);
+      }
+      return pipelineOptions;
+    }
   }
 
   /**

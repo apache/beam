@@ -47,10 +47,6 @@ message Components {
 
   // (Required) A map from pipeline-scoped id to Environment.
   map<string, Environment> environments = 5;
-
-  // (Required) A map from pipeline-scoped id to FunctionSpec,
-  // a record for a particular user-defined function.
-  map<string, FunctionSpec> function_specs = 6;
 }
 
 // A disjoint union of all the things that may contain references
@@ -207,8 +203,8 @@ message PCollection {
 // The payload for the primitive ParDo transform.
 message ParDoPayload {
 
-  // (Required) The pipeline-scoped id of the FunctionSpec for the DoFn.
-  string fn_id = 1;
+  // (Required) The FunctionSpec of the DoFn.
+  FunctionSpec do_fn = 1;
 
   // (Required) Additional pieces of context the DoFn may require that
   // are not otherwise represented in the payload.
@@ -266,9 +262,8 @@ enum IsBounded {
 // The payload for the primitive Read transform.
 message ReadPayload {
 
-  // (Required) The pipeline-scoped id of the FunctionSpec of the source for
-  // this Read.
-  string source_id = 1;
+  // (Required) The FunctionSpec of the source for this Read.
+  FunctionSpec source = 1;
 
   // (Required) Whether the source is bounded or unbounded
   IsBounded is_bounded = 2;
@@ -279,15 +274,15 @@ message ReadPayload {
 // The payload for the WindowInto transform.
 message WindowIntoPayload {
 
-  // (Required) The pipeline-scoped id for the FunctionSpec of the WindowFn.
-  string fn_id = 1;
+  // (Required) The FunctionSpec of the WindowFn.
+  FunctionSpec window_fn = 1;
 }
 
 // The payload for the special-but-not-primitive Combine transform.
 message CombinePayload {
 
-  // (Required) The pipeline-scoped id of the FunctionSpec for the CombineFn.
-  string fn_id = 1;
+  // (Required) The FunctionSpec of the CombineFn.
+  FunctionSpec combine_fn = 1;
 
   // (Required) A reference to the Coder to use for accumulators of the CombineFn
   string accumulator_coder_id = 2;
@@ -325,10 +320,10 @@ message Coder {
 // TODO: consider inlining field on PCollection
 message WindowingStrategy {
 
-  // (Required) The pipeline-scoped id for the FunctionSpec of the UDF that
-  // assigns windows, merges windows, and shifts timestamps before they are
+  // (Required) The FunctionSpec of the UDF that assigns windows,
+  // merges windows, and shifts timestamps before they are
   // combined according to the OutputTime.
-  string fn_id = 1;
+  FunctionSpec window_fn = 1;
 
   // (Required) Whether or not the window fn is merging.
   //
@@ -584,20 +579,20 @@ message SideInput {
   // URN)
   UrnWithParameter access_pattern = 1;
 
-  // (Required) The pipeline-scoped id for the FunctionSpec of the UDF that
-  // adapts a particular access_pattern to a user-facing view type.
+  // (Required) The FunctionSpec of the UDF that adapts a particular
+  // access_pattern to a user-facing view type.
   //
   // For example, View.asSingleton() may include a `view_fn` that adapts a
   // specially-designed multimap to a single value per window.
-  string view_fn_id = 2;
+  FunctionSpec view_fn = 2;
 
-  // (Required) The pipeline-scoped id for the FunctionSpec of the UDF that
-  // maps a main input window to a side input window.
+  // (Required) The FunctionSpec of the UDF that maps a main input window
+  // to a side input window.
   //
   // For example, when the main input is in fixed windows of one hour, this
   // can specify that the side input should be accessed according to the day
   // in which that hour falls.
-  string window_mapping_fn_id = 3;
+  FunctionSpec window_mapping_fn = 3;
 }
 
 // An environment for executing UDFs. Generally an SDK container URL, but

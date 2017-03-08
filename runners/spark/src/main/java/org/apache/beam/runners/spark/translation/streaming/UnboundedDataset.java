@@ -21,7 +21,10 @@ package org.apache.beam.runners.spark.translation.streaming;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.beam.runners.spark.translation.Dataset;
+import org.apache.beam.runners.spark.translation.TranslationUtils;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.spark.api.java.JavaRDD;
+import org.apache.spark.api.java.function.VoidFunction;
 import org.apache.spark.streaming.api.java.JavaDStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -68,11 +71,17 @@ public class UnboundedDataset<T> implements Dataset {
   @Override
   public void action() {
     // Force computation of DStream.
-    dStream.dstream().register();
+    dStream.foreachRDD(new VoidFunction<JavaRDD<WindowedValue<T>>>() {
+      @Override
+      public void call(JavaRDD<WindowedValue<T>> rdd) throws Exception {
+        rdd.foreach(TranslationUtils.<WindowedValue<T>>emptyVoidFunction());
+      }
+    });
   }
 
   @Override
   public void setName(String name) {
     // ignore
   }
+
 }

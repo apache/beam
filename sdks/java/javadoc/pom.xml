@@ -22,7 +22,7 @@
   <parent>
     <groupId>org.apache.beam</groupId>
     <artifactId>beam-parent</artifactId>
-    <version>0.6.0-SNAPSHOT</version>
+    <version>0.7.0-SNAPSHOT</version>
     <relativePath>../../../pom.xml</relativePath>
   </parent>
 
@@ -232,7 +232,6 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-enforcer-plugin</artifactId>
-        <version>1.3.1</version>
         <executions>
           <execution>
             <id>enforce</id>
@@ -255,12 +254,12 @@
             <phase>package</phase>
             <configuration>
               <target>
-                <property name="compile_classpath" refid="maven.compile.classpath"/>
-                <property name="runtime_classpath" refid="maven.runtime.classpath"/>
-                <property name="test_classpath" refid="maven.test.classpath"/>
-                <property name="plugin_classpath" refid="maven.plugin.classpath"/>
+                <property name="compile_classpath" refid="maven.compile.classpath" />
+                <property name="runtime_classpath" refid="maven.runtime.classpath" />
+                <property name="test_classpath" refid="maven.test.classpath" />
+                <property name="plugin_classpath" refid="maven.plugin.classpath" />
                 <ant antfile="${basedir}/ant.xml">
-                  <target name="javadoc"/>
+                  <target name="javadoc" />
                 </ant>
               </target>
             </configuration>

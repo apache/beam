@@ -291,6 +291,10 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
           stepContext,
           windowingStrategy,
           ((GroupAlsoByWindowViaWindowSetNewDoFn) doFn).getDroppedDueToLatenessAggregator());
+    } else if (keyCoder != null) {
+      // It is a stateful DoFn
+      doFnRunner = DoFnRunners.defaultStatefulDoFnRunner(
+          doFn, doFnRunner, stepContext, aggregatorFactory, windowingStrategy);
     }
 
     pushbackDoFnRunner =

@@ -73,6 +73,7 @@ import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.CombineFnUtil;
+import org.apache.beam.sdk.util.Reshuffle;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.KV;
@@ -210,10 +211,10 @@ final class StreamingTransformTranslator {
     };
   }
 
-  private static <T, W extends BoundedWindow> TransformEvaluator<Window.Bound<T>> window() {
-    return new TransformEvaluator<Window.Bound<T>>() {
+  private static <T, W extends BoundedWindow> TransformEvaluator<Window.Assign<T>> window() {
+    return new TransformEvaluator<Window.Assign<T>>() {
       @Override
-      public void evaluate(final Window.Bound<T> transform, EvaluationContext context) {
+      public void evaluate(final Window.Assign<T> transform, EvaluationContext context) {
         @SuppressWarnings("unchecked")
         UnboundedDataset<T> unboundedDataset =
             ((UnboundedDataset<T>) context.borrowDataset(transform));
@@ -433,6 +434,40 @@ final class StreamingTransformTranslator {
     };
   }
 
+  private static <K, V, W extends BoundedWindow> TransformEvaluator<Reshuffle<K, V>> reshuffle() {
+    return new TransformEvaluator<Reshuffle<K, V>>() {
+      @Override
+      public void evaluate(Reshuffle<K, V> transform, EvaluationContext context) {
+        @SuppressWarnings("unchecked") UnboundedDataset<KV<K, V>> inputDataset =
+            (UnboundedDataset<KV<K, V>>) context.borrowDataset(transform);
+        List<Integer> streamSources = inputDataset.getStreamSources();
+        JavaDStream<WindowedValue<KV<K, V>>> dStream = inputDataset.getDStream();
+        @SuppressWarnings("unchecked")
+        final KvCoder<K, V> coder = (KvCoder<K, V>) context.getInput(transform).getCoder();
+        @SuppressWarnings("unchecked")
+        final WindowingStrategy<?, W> windowingStrategy =
+            (WindowingStrategy<?, W>) context.getInput(transform).getWindowingStrategy();
+        @SuppressWarnings("unchecked")
+        final WindowFn<Object, W> windowFn = (WindowFn<Object, W>) windowingStrategy.getWindowFn();
+
+        final WindowedValue.WindowedValueCoder<V> wvCoder =
+            WindowedValue.FullWindowedValueCoder.of(coder.getValueCoder(), windowFn.windowCoder());
+
+        JavaDStream<WindowedValue<KV<K, V>>> reshuffledStream =
+            dStream.transform(new Function<JavaRDD<WindowedValue<KV<K, V>>>,
+                JavaRDD<WindowedValue<KV<K, V>>>>() {
+              @Override
+              public JavaRDD<WindowedValue<KV<K, V>>> call(
+                  JavaRDD<WindowedValue<KV<K, V>>> rdd) throws Exception {
+                return GroupCombineFunctions.reshuffle(rdd, coder.getKeyCoder(), wvCoder);
+              }
+            });
+
+        context.putDataset(transform, new UnboundedDataset<>(reshuffledStream, streamSources));
+      }
+    };
+  }
+
   private static final Map<Class<? extends PTransform>, TransformEvaluator<?>> EVALUATORS =
       Maps.newHashMap();
 
@@ -444,8 +479,9 @@ final class StreamingTransformTranslator {
     EVALUATORS.put(ParDo.BoundMulti.class, multiDo());
     EVALUATORS.put(ConsoleIO.Write.Unbound.class, print());
     EVALUATORS.put(CreateStream.class, createFromQueue());
-    EVALUATORS.put(Window.Bound.class, window());
+    EVALUATORS.put(Window.Assign.class, window());
     EVALUATORS.put(Flatten.PCollections.class, flattenPColl());
+    EVALUATORS.put(Reshuffle.class, reshuffle());
   }
 
   /**

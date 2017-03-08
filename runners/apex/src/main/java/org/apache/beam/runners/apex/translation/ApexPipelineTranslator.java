@@ -71,7 +71,7 @@ public class ApexPipelineTranslator implements Pipeline.PipelineVisitor {
         new CreateApexPCollectionViewTranslator());
     registerTransformTranslator(CreatePCollectionView.class,
         new CreatePCollectionViewTranslator());
-    registerTransformTranslator(Window.Bound.class, new WindowBoundTranslator());
+    registerTransformTranslator(Window.Assign.class, new WindowAssignTranslator());
   }
 
   public ApexPipelineTranslator(ApexPipelineOptions options) {

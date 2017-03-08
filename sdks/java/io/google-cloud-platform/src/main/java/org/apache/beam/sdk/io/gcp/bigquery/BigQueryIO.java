@@ -2887,7 +2887,8 @@ public class BigQueryIO {
     VarIntCoder shardNumberCoder;
   }
 
-  private static class TableRowInfoCoder extends AtomicCoder<TableRowInfo> {
+  @VisibleForTesting
+  static class TableRowInfoCoder extends AtomicCoder<TableRowInfo> {
     private static final TableRowInfoCoder INSTANCE = new TableRowInfoCoder();
 
     @JsonCreator

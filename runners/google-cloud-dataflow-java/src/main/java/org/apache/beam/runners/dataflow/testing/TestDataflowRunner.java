@@ -46,9 +46,6 @@ import org.apache.beam.sdk.runners.PipelineRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestPipelineOptions;
-import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.values.PInput;
-import org.apache.beam.sdk.values.POutput;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -102,6 +99,7 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   }
 
   DataflowPipelineJob run(Pipeline pipeline, DataflowRunner runner) {
+    updatePAssertCount(pipeline);
 
     TestPipelineOptions testPipelineOptions = pipeline.getOptions().as(TestPipelineOptions.class);
     final DataflowPipelineJob job;
@@ -183,16 +181,9 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     return job;
   }
 
-  @Override
-  public <OutputT extends POutput, InputT extends PInput> OutputT apply(
-      PTransform<InputT, OutputT> transform, InputT input) {
-    if (transform instanceof PAssert.OneSideInputAssert
-        || transform instanceof PAssert.GroupThenAssert
-        || transform instanceof PAssert.GroupThenAssertForSingleton) {
-      expectedNumberOfAssertions += 1;
-    }
-
-    return runner.apply(transform, input);
+  @VisibleForTesting
+  void updatePAssertCount(Pipeline pipeline) {
+    expectedNumberOfAssertions = PAssert.countAsserts(pipeline);
   }
 
   /**

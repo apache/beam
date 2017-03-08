@@ -22,7 +22,7 @@
   <parent>
     <groupId>org.apache.beam</groupId>
     <artifactId>beam-runners-parent</artifactId>
-    <version>0.6.0-SNAPSHOT</version>
+    <version>0.7.0-SNAPSHOT</version>
     <relativePath>../pom.xml</relativePath>
   </parent>
 
@@ -57,7 +57,7 @@
     <profile>
       <!-- This profile adds execution of RunnableOnService integration tests
            against a local Spark endpoint. -->
-      <id>runnable-on-service-tests</id>
+      <id>local-runnable-on-service-tests</id>
       <activation><activeByDefault>false</activeByDefault></activation>
       <build>
         <plugins>
@@ -226,6 +226,10 @@
     </dependency>
     <dependency>
       <groupId>org.apache.beam</groupId>
+      <artifactId>beam-runners-core-construction-java</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.beam</groupId>
       <artifactId>beam-runners-core-java</artifactId>
       <exclusions>
         <!-- Use Hadoop/Spark's backend logger instead of jdk14 for tests -->
@@ -303,6 +307,12 @@
           <artifactId>slf4j-jdk14</artifactId>
         </exclusion>
       </exclusions>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.beam</groupId>
+      <artifactId>beam-sdks-java-io-hadoop-common</artifactId>
+      <scope>test</scope>
     </dependency>
 
     <dependency>

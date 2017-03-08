@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.kafka;
 
+import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
@@ -24,6 +25,7 @@ import static org.junit.Assert.assertTrue;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Lists;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
@@ -58,6 +60,7 @@ import org.apache.beam.sdk.transforms.Min;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.Values;
+import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
@@ -223,7 +226,7 @@ public class KafkaIOTest {
     List<String> topics = ImmutableList.of("topic_a", "topic_b");
 
     KafkaIO.Read<Integer, Long> reader = KafkaIO.<Integer, Long>read()
-        .withBootstrapServers("none")
+        .withBootstrapServers("myServer1:9092,myServer2:9092")
         .withTopics(topics)
         .withConsumerFactoryFn(new ConsumerFactoryFn(
             topics, 10, numElements, OffsetResetStrategy.EARLIEST)) // 20 partitions
@@ -617,6 +620,54 @@ public class KafkaIOTest {
         completionThreadWithErrors.shutdown();
       }
     }
+  }
+
+  @Test
+  public void testSourceDisplayData() {
+    KafkaIO.Read<Integer, Long> read = mkKafkaReadTransform(10, null);
+
+    DisplayData displayData = DisplayData.from(read);
+
+    assertThat(displayData, hasDisplayItem("topics", "topic_a,topic_b"));
+    assertThat(displayData, hasDisplayItem("enable.auto.commit", false));
+    assertThat(displayData, hasDisplayItem("bootstrap.servers", "myServer1:9092,myServer2:9092"));
+    assertThat(displayData, hasDisplayItem("auto.offset.reset", "latest"));
+    assertThat(displayData, hasDisplayItem("receive.buffer.bytes", 524288));
+  }
+
+  @Test
+  public void testSourceWithExplicitPartitionsDisplayData() {
+    KafkaIO.Read<byte[], Long> read = KafkaIO.<byte[], Long>read()
+        .withBootstrapServers("myServer1:9092,myServer2:9092")
+        .withTopicPartitions(ImmutableList.of(new TopicPartition("test", 5),
+            new TopicPartition("test", 6)))
+        .withConsumerFactoryFn(new ConsumerFactoryFn(
+            Lists.newArrayList("test"), 10, 10, OffsetResetStrategy.EARLIEST)) // 10 partitions
+        .withKeyCoder(ByteArrayCoder.of())
+        .withValueCoder(BigEndianLongCoder.of());
+
+    DisplayData displayData = DisplayData.from(read);
+
+    assertThat(displayData, hasDisplayItem("topicPartitions", "test-5,test-6"));
+    assertThat(displayData, hasDisplayItem("enable.auto.commit", false));
+    assertThat(displayData, hasDisplayItem("bootstrap.servers", "myServer1:9092,myServer2:9092"));
+    assertThat(displayData, hasDisplayItem("auto.offset.reset", "latest"));
+    assertThat(displayData, hasDisplayItem("receive.buffer.bytes", 524288));
+  }
+
+  @Test
+  public void testSinkDisplayData() {
+    KafkaIO.Write<Integer, Long> write = KafkaIO.<Integer, Long>write()
+        .withBootstrapServers("myServerA:9092,myServerB:9092")
+        .withTopic("myTopic")
+        .withValueCoder(BigEndianLongCoder.of())
+        .withProducerFactoryFn(new ProducerFactoryFn());
+
+    DisplayData displayData = DisplayData.from(write);
+
+    assertThat(displayData, hasDisplayItem("topic", "myTopic"));
+    assertThat(displayData, hasDisplayItem("bootstrap.servers", "myServerA:9092,myServerB:9092"));
+    assertThat(displayData, hasDisplayItem("retries", 3));
   }
 
   private static void verifyProducerRecords(String topic, int numElements, boolean keyIsAbsent) {
