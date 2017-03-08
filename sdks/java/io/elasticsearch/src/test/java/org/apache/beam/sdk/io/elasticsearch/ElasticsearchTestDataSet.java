@@ -35,6 +35,8 @@ public class ElasticsearchTestDataSet {
   public static final String ES_INDEX = "beam";
   public static final String ES_TYPE = "test";
   public static final long NUM_DOCS = 60000;
+  public static final int AVERAGE_DOC_SIZE = 25;
+  public static final int MAX_DOC_SIZE = 35;
   private static String writeIndex = ES_INDEX + org.joda.time.Instant.now().getMillis();
 
   /**

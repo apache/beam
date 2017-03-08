@@ -40,8 +40,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * A test of {@link ElasticsearchIO} on an independent
- * Elasticsearch instance.
+ * A test of {@link ElasticsearchIO} on an independent Elasticsearch instance.
  *
  * <p>This test requires a running instance of Elasticsearch, and the test dataset must exist in the
  * database.
@@ -54,10 +53,8 @@ import org.slf4j.LoggerFactory;
  *  "--elasticsearchHttpPort=9200",
  *  "--elasticsearchTcpPort=9300" ]'
  * </pre>
- *
  */
 public class ElasticsearchIOIT {
-  private static final int AVERAGE_DOC_SIZE = 25;
   private static final Logger LOGGER = LoggerFactory.getLogger(ElasticsearchIOIT.class);
   private static TransportClient client;
   private static ElasticsearchTestOptions options;
@@ -106,7 +103,6 @@ public class ElasticsearchIOIT {
   }
 
   @Test
-//  @Category(RunnableOnService.class)
   public void testReadVolume() throws Exception {
     PCollection<String> output =
         pipeline.apply(
@@ -117,7 +113,6 @@ public class ElasticsearchIOIT {
   }
 
   @Test
-//  @Category(RunnableOnService.class)
   public void testWriteVolume() throws Exception {
     ElasticsearchIO.ConnectionConfiguration writeConnectionConfiguration =
         ElasticsearchTestDataSet.getConnectionConfiguration(
@@ -148,8 +143,12 @@ public class ElasticsearchIOIT {
     long estimatedSize = initialSource.getEstimatedSizeBytes(options);
     LOGGER.info("Estimated size: {}", estimatedSize);
     assertThat(
-        "Wrong estimated size",
+        "Wrong estimated size bellow minimum",
         estimatedSize,
-        greaterThan(AVERAGE_DOC_SIZE * ElasticsearchTestDataSet.NUM_DOCS));
+        greaterThan(ElasticsearchTestDataSet.AVERAGE_DOC_SIZE * ElasticsearchTestDataSet.NUM_DOCS));
+    assertThat(
+        "Wrong estimated size beyond maximum",
+        estimatedSize,
+        greaterThan(ElasticsearchTestDataSet.MAX_DOC_SIZE * ElasticsearchTestDataSet.NUM_DOCS));
   }
 }
