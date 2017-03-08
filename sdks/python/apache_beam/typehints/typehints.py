@@ -994,7 +994,8 @@ class WindowedTypeConstraint(TypeConstraint):
           '%s hint type-constraint violated. The type of element in '
           'is incorrect. Expected an instance of type %s, '
           'instead received an instance of type %s.' %
-          (repr(self), _unified_repr(self.inner_type), elem.__class__.__name__))
+          (repr(self), _unified_repr(self.inner_type),
+           instance.value.__class__.__name__))
 
 
 class GeneratorHint(IteratorHint):

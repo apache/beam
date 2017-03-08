@@ -339,7 +339,7 @@ class OrderedPositionRangeTracker(iobase.RangeTracker):
 
   def stop_position(self):
     with self._lock:
-      return self._end_position
+      return self._stop_position
 
   def try_claim(self, position):
     with self._lock:

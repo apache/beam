@@ -22,8 +22,10 @@ import static org.apache.beam.sdk.util.Structs.getDictionary;
 import static org.apache.beam.sdk.util.Structs.getString;
 import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasEntry;
 import static org.hamcrest.Matchers.hasKey;
+import static org.hamcrest.Matchers.not;
 import static org.hamcrest.core.IsInstanceOf.instanceOf;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
@@ -81,10 +83,15 @@ import org.apache.beam.sdk.util.Structs;
 import org.apache.beam.sdk.util.TestCredential;
 import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.util.gcsfs.GcsPath;
+import org.apache.beam.sdk.util.state.StateSpec;
+import org.apache.beam.sdk.util.state.StateSpecs;
+import org.apache.beam.sdk.util.state.ValueState;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.TupleTagList;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
@@ -823,6 +830,71 @@ public class DataflowPipelineTranslatorTest implements Serializable {
 
     Step collectionToSingletonStep = steps.get(1);
     assertEquals("CollectionToSingleton", collectionToSingletonStep.getKind());
+  }
+
+  /**
+   * Smoke test to fail fast if translation of a stateful ParDo
+   * in batch breaks.
+   */
+  @Test
+  public void testBatchStatefulParDoTranslation() throws Exception {
+    DataflowPipelineOptions options = buildPipelineOptions();
+    DataflowRunner runner = DataflowRunner.fromOptions(options);
+    options.setStreaming(false);
+    DataflowPipelineTranslator translator = DataflowPipelineTranslator.fromOptions(options);
+
+    Pipeline pipeline = Pipeline.create(options);
+
+    TupleTag<Integer> mainOutputTag = new TupleTag<Integer>() {};
+
+    pipeline
+        .apply(Create.of(KV.of(1, 1)))
+        .apply(
+            ParDo.withOutputTags(mainOutputTag, TupleTagList.empty()).of(
+                new DoFn<KV<Integer, Integer>, Integer>() {
+                  @StateId("unused")
+                  final StateSpec<Object, ValueState<Integer>> stateSpec =
+                      StateSpecs.value(VarIntCoder.of());
+
+                  @ProcessElement
+                  public void process(ProcessContext c) {
+                    // noop
+                  }
+                }));
+
+    runner.replaceTransforms(pipeline);
+
+    Job job =
+        translator
+            .translate(
+                pipeline,
+                runner,
+                Collections.<DataflowPackage>emptyList())
+            .getJob();
+
+    // The job should look like:
+    // 0. ParallelRead (Create)
+    // 1. ParDo(ReifyWVs)
+    // 2. GroupByKeyAndSortValuesONly
+    // 3. A ParDo over grouped and sorted KVs that is executed via ungrouping service-side
+
+    List<Step> steps = job.getSteps();
+    assertEquals(4, steps.size());
+
+    Step createStep = steps.get(0);
+    assertEquals("ParallelRead", createStep.getKind());
+
+    Step reifyWindowedValueStep = steps.get(1);
+    assertEquals("ParallelDo", reifyWindowedValueStep.getKind());
+
+    Step gbkStep = steps.get(2);
+    assertEquals("GroupByKey", gbkStep.getKind());
+
+    Step statefulParDoStep = steps.get(3);
+    assertEquals("ParallelDo", statefulParDoStep.getKind());
+    assertThat(
+        (String) statefulParDoStep.getProperties().get(PropertyNames.USES_KEYED_STATE),
+        not(equalTo("true")));
   }
 
   @Test

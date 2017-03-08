@@ -21,7 +21,7 @@
 import re
 
 
-__version__ = '0.6.0.dev'
+__version__ = '0.6.0'
 
 
 # The following utilities are legacy code from the Maven integration;
