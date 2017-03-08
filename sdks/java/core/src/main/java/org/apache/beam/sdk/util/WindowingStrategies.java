@@ -120,8 +120,7 @@ public class WindowingStrategies implements Serializable {
 
   public static RunnerApi.OutputTime toProto(OutputTimeFn<?> outputTimeFn) {
     if (outputTimeFn instanceof WindowingStrategy.CombineWindowFnOutputTimes) {
-      return OutputTimeFns.toProto(
-          ((CombineWindowFnOutputTimes<?>) outputTimeFn).getOutputTimeFn());
+      return toProto(((CombineWindowFnOutputTimes<?>) outputTimeFn).getOutputTimeFn());
     } else {
       return OutputTimeFns.toProto(outputTimeFn);
     }
