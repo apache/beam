@@ -33,7 +33,7 @@ import org.apache.beam.sdk.io.BoundedSource.BoundedReader;
 import org.apache.beam.sdk.io.hadoop.inputformat.HadoopInputFormatIO.HadoopInputFormatBoundedSource;
 import org.apache.beam.sdk.io.hadoop.inputformat.HadoopInputFormatIO.SerializableConfiguration;
 import org.apache.beam.sdk.io.hadoop.inputformat.HadoopInputFormatIO.SerializableSplit;
-import org.apache.beam.sdk.io.hadoop.inputformat.coders.WritableCoder;
+import org.apache.beam.sdk.io.hadoop.WritableCoder;
 import org.apache.beam.sdk.io.hadoop.inputformat.unit.tests.inputs.ConfigurableEmployeeInputFormat;
 import org.apache.beam.sdk.io.hadoop.inputformat.unit.tests.inputs.Employee;
 import org.apache.beam.sdk.io.hadoop.inputformat.unit.tests.inputs.EmployeeInputFormat;

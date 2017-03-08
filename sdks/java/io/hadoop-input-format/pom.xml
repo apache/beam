@@ -80,6 +80,10 @@
       <artifactId>jsr305</artifactId>
       <version>${findbugs.jsr305.version}</version>
     </dependency>
+	<dependency>
+      <groupId>org.apache.beam</groupId>
+      <artifactId>beam-sdks-java-io-hadoop-common</artifactId>
+    </dependency>
 
 	<!-- compile dependencies -->
     <dependency>
