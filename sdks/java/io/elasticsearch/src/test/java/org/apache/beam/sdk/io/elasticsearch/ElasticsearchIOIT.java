@@ -88,10 +88,14 @@ public class ElasticsearchIOIT {
         ElasticsearchIO.read().withConnectionConfiguration(readConnectionConfiguration);
     ElasticsearchIO.BoundedElasticsearchSource initialSource =
         new ElasticsearchIO.BoundedElasticsearchSource(read, null);
+    //desiredBundleSize is ignored because in ES 2.x there is no way to split shards. So we get
+    // as many bundles as ES shards and bundle size is shard size
     long desiredBundleSizeBytes = 0;
     List<? extends BoundedSource<String>> splits =
         initialSource.splitIntoBundles(desiredBundleSizeBytes, options);
     SourceTestUtils.assertSourcesEqualReferenceSource(initialSource, splits, options);
+    //this is the number of ES shards
+    // (By default, each index in Elasticsearch is allocated 5 primary shards)
     long expectedNumSplits = 5;
     assertEquals(expectedNumSplits, splits.size());
     int nonEmptySplits = 0;
