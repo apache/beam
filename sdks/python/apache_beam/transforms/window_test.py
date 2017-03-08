@@ -28,13 +28,17 @@ from apache_beam.transforms import Create
 from apache_beam.transforms import GroupByKey
 from apache_beam.transforms import Map
 from apache_beam.transforms import WindowInto
+from apache_beam.transforms.core import Windowing
 from apache_beam.transforms.timeutil import MAX_TIMESTAMP
 from apache_beam.transforms.timeutil import MIN_TIMESTAMP
+from apache_beam.transforms.trigger import AccumulationMode
+from apache_beam.transforms.trigger import AfterCount
 from apache_beam.transforms.util import assert_that, equal_to
 from apache_beam.transforms.window import FixedWindows
 from apache_beam.transforms.window import GlobalWindow
 from apache_beam.transforms.window import GlobalWindows
 from apache_beam.transforms.window import IntervalWindow
+from apache_beam.transforms.window import OutputTimeFn
 from apache_beam.transforms.window import Sessions
 from apache_beam.transforms.window import SlidingWindows
 from apache_beam.transforms.window import TimestampedValue
@@ -226,7 +230,10 @@ class WindowTest(unittest.TestCase):
                 label='assert:mean')
     p.run()
 
-  def test_runner_api(self):
+
+class RunnerApiTest(unittest.TestCase):
+
+  def test_windowfn_encoding(self):
     for window_fn in (GlobalWindows(),
                       FixedWindows(37),
                       SlidingWindows(2, 389),
@@ -235,6 +242,20 @@ class WindowTest(unittest.TestCase):
       self.assertEqual(
           window_fn,
           WindowFn.from_runner_api(window_fn.to_runner_api(context), context))
+
+  def test_windowing_encoding(self):
+    for windowing in (
+        Windowing(GlobalWindows()),
+        Windowing(FixedWindows(1, 3), AfterCount(6),
+                  accumulation_mode=AccumulationMode.ACCUMULATING),
+        Windowing(SlidingWindows(10, 15, 21), AfterCount(28),
+                  output_time_fn=OutputTimeFn.OUTPUT_AT_LATEST,
+                  accumulation_mode=AccumulationMode.DISCARDING)):
+      context = pipeline.PipelineContext()
+      self.assertEqual(
+          windowing,
+          Windowing.from_runner_api(windowing.to_runner_api(context), context))
+
 
 if __name__ == '__main__':
   unittest.main()

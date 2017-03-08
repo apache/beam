@@ -499,6 +499,6 @@ class PipelineContext(object):
 
   def to_runner_api(self):
     context_proto = beam_runner_api_pb2.Components()
-    for name, cls in self._COMPONENT_TYEPS:
+    for name, cls in self._COMPONENT_TYPES:
       getattr(self, name).populate_map(getattr(context_proto, name))
     return context_proto
