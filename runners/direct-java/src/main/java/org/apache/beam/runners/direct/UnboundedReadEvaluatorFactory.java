@@ -41,6 +41,7 @@ import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
+import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
@@ -140,6 +141,7 @@ class UnboundedReadEvaluatorFactory implements TransformEvaluatorFactory {
           } while (numElements < ARBITRARY_MAX_ELEMENTS && reader.advance());
           Instant watermark = reader.getWatermark();
           UnboundedSourceShard<OutputT, CheckpointMarkT> residual = finishRead(reader, shard);
+          reader = residual.getExistingReader();
           resultBuilder
               .addOutput(output)
               .addUnprocessedElements(
@@ -171,7 +173,8 @@ class UnboundedReadEvaluatorFactory implements TransformEvaluatorFactory {
       if (existing == null) {
         CheckpointMarkT checkpoint = shard.getCheckpoint();
         if (checkpoint != null) {
-          checkpoint.finalizeCheckpoint();
+          // If we have a checkpoint to restore from, it would have been encoded/decoded.
+          checkpoint = CoderUtils.clone(shard.getSource().getCheckpointMarkCoder(), checkpoint);
         }
         return shard
             .getSource()
@@ -198,13 +201,8 @@ class UnboundedReadEvaluatorFactory implements TransformEvaluatorFactory {
     private UnboundedSourceShard<OutputT, CheckpointMarkT> finishRead(
         UnboundedReader<OutputT> reader, UnboundedSourceShard<OutputT, CheckpointMarkT> shard)
         throws IOException {
-      final CheckpointMark oldMark = shard.getCheckpoint();
       @SuppressWarnings("unchecked")
       final CheckpointMarkT mark = (CheckpointMarkT) reader.getCheckpointMark();
-      if (oldMark != null) {
-        oldMark.finalizeCheckpoint();
-      }
-
       // If the watermark is the max value, this source may not be invoked again. Finalize after
       // committing the output.
       if (!reader.getWatermark().isBefore(BoundedWindow.TIMESTAMP_MAX_VALUE)) {
