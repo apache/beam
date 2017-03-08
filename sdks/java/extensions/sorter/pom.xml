@@ -92,6 +92,9 @@
                   <shadedPattern>org.apache.beam.repackaged.com.google.thirdparty</shadedPattern>
                 </relocation>
               </relocations>
+              <transformers>
+                <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
+              </transformers>
             </configuration>
           </execution>
         </executions>
