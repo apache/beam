@@ -72,6 +72,15 @@ public class DoFnInfo<InputT, OutputT> implements Serializable {
         outputMap);
   }
 
+  public DoFnInfo<InputT, OutputT> withFn(DoFn<InputT, OutputT> newFn) {
+    return DoFnInfo.forFn(newFn,
+        windowingStrategy,
+        sideInputViews,
+        inputCoder,
+        mainOutput,
+        outputMap);
+  }
+
   private DoFnInfo(
       DoFn<InputT, OutputT> doFn,
       WindowingStrategy<?, ?> windowingStrategy,
