@@ -26,7 +26,7 @@ mavenJob('beam_PostCommit_Java_Version_Test') {
   concurrentBuild()
 
   // Set common parameters.
-  common_job_properties.setTopLevelMainJobProperties(delegate, 'jenkins_java_sdk_version_test')
+  common_job_properties.setTopLevelMainJobProperties(delegate)
 
   // Override jdk version here
   axes {
