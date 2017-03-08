@@ -77,6 +77,9 @@ import apache_beam.internal.pickler
 from apache_beam import coders
 from apache_beam import io
 from apache_beam import typehints
+from apache_beam import version
 from apache_beam.pipeline import Pipeline
 from apache_beam.transforms import *
 # pylint: enable=wrong-import-position
+
+__version__ = version.get_version()
