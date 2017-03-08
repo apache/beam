@@ -35,13 +35,14 @@ from apache_beam.transforms.window import GlobalWindow
 from apache_beam.transforms.window import OutputTimeFn
 from apache_beam.transforms.window import WindowedValue
 from apache_beam.transforms.window import WindowFn
+from apache_beam.runners.api import beam_runner_api_pb2
 
 
 class AccumulationMode(object):
   """Controls what to do with data when a trigger fires multiple times.
   """
-  DISCARDING = 1
-  ACCUMULATING = 2
+  DISCARDING = beam_runner_api_pb2.DISCARDING
+  ACCUMULATING = beam_runner_api_pb2.ACCUMULATING
   # TODO(robertwb): Provide retractions of previous outputs.
   # RETRACTING = 3
 
@@ -185,6 +186,26 @@ class TriggerFn(object):
     pass
 # pylint: enable=unused-argument
 
+  @staticmethod
+  def from_runner_api(proto, context):
+    return {
+        'after_all': AfterAll,
+        'after_any': AfterFirst,
+        'after_each': AfterEach,
+        'after_end_of_widow': AfterWatermark,
+        # after_processing_time, after_synchronized_processing_time
+        # always
+        'default': DefaultTrigger,
+        'element_count': AfterCount,
+        # never
+        'or_finally': OrFinally,
+        'repeat': Repeatedly,
+    }[proto.WhichOneof('trigger')].from_runner_api(proto, context)
+
+  @abstractmethod
+  def to_runner_api(self, unused_context):
+    pass
+
 
 class DefaultTrigger(TriggerFn):
   """Semantically Repeatedly(AfterWatermark()), but more optimized."""
@@ -216,6 +237,14 @@ class DefaultTrigger(TriggerFn):
   def __eq__(self, other):
     return type(self) == type(other)
 
+  @staticmethod
+  def from_runner_api(proto, context):
+    return DefaultTrigger()
+
+  def to_runner_api(self, unused_context):
+    return beam_runner_api_pb2.Trigger(
+        default=beam_runner_api_pb2.Trigger.Default())
+
 
 class AfterWatermark(TriggerFn):
   """Fire exactly once when the watermark passes the end of the window.
@@ -235,9 +264,9 @@ class AfterWatermark(TriggerFn):
   def __repr__(self):
     qualifiers = []
     if self.early:
-      qualifiers.append('early=%s' % self.early)
+      qualifiers.append('early=%s' % self.early.underlying)
     if self.late:
-      qualifiers.append('late=%s' % self.late)
+      qualifiers.append('late=%s' % self.late.underlying)
     return 'AfterWatermark(%s)' % ', '.join(qualifiers)
 
   def is_late(self, context):
@@ -305,6 +334,28 @@ class AfterWatermark(TriggerFn):
   def __hash__(self):
     return hash((type(self), self.early, self.late))
 
+  @staticmethod
+  def from_runner_api(proto, context):
+    return AfterWatermark(
+        early=TriggerFn.from_runner_api(
+            proto.after_end_of_widow.early_firings, context)
+        if proto.after_end_of_widow.HasField('early_firings')
+        else None,
+        late=TriggerFn.from_runner_api(
+            proto.after_end_of_widow.late_firings, context)
+        if proto.after_end_of_widow.HasField('late_firings')
+        else None)
+
+  def to_runner_api(self, context):
+    early_proto = self.early.underlying.to_runner_api(
+        context) if self.early else None
+    late_proto = self.late.underlying.to_runner_api(
+        context) if self.late else None
+    return beam_runner_api_pb2.Trigger(
+        after_end_of_widow=beam_runner_api_pb2.Trigger.AfterEndOfWindow(
+            early_firings=early_proto,
+            late_firings=late_proto))
+
 
 class AfterCount(TriggerFn):
   """Fire when there are at least count elements in this window pane."""
@@ -316,6 +367,9 @@ class AfterCount(TriggerFn):
 
   def __repr__(self):
     return 'AfterCount(%s)' % self.count
+
+  def __eq__(self, other):
+    return type(self) == type(other) and self.count == other.count
 
   def on_element(self, element, window, context):
     context.add_state(self.COUNT_TAG, 1)
@@ -333,6 +387,15 @@ class AfterCount(TriggerFn):
   def reset(self, window, context):
     context.clear_state(self.COUNT_TAG)
 
+  @staticmethod
+  def from_runner_api(proto, unused_context):
+    return AfterCount(proto.element_count.element_count)
+
+  def to_runner_api(self, unused_context):
+    return beam_runner_api_pb2.Trigger(
+        element_count=beam_runner_api_pb2.Trigger.ElementCount(
+            element_count=self.count))
+
 
 class Repeatedly(TriggerFn):
   """Repeatedly invoke the given trigger, never finishing."""
@@ -342,6 +405,9 @@ class Repeatedly(TriggerFn):
 
   def __repr__(self):
     return 'Repeatedly(%s)' % self.underlying
+
+  def __eq__(self, other):
+    return type(self) == type(other) and self.underlying == other.underlying
 
   def on_element(self, element, window, context):  # get window from context?
     self.underlying.on_element(element, window, context)
@@ -360,6 +426,16 @@ class Repeatedly(TriggerFn):
   def reset(self, window, context):
     self.underlying.reset(window, context)
 
+  @staticmethod
+  def from_runner_api(proto, context):
+    return Repeatedly(
+        TriggerFn.from_runner_api(proto.repeat.subtrigger, context))
+
+  def to_runner_api(self, context):
+    return beam_runner_api_pb2.Trigger(
+        repeat=beam_runner_api_pb2.Trigger.Repeat(
+            subtrigger=self.underlying.to_runner_api(context)))
+
 
 class ParallelTriggerFn(TriggerFn):
 
@@ -371,6 +447,9 @@ class ParallelTriggerFn(TriggerFn):
   def __repr__(self):
     return '%s(%s)' % (self.__class__.__name__,
                        ', '.join(str(t) for t in self.triggers))
+
+  def __eq__(self, other):
+    return type(self) == type(other) and self.triggers == other.triggers
 
   @abstractmethod
   def combine_op(self, trigger_results):
@@ -406,6 +485,31 @@ class ParallelTriggerFn(TriggerFn):
   def _sub_context(context, index):
     return NestedContext(context, '%d/' % index)
 
+  @staticmethod
+  def from_runner_api(proto, context):
+    subtriggers = [
+        TriggerFn.from_runner_api(subtrigger, context)
+        for subtrigger
+        in proto.after_all.subtriggers or proto.after_any.subtriggers]
+    if proto.after_all.subtriggers:
+      return AfterAll(*subtriggers)
+    else:
+      return AfterFirst(*subtriggers)
+
+  def to_runner_api(self, context):
+    subtriggers = [
+        subtrigger.to_runner_api(context) for subtrigger in self.triggers]
+    if self.combine_op == all:
+      return beam_runner_api_pb2.Trigger(
+          after_all=beam_runner_api_pb2.Trigger.AfterAll(
+              subtriggers=subtriggers))
+    elif self.combine_op == any:
+      return beam_runner_api_pb2.Trigger(
+          after_any=beam_runner_api_pb2.Trigger.AfterAny(
+              subtriggers=subtriggers))
+    else:
+      raise NotImplementedError(self)
+
 
 class AfterFirst(ParallelTriggerFn):
   """Fires when any subtrigger fires.
@@ -434,6 +538,9 @@ class AfterEach(TriggerFn):
   def __repr__(self):
     return '%s(%s)' % (self.__class__.__name__,
                        ', '.join(str(t) for t in self.triggers))
+
+  def __eq__(self, other):
+    return type(self) == type(other) and self.triggers == other.triggers
 
   def on_element(self, element, window, context):
     ix = context.get_state(self.INDEX_TAG)
@@ -474,11 +581,39 @@ class AfterEach(TriggerFn):
   def _sub_context(context, index):
     return NestedContext(context, '%d/' % index)
 
+  @staticmethod
+  def from_runner_api(proto, context):
+    return AfterEach(*[
+        TriggerFn.from_runner_api(subtrigger, context)
+        for subtrigger in proto.after_each.subtriggers])
+
+  def to_runner_api(self, context):
+    return beam_runner_api_pb2.Trigger(
+        after_each=beam_runner_api_pb2.Trigger.AfterEach(
+            subtriggers=[
+                subtrigger.to_runner_api(context)
+                for subtrigger in self.triggers]))
+
 
 class OrFinally(AfterFirst):
 
   def __init__(self, body_trigger, exit_trigger):
     super(OrFinally, self).__init__(body_trigger, exit_trigger)
+
+  @staticmethod
+  def from_runner_api(proto, context):
+    return OrFinally(
+        TriggerFn.from_runner_api(proto.or_finally.main, context),
+        # getattr is used as finally is a keyword in Python
+        TriggerFn.from_runner_api(getattr(proto.or_finally, 'finally'),
+                                  context))
+
+  def to_runner_api(self, context):
+    return beam_runner_api_pb2.Trigger(
+        or_finally=beam_runner_api_pb2.Trigger.OrFinally(
+            main=self.triggers[0].to_runner_api(context),
+            # dict keyword argument is used as finally is a keyword in Python
+            **{'finally': self.triggers[1].to_runner_api(context)}))
 
 
 class TriggerContext(object):

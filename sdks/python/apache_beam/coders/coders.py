@@ -22,6 +22,8 @@ import cPickle as pickle
 import google.protobuf
 
 from apache_beam.coders import coder_impl
+from apache_beam.utils import urns
+from apache_beam.utils import proto_utils
 
 # pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
 try:
@@ -181,6 +183,24 @@ class Coder(object):
     return (self.__class__ == other.__class__
             and self._dict_without_impl() == other._dict_without_impl())
     # pylint: enable=protected-access
+
+  def to_runner_api(self, context):
+    # TODO(BEAM-115): Use specialized URNs and components.
+    from apache_beam.runners.api import beam_runner_api_pb2
+    return beam_runner_api_pb2.Coder(
+        spec=beam_runner_api_pb2.FunctionSpec(
+            spec=beam_runner_api_pb2.UrnWithParameter(
+                urn=urns.PICKLED_CODER,
+                parameter=proto_utils.pack_Any(
+                    google.protobuf.wrappers_pb2.BytesValue(
+                        value=serialize_coder(self))))))
+
+  @staticmethod
+  def from_runner_api(proto, context):
+    any_proto = proto.spec.spec.parameter
+    bytes_proto = google.protobuf.wrappers_pb2.BytesValue()
+    any_proto.Unpack(bytes_proto)
+    return deserialize_coder(bytes_proto.value)
 
 
 class StrUtf8Coder(Coder):

@@ -38,6 +38,7 @@ from apache_beam.transforms.trigger import DefaultTrigger
 from apache_beam.transforms.trigger import GeneralTriggerDriver
 from apache_beam.transforms.trigger import InMemoryUnmergedState
 from apache_beam.transforms.trigger import Repeatedly
+from apache_beam.transforms.trigger import TriggerFn
 from apache_beam.transforms.util import assert_that, equal_to
 from apache_beam.transforms.window import FixedWindows
 from apache_beam.transforms.window import IntervalWindow
@@ -378,6 +379,38 @@ class TriggerTest(unittest.TestCase):
     for unwindowed in driver.process_elements(None, unpicklable, None):
       self.assertEqual(pickle.loads(pickle.dumps(unwindowed)).value,
                        range(10))
+
+
+class RunnerApiTest(unittest.TestCase):
+
+  def test_trigger_encoding(self):
+    for trigger_fn in (
+        DefaultTrigger(),
+        AfterAll(AfterCount(1), AfterCount(10)),
+        AfterFirst(AfterCount(10), AfterCount(100)),
+        AfterWatermark(early=AfterCount(1000)),
+        AfterWatermark(early=AfterCount(1000), late=AfterCount(1)),
+        Repeatedly(AfterCount(100)),
+        trigger.OrFinally(AfterCount(3), AfterCount(10))):
+      context = beam.pipeline.PipelineContext()
+      self.assertEqual(
+          trigger_fn,
+          TriggerFn.from_runner_api(trigger_fn.to_runner_api(context), context))
+
+  def test_windowing_strategy_encoding(self):
+    for trigger_fn in (
+        DefaultTrigger(),
+        AfterAll(AfterCount(1), AfterCount(10)),
+        AfterFirst(AfterCount(10), AfterCount(100)),
+        AfterEach(AfterCount(100), AfterCount(1000)),
+        AfterWatermark(early=AfterCount(1000)),
+        AfterWatermark(early=AfterCount(1000), late=AfterCount(1)),
+        Repeatedly(AfterCount(100)),
+        trigger.OrFinally(AfterCount(3), AfterCount(10))):
+      context = beam.pipeline.PipelineContext()
+      self.assertEqual(
+          trigger_fn,
+          TriggerFn.from_runner_api(trigger_fn.to_runner_api(context), context))
 
 
 class TriggerPipelineTest(unittest.TestCase):

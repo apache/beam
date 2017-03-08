@@ -70,9 +70,9 @@ from apache_beam.utils import urns
 class OutputTimeFn(object):
   """Determines how output timestamps of grouping operations are assigned."""
 
-  OUTPUT_AT_EOW = 'OUTPUT_AT_EOW'
-  OUTPUT_AT_EARLIEST = 'OUTPUT_AT_EARLIEST'
-  OUTPUT_AT_LATEST = 'OUTPUT_AT_LATEST'
+  OUTPUT_AT_EOW = beam_runner_api_pb2.END_OF_WINDOW
+  OUTPUT_AT_EARLIEST = beam_runner_api_pb2.EARLIEST_IN_PANE
+  OUTPUT_AT_LATEST = beam_runner_api_pb2.LATEST_IN_PANE
   OUTPUT_AT_EARLIEST_TRANSFORMED = 'OUTPUT_AT_EARLIEST_TRANSFORMED'
 
   @staticmethod
@@ -115,6 +115,10 @@ class WindowFn(object):
   def merge(self, merge_context):
     """Returns a window that is the result of merging a set of windows."""
     raise NotImplementedError
+
+  def is_merging(self):
+    """Returns whether this WindowFn merges windows."""
+    return True
 
   def get_window_coder(self):
     return coders.WindowCoder()
@@ -267,7 +271,16 @@ class GlobalWindow(BoundedWindow):
     return self is other or type(self) is type(other)
 
 
-class GlobalWindows(WindowFn):
+class NonMergingWindowFn(WindowFn):
+
+  def is_merging(self):
+    return False
+
+  def merge(self, merge_context):
+    pass  # No merging.
+
+
+class GlobalWindows(NonMergingWindowFn):
   """A windowing function that assigns everything to one global window."""
 
   @classmethod
@@ -276,9 +289,6 @@ class GlobalWindows(WindowFn):
 
   def assign(self, assign_context):
     return [GlobalWindow()]
-
-  def merge(self, merge_context):
-    pass  # No merging.
 
   def get_window_coder(self):
     return coders.GlobalWindowCoder()
@@ -304,7 +314,7 @@ WindowFn.register_urn(
     urns.GLOBAL_WINDOWS_FN, None, GlobalWindows.from_runner_api_parameter)
 
 
-class FixedWindows(WindowFn):
+class FixedWindows(NonMergingWindowFn):
   """A windowing function that assigns each element to one time interval.
 
   The attributes size and offset determine in what time interval a timestamp
@@ -328,9 +338,6 @@ class FixedWindows(WindowFn):
     timestamp = context.timestamp
     start = timestamp - (timestamp - self.offset) % self.size
     return [IntervalWindow(start, start + self.size)]
-
-  def merge(self, merge_context):
-    pass  # No merging.
 
   def __eq__(self, other):
     if type(self) == type(other) == FixedWindows:
@@ -356,7 +363,7 @@ WindowFn.register_urn(
     FixedWindows.from_runner_api_parameter)
 
 
-class SlidingWindows(WindowFn):
+class SlidingWindows(NonMergingWindowFn):
   """A windowing function that assigns each element to a set of sliding windows.
 
   The attributes size and offset determine in what time interval a timestamp
@@ -383,9 +390,6 @@ class SlidingWindows(WindowFn):
     start = timestamp - (timestamp - self.offset) % self.period
     return [IntervalWindow(Timestamp.of(s), Timestamp.of(s) + self.size)
             for s in range(start, start - self.size, -self.period)]
-
-  def merge(self, merge_context):
-    pass  # No merging.
 
   def __eq__(self, other):
     if type(self) == type(other) == SlidingWindows:
