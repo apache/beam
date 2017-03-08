@@ -63,7 +63,7 @@ class ValueStateTag(StateTag):
   """StateTag pointing to an element."""
 
   def __repr__(self):
-    return 'ValueStateTag(%s, %s)' % (self.tag, self.combine_fn)
+    return 'ValueStateTag(%s)' % (self.tag)
 
   def with_prefix(self, prefix):
     return ValueStateTag(prefix + self.tag)

@@ -234,9 +234,8 @@ def _unpack_positional_arg_hints(arg, hint):
   if isinstance(arg, list):
     tuple_constraint = typehints.Tuple[[typehints.Any] * len(arg)]
     if not typehints.is_consistent_with(hint, tuple_constraint):
-      raise typehints.TypeCheckError(
-          'Bad tuple arguments for %s: expected %s, got %s' % (
-              arg, tuple_constraint, hint))
+      raise TypeCheckError('Bad tuple arguments for %s: expected %s, got %s' %
+                           (arg, tuple_constraint, hint))
     if isinstance(hint, typehints.TupleConstraint):
       return tuple(_unpack_positional_arg_hints(a, t)
                    for a, t in zip(arg, hint.tuple_types))
