@@ -22,15 +22,12 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
 import java.io.IOException;
 import org.apache.beam.runners.spark.SparkPipelineOptions;
-import org.apache.beam.runners.spark.metrics.AggregatorMetricSource;
 import org.apache.beam.runners.spark.translation.streaming.Checkpoint;
 import org.apache.beam.runners.spark.translation.streaming.Checkpoint.CheckpointDir;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.spark.Accumulator;
-import org.apache.spark.SparkEnv$;
 import org.apache.spark.api.java.JavaSparkContext;
-import org.apache.spark.metrics.MetricsSystem;
 import org.apache.spark.streaming.api.java.JavaStreamingListener;
 import org.apache.spark.streaming.api.java.JavaStreamingListenerBatchCompleted;
 import org.slf4j.Logger;
@@ -72,15 +69,6 @@ public class AggregatorsAccumulator {
           }
           instance = accumulator;
         }
-      }
-      String appName = opts.getAppName();
-      if (opts.getEnableSparkMetricSinks()) {
-        final MetricsSystem metricsSystem = SparkEnv$.MODULE$.get().metricsSystem();
-        final AggregatorMetricSource aggregatorMetricSource =
-            new AggregatorMetricSource(appName, instance.value());
-        // re-register the metrics in case of context re-use
-        metricsSystem.removeSource(aggregatorMetricSource);
-        metricsSystem.registerSource(aggregatorMetricSource);
       }
       LOG.info("Instantiated aggregators accumulator: " + instance.value());
     }

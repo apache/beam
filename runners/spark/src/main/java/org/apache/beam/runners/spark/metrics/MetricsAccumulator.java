@@ -27,9 +27,7 @@ import org.apache.beam.runners.spark.translation.streaming.Checkpoint.Checkpoint
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.spark.Accumulator;
-import org.apache.spark.SparkEnv$;
 import org.apache.spark.api.java.JavaSparkContext;
-import org.apache.spark.metrics.MetricsSystem;
 import org.apache.spark.streaming.api.java.JavaStreamingListener;
 import org.apache.spark.streaming.api.java.JavaStreamingListenerBatchCompleted;
 import org.slf4j.Logger;
@@ -72,14 +70,6 @@ public class MetricsAccumulator {
           }
           instance = accumulator;
         }
-      }
-      String appName = opts.getAppName();
-      if (opts.getEnableSparkMetricSinks()) {
-        final MetricsSystem metricsSystem = SparkEnv$.MODULE$.get().metricsSystem();
-        final SparkBeamMetricSource metricsSource = new SparkBeamMetricSource(appName);
-        // re-register the metrics in case of context re-use
-        metricsSystem.removeSource(metricsSource);
-        metricsSystem.registerSource(metricsSource);
       }
       LOG.info("Instantiated metrics accumulator: " + instance.value());
     }

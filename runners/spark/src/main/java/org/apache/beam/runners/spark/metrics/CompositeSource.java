@@ -19,24 +19,22 @@
 package org.apache.beam.runners.spark.metrics;
 
 import com.codahale.metrics.MetricRegistry;
-import org.apache.beam.runners.spark.aggregators.NamedAggregators;
 import org.apache.spark.metrics.source.Source;
 
 
 /**
- * A Spark {@link Source} that is tailored to expose an {@link AggregatorMetric},
- * wrapping an underlying {@link NamedAggregators} instance.
+ * Composite source made up of several {@link MetricRegistry} instances.
  */
-public class AggregatorMetricSource implements Source {
-  private static final String METRIC_NAME = "Aggregators";
-
+public class CompositeSource implements Source {
   private final String name;
+  private final MetricRegistry metricRegistry;
 
-  private final MetricRegistry metricRegistry = new MetricRegistry();
-
-  public AggregatorMetricSource(final String name, final NamedAggregators aggregators) {
+  public CompositeSource(final String name, MetricRegistry... metricRegistries) {
     this.name = name;
-    metricRegistry.register(METRIC_NAME, AggregatorMetric.of(aggregators));
+    this.metricRegistry = new MetricRegistry();
+    for (MetricRegistry metricRegistry : metricRegistries) {
+      this.metricRegistry.registerAll(metricRegistry);
+    }
   }
 
   @Override

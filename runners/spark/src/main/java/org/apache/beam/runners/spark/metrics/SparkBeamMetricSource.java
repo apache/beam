@@ -28,19 +28,20 @@ import org.apache.spark.metrics.source.Source;
  * wrapping an underlying {@link SparkMetricsContainer} instance.
  */
 public class SparkBeamMetricSource implements Source {
+  private static final String METRIC_NAME = "Metrics";
 
-  private final String sourceName;
+  private final String name;
 
   private final MetricRegistry metricRegistry = new MetricRegistry();
 
-  public SparkBeamMetricSource(final String appName) {
-    sourceName = appName + ".Beam.Metrics";
-    metricRegistry.register("Steps", new SparkBeamMetric());
+  public SparkBeamMetricSource(final String name) {
+    this.name = name;
+    metricRegistry.register(METRIC_NAME, new SparkBeamMetric());
   }
 
   @Override
   public String sourceName() {
-    return sourceName;
+    return name;
   }
 
   @Override

@@ -27,7 +27,10 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import org.apache.beam.runners.spark.aggregators.AggregatorsAccumulator;
 import org.apache.beam.runners.spark.io.CreateStream;
+import org.apache.beam.runners.spark.metrics.AggregatorMetricSource;
+import org.apache.beam.runners.spark.metrics.CompositeSource;
 import org.apache.beam.runners.spark.metrics.MetricsAccumulator;
+import org.apache.beam.runners.spark.metrics.SparkBeamMetricSource;
 import org.apache.beam.runners.spark.translation.EvaluationContext;
 import org.apache.beam.runners.spark.translation.SparkContextFactory;
 import org.apache.beam.runners.spark.translation.SparkPipelineTranslator;
@@ -53,7 +56,9 @@ import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TaggedPValue;
+import org.apache.spark.SparkEnv$;
 import org.apache.spark.api.java.JavaSparkContext;
+import org.apache.spark.metrics.MetricsSystem;
 import org.apache.spark.streaming.api.java.JavaStreamingContext;
 import org.apache.spark.streaming.api.java.JavaStreamingListener;
 import org.apache.spark.streaming.api.java.JavaStreamingListenerWrapper;
@@ -205,7 +210,24 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
       result = new SparkPipelineResult.BatchMode(startPipeline, jsc);
     }
 
+    if (mOptions.getEnableSparkMetricSinks()) {
+      registerMetricsSource(mOptions.getAppName());
+    }
+
     return result;
+  }
+
+  private void registerMetricsSource(String appName) {
+      final MetricsSystem metricsSystem = SparkEnv$.MODULE$.get().metricsSystem();
+      final AggregatorMetricSource aggregatorMetricSource =
+          new AggregatorMetricSource(null, AggregatorsAccumulator.getInstance().value());
+      final SparkBeamMetricSource metricsSource = new SparkBeamMetricSource(null);
+      final CompositeSource compositeSource =
+          new CompositeSource(appName + ".Beam", metricsSource.metricRegistry(),
+              aggregatorMetricSource.metricRegistry());
+      // re-register the metrics in case of context re-use
+      metricsSystem.removeSource(compositeSource);
+      metricsSystem.registerSource(compositeSource);
   }
 
   /**
