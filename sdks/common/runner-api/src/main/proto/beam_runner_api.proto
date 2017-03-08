@@ -528,7 +528,7 @@ message Trigger {
     AfterAll after_all = 1;
     AfterAny after_any = 2;
     AfterEach after_each = 3;
-    AfterEndOfWindow after_end_of_widow = 4;
+    AfterEndOfWindow after_end_of_window = 4;
     AfterProcessingTime after_processing_time = 5;
     AfterSynchronizedProcessingTime after_synchronized_processing_time = 6;
     Always always = 12;
