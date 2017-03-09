@@ -42,8 +42,8 @@ import org.apache.beam.runners.core.TimerInternals.TimerData;
 import org.apache.beam.runners.core.triggers.ExecutableTriggerStateMachine;
 import org.apache.beam.runners.core.triggers.TriggerStateMachineContextFactory;
 import org.apache.beam.runners.core.triggers.TriggerStateMachineRunner;
+import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.transforms.windowing.AfterWatermark;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
@@ -109,7 +109,7 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
 
   private final StateInternals<K> stateInternals;
 
-  private final Aggregator<Long, Long> droppedDueToClosedWindow;
+  private final Counter droppedDueToClosedWindow;
 
   private final K key;
 
@@ -215,7 +215,7 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
       TimerInternals timerInternals,
       OutputWindowedValue<KV<K, OutputT>> outputter,
       SideInputReader sideInputReader,
-      Aggregator<Long, Long> droppedDueToClosedWindow,
+      Counter droppedDueToClosedWindow,
       ReduceFn<K, InputT, OutputT, W> reduceFn,
       PipelineOptions options) {
     this.key = key;
@@ -581,7 +581,7 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
           window, value.getValue(), value.getTimestamp(), StateStyle.DIRECT);
       if (triggerRunner.isClosed(directContext.state())) {
         // This window has already been closed.
-        droppedDueToClosedWindow.addValue(1L);
+        droppedDueToClosedWindow.inc();
         WindowTracing.debug(
             "ReduceFnRunner.processElement: Dropping element at {} for key:{}; window:{} "
             + "since window is no longer active at inputWatermark:{}; outputWatermark:{}",

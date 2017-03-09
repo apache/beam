@@ -19,9 +19,7 @@ package org.apache.beam.runners.spark.translation.streaming;
 
 import static org.apache.beam.sdk.metrics.MetricMatchers.attemptedMetricsResult;
 import static org.hamcrest.Matchers.containsInAnyOrder;
-import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasItem;
-import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
 
 import com.google.common.collect.ImmutableList;
@@ -48,11 +46,11 @@ import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.kafka.KafkaIO;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.MetricNameFilter;
+import org.apache.beam.sdk.metrics.MetricResult;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.metrics.MetricsFilter;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
-import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupByKey;
@@ -60,7 +58,6 @@ import org.apache.beam.sdk.transforms.Keys;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
-import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.WithKeys;
@@ -76,9 +73,11 @@ import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.serialization.Serializer;
 import org.apache.kafka.common.serialization.StringSerializer;
+import org.hamcrest.collection.IsEmptyIterable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.AfterClass;
+import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
@@ -92,7 +91,7 @@ import org.junit.rules.TestName;
  * <p>Runs the pipeline reading from a Kafka backlog with a WM function that will move to infinity
  * on a EOF signal.
  * After resuming from checkpoint, a single output (guaranteed by the WM) is asserted, along with
- * {@link Aggregator}s values that are expected to resume from previous count as well.
+ * {@link Counter}s values that are expected to resume from previous count as well.
  */
 public class ResumeFromCheckpointStreamingTest {
   private static final EmbeddedKafkaCluster.EmbeddedZookeeper EMBEDDED_ZOOKEEPER =
@@ -164,16 +163,19 @@ public class ResumeFromCheckpointStreamingTest {
             .addNameFilter(MetricNameFilter.inNamespace(ResumeFromCheckpointStreamingTest.class))
             .build();
 
+    MetricsFilter processedMessagesFilter =
+        MetricsFilter.builder()
+            .addNameFilter(MetricNameFilter.named("main", "processedMessages"))
+            .build();
+
     // first run will read from Kafka backlog - "auto.offset.reset=smallest"
     SparkPipelineResult res = run(options);
     res.waitUntilFinish(Duration.standardSeconds(5));
+    Assert.assertTrue(res != null);
     // assertions 1:
-    long processedMessages1 = res.getAggregatorValue("processedMessages", Long.class);
-    assertThat(
-        String.format(
-            "Expected %d processed messages count but found %d", 4, processedMessages1),
-        processedMessages1,
-        equalTo(4L));
+    assertThat(res.metrics().queryMetrics(processedMessagesFilter).counters(),
+        hasItem(attemptedMetricsResult("main",
+            "processedMessages", "EOFShallNotPassFn", 4L)));
     assertThat(res.metrics().queryMetrics(metricsFilter).counters(),
         hasItem(attemptedMetricsResult(ResumeFromCheckpointStreamingTest.class.getName(),
             "allMessages", "EOFShallNotPassFn", 4L)));
@@ -195,28 +197,26 @@ public class ResumeFromCheckpointStreamingTest {
     res = runAgain(options);
     res.waitUntilFinish(Duration.standardSeconds(5));
     // assertions 2:
-    long processedMessages2 = res.getAggregatorValue("processedMessages", Long.class);
-    assertThat(
-        String.format("Expected %d processed messages count but found %d", 5, processedMessages2),
-        processedMessages2,
-        equalTo(5L));
+    assertThat(res.metrics().queryMetrics(processedMessagesFilter).counters(),
+        hasItem(attemptedMetricsResult("main",
+            "processedMessages", "EOFShallNotPassFn", 5L)));
     assertThat(res.metrics().queryMetrics(metricsFilter).counters(),
         hasItem(attemptedMetricsResult(ResumeFromCheckpointStreamingTest.class.getName(),
             "allMessages", "EOFShallNotPassFn", 6L)));
-    int successAssertions = res.getAggregatorValue(PAssert.SUCCESS_COUNTER, Integer.class);
-    res.getAggregatorValue(PAssert.SUCCESS_COUNTER, Integer.class);
-    assertThat(
-        String.format(
-            "Expected %d successful assertions, but found %d.", 1, successAssertions),
-            successAssertions,
-            is(1));
+    MetricsFilter emptyFilter =
+        MetricsFilter.builder().build();
+    assertThat(res.metrics().queryMetrics(emptyFilter).counters(),
+        hasItem(attemptedMetricsResult("main",
+            PAssert.SUCCESS_COUNTER,
+            "ResumeFromCheckpointStreamingTest.PAssertWithoutFlatten/ParDo(Assert)",
+            1L)));
     // validate assertion didn't fail.
-    int failedAssertions = res.getAggregatorValue(PAssert.FAILURE_COUNTER, Integer.class);
-    assertThat(
-        String.format("Found %d failed assertions.", failedAssertions),
-        failedAssertions,
-        is(0));
-
+    MetricsFilter failureCounterFilter =
+        MetricsFilter.builder()
+            .addNameFilter(MetricNameFilter.named("main", PAssert.FAILURE_COUNTER))
+            .build();
+    assertThat(res.metrics().queryMetrics(failureCounterFilter).counters(),
+        IsEmptyIterable.<MetricResult<Long>>emptyIterable());
   }
 
   private SparkPipelineResult runAgain(SparkPipelineOptions options) {
@@ -279,8 +279,8 @@ public class ResumeFromCheckpointStreamingTest {
   /** A pass-through fn that prevents EOF event from passing. */
   private static class EOFShallNotPassFn extends DoFn<String, String> {
     final PCollectionView<List<String>> view;
-    private final Aggregator<Long, Long> aggregator =
-        createAggregator("processedMessages", Sum.ofLongs());
+    private final Counter processedMessages =
+        Metrics.counter("main", "processedMessages");
     Counter counter =
         Metrics.counter(ResumeFromCheckpointStreamingTest.class, "allMessages");
 
@@ -295,7 +295,7 @@ public class ResumeFromCheckpointStreamingTest {
       assertThat(c.sideInput(view), containsInAnyOrder("side1", "side2"));
       counter.inc();
       if (!element.equals("EOF")) {
-        aggregator.addValue(1L);
+        processedMessages.inc();
         c.output(c.element());
       }
     }
@@ -320,10 +320,10 @@ public class ResumeFromCheckpointStreamingTest {
     }
 
     private static class AssertDoFn<T> extends DoFn<Iterable<T>, Void> {
-      private final Aggregator<Integer, Integer> success =
-          createAggregator(PAssert.SUCCESS_COUNTER, Sum.ofIntegers());
-      private final Aggregator<Integer, Integer> failure =
-          createAggregator(PAssert.FAILURE_COUNTER, Sum.ofIntegers());
+      private final Counter successCounter =
+          Metrics.counter("main", PAssert.SUCCESS_COUNTER);
+      private final Counter failureCounter =
+          Metrics.counter("main", PAssert.FAILURE_COUNTER);
       private final T[] expected;
 
       AssertDoFn(T[] expected) {
@@ -334,9 +334,9 @@ public class ResumeFromCheckpointStreamingTest {
       public void processElement(ProcessContext c) throws Exception {
         try {
           assertThat(c.element(), containsInAnyOrder(expected));
-          success.addValue(1);
+          successCounter.inc();
         } catch (Throwable t) {
-          failure.addValue(1);
+          failureCounter.inc();
           throw t;
         }
       }

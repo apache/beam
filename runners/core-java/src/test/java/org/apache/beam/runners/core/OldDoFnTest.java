@@ -18,15 +18,11 @@
 package org.apache.beam.runners.core;
 
 import static org.hamcrest.Matchers.empty;
-import static org.hamcrest.Matchers.isA;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertThat;
 
 import java.io.Serializable;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.Aggregator;
-import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.Max;
 import org.apache.beam.sdk.transforms.SerializableFunction;
@@ -48,19 +44,6 @@ public class OldDoFnTest implements Serializable {
 
   @Rule
   public transient ExpectedException thrown = ExpectedException.none();
-
-  @Test
-  public void testCreateAggregatorWithCombinerSucceeds() {
-    String name = "testAggregator";
-    Combine.BinaryCombineLongFn combiner = Sum.ofLongs();
-
-    OldDoFn<Void, Void> doFn = new NoOpOldDoFn<>();
-
-    Aggregator<Long, Long> aggregator = doFn.createAggregator(name, combiner);
-
-    assertEquals(name, aggregator.getName());
-    assertEquals(combiner, aggregator.getCombineFn());
-  }
 
   @Test
   public void testCreateAggregatorWithNullNameThrowsException() {
@@ -111,35 +94,6 @@ public class OldDoFnTest implements Serializable {
     thrown.expectMessage("already exists");
 
     doFn.createAggregator(name, combiner);
-  }
-
-  @Test
-  public void testCreateAggregatorsWithDifferentNamesSucceeds() {
-    String nameOne = "testAggregator";
-    String nameTwo = "aggregatorPrime";
-    CombineFn<Double, ?, Double> combiner = Max.ofDoubles();
-
-    OldDoFn<Void, Void> doFn = new NoOpOldDoFn<>();
-
-    Aggregator<Double, Double> aggregatorOne =
-        doFn.createAggregator(nameOne, combiner);
-    Aggregator<Double, Double> aggregatorTwo =
-        doFn.createAggregator(nameTwo, combiner);
-
-    assertNotEquals(aggregatorOne, aggregatorTwo);
-  }
-
-  @Test
-  public void testCreateAggregatorThrowsWhenAggregatorsAreFinal() throws Exception {
-    OldDoFn<String, String> fn = new OldDoFn<String, String>() {
-      @Override
-      public void processElement(ProcessContext c) throws Exception { }
-    };
-    OldDoFn<String, String>.Context context = createContext(fn);
-    context.setupDelegateAggregators();
-
-    thrown.expect(isA(IllegalStateException.class));
-    fn.createAggregator("anyAggregate", Max.ofIntegers());
   }
 
   private OldDoFn<String, String>.Context createContext(OldDoFn<String, String> fn) {

@@ -48,13 +48,11 @@ import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
+import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.sdk.transforms.Aggregator;
-import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.Combine.KeyedCombineFn;
 import org.apache.beam.sdk.transforms.CombineWithContext.KeyedCombineFnWithContext;
-import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.OutputTimeFns;
@@ -112,8 +110,8 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
    */
   private boolean autoAdvanceOutputWatermark = true;
 
-  private final InMemoryLongSumAggregator droppedDueToClosedWindow =
-      new InMemoryLongSumAggregator(GroupAlsoByWindowsDoFn.DROPPED_DUE_TO_CLOSED_WINDOW_COUNTER);
+  private final InMemoryCounter droppedDueToClosedWindow =
+      new InMemoryCounter(GroupAlsoByWindowsDoFn.DROPPED_DUE_TO_CLOSED_WINDOW_COUNTER);
 
   /**
    * Creates a {@link ReduceFnTester} for the given {@link WindowingStrategy}, creating
@@ -614,28 +612,38 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
     }
   }
 
-  private static class InMemoryLongSumAggregator implements Aggregator<Long, Long> {
+  private static class InMemoryCounter implements Counter {
     private final String name;
     private long sum = 0;
 
-    public InMemoryLongSumAggregator(String name) {
+    public InMemoryCounter(String name) {
       this.name = name;
     }
 
     @Override
-    public void addValue(Long value) {
-      sum += value;
+    public void dec() {
+      dec(1);
     }
 
     @Override
+    public void inc() {
+      inc(1);
+    }
+
+    @Override
+    public void dec(long n) {
+      inc(-n);
+    }
+
     public String getName() {
       return name;
     }
 
     @Override
-    public CombineFn<Long, ?, Long> getCombineFn() {
-      return Sum.ofLongs();
+    public void inc(long n) {
+      sum += n;
     }
+
 
     public long getSum() {
       return sum;
