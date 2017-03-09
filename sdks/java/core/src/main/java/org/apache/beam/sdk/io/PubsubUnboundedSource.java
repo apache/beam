@@ -51,10 +51,11 @@ import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.PubsubIO.PubsubMessage;
+import org.apache.beam.sdk.metrics.Counter;
+import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PubsubOptions;
 import org.apache.beam.sdk.options.ValueProvider;
-import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -1169,8 +1170,7 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
   // ================================================================================
 
   private static class StatsFn<T> extends DoFn<T, T> {
-    private final Aggregator<Long, Long> elementCounter =
-        createAggregator("elements", Sum.ofLongs());
+    private final Counter elementCounter = Metrics.counter(StatsFn.class, "elements");
 
     private final PubsubClientFactory pubsubFactory;
     @Nullable
@@ -1198,7 +1198,7 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
 
     @ProcessElement
     public void processElement(ProcessContext c) throws Exception {
-      elementCounter.addValue(1L);
+      elementCounter.inc();
       c.output(c.element());
     }
 
