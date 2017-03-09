@@ -1,0 +1,59 @@
+package org.beam.sdk.java.sql.rule;
+
+import java.util.List;
+
+import org.apache.calcite.plan.Convention;
+import org.apache.calcite.plan.RelOptCluster;
+import org.apache.calcite.plan.RelOptTable;
+import org.apache.calcite.plan.RelTraitSet;
+import org.apache.calcite.prepare.Prepare;
+import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.convert.ConverterRule;
+import org.apache.calcite.rel.core.TableModify;
+import org.apache.calcite.rel.logical.LogicalTableModify;
+import org.apache.calcite.rex.RexNode;
+import org.apache.calcite.schema.Table;
+import org.beam.sdk.java.sql.rel.BeamIOSinkRel;
+import org.beam.sdk.java.sql.rel.BeamLogicalConvention;
+
+public class BeamIOSinkRule extends ConverterRule {
+  public static final BeamIOSinkRule INSTANCE = new BeamIOSinkRule();
+
+  private BeamIOSinkRule() {
+    super(LogicalTableModify.class, Convention.NONE, BeamLogicalConvention.INSTANCE,
+        "BeamIOSinkRule");
+  }
+
+  @Override
+  public RelNode convert(RelNode rel) {
+    final TableModify tableModify = (TableModify) rel;
+    final RelNode input = tableModify.getInput();
+
+    final RelOptCluster cluster = tableModify.getCluster();
+    final RelTraitSet traitSet = tableModify.getTraitSet().replace(BeamLogicalConvention.INSTANCE);
+    final RelOptTable relOptTable = tableModify.getTable();
+    final Prepare.CatalogReader catalogReader = tableModify.getCatalogReader();
+    final RelNode convertedInput = convert(input,
+        input.getTraitSet().replace(BeamLogicalConvention.INSTANCE));
+    final TableModify.Operation operation = tableModify.getOperation();
+    final List<String> updateColumnList = tableModify.getUpdateColumnList();
+    final List<RexNode> sourceExpressionList = tableModify.getSourceExpressionList();
+    final boolean flattened = tableModify.isFlattened();
+
+    final Table table = tableModify.getTable().unwrap(Table.class);
+
+    switch (table.getJdbcTableType()) {
+    case STREAM:
+      if (operation != TableModify.Operation.INSERT) {
+        throw new UnsupportedOperationException(
+            String.format("Streams doesn't support %s modify operation", operation));
+      }
+      return new BeamIOSinkRel(cluster, traitSet.replace(BeamLogicalConvention.INSTANCE),
+          relOptTable, catalogReader, convertedInput, operation, updateColumnList,
+          sourceExpressionList, flattened);
+    default:
+      throw new IllegalArgumentException(
+          String.format("Unsupported table type: %s", table.getJdbcTableType()));
+    }
+  }
+}
