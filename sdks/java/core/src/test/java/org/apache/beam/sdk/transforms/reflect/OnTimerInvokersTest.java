@@ -105,4 +105,36 @@ public class OnTimerInvokersTest {
       this.window = window;
     }
   }
+
+  static class StableNameTestDoFn extends DoFn<Void, Void> {
+    private static final String TIMER_ID = "timer-id.with specialChars{}";
+
+    @TimerId(TIMER_ID)
+    private final TimerSpec myTimer = TimerSpecs.timer(TimeDomain.PROCESSING_TIME);
+
+    @ProcessElement
+    public void process() {}
+
+    @OnTimer(TIMER_ID)
+    public void onMyTimer() {}
+  };
+
+  /**
+   * This is a change-detector test that the generated name is stable across runs.
+   */
+  @Test
+  public void testStableName() {
+    OnTimerInvoker<Void, Void> invoker =
+        OnTimerInvokers.forTimer(new StableNameTestDoFn(), StableNameTestDoFn.TIMER_ID);
+
+    assertThat(
+        invoker.getClass().getName(),
+        equalTo(
+            String.format(
+                "%s$%s$%s$%s",
+                StableNameTestDoFn.class.getName(),
+                OnTimerInvoker.class.getSimpleName(),
+                "timeridwithspecialChars" /* alphanum only; human readable but not unique */,
+                "dGltZXItaWQud2l0aCBzcGVjaWFsQ2hhcnN7fQ" /* base64 encoding of UTF-8 timerId */)));
+  }
 }
