@@ -68,6 +68,7 @@
     <module>elasticsearch</module>
     <module>google-cloud-platform</module>
     <module>hadoop-common</module>
+	<module>hadoop-input-format</module>
     <module>hbase</module>
     <module>hdfs</module>
     <module>jdbc</module>

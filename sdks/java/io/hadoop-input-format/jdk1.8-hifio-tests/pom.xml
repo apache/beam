@@ -17,7 +17,7 @@
 -->
 <!-- This child module is required only for executing the tests for Casandra and Elasticsearch
 	 Here the ensure jdk1.7 enforcer rule from Beam is overridden, as the tests require JDK 1.8  -->
-	 
+
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
   xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
   <modelVersion>4.0.0</modelVersion>
@@ -28,7 +28,7 @@
     <relativePath>../pom.xml</relativePath>
   </parent>
   <artifactId>jdk1.8-hifio-tests</artifactId>
-  <name>jdk1.8-hifio-tests</name>
+  <name>Apache Beam :: SDKs :: Java :: IO :: Hadoop Input Format :: jdk1.8-hifio-tests</name>
   <build>
     <plugins>
     <!--  Overridden enforcer plugin for JDK1.8 for running tests -->
@@ -126,6 +126,9 @@
   </profiles>
 
   <properties>
+    <log4j.core.version>2.6.2</log4j.core.version>
+    <hadoop.common.version>2.7.0</hadoop.common.version>
+    <slf4j.api.version>1.7.14</slf4j.api.version>
     <guava.version>19.0</guava.version>
     <transport.netty4.client.version>5.0.0</transport.netty4.client.version>
     <elasticsearch.version>5.0.0</elasticsearch.version>
@@ -138,17 +141,47 @@
 
   <dependencies>
     <dependency>
-      <groupId>hadoop</groupId>
-      <artifactId>beam-sdks-java-io-hadoop-input-format</artifactId>
-      <version>0.6.0-SNAPSHOT</version>
+      <groupId>hadoop1</groupId>
+      <artifactId>beam-sdks-java-io-hadoop-input-format-hifio</artifactId>
+      <version>${project.version}</version>
     </dependency>
     <dependency>
      <groupId>com.google.guava</groupId>
      <artifactId>guava</artifactId>
      <version>${guava.version}</version>
     </dependency>
+    <dependency>
+      <groupId>org.slf4j</groupId>
+      <artifactId>slf4j-api</artifactId>
+      <version>${slf4j.api.version}</version>
+    </dependency>
+
+	<!-- compile dependencies -->
+    <dependency>
+      <groupId>org.apache.hadoop</groupId>
+      <artifactId>hadoop-common</artifactId>
+      <version>${hadoop.common.version}</version>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.hadoop</groupId>
+      <artifactId>hadoop-mapreduce-client-core</artifactId>
+      <version>${hadoop.common.version}</version>
+      <scope>provided</scope>
+    </dependency>
 
     <!-- test dependencies -->
+    <dependency>
+      <groupId>org.apache.beam</groupId>
+      <artifactId>beam-runners-direct-java</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.logging.log4j</groupId>
+      <artifactId>log4j-core</artifactId>
+      <version>2.6.2</version>
+      <scope>test</scope>
+    </dependency>
     <dependency>
       <groupId>org.elasticsearch.plugin</groupId>
       <artifactId>transport-netty4-client</artifactId>
