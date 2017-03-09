@@ -150,20 +150,18 @@ class ByteBuddyOnTimerInvokerFactory implements OnTimerInvokerFactory {
 
     final TypeDescription clazzDescription = new TypeDescription.ForLoadedType(fnClass);
 
-    final String className =
-        "auxiliary_OnTimer_" + CharMatcher.JAVA_LETTER_OR_DIGIT.retainFrom(timerId);
+    final String suffix = String.format("%s$%s$%s",
+        OnTimerInvoker.class.getSimpleName(),
+        CharMatcher.javaLetterOrDigit().retainFrom(timerId),
+        timerId.hashCode());
 
     DynamicType.Builder<?> builder =
         new ByteBuddy()
             // Create subclasses inside the target class, to have access to
             // private and package-private bits
-            .with(
-                new NamingStrategy.SuffixingRandom(className) {
-                  @Override
-                  public String subclass(TypeDescription.Generic superClass) {
-                    return super.name(clazzDescription);
-                  }
-                })
+            .with(StableInvokerNamingStrategy.forDoFnClass(fnClass)
+                .withSuffix(suffix))
+
             // class <invoker class> implements OnTimerInvoker {
             .subclass(OnTimerInvoker.class, ConstructorStrategy.Default.NO_CONSTRUCTORS)
 
