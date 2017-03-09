@@ -787,7 +787,7 @@ public class DatastoreV1 {
       @Override
       public void populateDisplayData(DisplayData.Builder builder) {
         super.populateDisplayData(builder);
-        options.populateDisplayData(builder);
+        builder.include("options", options);
       }
     }
 
@@ -871,7 +871,7 @@ public class DatastoreV1 {
       @Override
       public void populateDisplayData(DisplayData.Builder builder) {
         super.populateDisplayData(builder);
-        options.populateDisplayData(builder);
+        builder.include("options", options);
       }
     }
   }
