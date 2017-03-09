@@ -19,7 +19,7 @@
 import common_job_properties
 
 // This job runs the Java multi-JDK tests in postcommit, including WordCountIT.
-mavenJob('beam_PostCommit_Java_Version_Test') {
+matrixJob('beam_PostCommit_Java_Version_Test') {
   description('Runs postcommit tests on the Java SDK in multiple Jdk versions.')
 
   // Execute concurrent builds if necessary.
@@ -51,12 +51,9 @@ mavenJob('beam_PostCommit_Java_Version_Test') {
   // Maven build for this job.
   steps {
     // Maven build Java SDK related project
-    maven('-B -e -P release clean install coveralls:report -DrepoToken=$COVERALLS_REPO_TOKEN')
+    maven('-B -e -P release clean install -pl !sdks/python coveralls:report -DrepoToken=$COVERALLS_REPO_TOKEN')
 
     // Run WordCountIT
-
+    maven('-B -e -P release clean verify coveralls:report -pl examples/java -DrepoToken=$COVERALLS_REPO_TOKEN -DskipITs=false -Dit.test=WordCountIT -DintegrationTestPipelineOptions=\'[ "--project=apache-beam-testing", "--tempRoot=gs://temp-storage-for-end-to-end-tests", "--runner=org.apache.beam.runners.dataflow.testing.TestDataflowRunner"]\'')
   }
-
-
-  // goals('-B -e -P release,dataflow-runner clean install coveralls:report -DrepoToken=$COVERALLS_REPO_TOKEN -DskipITs=false -DintegrationTestPipelineOptions=\'[ "--project=apache-beam-testing", "--tempRoot=gs://temp-storage-for-end-to-end-tests", "--runner=org.apache.beam.runners.dataflow.testing.TestDataflowRunner" ]\'')
 }
