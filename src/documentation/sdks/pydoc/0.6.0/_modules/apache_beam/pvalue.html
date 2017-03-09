@@ -1,0 +1,558 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>apache_beam.pvalue &#8212; Apache Beam  documentation</title>
+    
+    <link rel="stylesheet" href="../../_static/sphinxdoc.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../',
+        VERSION:     '',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../index.html" accesskey="U">Module code</a> &#187;</li> 
+      </ul>
+    </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for apache_beam.pvalue</h1><div class="highlight"><pre>
+<span></span><span class="c1">#</span>
+<span class="c1"># Licensed to the Apache Software Foundation (ASF) under one or more</span>
+<span class="c1"># contributor license agreements.  See the NOTICE file distributed with</span>
+<span class="c1"># this work for additional information regarding copyright ownership.</span>
+<span class="c1"># The ASF licenses this file to You under the Apache License, Version 2.0</span>
+<span class="c1"># (the &quot;License&quot;); you may not use this file except in compliance with</span>
+<span class="c1"># the License.  You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1">#    http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.</span>
+<span class="c1"># See the License for the specific language governing permissions and</span>
+<span class="c1"># limitations under the License.</span>
+<span class="c1">#</span>
+
+<span class="sd">&quot;&quot;&quot;PValue, PCollection: one node of a dataflow graph.</span>
+
+<span class="sd">A node of a dataflow processing graph is a PValue. Currently, there is only</span>
+<span class="sd">one type: PCollection (a potentially very large set of arbitrary values).</span>
+<span class="sd">Once created, a PValue belongs to a pipeline and has an associated</span>
+<span class="sd">transform (of type PTransform), which describes how the value will be</span>
+<span class="sd">produced when the pipeline gets executed.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="k">import</span> <span class="n">absolute_import</span>
+
+<span class="kn">import</span> <span class="nn">collections</span>
+<span class="kn">import</span> <span class="nn">itertools</span>
+
+
+<div class="viewcode-block" id="PValue"><a class="viewcode-back" href="../../apache_beam.html#apache_beam.pvalue.PValue">[docs]</a><span class="k">class</span> <span class="nc">PValue</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Base class for PCollection.</span>
+
+<span class="sd">  Dataflow users should not construct PValue objects directly in their</span>
+<span class="sd">  pipelines.</span>
+
+<span class="sd">  A PValue has the following main characteristics:</span>
+<span class="sd">    (1) Belongs to a pipeline. Added during object initialization.</span>
+<span class="sd">    (2) Has a transform that can compute the value if executed.</span>
+<span class="sd">    (3) Has a value which is meaningful if the transform was executed.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pipeline</span><span class="p">,</span> <span class="n">tag</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">element_type</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Initializes a PValue with all arguments hidden behind keyword arguments.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">      pipeline: Pipeline object for this PValue.</span>
+<span class="sd">      tag: Tag of this PValue.</span>
+<span class="sd">      element_type: The type of this PValue.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">pipeline</span> <span class="o">=</span> <span class="n">pipeline</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">tag</span> <span class="o">=</span> <span class="n">tag</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">element_type</span> <span class="o">=</span> <span class="n">element_type</span>
+    <span class="c1"># The AppliedPTransform instance for the application of the PTransform</span>
+    <span class="c1"># generating this PValue. The field gets initialized when a transform</span>
+    <span class="c1"># gets applied.</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">producer</span> <span class="o">=</span> <span class="kc">None</span>
+
+  <span class="k">def</span> <span class="nf">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_str_internal</span><span class="p">()</span>
+
+  <span class="k">def</span> <span class="nf">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="s1">&#39;&lt;</span><span class="si">%s</span><span class="s1"> at </span><span class="si">%s</span><span class="s1">&gt;&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_str_internal</span><span class="p">(),</span> <span class="nb">hex</span><span class="p">(</span><span class="nb">id</span><span class="p">(</span><span class="bp">self</span><span class="p">)))</span>
+
+  <span class="k">def</span> <span class="nf">_str_internal</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="s2">&quot;</span><span class="si">%s</span><span class="s2">[</span><span class="si">%s</span><span class="s2">.</span><span class="si">%s</span><span class="s2">]&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span><span class="p">,</span>
+                          <span class="bp">self</span><span class="o">.</span><span class="n">producer</span><span class="o">.</span><span class="n">full_label</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">producer</span> <span class="k">else</span> <span class="kc">None</span><span class="p">,</span>
+                          <span class="bp">self</span><span class="o">.</span><span class="n">tag</span><span class="p">)</span>
+
+<div class="viewcode-block" id="PValue.apply"><a class="viewcode-back" href="../../apache_beam.html#apache_beam.pvalue.PValue.apply">[docs]</a>  <span class="k">def</span> <span class="nf">apply</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Applies a transform or callable to a PValue.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">      *args: positional arguments.</span>
+<span class="sd">      **kwargs: keyword arguments.</span>
+
+<span class="sd">    The method will insert the pvalue as the next argument following an</span>
+<span class="sd">    optional first label and a transform/callable object. It will call the</span>
+<span class="sd">    pipeline.apply() method with this modified argument list.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">arglist</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">args</span><span class="p">)</span>
+    <span class="n">arglist</span><span class="o">.</span><span class="n">insert</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">pipeline</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span><span class="o">*</span><span class="n">arglist</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div>
+
+  <span class="k">def</span> <span class="nf">__or__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ptransform</span><span class="p">):</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">pipeline</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span><span class="n">ptransform</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="PCollection"><a class="viewcode-back" href="../../apache_beam.html#apache_beam.pvalue.PCollection">[docs]</a><span class="k">class</span> <span class="nc">PCollection</span><span class="p">(</span><span class="n">PValue</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;A multiple values (potentially huge) container.</span>
+
+<span class="sd">  Dataflow users should not construct PCollection objects directly in their</span>
+<span class="sd">  pipelines.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pipeline</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Initializes a PCollection. Do not call directly.&quot;&quot;&quot;</span>
+    <span class="nb">super</span><span class="p">(</span><span class="n">PCollection</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">pipeline</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+  <span class="nd">@property</span>
+  <span class="k">def</span> <span class="nf">windowing</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s1">&#39;_windowing&#39;</span><span class="p">):</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_windowing</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">producer</span><span class="o">.</span><span class="n">transform</span><span class="o">.</span><span class="n">get_windowing</span><span class="p">(</span>
+          <span class="bp">self</span><span class="o">.</span><span class="n">producer</span><span class="o">.</span><span class="n">inputs</span><span class="p">)</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_windowing</span>
+
+  <span class="k">def</span> <span class="nf">__reduce_ex__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">unused_version</span><span class="p">):</span>
+    <span class="c1"># Pickling a PCollection is almost always the wrong thing to do, but we</span>
+    <span class="c1"># can&#39;t prohibit it as it often gets implicitly picked up (e.g. as part</span>
+    <span class="c1"># of a closure).</span>
+    <span class="k">return</span> <span class="n">_InvalidUnpickledPCollection</span><span class="p">,</span> <span class="p">()</span></div>
+
+
+<span class="k">class</span> <span class="nc">_InvalidUnpickledPCollection</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+  <span class="k">pass</span>
+
+
+<div class="viewcode-block" id="PBegin"><a class="viewcode-back" href="../../apache_beam.html#apache_beam.pvalue.PBegin">[docs]</a><span class="k">class</span> <span class="nc">PBegin</span><span class="p">(</span><span class="n">PValue</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;A pipeline begin marker used as input to create/read transforms.</span>
+
+<span class="sd">  The class is used internally to represent inputs to Create and Read</span>
+<span class="sd">  transforms. This allows us to have transforms that uniformly take PValue(s)</span>
+<span class="sd">  as inputs.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+  <span class="k">pass</span></div>
+
+
+<div class="viewcode-block" id="PDone"><a class="viewcode-back" href="../../apache_beam.html#apache_beam.pvalue.PDone">[docs]</a><span class="k">class</span> <span class="nc">PDone</span><span class="p">(</span><span class="n">PValue</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;PDone is the output of a transform that has a trivial result such as Write.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+  <span class="k">pass</span></div>
+
+
+<div class="viewcode-block" id="DoOutputsTuple"><a class="viewcode-back" href="../../apache_beam.html#apache_beam.pvalue.DoOutputsTuple">[docs]</a><span class="k">class</span> <span class="nc">DoOutputsTuple</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;An object grouping the multiple outputs of a ParDo or FlatMap transform.&quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pipeline</span><span class="p">,</span> <span class="n">transform</span><span class="p">,</span> <span class="n">tags</span><span class="p">,</span> <span class="n">main_tag</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_pipeline</span> <span class="o">=</span> <span class="n">pipeline</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_tags</span> <span class="o">=</span> <span class="n">tags</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_main_tag</span> <span class="o">=</span> <span class="n">main_tag</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_transform</span> <span class="o">=</span> <span class="n">transform</span>
+    <span class="c1"># The ApplyPTransform instance for the application of the multi FlatMap</span>
+    <span class="c1"># generating this value. The field gets initialized when a transform</span>
+    <span class="c1"># gets applied.</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">producer</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="c1"># Dictionary of PCollections already associated with tags.</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_pcolls</span> <span class="o">=</span> <span class="p">{}</span>
+
+  <span class="k">def</span> <span class="nf">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="s1">&#39;&lt;</span><span class="si">%s</span><span class="s1">&gt;&#39;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">_str_internal</span><span class="p">()</span>
+
+  <span class="k">def</span> <span class="nf">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="s1">&#39;&lt;</span><span class="si">%s</span><span class="s1"> at </span><span class="si">%s</span><span class="s1">&gt;&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_str_internal</span><span class="p">(),</span> <span class="nb">hex</span><span class="p">(</span><span class="nb">id</span><span class="p">(</span><span class="bp">self</span><span class="p">)))</span>
+
+  <span class="k">def</span> <span class="nf">_str_internal</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="s1">&#39;</span><span class="si">%s</span><span class="s1"> main_tag=</span><span class="si">%s</span><span class="s1"> tags=</span><span class="si">%s</span><span class="s1"> transform=</span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span>
+        <span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_main_tag</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_tags</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_transform</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">__iter__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Iterates over tags returning for each call a (tag, pvalue) pair.&quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_main_tag</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+      <span class="k">yield</span> <span class="bp">self</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_main_tag</span><span class="p">]</span>
+    <span class="k">for</span> <span class="n">tag</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_tags</span><span class="p">:</span>
+      <span class="k">yield</span> <span class="bp">self</span><span class="p">[</span><span class="n">tag</span><span class="p">]</span>
+
+  <span class="k">def</span> <span class="nf">__getattr__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tag</span><span class="p">):</span>
+    <span class="c1"># Special methods which may be accessed before the object is</span>
+    <span class="c1"># fully constructed (e.g. in unpickling).</span>
+    <span class="k">if</span> <span class="n">tag</span><span class="p">[:</span><span class="mi">2</span><span class="p">]</span> <span class="o">==</span> <span class="n">tag</span><span class="p">[</span><span class="o">-</span><span class="mi">2</span><span class="p">:]</span> <span class="o">==</span> <span class="s1">&#39;__&#39;</span><span class="p">:</span>
+      <span class="k">return</span> <span class="nb">object</span><span class="o">.</span><span class="fm">__getattr__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tag</span><span class="p">)</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="p">[</span><span class="n">tag</span><span class="p">]</span>
+
+  <span class="k">def</span> <span class="nf">__getitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tag</span><span class="p">):</span>
+    <span class="c1"># Accept int tags so that we can look at Partition tags with the</span>
+    <span class="c1"># same ints that we used in the partition function.</span>
+    <span class="c1"># TODO(gildea): Consider requiring string-based tags everywhere.</span>
+    <span class="c1"># This will require a partition function that does not return ints.</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">tag</span><span class="p">,</span> <span class="nb">int</span><span class="p">):</span>
+      <span class="n">tag</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">tag</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">tag</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">_main_tag</span><span class="p">:</span>
+      <span class="n">tag</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">_tags</span> <span class="ow">and</span> <span class="n">tag</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_tags</span><span class="p">:</span>
+      <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+          <span class="s1">&#39;Tag </span><span class="si">%s</span><span class="s1"> is neither the main tag </span><span class="si">%s</span><span class="s1"> nor any of the side tags </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span>
+              <span class="n">tag</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_main_tag</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_tags</span><span class="p">))</span>
+    <span class="c1"># Check if we accessed this tag before.</span>
+    <span class="k">if</span> <span class="n">tag</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_pcolls</span><span class="p">:</span>
+      <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_pcolls</span><span class="p">[</span><span class="n">tag</span><span class="p">]</span>
+
+    <span class="k">if</span> <span class="n">tag</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_transform</span><span class="o">.</span><span class="n">side_output_tags</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">tag</span><span class="p">)</span>
+      <span class="n">pcoll</span> <span class="o">=</span> <span class="n">PCollection</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_pipeline</span><span class="p">,</span> <span class="n">tag</span><span class="o">=</span><span class="n">tag</span><span class="p">)</span>
+      <span class="c1"># Transfer the producer from the DoOutputsTuple to the resulting</span>
+      <span class="c1"># PCollection.</span>
+      <span class="n">pcoll</span><span class="o">.</span><span class="n">producer</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">producer</span>
+      <span class="c1"># Add this as an output to both the inner ParDo and the outer _MultiParDo</span>
+      <span class="c1"># PTransforms.</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">producer</span><span class="o">.</span><span class="n">parts</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">add_output</span><span class="p">(</span><span class="n">pcoll</span><span class="p">,</span> <span class="n">tag</span><span class="p">)</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">producer</span><span class="o">.</span><span class="n">add_output</span><span class="p">(</span><span class="n">pcoll</span><span class="p">,</span> <span class="n">tag</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="c1"># Main output is output of inner ParDo.</span>
+      <span class="n">pcoll</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">producer</span><span class="o">.</span><span class="n">parts</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">outputs</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_pcolls</span><span class="p">[</span><span class="n">tag</span><span class="p">]</span> <span class="o">=</span> <span class="n">pcoll</span>
+    <span class="k">return</span> <span class="n">pcoll</span></div>
+
+
+<div class="viewcode-block" id="SideOutputValue"><a class="viewcode-back" href="../../apache_beam.html#apache_beam.pvalue.SideOutputValue">[docs]</a><span class="k">class</span> <span class="nc">SideOutputValue</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;An object representing a tagged value.</span>
+
+<span class="sd">  ParDo, Map, and FlatMap transforms can emit values on multiple outputs which</span>
+<span class="sd">  are distinguished by string tags. The DoFn will return plain values</span>
+<span class="sd">  if it wants to emit on the main output and SideOutputValue objects</span>
+<span class="sd">  if it wants to emit a value on a specific tagged output.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tag</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">tag</span><span class="p">,</span> <span class="n">basestring</span><span class="p">):</span>
+      <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span>
+          <span class="s1">&#39;Attempting to create a SideOutputValue with non-string tag </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">tag</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">tag</span> <span class="o">=</span> <span class="n">tag</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">value</span> <span class="o">=</span> <span class="n">value</span></div>
+
+
+<div class="viewcode-block" id="PCollectionView"><a class="viewcode-back" href="../../apache_beam.html#apache_beam.pvalue.PCollectionView">[docs]</a><span class="k">class</span> <span class="nc">PCollectionView</span><span class="p">(</span><span class="n">PValue</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;An immutable view of a PCollection that can be used as a side input.&quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pipeline</span><span class="p">,</span> <span class="n">window_mapping_fn</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Initializes a PCollectionView. Do not call directly.&quot;&quot;&quot;</span>
+    <span class="nb">super</span><span class="p">(</span><span class="n">PCollectionView</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">pipeline</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_window_mapping_fn</span> <span class="o">=</span> <span class="n">window_mapping_fn</span>
+
+  <span class="nd">@property</span>
+  <span class="k">def</span> <span class="nf">windowing</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s1">&#39;_windowing&#39;</span><span class="p">):</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_windowing</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">producer</span><span class="o">.</span><span class="n">transform</span><span class="o">.</span><span class="n">get_windowing</span><span class="p">(</span>
+          <span class="bp">self</span><span class="o">.</span><span class="n">producer</span><span class="o">.</span><span class="n">inputs</span><span class="p">)</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_windowing</span>
+
+  <span class="k">def</span> <span class="nf">_view_options</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Internal options corresponding to specific view.</span>
+
+<span class="sd">    Intended for internal use by runner implementations.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">      Tuple of options for the given view.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="p">{</span><span class="s1">&#39;window_mapping_fn&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_window_mapping_fn</span><span class="p">}</span></div>
+
+
+<div class="viewcode-block" id="SingletonPCollectionView"><a class="viewcode-back" href="../../apache_beam.html#apache_beam.pvalue.SingletonPCollectionView">[docs]</a><span class="k">class</span> <span class="nc">SingletonPCollectionView</span><span class="p">(</span><span class="n">PCollectionView</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;A PCollectionView that contains a single object.&quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pipeline</span><span class="p">,</span> <span class="n">has_default</span><span class="p">,</span> <span class="n">default_value</span><span class="p">,</span>
+               <span class="n">window_mapping_fn</span><span class="p">):</span>
+    <span class="nb">super</span><span class="p">(</span><span class="n">SingletonPCollectionView</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">pipeline</span><span class="p">,</span> <span class="n">window_mapping_fn</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">has_default</span> <span class="o">=</span> <span class="n">has_default</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">default_value</span> <span class="o">=</span> <span class="n">default_value</span>
+
+  <span class="k">def</span> <span class="nf">_view_options</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">base</span> <span class="o">=</span> <span class="nb">super</span><span class="p">(</span><span class="n">SingletonPCollectionView</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">_view_options</span><span class="p">()</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">has_default</span><span class="p">:</span>
+      <span class="k">return</span> <span class="nb">dict</span><span class="p">(</span><span class="n">base</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">default_value</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="k">return</span> <span class="n">base</span>
+
+  <span class="nd">@staticmethod</span>
+  <span class="k">def</span> <span class="nf">_from_runtime_iterable</span><span class="p">(</span><span class="n">it</span><span class="p">,</span> <span class="n">options</span><span class="p">):</span>
+    <span class="n">head</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">itertools</span><span class="o">.</span><span class="n">islice</span><span class="p">(</span><span class="n">it</span><span class="p">,</span> <span class="mi">2</span><span class="p">))</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">head</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+      <span class="k">return</span> <span class="n">options</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;default&#39;</span><span class="p">,</span> <span class="n">EmptySideInput</span><span class="p">())</span>
+    <span class="k">elif</span> <span class="nb">len</span><span class="p">(</span><span class="n">head</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+      <span class="k">return</span> <span class="n">head</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+          <span class="s1">&#39;PCollection with more than one element accessed as &#39;</span>
+          <span class="s1">&#39;a singleton view.&#39;</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="IterablePCollectionView"><a class="viewcode-back" href="../../apache_beam.html#apache_beam.pvalue.IterablePCollectionView">[docs]</a><span class="k">class</span> <span class="nc">IterablePCollectionView</span><span class="p">(</span><span class="n">PCollectionView</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;A PCollectionView that can be treated as an iterable.&quot;&quot;&quot;</span>
+
+  <span class="nd">@staticmethod</span>
+  <span class="k">def</span> <span class="nf">_from_runtime_iterable</span><span class="p">(</span><span class="n">it</span><span class="p">,</span> <span class="n">options</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">it</span></div>
+
+
+<div class="viewcode-block" id="ListPCollectionView"><a class="viewcode-back" href="../../apache_beam.html#apache_beam.pvalue.ListPCollectionView">[docs]</a><span class="k">class</span> <span class="nc">ListPCollectionView</span><span class="p">(</span><span class="n">PCollectionView</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;A PCollectionView that can be treated as a list.&quot;&quot;&quot;</span>
+
+  <span class="nd">@staticmethod</span>
+  <span class="k">def</span> <span class="nf">_from_runtime_iterable</span><span class="p">(</span><span class="n">it</span><span class="p">,</span> <span class="n">options</span><span class="p">):</span>
+    <span class="k">return</span> <span class="nb">list</span><span class="p">(</span><span class="n">it</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="DictPCollectionView"><a class="viewcode-back" href="../../apache_beam.html#apache_beam.pvalue.DictPCollectionView">[docs]</a><span class="k">class</span> <span class="nc">DictPCollectionView</span><span class="p">(</span><span class="n">PCollectionView</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;A PCollectionView that can be treated as a dict.&quot;&quot;&quot;</span>
+
+  <span class="nd">@staticmethod</span>
+  <span class="k">def</span> <span class="nf">_from_runtime_iterable</span><span class="p">(</span><span class="n">it</span><span class="p">,</span> <span class="n">options</span><span class="p">):</span>
+    <span class="k">return</span> <span class="nb">dict</span><span class="p">(</span><span class="n">it</span><span class="p">)</span></div>
+
+
+<span class="k">def</span> <span class="nf">_get_cached_view</span><span class="p">(</span><span class="n">pipeline</span><span class="p">,</span> <span class="n">key</span><span class="p">):</span>
+  <span class="k">return</span> <span class="n">pipeline</span><span class="o">.</span><span class="n">_view_cache</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>  <span class="c1"># pylint: disable=protected-access</span>
+
+
+<span class="k">def</span> <span class="nf">_cache_view</span><span class="p">(</span><span class="n">pipeline</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">view</span><span class="p">):</span>
+  <span class="n">pipeline</span><span class="o">.</span><span class="n">_view_cache</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">view</span>  <span class="c1"># pylint: disable=protected-access</span>
+
+
+<span class="k">def</span> <span class="nf">_format_view_label</span><span class="p">(</span><span class="n">pcoll</span><span class="p">):</span>
+  <span class="c1"># The monitoring UI doesn&#39;t like &#39;/&#39; character in transform labels.</span>
+  <span class="k">if</span> <span class="ow">not</span> <span class="n">pcoll</span><span class="o">.</span><span class="n">producer</span><span class="p">:</span>
+    <span class="k">return</span> <span class="nb">str</span><span class="p">(</span><span class="n">pcoll</span><span class="o">.</span><span class="n">tag</span><span class="p">)</span>
+  <span class="k">return</span> <span class="s1">&#39;</span><span class="si">%s</span><span class="s1">.</span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">pcoll</span><span class="o">.</span><span class="n">producer</span><span class="o">.</span><span class="n">full_label</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;/&#39;</span><span class="p">,</span> <span class="s1">&#39;|&#39;</span><span class="p">),</span>
+                    <span class="n">pcoll</span><span class="o">.</span><span class="n">tag</span><span class="p">)</span>
+
+
+<span class="n">_SINGLETON_NO_DEFAULT</span> <span class="o">=</span> <span class="nb">object</span><span class="p">()</span>
+
+
+<div class="viewcode-block" id="AsSingleton"><a class="viewcode-back" href="../../apache_beam.html#apache_beam.pvalue.AsSingleton">[docs]</a><span class="k">def</span> <span class="nf">AsSingleton</span><span class="p">(</span><span class="n">pcoll</span><span class="p">,</span> <span class="n">default_value</span><span class="o">=</span><span class="n">_SINGLETON_NO_DEFAULT</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>  <span class="c1"># pylint: disable=invalid-name</span>
+  <span class="sd">&quot;&quot;&quot;Create a SingletonPCollectionView from the contents of input PCollection.</span>
+
+<span class="sd">  The input PCollection should contain at most one element (per window) and the</span>
+<span class="sd">  resulting PCollectionView can then be used as a side input to PTransforms. If</span>
+<span class="sd">  the PCollectionView is empty (for a given window), the side input value will</span>
+<span class="sd">  be the default_value, if specified; otherwise, it will be an EmptySideInput</span>
+<span class="sd">  object.</span>
+
+<span class="sd">  Args:</span>
+<span class="sd">    pcoll: Input pcollection.</span>
+<span class="sd">    default_value: Default value for the singleton view.</span>
+<span class="sd">    label: Label to be specified if several AsSingleton&#39;s with different</span>
+<span class="sd">      defaults for the same PCollection.</span>
+
+<span class="sd">  Returns:</span>
+<span class="sd">    A singleton PCollectionView containing the element as above.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+  <span class="n">label</span> <span class="o">=</span> <span class="n">label</span> <span class="ow">or</span> <span class="n">_format_view_label</span><span class="p">(</span><span class="n">pcoll</span><span class="p">)</span>
+  <span class="n">has_default</span> <span class="o">=</span> <span class="n">default_value</span> <span class="ow">is</span> <span class="ow">not</span> <span class="n">_SINGLETON_NO_DEFAULT</span>
+  <span class="k">if</span> <span class="ow">not</span> <span class="n">has_default</span><span class="p">:</span>
+    <span class="n">default_value</span> <span class="o">=</span> <span class="kc">None</span>
+
+  <span class="c1"># Don&#39;t recreate the view if it was already created.</span>
+  <span class="n">hashable_default_value</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;val&#39;</span><span class="p">,</span> <span class="n">default_value</span><span class="p">)</span>
+  <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">default_value</span><span class="p">,</span> <span class="n">collections</span><span class="o">.</span><span class="n">Hashable</span><span class="p">):</span>
+    <span class="c1"># Massage default value to treat as hash key.</span>
+    <span class="n">hashable_default_value</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;id&#39;</span><span class="p">,</span> <span class="nb">id</span><span class="p">(</span><span class="n">default_value</span><span class="p">))</span>
+  <span class="n">cache_key</span> <span class="o">=</span> <span class="p">(</span><span class="n">pcoll</span><span class="p">,</span> <span class="n">AsSingleton</span><span class="p">,</span> <span class="n">has_default</span><span class="p">,</span> <span class="n">hashable_default_value</span><span class="p">)</span>
+  <span class="n">cached_view</span> <span class="o">=</span> <span class="n">_get_cached_view</span><span class="p">(</span><span class="n">pcoll</span><span class="o">.</span><span class="n">pipeline</span><span class="p">,</span> <span class="n">cache_key</span><span class="p">)</span>
+  <span class="k">if</span> <span class="n">cached_view</span><span class="p">:</span>
+    <span class="k">return</span> <span class="n">cached_view</span>
+
+  <span class="c1"># Local import is required due to dependency loop; even though the</span>
+  <span class="c1"># implementation of this function requires concepts defined in modules that</span>
+  <span class="c1"># depend on pvalue, it lives in this module to reduce user workload.</span>
+  <span class="kn">from</span> <span class="nn">apache_beam.transforms</span> <span class="k">import</span> <span class="n">sideinputs</span>  <span class="c1"># pylint: disable=wrong-import-order, wrong-import-position</span>
+  <span class="n">view</span> <span class="o">=</span> <span class="p">(</span><span class="n">pcoll</span> <span class="o">|</span> <span class="n">sideinputs</span><span class="o">.</span><span class="n">ViewAsSingleton</span><span class="p">(</span><span class="n">has_default</span><span class="p">,</span> <span class="n">default_value</span><span class="p">,</span>
+                                             <span class="n">label</span><span class="o">=</span><span class="n">label</span><span class="p">))</span>
+  <span class="n">_cache_view</span><span class="p">(</span><span class="n">pcoll</span><span class="o">.</span><span class="n">pipeline</span><span class="p">,</span> <span class="n">cache_key</span><span class="p">,</span> <span class="n">view</span><span class="p">)</span>
+  <span class="k">return</span> <span class="n">view</span></div>
+
+
+<div class="viewcode-block" id="AsIter"><a class="viewcode-back" href="../../apache_beam.html#apache_beam.pvalue.AsIter">[docs]</a><span class="k">def</span> <span class="nf">AsIter</span><span class="p">(</span><span class="n">pcoll</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>  <span class="c1"># pylint: disable=invalid-name</span>
+  <span class="sd">&quot;&quot;&quot;Create an IterablePCollectionView from the elements of input PCollection.</span>
+
+<span class="sd">  The contents of the given PCollection will be available as an iterable in</span>
+<span class="sd">  PTransforms that use the returned PCollectionView as a side input.</span>
+
+<span class="sd">  Args:</span>
+<span class="sd">    pcoll: Input pcollection.</span>
+<span class="sd">    label: Label to be specified if several AsIter&#39;s for the same PCollection.</span>
+
+<span class="sd">  Returns:</span>
+<span class="sd">    An iterable PCollectionView containing the elements as above.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+  <span class="n">label</span> <span class="o">=</span> <span class="n">label</span> <span class="ow">or</span> <span class="n">_format_view_label</span><span class="p">(</span><span class="n">pcoll</span><span class="p">)</span>
+
+  <span class="c1"># Don&#39;t recreate the view if it was already created.</span>
+  <span class="n">cache_key</span> <span class="o">=</span> <span class="p">(</span><span class="n">pcoll</span><span class="p">,</span> <span class="n">AsIter</span><span class="p">)</span>
+  <span class="n">cached_view</span> <span class="o">=</span> <span class="n">_get_cached_view</span><span class="p">(</span><span class="n">pcoll</span><span class="o">.</span><span class="n">pipeline</span><span class="p">,</span> <span class="n">cache_key</span><span class="p">)</span>
+  <span class="k">if</span> <span class="n">cached_view</span><span class="p">:</span>
+    <span class="k">return</span> <span class="n">cached_view</span>
+
+  <span class="c1"># Local import is required due to dependency loop; even though the</span>
+  <span class="c1"># implementation of this function requires concepts defined in modules that</span>
+  <span class="c1"># depend on pvalue, it lives in this module to reduce user workload.</span>
+  <span class="kn">from</span> <span class="nn">apache_beam.transforms</span> <span class="k">import</span> <span class="n">sideinputs</span>  <span class="c1"># pylint: disable=wrong-import-order, wrong-import-position</span>
+  <span class="n">view</span> <span class="o">=</span> <span class="p">(</span><span class="n">pcoll</span> <span class="o">|</span> <span class="n">sideinputs</span><span class="o">.</span><span class="n">ViewAsIterable</span><span class="p">(</span><span class="n">label</span><span class="o">=</span><span class="n">label</span><span class="p">))</span>
+  <span class="n">_cache_view</span><span class="p">(</span><span class="n">pcoll</span><span class="o">.</span><span class="n">pipeline</span><span class="p">,</span> <span class="n">cache_key</span><span class="p">,</span> <span class="n">view</span><span class="p">)</span>
+  <span class="k">return</span> <span class="n">view</span></div>
+
+
+<div class="viewcode-block" id="AsList"><a class="viewcode-back" href="../../apache_beam.html#apache_beam.pvalue.AsList">[docs]</a><span class="k">def</span> <span class="nf">AsList</span><span class="p">(</span><span class="n">pcoll</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>  <span class="c1"># pylint: disable=invalid-name</span>
+  <span class="sd">&quot;&quot;&quot;Create a ListPCollectionView from the elements of input PCollection.</span>
+
+<span class="sd">  The contents of the given PCollection will be available as a list-like object</span>
+<span class="sd">  in PTransforms that use the returned PCollectionView as a side input.</span>
+
+<span class="sd">  Args:</span>
+<span class="sd">    pcoll: Input pcollection.</span>
+<span class="sd">    label: Label to be specified if several AsList&#39;s for the same PCollection.</span>
+
+<span class="sd">  Returns:</span>
+<span class="sd">    A list PCollectionView containing the elements as above.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+  <span class="n">label</span> <span class="o">=</span> <span class="n">label</span> <span class="ow">or</span> <span class="n">_format_view_label</span><span class="p">(</span><span class="n">pcoll</span><span class="p">)</span>
+
+  <span class="c1"># Don&#39;t recreate the view if it was already created.</span>
+  <span class="n">cache_key</span> <span class="o">=</span> <span class="p">(</span><span class="n">pcoll</span><span class="p">,</span> <span class="n">AsList</span><span class="p">)</span>
+  <span class="n">cached_view</span> <span class="o">=</span> <span class="n">_get_cached_view</span><span class="p">(</span><span class="n">pcoll</span><span class="o">.</span><span class="n">pipeline</span><span class="p">,</span> <span class="n">cache_key</span><span class="p">)</span>
+  <span class="k">if</span> <span class="n">cached_view</span><span class="p">:</span>
+    <span class="k">return</span> <span class="n">cached_view</span>
+
+  <span class="c1"># Local import is required due to dependency loop; even though the</span>
+  <span class="c1"># implementation of this function requires concepts defined in modules that</span>
+  <span class="c1"># depend on pvalue, it lives in this module to reduce user workload.</span>
+  <span class="kn">from</span> <span class="nn">apache_beam.transforms</span> <span class="k">import</span> <span class="n">sideinputs</span>  <span class="c1"># pylint: disable=wrong-import-order, wrong-import-position</span>
+  <span class="n">view</span> <span class="o">=</span> <span class="p">(</span><span class="n">pcoll</span> <span class="o">|</span> <span class="n">sideinputs</span><span class="o">.</span><span class="n">ViewAsList</span><span class="p">(</span><span class="n">label</span><span class="o">=</span><span class="n">label</span><span class="p">))</span>
+  <span class="n">_cache_view</span><span class="p">(</span><span class="n">pcoll</span><span class="o">.</span><span class="n">pipeline</span><span class="p">,</span> <span class="n">cache_key</span><span class="p">,</span> <span class="n">view</span><span class="p">)</span>
+  <span class="k">return</span> <span class="n">view</span></div>
+
+
+<div class="viewcode-block" id="AsDict"><a class="viewcode-back" href="../../apache_beam.html#apache_beam.pvalue.AsDict">[docs]</a><span class="k">def</span> <span class="nf">AsDict</span><span class="p">(</span><span class="n">pcoll</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>  <span class="c1"># pylint: disable=invalid-name</span>
+  <span class="sd">&quot;&quot;&quot;Create a DictPCollectionView from the elements of input PCollection.</span>
+
+<span class="sd">  The contents of the given PCollection whose elements are 2-tuples of key and</span>
+<span class="sd">  value will be available as a dict-like object in PTransforms that use the</span>
+<span class="sd">  returned PCollectionView as a side input.</span>
+
+<span class="sd">  Args:</span>
+<span class="sd">    pcoll: Input pcollection containing 2-tuples of key and value.</span>
+<span class="sd">    label: Label to be specified if several AsDict&#39;s for the same PCollection.</span>
+
+<span class="sd">  Returns:</span>
+<span class="sd">    A dict PCollectionView containing the dict as above.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+  <span class="n">label</span> <span class="o">=</span> <span class="n">label</span> <span class="ow">or</span> <span class="n">_format_view_label</span><span class="p">(</span><span class="n">pcoll</span><span class="p">)</span>
+
+  <span class="c1"># Don&#39;t recreate the view if it was already created.</span>
+  <span class="n">cache_key</span> <span class="o">=</span> <span class="p">(</span><span class="n">pcoll</span><span class="p">,</span> <span class="n">AsDict</span><span class="p">)</span>
+  <span class="n">cached_view</span> <span class="o">=</span> <span class="n">_get_cached_view</span><span class="p">(</span><span class="n">pcoll</span><span class="o">.</span><span class="n">pipeline</span><span class="p">,</span> <span class="n">cache_key</span><span class="p">)</span>
+  <span class="k">if</span> <span class="n">cached_view</span><span class="p">:</span>
+    <span class="k">return</span> <span class="n">cached_view</span>
+
+  <span class="c1"># Local import is required due to dependency loop; even though the</span>
+  <span class="c1"># implementation of this function requires concepts defined in modules that</span>
+  <span class="c1"># depend on pvalue, it lives in this module to reduce user workload.</span>
+  <span class="kn">from</span> <span class="nn">apache_beam.transforms</span> <span class="k">import</span> <span class="n">sideinputs</span>  <span class="c1"># pylint: disable=wrong-import-order, wrong-import-position</span>
+  <span class="n">view</span> <span class="o">=</span> <span class="p">(</span><span class="n">pcoll</span> <span class="o">|</span> <span class="n">sideinputs</span><span class="o">.</span><span class="n">ViewAsDict</span><span class="p">(</span><span class="n">label</span><span class="o">=</span><span class="n">label</span><span class="p">))</span>
+  <span class="n">_cache_view</span><span class="p">(</span><span class="n">pcoll</span><span class="o">.</span><span class="n">pipeline</span><span class="p">,</span> <span class="n">cache_key</span><span class="p">,</span> <span class="n">view</span><span class="p">)</span>
+  <span class="k">return</span> <span class="n">view</span></div>
+
+
+<div class="viewcode-block" id="EmptySideInput"><a class="viewcode-back" href="../../apache_beam.html#apache_beam.pvalue.EmptySideInput">[docs]</a><span class="k">class</span> <span class="nc">EmptySideInput</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Value indicating when a singleton side input was empty.</span>
+
+<span class="sd">  If a PCollection was furnished as a singleton side input to a PTransform, and</span>
+<span class="sd">  that PCollection was empty, then this value is supplied to the DoFn in the</span>
+<span class="sd">  place where a value from a non-empty PCollection would have gone. This alerts</span>
+<span class="sd">  the DoFn that the side input PCollection was empty. Users may want to check</span>
+<span class="sd">  whether side input values are EmptySideInput, but they will very likely never</span>
+<span class="sd">  want to create new instances of this class themselves.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+  <span class="k">pass</span></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../index.html" >Module code</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright .
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.5.3.
+    </div>
+  </body>
+</html>

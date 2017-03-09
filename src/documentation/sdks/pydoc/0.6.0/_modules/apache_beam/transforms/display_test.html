@@ -1,0 +1,295 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>apache_beam.transforms.display_test &#8212; Apache Beam  documentation</title>
+    
+    <link rel="stylesheet" href="../../../_static/sphinxdoc.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../',
+        VERSION:     '',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../index.html" accesskey="U">Module code</a> &#187;</li> 
+      </ul>
+    </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for apache_beam.transforms.display_test</h1><div class="highlight"><pre>
+<span></span><span class="c1">#</span>
+<span class="c1"># Licensed to the Apache Software Foundation (ASF) under one or more</span>
+<span class="c1"># contributor license agreements.  See the NOTICE file distributed with</span>
+<span class="c1"># this work for additional information regarding copyright ownership.</span>
+<span class="c1"># The ASF licenses this file to You under the Apache License, Version 2.0</span>
+<span class="c1"># (the &quot;License&quot;); you may not use this file except in compliance with</span>
+<span class="c1"># the License.  You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1">#    http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.</span>
+<span class="c1"># See the License for the specific language governing permissions and</span>
+<span class="c1"># limitations under the License.</span>
+<span class="c1">#</span>
+
+<span class="sd">&quot;&quot;&quot;Unit tests for the DisplayData API.&quot;&quot;&quot;</span>
+
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="k">import</span> <span class="n">absolute_import</span>
+
+<span class="kn">from</span> <span class="nn">datetime</span> <span class="k">import</span> <span class="n">datetime</span>
+<span class="kn">import</span> <span class="nn">unittest</span>
+
+<span class="kn">import</span> <span class="nn">hamcrest</span> <span class="k">as</span> <span class="nn">hc</span>
+<span class="kn">from</span> <span class="nn">hamcrest.core.base_matcher</span> <span class="k">import</span> <span class="n">BaseMatcher</span>
+
+<span class="kn">import</span> <span class="nn">apache_beam</span> <span class="k">as</span> <span class="nn">beam</span>
+<span class="kn">from</span> <span class="nn">apache_beam.transforms.display</span> <span class="k">import</span> <span class="n">HasDisplayData</span>
+<span class="kn">from</span> <span class="nn">apache_beam.transforms.display</span> <span class="k">import</span> <span class="n">DisplayData</span>
+<span class="kn">from</span> <span class="nn">apache_beam.transforms.display</span> <span class="k">import</span> <span class="n">DisplayDataItem</span>
+<span class="kn">from</span> <span class="nn">apache_beam.utils.pipeline_options</span> <span class="k">import</span> <span class="n">PipelineOptions</span>
+
+
+<div class="viewcode-block" id="DisplayDataItemMatcher"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.display_test.DisplayDataItemMatcher">[docs]</a><span class="k">class</span> <span class="nc">DisplayDataItemMatcher</span><span class="p">(</span><span class="n">BaseMatcher</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot; Matcher class for DisplayDataItems in unit tests.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+  <span class="n">IGNORED</span> <span class="o">=</span> <span class="nb">object</span><span class="p">()</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="o">=</span><span class="n">IGNORED</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span><span class="n">IGNORED</span><span class="p">,</span>
+               <span class="n">namespace</span><span class="o">=</span><span class="n">IGNORED</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="n">IGNORED</span><span class="p">,</span> <span class="n">shortValue</span><span class="o">=</span><span class="n">IGNORED</span><span class="p">):</span>
+    <span class="k">if</span> <span class="nb">all</span><span class="p">(</span><span class="n">member</span> <span class="o">==</span> <span class="n">DisplayDataItemMatcher</span><span class="o">.</span><span class="n">IGNORED</span> <span class="k">for</span> <span class="n">member</span> <span class="ow">in</span>
+           <span class="p">[</span><span class="n">key</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">namespace</span><span class="p">,</span> <span class="n">label</span><span class="p">,</span> <span class="n">shortValue</span><span class="p">]):</span>
+      <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Must receive at least one item attribute to match&#39;</span><span class="p">)</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">key</span> <span class="o">=</span> <span class="n">key</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">value</span> <span class="o">=</span> <span class="n">value</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">namespace</span> <span class="o">=</span> <span class="n">namespace</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">label</span> <span class="o">=</span> <span class="n">label</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">shortValue</span> <span class="o">=</span> <span class="n">shortValue</span>
+
+  <span class="k">def</span> <span class="nf">_matches</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">item</span><span class="p">):</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">key</span> <span class="o">!=</span> <span class="n">DisplayDataItemMatcher</span><span class="o">.</span><span class="n">IGNORED</span> <span class="ow">and</span> <span class="n">item</span><span class="o">.</span><span class="n">key</span> <span class="o">!=</span> <span class="bp">self</span><span class="o">.</span><span class="n">key</span><span class="p">:</span>
+      <span class="k">return</span> <span class="kc">False</span>
+    <span class="k">if</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">namespace</span> <span class="o">!=</span> <span class="n">DisplayDataItemMatcher</span><span class="o">.</span><span class="n">IGNORED</span> <span class="ow">and</span>
+        <span class="n">item</span><span class="o">.</span><span class="n">namespace</span> <span class="o">!=</span> <span class="bp">self</span><span class="o">.</span><span class="n">namespace</span><span class="p">):</span>
+      <span class="k">return</span> <span class="kc">False</span>
+    <span class="k">if</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">value</span> <span class="o">!=</span> <span class="n">DisplayDataItemMatcher</span><span class="o">.</span><span class="n">IGNORED</span> <span class="ow">and</span>
+        <span class="n">item</span><span class="o">.</span><span class="n">value</span> <span class="o">!=</span> <span class="bp">self</span><span class="o">.</span><span class="n">value</span><span class="p">):</span>
+      <span class="k">return</span> <span class="kc">False</span>
+    <span class="k">if</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">label</span> <span class="o">!=</span> <span class="n">DisplayDataItemMatcher</span><span class="o">.</span><span class="n">IGNORED</span> <span class="ow">and</span>
+        <span class="n">item</span><span class="o">.</span><span class="n">label</span> <span class="o">!=</span> <span class="bp">self</span><span class="o">.</span><span class="n">label</span><span class="p">):</span>
+      <span class="k">return</span> <span class="kc">False</span>
+    <span class="k">if</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">shortValue</span> <span class="o">!=</span> <span class="n">DisplayDataItemMatcher</span><span class="o">.</span><span class="n">IGNORED</span> <span class="ow">and</span>
+        <span class="n">item</span><span class="o">.</span><span class="n">shortValue</span> <span class="o">!=</span> <span class="bp">self</span><span class="o">.</span><span class="n">shortValue</span><span class="p">):</span>
+      <span class="k">return</span> <span class="kc">False</span>
+    <span class="k">return</span> <span class="kc">True</span>
+
+<div class="viewcode-block" id="DisplayDataItemMatcher.describe_to"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.display_test.DisplayDataItemMatcher.describe_to">[docs]</a>  <span class="k">def</span> <span class="nf">describe_to</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">description</span><span class="p">):</span>
+    <span class="n">descriptors</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">key</span> <span class="o">!=</span> <span class="n">DisplayDataItemMatcher</span><span class="o">.</span><span class="n">IGNORED</span><span class="p">:</span>
+      <span class="n">descriptors</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s1">&#39;key is </span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">key</span><span class="p">))</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">value</span> <span class="o">!=</span> <span class="n">DisplayDataItemMatcher</span><span class="o">.</span><span class="n">IGNORED</span><span class="p">:</span>
+      <span class="n">descriptors</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s1">&#39;value is </span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">value</span><span class="p">))</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">namespace</span> <span class="o">!=</span> <span class="n">DisplayDataItemMatcher</span><span class="o">.</span><span class="n">IGNORED</span><span class="p">:</span>
+      <span class="n">descriptors</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s1">&#39;namespace is </span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">namespace</span><span class="p">))</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">label</span> <span class="o">!=</span> <span class="n">DisplayDataItemMatcher</span><span class="o">.</span><span class="n">IGNORED</span><span class="p">:</span>
+      <span class="n">descriptors</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s1">&#39;label is </span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">label</span><span class="p">))</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">shortValue</span> <span class="o">!=</span> <span class="n">DisplayDataItemMatcher</span><span class="o">.</span><span class="n">IGNORED</span><span class="p">:</span>
+      <span class="n">descriptors</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s1">&#39;shortValue is </span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">shortValue</span><span class="p">))</span>
+
+    <span class="n">item_description</span> <span class="o">=</span> <span class="s1">&#39;</span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="s1">&#39; and &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">descriptors</span><span class="p">))</span>
+    <span class="n">description</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">item_description</span><span class="p">)</span></div></div>
+
+
+<div class="viewcode-block" id="DisplayDataTest"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.display_test.DisplayDataTest">[docs]</a><span class="k">class</span> <span class="nc">DisplayDataTest</span><span class="p">(</span><span class="n">unittest</span><span class="o">.</span><span class="n">TestCase</span><span class="p">):</span>
+
+<div class="viewcode-block" id="DisplayDataTest.test_display_data_item_matcher"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.display_test.DisplayDataTest.test_display_data_item_matcher">[docs]</a>  <span class="k">def</span> <span class="nf">test_display_data_item_matcher</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">ValueError</span><span class="p">):</span>
+      <span class="n">DisplayDataItemMatcher</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="DisplayDataTest.test_inheritance_ptransform"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.display_test.DisplayDataTest.test_inheritance_ptransform">[docs]</a>  <span class="k">def</span> <span class="nf">test_inheritance_ptransform</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">class</span> <span class="nc">MyTransform</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">PTransform</span><span class="p">):</span>
+      <span class="k">pass</span>
+
+    <span class="n">display_pt</span> <span class="o">=</span> <span class="n">MyTransform</span><span class="p">()</span>
+    <span class="c1"># PTransform inherits from HasDisplayData.</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">display_pt</span><span class="p">,</span> <span class="n">HasDisplayData</span><span class="p">))</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">display_pt</span><span class="o">.</span><span class="n">display_data</span><span class="p">(),</span> <span class="p">{})</span></div>
+
+<div class="viewcode-block" id="DisplayDataTest.test_inheritance_dofn"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.display_test.DisplayDataTest.test_inheritance_dofn">[docs]</a>  <span class="k">def</span> <span class="nf">test_inheritance_dofn</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">class</span> <span class="nc">MyDoFn</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">DoFn</span><span class="p">):</span>
+      <span class="k">pass</span>
+
+    <span class="n">display_dofn</span> <span class="o">=</span> <span class="n">MyDoFn</span><span class="p">()</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">display_dofn</span><span class="p">,</span> <span class="n">HasDisplayData</span><span class="p">))</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">display_dofn</span><span class="o">.</span><span class="n">display_data</span><span class="p">(),</span> <span class="p">{})</span></div>
+
+<div class="viewcode-block" id="DisplayDataTest.test_unsupported_type_display_data"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.display_test.DisplayDataTest.test_unsupported_type_display_data">[docs]</a>  <span class="k">def</span> <span class="nf">test_unsupported_type_display_data</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">class</span> <span class="nc">MyDisplayComponent</span><span class="p">(</span><span class="n">HasDisplayData</span><span class="p">):</span>
+      <span class="k">def</span> <span class="nf">display_data</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="p">{</span><span class="s1">&#39;item_key&#39;</span><span class="p">:</span> <span class="s1">&#39;item_value&#39;</span><span class="p">}</span>
+
+    <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">ValueError</span><span class="p">):</span>
+      <span class="n">DisplayData</span><span class="o">.</span><span class="n">create_from_options</span><span class="p">(</span><span class="n">MyDisplayComponent</span><span class="p">())</span></div>
+
+<div class="viewcode-block" id="DisplayDataTest.test_create_list_display_data"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.display_test.DisplayDataTest.test_create_list_display_data">[docs]</a>  <span class="k">def</span> <span class="nf">test_create_list_display_data</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">flags</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;--extra_package&#39;</span><span class="p">,</span> <span class="s1">&#39;package1&#39;</span><span class="p">,</span> <span class="s1">&#39;--extra_package&#39;</span><span class="p">,</span> <span class="s1">&#39;package2&#39;</span><span class="p">]</span>
+    <span class="n">pipeline_options</span> <span class="o">=</span> <span class="n">PipelineOptions</span><span class="p">(</span><span class="n">flags</span><span class="o">=</span><span class="n">flags</span><span class="p">)</span>
+    <span class="n">items</span> <span class="o">=</span> <span class="n">DisplayData</span><span class="o">.</span><span class="n">create_from_options</span><span class="p">(</span><span class="n">pipeline_options</span><span class="p">)</span><span class="o">.</span><span class="n">items</span>
+    <span class="n">hc</span><span class="o">.</span><span class="n">assert_that</span><span class="p">(</span><span class="n">items</span><span class="p">,</span> <span class="n">hc</span><span class="o">.</span><span class="n">contains_inanyorder</span><span class="p">(</span>
+        <span class="n">DisplayDataItemMatcher</span><span class="p">(</span><span class="s1">&#39;extra_packages&#39;</span><span class="p">,</span>
+                               <span class="nb">str</span><span class="p">([</span><span class="s1">&#39;package1&#39;</span><span class="p">,</span> <span class="s1">&#39;package2&#39;</span><span class="p">]))))</span></div>
+
+<div class="viewcode-block" id="DisplayDataTest.test_base_cases"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.display_test.DisplayDataTest.test_base_cases">[docs]</a>  <span class="k">def</span> <span class="nf">test_base_cases</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot; Tests basic display data cases (key:value, key:dict)</span>
+<span class="sd">    It does not test subcomponent inclusion</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">class</span> <span class="nc">MyDoFn</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">DoFn</span><span class="p">):</span>
+      <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">my_display_data</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">my_display_data</span> <span class="o">=</span> <span class="n">my_display_data</span>
+
+      <span class="k">def</span> <span class="nf">process</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">element</span><span class="p">):</span>
+        <span class="k">yield</span> <span class="n">element</span> <span class="o">+</span> <span class="mi">1</span>
+
+      <span class="k">def</span> <span class="nf">display_data</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="p">{</span><span class="s1">&#39;static_integer&#39;</span><span class="p">:</span> <span class="mi">120</span><span class="p">,</span>
+                <span class="s1">&#39;static_string&#39;</span><span class="p">:</span> <span class="s1">&#39;static me!&#39;</span><span class="p">,</span>
+                <span class="s1">&#39;complex_url&#39;</span><span class="p">:</span> <span class="n">DisplayDataItem</span><span class="p">(</span><span class="s1">&#39;github.com&#39;</span><span class="p">,</span>
+                                               <span class="n">url</span><span class="o">=</span><span class="s1">&#39;http://github.com&#39;</span><span class="p">,</span>
+                                               <span class="n">label</span><span class="o">=</span><span class="s1">&#39;The URL&#39;</span><span class="p">),</span>
+                <span class="s1">&#39;python_class&#39;</span><span class="p">:</span> <span class="n">HasDisplayData</span><span class="p">,</span>
+                <span class="s1">&#39;my_dd&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">my_display_data</span><span class="p">}</span>
+
+    <span class="n">now</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">()</span>
+    <span class="n">fn</span> <span class="o">=</span> <span class="n">MyDoFn</span><span class="p">(</span><span class="n">my_display_data</span><span class="o">=</span><span class="n">now</span><span class="p">)</span>
+    <span class="n">dd</span> <span class="o">=</span> <span class="n">DisplayData</span><span class="o">.</span><span class="n">create_from</span><span class="p">(</span><span class="n">fn</span><span class="p">)</span>
+    <span class="n">nspace</span> <span class="o">=</span> <span class="s1">&#39;</span><span class="si">{}</span><span class="s1">.</span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">fn</span><span class="o">.</span><span class="vm">__module__</span><span class="p">,</span> <span class="n">fn</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span><span class="p">)</span>
+    <span class="n">expected_items</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="n">DisplayDataItemMatcher</span><span class="p">(</span><span class="n">key</span><span class="o">=</span><span class="s1">&#39;complex_url&#39;</span><span class="p">,</span>
+                               <span class="n">value</span><span class="o">=</span><span class="s1">&#39;github.com&#39;</span><span class="p">,</span>
+                               <span class="n">namespace</span><span class="o">=</span><span class="n">nspace</span><span class="p">,</span>
+                               <span class="n">label</span><span class="o">=</span><span class="s1">&#39;The URL&#39;</span><span class="p">),</span>
+        <span class="n">DisplayDataItemMatcher</span><span class="p">(</span><span class="n">key</span><span class="o">=</span><span class="s1">&#39;my_dd&#39;</span><span class="p">,</span>
+                               <span class="n">value</span><span class="o">=</span><span class="n">now</span><span class="p">,</span>
+                               <span class="n">namespace</span><span class="o">=</span><span class="n">nspace</span><span class="p">),</span>
+        <span class="n">DisplayDataItemMatcher</span><span class="p">(</span><span class="n">key</span><span class="o">=</span><span class="s1">&#39;python_class&#39;</span><span class="p">,</span>
+                               <span class="n">value</span><span class="o">=</span><span class="n">HasDisplayData</span><span class="p">,</span>
+                               <span class="n">namespace</span><span class="o">=</span><span class="n">nspace</span><span class="p">,</span>
+                               <span class="n">shortValue</span><span class="o">=</span><span class="s1">&#39;HasDisplayData&#39;</span><span class="p">),</span>
+        <span class="n">DisplayDataItemMatcher</span><span class="p">(</span><span class="n">key</span><span class="o">=</span><span class="s1">&#39;static_integer&#39;</span><span class="p">,</span>
+                               <span class="n">value</span><span class="o">=</span><span class="mi">120</span><span class="p">,</span>
+                               <span class="n">namespace</span><span class="o">=</span><span class="n">nspace</span><span class="p">),</span>
+        <span class="n">DisplayDataItemMatcher</span><span class="p">(</span><span class="n">key</span><span class="o">=</span><span class="s1">&#39;static_string&#39;</span><span class="p">,</span>
+                               <span class="n">value</span><span class="o">=</span><span class="s1">&#39;static me!&#39;</span><span class="p">,</span>
+                               <span class="n">namespace</span><span class="o">=</span><span class="n">nspace</span><span class="p">)]</span>
+
+    <span class="n">hc</span><span class="o">.</span><span class="n">assert_that</span><span class="p">(</span><span class="n">dd</span><span class="o">.</span><span class="n">items</span><span class="p">,</span> <span class="n">hc</span><span class="o">.</span><span class="n">contains_inanyorder</span><span class="p">(</span><span class="o">*</span><span class="n">expected_items</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="DisplayDataTest.test_drop_if_none"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.display_test.DisplayDataTest.test_drop_if_none">[docs]</a>  <span class="k">def</span> <span class="nf">test_drop_if_none</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">class</span> <span class="nc">MyDoFn</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">DoFn</span><span class="p">):</span>
+      <span class="k">def</span> <span class="nf">display_data</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="p">{</span><span class="s1">&#39;some_val&#39;</span><span class="p">:</span> <span class="n">DisplayDataItem</span><span class="p">(</span><span class="s1">&#39;something&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">drop_if_none</span><span class="p">(),</span>
+                <span class="s1">&#39;non_val&#39;</span><span class="p">:</span> <span class="n">DisplayDataItem</span><span class="p">(</span><span class="kc">None</span><span class="p">)</span><span class="o">.</span><span class="n">drop_if_none</span><span class="p">(),</span>
+                <span class="s1">&#39;def_val&#39;</span><span class="p">:</span> <span class="n">DisplayDataItem</span><span class="p">(</span><span class="kc">True</span><span class="p">)</span><span class="o">.</span><span class="n">drop_if_default</span><span class="p">(</span><span class="kc">True</span><span class="p">),</span>
+                <span class="s1">&#39;nodef_val&#39;</span><span class="p">:</span> <span class="n">DisplayDataItem</span><span class="p">(</span><span class="kc">True</span><span class="p">)</span><span class="o">.</span><span class="n">drop_if_default</span><span class="p">(</span><span class="kc">False</span><span class="p">)}</span>
+
+    <span class="n">dd</span> <span class="o">=</span> <span class="n">DisplayData</span><span class="o">.</span><span class="n">create_from</span><span class="p">(</span><span class="n">MyDoFn</span><span class="p">())</span>
+    <span class="n">expected_items</span> <span class="o">=</span> <span class="p">[</span><span class="n">DisplayDataItemMatcher</span><span class="p">(</span><span class="s1">&#39;some_val&#39;</span><span class="p">,</span>
+                                             <span class="s1">&#39;something&#39;</span><span class="p">),</span>
+                      <span class="n">DisplayDataItemMatcher</span><span class="p">(</span><span class="s1">&#39;nodef_val&#39;</span><span class="p">,</span>
+                                             <span class="kc">True</span><span class="p">)]</span>
+    <span class="n">hc</span><span class="o">.</span><span class="n">assert_that</span><span class="p">(</span><span class="n">dd</span><span class="o">.</span><span class="n">items</span><span class="p">,</span> <span class="n">hc</span><span class="o">.</span><span class="n">contains_inanyorder</span><span class="p">(</span><span class="o">*</span><span class="n">expected_items</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="DisplayDataTest.test_subcomponent"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.display_test.DisplayDataTest.test_subcomponent">[docs]</a>  <span class="k">def</span> <span class="nf">test_subcomponent</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">class</span> <span class="nc">SpecialDoFn</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">DoFn</span><span class="p">):</span>
+      <span class="k">def</span> <span class="nf">display_data</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="p">{</span><span class="s1">&#39;dofn_value&#39;</span><span class="p">:</span> <span class="mi">42</span><span class="p">}</span>
+
+    <span class="n">dofn</span> <span class="o">=</span> <span class="n">SpecialDoFn</span><span class="p">()</span>
+    <span class="n">pardo</span> <span class="o">=</span> <span class="n">beam</span><span class="o">.</span><span class="n">ParDo</span><span class="p">(</span><span class="n">dofn</span><span class="p">)</span>
+    <span class="n">dd</span> <span class="o">=</span> <span class="n">DisplayData</span><span class="o">.</span><span class="n">create_from</span><span class="p">(</span><span class="n">pardo</span><span class="p">)</span>
+    <span class="n">dofn_nspace</span> <span class="o">=</span> <span class="s1">&#39;</span><span class="si">{}</span><span class="s1">.</span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">dofn</span><span class="o">.</span><span class="vm">__module__</span><span class="p">,</span> <span class="n">dofn</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span><span class="p">)</span>
+    <span class="n">pardo_nspace</span> <span class="o">=</span> <span class="s1">&#39;</span><span class="si">{}</span><span class="s1">.</span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">pardo</span><span class="o">.</span><span class="vm">__module__</span><span class="p">,</span> <span class="n">pardo</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span><span class="p">)</span>
+    <span class="n">expected_items</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="n">DisplayDataItemMatcher</span><span class="p">(</span><span class="s1">&#39;dofn_value&#39;</span><span class="p">,</span> <span class="mi">42</span><span class="p">,</span> <span class="n">dofn_nspace</span><span class="p">),</span>
+        <span class="n">DisplayDataItemMatcher</span><span class="p">(</span><span class="s1">&#39;fn&#39;</span><span class="p">,</span> <span class="n">SpecialDoFn</span><span class="p">,</span> <span class="n">pardo_nspace</span><span class="p">)]</span>
+
+    <span class="n">hc</span><span class="o">.</span><span class="n">assert_that</span><span class="p">(</span><span class="n">dd</span><span class="o">.</span><span class="n">items</span><span class="p">,</span> <span class="n">hc</span><span class="o">.</span><span class="n">contains_inanyorder</span><span class="p">(</span><span class="o">*</span><span class="n">expected_items</span><span class="p">))</span></div></div>
+
+
+<span class="c1"># TODO: Test __repr__ function</span>
+<span class="c1"># TODO: Test PATH when added by swegner@</span>
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s1">&#39;__main__&#39;</span><span class="p">:</span>
+  <span class="n">unittest</span><span class="o">.</span><span class="n">main</span><span class="p">()</span>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../index.html" >Module code</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright .
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.5.3.
+    </div>
+  </body>
+</html>

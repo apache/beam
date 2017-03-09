@@ -1,0 +1,272 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>apache_beam.coders.typecoders &#8212; Apache Beam  documentation</title>
+    
+    <link rel="stylesheet" href="../../../_static/sphinxdoc.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../',
+        VERSION:     '',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../index.html" accesskey="U">Module code</a> &#187;</li> 
+      </ul>
+    </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for apache_beam.coders.typecoders</h1><div class="highlight"><pre>
+<span></span><span class="c1">#</span>
+<span class="c1"># Licensed to the Apache Software Foundation (ASF) under one or more</span>
+<span class="c1"># contributor license agreements.  See the NOTICE file distributed with</span>
+<span class="c1"># this work for additional information regarding copyright ownership.</span>
+<span class="c1"># The ASF licenses this file to You under the Apache License, Version 2.0</span>
+<span class="c1"># (the &quot;License&quot;); you may not use this file except in compliance with</span>
+<span class="c1"># the License.  You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1">#    http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.</span>
+<span class="c1"># See the License for the specific language governing permissions and</span>
+<span class="c1"># limitations under the License.</span>
+<span class="c1">#</span>
+
+<span class="sd">&quot;&quot;&quot;Type coders registration.</span>
+
+<span class="sd">This module contains functionality to define and use coders for custom classes.</span>
+<span class="sd">Let&#39;s say we have a class Xyz and we are processing a PCollection with elements</span>
+<span class="sd">of type Xyz. If we do not register a coder for Xyz, a default pickle-based</span>
+<span class="sd">fallback coder will be used. This can be undesirable for two reasons. First, we</span>
+<span class="sd">may want a faster coder or a more space efficient one. Second, the pickle-based</span>
+<span class="sd">coder is not deterministic in the sense that objects like dictionaries or sets</span>
+<span class="sd">are not guaranteed to be encoded in the same way every time (elements are not</span>
+<span class="sd">really ordered).</span>
+
+<span class="sd">Two (sometimes three) steps are needed to define and use a custom coder:</span>
+<span class="sd">  - define the coder class</span>
+<span class="sd">  - associate the code with the class (a.k.a. coder registration)</span>
+<span class="sd">  - typehint DoFns or transforms with the new class or composite types using</span>
+<span class="sd">    the class.</span>
+
+<span class="sd">A coder class is defined by subclassing from CoderBase and defining the</span>
+<span class="sd">encode_to_bytes and decode_from_bytes methods. The framework uses duck-typing</span>
+<span class="sd">for coders so it is not strictly required to subclass from CoderBase as long as</span>
+<span class="sd">the encode/decode methods are defined.</span>
+
+<span class="sd">Registering a coder class is made with a register_coder() call::</span>
+
+<span class="sd">  from apache_beam import coders</span>
+<span class="sd">  ...</span>
+<span class="sd">  coders.registry.register_coder(Xyz, XyzCoder)</span>
+
+<span class="sd">Additionally, DoFns and PTransforms may need type hints. This is not always</span>
+<span class="sd">necessary since there is functionality to infer the return types of DoFns by</span>
+<span class="sd">analyzing the code. For instance, for the function below the return type of</span>
+<span class="sd">&#39;Xyz&#39; will be inferred::</span>
+
+<span class="sd">  def MakeXyzs(v):</span>
+<span class="sd">    return Xyz(v)</span>
+
+<span class="sd">If Xyz is inferred then its coder will be used whenever the framework needs to</span>
+<span class="sd">serialize data (e.g., writing to the shuffler subsystem responsible for group by</span>
+<span class="sd">key operations). If a typehint is needed it can be specified by decorating the</span>
+<span class="sd">DoFns or using with_input_types/with_output_types methods on PTransforms. For</span>
+<span class="sd">example, the above function can be decorated::</span>
+
+<span class="sd">  @with_output_types(Xyz)</span>
+<span class="sd">  def MakeXyzs(v):</span>
+<span class="sd">    return complex_operation_returning_Xyz(v)</span>
+
+<span class="sd">See apache_beam.typehints.decorators module for more details.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">import</span> <span class="nn">warnings</span>
+
+<span class="kn">from</span> <span class="nn">apache_beam.coders</span> <span class="k">import</span> <span class="n">coders</span>
+<span class="kn">from</span> <span class="nn">apache_beam.typehints</span> <span class="k">import</span> <span class="n">typehints</span>
+
+
+<div class="viewcode-block" id="CoderRegistry"><a class="viewcode-back" href="../../../apache_beam.coders.html#apache_beam.coders.typecoders.CoderRegistry">[docs]</a><span class="k">class</span> <span class="nc">CoderRegistry</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;A coder registry for typehint/coder associations.&quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fallback_coder</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_coders</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">custom_types</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">register_standard_coders</span><span class="p">(</span><span class="n">fallback_coder</span><span class="p">)</span>
+
+<div class="viewcode-block" id="CoderRegistry.register_standard_coders"><a class="viewcode-back" href="../../../apache_beam.coders.html#apache_beam.coders.typecoders.CoderRegistry.register_standard_coders">[docs]</a>  <span class="k">def</span> <span class="nf">register_standard_coders</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fallback_coder</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Register coders for all basic and composite types.&quot;&quot;&quot;</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_register_coder_internal</span><span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="n">coders</span><span class="o">.</span><span class="n">VarIntCoder</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_register_coder_internal</span><span class="p">(</span><span class="nb">float</span><span class="p">,</span> <span class="n">coders</span><span class="o">.</span><span class="n">FloatCoder</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_register_coder_internal</span><span class="p">(</span><span class="nb">str</span><span class="p">,</span> <span class="n">coders</span><span class="o">.</span><span class="n">BytesCoder</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_register_coder_internal</span><span class="p">(</span><span class="nb">bytes</span><span class="p">,</span> <span class="n">coders</span><span class="o">.</span><span class="n">BytesCoder</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_register_coder_internal</span><span class="p">(</span><span class="n">unicode</span><span class="p">,</span> <span class="n">coders</span><span class="o">.</span><span class="n">StrUtf8Coder</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_register_coder_internal</span><span class="p">(</span><span class="n">typehints</span><span class="o">.</span><span class="n">TupleConstraint</span><span class="p">,</span> <span class="n">coders</span><span class="o">.</span><span class="n">TupleCoder</span><span class="p">)</span>
+    <span class="c1"># Default fallback coders applied in that order until the first matching</span>
+    <span class="c1"># coder found.</span>
+    <span class="n">default_fallback_coders</span> <span class="o">=</span> <span class="p">[</span><span class="n">coders</span><span class="o">.</span><span class="n">ProtoCoder</span><span class="p">,</span> <span class="n">coders</span><span class="o">.</span><span class="n">FastPrimitivesCoder</span><span class="p">]</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_fallback_coder</span> <span class="o">=</span> <span class="n">fallback_coder</span> <span class="ow">or</span> <span class="n">FirstOf</span><span class="p">(</span><span class="n">default_fallback_coders</span><span class="p">)</span></div>
+
+  <span class="k">def</span> <span class="nf">_register_coder_internal</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">typehint_type</span><span class="p">,</span> <span class="n">typehint_coder_class</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_coders</span><span class="p">[</span><span class="n">typehint_type</span><span class="p">]</span> <span class="o">=</span> <span class="n">typehint_coder_class</span>
+
+<div class="viewcode-block" id="CoderRegistry.register_coder"><a class="viewcode-back" href="../../../apache_beam.coders.html#apache_beam.coders.typecoders.CoderRegistry.register_coder">[docs]</a>  <span class="k">def</span> <span class="nf">register_coder</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">typehint_type</span><span class="p">,</span> <span class="n">typehint_coder_class</span><span class="p">):</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">typehint_coder_class</span><span class="p">,</span> <span class="nb">type</span><span class="p">):</span>
+      <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s1">&#39;Coder registration requires a coder class object. &#39;</span>
+                      <span class="s1">&#39;Received </span><span class="si">%r</span><span class="s1"> instead.&#39;</span> <span class="o">%</span> <span class="n">typehint_coder_class</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">typehint_type</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">custom_types</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">custom_types</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">typehint_type</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_register_coder_internal</span><span class="p">(</span><span class="n">typehint_type</span><span class="p">,</span> <span class="n">typehint_coder_class</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="CoderRegistry.get_coder"><a class="viewcode-back" href="../../../apache_beam.coders.html#apache_beam.coders.typecoders.CoderRegistry.get_coder">[docs]</a>  <span class="k">def</span> <span class="nf">get_coder</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">typehint</span><span class="p">):</span>
+    <span class="n">coder</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_coders</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
+        <span class="n">typehint</span><span class="o">.</span><span class="vm">__class__</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">typehint</span><span class="p">,</span> <span class="n">typehints</span><span class="o">.</span><span class="n">TypeConstraint</span><span class="p">)</span>
+        <span class="k">else</span> <span class="n">typehint</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">typehint</span><span class="p">,</span> <span class="n">typehints</span><span class="o">.</span><span class="n">TypeConstraint</span><span class="p">)</span> <span class="ow">and</span> <span class="n">coder</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+      <span class="k">return</span> <span class="n">coder</span><span class="o">.</span><span class="n">from_type_hint</span><span class="p">(</span><span class="n">typehint</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">coder</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+      <span class="c1"># We use the fallback coder when there is no coder registered for a</span>
+      <span class="c1"># typehint. For example a user defined class with no coder specified.</span>
+      <span class="k">if</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s1">&#39;_fallback_coder&#39;</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
+            <span class="s1">&#39;Coder registry has no fallback coder. This can happen if the &#39;</span>
+            <span class="s1">&#39;fast_coders module could not be imported.&#39;</span><span class="p">)</span>
+      <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">typehint</span><span class="p">,</span> <span class="n">typehints</span><span class="o">.</span><span class="n">IterableTypeConstraint</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">coders</span><span class="o">.</span><span class="n">IterableCoder</span><span class="o">.</span><span class="n">from_type_hint</span><span class="p">(</span><span class="n">typehint</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span>
+      <span class="k">elif</span> <span class="n">typehint</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="c1"># In some old code, None is used for Any.</span>
+        <span class="c1"># TODO(robertwb): Clean this up.</span>
+        <span class="k">pass</span>
+      <span class="k">elif</span> <span class="n">typehint</span> <span class="ow">is</span> <span class="nb">object</span><span class="p">:</span>
+        <span class="c1"># We explicitly want the fallback coder.</span>
+        <span class="k">pass</span>
+      <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">typehint</span><span class="p">,</span> <span class="n">typehints</span><span class="o">.</span><span class="n">TypeVariable</span><span class="p">):</span>
+        <span class="c1"># TODO(robertwb): Clean this up when type inference is fully enabled.</span>
+        <span class="k">pass</span>
+      <span class="k">else</span><span class="p">:</span>
+        <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="s1">&#39;Using fallback coder for typehint: </span><span class="si">%r</span><span class="s1">.&#39;</span> <span class="o">%</span> <span class="n">typehint</span><span class="p">)</span>
+      <span class="n">coder</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_fallback_coder</span>
+    <span class="k">return</span> <span class="n">coder</span><span class="o">.</span><span class="n">from_type_hint</span><span class="p">(</span><span class="n">typehint</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="CoderRegistry.get_custom_type_coder_tuples"><a class="viewcode-back" href="../../../apache_beam.coders.html#apache_beam.coders.typecoders.CoderRegistry.get_custom_type_coder_tuples">[docs]</a>  <span class="k">def</span> <span class="nf">get_custom_type_coder_tuples</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">types</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Returns type/coder tuples for all custom types passed in.&quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="p">[(</span><span class="n">t</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_coders</span><span class="p">[</span><span class="n">t</span><span class="p">])</span> <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="n">types</span> <span class="k">if</span> <span class="n">t</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">custom_types</span><span class="p">]</span></div>
+
+<div class="viewcode-block" id="CoderRegistry.verify_deterministic"><a class="viewcode-back" href="../../../apache_beam.coders.html#apache_beam.coders.typecoders.CoderRegistry.verify_deterministic">[docs]</a>  <span class="k">def</span> <span class="nf">verify_deterministic</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key_coder</span><span class="p">,</span> <span class="n">op_name</span><span class="p">,</span> <span class="n">silent</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">key_coder</span><span class="o">.</span><span class="n">is_deterministic</span><span class="p">():</span>
+      <span class="n">error_msg</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;The key coder &quot;</span><span class="si">%s</span><span class="s1">&quot; for </span><span class="si">%s</span><span class="s1"> &#39;</span>
+                   <span class="s1">&#39;is not deterministic. This may result in incorrect &#39;</span>
+                   <span class="s1">&#39;pipeline output. This can be fixed by adding a type &#39;</span>
+                   <span class="s1">&#39;hint to the operation preceding the GroupByKey step, &#39;</span>
+                   <span class="s1">&#39;and for custom key classes, by writing a &#39;</span>
+                   <span class="s1">&#39;deterministic custom Coder. Please see the &#39;</span>
+                   <span class="s1">&#39;documentation for more details.&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">key_coder</span><span class="p">,</span> <span class="n">op_name</span><span class="p">))</span>
+      <span class="c1"># TODO(vikasrk): PickleCoder will eventually be removed once its direct</span>
+      <span class="c1"># usage is stopped.</span>
+      <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">key_coder</span><span class="p">,</span> <span class="p">(</span><span class="n">coders</span><span class="o">.</span><span class="n">PickleCoder</span><span class="p">,</span>
+                                <span class="n">coders</span><span class="o">.</span><span class="n">FastPrimitivesCoder</span><span class="p">)):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">silent</span><span class="p">:</span>
+          <span class="n">logging</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="n">error_msg</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">coders</span><span class="o">.</span><span class="n">DeterministicFastPrimitivesCoder</span><span class="p">(</span><span class="n">key_coder</span><span class="p">,</span> <span class="n">op_name</span><span class="p">)</span>
+      <span class="k">else</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">error_msg</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="k">return</span> <span class="n">key_coder</span></div></div>
+
+
+<div class="viewcode-block" id="FirstOf"><a class="viewcode-back" href="../../../apache_beam.coders.html#apache_beam.coders.typecoders.FirstOf">[docs]</a><span class="k">class</span> <span class="nc">FirstOf</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+  <span class="s2">&quot;A class used to get the first matching coder from a list of coders.&quot;</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">coders</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_coders</span> <span class="o">=</span> <span class="n">coders</span>
+
+<div class="viewcode-block" id="FirstOf.from_type_hint"><a class="viewcode-back" href="../../../apache_beam.coders.html#apache_beam.coders.typecoders.FirstOf.from_type_hint">[docs]</a>  <span class="k">def</span> <span class="nf">from_type_hint</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">typehint</span><span class="p">,</span> <span class="n">registry</span><span class="p">):</span>
+    <span class="n">messages</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">coder</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_coders</span><span class="p">:</span>
+      <span class="k">try</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">coder</span><span class="o">.</span><span class="n">from_type_hint</span><span class="p">(</span><span class="n">typehint</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span>
+      <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+        <span class="n">msg</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;</span><span class="si">%s</span><span class="s1"> could not provide a Coder for type </span><span class="si">%s</span><span class="s1">: </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span>
+               <span class="p">(</span><span class="n">coder</span><span class="p">,</span> <span class="n">typehint</span><span class="p">,</span> <span class="n">e</span><span class="p">))</span>
+        <span class="n">messages</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+
+    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Cannot provide coder for </span><span class="si">%s</span><span class="s1">: </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span>
+                     <span class="p">(</span><span class="n">typehint</span><span class="p">,</span> <span class="s1">&#39;;&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">messages</span><span class="p">)))</span></div></div>
+
+
+<span class="n">registry</span> <span class="o">=</span> <span class="n">CoderRegistry</span><span class="p">()</span>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../index.html" >Module code</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright .
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.5.3.
+    </div>
+  </body>
+</html>

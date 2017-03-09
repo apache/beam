@@ -1,0 +1,319 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>apache_beam.transforms.window_test &#8212; Apache Beam  documentation</title>
+    
+    <link rel="stylesheet" href="../../../_static/sphinxdoc.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../',
+        VERSION:     '',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../index.html" accesskey="U">Module code</a> &#187;</li> 
+      </ul>
+    </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for apache_beam.transforms.window_test</h1><div class="highlight"><pre>
+<span></span><span class="c1">#</span>
+<span class="c1"># Licensed to the Apache Software Foundation (ASF) under one or more</span>
+<span class="c1"># contributor license agreements.  See the NOTICE file distributed with</span>
+<span class="c1"># this work for additional information regarding copyright ownership.</span>
+<span class="c1"># The ASF licenses this file to You under the Apache License, Version 2.0</span>
+<span class="c1"># (the &quot;License&quot;); you may not use this file except in compliance with</span>
+<span class="c1"># the License.  You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1">#    http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.</span>
+<span class="c1"># See the License for the specific language governing permissions and</span>
+<span class="c1"># limitations under the License.</span>
+<span class="c1">#</span>
+
+<span class="sd">&quot;&quot;&quot;Unit tests for the windowing classes.&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">unittest</span>
+
+<span class="kn">from</span> <span class="nn">apache_beam.test_pipeline</span> <span class="k">import</span> <span class="n">TestPipeline</span>
+<span class="kn">from</span> <span class="nn">apache_beam.transforms</span> <span class="k">import</span> <span class="n">CombinePerKey</span>
+<span class="kn">from</span> <span class="nn">apache_beam.transforms</span> <span class="k">import</span> <span class="n">combiners</span>
+<span class="kn">from</span> <span class="nn">apache_beam.transforms</span> <span class="k">import</span> <span class="n">core</span>
+<span class="kn">from</span> <span class="nn">apache_beam.transforms</span> <span class="k">import</span> <span class="n">Create</span>
+<span class="kn">from</span> <span class="nn">apache_beam.transforms</span> <span class="k">import</span> <span class="n">GroupByKey</span>
+<span class="kn">from</span> <span class="nn">apache_beam.transforms</span> <span class="k">import</span> <span class="n">Map</span>
+<span class="kn">from</span> <span class="nn">apache_beam.transforms</span> <span class="k">import</span> <span class="n">WindowInto</span>
+<span class="kn">from</span> <span class="nn">apache_beam.transforms.timeutil</span> <span class="k">import</span> <span class="n">MAX_TIMESTAMP</span>
+<span class="kn">from</span> <span class="nn">apache_beam.transforms.timeutil</span> <span class="k">import</span> <span class="n">MIN_TIMESTAMP</span>
+<span class="kn">from</span> <span class="nn">apache_beam.transforms.util</span> <span class="k">import</span> <span class="n">assert_that</span><span class="p">,</span> <span class="n">equal_to</span>
+<span class="kn">from</span> <span class="nn">apache_beam.transforms.window</span> <span class="k">import</span> <span class="n">FixedWindows</span>
+<span class="kn">from</span> <span class="nn">apache_beam.transforms.window</span> <span class="k">import</span> <span class="n">GlobalWindow</span>
+<span class="kn">from</span> <span class="nn">apache_beam.transforms.window</span> <span class="k">import</span> <span class="n">IntervalWindow</span>
+<span class="kn">from</span> <span class="nn">apache_beam.transforms.window</span> <span class="k">import</span> <span class="n">Sessions</span>
+<span class="kn">from</span> <span class="nn">apache_beam.transforms.window</span> <span class="k">import</span> <span class="n">SlidingWindows</span>
+<span class="kn">from</span> <span class="nn">apache_beam.transforms.window</span> <span class="k">import</span> <span class="n">TimestampedValue</span>
+<span class="kn">from</span> <span class="nn">apache_beam.transforms.window</span> <span class="k">import</span> <span class="n">WindowedValue</span>
+<span class="kn">from</span> <span class="nn">apache_beam.transforms.window</span> <span class="k">import</span> <span class="n">WindowFn</span>
+
+
+<div class="viewcode-block" id="context"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.window_test.context">[docs]</a><span class="k">def</span> <span class="nf">context</span><span class="p">(</span><span class="n">element</span><span class="p">,</span> <span class="n">timestamp</span><span class="p">):</span>
+  <span class="k">return</span> <span class="n">WindowFn</span><span class="o">.</span><span class="n">AssignContext</span><span class="p">(</span><span class="n">timestamp</span><span class="p">,</span> <span class="n">element</span><span class="p">)</span></div>
+
+
+<span class="n">sort_values</span> <span class="o">=</span> <span class="n">Map</span><span class="p">(</span><span class="k">lambda</span> <span class="p">(</span><span class="n">k</span><span class="p">,</span> <span class="n">vs</span><span class="p">):</span> <span class="p">(</span><span class="n">k</span><span class="p">,</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">vs</span><span class="p">)))</span>
+
+
+<div class="viewcode-block" id="ReifyWindowsFn"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.window_test.ReifyWindowsFn">[docs]</a><span class="k">class</span> <span class="nc">ReifyWindowsFn</span><span class="p">(</span><span class="n">core</span><span class="o">.</span><span class="n">DoFn</span><span class="p">):</span>
+<div class="viewcode-block" id="ReifyWindowsFn.process"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.window_test.ReifyWindowsFn.process">[docs]</a>  <span class="k">def</span> <span class="nf">process</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">element</span><span class="p">,</span> <span class="n">window</span><span class="o">=</span><span class="n">core</span><span class="o">.</span><span class="n">DoFn</span><span class="o">.</span><span class="n">WindowParam</span><span class="p">):</span>
+    <span class="n">key</span><span class="p">,</span> <span class="n">values</span> <span class="o">=</span> <span class="n">element</span>
+    <span class="k">yield</span> <span class="s2">&quot;</span><span class="si">%s</span><span class="s2"> @ </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">window</span><span class="p">),</span> <span class="n">values</span></div></div>
+<span class="n">reify_windows</span> <span class="o">=</span> <span class="n">core</span><span class="o">.</span><span class="n">ParDo</span><span class="p">(</span><span class="n">ReifyWindowsFn</span><span class="p">())</span>
+
+
+<div class="viewcode-block" id="WindowTest"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.window_test.WindowTest">[docs]</a><span class="k">class</span> <span class="nc">WindowTest</span><span class="p">(</span><span class="n">unittest</span><span class="o">.</span><span class="n">TestCase</span><span class="p">):</span>
+
+<div class="viewcode-block" id="WindowTest.test_global_window"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.window_test.WindowTest.test_global_window">[docs]</a>  <span class="k">def</span> <span class="nf">test_global_window</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">GlobalWindow</span><span class="p">(),</span> <span class="n">GlobalWindow</span><span class="p">())</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertNotEqual</span><span class="p">(</span><span class="n">GlobalWindow</span><span class="p">(),</span>
+                        <span class="n">IntervalWindow</span><span class="p">(</span><span class="n">MIN_TIMESTAMP</span><span class="p">,</span> <span class="n">MAX_TIMESTAMP</span><span class="p">))</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertNotEqual</span><span class="p">(</span><span class="n">IntervalWindow</span><span class="p">(</span><span class="n">MIN_TIMESTAMP</span><span class="p">,</span> <span class="n">MAX_TIMESTAMP</span><span class="p">),</span>
+                        <span class="n">GlobalWindow</span><span class="p">())</span></div>
+
+<div class="viewcode-block" id="WindowTest.test_fixed_windows"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.window_test.WindowTest.test_fixed_windows">[docs]</a>  <span class="k">def</span> <span class="nf">test_fixed_windows</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="c1"># Test windows with offset: 2, 7, 12, 17, ...</span>
+    <span class="n">windowfn</span> <span class="o">=</span> <span class="n">FixedWindows</span><span class="p">(</span><span class="n">size</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span> <span class="n">offset</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">([</span><span class="n">IntervalWindow</span><span class="p">(</span><span class="mi">7</span><span class="p">,</span> <span class="mi">12</span><span class="p">)],</span>
+                     <span class="n">windowfn</span><span class="o">.</span><span class="n">assign</span><span class="p">(</span><span class="n">context</span><span class="p">(</span><span class="s1">&#39;v&#39;</span><span class="p">,</span> <span class="mi">7</span><span class="p">)))</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">([</span><span class="n">IntervalWindow</span><span class="p">(</span><span class="mi">7</span><span class="p">,</span> <span class="mi">12</span><span class="p">)],</span>
+                     <span class="n">windowfn</span><span class="o">.</span><span class="n">assign</span><span class="p">(</span><span class="n">context</span><span class="p">(</span><span class="s1">&#39;v&#39;</span><span class="p">,</span> <span class="mi">11</span><span class="p">)))</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">([</span><span class="n">IntervalWindow</span><span class="p">(</span><span class="mi">12</span><span class="p">,</span> <span class="mi">17</span><span class="p">)],</span>
+                     <span class="n">windowfn</span><span class="o">.</span><span class="n">assign</span><span class="p">(</span><span class="n">context</span><span class="p">(</span><span class="s1">&#39;v&#39;</span><span class="p">,</span> <span class="mi">12</span><span class="p">)))</span>
+
+    <span class="c1"># Test windows without offset: 0, 5, 10, 15, ...</span>
+    <span class="n">windowfn</span> <span class="o">=</span> <span class="n">FixedWindows</span><span class="p">(</span><span class="n">size</span><span class="o">=</span><span class="mi">5</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">([</span><span class="n">IntervalWindow</span><span class="p">(</span><span class="mi">5</span><span class="p">,</span> <span class="mi">10</span><span class="p">)],</span>
+                     <span class="n">windowfn</span><span class="o">.</span><span class="n">assign</span><span class="p">(</span><span class="n">context</span><span class="p">(</span><span class="s1">&#39;v&#39;</span><span class="p">,</span> <span class="mi">5</span><span class="p">)))</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">([</span><span class="n">IntervalWindow</span><span class="p">(</span><span class="mi">5</span><span class="p">,</span> <span class="mi">10</span><span class="p">)],</span>
+                     <span class="n">windowfn</span><span class="o">.</span><span class="n">assign</span><span class="p">(</span><span class="n">context</span><span class="p">(</span><span class="s1">&#39;v&#39;</span><span class="p">,</span> <span class="mi">9</span><span class="p">)))</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">([</span><span class="n">IntervalWindow</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span> <span class="mi">15</span><span class="p">)],</span>
+                     <span class="n">windowfn</span><span class="o">.</span><span class="n">assign</span><span class="p">(</span><span class="n">context</span><span class="p">(</span><span class="s1">&#39;v&#39;</span><span class="p">,</span> <span class="mi">10</span><span class="p">)))</span>
+
+    <span class="c1"># Test windows with offset out of range.</span>
+    <span class="n">windowfn</span> <span class="o">=</span> <span class="n">FixedWindows</span><span class="p">(</span><span class="n">size</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span> <span class="n">offset</span><span class="o">=</span><span class="mi">12</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">([</span><span class="n">IntervalWindow</span><span class="p">(</span><span class="mi">7</span><span class="p">,</span> <span class="mi">12</span><span class="p">)],</span>
+                     <span class="n">windowfn</span><span class="o">.</span><span class="n">assign</span><span class="p">(</span><span class="n">context</span><span class="p">(</span><span class="s1">&#39;v&#39;</span><span class="p">,</span> <span class="mi">11</span><span class="p">)))</span></div>
+
+<div class="viewcode-block" id="WindowTest.test_sliding_windows_assignment"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.window_test.WindowTest.test_sliding_windows_assignment">[docs]</a>  <span class="k">def</span> <span class="nf">test_sliding_windows_assignment</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">windowfn</span> <span class="o">=</span> <span class="n">SlidingWindows</span><span class="p">(</span><span class="n">size</span><span class="o">=</span><span class="mi">15</span><span class="p">,</span> <span class="n">period</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span> <span class="n">offset</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+    <span class="n">expected</span> <span class="o">=</span> <span class="p">[</span><span class="n">IntervalWindow</span><span class="p">(</span><span class="mi">7</span><span class="p">,</span> <span class="mi">22</span><span class="p">),</span>
+                <span class="n">IntervalWindow</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">17</span><span class="p">),</span>
+                <span class="n">IntervalWindow</span><span class="p">(</span><span class="o">-</span><span class="mi">3</span><span class="p">,</span> <span class="mi">12</span><span class="p">)]</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">expected</span><span class="p">,</span> <span class="n">windowfn</span><span class="o">.</span><span class="n">assign</span><span class="p">(</span><span class="n">context</span><span class="p">(</span><span class="s1">&#39;v&#39;</span><span class="p">,</span> <span class="mi">7</span><span class="p">)))</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">expected</span><span class="p">,</span> <span class="n">windowfn</span><span class="o">.</span><span class="n">assign</span><span class="p">(</span><span class="n">context</span><span class="p">(</span><span class="s1">&#39;v&#39;</span><span class="p">,</span> <span class="mi">8</span><span class="p">)))</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">expected</span><span class="p">,</span> <span class="n">windowfn</span><span class="o">.</span><span class="n">assign</span><span class="p">(</span><span class="n">context</span><span class="p">(</span><span class="s1">&#39;v&#39;</span><span class="p">,</span> <span class="mi">11</span><span class="p">)))</span></div>
+
+<div class="viewcode-block" id="WindowTest.test_sessions_merging"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.window_test.WindowTest.test_sessions_merging">[docs]</a>  <span class="k">def</span> <span class="nf">test_sessions_merging</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">windowfn</span> <span class="o">=</span> <span class="n">Sessions</span><span class="p">(</span><span class="mi">10</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">merge</span><span class="p">(</span><span class="o">*</span><span class="n">timestamps</span><span class="p">):</span>
+      <span class="n">windows</span> <span class="o">=</span> <span class="p">[</span><span class="n">windowfn</span><span class="o">.</span><span class="n">assign</span><span class="p">(</span><span class="n">context</span><span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="n">t</span><span class="p">))</span> <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="n">timestamps</span><span class="p">]</span>
+      <span class="n">running</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+
+      <span class="k">class</span> <span class="nc">TestMergeContext</span><span class="p">(</span><span class="n">WindowFn</span><span class="o">.</span><span class="n">MergeContext</span><span class="p">):</span>
+
+        <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+          <span class="nb">super</span><span class="p">(</span><span class="n">TestMergeContext</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">running</span><span class="p">)</span>
+
+        <span class="k">def</span> <span class="nf">merge</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">to_be_merged</span><span class="p">,</span> <span class="n">merge_result</span><span class="p">):</span>
+          <span class="k">for</span> <span class="n">w</span> <span class="ow">in</span> <span class="n">to_be_merged</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">w</span> <span class="ow">in</span> <span class="n">running</span><span class="p">:</span>
+              <span class="n">running</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">w</span><span class="p">)</span>
+          <span class="n">running</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">merge_result</span><span class="p">)</span>
+
+      <span class="k">for</span> <span class="n">ws</span> <span class="ow">in</span> <span class="n">windows</span><span class="p">:</span>
+        <span class="n">running</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">ws</span><span class="p">)</span>
+        <span class="n">windowfn</span><span class="o">.</span><span class="n">merge</span><span class="p">(</span><span class="n">TestMergeContext</span><span class="p">())</span>
+      <span class="n">windowfn</span><span class="o">.</span><span class="n">merge</span><span class="p">(</span><span class="n">TestMergeContext</span><span class="p">())</span>
+      <span class="k">return</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">running</span><span class="p">)</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">([</span><span class="n">IntervalWindow</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">12</span><span class="p">)],</span> <span class="n">merge</span><span class="p">(</span><span class="mi">2</span><span class="p">))</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">([</span><span class="n">IntervalWindow</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">12</span><span class="p">),</span> <span class="n">IntervalWindow</span><span class="p">(</span><span class="mi">19</span><span class="p">,</span> <span class="mi">29</span><span class="p">)],</span>
+                     <span class="n">merge</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">19</span><span class="p">))</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">([</span><span class="n">IntervalWindow</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">19</span><span class="p">)],</span> <span class="n">merge</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">9</span><span class="p">))</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">([</span><span class="n">IntervalWindow</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">19</span><span class="p">)],</span> <span class="n">merge</span><span class="p">(</span><span class="mi">9</span><span class="p">,</span> <span class="mi">2</span><span class="p">))</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">([</span><span class="n">IntervalWindow</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">19</span><span class="p">),</span> <span class="n">IntervalWindow</span><span class="p">(</span><span class="mi">19</span><span class="p">,</span> <span class="mi">29</span><span class="p">)],</span>
+                     <span class="n">merge</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">9</span><span class="p">,</span> <span class="mi">19</span><span class="p">))</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">([</span><span class="n">IntervalWindow</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">19</span><span class="p">),</span> <span class="n">IntervalWindow</span><span class="p">(</span><span class="mi">19</span><span class="p">,</span> <span class="mi">29</span><span class="p">)],</span>
+                     <span class="n">merge</span><span class="p">(</span><span class="mi">19</span><span class="p">,</span> <span class="mi">9</span><span class="p">,</span> <span class="mi">2</span><span class="p">))</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">([</span><span class="n">IntervalWindow</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">25</span><span class="p">)],</span> <span class="n">merge</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">15</span><span class="p">,</span> <span class="mi">10</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="WindowTest.timestamped_key_values"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.window_test.WindowTest.timestamped_key_values">[docs]</a>  <span class="k">def</span> <span class="nf">timestamped_key_values</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pipeline</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="o">*</span><span class="n">timestamps</span><span class="p">):</span>
+    <span class="k">return</span> <span class="p">(</span><span class="n">pipeline</span> <span class="o">|</span> <span class="s1">&#39;start&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">Create</span><span class="p">(</span><span class="n">timestamps</span><span class="p">)</span>
+            <span class="o">|</span> <span class="n">Map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">WindowedValue</span><span class="p">((</span><span class="n">key</span><span class="p">,</span> <span class="n">x</span><span class="p">),</span> <span class="n">x</span><span class="p">,</span> <span class="p">[])))</span></div>
+
+<div class="viewcode-block" id="WindowTest.test_sliding_windows"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.window_test.WindowTest.test_sliding_windows">[docs]</a>  <span class="k">def</span> <span class="nf">test_sliding_windows</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">p</span> <span class="o">=</span> <span class="n">TestPipeline</span><span class="p">()</span>
+    <span class="n">pcoll</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">timestamped_key_values</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="s1">&#39;key&#39;</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">)</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="p">(</span><span class="n">pcoll</span>
+              <span class="o">|</span> <span class="s1">&#39;w&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">WindowInto</span><span class="p">(</span><span class="n">SlidingWindows</span><span class="p">(</span><span class="n">period</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="mi">4</span><span class="p">))</span>
+              <span class="o">|</span> <span class="n">GroupByKey</span><span class="p">()</span>
+              <span class="o">|</span> <span class="n">reify_windows</span><span class="p">)</span>
+    <span class="n">expected</span> <span class="o">=</span> <span class="p">[(</span><span class="s1">&#39;key @ [-2.0, 2.0)&#39;</span><span class="p">,</span> <span class="p">[</span><span class="mi">1</span><span class="p">]),</span>
+                <span class="p">(</span><span class="s1">&#39;key @ [0.0, 4.0)&#39;</span><span class="p">,</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">]),</span>
+                <span class="p">(</span><span class="s1">&#39;key @ [2.0, 6.0)&#39;</span><span class="p">,</span> <span class="p">[</span><span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">])]</span>
+    <span class="n">assert_that</span><span class="p">(</span><span class="n">result</span><span class="p">,</span> <span class="n">equal_to</span><span class="p">(</span><span class="n">expected</span><span class="p">))</span>
+    <span class="n">p</span><span class="o">.</span><span class="n">run</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="WindowTest.test_sessions"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.window_test.WindowTest.test_sessions">[docs]</a>  <span class="k">def</span> <span class="nf">test_sessions</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">p</span> <span class="o">=</span> <span class="n">TestPipeline</span><span class="p">()</span>
+    <span class="n">pcoll</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">timestamped_key_values</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="s1">&#39;key&#39;</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">20</span><span class="p">,</span> <span class="mi">35</span><span class="p">,</span> <span class="mi">27</span><span class="p">)</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="p">(</span><span class="n">pcoll</span>
+              <span class="o">|</span> <span class="s1">&#39;w&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">WindowInto</span><span class="p">(</span><span class="n">Sessions</span><span class="p">(</span><span class="mi">10</span><span class="p">))</span>
+              <span class="o">|</span> <span class="n">GroupByKey</span><span class="p">()</span>
+              <span class="o">|</span> <span class="n">sort_values</span>
+              <span class="o">|</span> <span class="n">reify_windows</span><span class="p">)</span>
+    <span class="n">expected</span> <span class="o">=</span> <span class="p">[(</span><span class="s1">&#39;key @ [1.0, 13.0)&#39;</span><span class="p">,</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">]),</span>
+                <span class="p">(</span><span class="s1">&#39;key @ [20.0, 45.0)&#39;</span><span class="p">,</span> <span class="p">[</span><span class="mi">20</span><span class="p">,</span> <span class="mi">27</span><span class="p">,</span> <span class="mi">35</span><span class="p">])]</span>
+    <span class="n">assert_that</span><span class="p">(</span><span class="n">result</span><span class="p">,</span> <span class="n">equal_to</span><span class="p">(</span><span class="n">expected</span><span class="p">))</span>
+    <span class="n">p</span><span class="o">.</span><span class="n">run</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="WindowTest.test_timestamped_value"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.window_test.WindowTest.test_timestamped_value">[docs]</a>  <span class="k">def</span> <span class="nf">test_timestamped_value</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">p</span> <span class="o">=</span> <span class="n">TestPipeline</span><span class="p">()</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="p">(</span><span class="n">p</span>
+              <span class="o">|</span> <span class="s1">&#39;start&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">Create</span><span class="p">([(</span><span class="n">k</span><span class="p">,</span> <span class="n">k</span><span class="p">)</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">10</span><span class="p">)])</span>
+              <span class="o">|</span> <span class="n">Map</span><span class="p">(</span><span class="k">lambda</span> <span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">t</span><span class="p">):</span> <span class="n">TimestampedValue</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">t</span><span class="p">))</span>
+              <span class="o">|</span> <span class="s1">&#39;w&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">WindowInto</span><span class="p">(</span><span class="n">FixedWindows</span><span class="p">(</span><span class="mi">5</span><span class="p">))</span>
+              <span class="o">|</span> <span class="n">Map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">v</span><span class="p">:</span> <span class="p">(</span><span class="s1">&#39;key&#39;</span><span class="p">,</span> <span class="n">v</span><span class="p">))</span>
+              <span class="o">|</span> <span class="n">GroupByKey</span><span class="p">())</span>
+    <span class="n">assert_that</span><span class="p">(</span><span class="n">result</span><span class="p">,</span> <span class="n">equal_to</span><span class="p">([(</span><span class="s1">&#39;key&#39;</span><span class="p">,</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="p">]),</span>
+                                  <span class="p">(</span><span class="s1">&#39;key&#39;</span><span class="p">,</span> <span class="p">[</span><span class="mi">5</span><span class="p">,</span> <span class="mi">6</span><span class="p">,</span> <span class="mi">7</span><span class="p">,</span> <span class="mi">8</span><span class="p">,</span> <span class="mi">9</span><span class="p">])]))</span>
+    <span class="n">p</span><span class="o">.</span><span class="n">run</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="WindowTest.test_rewindow"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.window_test.WindowTest.test_rewindow">[docs]</a>  <span class="k">def</span> <span class="nf">test_rewindow</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">p</span> <span class="o">=</span> <span class="n">TestPipeline</span><span class="p">()</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="p">(</span><span class="n">p</span>
+              <span class="o">|</span> <span class="n">Create</span><span class="p">([(</span><span class="n">k</span><span class="p">,</span> <span class="n">k</span><span class="p">)</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">10</span><span class="p">)])</span>
+              <span class="o">|</span> <span class="n">Map</span><span class="p">(</span><span class="k">lambda</span> <span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">t</span><span class="p">):</span> <span class="n">TimestampedValue</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">t</span><span class="p">))</span>
+              <span class="o">|</span> <span class="s1">&#39;window&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">WindowInto</span><span class="p">(</span><span class="n">SlidingWindows</span><span class="p">(</span><span class="n">period</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="mi">6</span><span class="p">))</span>
+              <span class="c1"># Per the model, each element is now duplicated across</span>
+              <span class="c1"># three windows. Rewindowing must preserve this duplication.</span>
+              <span class="o">|</span> <span class="s1">&#39;rewindow&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">WindowInto</span><span class="p">(</span><span class="n">FixedWindows</span><span class="p">(</span><span class="mi">5</span><span class="p">))</span>
+              <span class="o">|</span> <span class="s1">&#39;rewindow2&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">WindowInto</span><span class="p">(</span><span class="n">FixedWindows</span><span class="p">(</span><span class="mi">5</span><span class="p">))</span>
+              <span class="o">|</span> <span class="n">Map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">v</span><span class="p">:</span> <span class="p">(</span><span class="s1">&#39;key&#39;</span><span class="p">,</span> <span class="n">v</span><span class="p">))</span>
+              <span class="o">|</span> <span class="n">GroupByKey</span><span class="p">())</span>
+    <span class="n">assert_that</span><span class="p">(</span><span class="n">result</span><span class="p">,</span> <span class="n">equal_to</span><span class="p">([(</span><span class="s1">&#39;key&#39;</span><span class="p">,</span> <span class="nb">sorted</span><span class="p">([</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="p">]</span> <span class="o">*</span> <span class="mi">3</span><span class="p">)),</span>
+                                  <span class="p">(</span><span class="s1">&#39;key&#39;</span><span class="p">,</span> <span class="nb">sorted</span><span class="p">([</span><span class="mi">5</span><span class="p">,</span> <span class="mi">6</span><span class="p">,</span> <span class="mi">7</span><span class="p">,</span> <span class="mi">8</span><span class="p">,</span> <span class="mi">9</span><span class="p">]</span> <span class="o">*</span> <span class="mi">3</span><span class="p">))]))</span>
+    <span class="n">p</span><span class="o">.</span><span class="n">run</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="WindowTest.test_timestamped_with_combiners"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.window_test.WindowTest.test_timestamped_with_combiners">[docs]</a>  <span class="k">def</span> <span class="nf">test_timestamped_with_combiners</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">p</span> <span class="o">=</span> <span class="n">TestPipeline</span><span class="p">()</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="p">(</span><span class="n">p</span>
+              <span class="c1"># Create some initial test values.</span>
+              <span class="o">|</span> <span class="s1">&#39;start&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">Create</span><span class="p">([(</span><span class="n">k</span><span class="p">,</span> <span class="n">k</span><span class="p">)</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">10</span><span class="p">)])</span>
+              <span class="c1"># The purpose of the WindowInto transform is to establish a</span>
+              <span class="c1"># FixedWindows windowing function for the PCollection.</span>
+              <span class="c1"># It does not bucket elements into windows since the timestamps</span>
+              <span class="c1"># from Create are not spaced 5 ms apart and very likely they all</span>
+              <span class="c1"># fall into the same window.</span>
+              <span class="o">|</span> <span class="s1">&#39;w&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">WindowInto</span><span class="p">(</span><span class="n">FixedWindows</span><span class="p">(</span><span class="mi">5</span><span class="p">))</span>
+              <span class="c1"># Generate timestamped values using the values as timestamps.</span>
+              <span class="c1"># Now there are values 5 ms apart and since Map propagates the</span>
+              <span class="c1"># windowing function from input to output the output PCollection</span>
+              <span class="c1"># will have elements falling into different 5ms windows.</span>
+              <span class="o">|</span> <span class="n">Map</span><span class="p">(</span><span class="k">lambda</span> <span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">t</span><span class="p">):</span> <span class="n">TimestampedValue</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">t</span><span class="p">))</span>
+              <span class="c1"># We add a &#39;key&#39; to each value representing the index of the</span>
+              <span class="c1"># window. This is important since there is no guarantee of</span>
+              <span class="c1"># order for the elements of a PCollection.</span>
+              <span class="o">|</span> <span class="n">Map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">v</span><span class="p">:</span> <span class="p">(</span><span class="n">v</span> <span class="o">/</span> <span class="mi">5</span><span class="p">,</span> <span class="n">v</span><span class="p">)))</span>
+    <span class="c1"># Sum all elements associated with a key and window. Although it</span>
+    <span class="c1"># is called CombinePerKey it is really CombinePerKeyAndWindow the</span>
+    <span class="c1"># same way GroupByKey is really GroupByKeyAndWindow.</span>
+    <span class="n">sum_per_window</span> <span class="o">=</span> <span class="n">result</span> <span class="o">|</span> <span class="n">CombinePerKey</span><span class="p">(</span><span class="nb">sum</span><span class="p">)</span>
+    <span class="c1"># Compute mean per key and window.</span>
+    <span class="n">mean_per_window</span> <span class="o">=</span> <span class="n">result</span> <span class="o">|</span> <span class="n">combiners</span><span class="o">.</span><span class="n">Mean</span><span class="o">.</span><span class="n">PerKey</span><span class="p">()</span>
+    <span class="n">assert_that</span><span class="p">(</span><span class="n">sum_per_window</span><span class="p">,</span> <span class="n">equal_to</span><span class="p">([(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">10</span><span class="p">),</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">35</span><span class="p">)]),</span>
+                <span class="n">label</span><span class="o">=</span><span class="s1">&#39;assert:sum&#39;</span><span class="p">)</span>
+    <span class="n">assert_that</span><span class="p">(</span><span class="n">mean_per_window</span><span class="p">,</span> <span class="n">equal_to</span><span class="p">([(</span><span class="mi">0</span><span class="p">,</span> <span class="mf">2.0</span><span class="p">),</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mf">7.0</span><span class="p">)]),</span>
+                <span class="n">label</span><span class="o">=</span><span class="s1">&#39;assert:mean&#39;</span><span class="p">)</span>
+    <span class="n">p</span><span class="o">.</span><span class="n">run</span><span class="p">()</span></div></div>
+
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s1">&#39;__main__&#39;</span><span class="p">:</span>
+  <span class="n">unittest</span><span class="o">.</span><span class="n">main</span><span class="p">()</span>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../index.html" >Module code</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright .
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.5.3.
+    </div>
+  </body>
+</html>

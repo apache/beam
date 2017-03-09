@@ -1,0 +1,298 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>apache_beam.examples.complete.tfidf &#8212; Apache Beam  documentation</title>
+    
+    <link rel="stylesheet" href="../../../../_static/sphinxdoc.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../../',
+        VERSION:     '',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" /> 
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../../index.html" accesskey="U">Module code</a> &#187;</li> 
+      </ul>
+    </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../../../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for apache_beam.examples.complete.tfidf</h1><div class="highlight"><pre>
+<span></span><span class="c1">#</span>
+<span class="c1"># Licensed to the Apache Software Foundation (ASF) under one or more</span>
+<span class="c1"># contributor license agreements.  See the NOTICE file distributed with</span>
+<span class="c1"># this work for additional information regarding copyright ownership.</span>
+<span class="c1"># The ASF licenses this file to You under the Apache License, Version 2.0</span>
+<span class="c1"># (the &quot;License&quot;); you may not use this file except in compliance with</span>
+<span class="c1"># the License.  You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1">#    http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.</span>
+<span class="c1"># See the License for the specific language governing permissions and</span>
+<span class="c1"># limitations under the License.</span>
+<span class="c1">#</span>
+
+<span class="sd">&quot;&quot;&quot;A TF-IDF workflow (term frequency - inverse document frequency).</span>
+
+<span class="sd">For an explanation of the TF-IDF algorithm see the following link:</span>
+<span class="sd">http://en.wikipedia.org/wiki/Tf-idf</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="k">import</span> <span class="n">absolute_import</span>
+
+<span class="kn">import</span> <span class="nn">argparse</span>
+<span class="kn">import</span> <span class="nn">glob</span>
+<span class="kn">import</span> <span class="nn">math</span>
+<span class="kn">import</span> <span class="nn">re</span>
+
+<span class="kn">import</span> <span class="nn">apache_beam</span> <span class="k">as</span> <span class="nn">beam</span>
+<span class="kn">from</span> <span class="nn">apache_beam.io</span> <span class="k">import</span> <span class="n">ReadFromText</span>
+<span class="kn">from</span> <span class="nn">apache_beam.io</span> <span class="k">import</span> <span class="n">WriteToText</span>
+<span class="kn">from</span> <span class="nn">apache_beam.pvalue</span> <span class="k">import</span> <span class="n">AsSingleton</span>
+<span class="kn">from</span> <span class="nn">apache_beam.utils.pipeline_options</span> <span class="k">import</span> <span class="n">PipelineOptions</span>
+<span class="kn">from</span> <span class="nn">apache_beam.utils.pipeline_options</span> <span class="k">import</span> <span class="n">SetupOptions</span>
+
+
+<div class="viewcode-block" id="read_documents"><a class="viewcode-back" href="../../../../apache_beam.examples.complete.html#apache_beam.examples.complete.tfidf.read_documents">[docs]</a><span class="k">def</span> <span class="nf">read_documents</span><span class="p">(</span><span class="n">pipeline</span><span class="p">,</span> <span class="n">uris</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Read the documents at the provided uris and returns (uri, line) pairs.&quot;&quot;&quot;</span>
+  <span class="n">pcolls</span> <span class="o">=</span> <span class="p">[]</span>
+  <span class="k">for</span> <span class="n">uri</span> <span class="ow">in</span> <span class="n">uris</span><span class="p">:</span>
+    <span class="n">pcolls</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+        <span class="n">pipeline</span>
+        <span class="o">|</span> <span class="s1">&#39;Read: </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">uri</span> <span class="o">&gt;&gt;</span> <span class="n">ReadFromText</span><span class="p">(</span><span class="n">uri</span><span class="p">)</span>
+        <span class="o">|</span> <span class="s1">&#39;WithKey: </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">uri</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">v</span><span class="p">,</span> <span class="n">uri</span><span class="p">:</span> <span class="p">(</span><span class="n">uri</span><span class="p">,</span> <span class="n">v</span><span class="p">),</span> <span class="n">uri</span><span class="p">))</span>
+  <span class="k">return</span> <span class="n">pcolls</span> <span class="o">|</span> <span class="s1">&#39;FlattenReadPColls&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Flatten</span><span class="p">()</span></div>
+
+
+<div class="viewcode-block" id="TfIdf"><a class="viewcode-back" href="../../../../apache_beam.examples.complete.html#apache_beam.examples.complete.tfidf.TfIdf">[docs]</a><span class="k">class</span> <span class="nc">TfIdf</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">PTransform</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;A transform containing a basic TF-IDF pipeline.</span>
+
+<span class="sd">  The input consists of KV objects where the key is the document&#39;s URI and</span>
+<span class="sd">  the value is a piece of the document&#39;s content.</span>
+<span class="sd">  The output is mapping from terms to scores for each document URI.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="TfIdf.expand"><a class="viewcode-back" href="../../../../apache_beam.examples.complete.html#apache_beam.examples.complete.tfidf.TfIdf.expand">[docs]</a>  <span class="k">def</span> <span class="nf">expand</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">uri_to_content</span><span class="p">):</span>
+
+    <span class="c1"># Compute the total number of documents, and prepare a singleton</span>
+    <span class="c1"># PCollection to use as side input.</span>
+    <span class="n">total_documents</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="n">uri_to_content</span>
+        <span class="o">|</span> <span class="s1">&#39;GetUris 1&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Keys</span><span class="p">()</span>
+        <span class="o">|</span> <span class="s1">&#39;GetUniqueUris&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">RemoveDuplicates</span><span class="p">()</span>
+        <span class="o">|</span> <span class="s1">&#39;CountUris&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">combiners</span><span class="o">.</span><span class="n">Count</span><span class="o">.</span><span class="n">Globally</span><span class="p">())</span>
+
+    <span class="c1"># Create a collection of pairs mapping a URI to each of the words</span>
+    <span class="c1"># in the document associated with that that URI.</span>
+
+    <span class="k">def</span> <span class="nf">split_into_words</span><span class="p">((</span><span class="n">uri</span><span class="p">,</span> <span class="n">line</span><span class="p">)):</span>
+      <span class="k">return</span> <span class="p">[(</span><span class="n">uri</span><span class="p">,</span> <span class="n">w</span><span class="o">.</span><span class="n">lower</span><span class="p">())</span> <span class="k">for</span> <span class="n">w</span> <span class="ow">in</span> <span class="n">re</span><span class="o">.</span><span class="n">findall</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;[A-Za-z</span><span class="se">\&#39;</span><span class="s1">]+&#39;</span><span class="p">,</span> <span class="n">line</span><span class="p">)]</span>
+
+    <span class="n">uri_to_words</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="n">uri_to_content</span>
+        <span class="o">|</span> <span class="s1">&#39;SplitWords&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">FlatMap</span><span class="p">(</span><span class="n">split_into_words</span><span class="p">))</span>
+
+    <span class="c1"># Compute a mapping from each word to the total number of documents</span>
+    <span class="c1"># in which it appears.</span>
+    <span class="n">word_to_doc_count</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="n">uri_to_words</span>
+        <span class="o">|</span> <span class="s1">&#39;GetUniqueWordsPerDoc&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">RemoveDuplicates</span><span class="p">()</span>
+        <span class="o">|</span> <span class="s1">&#39;GetWords&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Values</span><span class="p">()</span>
+        <span class="o">|</span> <span class="s1">&#39;CountDocsPerWord&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">combiners</span><span class="o">.</span><span class="n">Count</span><span class="o">.</span><span class="n">PerElement</span><span class="p">())</span>
+
+    <span class="c1"># Compute a mapping from each URI to the total number of words in the</span>
+    <span class="c1"># document associated with that URI.</span>
+    <span class="n">uri_to_word_total</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="n">uri_to_words</span>
+        <span class="o">|</span> <span class="s1">&#39;GetUris 2&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Keys</span><span class="p">()</span>
+        <span class="o">|</span> <span class="s1">&#39;CountWordsInDoc&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">combiners</span><span class="o">.</span><span class="n">Count</span><span class="o">.</span><span class="n">PerElement</span><span class="p">())</span>
+
+    <span class="c1"># Count, for each (URI, word) pair, the number of occurrences of that word</span>
+    <span class="c1"># in the document associated with the URI.</span>
+    <span class="n">uri_and_word_to_count</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="n">uri_to_words</span>
+        <span class="o">|</span> <span class="s1">&#39;CountWord-DocPairs&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">combiners</span><span class="o">.</span><span class="n">Count</span><span class="o">.</span><span class="n">PerElement</span><span class="p">())</span>
+
+    <span class="c1"># Adjust the above collection to a mapping from (URI, word) pairs to counts</span>
+    <span class="c1"># into an isomorphic mapping from URI to (word, count) pairs, to prepare</span>
+    <span class="c1"># for a join by the URI key.</span>
+    <span class="n">uri_to_word_and_count</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="n">uri_and_word_to_count</span>
+        <span class="o">|</span> <span class="s1">&#39;ShiftKeys&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span>
+            <span class="k">lambda</span> <span class="p">((</span><span class="n">uri</span><span class="p">,</span> <span class="n">word</span><span class="p">),</span> <span class="n">count</span><span class="p">):</span> <span class="p">(</span><span class="n">uri</span><span class="p">,</span> <span class="p">(</span><span class="n">word</span><span class="p">,</span> <span class="n">count</span><span class="p">))))</span>
+
+    <span class="c1"># Perform a CoGroupByKey (a sort of pre-join) on the prepared</span>
+    <span class="c1"># uri_to_word_total and uri_to_word_and_count tagged by &#39;word totals&#39; and</span>
+    <span class="c1"># &#39;word counts&#39; strings. This yields a mapping from URI to a dictionary</span>
+    <span class="c1"># that maps the above mentioned tag strings to an iterable containing the</span>
+    <span class="c1"># word total for that URI and word and count respectively.</span>
+    <span class="c1">#</span>
+    <span class="c1"># A diagram (in which &#39;[]&#39; just means &#39;iterable&#39;):</span>
+    <span class="c1">#</span>
+    <span class="c1">#   URI: {&#39;word totals&#39;: [count],  # Total words within this URI&#39;s document.</span>
+    <span class="c1">#         &#39;word counts&#39;: [(word, count),  # Counts of specific words</span>
+    <span class="c1">#                         (word, count),  # within this URI&#39;s document.</span>
+    <span class="c1">#                         ... ]}</span>
+    <span class="n">uri_to_word_and_count_and_total</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="p">{</span><span class="s1">&#39;word totals&#39;</span><span class="p">:</span> <span class="n">uri_to_word_total</span><span class="p">,</span> <span class="s1">&#39;word counts&#39;</span><span class="p">:</span> <span class="n">uri_to_word_and_count</span><span class="p">}</span>
+        <span class="o">|</span> <span class="s1">&#39;CoGroupByUri&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">CoGroupByKey</span><span class="p">())</span>
+
+    <span class="c1"># Compute a mapping from each word to a (URI, term frequency) pair for each</span>
+    <span class="c1"># URI. A word&#39;s term frequency for a document is simply the number of times</span>
+    <span class="c1"># that word occurs in the document divided by the total number of words in</span>
+    <span class="c1"># the document.</span>
+
+    <span class="k">def</span> <span class="nf">compute_term_frequency</span><span class="p">((</span><span class="n">uri</span><span class="p">,</span> <span class="n">count_and_total</span><span class="p">)):</span>
+      <span class="n">word_and_count</span> <span class="o">=</span> <span class="n">count_and_total</span><span class="p">[</span><span class="s1">&#39;word counts&#39;</span><span class="p">]</span>
+      <span class="c1"># We have an iterable for one element that we want extracted.</span>
+      <span class="p">[</span><span class="n">word_total</span><span class="p">]</span> <span class="o">=</span> <span class="n">count_and_total</span><span class="p">[</span><span class="s1">&#39;word totals&#39;</span><span class="p">]</span>
+      <span class="k">for</span> <span class="n">word</span><span class="p">,</span> <span class="n">count</span> <span class="ow">in</span> <span class="n">word_and_count</span><span class="p">:</span>
+        <span class="k">yield</span> <span class="n">word</span><span class="p">,</span> <span class="p">(</span><span class="n">uri</span><span class="p">,</span> <span class="nb">float</span><span class="p">(</span><span class="n">count</span><span class="p">)</span> <span class="o">/</span> <span class="n">word_total</span><span class="p">)</span>
+
+    <span class="n">word_to_uri_and_tf</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="n">uri_to_word_and_count_and_total</span>
+        <span class="o">|</span> <span class="s1">&#39;ComputeTermFrequencies&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">FlatMap</span><span class="p">(</span><span class="n">compute_term_frequency</span><span class="p">))</span>
+
+    <span class="c1"># Compute a mapping from each word to its document frequency.</span>
+    <span class="c1"># A word&#39;s document frequency in a corpus is the number of</span>
+    <span class="c1"># documents in which the word appears divided by the total</span>
+    <span class="c1"># number of documents in the corpus.</span>
+    <span class="c1">#</span>
+    <span class="c1"># This calculation uses a side input, a Dataflow-computed auxiliary value</span>
+    <span class="c1"># presented to each invocation of our MapFn lambda. The second argument to</span>
+    <span class="c1"># the lambda (called total---note that we are unpacking the first argument)</span>
+    <span class="c1"># receives the value we listed after the lambda in Map(). Additional side</span>
+    <span class="c1"># inputs (and ordinary Python values, too) can be provided to MapFns and</span>
+    <span class="c1"># DoFns in this way.</span>
+    <span class="n">word_to_df</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="n">word_to_doc_count</span>
+        <span class="o">|</span> <span class="s1">&#39;ComputeDocFrequencies&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span>
+            <span class="k">lambda</span> <span class="p">(</span><span class="n">word</span><span class="p">,</span> <span class="n">count</span><span class="p">),</span> <span class="n">total</span><span class="p">:</span> <span class="p">(</span><span class="n">word</span><span class="p">,</span> <span class="nb">float</span><span class="p">(</span><span class="n">count</span><span class="p">)</span> <span class="o">/</span> <span class="n">total</span><span class="p">),</span>
+            <span class="n">AsSingleton</span><span class="p">(</span><span class="n">total_documents</span><span class="p">)))</span>
+
+    <span class="c1"># Join the term frequency and document frequency collections,</span>
+    <span class="c1"># each keyed on the word.</span>
+    <span class="n">word_to_uri_and_tf_and_df</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="p">{</span><span class="s1">&#39;tf&#39;</span><span class="p">:</span> <span class="n">word_to_uri_and_tf</span><span class="p">,</span> <span class="s1">&#39;df&#39;</span><span class="p">:</span> <span class="n">word_to_df</span><span class="p">}</span>
+        <span class="o">|</span> <span class="s1">&#39;CoGroupWordsByTf-df&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">CoGroupByKey</span><span class="p">())</span>
+
+    <span class="c1"># Compute a mapping from each word to a (URI, TF-IDF) score for each URI.</span>
+    <span class="c1"># There are a variety of definitions of TF-IDF</span>
+    <span class="c1"># (&quot;term frequency - inverse document frequency&quot;) score; here we use a</span>
+    <span class="c1"># basic version that is the term frequency divided by the log of the</span>
+    <span class="c1"># document frequency.</span>
+
+    <span class="k">def</span> <span class="nf">compute_tf_idf</span><span class="p">((</span><span class="n">word</span><span class="p">,</span> <span class="n">tf_and_df</span><span class="p">)):</span>
+      <span class="p">[</span><span class="n">docf</span><span class="p">]</span> <span class="o">=</span> <span class="n">tf_and_df</span><span class="p">[</span><span class="s1">&#39;df&#39;</span><span class="p">]</span>
+      <span class="k">for</span> <span class="n">uri</span><span class="p">,</span> <span class="n">tf</span> <span class="ow">in</span> <span class="n">tf_and_df</span><span class="p">[</span><span class="s1">&#39;tf&#39;</span><span class="p">]:</span>
+        <span class="k">yield</span> <span class="n">word</span><span class="p">,</span> <span class="p">(</span><span class="n">uri</span><span class="p">,</span> <span class="n">tf</span> <span class="o">*</span> <span class="n">math</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="mi">1</span> <span class="o">/</span> <span class="n">docf</span><span class="p">))</span>
+
+    <span class="n">word_to_uri_and_tfidf</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="n">word_to_uri_and_tf_and_df</span>
+        <span class="o">|</span> <span class="s1">&#39;ComputeTf-idf&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">FlatMap</span><span class="p">(</span><span class="n">compute_tf_idf</span><span class="p">))</span>
+
+    <span class="k">return</span> <span class="n">word_to_uri_and_tfidf</span></div></div>
+
+
+<div class="viewcode-block" id="run"><a class="viewcode-back" href="../../../../apache_beam.examples.complete.html#apache_beam.examples.complete.tfidf.run">[docs]</a><span class="k">def</span> <span class="nf">run</span><span class="p">(</span><span class="n">argv</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Main entry point; defines and runs the tfidf pipeline.&quot;&quot;&quot;</span>
+  <span class="n">parser</span> <span class="o">=</span> <span class="n">argparse</span><span class="o">.</span><span class="n">ArgumentParser</span><span class="p">()</span>
+  <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;--uris&#39;</span><span class="p">,</span>
+                      <span class="n">required</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                      <span class="n">help</span><span class="o">=</span><span class="s1">&#39;URIs to process.&#39;</span><span class="p">)</span>
+  <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;--output&#39;</span><span class="p">,</span>
+                      <span class="n">required</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                      <span class="n">help</span><span class="o">=</span><span class="s1">&#39;Output file to write results to.&#39;</span><span class="p">)</span>
+  <span class="n">known_args</span><span class="p">,</span> <span class="n">pipeline_args</span> <span class="o">=</span> <span class="n">parser</span><span class="o">.</span><span class="n">parse_known_args</span><span class="p">(</span><span class="n">argv</span><span class="p">)</span>
+  <span class="c1"># We use the save_main_session option because one or more DoFn&#39;s in this</span>
+  <span class="c1"># workflow rely on global context (e.g., a module imported at module level).</span>
+  <span class="n">pipeline_options</span> <span class="o">=</span> <span class="n">PipelineOptions</span><span class="p">(</span><span class="n">pipeline_args</span><span class="p">)</span>
+  <span class="n">pipeline_options</span><span class="o">.</span><span class="n">view_as</span><span class="p">(</span><span class="n">SetupOptions</span><span class="p">)</span><span class="o">.</span><span class="n">save_main_session</span> <span class="o">=</span> <span class="kc">True</span>
+  <span class="n">p</span> <span class="o">=</span> <span class="n">beam</span><span class="o">.</span><span class="n">Pipeline</span><span class="p">(</span><span class="n">options</span><span class="o">=</span><span class="n">pipeline_options</span><span class="p">)</span>
+
+  <span class="c1"># Read documents specified by the uris command line option.</span>
+  <span class="n">pcoll</span> <span class="o">=</span> <span class="n">read_documents</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="n">glob</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="n">known_args</span><span class="o">.</span><span class="n">uris</span><span class="p">))</span>
+  <span class="c1"># Compute TF-IDF information for each word.</span>
+  <span class="n">output</span> <span class="o">=</span> <span class="n">pcoll</span> <span class="o">|</span> <span class="n">TfIdf</span><span class="p">()</span>
+  <span class="c1"># Write the output using a &quot;Write&quot; transform that has side effects.</span>
+  <span class="c1"># pylint: disable=expression-not-assigned</span>
+  <span class="n">output</span> <span class="o">|</span> <span class="s1">&#39;write&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">WriteToText</span><span class="p">(</span><span class="n">known_args</span><span class="o">.</span><span class="n">output</span><span class="p">)</span>
+  <span class="c1"># Execute the pipeline and wait until it is completed.</span>
+  <span class="n">p</span><span class="o">.</span><span class="n">run</span><span class="p">()</span><span class="o">.</span><span class="n">wait_until_finish</span><span class="p">()</span></div>
+
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s1">&#39;__main__&#39;</span><span class="p">:</span>
+  <span class="n">run</span><span class="p">()</span>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../../index.html" >Module code</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright .
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.5.3.
+    </div>
+  </body>
+</html>

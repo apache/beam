@@ -7,6 +7,6 @@ task :test do
   HTMLProofer.check_directory("./content", {
     :allow_hash_href => true,
     :check_html => true,
-    :file_ignore => [/javadoc/, /v2/]
+    :file_ignore => [/javadoc/, /v2/, /pydoc/]
     }).run
 end
