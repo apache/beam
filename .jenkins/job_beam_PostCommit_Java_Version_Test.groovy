@@ -51,7 +51,7 @@ matrixJob('beam_PostCommit_Java_Version_Test') {
       common_job_properties.setMavenConfig(delegate)
 
       // Maven build project, excluding Python SDK
-      goals('-B -e -P release clean install -pl !sdks/python coveralls:report -DrepoToken=$COVERALLS_REPO_TOKEN')
+      goals('-B -e -P release clean install coveralls:report -DrepoToken=$COVERALLS_REPO_TOKEN')
 
       // Run WordCountIT
       goals('-B -e -P release clean verify coveralls:report -pl examples/java -DrepoToken=$COVERALLS_REPO_TOKEN -DskipITs=false -Dit.test=WordCountIT -DintegrationTestPipelineOptions=\'[ "--project=apache-beam-testing", "--tempRoot=gs://temp-storage-for-end-to-end-tests", "--runner=org.apache.beam.runners.dataflow.testing.TestDataflowRunner"]\'')
