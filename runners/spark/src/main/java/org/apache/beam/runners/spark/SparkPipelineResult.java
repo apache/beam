@@ -200,18 +200,19 @@ public abstract class SparkPipelineResult implements PipelineResult {
       pipelineExecution.get(); // execution is asynchronous anyway so no need to time-out.
       javaStreamingContext.awaitTerminationOrTimeout(duration.getMillis());
 
+      State terminationState = null;
       switch (javaStreamingContext.getState()) {
          case ACTIVE:
-           this.state = State.RUNNING;
+           terminationState = State.RUNNING;
            break;
          case STOPPED:
-           this.state = State.DONE;
+           terminationState = State.DONE;
            break;
          default:
-           this.state = null;
+           state = State.UNKNOWN;
            break;
        }
-       return state;
+       return terminationState;
     }
 
   }

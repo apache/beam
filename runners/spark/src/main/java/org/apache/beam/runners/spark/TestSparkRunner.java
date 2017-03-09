@@ -124,26 +124,7 @@ public final class TestSparkRunner extends PipelineRunner<SparkPipelineResult> {
     if (isForceStreaming) {
       try {
         result = delegate.run(pipeline);
-        Long timeoutMillis = Duration.standardSeconds(
-            checkNotNull(testSparkPipelineOptions.getTestTimeoutSeconds())).getMillis();
-        Long batchDurationMillis = testSparkPipelineOptions.getBatchIntervalMillis();
-        Instant stopPipelineWatermark =
-            new Instant(testSparkPipelineOptions.getStopPipelineWatermark());
-        // we poll for pipeline status in batch-intervals. while this is not in-sync with Spark's
-        // execution clock, this is good enough.
-        // we break on timeout or end-of-time WM, which ever comes first.
-        Instant globalWatermark;
-        result.waitUntilFinish(Duration.millis(batchDurationMillis));
-        do {
-          SparkTimerInternals sparkTimerInternals =
-              SparkTimerInternals.forStreamFromSources(GlobalWatermarkHolder.get());
-          sparkTimerInternals.advanceWatermark();
-          globalWatermark = sparkTimerInternals.currentInputWatermarkTime();
-          // let another batch-interval period of execution, just to reason about WM propagation.
-          Uninterruptibles.sleepUninterruptibly(batchDurationMillis, TimeUnit.MILLISECONDS);
-        } while ((timeoutMillis -= batchDurationMillis) > 0
-            && globalWatermark.isBefore(stopPipelineWatermark));
-
+        awaitWatermarksOrTimeout(testSparkPipelineOptions, result);
         result.stop();
         PipelineResult.State finishState = result.getState();
         // assert finish state.
@@ -198,6 +179,29 @@ public final class TestSparkRunner extends PipelineRunner<SparkPipelineResult> {
       assertThat(result, testSparkPipelineOptions.getOnSuccessMatcher());
     }
     return result;
+  }
+
+  private static void awaitWatermarksOrTimeout(
+      TestSparkPipelineOptions testSparkPipelineOptions, SparkPipelineResult result) {
+    Long timeoutMillis = Duration.standardSeconds(
+        checkNotNull(testSparkPipelineOptions.getTestTimeoutSeconds())).getMillis();
+    Long batchDurationMillis = testSparkPipelineOptions.getBatchIntervalMillis();
+    Instant stopPipelineWatermark =
+        new Instant(testSparkPipelineOptions.getStopPipelineWatermark());
+    // we poll for pipeline status in batch-intervals. while this is not in-sync with Spark's
+    // execution clock, this is good enough.
+    // we break on timeout or end-of-time WM, which ever comes first.
+    Instant globalWatermark;
+    result.waitUntilFinish(Duration.millis(batchDurationMillis));
+    do {
+      SparkTimerInternals sparkTimerInternals =
+          SparkTimerInternals.global(GlobalWatermarkHolder.get());
+      sparkTimerInternals.advanceWatermark();
+      globalWatermark = sparkTimerInternals.currentInputWatermarkTime();
+      // let another batch-interval period of execution, just to reason about WM propagation.
+      Uninterruptibles.sleepUninterruptibly(batchDurationMillis, TimeUnit.MILLISECONDS);
+    } while ((timeoutMillis -= batchDurationMillis) > 0
+          && globalWatermark.isBefore(stopPipelineWatermark));
   }
 
   @VisibleForTesting

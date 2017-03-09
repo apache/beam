@@ -94,7 +94,7 @@ public class SparkTimerInternals implements TimerInternals {
   }
 
   /** Build a global {@link TimerInternals} for all feeding streams.*/
-  public static SparkTimerInternals forStreamFromSources(
+  public static SparkTimerInternals global(
       @Nullable Broadcast<Map<Integer, SparkWatermarks>> broadcast) {
     return broadcast == null ? forStreamFromSources(Collections.<Integer>emptyList(), null)
         : forStreamFromSources(Lists.newArrayList(broadcast.getValue().keySet()), broadcast);
