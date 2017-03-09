@@ -31,7 +31,8 @@ matrixJob('beam_PostCommit_Java_Version_Test') {
   // Override jdk version here
   axes {
     label('label', 'beam')
-    jdk('JDK 1.7 (latest)',
+    jdk('JDK 1.8 (latest)',
+        'JDK 1.7 (latest)',
         'OpenJDK 7 (on Ubuntu only)',
         'OpenJDK 8 (on Ubuntu only)')
   }
