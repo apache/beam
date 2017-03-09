@@ -1090,7 +1090,7 @@ PCollection<Integer> numbers =
   p.begin()
   .apply(TextIO.Read.named("ReadNumbers")
     .from("gs://my_bucket/path/to/numbers-*.txt")
-    .withCoder(TextualIntegerCoder.of()));```
+    .withCoder(TextualIntegerCoder.of()));
 ```
 
 ```py
