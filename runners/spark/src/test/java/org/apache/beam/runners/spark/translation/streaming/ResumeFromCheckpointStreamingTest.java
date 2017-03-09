@@ -24,6 +24,7 @@ import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
 
+import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.util.concurrent.Uninterruptibles;
@@ -33,10 +34,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.TimeUnit;
+import org.apache.beam.runners.spark.PipelineRule;
 import org.apache.beam.runners.spark.ReuseSparkContextRule;
-import org.apache.beam.runners.spark.SparkPipelineOptions;
 import org.apache.beam.runners.spark.SparkPipelineResult;
-import org.apache.beam.runners.spark.SparkRunner;
+import org.apache.beam.runners.spark.TestSparkPipelineOptions;
 import org.apache.beam.runners.spark.aggregators.AggregatorsAccumulator;
 import org.apache.beam.runners.spark.coders.CoderHelpers;
 import org.apache.beam.runners.spark.metrics.SparkMetricsContainer;
@@ -50,7 +51,6 @@ import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.MetricNameFilter;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.metrics.MetricsFilter;
-import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.transforms.Create;
@@ -82,8 +82,6 @@ import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
-import org.junit.rules.TestName;
 
 
 /**
@@ -92,7 +90,8 @@ import org.junit.rules.TestName;
  * <p>Runs the pipeline reading from a Kafka backlog with a WM function that will move to infinity
  * on a EOF signal.
  * After resuming from checkpoint, a single output (guaranteed by the WM) is asserted, along with
- * {@link Aggregator}s values that are expected to resume from previous count as well.
+ * {@link Aggregator}s and {@link Metrics} values that are expected to resume from previous count
+ * and a side-input that is expected to recover as well.
  */
 public class ResumeFromCheckpointStreamingTest {
   private static final EmbeddedKafkaCluster.EmbeddedZookeeper EMBEDDED_ZOOKEEPER =
@@ -102,11 +101,9 @@ public class ResumeFromCheckpointStreamingTest {
   private static final String TOPIC = "kafka_beam_test_topic";
 
   @Rule
-  public TemporaryFolder tmpFolder = new TemporaryFolder();
+  public final transient ReuseSparkContextRule noContextResue = ReuseSparkContextRule.no();
   @Rule
-  public ReuseSparkContextRule noContextResue = ReuseSparkContextRule.no();
-  @Rule
-  public transient TestName testName = new TestName();
+  public final transient PipelineRule pipelineRule = PipelineRule.streaming();
 
   @BeforeClass
   public static void init() throws IOException {
@@ -144,13 +141,6 @@ public class ResumeFromCheckpointStreamingTest {
 
   @Test
   public void testWithResume() throws Exception {
-    SparkPipelineOptions options = PipelineOptionsFactory.create().as(SparkPipelineOptions.class);
-    options.setRunner(SparkRunner.class);
-    options.setCheckpointDir(tmpFolder.newFolder().toString());
-    options.setCheckpointDurationMillis(500L);
-    options.setJobName(testName.getMethodName());
-    options.setSparkMaster("local[*]");
-
     // write to Kafka
     produce(ImmutableMap.of(
         "k1", new Instant(100),
@@ -164,9 +154,8 @@ public class ResumeFromCheckpointStreamingTest {
             .addNameFilter(MetricNameFilter.inNamespace(ResumeFromCheckpointStreamingTest.class))
             .build();
 
-    // first run will read from Kafka backlog - "auto.offset.reset=smallest"
-    SparkPipelineResult res = run(options);
-    res.waitUntilFinish(Duration.standardSeconds(5));
+    // first run should expect EOT matching the last injected element.
+    SparkPipelineResult res = run(pipelineRule, Optional.of(new Instant(400)), 0);
     // assertions 1:
     long processedMessages1 = res.getAggregatorValue("processedMessages", Long.class);
     assertThat(
@@ -192,8 +181,7 @@ public class ResumeFromCheckpointStreamingTest {
     ));
 
     // recovery should resume from last read offset, and read the second batch of input.
-    res = runAgain(options);
-    res.waitUntilFinish(Duration.standardSeconds(5));
+    res = runAgain(pipelineRule, 1);
     // assertions 2:
     long processedMessages2 = res.getAggregatorValue("processedMessages", Long.class);
     assertThat(
@@ -219,13 +207,15 @@ public class ResumeFromCheckpointStreamingTest {
 
   }
 
-  private SparkPipelineResult runAgain(SparkPipelineOptions options) {
+  private SparkPipelineResult runAgain(PipelineRule pipelineRule, int expectedAssertions) {
     // sleep before next run.
     Uninterruptibles.sleepUninterruptibly(10, TimeUnit.MILLISECONDS);
-    return run(options);
+    return run(pipelineRule, Optional.<Instant>absent(), expectedAssertions);
   }
 
-  private static SparkPipelineResult run(SparkPipelineOptions options) {
+  @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
+  private static SparkPipelineResult run(
+      PipelineRule pipelineRule, Optional<Instant> endOfTimeWatermark, int expectedAssertions) {
     KafkaIO.Read<String, Instant> read = KafkaIO.<String, Instant>read()
         .withBootstrapServers(EMBEDDED_KAFKA_CLUSTER.getBrokerList())
         .withTopics(Collections.singletonList(TOPIC))
@@ -247,14 +237,23 @@ public class ResumeFromCheckpointStreamingTest {
           }
         });
 
-    Pipeline p = Pipeline.create(options);
+    TestSparkPipelineOptions options = pipelineRule.getOptions();
+    options.setSparkMaster("local[*]");
+    options.setCheckpointDurationMillis(options.getBatchIntervalMillis());
+    options.setExpectedAssertions(expectedAssertions);
+    // timeout is per execution so it can be injected by the caller.
+    if (endOfTimeWatermark.isPresent()) {
+      options.setEndOfTimeWatermark(endOfTimeWatermark.get().getMillis());
+    }
+    Pipeline p = pipelineRule.createPipeline();
 
     PCollection<String> expectedCol =
         p.apply(Create.of(ImmutableList.of("side1", "side2")).withCoder(StringUtf8Coder.of()));
     PCollectionView<List<String>> view = expectedCol.apply(View.<String>asList());
 
-    PCollection<Iterable<String>> grouped = p
-        .apply(read.withoutMetadata())
+    PCollection<KV<String, Instant>> kafkaStream = p.apply(read.withoutMetadata());
+
+    PCollection<Iterable<String>> grouped = kafkaStream
         .apply(Keys.<String>create())
         .apply("EOFShallNotPassFn", ParDo.of(new EOFShallNotPassFn(view)).withSideInputs(view))
         .apply(Window.<String>into(FixedWindows.of(Duration.millis(500)))

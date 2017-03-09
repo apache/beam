@@ -19,6 +19,7 @@
 package org.apache.beam.runners.spark;
 
 import java.io.IOException;
+import java.util.Objects;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
@@ -56,11 +57,11 @@ public abstract class SparkPipelineResult implements PipelineResult {
     state = State.RUNNING;
   }
 
-  private RuntimeException runtimeExceptionFrom(final Throwable e) {
+  private static RuntimeException runtimeExceptionFrom(final Throwable e) {
     return (e instanceof RuntimeException) ? (RuntimeException) e : new RuntimeException(e);
   }
 
-  private RuntimeException beamExceptionFrom(final Throwable e) {
+  private static RuntimeException beamExceptionFrom(final Throwable e) {
     // Scala doesn't declare checked exceptions in the bytecode, and the Java compiler
     // won't let you catch something that is not declared, so we can't catch
     // SparkException directly, instead we do an instanceof check.
@@ -107,15 +108,15 @@ public abstract class SparkPipelineResult implements PipelineResult {
     try {
       state = awaitTermination(duration);
     } catch (final TimeoutException e) {
-      state = null;
+      // ignore.
     } catch (final ExecutionException e) {
       state = PipelineResult.State.FAILED;
+      stop();
       throw beamExceptionFrom(e.getCause());
     } catch (final Exception e) {
       state = PipelineResult.State.FAILED;
-      throw beamExceptionFrom(e);
-    } finally {
       stop();
+      throw beamExceptionFrom(e);
     }
 
     return state;
@@ -149,6 +150,9 @@ public abstract class SparkPipelineResult implements PipelineResult {
     @Override
     protected void stop() {
       SparkContextFactory.stopSparkContext(javaSparkContext);
+      if (Objects.equals(state, State.RUNNING)) {
+        state = State.STOPPED;
+      }
     }
 
     @Override
@@ -178,19 +182,35 @@ public abstract class SparkPipelineResult implements PipelineResult {
       // after calling stop, if exception occurs in "grace period" it won't propagate.
       // calling the StreamingContext's waiter with 0 msec will throw any error that might have
       // been thrown during the "grace period".
-      javaStreamingContext.awaitTermination(0);
-      SparkContextFactory.stopSparkContext(javaSparkContext);
+      try {
+        javaStreamingContext.awaitTermination(0);
+        SparkContextFactory.stopSparkContext(javaSparkContext);
+        if (Objects.equals(state, State.RUNNING)) {
+          state = State.STOPPED;
+        }
+      } catch (Exception e) {
+        throw beamExceptionFrom(e);
+      }
     }
 
     @Override
-    protected State awaitTermination(final Duration duration) throws TimeoutException,
-        ExecutionException, InterruptedException {
-      pipelineExecution.get(duration.getMillis(), TimeUnit.MILLISECONDS);
-      if (javaStreamingContext.awaitTerminationOrTimeout(duration.getMillis())) {
-        return State.DONE;
-      } else {
-        return null;
-      }
+    protected State awaitTermination(final Duration duration) throws ExecutionException,
+        InterruptedException {
+      pipelineExecution.get(); // execution is asynchronous anyway so no need to time-out.
+      javaStreamingContext.awaitTerminationOrTimeout(duration.getMillis());
+
+      switch (javaStreamingContext.getState()) {
+         case ACTIVE:
+           this.state = State.RUNNING;
+           break;
+         case STOPPED:
+           this.state = State.DONE;
+           break;
+         default:
+           this.state = null;
+           break;
+       }
+       return state;
     }
 
   }
