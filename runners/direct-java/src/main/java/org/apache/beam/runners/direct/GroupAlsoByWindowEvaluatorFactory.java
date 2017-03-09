@@ -41,10 +41,10 @@ import org.apache.beam.runners.direct.DirectGroupByKey.DirectGroupAlsoByWindow;
 import org.apache.beam.runners.direct.DirectRunner.CommittedBundle;
 import org.apache.beam.runners.direct.DirectRunner.UncommittedBundle;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.transforms.Aggregator;
+import org.apache.beam.sdk.metrics.Counter;
+import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.Triggers;
@@ -116,8 +116,8 @@ class GroupAlsoByWindowEvaluatorFactory implements TransformEvaluatorFactory {
     private final AggregatorContainer.Mutator aggregatorChanges;
 
     private final SystemReduceFn<K, V, Iterable<V>, Iterable<V>, BoundedWindow> reduceFn;
-    private final Aggregator<Long, Long> droppedDueToClosedWindow;
-    private final Aggregator<Long, Long> droppedDueToLateness;
+    private final Counter droppedDueToClosedWindow;
+    private final Counter droppedDueToLateness;
 
     public GroupAlsoByWindowEvaluator(
         final EvaluationContext evaluationContext,
@@ -145,12 +145,10 @@ class GroupAlsoByWindowEvaluatorFactory implements TransformEvaluatorFactory {
       Coder<V> valueCoder =
           application.getTransform().getValueCoder(inputBundle.getPCollection().getCoder());
       reduceFn = SystemReduceFn.buffering(valueCoder);
-      droppedDueToClosedWindow = aggregatorChanges.createSystemAggregator(stepContext,
-          GroupAlsoByWindowsDoFn.DROPPED_DUE_TO_CLOSED_WINDOW_COUNTER,
-          Sum.ofLongs());
-      droppedDueToLateness = aggregatorChanges.createSystemAggregator(stepContext,
-          GroupAlsoByWindowsDoFn.DROPPED_DUE_TO_LATENESS_COUNTER,
-          Sum.ofLongs());
+      droppedDueToClosedWindow = Metrics.counter(
+          "main", GroupAlsoByWindowsDoFn.DROPPED_DUE_TO_CLOSED_WINDOW_COUNTER);
+      droppedDueToLateness = Metrics.counter(
+          "main", GroupAlsoByWindowsDoFn.DROPPED_DUE_TO_LATENESS_COUNTER);
     }
 
     @Override
@@ -230,7 +228,7 @@ class GroupAlsoByWindowEvaluatorFactory implements TransformEvaluatorFactory {
                           .isBefore(timerInternals.currentInputWatermarkTime());
                   if (expired) {
                     // The element is too late for this window.
-                    droppedDueToLateness.addValue(1L);
+                    droppedDueToLateness.inc();
                     WindowTracing.debug(
                         "GroupAlsoByWindow: Dropping element at {} for key: {}; "
                             + "window: {} since it is too far behind inputWatermark: {}",

@@ -19,7 +19,7 @@ package org.apache.beam.runners.core;
 
 import java.util.Map;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.transforms.Aggregator;
+import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
@@ -50,7 +50,7 @@ public class StatefulDoFnRunner<InputT, OutputT, W extends BoundedWindow>
 
   private final DoFnRunner<InputT, OutputT> doFnRunner;
   private final WindowingStrategy<?, ?> windowingStrategy;
-  private final Aggregator<Long, Long> droppedDueToLateness;
+  private final Counter droppedDueToLateness;
   private final CleanupTimer cleanupTimer;
   private final StateCleaner stateCleaner;
 
@@ -59,7 +59,7 @@ public class StatefulDoFnRunner<InputT, OutputT, W extends BoundedWindow>
       WindowingStrategy<?, ?> windowingStrategy,
       CleanupTimer cleanupTimer,
       StateCleaner<W> stateCleaner,
-      Aggregator<Long, Long> droppedDueToLateness) {
+      Counter droppedDueToLateness) {
     this.doFnRunner = doFnRunner;
     this.windowingStrategy = windowingStrategy;
     this.cleanupTimer = cleanupTimer;
@@ -102,7 +102,7 @@ public class StatefulDoFnRunner<InputT, OutputT, W extends BoundedWindow>
     Instant inputWM = cleanupTimer.currentInputWatermarkTime();
     if (gcTime.isBefore(inputWM)) {
       // The element is too late for this window.
-      droppedDueToLateness.addValue(1L);
+      droppedDueToLateness.inc();
       WindowTracing.debug(
           "StatefulDoFnRunner.processElement/onTimer: Dropping element for window:{} "
               + "since too far behind inputWatermark:{}", window, inputWM);

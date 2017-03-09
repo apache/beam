@@ -26,9 +26,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import java.util.Arrays;
 import org.apache.beam.runners.core.LateDataDroppingDoFnRunner.LateDataFilter;
-import org.apache.beam.sdk.transforms.Aggregator;
-import org.apache.beam.sdk.transforms.Combine.CombineFn;
-import org.apache.beam.sdk.transforms.Sum;
+import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -60,8 +58,8 @@ public class LateDataDroppingDoFnRunnerTest {
   public void testLateDataFilter() throws Exception {
     when(mockTimerInternals.currentInputWatermarkTime()).thenReturn(new Instant(15L));
 
-    InMemoryLongSumAggregator droppedDueToLateness =
-        new InMemoryLongSumAggregator("droppedDueToLateness");
+    InMemoryCounter droppedDueToLateness =
+        new InMemoryCounter("droppedDueToLateness");
     LateDataFilter lateDataFilter = new LateDataFilter(
         WindowingStrategy.of(WINDOW_FN), mockTimerInternals, droppedDueToLateness);
 
@@ -92,28 +90,41 @@ public class LateDataDroppingDoFnRunnerTest {
         Arrays.asList(WINDOW_FN.assignWindow(timestamp)),
         PaneInfo.NO_FIRING);
   }
-
-  private static class InMemoryLongSumAggregator implements Aggregator<Long, Long> {
+  private static class InMemoryCounter implements Counter {
     private final String name;
     private long sum = 0;
 
-    public InMemoryLongSumAggregator(String name) {
+    public InMemoryCounter(String name) {
       this.name = name;
     }
 
     @Override
-    public void addValue(Long value) {
-      sum += value;
+    public void dec() {
+      dec(1);
     }
 
     @Override
+    public void inc() {
+      inc(1);
+    }
+
+    @Override
+    public void dec(long n) {
+      inc(-n);
+    }
+
     public String getName() {
       return name;
     }
 
     @Override
-    public CombineFn<Long, ?, Long> getCombineFn() {
-      return Sum.ofLongs();
+    public void inc(long n) {
+      sum += n;
+    }
+
+
+    public long getSum() {
+      return sum;
     }
   }
 }

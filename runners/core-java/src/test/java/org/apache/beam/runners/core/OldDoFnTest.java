@@ -18,7 +18,6 @@
 package org.apache.beam.runners.core;
 
 import static org.hamcrest.Matchers.empty;
-import static org.hamcrest.Matchers.isA;
 import static org.junit.Assert.assertThat;
 
 import java.io.Serializable;
@@ -95,19 +94,6 @@ public class OldDoFnTest implements Serializable {
     thrown.expectMessage("already exists");
 
     doFn.createAggregator(name, combiner);
-  }
-
-  @Test
-  public void testCreateAggregatorThrowsWhenAggregatorsAreFinal() throws Exception {
-    OldDoFn<String, String> fn = new OldDoFn<String, String>() {
-      @Override
-      public void processElement(ProcessContext c) throws Exception { }
-    };
-    OldDoFn<String, String>.Context context = createContext(fn);
-    context.setupDelegateAggregators();
-
-    thrown.expect(isA(IllegalStateException.class));
-    fn.createAggregator("anyAggregate", Max.ofIntegers());
   }
 
   private OldDoFn<String, String>.Context createContext(OldDoFn<String, String> fn) {

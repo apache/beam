@@ -40,10 +40,11 @@ import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.MapCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
+import org.apache.beam.sdk.metrics.Counter;
+import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.runners.PipelineRunner;
 import org.apache.beam.sdk.runners.TransformHierarchy.Node;
-import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Flatten;
@@ -53,7 +54,6 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.SimpleFunction;
-import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.WithKeys;
@@ -1021,10 +1021,8 @@ public class PAssert {
    */
   private static class SideInputCheckerDoFn<ActualT> extends DoFn<Integer, Void> {
     private final SerializableFunction<ActualT, Void> checkerFn;
-    private final Aggregator<Integer, Integer> success =
-        createAggregator(SUCCESS_COUNTER, Sum.ofIntegers());
-    private final Aggregator<Integer, Integer> failure =
-        createAggregator(FAILURE_COUNTER, Sum.ofIntegers());
+    private final Counter success = Metrics.counter(PAssert.class, SUCCESS_COUNTER);
+    private final Counter failure = Metrics.counter(PAssert.class, FAILURE_COUNTER);
     private final PCollectionView<ActualT> actual;
 
     private SideInputCheckerDoFn(
@@ -1056,10 +1054,8 @@ public class PAssert {
    */
   private static class GroupedValuesCheckerDoFn<ActualT> extends DoFn<ActualT, Void> {
     private final SerializableFunction<ActualT, Void> checkerFn;
-    private final Aggregator<Integer, Integer> success =
-        createAggregator(SUCCESS_COUNTER, Sum.ofIntegers());
-    private final Aggregator<Integer, Integer> failure =
-        createAggregator(FAILURE_COUNTER, Sum.ofIntegers());
+    private final Counter success = Metrics.counter(PAssert.class, SUCCESS_COUNTER);
+    private final Counter failure = Metrics.counter(PAssert.class, FAILURE_COUNTER);
 
     private GroupedValuesCheckerDoFn(SerializableFunction<ActualT, Void> checkerFn) {
       this.checkerFn = checkerFn;
@@ -1081,10 +1077,8 @@ public class PAssert {
    */
   private static class SingletonCheckerDoFn<ActualT> extends DoFn<Iterable<ActualT>, Void> {
     private final SerializableFunction<ActualT, Void> checkerFn;
-    private final Aggregator<Integer, Integer> success =
-        createAggregator(SUCCESS_COUNTER, Sum.ofIntegers());
-    private final Aggregator<Integer, Integer> failure =
-        createAggregator(FAILURE_COUNTER, Sum.ofIntegers());
+    private final Counter success = Metrics.counter(PAssert.class, SUCCESS_COUNTER);
+    private final Counter failure = Metrics.counter(PAssert.class, FAILURE_COUNTER);
 
     private SingletonCheckerDoFn(SerializableFunction<ActualT, Void> checkerFn) {
       this.checkerFn = checkerFn;
@@ -1100,14 +1094,14 @@ public class PAssert {
   private static <ActualT> void doChecks(
       ActualT actualContents,
       SerializableFunction<ActualT, Void> checkerFn,
-      Aggregator<Integer, Integer> successAggregator,
-      Aggregator<Integer, Integer> failureAggregator) {
+      Counter successCounter,
+      Counter failureCounter) {
     try {
       checkerFn.apply(actualContents);
-      successAggregator.addValue(1);
+      successCounter.inc();
     } catch (Throwable t) {
       LOG.error("PAssert failed expectations.", t);
-      failureAggregator.addValue(1);
+      failureCounter.inc();
       throw t;
     }
   }

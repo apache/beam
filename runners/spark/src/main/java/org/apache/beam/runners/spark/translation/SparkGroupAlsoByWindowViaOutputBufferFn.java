@@ -34,8 +34,8 @@ import org.apache.beam.runners.core.UnsupportedSideInputReader;
 import org.apache.beam.runners.core.triggers.ExecutableTriggerStateMachine;
 import org.apache.beam.runners.core.triggers.TriggerStateMachines;
 import org.apache.beam.runners.spark.aggregators.NamedAggregators;
-import org.apache.beam.sdk.transforms.Aggregator;
-import org.apache.beam.sdk.transforms.Sum;
+import org.apache.beam.sdk.metrics.Counter;
+import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.Triggers;
@@ -59,7 +59,7 @@ public class SparkGroupAlsoByWindowViaOutputBufferFn<K, InputT, W extends Bounde
   private final StateInternalsFactory<K> stateInternalsFactory;
   private final SystemReduceFn<K, InputT, Iterable<InputT>, Iterable<InputT>, W> reduceFn;
   private final SparkRuntimeContext runtimeContext;
-  private final Aggregator<Long, Long> droppedDueToClosedWindow;
+  private final Counter droppedDueToClosedWindow;
 
 
   public SparkGroupAlsoByWindowViaOutputBufferFn(
@@ -73,10 +73,8 @@ public class SparkGroupAlsoByWindowViaOutputBufferFn<K, InputT, W extends Bounde
     this.reduceFn = reduceFn;
     this.runtimeContext = runtimeContext;
 
-    droppedDueToClosedWindow = runtimeContext.createAggregator(
-        accumulator,
-        GroupAlsoByWindowsDoFn.DROPPED_DUE_TO_CLOSED_WINDOW_COUNTER,
-        Sum.ofLongs());
+    droppedDueToClosedWindow = Metrics.counter(
+        "main", GroupAlsoByWindowsDoFn.DROPPED_DUE_TO_CLOSED_WINDOW_COUNTER);
   }
 
   @Override

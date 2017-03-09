@@ -24,10 +24,10 @@ import org.apache.beam.runners.core.StatefulDoFnRunner.StateCleaner;
 import org.apache.beam.runners.core.StatefulDoFnRunner.StateInternalsStateCleaner;
 import org.apache.beam.runners.core.StatefulDoFnRunner.TimeInternalsCleanupTimer;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.metrics.Counter;
+import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.SideInputReader;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -115,7 +115,7 @@ public class DoFnRunners {
           DoFnRunner<KeyedWorkItem<K, InputT>, KV<K, OutputT>> wrappedRunner,
           StepContext stepContext,
           WindowingStrategy<?, W> windowingStrategy,
-          Aggregator<Long, Long> droppedDueToLatenessAggregator) {
+          Counter droppedDueToLatenessAggregator) {
     return new LateDataDroppingDoFnRunner<>(
         wrappedRunner,
         windowingStrategy,
@@ -136,9 +136,8 @@ public class DoFnRunners {
           StepContext stepContext,
           AggregatorFactory aggregatorFactory,
           WindowingStrategy<?, ?> windowingStrategy) {
-    Aggregator<Long, Long> droppedDueToLateness = aggregatorFactory.createAggregatorForDoFn(
-        fn.getClass(), stepContext, StatefulDoFnRunner.DROPPED_DUE_TO_LATENESS_COUNTER,
-        Sum.ofLongs());
+    Counter droppedDueToLateness = Metrics.counter(
+        "main", StatefulDoFnRunner.DROPPED_DUE_TO_LATENESS_COUNTER);
 
     CleanupTimer cleanupTimer =
         new TimeInternalsCleanupTimer(stepContext.timerInternals(), windowingStrategy);

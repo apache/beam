@@ -25,6 +25,7 @@ import static org.hamcrest.Matchers.is;
 import com.google.common.annotations.VisibleForTesting;
 import java.io.File;
 import java.io.IOException;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.runners.core.UnboundedReadFromBoundedSource;
@@ -35,6 +36,9 @@ import org.apache.beam.runners.spark.metrics.SparkMetricsContainer;
 import org.apache.beam.runners.spark.util.GlobalWatermarkHolder;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.BoundedReadFromUnboundedSource;
+import org.apache.beam.sdk.metrics.MetricNameFilter;
+import org.apache.beam.sdk.metrics.MetricResult;
+import org.apache.beam.sdk.metrics.MetricsFilter;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsValidator;
 import org.apache.beam.sdk.runners.PTransformOverrideFactory;
@@ -105,7 +109,7 @@ public final class TestSparkRunner extends PipelineRunner<SparkPipelineResult> {
     }
     SparkPipelineResult result = null;
 
-    int expectedNumberOfAssertions = PAssert.countAsserts(pipeline);
+    long expectedNumberOfAssertions = PAssert.countAsserts(pipeline);
 
     // clear state of Aggregators, Metrics and Watermarks if exists.
     AggregatorsAccumulator.clear();
@@ -120,8 +124,30 @@ public final class TestSparkRunner extends PipelineRunner<SparkPipelineResult> {
         result = delegate.run(pipeline);
         Long timeout = testSparkPipelineOptions.getTestTimeoutSeconds();
         result.waitUntilFinish(Duration.standardSeconds(checkNotNull(timeout)));
+
+        MetricsFilter emptyFilter = MetricsFilter.builder().build();
+        Iterator<MetricResult<Long>> it = result.metrics()
+            .queryMetrics(emptyFilter).counters().iterator();
+        LOG.debug("Listing Metrics counters:");
+        while (it.hasNext()){
+          MetricResult<Long> next = it.next();
+          LOG.debug(String.format("Namespace: %s | Name: %s | Step: %s | Attempted: %d",
+              next.name().namespace(), next.name().name(), next.step(), next.attempted()));
+        }
         // validate assertion succeeded (at least once).
-        int successAssertions = result.getAggregatorValue(PAssert.SUCCESS_COUNTER, Integer.class);
+        MetricsFilter successCounterFilter =
+            MetricsFilter.builder()
+                .addNameFilter(
+                    MetricNameFilter.named(PAssert.class.getName(), PAssert.SUCCESS_COUNTER))
+                .build();
+        Iterator<MetricResult<Long>> successCounterIterator = result.metrics().queryMetrics(
+            successCounterFilter).counters().iterator();
+        long successAssertions = 0;
+        // Must do this aggregation, because PAssert inserts a new step per assertion, and Metrics
+        // are split by step. The following loop adds the counters from different steps.
+        while (successCounterIterator.hasNext()) {
+          successAssertions += successCounterIterator.next().attempted().longValue();
+        }
         assertThat(
             String.format(
                 "Expected %d successful assertions, but found %d.",
@@ -129,11 +155,23 @@ public final class TestSparkRunner extends PipelineRunner<SparkPipelineResult> {
             successAssertions,
             is(expectedNumberOfAssertions));
         // validate assertion didn't fail.
-        int failedAssertions = result.getAggregatorValue(PAssert.FAILURE_COUNTER, Integer.class);
+        MetricsFilter failureCounterFilter =
+            MetricsFilter.builder()
+                .addNameFilter(
+                    MetricNameFilter.named(PAssert.class.getName(), PAssert.FAILURE_COUNTER))
+                .build();
+        Iterator<MetricResult<Long>> failureCounterIterator = result.metrics().queryMetrics(
+            failureCounterFilter).counters().iterator();
+
+        long failedAssertions = 0;
+        // Must do this aggregation, because PAssert inserts a new step, and Metrics are split by
+        // step. The following loop adds the counters from different steps.
+        while (failureCounterIterator.hasNext()) {
+          failedAssertions += failureCounterIterator.next().attempted().longValue();
+        }
         assertThat(
             String.format("Found %d failed assertions.", failedAssertions),
-            failedAssertions,
-            is(0));
+            failedAssertions, is(0L));
 
         LOG.info(
             String.format(

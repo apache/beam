@@ -37,12 +37,10 @@ import org.apache.beam.runners.apex.translation.utils.ApexStreamTuple;
 import org.apache.beam.runners.apex.translation.utils.NoOpStepContext;
 import org.apache.beam.runners.apex.translation.utils.SerializablePipelineOptions;
 import org.apache.beam.runners.apex.translation.utils.ValueAndCoderKryoSerializable;
-import org.apache.beam.runners.core.AggregatorFactory;
 import org.apache.beam.runners.core.DoFnAdapters;
 import org.apache.beam.runners.core.DoFnRunner;
 import org.apache.beam.runners.core.DoFnRunners;
 import org.apache.beam.runners.core.DoFnRunners.OutputManager;
-import org.apache.beam.runners.core.ExecutionContext;
 import org.apache.beam.runners.core.OldDoFn;
 import org.apache.beam.runners.core.PushbackSideInputDoFnRunner;
 import org.apache.beam.runners.core.SideInputHandler;
@@ -50,8 +48,6 @@ import org.apache.beam.runners.core.StateInternals;
 import org.apache.beam.runners.core.StateInternalsFactory;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.ListCoder;
-import org.apache.beam.sdk.transforms.Aggregator;
-import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.util.NullSideInputReader;
 import org.apache.beam.sdk.util.SideInputReader;
@@ -313,7 +309,7 @@ public class ApexParDoOperator<InputT, OutputT> extends BaseOperator implements 
         mainOutputTag,
         sideOutputTags,
         new NoOpStepContext(),
-        new NoOpAggregatorFactory(),
+        null,
         windowingStrategy
         );
 
@@ -335,45 +331,6 @@ public class ApexParDoOperator<InputT, OutputT> extends BaseOperator implements 
 
   @Override
   public void endWindow() {
-  }
-
-  /**
-   * TODO: Placeholder for aggregation, to be implemented for embedded and cluster mode.
-   * It is called from {@link org.apache.beam.runners.core.SimpleDoFnRunner}.
-   */
-  public static class NoOpAggregatorFactory implements AggregatorFactory {
-
-    private NoOpAggregatorFactory() {
-    }
-
-    @Override
-    public <InputT, AccumT, OutputT> Aggregator<InputT, OutputT> createAggregatorForDoFn(
-        Class<?> fnClass, ExecutionContext.StepContext step,
-        String name, CombineFn<InputT, AccumT, OutputT> combine) {
-      return new NoOpAggregator<>();
-    }
-
-    private static class NoOpAggregator<InputT, OutputT> implements Aggregator<InputT, OutputT>,
-        java.io.Serializable {
-      private static final long serialVersionUID = 1L;
-
-      @Override
-      public void addValue(InputT value) {
-      }
-
-      @Override
-      public String getName() {
-        // TODO Auto-generated method stub
-        return null;
-      }
-
-      @Override
-      public CombineFn<InputT, ?, OutputT> getCombineFn() {
-        // TODO Auto-generated method stub
-        return null;
-      }
-
-    };
   }
 
   private static class LongMin {

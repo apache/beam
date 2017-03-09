@@ -42,6 +42,9 @@ import org.apache.beam.runners.spark.util.GlobalWatermarkHolder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.metrics.CounterCell;
+import org.apache.beam.sdk.metrics.MetricName;
+import org.apache.beam.sdk.metrics.MetricsContainer;
 import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.Sum;
@@ -181,12 +184,13 @@ public class SparkGroupAlsoByWindowViaWindowSet {
                 ((FullWindowedValueCoder<InputT>) wvCoder).getValueCoder());
         final OutputWindowedValueHolder<K, InputT> outputHolder =
             new OutputWindowedValueHolder<>();
-        // use in memory Aggregators since Spark Accumulators are not resilient
+        // use CounterCell since Spark Accumulators are not resilient
         // in stateful operators, once done with this partition.
-        final InMemoryLongSumAggregator droppedDueToClosedWindow = new InMemoryLongSumAggregator(
-            GroupAlsoByWindowsDoFn.DROPPED_DUE_TO_CLOSED_WINDOW_COUNTER);
-        final InMemoryLongSumAggregator droppedDueToLateness = new InMemoryLongSumAggregator(
-            GroupAlsoByWindowsDoFn.DROPPED_DUE_TO_LATENESS_COUNTER);
+        MetricsContainer temporaryContainer = new MetricsContainer("internalContainer");
+        final CounterCell droppedDueToClosedWindow = temporaryContainer.getCounter(
+            MetricName.named("main", GroupAlsoByWindowsDoFn.DROPPED_DUE_TO_CLOSED_WINDOW_COUNTER));
+        final CounterCell droppedDueToLateness = temporaryContainer.getCounter(
+            MetricName.named("main", GroupAlsoByWindowsDoFn.DROPPED_DUE_TO_LATENESS_COUNTER));
 
         AbstractIterator<
             Tuple2</*K*/ ByteArray, Tuple2<StateAndTimers, /*WV<KV<K, Itr<I>>>*/ List<byte[]>>>>
@@ -292,15 +296,17 @@ public class SparkGroupAlsoByWindowViaWindowSet {
         };
 
         // log if there's something to log.
-        long lateDropped = droppedDueToLateness.getSum();
+        long lateDropped = droppedDueToLateness.getCumulative().longValue();
         if (lateDropped > 0) {
           LOG.info(String.format("Dropped %d elements due to lateness.", lateDropped));
-          droppedDueToLateness.zero();
+          // Reset the counter back to zero.
+          droppedDueToLateness.dec(lateDropped);
         }
-        long closedWindowDropped = droppedDueToClosedWindow.getSum();
+        long closedWindowDropped = droppedDueToClosedWindow.getCumulative().longValue();
         if (closedWindowDropped > 0) {
           LOG.info(String.format("Dropped %d elements due to closed window.", closedWindowDropped));
-          droppedDueToClosedWindow.zero();
+          // Reset the counter back to zero.
+          droppedDueToClosedWindow.dec(closedWindowDropped);
         }
 
         return scala.collection.JavaConversions.asScalaIterator(outIter);
