@@ -266,6 +266,12 @@ class BytesCoder(FastCoder):
   def is_deterministic(self):
     return True
 
+  def __eq__(self, other):
+    return type(self) == type(other)
+
+  def __hash__(self):
+    return hash(type(self))
+
 
 class VarIntCoder(FastCoder):
   """Variable-length integer coder."""
@@ -275,6 +281,12 @@ class VarIntCoder(FastCoder):
 
   def is_deterministic(self):
     return True
+
+  def __eq__(self, other):
+    return type(self) == type(other)
+
+  def __hash__(self):
+    return hash(type(self))
 
 
 class FloatCoder(FastCoder):
@@ -286,6 +298,12 @@ class FloatCoder(FastCoder):
   def is_deterministic(self):
     return True
 
+  def __eq__(self, other):
+    return type(self) == type(other)
+
+  def __hash__(self):
+    return hash(type(self))
+
 
 class TimestampCoder(FastCoder):
   """A coder used for timeutil.Timestamp values."""
@@ -295,6 +313,12 @@ class TimestampCoder(FastCoder):
 
   def is_deterministic(self):
     return True
+
+  def __eq__(self, other):
+    return type(self) == type(other)
+
+  def __hash__(self):
+    return hash(type(self))
 
 
 class SingletonCoder(FastCoder):
@@ -308,6 +332,12 @@ class SingletonCoder(FastCoder):
 
   def is_deterministic(self):
     return True
+
+  def __eq__(self, other):
+    return type(self) == type(other) and self._value == other._value
+
+  def __hash__(self):
+    return hash(self._value)
 
 
 def maybe_dill_dumps(o):
@@ -364,6 +394,12 @@ class _PickleCoderBase(FastCoder):
 
   def value_coder(self):
     return self
+
+  def __eq__(self, other):
+    return type(self) == type(other)
+
+  def __hash__(self):
+    return hash(type(self))
 
 
 class PickleCoder(_PickleCoderBase):
@@ -446,6 +482,12 @@ class FastPrimitivesCoder(FastCoder):
   def value_coder(self):
     return self
 
+  def __eq__(self, other):
+    return type(self) == type(other)
+
+  def __hash__(self):
+    return hash(type(self))
+
 
 class Base64PickleCoder(Coder):
   """Coder of objects by Python pickle, then base64 encoding."""
@@ -502,6 +544,13 @@ class ProtoCoder(FastCoder):
     # TODO(vikasrk): A proto message can be deterministic if it does not contain
     # a Map.
     return False
+
+  def __eq__(self, other):
+    return (type(self) == type(other)
+            and self.proto_message_type == other.proto_message_type)
+
+  def __hash__(self):
+    return hash(self.proto_message_type)
 
   @staticmethod
   def from_type_hint(typehint, unused_registry):
@@ -563,6 +612,13 @@ class TupleCoder(FastCoder):
   def __repr__(self):
     return 'TupleCoder[%s]' % ', '.join(str(c) for c in self._coders)
 
+  def __eq__(self, other):
+    return (type(self) == type(other)
+            and self._coders == self._coders)
+
+  def __hash__(self):
+    return hash(self._coders)
+
 
 class TupleSequenceCoder(FastCoder):
   """Coder of homogeneous tuple objects."""
@@ -585,6 +641,13 @@ class TupleSequenceCoder(FastCoder):
 
   def __repr__(self):
     return 'TupleSequenceCoder[%r]' % self._elem_coder
+
+  def __eq__(self, other):
+    return (type(self) == type(other)
+            and self._elem_coder == self._elem_coder)
+
+  def __hash__(self):
+    return hash((type(self), self._elem_coder))
 
 
 class IterableCoder(FastCoder):
@@ -618,6 +681,13 @@ class IterableCoder(FastCoder):
 
   def __repr__(self):
     return 'IterableCoder[%r]' % self._elem_coder
+
+  def __eq__(self, other):
+    return (type(self) == type(other)
+            and self._elem_coder == self._elem_coder)
+
+  def __hash__(self):
+    return hash((type(self), self._elem_coder))
 
 
 class WindowCoder(PickleCoder):
@@ -662,6 +732,12 @@ class IntervalWindowCoder(FastCoder):
     return {
         '@type': 'kind:interval_window',
     }
+
+  def __eq__(self, other):
+    return type(self) == type(other)
+
+  def __hash__(self):
+    return hash(type(self))
 
 
 class WindowedValueCoder(FastCoder):
@@ -709,6 +785,16 @@ class WindowedValueCoder(FastCoder):
   def __repr__(self):
     return 'WindowedValueCoder[%s]' % self.wrapped_value_coder
 
+  def __eq__(self, other):
+    return (type(self) == type(other)
+            and self.wrapped_value_coder == other.wrapped_value_coder
+            and self.timestamp_coder == other.timestamp_coder
+            and self.window_coder == other.window_coder)
+
+  def __hash__(self):
+    return hash(
+        (self.wrapped_value_coder, self.timestamp_coder, self.window_coder))
+
 
 class LengthPrefixCoder(FastCoder):
   """Coder which prefixes the length of the encoded object in the stream."""
@@ -740,3 +826,10 @@ class LengthPrefixCoder(FastCoder):
 
   def __repr__(self):
     return 'LengthPrefixCoder[%r]' % self._value_coder
+
+  def __eq__(self, other):
+    return (type(self) == type(other)
+            and self._value_coder == other._value_coder)
+
+  def __hash__(self):
+    return hash((type(self), self._value_coder))
