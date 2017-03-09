@@ -1,3 +1,4 @@
+#!/bin/bash
 #
 #    Licensed to the Apache Software Foundation (ASF) under one or more
 #    contributor license agreements.  See the NOTICE file distributed with
@@ -15,18 +16,4 @@
 #    limitations under the License.
 #
 
-apiVersion: v1
-kind: Service
-metadata:
-  name: elasticsearch-discovery
-  labels:
-    component: elasticsearch
-    role: master
-spec:
-  selector:
-    component: elasticsearch
-    role: master
-  ports:
-  - name: transport
-    port: 9300
-    protocol: TCP
+kubectl delete rc cassandra
