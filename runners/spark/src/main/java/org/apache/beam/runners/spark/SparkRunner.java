@@ -174,6 +174,10 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
       // register Watermarks listener to broadcast the advanced WMs.
       jssc.addStreamingListener(new JavaStreamingListenerWrapper(new WatermarksListener(jssc)));
 
+      // The reason we call initAccumulators here even though it is called in
+      // SparkRunnerStreamingContextFactory is because the factory is not called when resuming
+      // from checkpoint (When not resuming from checkpoint initAccumulators will be called twice
+      // but this is fine since it is idempotent).
       initAccumulators(mOptions, jssc.sparkContext());
 
       startPipeline = executorService.submit(new Runnable() {
@@ -190,10 +194,6 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
       final JavaSparkContext jsc = SparkContextFactory.getSparkContext(mOptions);
       final EvaluationContext evaluationContext = new EvaluationContext(jsc, pipeline);
 
-      // The reason we call initAccumulators here even though it is called in
-      // SparkRunnerStreamingContextFactory is because the factory is not called when resuming
-      // from checkpoint (When not resuming from checkpoint initAccumulators will be called twice
-      // but this is fine since it is idempotent).
       initAccumulators(mOptions, jsc);
 
       startPipeline = executorService.submit(new Runnable() {
