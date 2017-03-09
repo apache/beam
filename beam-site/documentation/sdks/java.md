@@ -21,22 +21,5 @@ See the [Java API Reference]({{ site.baseurl }}/documentation/sdks/javadoc/) for
 The Java SDK supports all features currently supported by the Beam model.
 
 
-## Supported IO Connectors
-
-* Amazon Kinesis
-* Apache Hadoop's `FileInputFormat` in Hadoop Distributed File System (HDFS)
-* Apache HBase
-* Apache Kafka
-* Avro Files
-* Google BigQuery
-* Google Cloud Bigtable
-* Google Cloud Datastore
-* Google Cloud Pub/Sub
-* Google Cloud Storage
-* Java Database Connectivity (JDBC)
-* Java Message Service (JMS)
-* MongoDB
-* Text Files
-* XML Files
-
-
+## Pipeline I/O
+See the [Beam-provided I/O Transforms]({{site.baseurl }}/documentation/io/built-in/) page for a list of the currently available I/O transforms.
