@@ -1,5 +1,4 @@
-#!/bin/bash
-#
+#!/bin/sh
 #    Licensed to the Apache Software Foundation (ASF) under one or more
 #    contributor license agreements.  See the NOTICE file distributed with
 #    this work for additional information regarding copyright ownership.
@@ -16,9 +15,8 @@
 #    limitations under the License.
 #
 
-# Delete elasticsearch services and deployments.
-kubectl delete -f es-service.yaml
-kubectl delete -f es-discovery-service.yaml
-kubectl delete -f es-client-node.yaml
-kubectl delete -f es-data-node.yaml
-kubectl delete -f es-master.yaml
+# Create Elasticsearch services and deployments.
+kubectl create -f es-services.yaml
+# Wait until es-master_rc deployment is provisioned
+sleep 2m
+kubectl create -f es-client-data-node-deployment.yaml

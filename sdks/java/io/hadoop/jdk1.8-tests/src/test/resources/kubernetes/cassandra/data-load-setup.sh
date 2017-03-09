@@ -16,7 +16,7 @@
 
 #!/bin/sh
 
-# load YCSB tool
+# Load YCSB tool
 echo "Downloading YCSB tool"
 echo "------------------------------"
 curl -O --location https://github.com/brianfrankcooper/YCSB/releases/download/0.12.0/ycsb-0.12.0.tar.gz

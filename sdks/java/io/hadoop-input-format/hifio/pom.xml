@@ -14,26 +14,48 @@
     WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
     See the License for the specific language governing permissions and
     limitations under the License.
--->
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+--><project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
   <parent>
-    <groupId>org.apache.beam</groupId>
-    <artifactId>beam-sdks-java-io-hadoop</artifactId>
-    <version>0.7.0-SNAPSHOT</version>
+    <groupId>hadoop</groupId>
+    <artifactId>beam-sdks-java-io-hadoop-input-format</artifactId>
+    <version>0.6.0-SNAPSHOT</version>
     <relativePath>../pom.xml</relativePath>
   </parent>
-  <groupId>org.apache.beam</groupId>
-  <artifactId>beam-sdks-java-io-hadoop-input-format</artifactId>
-  <name>Apache Beam :: SDKs :: Java :: IO :: Hadoop :: input-format</name>
+  <groupId>hadoop1</groupId>
+  <artifactId>beam-sdks-java-io-hadoop-input-format-hifio</artifactId>
+  <name>Apache Beam :: SDKs :: Java :: IO :: Hadoop Input Format :: hifio</name>
+
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-jar-plugin</artifactId>
+      </plugin>
+    </plugins>
+  </build>
 
   <properties>
     <log4j.core.version>2.6.2</log4j.core.version>
     <hadoop.common.version>2.7.0</hadoop.common.version>
+    <findbugs.jsr305.version>3.0.1</findbugs.jsr305.version>
+    <slf4j.api.version>1.7.14</slf4j.api.version>
     <guava.version>19.0</guava.version>
   </properties>
 
   <dependencies>
+<!--     <dependency>
+      <groupId>com.fasterxml.jackson.core</groupId>
+      <artifactId>jackson-annotations</artifactId>
+    </dependency> -->
     <dependency>
       <groupId>com.google.guava</groupId>
       <artifactId>guava</artifactId>
@@ -42,13 +64,15 @@
     <dependency>
       <groupId>org.slf4j</groupId>
       <artifactId>slf4j-api</artifactId>
+      <version>${slf4j.api.version}</version>
     </dependency>
     <dependency>
       <groupId>com.google.code.findbugs</groupId>
       <artifactId>jsr305</artifactId>
+      <version>${findbugs.jsr305.version}</version>
     </dependency>
 
-    <!-- compile dependencies -->
+	<!-- compile dependencies -->
     <dependency>
       <groupId>com.google.auto.value</groupId>
       <artifactId>auto-value</artifactId>
@@ -71,7 +95,7 @@
       <scope>provided</scope>
     </dependency>
 
-    <!-- test dependencies -->
+	<!-- test dependencies -->
     <dependency>
       <groupId>org.apache.beam</groupId>
       <artifactId>beam-sdks-java-core</artifactId>

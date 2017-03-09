@@ -1,3 +1,7 @@
+# Script to populate data on Elasticsearch
+# Hashcode for 1000 records is ed36c09b5e24a95fd8d3cc711a043a85320bb47d, 
+# For test with query to select one record from 1000 docs, hashcode is 83c108ff81e87b6f3807c638e6bb9a9e3d430dc7
+# Hashcode for 50m records (~20 gigs) is aff7390ee25c4c330f0a58dfbfe335421b11e405 
 #!/usr/bin/python
 
 import json
@@ -84,28 +88,31 @@ def get_data_for_format(format,count):
         if count%2 == 0:
            return_val = True
         else:
-           return_val=False
+           return_val= False
 
     elif field_type == "str":
-        return_val = field_name+"{0}".format(count)
+        return_val = field_name + str(count)
 
     elif field_type == "int":
         return_val = count
     
     elif field_type == "ipv4":
-        return_val = "{0}.{1}.{2}.{3}".format(1,2,3,count)
+        return_val = "{0}.{1}.{2}.{3}".format(1,2,3,count%255)
 
     elif field_type in ["ts", "tstxt"]:
         return_val = int(count * 1000) if field_type == "ts" else datetime.datetime.fromtimestamp(count).strftime("%Y-%m-%dT%H:%M:%S.000-0000")
 
     elif field_type == "words":
-        return_val = field_name+"{0}".format(count)
+        return_val = field_name + str(count)
 
     elif field_type == "dict":
-        return_val = field_name+"{0}".format(count)
+        mydict = dict(a=field_name + str(count), b=field_name + str(count), c=field_name + str(count),
+                      d=field_name + str(count), e=field_name + str(count), f=field_name + str(count),
+                      g=field_name + str(count), h=field_name + str(count), i=field_name + str(count), j=field_name + str(count))
+        return_val = ", ".join("=".join(_) for _ in mydict.items())
 
     elif field_type == "text":
-        return_val = field_name+"{0}".format(count)
+        return_val = field_name + str(count)
 
     return field_name, return_val
 

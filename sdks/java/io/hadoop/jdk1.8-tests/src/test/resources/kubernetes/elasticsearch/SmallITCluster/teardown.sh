@@ -1,3 +1,5 @@
+#!/bin/bash
+#
 #    Licensed to the Apache Software Foundation (ASF) under one or more
 #    contributor license agreements.  See the NOTICE file distributed with
 #    this work for additional information regarding copyright ownership.
@@ -12,22 +14,7 @@
 #    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
+#
 
-# To create Elasticsearch frontend cluster Kubernetes service. 
-# It sets up a load balancer on TCP port 9200 that distributes network traffic to the ES client nodes.
-apiVersion: v1
-kind: Service
-metadata:
-  name: elasticsearch
-  labels:
-    component: elasticsearch
-    role: client
-spec:
-  type: LoadBalancer
-  selector:
-    component: elasticsearch
-    role: client
-  ports:
-  - name: http
-    port: 9200
-    protocol: TCP
+# Delete elasticsearch services and deployments.
+kubectl delete -f elasticsearch-svc-rc.yaml

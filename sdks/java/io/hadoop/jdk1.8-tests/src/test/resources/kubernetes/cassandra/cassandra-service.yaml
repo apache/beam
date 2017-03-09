@@ -14,7 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Script for Cassandra service.
+# Kubernetes service file exposing Cassandra endpoint used by clients.
 apiVersion: v1
 kind: Service
 metadata:

@@ -21,7 +21,6 @@ import com.datastax.driver.core.Row;
 
 import java.io.Serializable;
 
-import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.hadoop.inputformat.HadoopInputFormatIO;
 import org.apache.beam.sdk.io.hadoop.inputformat.custom.options.HIFTestOptions;
 import org.apache.beam.sdk.io.hadoop.inputformat.hashing.HashingFn;
@@ -37,6 +36,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.mapreduce.InputFormat;
 import org.junit.BeforeClass;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -50,17 +50,17 @@ import org.junit.runners.JUnit4;
  *
  * <p>You can run this test by doing the following:
  * <pre>
- *  mvn -e -Pio-it verify -pl sdks/java/io/hadoop-input-format/jdk1.8-hifio-tests/HIFIOCassandraIT
+ *  mvn -e -Pio-it verify -pl sdks/java/io/hadoop/jdk1.8-tests/HIFIOCassandraIT
  *  -DintegrationTestPipelineOptions='[
- *  "--serverIp=1.2.3.4",
- *  "--serverPort=port",
- *  "--userName=user",
- *  "--password=mypass" ]'
+ *  "--cassandraServerIp=1.2.3.4",
+ *  "--cassandraServerPort=port",
+ *  "--cassandraUserName=user",
+ *  "--cassandraPassword=mypass" ]'
  * </pre>
  *
  * <p>If you want to run this with a runner besides directrunner, there are profiles for dataflow
- * and spark in the jdbc pom. You'll want to activate those in addition to the normal test runner
- * invocation pipeline options.
+ * and spark in the jdk1.8-tests pom. You'll want to activate those in addition to the normal test
+ * runner invocation pipeline options.
  */
 
 @RunWith(JUnit4.class)
@@ -80,6 +80,8 @@ public class HIFIOCassandraIT implements Serializable {
   private static final String INPUT_KEYSPACE_USERNAME_CONFIG = "cassandra.input.keyspace.username";
   private static final String INPUT_KEYSPACE_PASSWD_CONFIG = "cassandra.input.keyspace.passwd";
   private static HIFTestOptions options;
+  @Rule
+  public final transient TestPipeline pipeline = TestPipeline.create();
 
   @BeforeClass
   public static void setUp() {
@@ -93,9 +95,8 @@ public class HIFIOCassandraIT implements Serializable {
   @Test
   public void testHIFReadForCassandra() {
     // Expected hashcode is evaluated during insertion time one time and hardcoded here.
-    String expectedHashCode = "a26b01ae5fe64cce653624df8f6ff761bc87c23a";
+    String expectedHashCode = "ecf1fcd8c3b2b3ef72af29291cd93c0495e4efef";
     Long expectedRecordsCount = 1000L;
-    Pipeline pipeline = TestPipeline.create(options);
     Configuration conf = getConfiguration(options);
     PCollection<KV<Long, String>> cassandraData = pipeline.apply(HadoopInputFormatIO
         .<Long, String>read().withConfiguration(conf).withValueTranslation(myValueTranslate));
@@ -117,10 +118,7 @@ public class HIFIOCassandraIT implements Serializable {
           + input.getString("field3") + "|" + input.getString("field4") + "|"
           + input.getString("field5") + "|" + input.getString("field6") + "|"
           + input.getString("field7") + "|" + input.getString("field8") + "|"
-          + input.getString("field9") + "|" + input.getString("field10") + "|"
-          + input.getString("field11") + "|" + input.getString("field12") + "|"
-          + input.getString("field13") + "|" + input.getString("field14") + "|"
-          + input.getString("field15") + "|" + input.getString("field16");
+          + input.getString("field9");
     }
   };
   /**
@@ -131,13 +129,13 @@ public class HIFIOCassandraIT implements Serializable {
   public void testHIFReadForCassandraQuery() {
     String expectedHashCode = "af01241837829df46936f9d2639de8df7eb2a2bc";
     Long expectedNumRows = 1L;
-    Pipeline pipeline = TestPipeline.create(options);
     Configuration conf = getConfiguration(options);
     conf.set("cassandra.input.cql", "select * from " + CASSANDRA_KEYSPACE + "." + CASSANDRA_TABLE
         + " where token(y_id) > ? and token(y_id) <= ? "
-        + "and y_id='user3117720508089767496' allow filtering");
-    PCollection<KV<Long, String>> cassandraData = pipeline.apply(HadoopInputFormatIO
-        .<Long, String>read().withConfiguration(conf).withValueTranslation(myValueTranslate));
+        + "and y_id='user1820151046732198393' allow filtering");
+    PCollection<KV<Long, String>> cassandraData =
+        pipeline.apply(HadoopInputFormatIO.<Long, String>read().withConfiguration(conf)
+            .withValueTranslation(myValueTranslate));
     PAssert.thatSingleton(cassandraData.apply("Count", Count.<KV<Long, String>>globally()))
         .isEqualTo(expectedNumRows);
     PCollection<String> textValues = cassandraData.apply(Values.<String>create());

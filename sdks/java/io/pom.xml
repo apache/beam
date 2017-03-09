@@ -68,7 +68,11 @@
     <module>elasticsearch</module>
     <module>google-cloud-platform</module>
     <module>hadoop-common</module>
+<<<<<<< HEAD
     <module>hadoop</module>
+=======
+	<module>hadoop-input-format</module>
+>>>>>>> Created hifio child module for basic HadoopInputFormatIO code
     <module>hbase</module>
     <module>hdfs</module>
     <module>jdbc</module>

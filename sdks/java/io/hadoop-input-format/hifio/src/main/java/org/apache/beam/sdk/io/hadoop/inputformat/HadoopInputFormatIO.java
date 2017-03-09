@@ -343,6 +343,7 @@ public class HadoopInputFormatIO {
      * coder, if not found in Coder Registry, then check if the type descriptor provided is of type
      * Writable, then WritableCoder is returned, else exception is thrown "Cannot find coder".
      */
+    @VisibleForTesting
     public <T> Coder<T> getDefaultCoder(TypeDescriptor<?> typeDesc, CoderRegistry coderRegistry) {
       Class classType = typeDesc.getRawType();
       try {
@@ -553,7 +554,6 @@ public class HadoopInputFormatIO {
             + "configuration : Expected value.class is %s but was %s.", reader.getCurrentValue()
             .getClass().getName(), actualClass.getName()));
       }
-      reader.close();
     }
 
     /**
@@ -685,18 +685,6 @@ public class HadoopInputFormatIO {
       private AtomicDouble progressValue = new AtomicDouble();
       private transient InputFormat<T1, T2> inputFormatObj;
       private transient TaskAttemptContext taskAttemptContext;
-      Set<Class<?>> immutableTypes = new HashSet<Class<?>>(
-          Arrays.asList(
-              String.class,
-              Byte.class,
-              Short.class,
-              Integer.class,
-              Long.class,
-              Float.class,
-              Double.class,
-              Boolean.class,
-              BigInteger.class,
-              BigDecimal.class));
 
       private HadoopInputFormatReader(HadoopInputFormatBoundedSource<K, V> source,
           @Nullable SimpleFunction keyTranslationFunction,
@@ -816,6 +804,18 @@ public class HadoopInputFormatIO {
        * Utility method to check if the passed object is of a known immutable type.
        */
       private boolean isKnownImmutable(Object o) {
+        Set<Class<?>> immutableTypes = new HashSet<Class<?>>(
+            Arrays.asList(
+                String.class,
+                Byte.class,
+                Short.class,
+                Integer.class,
+                Long.class,
+                Float.class,
+                Double.class,
+                Boolean.class,
+                BigInteger.class,
+                BigDecimal.class));
         return immutableTypes.contains(o.getClass());
       }
 
@@ -845,8 +845,7 @@ public class HadoopInputFormatIO {
        */
       private Double getProgress() throws IOException, InterruptedException {
         try {
-          float progress = recordReader.getProgress();
-          return (double) progress < 0 || progress > 1 ? 0.0 : progress;
+          return (double) recordReader.getProgress();
         } catch (IOException e) {
           LOG.error(
               "Error in computing the fractions consumed as RecordReader.getProgress() throws an "

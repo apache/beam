@@ -30,8 +30,52 @@ and overrides the enforcer rules to allow 1.8 only behavior without making all o
   </parent>
   <artifactId>jdk1.8-tests</artifactId>
   <name>Apache Beam :: SDKs :: Java :: IO :: Hadoop :: jdk1.8-tests</name>
+  
   <build>
+    <pluginManagement>
+      <plugins>
+        <!-- BEAM-1661 -->
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-shade-plugin</artifactId>
+          <executions>
+            <execution>
+              <phase>package</phase>
+              <goals>
+                <goal>shade</goal>
+              </goals>
+              <configuration>
+                <artifactSet>
+                  <includes>
+                    <include>com.google.guava:guava:19.0</include>
+                  </includes>
+                </artifactSet>
+                <relocations>
+                  <relocation>
+                    <pattern>com.google.common</pattern>
+                    <shadedPattern>org.apache.beam.sdk.io.hadoop.jdk1.8-tests.repackaged.com.google.common</shadedPattern>
+                  </relocation>
+                  <relocation>
+                    <pattern>com.google.thirdparty</pattern>
+                    <shadedPattern>org.apache.beam.sdk.io.hadoop.jdk1.8-tests.repackaged.com.google.thirdparty</shadedPattern>
+                  </relocation>
+                </relocations>
+                <transformers>
+                  <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
+                </transformers>
+              </configuration>
+            </execution>
+          </executions>
+        </plugin>
+      </plugins>
+    </pluginManagement>
+
     <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-shade-plugin</artifactId>
+      </plugin>
+   
     <!--  Overridden enforcer plugin for JDK1.8 for running tests -->
 	  <plugin>
         <groupId>org.apache.maven.plugins</groupId>
@@ -80,7 +124,7 @@ and overrides the enforcer rules to allow 1.8 only behavior without making all o
           </systemPropertyVariables>
         </configuration>
       </plugin>
-	</plugins>
+    </plugins>
   </build>
   <!--
       The dataflow-runner and spark-runner profiles support using those runners during an integration test. These are
@@ -151,7 +195,7 @@ and overrides the enforcer rules to allow 1.8 only behavior without making all o
       <artifactId>beam-sdks-java-io-hadoop-input-format</artifactId>
       <version>${project.version}</version>
     </dependency>
-    <dependency>
+   <dependency>
      <groupId>com.google.guava</groupId>
      <artifactId>guava</artifactId>
      <version>${guava.version}</version>
@@ -249,4 +293,5 @@ and overrides the enforcer rules to allow 1.8 only behavior without making all o
       <scope>runtime</scope>
     </dependency>
   </dependencies>
+  
 </project>

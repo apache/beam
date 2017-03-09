@@ -14,7 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-#Headless service that allows us to get the IP addresses of our Cassandra nodes
+# Headless service that allows us to get the IP addresses of our Cassandra nodes
 apiVersion: v1
 kind: Service
 metadata:

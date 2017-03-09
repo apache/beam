@@ -1,3 +1,5 @@
+#!/bin/bash
+#
 #    Licensed to the Apache Software Foundation (ASF) under one or more
 #    contributor license agreements.  See the NOTICE file distributed with
 #    this work for additional information regarding copyright ownership.
@@ -12,20 +14,8 @@
 #    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
+#
 
-# Deployment script for discovering Elasticsearch nodes.
-apiVersion: v1
-kind: Service
-metadata:
-  name: elasticsearch-discovery
-  labels:
-    component: elasticsearch
-    role: master
-spec:
-  selector:
-    component: elasticsearch
-    role: master
-  ports:
-  - name: transport
-    port: 9300
-    protocol: TCP
+# Delete elasticsearch services and deployments.
+kubectl delete -f es-client-data-node-deployment.yaml
+kubectl delete -f es-services.yaml

@@ -12,29 +12,66 @@
 #    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
+# Service file containing services for ES discovery, elasticsearch and master node deployment.
 
-# Kubernetes service file for Elasticsearch data nodes which store and index data.
+# Kubernetes headless service for Elasticsearch discovery of nodes.
+apiVersion: v1
+kind: Service
+metadata:
+  name: elasticsearch-discovery
+  labels:
+    component: elasticsearch
+    role: master
+spec:
+  selector:
+    component: elasticsearch
+    role: master
+  ports:
+  - name: transport
+    port: 9300
+    protocol: TCP
+---
+# To create Elasticsearch frontend cluster Kubernetes service. 
+# It sets up a load balancer on TCP port 9200 that distributes network traffic to the ES client nodes.
+apiVersion: v1
+kind: Service
+metadata:
+  name: elasticsearch
+  labels:
+    component: elasticsearch
+    role: client
+spec:
+  type: LoadBalancer
+  selector:
+    component: elasticsearch
+    role: client
+  ports:
+  - name: http
+    port: 9200
+    protocol: TCP
+---
+# The Kubernetes deployment script for Elasticsearch master nodes.
 apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:
-  name: es-data
+  name: es-master
   labels:
     component: elasticsearch
-    role: data
+    role: master
 spec:
-  replicas: 2
+  replicas: 3
   template:
     metadata:
       labels:
         component: elasticsearch
-        role: data
+        role: master
       annotations:
         pod.beta.kubernetes.io/init-containers: '[
           {
           "name": "sysctl",
             "image": "busybox",
             "imagePullPolicy": "IfNotPresent",
-            "command": ["sysctl", "-w", "vm.max_map_count=1048575"],
+            "command": ["sysctl", "-w", "vm.max_map_count=262144"],
             "securityContext": {
               "privileged": true
             }
@@ -42,7 +79,7 @@ spec:
         ]'
     spec:
       containers:
-      - name: es-data
+      - name: es-master
         securityContext:
           privileged: false
           capabilities:
@@ -62,9 +99,13 @@ spec:
               fieldPath: metadata.name
         - name: "CLUSTER_NAME"
           value: "myesdb"
+        - name: "NUMBER_OF_MASTERS"
+          value: "2"
         - name: NODE_MASTER
-          value: "false"
+          value: "true"
         - name: NODE_INGEST
+          value: "false"
+        - name: NODE_DATA
           value: "false"
         - name: HTTP_ENABLE
           value: "false"

@@ -44,6 +44,8 @@ spec:
               value: Kubernetes Cluster
             - name: CASSANDRA_ENDPOINT_SNITCH
               value: GossipingPropertyFileSnitch
+            - name: CASSANDRA_NUM_TOKENS
+              value: '1' 
           ports:
             - containerPort: 9042
               name: cql
