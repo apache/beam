@@ -13,7 +13,13 @@ import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexInputRef;
 import org.apache.calcite.rex.RexLiteral;
 import org.apache.calcite.rex.RexNode;
+import org.beam.sdk.java.sql.interpreter.BeamSQLExpressionExecutor;
+import org.beam.sdk.java.sql.interpreter.BeamSQLSpELExecutor;
 import org.beam.sdk.java.sql.planner.BeamPipelineCreator;
+import org.beam.sdk.java.sql.planner.BeamSQLRelUtils;
+import org.beam.sdk.java.sql.schema.BeamSQLRecordType;
+import org.beam.sdk.java.sql.schema.BeamSQLRow;
+import org.beam.sdk.java.sql.transform.BeamSQLProjectFn;
 
 public class BeamProjectRel extends Project implements BeamRelNode {
 
@@ -39,7 +45,21 @@ public class BeamProjectRel extends Project implements BeamRelNode {
 
   @Override
   public void buildBeamPipeline(BeamPipelineCreator planCreator) throws Exception {
-    // TODO Auto-generated method stub
+    RelNode input = getInput();
+    BeamSQLRelUtils.getBeamRelInput(input).buildBeamPipeline(planCreator);
+
+    String stageName = BeamSQLRelUtils.getStageName(this);
+
+    PCollection<BeamSQLRow> upstream = planCreator.getLatestStream();
+
+    BeamSQLExpressionExecutor executor = new BeamSQLSpELExecutor(this);
+    
+    PCollection<BeamSQLRow> projectStream = upstream.apply(stageName,
+        ParDo.of(new BeamSQLProjectFn(getRelTypeName(), executor, BeamSQLRecordType.from(rowType))));
+
+    planCreator.setLatestStream(projectStream);
+
+    System.out.println("Build: apply_project " + stageName);
     
   }
 
