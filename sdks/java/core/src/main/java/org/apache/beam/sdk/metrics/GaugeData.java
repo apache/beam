@@ -22,11 +22,8 @@ import com.google.auto.value.AutoValue;
 import java.io.Serializable;
 
 /**
- * Data describing the the gauge. This should retain enough detail that it can be combined with
+ * Data describing the gauge. This should retain enough detail that it can be combined with
  * other {@link GaugeData}.
- *
- * <p>This is kept distinct from {@link GaugeResult} to allow generifcation of the metrics reporting
- * process in the future.
  */
 @AutoValue
 public abstract class GaugeData implements Serializable {
@@ -35,12 +32,17 @@ public abstract class GaugeData implements Serializable {
 
   public abstract long value();
 
+  public abstract long timestamp();
+
   public static GaugeData create(long value) {
-    return new AutoValue_GaugeData(value);
+    return new AutoValue_GaugeData(value, System.currentTimeMillis());
   }
 
   public GaugeData combine(GaugeData other) {
-    return create(other.value());
+    if (other.timestamp() > this.timestamp()) {
+      return other;
+    }
+    return this;
   }
 
   public GaugeResult extractResult() {
