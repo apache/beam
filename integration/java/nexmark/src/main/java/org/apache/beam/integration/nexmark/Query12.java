@@ -43,6 +43,7 @@ class Query12 extends NexmarkQuery {
     return events
         .apply(JUST_BIDS)
         .apply(name + ".Rekey",
+          // TODO etienne: why not avoid this ParDo and do a Cont.perElement?
             ParDo.of(new DoFn<Bid, KV<Long, Void>>() {
                    @ProcessElement
                    public void processElement(ProcessContext c) {

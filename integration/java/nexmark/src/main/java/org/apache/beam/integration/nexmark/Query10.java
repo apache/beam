@@ -318,7 +318,9 @@ class Query10 extends NexmarkQuery {
             // We expect no late data here, but we'll assume the worst so we can detect any.
             .withAllowedLateness(Duration.standardDays(1))
             .discardingFiredPanes())
-        .apply(name + ".GroupByKey2", GroupByKey.<Void, OutputFile>create())
+      // TODO etienne: unnecessary groupByKey? because aggregators are shared in parallel
+      // and Pardo is also in parallel, why group all elements in memory of the same executor?
+      .apply(name + ".GroupByKey2", GroupByKey.<Void, OutputFile>create())
         .apply(name + ".Index",
             ParDo.of(new DoFn<KV<Void, Iterable<OutputFile>>, Done>() {
                    final Aggregator<Long, Long> unexpectedLateCounter =
