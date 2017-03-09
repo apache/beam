@@ -18,8 +18,8 @@
 package org.apache.beam.sdk.metrics;
 
 import com.google.auto.value.AutoValue;
-
 import java.io.Serializable;
+import org.joda.time.Instant;
 
 /**
  * Data describing the gauge. This should retain enough detail that it can be combined with
@@ -32,17 +32,18 @@ public abstract class GaugeData implements Serializable {
 
   public abstract long value();
 
-  public abstract long timestamp();
+  public abstract Instant timestamp();
 
   public static GaugeData create(long value) {
-    return new AutoValue_GaugeData(value, System.currentTimeMillis());
+    return new AutoValue_GaugeData(value, Instant.now());
   }
 
   public GaugeData combine(GaugeData other) {
-    if (other.timestamp() > this.timestamp()) {
+    if (this.timestamp().isAfter(other.timestamp())) {
+      return this;
+    } else {
       return other;
     }
-    return this;
   }
 
   public GaugeResult extractResult() {
