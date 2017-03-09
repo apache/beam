@@ -43,7 +43,8 @@ class Query11 extends NexmarkQuery {
   private PCollection<BidsPerSession> applyTyped(PCollection<Event> events) {
     return events.apply(JUST_BIDS)
         .apply(name + ".Rekey",
-            ParDo.of(new DoFn<Bid, KV<Long, Void>>() {
+          // TODO etienne: why not avoid this ParDo and do a Cont.perElement?
+          ParDo.of(new DoFn<Bid, KV<Long, Void>>() {
                   @ProcessElement
                   public void processElement(ProcessContext c) {
                     Bid bid = c.element();

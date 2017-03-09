@@ -221,10 +221,12 @@ class Query3 extends NexmarkQuery {
             .apply("PersonById", PERSON_BY_ID);
 
     return
-        // Join auctions and people.
-        KeyedPCollectionTuple.of(AUCTION_TAG, auctionsBySellerId)
+      // Join auctions and people.
+        // concatenate KeyedPCollections
+      KeyedPCollectionTuple.of(AUCTION_TAG, auctionsBySellerId)
             .and(PERSON_TAG, personsById)
-            .apply(CoGroupByKey.<Long>create())
+        // group auctions and persons by personId
+        .apply(CoGroupByKey.<Long>create())
             .apply(name + ".Join", ParDo.of(joinDoFn))
 
             // Project what we want.
