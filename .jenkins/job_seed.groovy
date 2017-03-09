@@ -32,8 +32,7 @@ job('beam_SeedJob') {
   common_job_properties.setPostCommit(
       delegate,
       '0 6 * * *',
-      false,
-      'dev@beam.apache.org')
+      false)
 
   // Allows triggering this build against pull requests.
   common_job_properties.enablePhraseTriggeringFromPullRequest(
