@@ -12,7 +12,7 @@
  * or implied. See the License for the specific language governing permissions and limitations under
  * the License.
  */
-package org.apache.beam.sdk.io.hadoop.inputformat.unit.tests.inputs;
+package org.apache.beam.sdk.io.hadoop.inputformat;
 
 import java.io.DataInput;
 import java.io.DataOutput;
@@ -20,7 +20,6 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.apache.beam.sdk.io.hadoop.inputformat.HadoopInputFormatIO;
 import org.apache.beam.sdk.values.KV;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.io.Writable;

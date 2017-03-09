@@ -12,11 +12,10 @@
  * or implied. See the License for the specific language governing permissions and limitations under
  * the License.
  */
-package org.apache.beam.sdk.io.hadoop.inputformat.unit.tests.inputs;
+package org.apache.beam.sdk.io.hadoop.inputformat;
 
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.DefaultCoder;
-import org.apache.beam.sdk.io.hadoop.inputformat.HadoopInputFormatIO;
 
 /**
  * This class is Employee POJO class with properties- employee name and address. Used in
