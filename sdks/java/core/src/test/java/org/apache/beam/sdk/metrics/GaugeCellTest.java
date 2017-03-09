@@ -33,14 +33,14 @@ public class GaugeCellTest {
     cell.set(7);
     assertThat(cell.getCumulative(), equalTo(GaugeData.create(7)));
     assertThat("getCumulative is idempotent",
-        cell.getCumulative(), equalTo(GaugeData.create(7)));
+        cell.getCumulative().value(), equalTo(7L));
 
     assertThat(cell.getDirty().beforeCommit(), equalTo(true));
     cell.getDirty().afterCommit();
     assertThat(cell.getDirty().beforeCommit(), equalTo(false));
 
     cell.set(30);
-    assertThat(cell.getCumulative(), equalTo(GaugeData.create(30)));
+    assertThat(cell.getCumulative().value(), equalTo(30L));
 
     assertThat("Adding a new value made the cell dirty",
         cell.getDirty().beforeCommit(), equalTo(true));
