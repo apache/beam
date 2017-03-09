@@ -354,24 +354,29 @@ public class DatastoreV1 {
       return entity.getProperties().get("entity_bytes").getIntegerValue();
     }
 
-    /** Builds a {@link RunQueryRequest} from the {@code query} and {@code namespace}. */
-    static RunQueryRequest makeRequest(Query query, @Nullable String namespace) {
-      RunQueryRequest.Builder requestBuilder = RunQueryRequest.newBuilder().setQuery(query);
-      // Note: namespace either being null or empty represents the default namespace.
+    private static PartitionId.Builder forNamespace(@Nullable String namespace) {
+      PartitionId.Builder partitionBuilder = PartitionId.newBuilder();
+      // Namespace either being null or empty represents the default namespace.
       // Datastore Client libraries expect users to not set the namespace proto field in
       // either of these cases.
       if (!Strings.isNullOrEmpty(namespace)) {
-        requestBuilder.getPartitionIdBuilder().setNamespaceId(namespace);
+        partitionBuilder.setNamespaceId(namespace);
       }
+      return partitionBuilder;
+    }
+
+    /** Builds a {@link RunQueryRequest} from the {@code query} and {@code namespace}. */
+    static RunQueryRequest makeRequest(Query query, @Nullable String namespace) {
+      RunQueryRequest.Builder requestBuilder = RunQueryRequest.newBuilder().setQuery(query);
+      requestBuilder.setPartitionId(forNamespace(namespace));
       return requestBuilder.build();
     }
 
+    @VisibleForTesting
     /** Builds a {@link RunQueryRequest} from the {@code GqlQuery} and {@code namespace}. */
     static RunQueryRequest makeRequest(GqlQuery gqlQuery, @Nullable String namespace) {
       RunQueryRequest.Builder requestBuilder = RunQueryRequest.newBuilder().setGqlQuery(gqlQuery);
-      if (!Strings.isNullOrEmpty(namespace)) {
-        requestBuilder.getPartitionIdBuilder().setNamespaceId(namespace);
-      }
+      requestBuilder.setPartitionId(forNamespace(namespace));
       return requestBuilder.build();
     }
 
@@ -382,12 +387,7 @@ public class DatastoreV1 {
     private static List<Query> splitQuery(Query query, @Nullable String namespace,
         Datastore datastore, QuerySplitter querySplitter, int numSplits) throws DatastoreException {
       // If namespace is set, include it in the split request so splits are calculated accordingly.
-      PartitionId.Builder partitionBuilder = PartitionId.newBuilder();
-      if (!Strings.isNullOrEmpty(namespace)) {
-        partitionBuilder.setNamespaceId(namespace);
-      }
-
-      return querySplitter.getSplits(query, partitionBuilder.build(), numSplits, datastore);
+      return querySplitter.getSplits(query, forNamespace(namespace).build(), numSplits, datastore);
     }
 
     /**
@@ -474,8 +474,8 @@ public class DatastoreV1 {
      *
      * <p><b><i>Experimental</i></b>: Cloud Datastore does not a provide a clean way to translate
      * a gql query string to {@link Query}, so we end up making a query to the service for
-     * translation but this may read the actual data. It needs more validation through production
-     * use cases before marking it as stable.
+     * translation but this may read the actual data, although it will be a small amount.
+     * It needs more validation through production use cases before marking it as stable.
      */
     @Experimental(Kind.SOURCE_SINK)
     public DatastoreV1.Read withGqlQuery(String gqlQuery) {
