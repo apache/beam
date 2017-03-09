@@ -135,7 +135,7 @@ public class PubsubJsonClient extends PubsubClient {
     for (OutgoingMessage outgoingMessage : outgoingMessages) {
       PubsubMessage pubsubMessage = new PubsubMessage().encodeData(outgoingMessage.elementBytes);
 
-      Map<String, String> attributes = pubsubMessage.getAttributes();
+      Map<String, String> attributes = outgoingMessage.attributes;
       if ((timestampLabel != null || idLabel != null) && attributes == null) {
         attributes = new TreeMap<>();
       }

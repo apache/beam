@@ -30,7 +30,10 @@ import com.google.api.services.pubsub.model.ReceivedMessage;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+
 import org.apache.beam.sdk.util.PubsubClient.IncomingMessage;
 import org.apache.beam.sdk.util.PubsubClient.OutgoingMessage;
 import org.apache.beam.sdk.util.PubsubClient.SubscriptionPath;
@@ -115,7 +118,7 @@ public class PubsubJsonClientTest {
         .encodeData(DATA.getBytes())
         .setAttributes(
             ImmutableMap.of(TIMESTAMP_LABEL, String.valueOf(MESSAGE_TIME),
-                            ID_LABEL, RECORD_ID));
+                            ID_LABEL, RECORD_ID, "k", "v"));
     PublishRequest expectedRequest = new PublishRequest()
         .setMessages(ImmutableList.of(expectedPubsubMessage));
     PublishResponse expectedResponse = new PublishResponse()
@@ -125,8 +128,10 @@ public class PubsubJsonClientTest {
                                 .publish(expectedTopic, expectedRequest)
                                 .execute()))
            .thenReturn(expectedResponse);
+    Map<String, String> attrs = new HashMap<>();
+    attrs.put("k", "v");
     OutgoingMessage actualMessage = new OutgoingMessage(
-            DATA.getBytes(), null, MESSAGE_TIME, RECORD_ID);
+            DATA.getBytes(), attrs, MESSAGE_TIME, RECORD_ID);
     int n = client.publish(TOPIC, ImmutableList.of(actualMessage));
     assertEquals(1, n);
   }
