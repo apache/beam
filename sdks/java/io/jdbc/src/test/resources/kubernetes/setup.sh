@@ -1,3 +1,5 @@
+#!/bin/bash
+#
 #    Licensed to the Apache Software Foundation (ASF) under one or more
 #    contributor license agreements.  See the NOTICE file distributed with
 #    this work for additional information regarding copyright ownership.
@@ -12,21 +14,7 @@
 #    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
+#
 
-apiVersion: v1
-kind: Pod
-metadata:
-  name: postgres-no-pv
-  labels:
-    name: postgres-no-pv
-spec:
-  containers:
-    - name: postgres
-      image: postgres
-      env:
-        - name: POSTGRES_PASSWORD
-          value: uuinkks
-        - name: PGDATA
-          value: /var/lib/postgresql/data/pgdata
-      ports:
-        - containerPort: 5432
+kubectl create -f postgres-pod-no-vol.yml
+kubectl create -f postgres-service-public.yml

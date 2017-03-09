@@ -22,6 +22,7 @@ metadata:
 spec:
   ports:
     - port: 5432
+      nodePort: 31234
   selector:
     name: postgres-no-pv
-  type: LoadBalancer
+  type: NodePort
