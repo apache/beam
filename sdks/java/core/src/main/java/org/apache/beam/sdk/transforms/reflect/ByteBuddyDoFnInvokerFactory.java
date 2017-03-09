@@ -29,7 +29,6 @@ import java.util.List;
 import java.util.Map;
 import javax.annotation.Nullable;
 import net.bytebuddy.ByteBuddy;
-import net.bytebuddy.NamingStrategy;
 import net.bytebuddy.description.field.FieldDescription;
 import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.modifier.Visibility;
@@ -282,12 +281,9 @@ public class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
             // Create subclasses inside the target class, to have access to
             // private and package-private bits
             .with(
-                new NamingStrategy.SuffixingRandom("auxiliary") {
-                  @Override
-                  public String subclass(TypeDescription.Generic superClass) {
-                    return super.name(clazzDescription);
-                  }
-                })
+                StableInvokerNamingStrategy.forDoFnClass(fnClass)
+                    .withSuffix(DoFnInvoker.class.getSimpleName()))
+
             // class <invoker class> extends DoFnInvokerBase {
             .subclass(DoFnInvokerBase.class, ConstructorStrategy.Default.NO_CONSTRUCTORS)
 
