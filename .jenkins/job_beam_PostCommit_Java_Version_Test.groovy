@@ -37,7 +37,7 @@ matrixJob('beam_PostCommit_Java_Version_Test') {
   }
 
   // Set maven parameters.
-  common_job_properties.setMavenConfig(delegate)
+  common_job_properties.setMavenConfig(delegate.maven)
 
   // Sets that this is a PostCommit job.
   common_job_properties.setPostCommit(delegate)
@@ -50,10 +50,15 @@ matrixJob('beam_PostCommit_Java_Version_Test') {
 
   // Maven build for this job.
   steps {
-    // Maven build Java SDK related project
-    maven('-B -e -P release clean install -pl !sdks/python coveralls:report -DrepoToken=$COVERALLS_REPO_TOKEN')
+    maven {
+      // Set maven parameters.
+      common_job_properties.setMavenConfig(delegate)
 
-    // Run WordCountIT
-    maven('-B -e -P release clean verify coveralls:report -pl examples/java -DrepoToken=$COVERALLS_REPO_TOKEN -DskipITs=false -Dit.test=WordCountIT -DintegrationTestPipelineOptions=\'[ "--project=apache-beam-testing", "--tempRoot=gs://temp-storage-for-end-to-end-tests", "--runner=org.apache.beam.runners.dataflow.testing.TestDataflowRunner"]\'')
+      // Maven build Java SDK related project
+      goals('-B -e -P release clean install -pl !sdks/python coveralls:report -DrepoToken=$COVERALLS_REPO_TOKEN')
+
+      // Run WordCountIT
+      goals('-B -e -P release clean verify coveralls:report -pl examples/java -DrepoToken=$COVERALLS_REPO_TOKEN -DskipITs=false -Dit.test=WordCountIT -DintegrationTestPipelineOptions=\'[ "--project=apache-beam-testing", "--tempRoot=gs://temp-storage-for-end-to-end-tests", "--runner=org.apache.beam.runners.dataflow.testing.TestDataflowRunner"]\'')
+    }
   }
 }
