@@ -35,6 +35,9 @@ markdown: kramdown
 collections:
 - beam_team
 
+# Things to include that are subdirectories created by sphinx
+include: ['_static', '_modules', '_sources']
+
 # Things to ignore in the build
 exclude: ['README.md', 'Gemfile.lock', 'Gemfile', 'Rakefile', 'vendor/']
 
@@ -46,6 +49,6 @@ kramdown:
   toc_levels:     2..6
 
 # The most recent release of Beam.
-release_latest: 0.5.0
+release_latest: 0.6.0
 
 # Plugins are configured in the Gemfile.
