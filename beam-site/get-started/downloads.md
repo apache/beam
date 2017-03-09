@@ -48,6 +48,11 @@ Additionally, any API may change before the first stable release, i.e., between 
 
 ## Releases
 
+### 0.6.0
+Official [source code download](https://www.apache.org/dyn/closer.cgi?filename=beam/0.6.0/apache-beam-0.6.0-source-release.zip&action=download).
+
+[Release notes](https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12319527&version=12339256).
+
 ### 0.5.0
 Official [source code download](https://www.apache.org/dyn/closer.cgi?filename=beam/0.5.0/apache-beam-0.5.0-source-release.zip&action=download).
 

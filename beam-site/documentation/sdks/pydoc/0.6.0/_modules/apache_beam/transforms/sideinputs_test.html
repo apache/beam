@@ -1,0 +1,427 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>apache_beam.transforms.sideinputs_test &#8212; Apache Beam  documentation</title>
+    
+    <link rel="stylesheet" href="../../../_static/sphinxdoc.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../',
+        VERSION:     '',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../index.html" accesskey="U">Module code</a> &#187;</li> 
+      </ul>
+    </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for apache_beam.transforms.sideinputs_test</h1><div class="highlight"><pre>
+<span></span><span class="c1">#</span>
+<span class="c1"># Licensed to the Apache Software Foundation (ASF) under one or more</span>
+<span class="c1"># contributor license agreements.  See the NOTICE file distributed with</span>
+<span class="c1"># this work for additional information regarding copyright ownership.</span>
+<span class="c1"># The ASF licenses this file to You under the Apache License, Version 2.0</span>
+<span class="c1"># (the &quot;License&quot;); you may not use this file except in compliance with</span>
+<span class="c1"># the License.  You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1">#    http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.</span>
+<span class="c1"># See the License for the specific language governing permissions and</span>
+<span class="c1"># limitations under the License.</span>
+<span class="c1">#</span>
+
+<span class="sd">&quot;&quot;&quot;Unit tests for side inputs.&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">import</span> <span class="nn">unittest</span>
+
+<span class="kn">from</span> <span class="nn">nose.plugins.attrib</span> <span class="k">import</span> <span class="n">attr</span>
+
+<span class="kn">import</span> <span class="nn">apache_beam</span> <span class="k">as</span> <span class="nn">beam</span>
+<span class="kn">from</span> <span class="nn">apache_beam.test_pipeline</span> <span class="k">import</span> <span class="n">TestPipeline</span>
+<span class="kn">from</span> <span class="nn">apache_beam.transforms</span> <span class="k">import</span> <span class="n">window</span>
+<span class="kn">from</span> <span class="nn">apache_beam.transforms.util</span> <span class="k">import</span> <span class="n">assert_that</span><span class="p">,</span> <span class="n">equal_to</span>
+
+
+<div class="viewcode-block" id="SideInputsTest"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.sideinputs_test.SideInputsTest">[docs]</a><span class="k">class</span> <span class="nc">SideInputsTest</span><span class="p">(</span><span class="n">unittest</span><span class="o">.</span><span class="n">TestCase</span><span class="p">):</span>
+
+<div class="viewcode-block" id="SideInputsTest.create_pipeline"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.sideinputs_test.SideInputsTest.create_pipeline">[docs]</a>  <span class="k">def</span> <span class="nf">create_pipeline</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">TestPipeline</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="SideInputsTest.run_windowed_side_inputs"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.sideinputs_test.SideInputsTest.run_windowed_side_inputs">[docs]</a>  <span class="k">def</span> <span class="nf">run_windowed_side_inputs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">elements</span><span class="p">,</span> <span class="n">main_window_fn</span><span class="p">,</span>
+                               <span class="n">side_window_fn</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                               <span class="n">side_input_type</span><span class="o">=</span><span class="n">beam</span><span class="o">.</span><span class="n">pvalue</span><span class="o">.</span><span class="n">AsList</span><span class="p">,</span>
+                               <span class="n">combine_fn</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                               <span class="n">expected</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">create_pipeline</span><span class="p">()</span> <span class="k">as</span> <span class="n">p</span><span class="p">:</span>
+      <span class="n">pcoll</span> <span class="o">=</span> <span class="n">p</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">(</span><span class="n">elements</span><span class="p">)</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span>
+          <span class="k">lambda</span> <span class="n">t</span><span class="p">:</span> <span class="n">window</span><span class="o">.</span><span class="n">TimestampedValue</span><span class="p">(</span><span class="n">t</span><span class="p">,</span> <span class="n">t</span><span class="p">))</span>
+      <span class="n">main</span> <span class="o">=</span> <span class="n">pcoll</span> <span class="o">|</span> <span class="s1">&#39;WindowMain&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">WindowInto</span><span class="p">(</span><span class="n">main_window_fn</span><span class="p">)</span>
+      <span class="n">side</span> <span class="o">=</span> <span class="n">pcoll</span> <span class="o">|</span> <span class="s1">&#39;WindowSide&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">WindowInto</span><span class="p">(</span>
+          <span class="n">side_window_fn</span> <span class="ow">or</span> <span class="n">main_window_fn</span><span class="p">)</span>
+      <span class="n">kw</span> <span class="o">=</span> <span class="p">{}</span>
+      <span class="k">if</span> <span class="n">combine_fn</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">side</span> <span class="o">|=</span> <span class="n">beam</span><span class="o">.</span><span class="n">CombineGlobally</span><span class="p">(</span><span class="n">combine_fn</span><span class="p">)</span><span class="o">.</span><span class="n">without_defaults</span><span class="p">()</span>
+        <span class="n">kw</span><span class="p">[</span><span class="s1">&#39;default_value&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
+      <span class="k">elif</span> <span class="n">side_input_type</span> <span class="o">==</span> <span class="n">beam</span><span class="o">.</span><span class="n">pvalue</span><span class="o">.</span><span class="n">AsDict</span><span class="p">:</span>
+        <span class="n">side</span> <span class="o">|=</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="p">(</span><span class="s1">&#39;k</span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">x</span><span class="p">,</span> <span class="s1">&#39;v</span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">x</span><span class="p">))</span>
+      <span class="n">res</span> <span class="o">=</span> <span class="n">main</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">,</span> <span class="n">s</span><span class="p">:</span> <span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">s</span><span class="p">),</span> <span class="n">side_input_type</span><span class="p">(</span><span class="n">side</span><span class="p">,</span> <span class="o">**</span><span class="n">kw</span><span class="p">))</span>
+      <span class="k">if</span> <span class="n">side_input_type</span> <span class="ow">in</span> <span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">pvalue</span><span class="o">.</span><span class="n">AsIter</span><span class="p">,</span> <span class="n">beam</span><span class="o">.</span><span class="n">pvalue</span><span class="o">.</span><span class="n">AsList</span><span class="p">):</span>
+        <span class="n">res</span> <span class="o">|=</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">lambda</span> <span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">s</span><span class="p">):</span> <span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">s</span><span class="p">)))</span>
+      <span class="n">assert_that</span><span class="p">(</span><span class="n">res</span><span class="p">,</span> <span class="n">equal_to</span><span class="p">(</span><span class="n">expected</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="SideInputsTest.test_global_global_windows"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.sideinputs_test.SideInputsTest.test_global_global_windows">[docs]</a>  <span class="k">def</span> <span class="nf">test_global_global_windows</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">run_windowed_side_inputs</span><span class="p">(</span>
+        <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">],</span>
+        <span class="n">window</span><span class="o">.</span><span class="n">GlobalWindows</span><span class="p">(),</span>
+        <span class="n">expected</span><span class="o">=</span><span class="p">[(</span><span class="mi">1</span><span class="p">,</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">]),</span> <span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">]),</span> <span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">])])</span></div>
+
+<div class="viewcode-block" id="SideInputsTest.test_same_fixed_windows"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.sideinputs_test.SideInputsTest.test_same_fixed_windows">[docs]</a>  <span class="k">def</span> <span class="nf">test_same_fixed_windows</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">run_windowed_side_inputs</span><span class="p">(</span>
+        <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">11</span><span class="p">],</span>
+        <span class="n">window</span><span class="o">.</span><span class="n">FixedWindows</span><span class="p">(</span><span class="mi">10</span><span class="p">),</span>
+        <span class="n">expected</span><span class="o">=</span><span class="p">[(</span><span class="mi">1</span><span class="p">,</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">]),</span> <span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">]),</span> <span class="p">(</span><span class="mi">11</span><span class="p">,</span> <span class="p">[</span><span class="mi">11</span><span class="p">])])</span></div>
+
+<div class="viewcode-block" id="SideInputsTest.test_different_fixed_windows"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.sideinputs_test.SideInputsTest.test_different_fixed_windows">[docs]</a>  <span class="k">def</span> <span class="nf">test_different_fixed_windows</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">run_windowed_side_inputs</span><span class="p">(</span>
+        <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">11</span><span class="p">,</span> <span class="mi">21</span><span class="p">,</span> <span class="mi">31</span><span class="p">],</span>
+        <span class="n">window</span><span class="o">.</span><span class="n">FixedWindows</span><span class="p">(</span><span class="mi">10</span><span class="p">),</span>
+        <span class="n">window</span><span class="o">.</span><span class="n">FixedWindows</span><span class="p">(</span><span class="mi">20</span><span class="p">),</span>
+        <span class="n">expected</span><span class="o">=</span><span class="p">[(</span><span class="mi">1</span><span class="p">,</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">11</span><span class="p">]),</span> <span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">11</span><span class="p">]),</span> <span class="p">(</span><span class="mi">11</span><span class="p">,</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">11</span><span class="p">]),</span>
+                  <span class="p">(</span><span class="mi">21</span><span class="p">,</span> <span class="p">[</span><span class="mi">21</span><span class="p">,</span> <span class="mi">31</span><span class="p">]),</span> <span class="p">(</span><span class="mi">31</span><span class="p">,</span> <span class="p">[</span><span class="mi">21</span><span class="p">,</span> <span class="mi">31</span><span class="p">])])</span></div>
+
+<div class="viewcode-block" id="SideInputsTest.test_fixed_global_window"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.sideinputs_test.SideInputsTest.test_fixed_global_window">[docs]</a>  <span class="k">def</span> <span class="nf">test_fixed_global_window</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">run_windowed_side_inputs</span><span class="p">(</span>
+        <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">11</span><span class="p">],</span>
+        <span class="n">window</span><span class="o">.</span><span class="n">FixedWindows</span><span class="p">(</span><span class="mi">10</span><span class="p">),</span>
+        <span class="n">window</span><span class="o">.</span><span class="n">GlobalWindows</span><span class="p">(),</span>
+        <span class="n">expected</span><span class="o">=</span><span class="p">[(</span><span class="mi">1</span><span class="p">,</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">11</span><span class="p">]),</span> <span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">11</span><span class="p">]),</span> <span class="p">(</span><span class="mi">11</span><span class="p">,</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">11</span><span class="p">])])</span></div>
+
+<div class="viewcode-block" id="SideInputsTest.test_sliding_windows"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.sideinputs_test.SideInputsTest.test_sliding_windows">[docs]</a>  <span class="k">def</span> <span class="nf">test_sliding_windows</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">run_windowed_side_inputs</span><span class="p">(</span>
+        <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">4</span><span class="p">],</span>
+        <span class="n">window</span><span class="o">.</span><span class="n">SlidingWindows</span><span class="p">(</span><span class="n">size</span><span class="o">=</span><span class="mi">6</span><span class="p">,</span> <span class="n">period</span><span class="o">=</span><span class="mi">2</span><span class="p">),</span>
+        <span class="n">window</span><span class="o">.</span><span class="n">SlidingWindows</span><span class="p">(</span><span class="n">size</span><span class="o">=</span><span class="mi">6</span><span class="p">,</span> <span class="n">period</span><span class="o">=</span><span class="mi">2</span><span class="p">),</span>
+        <span class="n">expected</span><span class="o">=</span><span class="p">[</span>
+            <span class="c1"># Element 1 falls in three windows</span>
+            <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="p">[</span><span class="mi">1</span><span class="p">]),</span>        <span class="c1"># [-4, 2)</span>
+            <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">]),</span>     <span class="c1"># [-2, 4)</span>
+            <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">4</span><span class="p">]),</span>  <span class="c1"># [0, 6)</span>
+            <span class="c1"># as does 2,</span>
+            <span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">]),</span>     <span class="c1"># [-2, 4)</span>
+            <span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">4</span><span class="p">]),</span>  <span class="c1"># [0, 6)</span>
+            <span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="p">[</span><span class="mi">2</span><span class="p">,</span> <span class="mi">4</span><span class="p">]),</span>     <span class="c1"># [2, 8)</span>
+            <span class="c1"># and 4.</span>
+            <span class="p">(</span><span class="mi">4</span><span class="p">,</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">4</span><span class="p">]),</span>  <span class="c1"># [0, 6)</span>
+            <span class="p">(</span><span class="mi">4</span><span class="p">,</span> <span class="p">[</span><span class="mi">2</span><span class="p">,</span> <span class="mi">4</span><span class="p">]),</span>     <span class="c1"># [2, 8)</span>
+            <span class="p">(</span><span class="mi">4</span><span class="p">,</span> <span class="p">[</span><span class="mi">4</span><span class="p">]),</span>        <span class="c1"># [4, 10)</span>
+        <span class="p">])</span></div>
+
+<div class="viewcode-block" id="SideInputsTest.test_windowed_iter"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.sideinputs_test.SideInputsTest.test_windowed_iter">[docs]</a>  <span class="k">def</span> <span class="nf">test_windowed_iter</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">run_windowed_side_inputs</span><span class="p">(</span>
+        <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">11</span><span class="p">],</span>
+        <span class="n">window</span><span class="o">.</span><span class="n">FixedWindows</span><span class="p">(</span><span class="mi">10</span><span class="p">),</span>
+        <span class="n">side_input_type</span><span class="o">=</span><span class="n">beam</span><span class="o">.</span><span class="n">pvalue</span><span class="o">.</span><span class="n">AsIter</span><span class="p">,</span>
+        <span class="n">expected</span><span class="o">=</span><span class="p">[(</span><span class="mi">1</span><span class="p">,</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">]),</span> <span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">]),</span> <span class="p">(</span><span class="mi">11</span><span class="p">,</span> <span class="p">[</span><span class="mi">11</span><span class="p">])])</span></div>
+
+<div class="viewcode-block" id="SideInputsTest.test_windowed_singleton"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.sideinputs_test.SideInputsTest.test_windowed_singleton">[docs]</a>  <span class="k">def</span> <span class="nf">test_windowed_singleton</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">run_windowed_side_inputs</span><span class="p">(</span>
+        <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">11</span><span class="p">],</span>
+        <span class="n">window</span><span class="o">.</span><span class="n">FixedWindows</span><span class="p">(</span><span class="mi">10</span><span class="p">),</span>
+        <span class="n">side_input_type</span><span class="o">=</span><span class="n">beam</span><span class="o">.</span><span class="n">pvalue</span><span class="o">.</span><span class="n">AsSingleton</span><span class="p">,</span>
+        <span class="n">combine_fn</span><span class="o">=</span><span class="nb">sum</span><span class="p">,</span>
+        <span class="n">expected</span><span class="o">=</span><span class="p">[(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">3</span><span class="p">),</span> <span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">),</span> <span class="p">(</span><span class="mi">11</span><span class="p">,</span> <span class="mi">11</span><span class="p">)])</span></div>
+
+<div class="viewcode-block" id="SideInputsTest.test_windowed_dict"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.sideinputs_test.SideInputsTest.test_windowed_dict">[docs]</a>  <span class="k">def</span> <span class="nf">test_windowed_dict</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">run_windowed_side_inputs</span><span class="p">(</span>
+        <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">11</span><span class="p">],</span>
+        <span class="n">window</span><span class="o">.</span><span class="n">FixedWindows</span><span class="p">(</span><span class="mi">10</span><span class="p">),</span>
+        <span class="n">side_input_type</span><span class="o">=</span><span class="n">beam</span><span class="o">.</span><span class="n">pvalue</span><span class="o">.</span><span class="n">AsDict</span><span class="p">,</span>
+        <span class="n">expected</span><span class="o">=</span><span class="p">[</span>
+            <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="p">{</span><span class="s1">&#39;k1&#39;</span><span class="p">:</span> <span class="s1">&#39;v1&#39;</span><span class="p">,</span> <span class="s1">&#39;k2&#39;</span><span class="p">:</span> <span class="s1">&#39;v2&#39;</span><span class="p">}),</span>
+            <span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="p">{</span><span class="s1">&#39;k1&#39;</span><span class="p">:</span> <span class="s1">&#39;v1&#39;</span><span class="p">,</span> <span class="s1">&#39;k2&#39;</span><span class="p">:</span> <span class="s1">&#39;v2&#39;</span><span class="p">}),</span>
+            <span class="p">(</span><span class="mi">11</span><span class="p">,</span> <span class="p">{</span><span class="s1">&#39;k11&#39;</span><span class="p">:</span> <span class="s1">&#39;v11&#39;</span><span class="p">}),</span>
+        <span class="p">])</span></div>
+
+  <span class="nd">@attr</span><span class="p">(</span><span class="s1">&#39;ValidatesRunner&#39;</span><span class="p">)</span>
+<div class="viewcode-block" id="SideInputsTest.test_empty_singleton_side_input"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.sideinputs_test.SideInputsTest.test_empty_singleton_side_input">[docs]</a>  <span class="k">def</span> <span class="nf">test_empty_singleton_side_input</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">pipeline</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">create_pipeline</span><span class="p">()</span>
+    <span class="n">pcol</span> <span class="o">=</span> <span class="n">pipeline</span> <span class="o">|</span> <span class="s1">&#39;start&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">([</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">])</span>
+    <span class="n">side</span> <span class="o">=</span> <span class="n">pipeline</span> <span class="o">|</span> <span class="s1">&#39;side&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">([])</span>  <span class="c1"># Empty side input.</span>
+
+    <span class="k">def</span> <span class="nf">my_fn</span><span class="p">(</span><span class="n">k</span><span class="p">,</span> <span class="n">s</span><span class="p">):</span>
+      <span class="c1"># TODO(robertwb): Should this be an error as in Java?</span>
+      <span class="n">v</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;empty&#39;</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="n">beam</span><span class="o">.</span><span class="n">pvalue</span><span class="o">.</span><span class="n">EmptySideInput</span><span class="p">)</span> <span class="k">else</span> <span class="s1">&#39;full&#39;</span><span class="p">)</span>
+      <span class="k">return</span> <span class="p">[(</span><span class="n">k</span><span class="p">,</span> <span class="n">v</span><span class="p">)]</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="n">pcol</span> <span class="o">|</span> <span class="s1">&#39;compute&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">FlatMap</span><span class="p">(</span>
+        <span class="n">my_fn</span><span class="p">,</span> <span class="n">beam</span><span class="o">.</span><span class="n">pvalue</span><span class="o">.</span><span class="n">AsSingleton</span><span class="p">(</span><span class="n">side</span><span class="p">))</span>
+    <span class="n">assert_that</span><span class="p">(</span><span class="n">result</span><span class="p">,</span> <span class="n">equal_to</span><span class="p">([(</span><span class="mi">1</span><span class="p">,</span> <span class="s1">&#39;empty&#39;</span><span class="p">),</span> <span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="s1">&#39;empty&#39;</span><span class="p">)]))</span>
+    <span class="n">pipeline</span><span class="o">.</span><span class="n">run</span><span class="p">()</span></div>
+
+  <span class="c1"># @attr(&#39;ValidatesRunner&#39;)</span>
+  <span class="c1"># TODO(BEAM-1124): Temporarily disable it due to test failed running on</span>
+  <span class="c1"># Dataflow service.</span>
+<div class="viewcode-block" id="SideInputsTest.test_multi_valued_singleton_side_input"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.sideinputs_test.SideInputsTest.test_multi_valued_singleton_side_input">[docs]</a>  <span class="k">def</span> <span class="nf">test_multi_valued_singleton_side_input</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">pipeline</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">create_pipeline</span><span class="p">()</span>
+    <span class="n">pcol</span> <span class="o">=</span> <span class="n">pipeline</span> <span class="o">|</span> <span class="s1">&#39;start&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">([</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">])</span>
+    <span class="n">side</span> <span class="o">=</span> <span class="n">pipeline</span> <span class="o">|</span> <span class="s1">&#39;side&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">([</span><span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="p">])</span>  <span class="c1"># 2 values in side input.</span>
+    <span class="n">pcol</span> <span class="o">|</span> <span class="s1">&#39;compute&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">FlatMap</span><span class="p">(</span>  <span class="c1"># pylint: disable=expression-not-assigned</span>
+        <span class="k">lambda</span> <span class="n">x</span><span class="p">,</span> <span class="n">s</span><span class="p">:</span> <span class="p">[</span><span class="n">x</span> <span class="o">*</span> <span class="n">s</span><span class="p">],</span> <span class="n">beam</span><span class="o">.</span><span class="n">pvalue</span><span class="o">.</span><span class="n">AsSingleton</span><span class="p">(</span><span class="n">side</span><span class="p">))</span>
+    <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">ValueError</span><span class="p">):</span>
+      <span class="n">pipeline</span><span class="o">.</span><span class="n">run</span><span class="p">()</span></div>
+
+  <span class="nd">@attr</span><span class="p">(</span><span class="s1">&#39;ValidatesRunner&#39;</span><span class="p">)</span>
+<div class="viewcode-block" id="SideInputsTest.test_default_value_singleton_side_input"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.sideinputs_test.SideInputsTest.test_default_value_singleton_side_input">[docs]</a>  <span class="k">def</span> <span class="nf">test_default_value_singleton_side_input</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">pipeline</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">create_pipeline</span><span class="p">()</span>
+    <span class="n">pcol</span> <span class="o">=</span> <span class="n">pipeline</span> <span class="o">|</span> <span class="s1">&#39;start&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">([</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">])</span>
+    <span class="n">side</span> <span class="o">=</span> <span class="n">pipeline</span> <span class="o">|</span> <span class="s1">&#39;side&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">([])</span>  <span class="c1"># 0 values in side input.</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="n">pcol</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">FlatMap</span><span class="p">(</span>
+        <span class="k">lambda</span> <span class="n">x</span><span class="p">,</span> <span class="n">s</span><span class="p">:</span> <span class="p">[</span><span class="n">x</span> <span class="o">*</span> <span class="n">s</span><span class="p">],</span> <span class="n">beam</span><span class="o">.</span><span class="n">pvalue</span><span class="o">.</span><span class="n">AsSingleton</span><span class="p">(</span><span class="n">side</span><span class="p">,</span> <span class="mi">10</span><span class="p">))</span>
+    <span class="n">assert_that</span><span class="p">(</span><span class="n">result</span><span class="p">,</span> <span class="n">equal_to</span><span class="p">([</span><span class="mi">10</span><span class="p">,</span> <span class="mi">20</span><span class="p">]))</span>
+    <span class="n">pipeline</span><span class="o">.</span><span class="n">run</span><span class="p">()</span></div>
+
+  <span class="nd">@attr</span><span class="p">(</span><span class="s1">&#39;ValidatesRunner&#39;</span><span class="p">)</span>
+<div class="viewcode-block" id="SideInputsTest.test_iterable_side_input"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.sideinputs_test.SideInputsTest.test_iterable_side_input">[docs]</a>  <span class="k">def</span> <span class="nf">test_iterable_side_input</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">pipeline</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">create_pipeline</span><span class="p">()</span>
+    <span class="n">pcol</span> <span class="o">=</span> <span class="n">pipeline</span> <span class="o">|</span> <span class="s1">&#39;start&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">([</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">])</span>
+    <span class="n">side</span> <span class="o">=</span> <span class="n">pipeline</span> <span class="o">|</span> <span class="s1">&#39;side&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">([</span><span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="p">])</span>  <span class="c1"># 2 values in side input.</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="n">pcol</span> <span class="o">|</span> <span class="s1">&#39;compute&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">FlatMap</span><span class="p">(</span>
+        <span class="k">lambda</span> <span class="n">x</span><span class="p">,</span> <span class="n">s</span><span class="p">:</span> <span class="p">[</span><span class="n">x</span> <span class="o">*</span> <span class="n">y</span> <span class="k">for</span> <span class="n">y</span> <span class="ow">in</span> <span class="n">s</span><span class="p">],</span>
+        <span class="n">beam</span><span class="o">.</span><span class="n">pvalue</span><span class="o">.</span><span class="n">AsIter</span><span class="p">(</span><span class="n">side</span><span class="p">))</span>
+    <span class="n">assert_that</span><span class="p">(</span><span class="n">result</span><span class="p">,</span> <span class="n">equal_to</span><span class="p">([</span><span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">6</span><span class="p">,</span> <span class="mi">8</span><span class="p">]))</span>
+    <span class="n">pipeline</span><span class="o">.</span><span class="n">run</span><span class="p">()</span></div>
+
+  <span class="nd">@attr</span><span class="p">(</span><span class="s1">&#39;ValidatesRunner&#39;</span><span class="p">)</span>
+<div class="viewcode-block" id="SideInputsTest.test_as_list_and_as_dict_side_inputs"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.sideinputs_test.SideInputsTest.test_as_list_and_as_dict_side_inputs">[docs]</a>  <span class="k">def</span> <span class="nf">test_as_list_and_as_dict_side_inputs</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">a_list</span> <span class="o">=</span> <span class="p">[</span><span class="mi">5</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">9</span><span class="p">]</span>
+    <span class="n">some_pairs</span> <span class="o">=</span> <span class="p">[(</span><span class="s1">&#39;crouton&#39;</span><span class="p">,</span> <span class="mi">17</span><span class="p">),</span> <span class="p">(</span><span class="s1">&#39;supreme&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)]</span>
+    <span class="n">pipeline</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">create_pipeline</span><span class="p">()</span>
+    <span class="n">main_input</span> <span class="o">=</span> <span class="n">pipeline</span> <span class="o">|</span> <span class="s1">&#39;main input&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">([</span><span class="mi">1</span><span class="p">])</span>
+    <span class="n">side_list</span> <span class="o">=</span> <span class="n">pipeline</span> <span class="o">|</span> <span class="s1">&#39;side list&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">(</span><span class="n">a_list</span><span class="p">)</span>
+    <span class="n">side_pairs</span> <span class="o">=</span> <span class="n">pipeline</span> <span class="o">|</span> <span class="s1">&#39;side pairs&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">(</span><span class="n">some_pairs</span><span class="p">)</span>
+    <span class="n">results</span> <span class="o">=</span> <span class="n">main_input</span> <span class="o">|</span> <span class="s1">&#39;concatenate&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">FlatMap</span><span class="p">(</span>
+        <span class="k">lambda</span> <span class="n">x</span><span class="p">,</span> <span class="n">the_list</span><span class="p">,</span> <span class="n">the_dict</span><span class="p">:</span> <span class="p">[[</span><span class="n">x</span><span class="p">,</span> <span class="n">the_list</span><span class="p">,</span> <span class="n">the_dict</span><span class="p">]],</span>
+        <span class="n">beam</span><span class="o">.</span><span class="n">pvalue</span><span class="o">.</span><span class="n">AsList</span><span class="p">(</span><span class="n">side_list</span><span class="p">),</span> <span class="n">beam</span><span class="o">.</span><span class="n">pvalue</span><span class="o">.</span><span class="n">AsDict</span><span class="p">(</span><span class="n">side_pairs</span><span class="p">))</span>
+
+    <span class="k">def</span>  <span class="nf">matcher</span><span class="p">(</span><span class="n">expected_elem</span><span class="p">,</span> <span class="n">expected_list</span><span class="p">,</span> <span class="n">expected_pairs</span><span class="p">):</span>
+      <span class="k">def</span> <span class="nf">match</span><span class="p">(</span><span class="n">actual</span><span class="p">):</span>
+        <span class="p">[[</span><span class="n">actual_elem</span><span class="p">,</span> <span class="n">actual_list</span><span class="p">,</span> <span class="n">actual_dict</span><span class="p">]]</span> <span class="o">=</span> <span class="n">actual</span>
+        <span class="n">equal_to</span><span class="p">([</span><span class="n">expected_elem</span><span class="p">])([</span><span class="n">actual_elem</span><span class="p">])</span>
+        <span class="n">equal_to</span><span class="p">(</span><span class="n">expected_list</span><span class="p">)(</span><span class="n">actual_list</span><span class="p">)</span>
+        <span class="n">equal_to</span><span class="p">(</span><span class="n">expected_pairs</span><span class="p">)(</span><span class="n">actual_dict</span><span class="o">.</span><span class="n">iteritems</span><span class="p">())</span>
+      <span class="k">return</span> <span class="n">match</span>
+
+    <span class="n">assert_that</span><span class="p">(</span><span class="n">results</span><span class="p">,</span> <span class="n">matcher</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">a_list</span><span class="p">,</span> <span class="n">some_pairs</span><span class="p">))</span>
+    <span class="n">pipeline</span><span class="o">.</span><span class="n">run</span><span class="p">()</span></div>
+
+  <span class="nd">@attr</span><span class="p">(</span><span class="s1">&#39;ValidatesRunner&#39;</span><span class="p">)</span>
+<div class="viewcode-block" id="SideInputsTest.test_as_singleton_without_unique_labels"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.sideinputs_test.SideInputsTest.test_as_singleton_without_unique_labels">[docs]</a>  <span class="k">def</span> <span class="nf">test_as_singleton_without_unique_labels</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="c1"># This should succeed as calling beam.pvalue.AsSingleton on the same</span>
+    <span class="c1"># PCollection twice with the same defaults will return the same</span>
+    <span class="c1"># PCollectionView.</span>
+    <span class="n">a_list</span> <span class="o">=</span> <span class="p">[</span><span class="mi">2</span><span class="p">]</span>
+    <span class="n">pipeline</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">create_pipeline</span><span class="p">()</span>
+    <span class="n">main_input</span> <span class="o">=</span> <span class="n">pipeline</span> <span class="o">|</span> <span class="s1">&#39;main input&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">([</span><span class="mi">1</span><span class="p">])</span>
+    <span class="n">side_list</span> <span class="o">=</span> <span class="n">pipeline</span> <span class="o">|</span> <span class="s1">&#39;side list&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">(</span><span class="n">a_list</span><span class="p">)</span>
+    <span class="n">results</span> <span class="o">=</span> <span class="n">main_input</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">FlatMap</span><span class="p">(</span>
+        <span class="k">lambda</span> <span class="n">x</span><span class="p">,</span> <span class="n">s1</span><span class="p">,</span> <span class="n">s2</span><span class="p">:</span> <span class="p">[[</span><span class="n">x</span><span class="p">,</span> <span class="n">s1</span><span class="p">,</span> <span class="n">s2</span><span class="p">]],</span>
+        <span class="n">beam</span><span class="o">.</span><span class="n">pvalue</span><span class="o">.</span><span class="n">AsSingleton</span><span class="p">(</span><span class="n">side_list</span><span class="p">),</span> <span class="n">beam</span><span class="o">.</span><span class="n">pvalue</span><span class="o">.</span><span class="n">AsSingleton</span><span class="p">(</span><span class="n">side_list</span><span class="p">))</span>
+
+    <span class="k">def</span>  <span class="nf">matcher</span><span class="p">(</span><span class="n">expected_elem</span><span class="p">,</span> <span class="n">expected_singleton</span><span class="p">):</span>
+      <span class="k">def</span> <span class="nf">match</span><span class="p">(</span><span class="n">actual</span><span class="p">):</span>
+        <span class="p">[[</span><span class="n">actual_elem</span><span class="p">,</span> <span class="n">actual_singleton1</span><span class="p">,</span> <span class="n">actual_singleton2</span><span class="p">]]</span> <span class="o">=</span> <span class="n">actual</span>
+        <span class="n">equal_to</span><span class="p">([</span><span class="n">expected_elem</span><span class="p">])([</span><span class="n">actual_elem</span><span class="p">])</span>
+        <span class="n">equal_to</span><span class="p">([</span><span class="n">expected_singleton</span><span class="p">])([</span><span class="n">actual_singleton1</span><span class="p">])</span>
+        <span class="n">equal_to</span><span class="p">([</span><span class="n">expected_singleton</span><span class="p">])([</span><span class="n">actual_singleton2</span><span class="p">])</span>
+      <span class="k">return</span> <span class="n">match</span>
+
+    <span class="n">assert_that</span><span class="p">(</span><span class="n">results</span><span class="p">,</span> <span class="n">matcher</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">))</span>
+    <span class="n">pipeline</span><span class="o">.</span><span class="n">run</span><span class="p">()</span></div>
+
+  <span class="nd">@attr</span><span class="p">(</span><span class="s1">&#39;ValidatesRunner&#39;</span><span class="p">)</span>
+<div class="viewcode-block" id="SideInputsTest.test_as_singleton_with_different_defaults_without_unique_labels"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.sideinputs_test.SideInputsTest.test_as_singleton_with_different_defaults_without_unique_labels">[docs]</a>  <span class="k">def</span> <span class="nf">test_as_singleton_with_different_defaults_without_unique_labels</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="c1"># This should fail as beam.pvalue.AsSingleton with distinct default values</span>
+    <span class="c1"># should beam.Create distinct PCollectionViews with the same full_label.</span>
+    <span class="n">a_list</span> <span class="o">=</span> <span class="p">[</span><span class="mi">2</span><span class="p">]</span>
+    <span class="n">pipeline</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">create_pipeline</span><span class="p">()</span>
+    <span class="n">main_input</span> <span class="o">=</span> <span class="n">pipeline</span> <span class="o">|</span> <span class="s1">&#39;main input&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">([</span><span class="mi">1</span><span class="p">])</span>
+    <span class="n">side_list</span> <span class="o">=</span> <span class="n">pipeline</span> <span class="o">|</span> <span class="s1">&#39;side list&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">(</span><span class="n">a_list</span><span class="p">)</span>
+
+    <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">RuntimeError</span><span class="p">)</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+      <span class="n">_</span> <span class="o">=</span> <span class="n">main_input</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">FlatMap</span><span class="p">(</span>
+          <span class="k">lambda</span> <span class="n">x</span><span class="p">,</span> <span class="n">s1</span><span class="p">,</span> <span class="n">s2</span><span class="p">:</span> <span class="p">[[</span><span class="n">x</span><span class="p">,</span> <span class="n">s1</span><span class="p">,</span> <span class="n">s2</span><span class="p">]],</span>
+          <span class="n">beam</span><span class="o">.</span><span class="n">pvalue</span><span class="o">.</span><span class="n">AsSingleton</span><span class="p">(</span><span class="n">side_list</span><span class="p">),</span>
+          <span class="n">beam</span><span class="o">.</span><span class="n">pvalue</span><span class="o">.</span><span class="n">AsSingleton</span><span class="p">(</span><span class="n">side_list</span><span class="p">,</span> <span class="n">default_value</span><span class="o">=</span><span class="mi">3</span><span class="p">))</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span>
+        <span class="n">e</span><span class="o">.</span><span class="n">exception</span><span class="o">.</span><span class="n">message</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span>
+            <span class="s1">&#39;Transform &quot;ViewAsSingleton(side list.None)&quot; does not have a &#39;</span>
+            <span class="s1">&#39;stable unique label.&#39;</span><span class="p">))</span></div>
+
+  <span class="nd">@attr</span><span class="p">(</span><span class="s1">&#39;ValidatesRunner&#39;</span><span class="p">)</span>
+<div class="viewcode-block" id="SideInputsTest.test_as_singleton_with_different_defaults_with_unique_labels"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.sideinputs_test.SideInputsTest.test_as_singleton_with_different_defaults_with_unique_labels">[docs]</a>  <span class="k">def</span> <span class="nf">test_as_singleton_with_different_defaults_with_unique_labels</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">a_list</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">pipeline</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">create_pipeline</span><span class="p">()</span>
+    <span class="n">main_input</span> <span class="o">=</span> <span class="n">pipeline</span> <span class="o">|</span> <span class="s1">&#39;main input&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">([</span><span class="mi">1</span><span class="p">])</span>
+    <span class="n">side_list</span> <span class="o">=</span> <span class="n">pipeline</span> <span class="o">|</span> <span class="s1">&#39;side list&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">(</span><span class="n">a_list</span><span class="p">)</span>
+    <span class="n">results</span> <span class="o">=</span> <span class="n">main_input</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">FlatMap</span><span class="p">(</span>
+        <span class="k">lambda</span> <span class="n">x</span><span class="p">,</span> <span class="n">s1</span><span class="p">,</span> <span class="n">s2</span><span class="p">:</span> <span class="p">[[</span><span class="n">x</span><span class="p">,</span> <span class="n">s1</span><span class="p">,</span> <span class="n">s2</span><span class="p">]],</span>
+        <span class="n">beam</span><span class="o">.</span><span class="n">pvalue</span><span class="o">.</span><span class="n">AsSingleton</span><span class="p">(</span><span class="n">side_list</span><span class="p">,</span> <span class="n">default_value</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;si1&#39;</span><span class="p">),</span>
+        <span class="n">beam</span><span class="o">.</span><span class="n">pvalue</span><span class="o">.</span><span class="n">AsSingleton</span><span class="p">(</span><span class="n">side_list</span><span class="p">,</span> <span class="n">default_value</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;si2&#39;</span><span class="p">))</span>
+
+    <span class="k">def</span>  <span class="nf">matcher</span><span class="p">(</span><span class="n">expected_elem</span><span class="p">,</span> <span class="n">expected_singleton1</span><span class="p">,</span> <span class="n">expected_singleton2</span><span class="p">):</span>
+      <span class="k">def</span> <span class="nf">match</span><span class="p">(</span><span class="n">actual</span><span class="p">):</span>
+        <span class="p">[[</span><span class="n">actual_elem</span><span class="p">,</span> <span class="n">actual_singleton1</span><span class="p">,</span> <span class="n">actual_singleton2</span><span class="p">]]</span> <span class="o">=</span> <span class="n">actual</span>
+        <span class="n">equal_to</span><span class="p">([</span><span class="n">expected_elem</span><span class="p">])([</span><span class="n">actual_elem</span><span class="p">])</span>
+        <span class="n">equal_to</span><span class="p">([</span><span class="n">expected_singleton1</span><span class="p">])([</span><span class="n">actual_singleton1</span><span class="p">])</span>
+        <span class="n">equal_to</span><span class="p">([</span><span class="n">expected_singleton2</span><span class="p">])([</span><span class="n">actual_singleton2</span><span class="p">])</span>
+      <span class="k">return</span> <span class="n">match</span>
+
+    <span class="n">assert_that</span><span class="p">(</span><span class="n">results</span><span class="p">,</span> <span class="n">matcher</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">))</span>
+    <span class="n">pipeline</span><span class="o">.</span><span class="n">run</span><span class="p">()</span></div>
+
+  <span class="nd">@attr</span><span class="p">(</span><span class="s1">&#39;ValidatesRunner&#39;</span><span class="p">)</span>
+<div class="viewcode-block" id="SideInputsTest.test_as_list_without_unique_labels"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.sideinputs_test.SideInputsTest.test_as_list_without_unique_labels">[docs]</a>  <span class="k">def</span> <span class="nf">test_as_list_without_unique_labels</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="c1"># This should succeed as calling beam.pvalue.AsList on the same</span>
+    <span class="c1"># PCollection twice will return the same PCollectionView.</span>
+    <span class="n">a_list</span> <span class="o">=</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">]</span>
+    <span class="n">pipeline</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">create_pipeline</span><span class="p">()</span>
+    <span class="n">main_input</span> <span class="o">=</span> <span class="n">pipeline</span> <span class="o">|</span> <span class="s1">&#39;main input&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">([</span><span class="mi">1</span><span class="p">])</span>
+    <span class="n">side_list</span> <span class="o">=</span> <span class="n">pipeline</span> <span class="o">|</span> <span class="s1">&#39;side list&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">(</span><span class="n">a_list</span><span class="p">)</span>
+    <span class="n">results</span> <span class="o">=</span> <span class="n">main_input</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">FlatMap</span><span class="p">(</span>
+        <span class="k">lambda</span> <span class="n">x</span><span class="p">,</span> <span class="n">ls1</span><span class="p">,</span> <span class="n">ls2</span><span class="p">:</span> <span class="p">[[</span><span class="n">x</span><span class="p">,</span> <span class="n">ls1</span><span class="p">,</span> <span class="n">ls2</span><span class="p">]],</span>
+        <span class="n">beam</span><span class="o">.</span><span class="n">pvalue</span><span class="o">.</span><span class="n">AsList</span><span class="p">(</span><span class="n">side_list</span><span class="p">),</span> <span class="n">beam</span><span class="o">.</span><span class="n">pvalue</span><span class="o">.</span><span class="n">AsList</span><span class="p">(</span><span class="n">side_list</span><span class="p">))</span>
+
+    <span class="k">def</span>  <span class="nf">matcher</span><span class="p">(</span><span class="n">expected_elem</span><span class="p">,</span> <span class="n">expected_list</span><span class="p">):</span>
+      <span class="k">def</span> <span class="nf">match</span><span class="p">(</span><span class="n">actual</span><span class="p">):</span>
+        <span class="p">[[</span><span class="n">actual_elem</span><span class="p">,</span> <span class="n">actual_list1</span><span class="p">,</span> <span class="n">actual_list2</span><span class="p">]]</span> <span class="o">=</span> <span class="n">actual</span>
+        <span class="n">equal_to</span><span class="p">([</span><span class="n">expected_elem</span><span class="p">])([</span><span class="n">actual_elem</span><span class="p">])</span>
+        <span class="n">equal_to</span><span class="p">(</span><span class="n">expected_list</span><span class="p">)(</span><span class="n">actual_list1</span><span class="p">)</span>
+        <span class="n">equal_to</span><span class="p">(</span><span class="n">expected_list</span><span class="p">)(</span><span class="n">actual_list2</span><span class="p">)</span>
+      <span class="k">return</span> <span class="n">match</span>
+
+    <span class="n">assert_that</span><span class="p">(</span><span class="n">results</span><span class="p">,</span> <span class="n">matcher</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">]))</span>
+    <span class="n">pipeline</span><span class="o">.</span><span class="n">run</span><span class="p">()</span></div>
+
+  <span class="nd">@attr</span><span class="p">(</span><span class="s1">&#39;ValidatesRunner&#39;</span><span class="p">)</span>
+<div class="viewcode-block" id="SideInputsTest.test_as_list_with_unique_labels"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.sideinputs_test.SideInputsTest.test_as_list_with_unique_labels">[docs]</a>  <span class="k">def</span> <span class="nf">test_as_list_with_unique_labels</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">a_list</span> <span class="o">=</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">]</span>
+    <span class="n">pipeline</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">create_pipeline</span><span class="p">()</span>
+    <span class="n">main_input</span> <span class="o">=</span> <span class="n">pipeline</span> <span class="o">|</span> <span class="s1">&#39;main input&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">([</span><span class="mi">1</span><span class="p">])</span>
+    <span class="n">side_list</span> <span class="o">=</span> <span class="n">pipeline</span> <span class="o">|</span> <span class="s1">&#39;side list&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">(</span><span class="n">a_list</span><span class="p">)</span>
+    <span class="n">results</span> <span class="o">=</span> <span class="n">main_input</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">FlatMap</span><span class="p">(</span>
+        <span class="k">lambda</span> <span class="n">x</span><span class="p">,</span> <span class="n">ls1</span><span class="p">,</span> <span class="n">ls2</span><span class="p">:</span> <span class="p">[[</span><span class="n">x</span><span class="p">,</span> <span class="n">ls1</span><span class="p">,</span> <span class="n">ls2</span><span class="p">]],</span>
+        <span class="n">beam</span><span class="o">.</span><span class="n">pvalue</span><span class="o">.</span><span class="n">AsList</span><span class="p">(</span><span class="n">side_list</span><span class="p">),</span>
+        <span class="n">beam</span><span class="o">.</span><span class="n">pvalue</span><span class="o">.</span><span class="n">AsList</span><span class="p">(</span><span class="n">side_list</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;label&#39;</span><span class="p">))</span>
+
+    <span class="k">def</span>  <span class="nf">matcher</span><span class="p">(</span><span class="n">expected_elem</span><span class="p">,</span> <span class="n">expected_list</span><span class="p">):</span>
+      <span class="k">def</span> <span class="nf">match</span><span class="p">(</span><span class="n">actual</span><span class="p">):</span>
+        <span class="p">[[</span><span class="n">actual_elem</span><span class="p">,</span> <span class="n">actual_list1</span><span class="p">,</span> <span class="n">actual_list2</span><span class="p">]]</span> <span class="o">=</span> <span class="n">actual</span>
+        <span class="n">equal_to</span><span class="p">([</span><span class="n">expected_elem</span><span class="p">])([</span><span class="n">actual_elem</span><span class="p">])</span>
+        <span class="n">equal_to</span><span class="p">(</span><span class="n">expected_list</span><span class="p">)(</span><span class="n">actual_list1</span><span class="p">)</span>
+        <span class="n">equal_to</span><span class="p">(</span><span class="n">expected_list</span><span class="p">)(</span><span class="n">actual_list2</span><span class="p">)</span>
+      <span class="k">return</span> <span class="n">match</span>
+
+    <span class="n">assert_that</span><span class="p">(</span><span class="n">results</span><span class="p">,</span> <span class="n">matcher</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">]))</span>
+    <span class="n">pipeline</span><span class="o">.</span><span class="n">run</span><span class="p">()</span></div>
+
+  <span class="nd">@attr</span><span class="p">(</span><span class="s1">&#39;ValidatesRunner&#39;</span><span class="p">)</span>
+<div class="viewcode-block" id="SideInputsTest.test_as_dict_with_unique_labels"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.sideinputs_test.SideInputsTest.test_as_dict_with_unique_labels">[docs]</a>  <span class="k">def</span> <span class="nf">test_as_dict_with_unique_labels</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">some_kvs</span> <span class="o">=</span> <span class="p">[(</span><span class="s1">&#39;a&#39;</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span> <span class="p">(</span><span class="s1">&#39;b&#39;</span><span class="p">,</span> <span class="mi">2</span><span class="p">)]</span>
+    <span class="n">pipeline</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">create_pipeline</span><span class="p">()</span>
+    <span class="n">main_input</span> <span class="o">=</span> <span class="n">pipeline</span> <span class="o">|</span> <span class="s1">&#39;main input&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">([</span><span class="mi">1</span><span class="p">])</span>
+    <span class="n">side_kvs</span> <span class="o">=</span> <span class="n">pipeline</span> <span class="o">|</span> <span class="s1">&#39;side kvs&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">(</span><span class="n">some_kvs</span><span class="p">)</span>
+    <span class="n">results</span> <span class="o">=</span> <span class="n">main_input</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">FlatMap</span><span class="p">(</span>
+        <span class="k">lambda</span> <span class="n">x</span><span class="p">,</span> <span class="n">dct1</span><span class="p">,</span> <span class="n">dct2</span><span class="p">:</span> <span class="p">[[</span><span class="n">x</span><span class="p">,</span> <span class="n">dct1</span><span class="p">,</span> <span class="n">dct2</span><span class="p">]],</span>
+        <span class="n">beam</span><span class="o">.</span><span class="n">pvalue</span><span class="o">.</span><span class="n">AsDict</span><span class="p">(</span><span class="n">side_kvs</span><span class="p">),</span>
+        <span class="n">beam</span><span class="o">.</span><span class="n">pvalue</span><span class="o">.</span><span class="n">AsDict</span><span class="p">(</span><span class="n">side_kvs</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;label&#39;</span><span class="p">))</span>
+
+    <span class="k">def</span>  <span class="nf">matcher</span><span class="p">(</span><span class="n">expected_elem</span><span class="p">,</span> <span class="n">expected_kvs</span><span class="p">):</span>
+      <span class="k">def</span> <span class="nf">match</span><span class="p">(</span><span class="n">actual</span><span class="p">):</span>
+        <span class="p">[[</span><span class="n">actual_elem</span><span class="p">,</span> <span class="n">actual_dict1</span><span class="p">,</span> <span class="n">actual_dict2</span><span class="p">]]</span> <span class="o">=</span> <span class="n">actual</span>
+        <span class="n">equal_to</span><span class="p">([</span><span class="n">expected_elem</span><span class="p">])([</span><span class="n">actual_elem</span><span class="p">])</span>
+        <span class="n">equal_to</span><span class="p">(</span><span class="n">expected_kvs</span><span class="p">)(</span><span class="n">actual_dict1</span><span class="o">.</span><span class="n">iteritems</span><span class="p">())</span>
+        <span class="n">equal_to</span><span class="p">(</span><span class="n">expected_kvs</span><span class="p">)(</span><span class="n">actual_dict2</span><span class="o">.</span><span class="n">iteritems</span><span class="p">())</span>
+      <span class="k">return</span> <span class="n">match</span>
+
+    <span class="n">assert_that</span><span class="p">(</span><span class="n">results</span><span class="p">,</span> <span class="n">matcher</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">some_kvs</span><span class="p">))</span>
+    <span class="n">pipeline</span><span class="o">.</span><span class="n">run</span><span class="p">()</span></div></div>
+
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s1">&#39;__main__&#39;</span><span class="p">:</span>
+  <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">()</span><span class="o">.</span><span class="n">setLevel</span><span class="p">(</span><span class="n">logging</span><span class="o">.</span><span class="n">DEBUG</span><span class="p">)</span>
+  <span class="n">unittest</span><span class="o">.</span><span class="n">main</span><span class="p">()</span>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../index.html" >Module code</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright .
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.5.3.
+    </div>
+  </body>
+</html>

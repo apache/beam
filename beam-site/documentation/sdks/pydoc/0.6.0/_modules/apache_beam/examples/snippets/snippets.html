@@ -1,0 +1,1248 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>apache_beam.examples.snippets.snippets &#8212; Apache Beam  documentation</title>
+    
+    <link rel="stylesheet" href="../../../../_static/sphinxdoc.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../../',
+        VERSION:     '',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" /> 
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../../index.html" accesskey="U">Module code</a> &#187;</li> 
+      </ul>
+    </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../../../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for apache_beam.examples.snippets.snippets</h1><div class="highlight"><pre>
+<span></span><span class="c1">#</span>
+<span class="c1"># Licensed to the Apache Software Foundation (ASF) under one or more</span>
+<span class="c1"># contributor license agreements.  See the NOTICE file distributed with</span>
+<span class="c1"># this work for additional information regarding copyright ownership.</span>
+<span class="c1"># The ASF licenses this file to You under the Apache License, Version 2.0</span>
+<span class="c1"># (the &quot;License&quot;); you may not use this file except in compliance with</span>
+<span class="c1"># the License.  You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1">#    http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.</span>
+<span class="c1"># See the License for the specific language governing permissions and</span>
+<span class="c1"># limitations under the License.</span>
+<span class="c1">#</span>
+
+<span class="sd">&quot;&quot;&quot;Code snippets used in webdocs.</span>
+
+<span class="sd">The examples here are written specifically to read well with the accompanying</span>
+<span class="sd">web docs. Do not rewrite them until you make sure the webdocs still read well</span>
+<span class="sd">and the rewritten code supports the concept being described. For example, there</span>
+<span class="sd">are snippets that could be shorter but they are written like this to make a</span>
+<span class="sd">specific point in the docs.</span>
+
+<span class="sd">The code snippets are all organized as self contained functions. Parts of the</span>
+<span class="sd">function body delimited by [START tag] and [END tag] will be included</span>
+<span class="sd">automatically in the web docs. The naming convention for the tags is to have as</span>
+<span class="sd">prefix the PATH_TO_HTML where they are included followed by a descriptive</span>
+<span class="sd">string. The tags can contain only letters, digits and _.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">apache_beam</span> <span class="k">as</span> <span class="nn">beam</span>
+<span class="kn">from</span> <span class="nn">apache_beam.test_pipeline</span> <span class="k">import</span> <span class="n">TestPipeline</span>
+<span class="kn">from</span> <span class="nn">apache_beam.metrics</span> <span class="k">import</span> <span class="n">Metrics</span>
+
+<span class="c1"># Quiet some pylint warnings that happen because of the somewhat special</span>
+<span class="c1"># format for the code snippets.</span>
+<span class="c1"># pylint:disable=invalid-name</span>
+<span class="c1"># pylint:disable=expression-not-assigned</span>
+<span class="c1"># pylint:disable=redefined-outer-name</span>
+<span class="c1"># pylint:disable=reimported</span>
+<span class="c1"># pylint:disable=unused-variable</span>
+<span class="c1"># pylint:disable=wrong-import-order, wrong-import-position</span>
+
+
+<div class="viewcode-block" id="SnippetUtils"><a class="viewcode-back" href="../../../../apache_beam.examples.snippets.html#apache_beam.examples.snippets.snippets.SnippetUtils">[docs]</a><span class="k">class</span> <span class="nc">SnippetUtils</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+  <span class="kn">from</span> <span class="nn">apache_beam.pipeline</span> <span class="k">import</span> <span class="n">PipelineVisitor</span>
+
+<div class="viewcode-block" id="SnippetUtils.RenameFiles"><a class="viewcode-back" href="../../../../apache_beam.examples.snippets.html#apache_beam.examples.snippets.snippets.SnippetUtils.RenameFiles">[docs]</a>  <span class="k">class</span> <span class="nc">RenameFiles</span><span class="p">(</span><span class="n">PipelineVisitor</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;RenameFiles will rewire read/write paths for unit testing.</span>
+
+<span class="sd">    RenameFiles will replace the GCS files specified in the read and</span>
+<span class="sd">    write transforms to local files so the pipeline can be run as a</span>
+<span class="sd">    unit test. This assumes that read and write transforms defined in snippets</span>
+<span class="sd">    have already been replaced by transforms &#39;DummyReadForTesting&#39; and</span>
+<span class="sd">    &#39;DummyReadForTesting&#39; (see snippets_test.py).</span>
+
+<span class="sd">    This is as close as we can get to have code snippets that are</span>
+<span class="sd">    executed and are also ready to presented in webdocs.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">renames</span><span class="p">):</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">renames</span> <span class="o">=</span> <span class="n">renames</span>
+
+<div class="viewcode-block" id="SnippetUtils.RenameFiles.visit_transform"><a class="viewcode-back" href="../../../../apache_beam.examples.snippets.html#apache_beam.examples.snippets.snippets.SnippetUtils.RenameFiles.visit_transform">[docs]</a>    <span class="k">def</span> <span class="nf">visit_transform</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">transform_node</span><span class="p">):</span>
+      <span class="k">if</span> <span class="n">transform_node</span><span class="o">.</span><span class="n">full_label</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s1">&#39;DummyReadForTesting&#39;</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="n">transform_node</span><span class="o">.</span><span class="n">transform</span><span class="o">.</span><span class="n">fn</span><span class="o">.</span><span class="n">file_to_read</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">renames</span><span class="p">[</span><span class="s1">&#39;read&#39;</span><span class="p">]</span>
+      <span class="k">elif</span> <span class="n">transform_node</span><span class="o">.</span><span class="n">full_label</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s1">&#39;DummyWriteForTesting&#39;</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="n">transform_node</span><span class="o">.</span><span class="n">transform</span><span class="o">.</span><span class="n">fn</span><span class="o">.</span><span class="n">file_to_write</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">renames</span><span class="p">[</span><span class="s1">&#39;write&#39;</span><span class="p">]</span></div></div></div>
+
+
+<div class="viewcode-block" id="construct_pipeline"><a class="viewcode-back" href="../../../../apache_beam.examples.snippets.html#apache_beam.examples.snippets.snippets.construct_pipeline">[docs]</a><span class="k">def</span> <span class="nf">construct_pipeline</span><span class="p">(</span><span class="n">renames</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;A reverse words snippet as an example for constructing a pipeline.&quot;&quot;&quot;</span>
+  <span class="kn">import</span> <span class="nn">re</span>
+
+  <span class="k">class</span> <span class="nc">ReverseWords</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">PTransform</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;A PTransform that reverses individual elements in a PCollection.&quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">expand</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pcoll</span><span class="p">):</span>
+      <span class="k">return</span> <span class="n">pcoll</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">e</span><span class="p">:</span> <span class="n">e</span><span class="p">[::</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
+
+  <span class="k">def</span> <span class="nf">filter_words</span><span class="p">(</span><span class="n">unused_x</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Pass through filter to select everything.&quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="kc">True</span>
+
+  <span class="c1"># [START pipelines_constructing_creating]</span>
+  <span class="kn">from</span> <span class="nn">apache_beam.utils.pipeline_options</span> <span class="k">import</span> <span class="n">PipelineOptions</span>
+
+  <span class="n">p</span> <span class="o">=</span> <span class="n">beam</span><span class="o">.</span><span class="n">Pipeline</span><span class="p">(</span><span class="n">options</span><span class="o">=</span><span class="n">PipelineOptions</span><span class="p">())</span>
+  <span class="c1"># [END pipelines_constructing_creating]</span>
+
+  <span class="n">p</span> <span class="o">=</span> <span class="n">TestPipeline</span><span class="p">()</span> <span class="c1"># Use TestPipeline for testing.</span>
+
+  <span class="c1"># [START pipelines_constructing_reading]</span>
+  <span class="n">lines</span> <span class="o">=</span> <span class="n">p</span> <span class="o">|</span> <span class="s1">&#39;ReadMyFile&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">ReadFromText</span><span class="p">(</span><span class="s1">&#39;gs://some/inputData.txt&#39;</span><span class="p">)</span>
+  <span class="c1"># [END pipelines_constructing_reading]</span>
+
+  <span class="c1"># [START pipelines_constructing_applying]</span>
+  <span class="n">words</span> <span class="o">=</span> <span class="n">lines</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">FlatMap</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">re</span><span class="o">.</span><span class="n">findall</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;[A-Za-z</span><span class="se">\&#39;</span><span class="s1">]+&#39;</span><span class="p">,</span> <span class="n">x</span><span class="p">))</span>
+  <span class="n">reversed_words</span> <span class="o">=</span> <span class="n">words</span> <span class="o">|</span> <span class="n">ReverseWords</span><span class="p">()</span>
+  <span class="c1"># [END pipelines_constructing_applying]</span>
+
+  <span class="c1"># [START pipelines_constructing_writing]</span>
+  <span class="n">filtered_words</span> <span class="o">=</span> <span class="n">reversed_words</span> <span class="o">|</span> <span class="s1">&#39;FilterWords&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Filter</span><span class="p">(</span><span class="n">filter_words</span><span class="p">)</span>
+  <span class="n">filtered_words</span> <span class="o">|</span> <span class="s1">&#39;WriteMyFile&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">WriteToText</span><span class="p">(</span>
+      <span class="s1">&#39;gs://some/outputData.txt&#39;</span><span class="p">)</span>
+  <span class="c1"># [END pipelines_constructing_writing]</span>
+
+  <span class="n">p</span><span class="o">.</span><span class="n">visit</span><span class="p">(</span><span class="n">SnippetUtils</span><span class="o">.</span><span class="n">RenameFiles</span><span class="p">(</span><span class="n">renames</span><span class="p">))</span>
+
+  <span class="c1"># [START pipelines_constructing_running]</span>
+  <span class="n">p</span><span class="o">.</span><span class="n">run</span><span class="p">()</span></div>
+  <span class="c1"># [END pipelines_constructing_running]</span>
+
+
+<div class="viewcode-block" id="model_pipelines"><a class="viewcode-back" href="../../../../apache_beam.examples.snippets.html#apache_beam.examples.snippets.snippets.model_pipelines">[docs]</a><span class="k">def</span> <span class="nf">model_pipelines</span><span class="p">(</span><span class="n">argv</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;A wordcount snippet as a simple pipeline example.&quot;&quot;&quot;</span>
+  <span class="c1"># [START model_pipelines]</span>
+  <span class="kn">import</span> <span class="nn">re</span>
+
+  <span class="kn">import</span> <span class="nn">apache_beam</span> <span class="k">as</span> <span class="nn">beam</span>
+  <span class="kn">from</span> <span class="nn">apache_beam.utils.pipeline_options</span> <span class="k">import</span> <span class="n">PipelineOptions</span>
+
+  <span class="k">class</span> <span class="nc">MyOptions</span><span class="p">(</span><span class="n">PipelineOptions</span><span class="p">):</span>
+
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">_add_argparse_args</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">parser</span><span class="p">):</span>
+      <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;--input&#39;</span><span class="p">,</span>
+                          <span class="n">dest</span><span class="o">=</span><span class="s1">&#39;input&#39;</span><span class="p">,</span>
+                          <span class="n">default</span><span class="o">=</span><span class="s1">&#39;gs://dataflow-samples/shakespeare/kinglear&#39;</span>
+                          <span class="s1">&#39;.txt&#39;</span><span class="p">,</span>
+                          <span class="n">help</span><span class="o">=</span><span class="s1">&#39;Input file to process.&#39;</span><span class="p">)</span>
+      <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;--output&#39;</span><span class="p">,</span>
+                          <span class="n">dest</span><span class="o">=</span><span class="s1">&#39;output&#39;</span><span class="p">,</span>
+                          <span class="n">required</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                          <span class="n">help</span><span class="o">=</span><span class="s1">&#39;Output file to write results to.&#39;</span><span class="p">)</span>
+
+  <span class="n">pipeline_options</span> <span class="o">=</span> <span class="n">PipelineOptions</span><span class="p">(</span><span class="n">argv</span><span class="p">)</span>
+  <span class="n">my_options</span> <span class="o">=</span> <span class="n">pipeline_options</span><span class="o">.</span><span class="n">view_as</span><span class="p">(</span><span class="n">MyOptions</span><span class="p">)</span>
+
+  <span class="n">p</span> <span class="o">=</span> <span class="n">beam</span><span class="o">.</span><span class="n">Pipeline</span><span class="p">(</span><span class="n">options</span><span class="o">=</span><span class="n">pipeline_options</span><span class="p">)</span>
+
+  <span class="p">(</span><span class="n">p</span>
+   <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">ReadFromText</span><span class="p">(</span><span class="n">my_options</span><span class="o">.</span><span class="n">input</span><span class="p">)</span>
+   <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">FlatMap</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">re</span><span class="o">.</span><span class="n">findall</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;[A-Za-z</span><span class="se">\&#39;</span><span class="s1">]+&#39;</span><span class="p">,</span> <span class="n">x</span><span class="p">))</span>
+   <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span>
+   <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">combiners</span><span class="o">.</span><span class="n">Count</span><span class="o">.</span><span class="n">PerKey</span><span class="p">()</span>
+   <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">WriteToText</span><span class="p">(</span><span class="n">my_options</span><span class="o">.</span><span class="n">output</span><span class="p">))</span>
+
+  <span class="n">result</span> <span class="o">=</span> <span class="n">p</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
+  <span class="c1"># [END model_pipelines]</span>
+  <span class="n">result</span><span class="o">.</span><span class="n">wait_until_finish</span><span class="p">()</span></div>
+
+
+<div class="viewcode-block" id="model_pcollection"><a class="viewcode-back" href="../../../../apache_beam.examples.snippets.html#apache_beam.examples.snippets.snippets.model_pcollection">[docs]</a><span class="k">def</span> <span class="nf">model_pcollection</span><span class="p">(</span><span class="n">argv</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Creating a PCollection from data in local memory.&quot;&quot;&quot;</span>
+  <span class="kn">from</span> <span class="nn">apache_beam.utils.pipeline_options</span> <span class="k">import</span> <span class="n">PipelineOptions</span>
+
+  <span class="k">class</span> <span class="nc">MyOptions</span><span class="p">(</span><span class="n">PipelineOptions</span><span class="p">):</span>
+
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">_add_argparse_args</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">parser</span><span class="p">):</span>
+      <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;--output&#39;</span><span class="p">,</span>
+                          <span class="n">dest</span><span class="o">=</span><span class="s1">&#39;output&#39;</span><span class="p">,</span>
+                          <span class="n">required</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                          <span class="n">help</span><span class="o">=</span><span class="s1">&#39;Output file to write results to.&#39;</span><span class="p">)</span>
+
+  <span class="n">pipeline_options</span> <span class="o">=</span> <span class="n">PipelineOptions</span><span class="p">(</span><span class="n">argv</span><span class="p">)</span>
+  <span class="n">my_options</span> <span class="o">=</span> <span class="n">pipeline_options</span><span class="o">.</span><span class="n">view_as</span><span class="p">(</span><span class="n">MyOptions</span><span class="p">)</span>
+
+  <span class="c1"># [START model_pcollection]</span>
+  <span class="n">p</span> <span class="o">=</span> <span class="n">beam</span><span class="o">.</span><span class="n">Pipeline</span><span class="p">(</span><span class="n">options</span><span class="o">=</span><span class="n">pipeline_options</span><span class="p">)</span>
+
+  <span class="p">(</span><span class="n">p</span>
+   <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">([</span>
+       <span class="s1">&#39;To be, or not to be: that is the question: &#39;</span><span class="p">,</span>
+       <span class="s1">&#39;Whether </span><span class="se">\&#39;</span><span class="s1">tis nobler in the mind to suffer &#39;</span><span class="p">,</span>
+       <span class="s1">&#39;The slings and arrows of outrageous fortune, &#39;</span><span class="p">,</span>
+       <span class="s1">&#39;Or to take arms against a sea of troubles, &#39;</span><span class="p">])</span>
+   <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">WriteToText</span><span class="p">(</span><span class="n">my_options</span><span class="o">.</span><span class="n">output</span><span class="p">))</span>
+
+  <span class="n">result</span> <span class="o">=</span> <span class="n">p</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
+  <span class="c1"># [END model_pcollection]</span>
+  <span class="n">result</span><span class="o">.</span><span class="n">wait_until_finish</span><span class="p">()</span></div>
+
+
+<div class="viewcode-block" id="pipeline_options_remote"><a class="viewcode-back" href="../../../../apache_beam.examples.snippets.html#apache_beam.examples.snippets.snippets.pipeline_options_remote">[docs]</a><span class="k">def</span> <span class="nf">pipeline_options_remote</span><span class="p">(</span><span class="n">argv</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Creating a Pipeline using a PipelineOptions object for remote execution.&quot;&quot;&quot;</span>
+
+  <span class="kn">from</span> <span class="nn">apache_beam</span> <span class="k">import</span> <span class="n">Pipeline</span>
+  <span class="kn">from</span> <span class="nn">apache_beam.utils.pipeline_options</span> <span class="k">import</span> <span class="n">PipelineOptions</span>
+
+  <span class="c1"># [START pipeline_options_create]</span>
+  <span class="n">options</span> <span class="o">=</span> <span class="n">PipelineOptions</span><span class="p">(</span><span class="n">flags</span><span class="o">=</span><span class="n">argv</span><span class="p">)</span>
+  <span class="c1"># [END pipeline_options_create]</span>
+
+  <span class="c1"># [START pipeline_options_define_custom]</span>
+  <span class="k">class</span> <span class="nc">MyOptions</span><span class="p">(</span><span class="n">PipelineOptions</span><span class="p">):</span>
+
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">_add_argparse_args</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">parser</span><span class="p">):</span>
+      <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;--input&#39;</span><span class="p">)</span>
+      <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;--output&#39;</span><span class="p">)</span>
+  <span class="c1"># [END pipeline_options_define_custom]</span>
+
+  <span class="kn">from</span> <span class="nn">apache_beam.utils.pipeline_options</span> <span class="k">import</span> <span class="n">GoogleCloudOptions</span>
+  <span class="kn">from</span> <span class="nn">apache_beam.utils.pipeline_options</span> <span class="k">import</span> <span class="n">StandardOptions</span>
+
+  <span class="c1"># [START pipeline_options_dataflow_service]</span>
+  <span class="c1"># Create and set your PipelineOptions.</span>
+  <span class="n">options</span> <span class="o">=</span> <span class="n">PipelineOptions</span><span class="p">(</span><span class="n">flags</span><span class="o">=</span><span class="n">argv</span><span class="p">)</span>
+
+  <span class="c1"># For Cloud execution, set the Cloud Platform project, job_name,</span>
+  <span class="c1"># staging location, temp_location and specify DataflowRunner.</span>
+  <span class="n">google_cloud_options</span> <span class="o">=</span> <span class="n">options</span><span class="o">.</span><span class="n">view_as</span><span class="p">(</span><span class="n">GoogleCloudOptions</span><span class="p">)</span>
+  <span class="n">google_cloud_options</span><span class="o">.</span><span class="n">project</span> <span class="o">=</span> <span class="s1">&#39;my-project-id&#39;</span>
+  <span class="n">google_cloud_options</span><span class="o">.</span><span class="n">job_name</span> <span class="o">=</span> <span class="s1">&#39;myjob&#39;</span>
+  <span class="n">google_cloud_options</span><span class="o">.</span><span class="n">staging_location</span> <span class="o">=</span> <span class="s1">&#39;gs://my-bucket/binaries&#39;</span>
+  <span class="n">google_cloud_options</span><span class="o">.</span><span class="n">temp_location</span> <span class="o">=</span> <span class="s1">&#39;gs://my-bucket/temp&#39;</span>
+  <span class="n">options</span><span class="o">.</span><span class="n">view_as</span><span class="p">(</span><span class="n">StandardOptions</span><span class="p">)</span><span class="o">.</span><span class="n">runner</span> <span class="o">=</span> <span class="s1">&#39;DataflowRunner&#39;</span>
+
+  <span class="c1"># Create the Pipeline with the specified options.</span>
+  <span class="n">p</span> <span class="o">=</span> <span class="n">Pipeline</span><span class="p">(</span><span class="n">options</span><span class="o">=</span><span class="n">options</span><span class="p">)</span>
+  <span class="c1"># [END pipeline_options_dataflow_service]</span>
+
+  <span class="n">my_options</span> <span class="o">=</span> <span class="n">options</span><span class="o">.</span><span class="n">view_as</span><span class="p">(</span><span class="n">MyOptions</span><span class="p">)</span>
+  <span class="n">my_input</span> <span class="o">=</span> <span class="n">my_options</span><span class="o">.</span><span class="n">input</span>
+  <span class="n">my_output</span> <span class="o">=</span> <span class="n">my_options</span><span class="o">.</span><span class="n">output</span>
+
+  <span class="n">p</span> <span class="o">=</span> <span class="n">TestPipeline</span><span class="p">()</span>  <span class="c1"># Use TestPipeline for testing.</span>
+
+  <span class="n">lines</span> <span class="o">=</span> <span class="n">p</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">ReadFromText</span><span class="p">(</span><span class="n">my_input</span><span class="p">)</span>
+  <span class="n">lines</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">WriteToText</span><span class="p">(</span><span class="n">my_output</span><span class="p">)</span>
+
+  <span class="n">p</span><span class="o">.</span><span class="n">run</span><span class="p">()</span></div>
+
+
+<div class="viewcode-block" id="pipeline_options_local"><a class="viewcode-back" href="../../../../apache_beam.examples.snippets.html#apache_beam.examples.snippets.snippets.pipeline_options_local">[docs]</a><span class="k">def</span> <span class="nf">pipeline_options_local</span><span class="p">(</span><span class="n">argv</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Creating a Pipeline using a PipelineOptions object for local execution.&quot;&quot;&quot;</span>
+
+  <span class="kn">from</span> <span class="nn">apache_beam</span> <span class="k">import</span> <span class="n">Pipeline</span>
+  <span class="kn">from</span> <span class="nn">apache_beam.utils.pipeline_options</span> <span class="k">import</span> <span class="n">PipelineOptions</span>
+
+  <span class="n">options</span> <span class="o">=</span> <span class="n">PipelineOptions</span><span class="p">(</span><span class="n">flags</span><span class="o">=</span><span class="n">argv</span><span class="p">)</span>
+
+  <span class="c1"># [START pipeline_options_define_custom_with_help_and_default]</span>
+  <span class="k">class</span> <span class="nc">MyOptions</span><span class="p">(</span><span class="n">PipelineOptions</span><span class="p">):</span>
+
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">_add_argparse_args</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">parser</span><span class="p">):</span>
+      <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;--input&#39;</span><span class="p">,</span>
+                          <span class="n">help</span><span class="o">=</span><span class="s1">&#39;Input for the pipeline&#39;</span><span class="p">,</span>
+                          <span class="n">default</span><span class="o">=</span><span class="s1">&#39;gs://my-bucket/input&#39;</span><span class="p">)</span>
+      <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;--output&#39;</span><span class="p">,</span>
+                          <span class="n">help</span><span class="o">=</span><span class="s1">&#39;Output for the pipeline&#39;</span><span class="p">,</span>
+                          <span class="n">default</span><span class="o">=</span><span class="s1">&#39;gs://my-bucket/output&#39;</span><span class="p">)</span>
+  <span class="c1"># [END pipeline_options_define_custom_with_help_and_default]</span>
+
+  <span class="n">my_options</span> <span class="o">=</span> <span class="n">options</span><span class="o">.</span><span class="n">view_as</span><span class="p">(</span><span class="n">MyOptions</span><span class="p">)</span>
+
+  <span class="n">my_input</span> <span class="o">=</span> <span class="n">my_options</span><span class="o">.</span><span class="n">input</span>
+  <span class="n">my_output</span> <span class="o">=</span> <span class="n">my_options</span><span class="o">.</span><span class="n">output</span>
+
+  <span class="c1"># [START pipeline_options_local]</span>
+  <span class="c1"># Create and set your Pipeline Options.</span>
+  <span class="n">options</span> <span class="o">=</span> <span class="n">PipelineOptions</span><span class="p">()</span>
+  <span class="n">p</span> <span class="o">=</span> <span class="n">Pipeline</span><span class="p">(</span><span class="n">options</span><span class="o">=</span><span class="n">options</span><span class="p">)</span>
+  <span class="c1"># [END pipeline_options_local]</span>
+
+  <span class="n">p</span> <span class="o">=</span> <span class="n">TestPipeline</span><span class="p">()</span>  <span class="c1"># Use TestPipeline for testing.</span>
+  <span class="n">lines</span> <span class="o">=</span> <span class="n">p</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">ReadFromText</span><span class="p">(</span><span class="n">my_input</span><span class="p">)</span>
+  <span class="n">lines</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">WriteToText</span><span class="p">(</span><span class="n">my_output</span><span class="p">)</span>
+  <span class="n">p</span><span class="o">.</span><span class="n">run</span><span class="p">()</span></div>
+
+
+<div class="viewcode-block" id="pipeline_options_command_line"><a class="viewcode-back" href="../../../../apache_beam.examples.snippets.html#apache_beam.examples.snippets.snippets.pipeline_options_command_line">[docs]</a><span class="k">def</span> <span class="nf">pipeline_options_command_line</span><span class="p">(</span><span class="n">argv</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Creating a Pipeline by passing a list of arguments.&quot;&quot;&quot;</span>
+
+  <span class="c1"># [START pipeline_options_command_line]</span>
+  <span class="c1"># Use Python argparse module to parse custom arguments</span>
+  <span class="kn">import</span> <span class="nn">argparse</span>
+
+  <span class="n">parser</span> <span class="o">=</span> <span class="n">argparse</span><span class="o">.</span><span class="n">ArgumentParser</span><span class="p">()</span>
+  <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;--input&#39;</span><span class="p">)</span>
+  <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;--output&#39;</span><span class="p">)</span>
+  <span class="n">known_args</span><span class="p">,</span> <span class="n">pipeline_args</span> <span class="o">=</span> <span class="n">parser</span><span class="o">.</span><span class="n">parse_known_args</span><span class="p">(</span><span class="n">argv</span><span class="p">)</span>
+
+  <span class="c1"># Create the Pipeline with remaining arguments.</span>
+  <span class="n">p</span> <span class="o">=</span> <span class="n">beam</span><span class="o">.</span><span class="n">Pipeline</span><span class="p">(</span><span class="n">argv</span><span class="o">=</span><span class="n">pipeline_args</span><span class="p">)</span>
+  <span class="n">lines</span> <span class="o">=</span> <span class="n">p</span> <span class="o">|</span> <span class="s1">&#39;ReadFromText&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">ReadFromText</span><span class="p">(</span><span class="n">known_args</span><span class="o">.</span><span class="n">input</span><span class="p">)</span>
+  <span class="n">lines</span> <span class="o">|</span> <span class="s1">&#39;WriteToText&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">WriteToText</span><span class="p">(</span><span class="n">known_args</span><span class="o">.</span><span class="n">output</span><span class="p">)</span>
+  <span class="c1"># [END pipeline_options_command_line]</span>
+
+  <span class="n">p</span><span class="o">.</span><span class="n">run</span><span class="p">()</span><span class="o">.</span><span class="n">wait_until_finish</span><span class="p">()</span></div>
+
+
+<div class="viewcode-block" id="pipeline_logging"><a class="viewcode-back" href="../../../../apache_beam.examples.snippets.html#apache_beam.examples.snippets.snippets.pipeline_logging">[docs]</a><span class="k">def</span> <span class="nf">pipeline_logging</span><span class="p">(</span><span class="n">lines</span><span class="p">,</span> <span class="n">output</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Logging Pipeline Messages.&quot;&quot;&quot;</span>
+
+  <span class="kn">import</span> <span class="nn">re</span>
+  <span class="kn">import</span> <span class="nn">apache_beam</span> <span class="k">as</span> <span class="nn">beam</span>
+
+  <span class="c1"># [START pipeline_logging]</span>
+  <span class="c1"># import Python logging module.</span>
+  <span class="kn">import</span> <span class="nn">logging</span>
+
+  <span class="k">class</span> <span class="nc">ExtractWordsFn</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">DoFn</span><span class="p">):</span>
+
+    <span class="k">def</span> <span class="nf">process</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">element</span><span class="p">):</span>
+      <span class="n">words</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">findall</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;[A-Za-z</span><span class="se">\&#39;</span><span class="s1">]+&#39;</span><span class="p">,</span> <span class="n">element</span><span class="p">)</span>
+      <span class="k">for</span> <span class="n">word</span> <span class="ow">in</span> <span class="n">words</span><span class="p">:</span>
+        <span class="k">yield</span> <span class="n">word</span>
+
+        <span class="k">if</span> <span class="n">word</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;love&#39;</span><span class="p">:</span>
+          <span class="c1"># Log using the root logger at info or higher levels</span>
+          <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Found : </span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">word</span><span class="o">.</span><span class="n">lower</span><span class="p">())</span>
+
+  <span class="c1"># Remaining WordCount example code ...</span>
+  <span class="c1"># [END pipeline_logging]</span>
+
+  <span class="n">p</span> <span class="o">=</span> <span class="n">TestPipeline</span><span class="p">()</span>  <span class="c1"># Use TestPipeline for testing.</span>
+  <span class="p">(</span><span class="n">p</span>
+   <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">(</span><span class="n">lines</span><span class="p">)</span>
+   <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">ParDo</span><span class="p">(</span><span class="n">ExtractWordsFn</span><span class="p">())</span>
+   <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">WriteToText</span><span class="p">(</span><span class="n">output</span><span class="p">))</span>
+
+  <span class="n">p</span><span class="o">.</span><span class="n">run</span><span class="p">()</span></div>
+
+
+<div class="viewcode-block" id="pipeline_monitoring"><a class="viewcode-back" href="../../../../apache_beam.examples.snippets.html#apache_beam.examples.snippets.snippets.pipeline_monitoring">[docs]</a><span class="k">def</span> <span class="nf">pipeline_monitoring</span><span class="p">(</span><span class="n">renames</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Using monitoring interface snippets.&quot;&quot;&quot;</span>
+
+  <span class="kn">import</span> <span class="nn">re</span>
+  <span class="kn">import</span> <span class="nn">apache_beam</span> <span class="k">as</span> <span class="nn">beam</span>
+  <span class="kn">from</span> <span class="nn">apache_beam.utils.pipeline_options</span> <span class="k">import</span> <span class="n">PipelineOptions</span>
+
+  <span class="k">class</span> <span class="nc">WordCountOptions</span><span class="p">(</span><span class="n">PipelineOptions</span><span class="p">):</span>
+
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">_add_argparse_args</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">parser</span><span class="p">):</span>
+      <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;--input&#39;</span><span class="p">,</span>
+                          <span class="n">help</span><span class="o">=</span><span class="s1">&#39;Input for the pipeline&#39;</span><span class="p">,</span>
+                          <span class="n">default</span><span class="o">=</span><span class="s1">&#39;gs://my-bucket/input&#39;</span><span class="p">)</span>
+      <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;--output&#39;</span><span class="p">,</span>
+                          <span class="n">help</span><span class="o">=</span><span class="s1">&#39;output for the pipeline&#39;</span><span class="p">,</span>
+                          <span class="n">default</span><span class="o">=</span><span class="s1">&#39;gs://my-bucket/output&#39;</span><span class="p">)</span>
+
+  <span class="k">class</span> <span class="nc">ExtractWordsFn</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">DoFn</span><span class="p">):</span>
+
+    <span class="k">def</span> <span class="nf">process</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">element</span><span class="p">):</span>
+      <span class="n">words</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">findall</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;[A-Za-z</span><span class="se">\&#39;</span><span class="s1">]+&#39;</span><span class="p">,</span> <span class="n">element</span><span class="p">)</span>
+      <span class="k">for</span> <span class="n">word</span> <span class="ow">in</span> <span class="n">words</span><span class="p">:</span>
+        <span class="k">yield</span> <span class="n">word</span>
+
+  <span class="k">class</span> <span class="nc">FormatCountsFn</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">DoFn</span><span class="p">):</span>
+
+    <span class="k">def</span> <span class="nf">process</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">element</span><span class="p">):</span>
+      <span class="n">word</span><span class="p">,</span> <span class="n">count</span> <span class="o">=</span> <span class="n">element</span>
+      <span class="k">yield</span> <span class="s1">&#39;</span><span class="si">%s</span><span class="s1">: </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">word</span><span class="p">,</span> <span class="n">count</span><span class="p">)</span>
+
+  <span class="c1"># [START pipeline_monitoring_composite]</span>
+  <span class="c1"># The CountWords Composite Transform inside the WordCount pipeline.</span>
+  <span class="k">class</span> <span class="nc">CountWords</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">PTransform</span><span class="p">):</span>
+
+    <span class="k">def</span> <span class="nf">expand</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pcoll</span><span class="p">):</span>
+      <span class="k">return</span> <span class="p">(</span><span class="n">pcoll</span>
+              <span class="c1"># Convert lines of text into individual words.</span>
+              <span class="o">|</span> <span class="s1">&#39;ExtractWords&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">ParDo</span><span class="p">(</span><span class="n">ExtractWordsFn</span><span class="p">())</span>
+              <span class="c1"># Count the number of times each word occurs.</span>
+              <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">combiners</span><span class="o">.</span><span class="n">Count</span><span class="o">.</span><span class="n">PerElement</span><span class="p">()</span>
+              <span class="c1"># Format each word and count into a printable string.</span>
+              <span class="o">|</span> <span class="s1">&#39;FormatCounts&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">ParDo</span><span class="p">(</span><span class="n">FormatCountsFn</span><span class="p">()))</span>
+  <span class="c1"># [END pipeline_monitoring_composite]</span>
+
+  <span class="n">pipeline_options</span> <span class="o">=</span> <span class="n">PipelineOptions</span><span class="p">()</span>
+  <span class="n">options</span> <span class="o">=</span> <span class="n">pipeline_options</span><span class="o">.</span><span class="n">view_as</span><span class="p">(</span><span class="n">WordCountOptions</span><span class="p">)</span>
+  <span class="n">p</span> <span class="o">=</span> <span class="n">TestPipeline</span><span class="p">()</span>  <span class="c1"># Use TestPipeline for testing.</span>
+
+  <span class="c1"># [START pipeline_monitoring_execution]</span>
+  <span class="p">(</span><span class="n">p</span>
+   <span class="c1"># Read the lines of the input text.</span>
+   <span class="o">|</span> <span class="s1">&#39;ReadLines&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">ReadFromText</span><span class="p">(</span><span class="n">options</span><span class="o">.</span><span class="n">input</span><span class="p">)</span>
+   <span class="c1"># Count the words.</span>
+   <span class="o">|</span> <span class="n">CountWords</span><span class="p">()</span>
+   <span class="c1"># Write the formatted word counts to output.</span>
+   <span class="o">|</span> <span class="s1">&#39;WriteCounts&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">WriteToText</span><span class="p">(</span><span class="n">options</span><span class="o">.</span><span class="n">output</span><span class="p">))</span>
+  <span class="c1"># [END pipeline_monitoring_execution]</span>
+
+  <span class="n">p</span><span class="o">.</span><span class="n">visit</span><span class="p">(</span><span class="n">SnippetUtils</span><span class="o">.</span><span class="n">RenameFiles</span><span class="p">(</span><span class="n">renames</span><span class="p">))</span>
+  <span class="n">p</span><span class="o">.</span><span class="n">run</span><span class="p">()</span></div>
+
+
+<div class="viewcode-block" id="examples_wordcount_minimal"><a class="viewcode-back" href="../../../../apache_beam.examples.snippets.html#apache_beam.examples.snippets.snippets.examples_wordcount_minimal">[docs]</a><span class="k">def</span> <span class="nf">examples_wordcount_minimal</span><span class="p">(</span><span class="n">renames</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;MinimalWordCount example snippets.&quot;&quot;&quot;</span>
+  <span class="kn">import</span> <span class="nn">re</span>
+
+  <span class="kn">import</span> <span class="nn">apache_beam</span> <span class="k">as</span> <span class="nn">beam</span>
+
+  <span class="kn">from</span> <span class="nn">apache_beam.utils.pipeline_options</span> <span class="k">import</span> <span class="n">GoogleCloudOptions</span>
+  <span class="kn">from</span> <span class="nn">apache_beam.utils.pipeline_options</span> <span class="k">import</span> <span class="n">StandardOptions</span>
+  <span class="kn">from</span> <span class="nn">apache_beam.utils.pipeline_options</span> <span class="k">import</span> <span class="n">PipelineOptions</span>
+
+  <span class="c1"># [START examples_wordcount_minimal_options]</span>
+  <span class="n">options</span> <span class="o">=</span> <span class="n">PipelineOptions</span><span class="p">()</span>
+  <span class="n">google_cloud_options</span> <span class="o">=</span> <span class="n">options</span><span class="o">.</span><span class="n">view_as</span><span class="p">(</span><span class="n">GoogleCloudOptions</span><span class="p">)</span>
+  <span class="n">google_cloud_options</span><span class="o">.</span><span class="n">project</span> <span class="o">=</span> <span class="s1">&#39;my-project-id&#39;</span>
+  <span class="n">google_cloud_options</span><span class="o">.</span><span class="n">job_name</span> <span class="o">=</span> <span class="s1">&#39;myjob&#39;</span>
+  <span class="n">google_cloud_options</span><span class="o">.</span><span class="n">staging_location</span> <span class="o">=</span> <span class="s1">&#39;gs://your-bucket-name-here/staging&#39;</span>
+  <span class="n">google_cloud_options</span><span class="o">.</span><span class="n">temp_location</span> <span class="o">=</span> <span class="s1">&#39;gs://your-bucket-name-here/temp&#39;</span>
+  <span class="n">options</span><span class="o">.</span><span class="n">view_as</span><span class="p">(</span><span class="n">StandardOptions</span><span class="p">)</span><span class="o">.</span><span class="n">runner</span> <span class="o">=</span> <span class="s1">&#39;DataflowRunner&#39;</span>
+  <span class="c1"># [END examples_wordcount_minimal_options]</span>
+
+  <span class="c1"># Run it locally for testing.</span>
+  <span class="n">options</span> <span class="o">=</span> <span class="n">PipelineOptions</span><span class="p">()</span>
+
+  <span class="c1"># [START examples_wordcount_minimal_create]</span>
+  <span class="n">p</span> <span class="o">=</span> <span class="n">beam</span><span class="o">.</span><span class="n">Pipeline</span><span class="p">(</span><span class="n">options</span><span class="o">=</span><span class="n">options</span><span class="p">)</span>
+  <span class="c1"># [END examples_wordcount_minimal_create]</span>
+
+  <span class="p">(</span>
+      <span class="c1"># [START examples_wordcount_minimal_read]</span>
+      <span class="n">p</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">ReadFromText</span><span class="p">(</span>
+          <span class="s1">&#39;gs://dataflow-samples/shakespeare/kinglear.txt&#39;</span><span class="p">)</span>
+      <span class="c1"># [END examples_wordcount_minimal_read]</span>
+
+      <span class="c1"># [START examples_wordcount_minimal_pardo]</span>
+      <span class="o">|</span> <span class="s1">&#39;ExtractWords&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">FlatMap</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">re</span><span class="o">.</span><span class="n">findall</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;[A-Za-z</span><span class="se">\&#39;</span><span class="s1">]+&#39;</span><span class="p">,</span> <span class="n">x</span><span class="p">))</span>
+      <span class="c1"># [END examples_wordcount_minimal_pardo]</span>
+
+      <span class="c1"># [START examples_wordcount_minimal_count]</span>
+      <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">combiners</span><span class="o">.</span><span class="n">Count</span><span class="o">.</span><span class="n">PerElement</span><span class="p">()</span>
+      <span class="c1"># [END examples_wordcount_minimal_count]</span>
+
+      <span class="c1"># [START examples_wordcount_minimal_map]</span>
+      <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">lambda</span> <span class="p">(</span><span class="n">word</span><span class="p">,</span> <span class="n">count</span><span class="p">):</span> <span class="s1">&#39;</span><span class="si">%s</span><span class="s1">: </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">word</span><span class="p">,</span> <span class="n">count</span><span class="p">))</span>
+      <span class="c1"># [END examples_wordcount_minimal_map]</span>
+
+      <span class="c1"># [START examples_wordcount_minimal_write]</span>
+      <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">WriteToText</span><span class="p">(</span><span class="s1">&#39;gs://my-bucket/counts.txt&#39;</span><span class="p">)</span>
+      <span class="c1"># [END examples_wordcount_minimal_write]</span>
+  <span class="p">)</span>
+
+  <span class="n">p</span><span class="o">.</span><span class="n">visit</span><span class="p">(</span><span class="n">SnippetUtils</span><span class="o">.</span><span class="n">RenameFiles</span><span class="p">(</span><span class="n">renames</span><span class="p">))</span>
+
+  <span class="c1"># [START examples_wordcount_minimal_run]</span>
+  <span class="n">result</span> <span class="o">=</span> <span class="n">p</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
+  <span class="c1"># [END examples_wordcount_minimal_run]</span>
+  <span class="n">result</span><span class="o">.</span><span class="n">wait_until_finish</span><span class="p">()</span></div>
+
+
+<div class="viewcode-block" id="examples_wordcount_wordcount"><a class="viewcode-back" href="../../../../apache_beam.examples.snippets.html#apache_beam.examples.snippets.snippets.examples_wordcount_wordcount">[docs]</a><span class="k">def</span> <span class="nf">examples_wordcount_wordcount</span><span class="p">(</span><span class="n">renames</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;WordCount example snippets.&quot;&quot;&quot;</span>
+  <span class="kn">import</span> <span class="nn">re</span>
+
+  <span class="kn">import</span> <span class="nn">apache_beam</span> <span class="k">as</span> <span class="nn">beam</span>
+  <span class="kn">from</span> <span class="nn">apache_beam.utils.pipeline_options</span> <span class="k">import</span> <span class="n">PipelineOptions</span>
+
+  <span class="n">argv</span> <span class="o">=</span> <span class="p">[]</span>
+
+  <span class="c1"># [START examples_wordcount_wordcount_options]</span>
+  <span class="k">class</span> <span class="nc">WordCountOptions</span><span class="p">(</span><span class="n">PipelineOptions</span><span class="p">):</span>
+
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">_add_argparse_args</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">parser</span><span class="p">):</span>
+      <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;--input&#39;</span><span class="p">,</span>
+                          <span class="n">help</span><span class="o">=</span><span class="s1">&#39;Input for the pipeline&#39;</span><span class="p">,</span>
+                          <span class="n">default</span><span class="o">=</span><span class="s1">&#39;gs://my-bucket/input&#39;</span><span class="p">)</span>
+
+  <span class="n">options</span> <span class="o">=</span> <span class="n">PipelineOptions</span><span class="p">(</span><span class="n">argv</span><span class="p">)</span>
+  <span class="n">p</span> <span class="o">=</span> <span class="n">beam</span><span class="o">.</span><span class="n">Pipeline</span><span class="p">(</span><span class="n">options</span><span class="o">=</span><span class="n">options</span><span class="p">)</span>
+  <span class="c1"># [END examples_wordcount_wordcount_options]</span>
+
+  <span class="n">lines</span> <span class="o">=</span> <span class="n">p</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">ReadFromText</span><span class="p">(</span>
+      <span class="s1">&#39;gs://dataflow-samples/shakespeare/kinglear.txt&#39;</span><span class="p">)</span>
+
+  <span class="c1"># [START examples_wordcount_wordcount_composite]</span>
+  <span class="k">class</span> <span class="nc">CountWords</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">PTransform</span><span class="p">):</span>
+
+    <span class="k">def</span> <span class="nf">expand</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pcoll</span><span class="p">):</span>
+      <span class="k">return</span> <span class="p">(</span><span class="n">pcoll</span>
+              <span class="c1"># Convert lines of text into individual words.</span>
+              <span class="o">|</span> <span class="s1">&#39;ExtractWords&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">FlatMap</span><span class="p">(</span>
+                  <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">re</span><span class="o">.</span><span class="n">findall</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;[A-Za-z</span><span class="se">\&#39;</span><span class="s1">]+&#39;</span><span class="p">,</span> <span class="n">x</span><span class="p">))</span>
+
+              <span class="c1"># Count the number of times each word occurs.</span>
+              <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">combiners</span><span class="o">.</span><span class="n">Count</span><span class="o">.</span><span class="n">PerElement</span><span class="p">())</span>
+
+  <span class="n">counts</span> <span class="o">=</span> <span class="n">lines</span> <span class="o">|</span> <span class="n">CountWords</span><span class="p">()</span>
+  <span class="c1"># [END examples_wordcount_wordcount_composite]</span>
+
+  <span class="c1"># [START examples_wordcount_wordcount_dofn]</span>
+  <span class="k">class</span> <span class="nc">FormatAsTextFn</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">DoFn</span><span class="p">):</span>
+
+    <span class="k">def</span> <span class="nf">process</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">element</span><span class="p">):</span>
+      <span class="n">word</span><span class="p">,</span> <span class="n">count</span> <span class="o">=</span> <span class="n">element</span>
+      <span class="k">yield</span> <span class="s1">&#39;</span><span class="si">%s</span><span class="s1">: </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">word</span><span class="p">,</span> <span class="n">count</span><span class="p">)</span>
+
+  <span class="n">formatted</span> <span class="o">=</span> <span class="n">counts</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">ParDo</span><span class="p">(</span><span class="n">FormatAsTextFn</span><span class="p">())</span>
+  <span class="c1"># [END examples_wordcount_wordcount_dofn]</span>
+
+  <span class="n">formatted</span> <span class="o">|</span>  <span class="n">beam</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">WriteToText</span><span class="p">(</span><span class="s1">&#39;gs://my-bucket/counts.txt&#39;</span><span class="p">)</span>
+  <span class="n">p</span><span class="o">.</span><span class="n">visit</span><span class="p">(</span><span class="n">SnippetUtils</span><span class="o">.</span><span class="n">RenameFiles</span><span class="p">(</span><span class="n">renames</span><span class="p">))</span>
+  <span class="n">p</span><span class="o">.</span><span class="n">run</span><span class="p">()</span><span class="o">.</span><span class="n">wait_until_finish</span><span class="p">()</span></div>
+
+
+<div class="viewcode-block" id="examples_wordcount_debugging"><a class="viewcode-back" href="../../../../apache_beam.examples.snippets.html#apache_beam.examples.snippets.snippets.examples_wordcount_debugging">[docs]</a><span class="k">def</span> <span class="nf">examples_wordcount_debugging</span><span class="p">(</span><span class="n">renames</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;DebuggingWordCount example snippets.&quot;&quot;&quot;</span>
+  <span class="kn">import</span> <span class="nn">re</span>
+
+  <span class="kn">import</span> <span class="nn">apache_beam</span> <span class="k">as</span> <span class="nn">beam</span>
+
+  <span class="c1"># [START example_wordcount_debugging_logging]</span>
+  <span class="c1"># [START example_wordcount_debugging_aggregators]</span>
+  <span class="kn">import</span> <span class="nn">logging</span>
+
+  <span class="k">class</span> <span class="nc">FilterTextFn</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">DoFn</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;A DoFn that filters for a specific key based on a regular expression.&quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pattern</span><span class="p">):</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">pattern</span> <span class="o">=</span> <span class="n">pattern</span>
+      <span class="c1"># A custom metric can track values in your pipeline as it runs. Create</span>
+      <span class="c1"># custom metrics matched_word and unmatched_words.</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">matched_words</span> <span class="o">=</span> <span class="n">Metrics</span><span class="o">.</span><span class="n">counter</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="p">,</span> <span class="s1">&#39;matched_words&#39;</span><span class="p">)</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">umatched_words</span> <span class="o">=</span> <span class="n">Metrics</span><span class="o">.</span><span class="n">counter</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="p">,</span> <span class="s1">&#39;umatched_words&#39;</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">process</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">element</span><span class="p">):</span>
+      <span class="n">word</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">element</span>
+      <span class="k">if</span> <span class="n">re</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">pattern</span><span class="p">,</span> <span class="n">word</span><span class="p">):</span>
+        <span class="c1"># Log at INFO level each element we match. When executing this pipeline</span>
+        <span class="c1"># using the Dataflow service, these log lines will appear in the Cloud</span>
+        <span class="c1"># Logging UI.</span>
+        <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Matched </span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">word</span><span class="p">)</span>
+
+        <span class="c1"># Add 1 to the custom metric counter matched_words</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">matched_words</span><span class="o">.</span><span class="n">inc</span><span class="p">()</span>
+        <span class="k">yield</span> <span class="n">element</span>
+      <span class="k">else</span><span class="p">:</span>
+        <span class="c1"># Log at the &quot;DEBUG&quot; level each element that is not matched. Different</span>
+        <span class="c1"># log levels can be used to control the verbosity of logging providing</span>
+        <span class="c1"># an effective mechanism to filter less important information. Note</span>
+        <span class="c1"># currently only &quot;INFO&quot; and higher level logs are emitted to the Cloud</span>
+        <span class="c1"># Logger. This log message will not be visible in the Cloud Logger.</span>
+        <span class="n">logging</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s1">&#39;Did not match </span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">word</span><span class="p">)</span>
+
+        <span class="c1"># Add 1 to the custom metric counter umatched_words</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">umatched_words</span><span class="o">.</span><span class="n">inc</span><span class="p">()</span>
+  <span class="c1"># [END example_wordcount_debugging_logging]</span>
+  <span class="c1"># [END example_wordcount_debugging_aggregators]</span>
+
+  <span class="n">p</span> <span class="o">=</span> <span class="n">TestPipeline</span><span class="p">()</span>  <span class="c1"># Use TestPipeline for testing.</span>
+  <span class="n">filtered_words</span> <span class="o">=</span> <span class="p">(</span>
+      <span class="n">p</span>
+      <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">ReadFromText</span><span class="p">(</span>
+          <span class="s1">&#39;gs://dataflow-samples/shakespeare/kinglear.txt&#39;</span><span class="p">)</span>
+      <span class="o">|</span> <span class="s1">&#39;ExtractWords&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">FlatMap</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">re</span><span class="o">.</span><span class="n">findall</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;[A-Za-z</span><span class="se">\&#39;</span><span class="s1">]+&#39;</span><span class="p">,</span> <span class="n">x</span><span class="p">))</span>
+      <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">combiners</span><span class="o">.</span><span class="n">Count</span><span class="o">.</span><span class="n">PerElement</span><span class="p">()</span>
+      <span class="o">|</span> <span class="s1">&#39;FilterText&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">ParDo</span><span class="p">(</span><span class="n">FilterTextFn</span><span class="p">(</span><span class="s1">&#39;Flourish|stomach&#39;</span><span class="p">)))</span>
+
+  <span class="c1"># [START example_wordcount_debugging_assert]</span>
+  <span class="n">beam</span><span class="o">.</span><span class="n">assert_that</span><span class="p">(</span>
+      <span class="n">filtered_words</span><span class="p">,</span> <span class="n">beam</span><span class="o">.</span><span class="n">equal_to</span><span class="p">([(</span><span class="s1">&#39;Flourish&#39;</span><span class="p">,</span> <span class="mi">3</span><span class="p">),</span> <span class="p">(</span><span class="s1">&#39;stomach&#39;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)]))</span>
+  <span class="c1"># [END example_wordcount_debugging_assert]</span>
+
+  <span class="n">output</span> <span class="o">=</span> <span class="p">(</span><span class="n">filtered_words</span>
+            <span class="o">|</span> <span class="s1">&#39;format&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">lambda</span> <span class="p">(</span><span class="n">word</span><span class="p">,</span> <span class="n">c</span><span class="p">):</span> <span class="s1">&#39;</span><span class="si">%s</span><span class="s1">: </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">word</span><span class="p">,</span> <span class="n">c</span><span class="p">))</span>
+            <span class="o">|</span> <span class="s1">&#39;Write&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">WriteToText</span><span class="p">(</span><span class="s1">&#39;gs://my-bucket/counts.txt&#39;</span><span class="p">))</span>
+
+  <span class="n">p</span><span class="o">.</span><span class="n">visit</span><span class="p">(</span><span class="n">SnippetUtils</span><span class="o">.</span><span class="n">RenameFiles</span><span class="p">(</span><span class="n">renames</span><span class="p">))</span>
+  <span class="n">p</span><span class="o">.</span><span class="n">run</span><span class="p">()</span></div>
+
+
+<div class="viewcode-block" id="model_custom_source"><a class="viewcode-back" href="../../../../apache_beam.examples.snippets.html#apache_beam.examples.snippets.snippets.model_custom_source">[docs]</a><span class="k">def</span> <span class="nf">model_custom_source</span><span class="p">(</span><span class="n">count</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Demonstrates creating a new custom source and using it in a pipeline.</span>
+
+<span class="sd">  Defines a new source ``CountingSource`` that produces integers starting from 0</span>
+<span class="sd">  up to a given size.</span>
+
+<span class="sd">  Uses the new source in an example pipeline.</span>
+
+<span class="sd">  Additionally demonstrates how a source should be implemented using a</span>
+<span class="sd">  ``PTransform``. This is the recommended way to develop sources that are to</span>
+<span class="sd">  distributed to a large number of end users.</span>
+
+<span class="sd">  This method runs two pipelines.</span>
+
+<span class="sd">  (1) A pipeline that uses ``CountingSource`` directly using the ``df.Read``</span>
+<span class="sd">      transform.</span>
+<span class="sd">  (2) A pipeline that uses a custom ``PTransform`` that wraps</span>
+<span class="sd">      ``CountingSource``.</span>
+
+<span class="sd">  Args:</span>
+<span class="sd">    count: the size of the counting source to be used in the pipeline</span>
+<span class="sd">           demonstrated in this method.</span>
+
+<span class="sd">  &quot;&quot;&quot;</span>
+
+  <span class="kn">import</span> <span class="nn">apache_beam</span> <span class="k">as</span> <span class="nn">beam</span>
+  <span class="kn">from</span> <span class="nn">apache_beam.io</span> <span class="k">import</span> <span class="n">iobase</span>
+  <span class="kn">from</span> <span class="nn">apache_beam.io.range_trackers</span> <span class="k">import</span> <span class="n">OffsetRangeTracker</span>
+  <span class="kn">from</span> <span class="nn">apache_beam.transforms.core</span> <span class="k">import</span> <span class="n">PTransform</span>
+  <span class="kn">from</span> <span class="nn">apache_beam.utils.pipeline_options</span> <span class="k">import</span> <span class="n">PipelineOptions</span>
+
+  <span class="c1"># Defining a new source.</span>
+  <span class="c1"># [START model_custom_source_new_source]</span>
+  <span class="k">class</span> <span class="nc">CountingSource</span><span class="p">(</span><span class="n">iobase</span><span class="o">.</span><span class="n">BoundedSource</span><span class="p">):</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">count</span><span class="p">):</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_count</span> <span class="o">=</span> <span class="n">count</span>
+
+    <span class="k">def</span> <span class="nf">estimate_size</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+      <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_count</span>
+
+    <span class="k">def</span> <span class="nf">get_range_tracker</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">start_position</span><span class="p">,</span> <span class="n">stop_position</span><span class="p">):</span>
+      <span class="k">if</span> <span class="n">start_position</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">start_position</span> <span class="o">=</span> <span class="mi">0</span>
+      <span class="k">if</span> <span class="n">stop_position</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">stop_position</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_count</span>
+
+      <span class="k">return</span> <span class="n">OffsetRangeTracker</span><span class="p">(</span><span class="n">start_position</span><span class="p">,</span> <span class="n">stop_position</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">read</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">range_tracker</span><span class="p">):</span>
+      <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_count</span><span class="p">):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">range_tracker</span><span class="o">.</span><span class="n">try_claim</span><span class="p">(</span><span class="n">i</span><span class="p">):</span>
+          <span class="k">return</span>
+        <span class="k">yield</span> <span class="n">i</span>
+
+    <span class="k">def</span> <span class="nf">split</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">desired_bundle_size</span><span class="p">,</span> <span class="n">start_position</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+              <span class="n">stop_position</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+      <span class="k">if</span> <span class="n">start_position</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">start_position</span> <span class="o">=</span> <span class="mi">0</span>
+      <span class="k">if</span> <span class="n">stop_position</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">stop_position</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_count</span>
+
+      <span class="n">bundle_start</span> <span class="o">=</span> <span class="n">start_position</span>
+      <span class="k">while</span> <span class="n">bundle_start</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">_count</span><span class="p">:</span>
+        <span class="n">bundle_stop</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_count</span><span class="p">,</span> <span class="n">bundle_start</span> <span class="o">+</span> <span class="n">desired_bundle_size</span><span class="p">)</span>
+        <span class="k">yield</span> <span class="n">iobase</span><span class="o">.</span><span class="n">SourceBundle</span><span class="p">(</span><span class="n">weight</span><span class="o">=</span><span class="p">(</span><span class="n">bundle_stop</span> <span class="o">-</span> <span class="n">bundle_start</span><span class="p">),</span>
+                                  <span class="n">source</span><span class="o">=</span><span class="bp">self</span><span class="p">,</span>
+                                  <span class="n">start_position</span><span class="o">=</span><span class="n">bundle_start</span><span class="p">,</span>
+                                  <span class="n">stop_position</span><span class="o">=</span><span class="n">bundle_stop</span><span class="p">)</span>
+        <span class="n">bundle_start</span> <span class="o">=</span> <span class="n">bundle_stop</span>
+  <span class="c1"># [END model_custom_source_new_source]</span>
+
+  <span class="c1"># Using the source in an example pipeline.</span>
+  <span class="c1"># [START model_custom_source_use_new_source]</span>
+  <span class="n">p</span> <span class="o">=</span> <span class="n">beam</span><span class="o">.</span><span class="n">Pipeline</span><span class="p">(</span><span class="n">options</span><span class="o">=</span><span class="n">PipelineOptions</span><span class="p">())</span>
+  <span class="n">numbers</span> <span class="o">=</span> <span class="n">p</span> <span class="o">|</span> <span class="s1">&#39;ProduceNumbers&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">Read</span><span class="p">(</span><span class="n">CountingSource</span><span class="p">(</span><span class="n">count</span><span class="p">))</span>
+  <span class="c1"># [END model_custom_source_use_new_source]</span>
+
+  <span class="n">lines</span> <span class="o">=</span> <span class="n">numbers</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">core</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">number</span><span class="p">:</span> <span class="s1">&#39;line </span><span class="si">%d</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">number</span><span class="p">)</span>
+  <span class="n">beam</span><span class="o">.</span><span class="n">assert_that</span><span class="p">(</span>
+      <span class="n">lines</span><span class="p">,</span> <span class="n">beam</span><span class="o">.</span><span class="n">equal_to</span><span class="p">(</span>
+          <span class="p">[</span><span class="s1">&#39;line &#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">number</span><span class="p">)</span> <span class="k">for</span> <span class="n">number</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">count</span><span class="p">)]))</span>
+
+  <span class="n">p</span><span class="o">.</span><span class="n">run</span><span class="p">()</span><span class="o">.</span><span class="n">wait_until_finish</span><span class="p">()</span>
+
+  <span class="c1"># We recommend users to start Source classes with an underscore to discourage</span>
+  <span class="c1"># using the Source class directly when a PTransform for the source is</span>
+  <span class="c1"># available. We simulate that here by simply extending the previous Source</span>
+  <span class="c1"># class.</span>
+  <span class="k">class</span> <span class="nc">_CountingSource</span><span class="p">(</span><span class="n">CountingSource</span><span class="p">):</span>
+    <span class="k">pass</span>
+
+  <span class="c1"># [START model_custom_source_new_ptransform]</span>
+  <span class="k">class</span> <span class="nc">ReadFromCountingSource</span><span class="p">(</span><span class="n">PTransform</span><span class="p">):</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">count</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+      <span class="nb">super</span><span class="p">(</span><span class="n">ReadFromCountingSource</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_count</span> <span class="o">=</span> <span class="n">count</span>
+
+    <span class="k">def</span> <span class="nf">expand</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pcoll</span><span class="p">):</span>
+      <span class="k">return</span> <span class="n">pcoll</span> <span class="o">|</span> <span class="n">iobase</span><span class="o">.</span><span class="n">Read</span><span class="p">(</span><span class="n">_CountingSource</span><span class="p">(</span><span class="n">count</span><span class="p">))</span>
+  <span class="c1"># [END model_custom_source_new_ptransform]</span>
+
+  <span class="c1"># [START model_custom_source_use_ptransform]</span>
+  <span class="n">p</span> <span class="o">=</span> <span class="n">beam</span><span class="o">.</span><span class="n">Pipeline</span><span class="p">(</span><span class="n">options</span><span class="o">=</span><span class="n">PipelineOptions</span><span class="p">())</span>
+  <span class="n">numbers</span> <span class="o">=</span> <span class="n">p</span> <span class="o">|</span> <span class="s1">&#39;ProduceNumbers&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">ReadFromCountingSource</span><span class="p">(</span><span class="n">count</span><span class="p">)</span>
+  <span class="c1"># [END model_custom_source_use_ptransform]</span>
+
+  <span class="n">lines</span> <span class="o">=</span> <span class="n">numbers</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">core</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">number</span><span class="p">:</span> <span class="s1">&#39;line </span><span class="si">%d</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">number</span><span class="p">)</span>
+  <span class="n">beam</span><span class="o">.</span><span class="n">assert_that</span><span class="p">(</span>
+      <span class="n">lines</span><span class="p">,</span> <span class="n">beam</span><span class="o">.</span><span class="n">equal_to</span><span class="p">(</span>
+          <span class="p">[</span><span class="s1">&#39;line &#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">number</span><span class="p">)</span> <span class="k">for</span> <span class="n">number</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">count</span><span class="p">)]))</span>
+
+  <span class="n">p</span><span class="o">.</span><span class="n">run</span><span class="p">()</span><span class="o">.</span><span class="n">wait_until_finish</span><span class="p">()</span></div>
+
+
+<div class="viewcode-block" id="model_custom_sink"><a class="viewcode-back" href="../../../../apache_beam.examples.snippets.html#apache_beam.examples.snippets.snippets.model_custom_sink">[docs]</a><span class="k">def</span> <span class="nf">model_custom_sink</span><span class="p">(</span><span class="n">simplekv</span><span class="p">,</span> <span class="n">KVs</span><span class="p">,</span> <span class="n">final_table_name_no_ptransform</span><span class="p">,</span>
+                      <span class="n">final_table_name_with_ptransform</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Demonstrates creating a new custom sink and using it in a pipeline.</span>
+
+<span class="sd">  Defines a new sink ``SimpleKVSink`` that demonstrates writing to a simple</span>
+<span class="sd">  key-value based storage system which has following API.</span>
+
+<span class="sd">    simplekv.connect(url) -</span>
+<span class="sd">        connects to the storage system and returns an access token which can be</span>
+<span class="sd">        used to perform further operations</span>
+<span class="sd">    simplekv.open_table(access_token, table_name) -</span>
+<span class="sd">        creates a table named &#39;table_name&#39;. Returns a table object.</span>
+<span class="sd">    simplekv.write_to_table(access_token, table, key, value) -</span>
+<span class="sd">        writes a key-value pair to the given table.</span>
+<span class="sd">    simplekv.rename_table(access_token, old_name, new_name) -</span>
+<span class="sd">        renames the table named &#39;old_name&#39; to &#39;new_name&#39;.</span>
+
+<span class="sd">  Uses the new sink in an example pipeline.</span>
+
+<span class="sd">  Additionally demonstrates how a sink should be implemented using a</span>
+<span class="sd">  ``PTransform``. This is the recommended way to develop sinks that are to be</span>
+<span class="sd">  distributed to a large number of end users.</span>
+
+<span class="sd">  This method runs two pipelines.</span>
+
+<span class="sd">  (1) A pipeline that uses ``SimpleKVSink`` directly using the ``df.Write``</span>
+<span class="sd">      transform.</span>
+<span class="sd">  (2) A pipeline that uses a custom ``PTransform`` that wraps</span>
+<span class="sd">      ``SimpleKVSink``.</span>
+
+<span class="sd">  Args:</span>
+<span class="sd">    simplekv: an object that mocks the key-value storage.</span>
+
+<span class="sd">    KVs: the set of key-value pairs to be written in the example pipeline.</span>
+
+<span class="sd">    final_table_name_no_ptransform: the prefix of final set of tables to be</span>
+<span class="sd">                                    created by the example pipeline that uses</span>
+<span class="sd">                                    ``SimpleKVSink`` directly.</span>
+
+<span class="sd">    final_table_name_with_ptransform: the prefix of final set of tables to be</span>
+<span class="sd">                                      created by the example pipeline that uses</span>
+<span class="sd">                                      a ``PTransform`` that wraps</span>
+<span class="sd">                                      ``SimpleKVSink``.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+
+  <span class="kn">import</span> <span class="nn">apache_beam</span> <span class="k">as</span> <span class="nn">beam</span>
+  <span class="kn">from</span> <span class="nn">apache_beam.io</span> <span class="k">import</span> <span class="n">iobase</span>
+  <span class="kn">from</span> <span class="nn">apache_beam.transforms.core</span> <span class="k">import</span> <span class="n">PTransform</span>
+  <span class="kn">from</span> <span class="nn">apache_beam.utils.pipeline_options</span> <span class="k">import</span> <span class="n">PipelineOptions</span>
+
+  <span class="c1"># Defining the new sink.</span>
+  <span class="c1"># [START model_custom_sink_new_sink]</span>
+  <span class="k">class</span> <span class="nc">SimpleKVSink</span><span class="p">(</span><span class="n">iobase</span><span class="o">.</span><span class="n">Sink</span><span class="p">):</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">url</span><span class="p">,</span> <span class="n">final_table_name</span><span class="p">):</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_url</span> <span class="o">=</span> <span class="n">url</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_final_table_name</span> <span class="o">=</span> <span class="n">final_table_name</span>
+
+    <span class="k">def</span> <span class="nf">initialize_write</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+      <span class="n">access_token</span> <span class="o">=</span> <span class="n">simplekv</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_url</span><span class="p">)</span>
+      <span class="k">return</span> <span class="n">access_token</span>
+
+    <span class="k">def</span> <span class="nf">open_writer</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">access_token</span><span class="p">,</span> <span class="n">uid</span><span class="p">):</span>
+      <span class="n">table_name</span> <span class="o">=</span> <span class="s1">&#39;table&#39;</span> <span class="o">+</span> <span class="n">uid</span>
+      <span class="k">return</span> <span class="n">SimpleKVWriter</span><span class="p">(</span><span class="n">access_token</span><span class="p">,</span> <span class="n">table_name</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">finalize_write</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">access_token</span><span class="p">,</span> <span class="n">table_names</span><span class="p">):</span>
+      <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">table_name</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">table_names</span><span class="p">):</span>
+        <span class="n">simplekv</span><span class="o">.</span><span class="n">rename_table</span><span class="p">(</span>
+            <span class="n">access_token</span><span class="p">,</span> <span class="n">table_name</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_final_table_name</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">i</span><span class="p">))</span>
+  <span class="c1"># [END model_custom_sink_new_sink]</span>
+
+  <span class="c1"># Defining a writer for the new sink.</span>
+  <span class="c1"># [START model_custom_sink_new_writer]</span>
+  <span class="k">class</span> <span class="nc">SimpleKVWriter</span><span class="p">(</span><span class="n">iobase</span><span class="o">.</span><span class="n">Writer</span><span class="p">):</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">access_token</span><span class="p">,</span> <span class="n">table_name</span><span class="p">):</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_access_token</span> <span class="o">=</span> <span class="n">access_token</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_table_name</span> <span class="o">=</span> <span class="n">table_name</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_table</span> <span class="o">=</span> <span class="n">simplekv</span><span class="o">.</span><span class="n">open_table</span><span class="p">(</span><span class="n">access_token</span><span class="p">,</span> <span class="n">table_name</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">write</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">record</span><span class="p">):</span>
+      <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="o">=</span> <span class="n">record</span>
+
+      <span class="n">simplekv</span><span class="o">.</span><span class="n">write_to_table</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_access_token</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_table</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">close</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+      <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_table_name</span>
+  <span class="c1"># [END model_custom_sink_new_writer]</span>
+
+  <span class="n">final_table_name</span> <span class="o">=</span> <span class="n">final_table_name_no_ptransform</span>
+
+  <span class="c1"># Using the new sink in an example pipeline.</span>
+  <span class="c1"># [START model_custom_sink_use_new_sink]</span>
+  <span class="n">p</span> <span class="o">=</span> <span class="n">beam</span><span class="o">.</span><span class="n">Pipeline</span><span class="p">(</span><span class="n">options</span><span class="o">=</span><span class="n">PipelineOptions</span><span class="p">())</span>
+  <span class="n">kvs</span> <span class="o">=</span> <span class="n">p</span> <span class="o">|</span> <span class="s1">&#39;CreateKVs&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">(</span><span class="n">KVs</span><span class="p">)</span>
+
+  <span class="n">kvs</span> <span class="o">|</span> <span class="s1">&#39;WriteToSimpleKV&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">Write</span><span class="p">(</span>
+      <span class="n">SimpleKVSink</span><span class="p">(</span><span class="s1">&#39;http://url_to_simple_kv/&#39;</span><span class="p">,</span> <span class="n">final_table_name</span><span class="p">))</span>
+  <span class="c1"># [END model_custom_sink_use_new_sink]</span>
+
+  <span class="n">p</span><span class="o">.</span><span class="n">run</span><span class="p">()</span><span class="o">.</span><span class="n">wait_until_finish</span><span class="p">()</span>
+
+  <span class="c1"># We recommend users to start Sink class names with an underscore to</span>
+  <span class="c1"># discourage using the Sink class directly when a PTransform for the sink is</span>
+  <span class="c1"># available. We simulate that here by simply extending the previous Sink</span>
+  <span class="c1"># class.</span>
+  <span class="k">class</span> <span class="nc">_SimpleKVSink</span><span class="p">(</span><span class="n">SimpleKVSink</span><span class="p">):</span>
+    <span class="k">pass</span>
+
+  <span class="c1"># [START model_custom_sink_new_ptransform]</span>
+  <span class="k">class</span> <span class="nc">WriteToKVSink</span><span class="p">(</span><span class="n">PTransform</span><span class="p">):</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">url</span><span class="p">,</span> <span class="n">final_table_name</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+      <span class="nb">super</span><span class="p">(</span><span class="n">WriteToKVSink</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_url</span> <span class="o">=</span> <span class="n">url</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_final_table_name</span> <span class="o">=</span> <span class="n">final_table_name</span>
+
+    <span class="k">def</span> <span class="nf">expand</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pcoll</span><span class="p">):</span>
+      <span class="k">return</span> <span class="n">pcoll</span> <span class="o">|</span> <span class="n">iobase</span><span class="o">.</span><span class="n">Write</span><span class="p">(</span><span class="n">_SimpleKVSink</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_url</span><span class="p">,</span>
+                                                <span class="bp">self</span><span class="o">.</span><span class="n">_final_table_name</span><span class="p">))</span>
+  <span class="c1"># [END model_custom_sink_new_ptransform]</span>
+
+  <span class="n">final_table_name</span> <span class="o">=</span> <span class="n">final_table_name_with_ptransform</span>
+
+  <span class="c1"># [START model_custom_sink_use_ptransform]</span>
+  <span class="n">p</span> <span class="o">=</span> <span class="n">beam</span><span class="o">.</span><span class="n">Pipeline</span><span class="p">(</span><span class="n">options</span><span class="o">=</span><span class="n">PipelineOptions</span><span class="p">())</span>
+  <span class="n">kvs</span> <span class="o">=</span> <span class="n">p</span> <span class="o">|</span> <span class="s1">&#39;CreateKVs&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">core</span><span class="o">.</span><span class="n">Create</span><span class="p">(</span><span class="n">KVs</span><span class="p">)</span>
+  <span class="n">kvs</span> <span class="o">|</span> <span class="s1">&#39;WriteToSimpleKV&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">WriteToKVSink</span><span class="p">(</span>
+      <span class="s1">&#39;http://url_to_simple_kv/&#39;</span><span class="p">,</span> <span class="n">final_table_name</span><span class="p">)</span>
+  <span class="c1"># [END model_custom_sink_use_ptransform]</span>
+
+  <span class="n">p</span><span class="o">.</span><span class="n">run</span><span class="p">()</span><span class="o">.</span><span class="n">wait_until_finish</span><span class="p">()</span></div>
+
+
+<div class="viewcode-block" id="model_textio"><a class="viewcode-back" href="../../../../apache_beam.examples.snippets.html#apache_beam.examples.snippets.snippets.model_textio">[docs]</a><span class="k">def</span> <span class="nf">model_textio</span><span class="p">(</span><span class="n">renames</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Using a Read and Write transform to read/write text files.&quot;&quot;&quot;</span>
+  <span class="k">def</span> <span class="nf">filter_words</span><span class="p">(</span><span class="n">x</span><span class="p">):</span>
+    <span class="kn">import</span> <span class="nn">re</span>
+    <span class="k">return</span> <span class="n">re</span><span class="o">.</span><span class="n">findall</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;[A-Za-z</span><span class="se">\&#39;</span><span class="s1">]+&#39;</span><span class="p">,</span> <span class="n">x</span><span class="p">)</span>
+
+  <span class="kn">import</span> <span class="nn">apache_beam</span> <span class="k">as</span> <span class="nn">beam</span>
+  <span class="kn">from</span> <span class="nn">apache_beam.utils.pipeline_options</span> <span class="k">import</span> <span class="n">PipelineOptions</span>
+
+  <span class="c1"># [START model_textio_read]</span>
+  <span class="n">p</span> <span class="o">=</span> <span class="n">beam</span><span class="o">.</span><span class="n">Pipeline</span><span class="p">(</span><span class="n">options</span><span class="o">=</span><span class="n">PipelineOptions</span><span class="p">())</span>
+  <span class="c1"># [START model_pipelineio_read]</span>
+  <span class="n">lines</span> <span class="o">=</span> <span class="n">p</span> <span class="o">|</span> <span class="s1">&#39;ReadFromText&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">ReadFromText</span><span class="p">(</span><span class="s1">&#39;path/to/input-*.csv&#39;</span><span class="p">)</span>
+  <span class="c1"># [END model_pipelineio_read]</span>
+  <span class="c1"># [END model_textio_read]</span>
+
+  <span class="c1"># [START model_textio_write]</span>
+  <span class="n">filtered_words</span> <span class="o">=</span> <span class="n">lines</span> <span class="o">|</span> <span class="s1">&#39;FilterWords&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">FlatMap</span><span class="p">(</span><span class="n">filter_words</span><span class="p">)</span>
+  <span class="c1"># [START model_pipelineio_write]</span>
+  <span class="n">filtered_words</span> <span class="o">|</span> <span class="s1">&#39;WriteToText&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">WriteToText</span><span class="p">(</span>
+      <span class="s1">&#39;/path/to/numbers&#39;</span><span class="p">,</span> <span class="n">file_name_suffix</span><span class="o">=</span><span class="s1">&#39;.csv&#39;</span><span class="p">)</span>
+  <span class="c1"># [END model_pipelineio_write]</span>
+  <span class="c1"># [END model_textio_write]</span>
+
+  <span class="n">p</span><span class="o">.</span><span class="n">visit</span><span class="p">(</span><span class="n">SnippetUtils</span><span class="o">.</span><span class="n">RenameFiles</span><span class="p">(</span><span class="n">renames</span><span class="p">))</span>
+  <span class="n">p</span><span class="o">.</span><span class="n">run</span><span class="p">()</span><span class="o">.</span><span class="n">wait_until_finish</span><span class="p">()</span></div>
+
+
+<div class="viewcode-block" id="model_textio_compressed"><a class="viewcode-back" href="../../../../apache_beam.examples.snippets.html#apache_beam.examples.snippets.snippets.model_textio_compressed">[docs]</a><span class="k">def</span> <span class="nf">model_textio_compressed</span><span class="p">(</span><span class="n">renames</span><span class="p">,</span> <span class="n">expected</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Using a Read Transform to read compressed text files.&quot;&quot;&quot;</span>
+  <span class="n">p</span> <span class="o">=</span> <span class="n">TestPipeline</span><span class="p">()</span>
+
+  <span class="c1"># [START model_textio_write_compressed]</span>
+  <span class="n">lines</span> <span class="o">=</span> <span class="n">p</span> <span class="o">|</span> <span class="s1">&#39;ReadFromText&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">ReadFromText</span><span class="p">(</span>
+      <span class="s1">&#39;/path/to/input-*.csv.gz&#39;</span><span class="p">,</span>
+      <span class="n">compression_type</span><span class="o">=</span><span class="n">beam</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">fileio</span><span class="o">.</span><span class="n">CompressionTypes</span><span class="o">.</span><span class="n">GZIP</span><span class="p">)</span>
+  <span class="c1"># [END model_textio_write_compressed]</span>
+
+  <span class="n">beam</span><span class="o">.</span><span class="n">assert_that</span><span class="p">(</span><span class="n">lines</span><span class="p">,</span> <span class="n">beam</span><span class="o">.</span><span class="n">equal_to</span><span class="p">(</span><span class="n">expected</span><span class="p">))</span>
+  <span class="n">p</span><span class="o">.</span><span class="n">visit</span><span class="p">(</span><span class="n">SnippetUtils</span><span class="o">.</span><span class="n">RenameFiles</span><span class="p">(</span><span class="n">renames</span><span class="p">))</span>
+  <span class="n">p</span><span class="o">.</span><span class="n">run</span><span class="p">()</span><span class="o">.</span><span class="n">wait_until_finish</span><span class="p">()</span></div>
+
+
+<div class="viewcode-block" id="model_datastoreio"><a class="viewcode-back" href="../../../../apache_beam.examples.snippets.html#apache_beam.examples.snippets.snippets.model_datastoreio">[docs]</a><span class="k">def</span> <span class="nf">model_datastoreio</span><span class="p">():</span>
+  <span class="sd">&quot;&quot;&quot;Using a Read and Write transform to read/write to Cloud Datastore.&quot;&quot;&quot;</span>
+
+  <span class="kn">import</span> <span class="nn">uuid</span>
+  <span class="kn">from</span> <span class="nn">google.cloud.proto.datastore.v1</span> <span class="k">import</span> <span class="n">entity_pb2</span>
+  <span class="kn">from</span> <span class="nn">google.cloud.proto.datastore.v1</span> <span class="k">import</span> <span class="n">query_pb2</span>
+  <span class="kn">import</span> <span class="nn">googledatastore</span>
+  <span class="kn">import</span> <span class="nn">apache_beam</span> <span class="k">as</span> <span class="nn">beam</span>
+  <span class="kn">from</span> <span class="nn">apache_beam.utils.pipeline_options</span> <span class="k">import</span> <span class="n">PipelineOptions</span>
+  <span class="kn">from</span> <span class="nn">apache_beam.io.gcp.datastore.v1.datastoreio</span> <span class="k">import</span> <span class="n">ReadFromDatastore</span>
+  <span class="kn">from</span> <span class="nn">apache_beam.io.gcp.datastore.v1.datastoreio</span> <span class="k">import</span> <span class="n">WriteToDatastore</span>
+
+  <span class="n">project</span> <span class="o">=</span> <span class="s1">&#39;my_project&#39;</span>
+  <span class="n">kind</span> <span class="o">=</span> <span class="s1">&#39;my_kind&#39;</span>
+  <span class="n">query</span> <span class="o">=</span> <span class="n">query_pb2</span><span class="o">.</span><span class="n">Query</span><span class="p">()</span>
+  <span class="n">query</span><span class="o">.</span><span class="n">kind</span><span class="o">.</span><span class="n">add</span><span class="p">()</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">kind</span>
+
+  <span class="c1"># [START model_datastoreio_read]</span>
+  <span class="n">p</span> <span class="o">=</span> <span class="n">beam</span><span class="o">.</span><span class="n">Pipeline</span><span class="p">(</span><span class="n">options</span><span class="o">=</span><span class="n">PipelineOptions</span><span class="p">())</span>
+  <span class="n">entities</span> <span class="o">=</span> <span class="n">p</span> <span class="o">|</span> <span class="s1">&#39;Read From Datastore&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">ReadFromDatastore</span><span class="p">(</span><span class="n">project</span><span class="p">,</span> <span class="n">query</span><span class="p">)</span>
+  <span class="c1"># [END model_datastoreio_read]</span>
+
+  <span class="c1"># [START model_datastoreio_write]</span>
+  <span class="n">p</span> <span class="o">=</span> <span class="n">beam</span><span class="o">.</span><span class="n">Pipeline</span><span class="p">(</span><span class="n">options</span><span class="o">=</span><span class="n">PipelineOptions</span><span class="p">())</span>
+  <span class="n">musicians</span> <span class="o">=</span> <span class="n">p</span> <span class="o">|</span> <span class="s1">&#39;Musicians&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">(</span>
+      <span class="p">[</span><span class="s1">&#39;Mozart&#39;</span><span class="p">,</span> <span class="s1">&#39;Chopin&#39;</span><span class="p">,</span> <span class="s1">&#39;Beethoven&#39;</span><span class="p">,</span> <span class="s1">&#39;Vivaldi&#39;</span><span class="p">])</span>
+
+  <span class="k">def</span> <span class="nf">to_entity</span><span class="p">(</span><span class="n">content</span><span class="p">):</span>
+    <span class="n">entity</span> <span class="o">=</span> <span class="n">entity_pb2</span><span class="o">.</span><span class="n">Entity</span><span class="p">()</span>
+    <span class="n">googledatastore</span><span class="o">.</span><span class="n">helper</span><span class="o">.</span><span class="n">add_key_path</span><span class="p">(</span><span class="n">entity</span><span class="o">.</span><span class="n">key</span><span class="p">,</span> <span class="n">kind</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">uuid</span><span class="o">.</span><span class="n">uuid4</span><span class="p">()))</span>
+    <span class="n">googledatastore</span><span class="o">.</span><span class="n">helper</span><span class="o">.</span><span class="n">add_properties</span><span class="p">(</span><span class="n">entity</span><span class="p">,</span> <span class="p">{</span><span class="s1">&#39;content&#39;</span><span class="p">:</span> <span class="n">unicode</span><span class="p">(</span><span class="n">content</span><span class="p">)})</span>
+    <span class="k">return</span> <span class="n">entity</span>
+
+  <span class="n">entities</span> <span class="o">=</span> <span class="n">musicians</span> <span class="o">|</span> <span class="s1">&#39;To Entity&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="n">to_entity</span><span class="p">)</span>
+  <span class="n">entities</span> <span class="o">|</span> <span class="s1">&#39;Write To Datastore&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">WriteToDatastore</span><span class="p">(</span><span class="n">project</span><span class="p">)</span></div>
+  <span class="c1"># [END model_datastoreio_write]</span>
+
+
+<div class="viewcode-block" id="model_bigqueryio"><a class="viewcode-back" href="../../../../apache_beam.examples.snippets.html#apache_beam.examples.snippets.snippets.model_bigqueryio">[docs]</a><span class="k">def</span> <span class="nf">model_bigqueryio</span><span class="p">():</span>
+  <span class="sd">&quot;&quot;&quot;Using a Read and Write transform to read/write to BigQuery.&quot;&quot;&quot;</span>
+  <span class="kn">import</span> <span class="nn">apache_beam</span> <span class="k">as</span> <span class="nn">beam</span>
+  <span class="kn">from</span> <span class="nn">apache_beam.utils.pipeline_options</span> <span class="k">import</span> <span class="n">PipelineOptions</span>
+
+  <span class="c1"># [START model_bigqueryio_read]</span>
+  <span class="n">p</span> <span class="o">=</span> <span class="n">beam</span><span class="o">.</span><span class="n">Pipeline</span><span class="p">(</span><span class="n">options</span><span class="o">=</span><span class="n">PipelineOptions</span><span class="p">())</span>
+  <span class="n">weather_data</span> <span class="o">=</span> <span class="n">p</span> <span class="o">|</span> <span class="s1">&#39;ReadWeatherStations&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">Read</span><span class="p">(</span>
+      <span class="n">beam</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">BigQuerySource</span><span class="p">(</span>
+          <span class="s1">&#39;clouddataflow-readonly:samples.weather_stations&#39;</span><span class="p">))</span>
+  <span class="c1"># [END model_bigqueryio_read]</span>
+
+  <span class="c1"># [START model_bigqueryio_query]</span>
+  <span class="n">p</span> <span class="o">=</span> <span class="n">beam</span><span class="o">.</span><span class="n">Pipeline</span><span class="p">(</span><span class="n">options</span><span class="o">=</span><span class="n">PipelineOptions</span><span class="p">())</span>
+  <span class="n">weather_data</span> <span class="o">=</span> <span class="n">p</span> <span class="o">|</span> <span class="s1">&#39;ReadYearAndTemp&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">Read</span><span class="p">(</span>
+      <span class="n">beam</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">BigQuerySource</span><span class="p">(</span>
+          <span class="n">query</span><span class="o">=</span><span class="s1">&#39;SELECT year, mean_temp FROM samples.weather_stations&#39;</span><span class="p">))</span>
+  <span class="c1"># [END model_bigqueryio_query]</span>
+
+  <span class="c1"># [START model_bigqueryio_query_standard_sql]</span>
+  <span class="n">p</span> <span class="o">=</span> <span class="n">beam</span><span class="o">.</span><span class="n">Pipeline</span><span class="p">(</span><span class="n">options</span><span class="o">=</span><span class="n">PipelineOptions</span><span class="p">())</span>
+  <span class="n">weather_data</span> <span class="o">=</span> <span class="n">p</span> <span class="o">|</span> <span class="s1">&#39;ReadYearAndTemp&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">Read</span><span class="p">(</span>
+      <span class="n">beam</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">BigQuerySource</span><span class="p">(</span>
+          <span class="n">query</span><span class="o">=</span><span class="s1">&#39;SELECT year, mean_temp FROM `samples.weather_stations`&#39;</span><span class="p">,</span>
+          <span class="n">use_standard_sql</span><span class="o">=</span><span class="kc">True</span><span class="p">))</span>
+  <span class="c1"># [END model_bigqueryio_query_standard_sql]</span>
+
+  <span class="c1"># [START model_bigqueryio_schema]</span>
+  <span class="n">schema</span> <span class="o">=</span> <span class="s1">&#39;source:STRING, quote:STRING&#39;</span>
+  <span class="c1"># [END model_bigqueryio_schema]</span>
+
+  <span class="c1"># [START model_bigqueryio_write]</span>
+  <span class="n">quotes</span> <span class="o">=</span> <span class="n">p</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">(</span>
+      <span class="p">[{</span><span class="s1">&#39;source&#39;</span><span class="p">:</span> <span class="s1">&#39;Mahatma Ghandi&#39;</span><span class="p">,</span> <span class="s1">&#39;quote&#39;</span><span class="p">:</span> <span class="s1">&#39;My life is my message.&#39;</span><span class="p">}])</span>
+  <span class="n">quotes</span> <span class="o">|</span> <span class="s1">&#39;Write&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">Write</span><span class="p">(</span>
+      <span class="n">beam</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">BigQuerySink</span><span class="p">(</span>
+          <span class="s1">&#39;my-project:output.output_table&#39;</span><span class="p">,</span>
+          <span class="n">schema</span><span class="o">=</span><span class="n">schema</span><span class="p">,</span>
+          <span class="n">write_disposition</span><span class="o">=</span><span class="n">beam</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">BigQueryDisposition</span><span class="o">.</span><span class="n">WRITE_TRUNCATE</span><span class="p">,</span>
+          <span class="n">create_disposition</span><span class="o">=</span><span class="n">beam</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">BigQueryDisposition</span><span class="o">.</span><span class="n">CREATE_IF_NEEDED</span><span class="p">))</span></div>
+  <span class="c1"># [END model_bigqueryio_write]</span>
+
+
+<div class="viewcode-block" id="model_composite_transform_example"><a class="viewcode-back" href="../../../../apache_beam.examples.snippets.html#apache_beam.examples.snippets.snippets.model_composite_transform_example">[docs]</a><span class="k">def</span> <span class="nf">model_composite_transform_example</span><span class="p">(</span><span class="n">contents</span><span class="p">,</span> <span class="n">output_path</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Example of a composite transform.</span>
+
+<span class="sd">  To declare a composite transform, define a subclass of PTransform.</span>
+
+<span class="sd">  To override the apply method, define a method &quot;apply&quot; that</span>
+<span class="sd">  takes a PCollection as its only parameter and returns a PCollection.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+  <span class="kn">import</span> <span class="nn">re</span>
+
+  <span class="kn">import</span> <span class="nn">apache_beam</span> <span class="k">as</span> <span class="nn">beam</span>
+
+  <span class="c1"># [START composite_transform_example]</span>
+  <span class="c1"># [START composite_ptransform_apply_method]</span>
+  <span class="c1"># [START composite_ptransform_declare]</span>
+  <span class="k">class</span> <span class="nc">CountWords</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">PTransform</span><span class="p">):</span>
+    <span class="c1"># [END composite_ptransform_declare]</span>
+
+    <span class="k">def</span> <span class="nf">expand</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pcoll</span><span class="p">):</span>
+      <span class="k">return</span> <span class="p">(</span><span class="n">pcoll</span>
+              <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">FlatMap</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">re</span><span class="o">.</span><span class="n">findall</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;\w+&#39;</span><span class="p">,</span> <span class="n">x</span><span class="p">))</span>
+              <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">combiners</span><span class="o">.</span><span class="n">Count</span><span class="o">.</span><span class="n">PerElement</span><span class="p">()</span>
+              <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">lambda</span> <span class="p">(</span><span class="n">word</span><span class="p">,</span> <span class="n">c</span><span class="p">):</span> <span class="s1">&#39;</span><span class="si">%s</span><span class="s1">: </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">word</span><span class="p">,</span> <span class="n">c</span><span class="p">)))</span>
+  <span class="c1"># [END composite_ptransform_apply_method]</span>
+  <span class="c1"># [END composite_transform_example]</span>
+
+  <span class="n">p</span> <span class="o">=</span> <span class="n">TestPipeline</span><span class="p">()</span>  <span class="c1"># Use TestPipeline for testing.</span>
+  <span class="p">(</span><span class="n">p</span>
+   <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">(</span><span class="n">contents</span><span class="p">)</span>
+   <span class="o">|</span> <span class="n">CountWords</span><span class="p">()</span>
+   <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">WriteToText</span><span class="p">(</span><span class="n">output_path</span><span class="p">))</span>
+  <span class="n">p</span><span class="o">.</span><span class="n">run</span><span class="p">()</span></div>
+
+
+<div class="viewcode-block" id="model_multiple_pcollections_flatten"><a class="viewcode-back" href="../../../../apache_beam.examples.snippets.html#apache_beam.examples.snippets.snippets.model_multiple_pcollections_flatten">[docs]</a><span class="k">def</span> <span class="nf">model_multiple_pcollections_flatten</span><span class="p">(</span><span class="n">contents</span><span class="p">,</span> <span class="n">output_path</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Merging a PCollection with Flatten.&quot;&quot;&quot;</span>
+  <span class="n">some_hash_fn</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">s</span><span class="p">:</span> <span class="nb">ord</span><span class="p">(</span><span class="n">s</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+  <span class="kn">import</span> <span class="nn">apache_beam</span> <span class="k">as</span> <span class="nn">beam</span>
+  <span class="n">p</span> <span class="o">=</span> <span class="n">TestPipeline</span><span class="p">()</span>  <span class="c1"># Use TestPipeline for testing.</span>
+  <span class="n">partition_fn</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">element</span><span class="p">,</span> <span class="n">partitions</span><span class="p">:</span> <span class="n">some_hash_fn</span><span class="p">(</span><span class="n">element</span><span class="p">)</span> <span class="o">%</span> <span class="n">partitions</span>
+
+  <span class="c1"># Partition into deciles</span>
+  <span class="n">partitioned</span> <span class="o">=</span> <span class="n">p</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">(</span><span class="n">contents</span><span class="p">)</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Partition</span><span class="p">(</span><span class="n">partition_fn</span><span class="p">,</span> <span class="mi">3</span><span class="p">)</span>
+  <span class="n">pcoll1</span> <span class="o">=</span> <span class="n">partitioned</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+  <span class="n">pcoll2</span> <span class="o">=</span> <span class="n">partitioned</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+  <span class="n">pcoll3</span> <span class="o">=</span> <span class="n">partitioned</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span>
+
+  <span class="c1"># Flatten them back into 1</span>
+
+  <span class="c1"># A collection of PCollection objects can be represented simply</span>
+  <span class="c1"># as a tuple (or list) of PCollections.</span>
+  <span class="c1"># (The SDK for Python has no separate type to store multiple</span>
+  <span class="c1"># PCollection objects, whether containing the same or different</span>
+  <span class="c1"># types.)</span>
+  <span class="c1"># [START model_multiple_pcollections_flatten]</span>
+  <span class="n">merged</span> <span class="o">=</span> <span class="p">(</span>
+      <span class="c1"># [START model_multiple_pcollections_tuple]</span>
+      <span class="p">(</span><span class="n">pcoll1</span><span class="p">,</span> <span class="n">pcoll2</span><span class="p">,</span> <span class="n">pcoll3</span><span class="p">)</span>
+      <span class="c1"># [END model_multiple_pcollections_tuple]</span>
+      <span class="c1"># A list of tuples can be &quot;piped&quot; directly into a Flatten transform.</span>
+      <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Flatten</span><span class="p">())</span>
+  <span class="c1"># [END model_multiple_pcollections_flatten]</span>
+  <span class="n">merged</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">WriteToText</span><span class="p">(</span><span class="n">output_path</span><span class="p">)</span>
+
+  <span class="n">p</span><span class="o">.</span><span class="n">run</span><span class="p">()</span></div>
+
+
+<div class="viewcode-block" id="model_multiple_pcollections_partition"><a class="viewcode-back" href="../../../../apache_beam.examples.snippets.html#apache_beam.examples.snippets.snippets.model_multiple_pcollections_partition">[docs]</a><span class="k">def</span> <span class="nf">model_multiple_pcollections_partition</span><span class="p">(</span><span class="n">contents</span><span class="p">,</span> <span class="n">output_path</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Splitting a PCollection with Partition.&quot;&quot;&quot;</span>
+  <span class="n">some_hash_fn</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">s</span><span class="p">:</span> <span class="nb">ord</span><span class="p">(</span><span class="n">s</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+
+  <span class="k">def</span> <span class="nf">get_percentile</span><span class="p">(</span><span class="n">i</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Assume i in [0,100).&quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">i</span>
+  <span class="kn">import</span> <span class="nn">apache_beam</span> <span class="k">as</span> <span class="nn">beam</span>
+  <span class="n">p</span> <span class="o">=</span> <span class="n">TestPipeline</span><span class="p">()</span>  <span class="c1"># Use TestPipeline for testing.</span>
+
+  <span class="n">students</span> <span class="o">=</span> <span class="n">p</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">(</span><span class="n">contents</span><span class="p">)</span>
+
+  <span class="c1"># [START model_multiple_pcollections_partition]</span>
+  <span class="k">def</span> <span class="nf">partition_fn</span><span class="p">(</span><span class="n">student</span><span class="p">,</span> <span class="n">num_partitions</span><span class="p">):</span>
+    <span class="k">return</span> <span class="nb">int</span><span class="p">(</span><span class="n">get_percentile</span><span class="p">(</span><span class="n">student</span><span class="p">)</span> <span class="o">*</span> <span class="n">num_partitions</span> <span class="o">/</span> <span class="mi">100</span><span class="p">)</span>
+
+  <span class="n">by_decile</span> <span class="o">=</span> <span class="n">students</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Partition</span><span class="p">(</span><span class="n">partition_fn</span><span class="p">,</span> <span class="mi">10</span><span class="p">)</span>
+  <span class="c1"># [END model_multiple_pcollections_partition]</span>
+  <span class="c1"># [START model_multiple_pcollections_partition_40th]</span>
+  <span class="n">fortieth_percentile</span> <span class="o">=</span> <span class="n">by_decile</span><span class="p">[</span><span class="mi">4</span><span class="p">]</span>
+  <span class="c1"># [END model_multiple_pcollections_partition_40th]</span>
+
+  <span class="p">([</span><span class="n">by_decile</span><span class="p">[</span><span class="n">d</span><span class="p">]</span> <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">xrange</span><span class="p">(</span><span class="mi">10</span><span class="p">)</span> <span class="k">if</span> <span class="n">d</span> <span class="o">!=</span> <span class="mi">4</span><span class="p">]</span> <span class="o">+</span> <span class="p">[</span><span class="n">fortieth_percentile</span><span class="p">]</span>
+   <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Flatten</span><span class="p">()</span>
+   <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">WriteToText</span><span class="p">(</span><span class="n">output_path</span><span class="p">))</span>
+
+  <span class="n">p</span><span class="o">.</span><span class="n">run</span><span class="p">()</span></div>
+
+
+<div class="viewcode-block" id="model_group_by_key"><a class="viewcode-back" href="../../../../apache_beam.examples.snippets.html#apache_beam.examples.snippets.snippets.model_group_by_key">[docs]</a><span class="k">def</span> <span class="nf">model_group_by_key</span><span class="p">(</span><span class="n">contents</span><span class="p">,</span> <span class="n">output_path</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Applying a GroupByKey Transform.&quot;&quot;&quot;</span>
+  <span class="kn">import</span> <span class="nn">re</span>
+
+  <span class="kn">import</span> <span class="nn">apache_beam</span> <span class="k">as</span> <span class="nn">beam</span>
+  <span class="n">p</span> <span class="o">=</span> <span class="n">TestPipeline</span><span class="p">()</span>  <span class="c1"># Use TestPipeline for testing.</span>
+  <span class="n">words_and_counts</span> <span class="o">=</span> <span class="p">(</span>
+      <span class="n">p</span>
+      <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">(</span><span class="n">contents</span><span class="p">)</span>
+      <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">FlatMap</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">re</span><span class="o">.</span><span class="n">findall</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;\w+&#39;</span><span class="p">,</span> <span class="n">x</span><span class="p">))</span>
+      <span class="o">|</span> <span class="s1">&#39;one word&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">w</span><span class="p">:</span> <span class="p">(</span><span class="n">w</span><span class="p">,</span> <span class="mi">1</span><span class="p">)))</span>
+  <span class="c1"># GroupByKey accepts a PCollection of (w, 1) and</span>
+  <span class="c1"># outputs a PCollection of (w, (1, 1, ...)).</span>
+  <span class="c1"># (A key/value pair is just a tuple in Python.)</span>
+  <span class="c1"># This is a somewhat forced example, since one could</span>
+  <span class="c1"># simply use beam.combiners.Count.PerElement here.</span>
+  <span class="c1"># [START model_group_by_key_transform]</span>
+  <span class="n">grouped_words</span> <span class="o">=</span> <span class="n">words_and_counts</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">GroupByKey</span><span class="p">()</span>
+  <span class="c1"># [END model_group_by_key_transform]</span>
+  <span class="p">(</span><span class="n">grouped_words</span>
+   <span class="o">|</span> <span class="s1">&#39;count words&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">lambda</span> <span class="p">(</span><span class="n">word</span><span class="p">,</span> <span class="n">counts</span><span class="p">):</span> <span class="p">(</span><span class="n">word</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">counts</span><span class="p">)))</span>
+   <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">WriteToText</span><span class="p">(</span><span class="n">output_path</span><span class="p">))</span>
+  <span class="n">p</span><span class="o">.</span><span class="n">run</span><span class="p">()</span></div>
+
+
+<div class="viewcode-block" id="model_co_group_by_key_tuple"><a class="viewcode-back" href="../../../../apache_beam.examples.snippets.html#apache_beam.examples.snippets.snippets.model_co_group_by_key_tuple">[docs]</a><span class="k">def</span> <span class="nf">model_co_group_by_key_tuple</span><span class="p">(</span><span class="n">email_list</span><span class="p">,</span> <span class="n">phone_list</span><span class="p">,</span> <span class="n">output_path</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Applying a CoGroupByKey Transform to a tuple.&quot;&quot;&quot;</span>
+  <span class="kn">import</span> <span class="nn">apache_beam</span> <span class="k">as</span> <span class="nn">beam</span>
+  <span class="n">p</span> <span class="o">=</span> <span class="n">TestPipeline</span><span class="p">()</span>  <span class="c1"># Use TestPipeline for testing.</span>
+  <span class="c1"># [START model_group_by_key_cogroupbykey_tuple]</span>
+  <span class="c1"># Each data set is represented by key-value pairs in separate PCollections.</span>
+  <span class="c1"># Both data sets share a common key type (in this example str).</span>
+  <span class="c1"># The email_list contains values such as: (&#39;joe&#39;, &#39;joe@example.com&#39;) with</span>
+  <span class="c1"># multiple possible values for each key.</span>
+  <span class="c1"># The phone_list contains values such as: (&#39;mary&#39;: &#39;111-222-3333&#39;) with</span>
+  <span class="c1"># multiple possible values for each key.</span>
+  <span class="n">emails</span> <span class="o">=</span> <span class="n">p</span> <span class="o">|</span> <span class="s1">&#39;email&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">(</span><span class="n">email_list</span><span class="p">)</span>
+  <span class="n">phones</span> <span class="o">=</span> <span class="n">p</span> <span class="o">|</span> <span class="s1">&#39;phone&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">(</span><span class="n">phone_list</span><span class="p">)</span>
+  <span class="c1"># The result PCollection contains one key-value element for each key in the</span>
+  <span class="c1"># input PCollections. The key of the pair will be the key from the input and</span>
+  <span class="c1"># the value will be a dictionary with two entries: &#39;emails&#39; - an iterable of</span>
+  <span class="c1"># all values for the current key in the emails PCollection and &#39;phones&#39;: an</span>
+  <span class="c1"># iterable of all values for the current key in the phones PCollection.</span>
+  <span class="c1"># For instance, if &#39;emails&#39; contained (&#39;joe&#39;, &#39;joe@example.com&#39;) and</span>
+  <span class="c1"># (&#39;joe&#39;, &#39;joe@gmail.com&#39;), then &#39;result&#39; will contain the element</span>
+  <span class="c1"># (&#39;joe&#39;, {&#39;emails&#39;: [&#39;joe@example.com&#39;, &#39;joe@gmail.com&#39;], &#39;phones&#39;: ...})</span>
+  <span class="n">result</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;emails&#39;</span><span class="p">:</span> <span class="n">emails</span><span class="p">,</span> <span class="s1">&#39;phones&#39;</span><span class="p">:</span> <span class="n">phones</span><span class="p">}</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">CoGroupByKey</span><span class="p">()</span>
+
+  <span class="k">def</span> <span class="nf">join_info</span><span class="p">((</span><span class="n">name</span><span class="p">,</span> <span class="n">info</span><span class="p">)):</span>
+    <span class="k">return</span> <span class="s1">&#39;; &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="s1">&#39;</span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">name</span><span class="p">,</span>
+                      <span class="s1">&#39;</span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="s1">&#39;,&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">info</span><span class="p">[</span><span class="s1">&#39;emails&#39;</span><span class="p">]),</span>
+                      <span class="s1">&#39;</span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="s1">&#39;,&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">info</span><span class="p">[</span><span class="s1">&#39;phones&#39;</span><span class="p">])])</span>
+
+  <span class="n">contact_lines</span> <span class="o">=</span> <span class="n">result</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="n">join_info</span><span class="p">)</span>
+  <span class="c1"># [END model_group_by_key_cogroupbykey_tuple]</span>
+  <span class="n">contact_lines</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">WriteToText</span><span class="p">(</span><span class="n">output_path</span><span class="p">)</span>
+  <span class="n">p</span><span class="o">.</span><span class="n">run</span><span class="p">()</span></div>
+
+
+<div class="viewcode-block" id="model_join_using_side_inputs"><a class="viewcode-back" href="../../../../apache_beam.examples.snippets.html#apache_beam.examples.snippets.snippets.model_join_using_side_inputs">[docs]</a><span class="k">def</span> <span class="nf">model_join_using_side_inputs</span><span class="p">(</span>
+    <span class="n">name_list</span><span class="p">,</span> <span class="n">email_list</span><span class="p">,</span> <span class="n">phone_list</span><span class="p">,</span> <span class="n">output_path</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Joining PCollections using side inputs.&quot;&quot;&quot;</span>
+
+  <span class="kn">import</span> <span class="nn">apache_beam</span> <span class="k">as</span> <span class="nn">beam</span>
+  <span class="kn">from</span> <span class="nn">apache_beam.pvalue</span> <span class="k">import</span> <span class="n">AsIter</span>
+
+  <span class="n">p</span> <span class="o">=</span> <span class="n">TestPipeline</span><span class="p">()</span>  <span class="c1"># Use TestPipeline for testing.</span>
+  <span class="c1"># [START model_join_using_side_inputs]</span>
+  <span class="c1"># This code performs a join by receiving the set of names as an input and</span>
+  <span class="c1"># passing PCollections that contain emails and phone numbers as side inputs</span>
+  <span class="c1"># instead of using CoGroupByKey.</span>
+  <span class="n">names</span> <span class="o">=</span> <span class="n">p</span> <span class="o">|</span> <span class="s1">&#39;names&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">(</span><span class="n">name_list</span><span class="p">)</span>
+  <span class="n">emails</span> <span class="o">=</span> <span class="n">p</span> <span class="o">|</span> <span class="s1">&#39;email&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">(</span><span class="n">email_list</span><span class="p">)</span>
+  <span class="n">phones</span> <span class="o">=</span> <span class="n">p</span> <span class="o">|</span> <span class="s1">&#39;phone&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">(</span><span class="n">phone_list</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">join_info</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">emails</span><span class="p">,</span> <span class="n">phone_numbers</span><span class="p">):</span>
+    <span class="n">filtered_emails</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">name_in_list</span><span class="p">,</span> <span class="n">email</span> <span class="ow">in</span> <span class="n">emails</span><span class="p">:</span>
+      <span class="k">if</span> <span class="n">name_in_list</span> <span class="o">==</span> <span class="n">name</span><span class="p">:</span>
+        <span class="n">filtered_emails</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">email</span><span class="p">)</span>
+
+    <span class="n">filtered_phone_numbers</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">name_in_list</span><span class="p">,</span> <span class="n">phone_number</span> <span class="ow">in</span> <span class="n">phone_numbers</span><span class="p">:</span>
+      <span class="k">if</span> <span class="n">name_in_list</span> <span class="o">==</span> <span class="n">name</span><span class="p">:</span>
+        <span class="n">filtered_phone_numbers</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">phone_number</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="s1">&#39;; &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="s1">&#39;</span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">name</span><span class="p">,</span>
+                      <span class="s1">&#39;</span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="s1">&#39;,&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">filtered_emails</span><span class="p">),</span>
+                      <span class="s1">&#39;</span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="s1">&#39;,&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">filtered_phone_numbers</span><span class="p">)])</span>
+
+  <span class="n">contact_lines</span> <span class="o">=</span> <span class="n">names</span> <span class="o">|</span> <span class="s1">&#39;CreateContacts&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">core</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span>
+      <span class="n">join_info</span><span class="p">,</span> <span class="n">AsIter</span><span class="p">(</span><span class="n">emails</span><span class="p">),</span> <span class="n">AsIter</span><span class="p">(</span><span class="n">phones</span><span class="p">))</span>
+  <span class="c1"># [END model_join_using_side_inputs]</span>
+  <span class="n">contact_lines</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">WriteToText</span><span class="p">(</span><span class="n">output_path</span><span class="p">)</span>
+  <span class="n">p</span><span class="o">.</span><span class="n">run</span><span class="p">()</span></div>
+
+
+<span class="c1"># [START model_library_transforms_keys]</span>
+<div class="viewcode-block" id="Keys"><a class="viewcode-back" href="../../../../apache_beam.examples.snippets.html#apache_beam.examples.snippets.snippets.Keys">[docs]</a><span class="k">class</span> <span class="nc">Keys</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">PTransform</span><span class="p">):</span>
+
+<div class="viewcode-block" id="Keys.expand"><a class="viewcode-back" href="../../../../apache_beam.examples.snippets.html#apache_beam.examples.snippets.snippets.Keys.expand">[docs]</a>  <span class="k">def</span> <span class="nf">expand</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pcoll</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">pcoll</span> <span class="o">|</span> <span class="s1">&#39;Keys&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">lambda</span> <span class="p">(</span><span class="n">k</span><span class="p">,</span> <span class="n">v</span><span class="p">):</span> <span class="n">k</span><span class="p">)</span></div></div>
+<span class="c1"># [END model_library_transforms_keys]</span>
+<span class="c1"># pylint: enable=invalid-name</span>
+
+
+<span class="c1"># [START model_library_transforms_count]</span>
+<div class="viewcode-block" id="Count"><a class="viewcode-back" href="../../../../apache_beam.examples.snippets.html#apache_beam.examples.snippets.snippets.Count">[docs]</a><span class="k">class</span> <span class="nc">Count</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">PTransform</span><span class="p">):</span>
+
+<div class="viewcode-block" id="Count.expand"><a class="viewcode-back" href="../../../../apache_beam.examples.snippets.html#apache_beam.examples.snippets.snippets.Count.expand">[docs]</a>  <span class="k">def</span> <span class="nf">expand</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pcoll</span><span class="p">):</span>
+    <span class="k">return</span> <span class="p">(</span>
+        <span class="n">pcoll</span>
+        <span class="o">|</span> <span class="s1">&#39;PairWithOne&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">v</span><span class="p">:</span> <span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span>
+        <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">CombinePerKey</span><span class="p">(</span><span class="nb">sum</span><span class="p">))</span></div></div>
+<span class="c1"># [END model_library_transforms_count]</span>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../../index.html" >Module code</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright .
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.5.3.
+    </div>
+  </body>
+</html>

@@ -1,0 +1,1643 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>apache_beam.utils package &#8212; Apache Beam  documentation</title>
+    
+    <link rel="stylesheet" href="_static/sphinxdoc.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="prev" title="apache_beam.typehints package" href="apache_beam.typehints.html" /> 
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="apache_beam.typehints.html" title="apache_beam.typehints package"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="apache_beam.html" accesskey="U">apache_beam package</a> &#187;</li> 
+      </ul>
+    </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">apache_beam.utils package</a><ul>
+<li><a class="reference internal" href="#submodules">Submodules</a></li>
+<li><a class="reference internal" href="#module-apache_beam.utils.annotations">apache_beam.utils.annotations module</a></li>
+<li><a class="reference internal" href="#module-apache_beam.utils.annotations_test">apache_beam.utils.annotations_test module</a></li>
+<li><a class="reference internal" href="#module-apache_beam.utils.counters">apache_beam.utils.counters module</a></li>
+<li><a class="reference internal" href="#module-apache_beam.utils.path">apache_beam.utils.path module</a></li>
+<li><a class="reference internal" href="#module-apache_beam.utils.path_test">apache_beam.utils.path_test module</a></li>
+<li><a class="reference internal" href="#module-apache_beam.utils.pipeline_options">apache_beam.utils.pipeline_options module</a></li>
+<li><a class="reference internal" href="#module-apache_beam.utils.pipeline_options_test">apache_beam.utils.pipeline_options_test module</a></li>
+<li><a class="reference internal" href="#module-apache_beam.utils.pipeline_options_validator">apache_beam.utils.pipeline_options_validator module</a></li>
+<li><a class="reference internal" href="#module-apache_beam.utils.pipeline_options_validator_test">apache_beam.utils.pipeline_options_validator_test module</a></li>
+<li><a class="reference internal" href="#module-apache_beam.utils.processes">apache_beam.utils.processes module</a></li>
+<li><a class="reference internal" href="#module-apache_beam.utils.processes_test">apache_beam.utils.processes_test module</a></li>
+<li><a class="reference internal" href="#module-apache_beam.utils.profiler">apache_beam.utils.profiler module</a></li>
+<li><a class="reference internal" href="#module-apache_beam.utils.retry">apache_beam.utils.retry module</a></li>
+<li><a class="reference internal" href="#module-apache_beam.utils.retry_test">apache_beam.utils.retry_test module</a></li>
+<li><a class="reference internal" href="#module-apache_beam.utils.timestamp">apache_beam.utils.timestamp module</a></li>
+<li><a class="reference internal" href="#module-apache_beam.utils.timestamp_test">apache_beam.utils.timestamp_test module</a></li>
+<li><a class="reference internal" href="#module-apache_beam.utils.windowed_value">apache_beam.utils.windowed_value module</a></li>
+<li><a class="reference internal" href="#module-apache_beam.utils.windowed_value_test">apache_beam.utils.windowed_value_test module</a></li>
+<li><a class="reference internal" href="#module-apache_beam.utils">Module contents</a></li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="apache_beam.typehints.html"
+                        title="previous chapter">apache_beam.typehints package</a></p>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="_sources/apache_beam.utils.rst.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="apache-beam-utils-package">
+<h1>apache_beam.utils package<a class="headerlink" href="#apache-beam-utils-package" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="submodules">
+<h2>Submodules<a class="headerlink" href="#submodules" title="Permalink to this headline">¶</a></h2>
+</div>
+<div class="section" id="module-apache_beam.utils.annotations">
+<span id="apache-beam-utils-annotations-module"></span><h2>apache_beam.utils.annotations module<a class="headerlink" href="#module-apache_beam.utils.annotations" title="Permalink to this headline">¶</a></h2>
+<p>Deprecated and experimental annotations.</p>
+<p>Annotations come in two flavors: deprecated and experimental</p>
+<p>The &#8216;deprecated&#8217; annotation requires a &#8216;since&#8221; parameter to specify
+what version deprecated it.
+Both &#8216;deprecated&#8217; and &#8216;experimental&#8217; annotations can specify the
+current recommended version to use by means of a &#8216;current&#8217; parameter.</p>
+<p>The following example illustrates how to annotate coexisting versions of the
+same function &#8216;multiply&#8217;.:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">multiply</span><span class="p">(</span><span class="n">arg1</span><span class="p">,</span> <span class="n">arg2</span><span class="p">):</span>
+  <span class="nb">print</span> <span class="n">arg1</span><span class="p">,</span> <span class="s1">&#39;*&#39;</span><span class="p">,</span> <span class="n">arg2</span><span class="p">,</span> <span class="s1">&#39;=&#39;</span><span class="p">,</span>
+  <span class="k">return</span> <span class="n">arg1</span><span class="o">*</span><span class="n">arg2</span>
+</pre></div>
+</div>
+<p># This annotation marks &#8216;old_multiply&#8217; as deprecated since &#8216;v.1&#8217; and suggests
+# using &#8216;multiply&#8217; instead.:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="nd">@deprecated</span><span class="p">(</span><span class="n">since</span><span class="o">=</span><span class="s1">&#39;v.1&#39;</span><span class="p">,</span> <span class="n">current</span><span class="o">=</span><span class="s1">&#39;multiply&#39;</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">old_multiply</span><span class="p">(</span><span class="n">arg1</span><span class="p">,</span> <span class="n">arg2</span><span class="p">):</span>
+  <span class="n">result</span> <span class="o">=</span> <span class="mi">0</span>
+  <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">xrange</span><span class="p">(</span><span class="n">arg1</span><span class="p">):</span>
+      <span class="n">result</span> <span class="o">+=</span> <span class="n">arg2</span>
+  <span class="nb">print</span> <span class="n">arg1</span><span class="p">,</span> <span class="s1">&#39;*&#39;</span><span class="p">,</span> <span class="n">arg2</span><span class="p">,</span> <span class="s1">&#39;(the old way)=&#39;</span><span class="p">,</span>
+  <span class="k">return</span> <span class="n">result</span>
+</pre></div>
+</div>
+<p># This annotation marks &#8216;exp_multiply&#8217; as experimental and suggests
+# using &#8216;multiply&#8217; instead.:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="nd">@experimental</span><span class="p">(</span><span class="n">since</span><span class="o">=</span><span class="s1">&#39;v.1&#39;</span><span class="p">,</span> <span class="n">current</span><span class="o">=</span><span class="s1">&#39;multiply&#39;</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">exp_multiply</span><span class="p">(</span><span class="n">arg1</span><span class="p">,</span> <span class="n">arg2</span><span class="p">):</span>
+  <span class="nb">print</span> <span class="n">arg1</span><span class="p">,</span> <span class="s1">&#39;*&#39;</span><span class="p">,</span> <span class="n">arg2</span><span class="p">,</span> <span class="s1">&#39;(the experimental way)=&#39;</span><span class="p">,</span>
+  <span class="k">return</span> <span class="p">(</span><span class="n">arg1</span><span class="o">*</span><span class="n">arg2</span><span class="p">)</span><span class="o">*</span><span class="p">(</span><span class="n">arg1</span><span class="o">/</span><span class="n">arg2</span><span class="p">)</span><span class="o">*</span><span class="p">(</span><span class="n">arg2</span><span class="o">/</span><span class="n">arg1</span><span class="p">)</span>
+</pre></div>
+</div>
+<p># Set a warning filter to control how often warnings are produced.:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">warnings</span><span class="o">.</span><span class="n">simplefilter</span><span class="p">(</span><span class="s2">&quot;always&quot;</span><span class="p">)</span>
+<span class="nb">print</span> <span class="n">multiply</span><span class="p">(</span><span class="mi">5</span><span class="p">,</span> <span class="mi">6</span><span class="p">)</span>
+<span class="nb">print</span> <span class="n">old_multiply</span><span class="p">(</span><span class="mi">5</span><span class="p">,</span><span class="mi">6</span><span class="p">)</span>
+<span class="nb">print</span> <span class="n">exp_multiply</span><span class="p">(</span><span class="mi">5</span><span class="p">,</span><span class="mi">6</span><span class="p">)</span>
+</pre></div>
+</div>
+<dl class="function">
+<dt id="apache_beam.utils.annotations.annotate">
+<code class="descclassname">apache_beam.utils.annotations.</code><code class="descname">annotate</code><span class="sig-paren">(</span><em>label</em>, <em>since</em>, <em>current</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/annotations.html#annotate"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.annotations.annotate" title="Permalink to this definition">¶</a></dt>
+<dd><p>Decorates a function with a deprecated or experimental annotation.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>label</strong> &#8211; the kind of annotation (&#8216;deprecated&#8217; or &#8216;experimental&#8217;).</li>
+<li><strong>since</strong> &#8211; the version that causes the annotation.</li>
+<li><strong>current</strong> &#8211; the suggested replacement function.</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">The decorator for the function.</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</div>
+<div class="section" id="module-apache_beam.utils.annotations_test">
+<span id="apache-beam-utils-annotations-test-module"></span><h2>apache_beam.utils.annotations_test module<a class="headerlink" href="#module-apache_beam.utils.annotations_test" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="apache_beam.utils.annotations_test.AnnotationTests">
+<em class="property">class </em><code class="descclassname">apache_beam.utils.annotations_test.</code><code class="descname">AnnotationTests</code><span class="sig-paren">(</span><em>methodName='runTest'</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/annotations_test.html#AnnotationTests"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.annotations_test.AnnotationTests" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">unittest.case.TestCase</span></code></p>
+<dl class="method">
+<dt id="apache_beam.utils.annotations_test.AnnotationTests.check_annotation">
+<code class="descname">check_annotation</code><span class="sig-paren">(</span><em>warning</em>, <em>warning_size</em>, <em>warning_type</em>, <em>fnc_name</em>, <em>annotation_type</em>, <em>label_check_list</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/annotations_test.html#AnnotationTests.check_annotation"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.annotations_test.AnnotationTests.check_annotation" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.utils.annotations_test.AnnotationTests.test_deprecated_with_since_current">
+<code class="descname">test_deprecated_with_since_current</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/annotations_test.html#AnnotationTests.test_deprecated_with_since_current"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.annotations_test.AnnotationTests.test_deprecated_with_since_current" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.utils.annotations_test.AnnotationTests.test_deprecated_without_current">
+<code class="descname">test_deprecated_without_current</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/annotations_test.html#AnnotationTests.test_deprecated_without_current"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.annotations_test.AnnotationTests.test_deprecated_without_current" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.utils.annotations_test.AnnotationTests.test_deprecated_without_since_should_fail">
+<code class="descname">test_deprecated_without_since_should_fail</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/annotations_test.html#AnnotationTests.test_deprecated_without_since_should_fail"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.annotations_test.AnnotationTests.test_deprecated_without_since_should_fail" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.utils.annotations_test.AnnotationTests.test_experimental_with_current">
+<code class="descname">test_experimental_with_current</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/annotations_test.html#AnnotationTests.test_experimental_with_current"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.annotations_test.AnnotationTests.test_experimental_with_current" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.utils.annotations_test.AnnotationTests.test_experimental_without_current">
+<code class="descname">test_experimental_without_current</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/annotations_test.html#AnnotationTests.test_experimental_without_current"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.annotations_test.AnnotationTests.test_experimental_without_current" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.utils.annotations_test.AnnotationTests.test_frequency">
+<code class="descname">test_frequency</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/annotations_test.html#AnnotationTests.test_frequency"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.annotations_test.AnnotationTests.test_frequency" title="Permalink to this definition">¶</a></dt>
+<dd><p>Tests that the filter &#8216;once&#8217; is sufficient to print once per
+warning independently of location.</p>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="module-apache_beam.utils.counters">
+<span id="apache-beam-utils-counters-module"></span><h2>apache_beam.utils.counters module<a class="headerlink" href="#module-apache_beam.utils.counters" title="Permalink to this headline">¶</a></h2>
+<p>Counters collect the progress of the Worker for reporting to the service.</p>
+<dl class="class">
+<dt id="apache_beam.utils.counters.AccumulatorCombineFnCounter">
+<em class="property">class </em><code class="descclassname">apache_beam.utils.counters.</code><code class="descname">AccumulatorCombineFnCounter</code><span class="sig-paren">(</span><em>name</em>, <em>combine_fn</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/counters.html#AccumulatorCombineFnCounter"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.counters.AccumulatorCombineFnCounter" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#apache_beam.utils.counters.Counter" title="apache_beam.utils.counters.Counter"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.utils.counters.Counter</span></code></a></p>
+<p>Counter optimized for a mutating accumulator that holds all the logic.</p>
+<dl class="method">
+<dt id="apache_beam.utils.counters.AccumulatorCombineFnCounter.update">
+<code class="descname">update</code><span class="sig-paren">(</span><em>value</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/counters.html#AccumulatorCombineFnCounter.update"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.counters.AccumulatorCombineFnCounter.update" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.utils.counters.Counter">
+<em class="property">class </em><code class="descclassname">apache_beam.utils.counters.</code><code class="descname">Counter</code><span class="sig-paren">(</span><em>name</em>, <em>combine_fn</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/counters.html#Counter"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.counters.Counter" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">object</span></code></p>
+<p>A counter aggregates a series of values.</p>
+<p>The aggregation kind of the Counter is specified when the Counter
+is created.  The values aggregated must be of an appropriate for the
+aggregation used.  Aggregations supported are listed in the code.</p>
+<p>(The aggregated value will be reported to the Dataflow service.)</p>
+<p>Do not create directly; call CounterFactory.get_counter instead.</p>
+<dl class="attribute">
+<dt id="apache_beam.utils.counters.Counter.name">
+<code class="descname">name</code><a class="headerlink" href="#apache_beam.utils.counters.Counter.name" title="Permalink to this definition">¶</a></dt>
+<dd><p>the name of the counter, a string</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.utils.counters.Counter.aggregation_kind">
+<code class="descname">aggregation_kind</code><a class="headerlink" href="#apache_beam.utils.counters.Counter.aggregation_kind" title="Permalink to this definition">¶</a></dt>
+<dd><p>one of the aggregation kinds defined by this class.</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.utils.counters.Counter.total">
+<code class="descname">total</code><a class="headerlink" href="#apache_beam.utils.counters.Counter.total" title="Permalink to this definition">¶</a></dt>
+<dd><p>the total size of all the items passed to update()</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.utils.counters.Counter.elements">
+<code class="descname">elements</code><a class="headerlink" href="#apache_beam.utils.counters.Counter.elements" title="Permalink to this definition">¶</a></dt>
+<dd><p>the number of times update() was called</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.utils.counters.Counter.MEAN">
+<code class="descname">MEAN</code><em class="property"> = &lt;apache_beam.transforms.cy_combiners.MeanInt64Fn object&gt;</em><a class="headerlink" href="#apache_beam.utils.counters.Counter.MEAN" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.utils.counters.Counter.SUM">
+<code class="descname">SUM</code><em class="property"> = &lt;apache_beam.transforms.cy_combiners.SumInt64Fn object&gt;</em><a class="headerlink" href="#apache_beam.utils.counters.Counter.SUM" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.utils.counters.Counter.update">
+<code class="descname">update</code><span class="sig-paren">(</span><em>value</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/counters.html#Counter.update"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.counters.Counter.update" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.utils.counters.Counter.value">
+<code class="descname">value</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/counters.html#Counter.value"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.counters.Counter.value" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.utils.counters.CounterFactory">
+<em class="property">class </em><code class="descclassname">apache_beam.utils.counters.</code><code class="descname">CounterFactory</code><a class="reference internal" href="_modules/apache_beam/utils/counters.html#CounterFactory"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.counters.CounterFactory" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">object</span></code></p>
+<p>Keeps track of unique counters.</p>
+<dl class="method">
+<dt id="apache_beam.utils.counters.CounterFactory.get_aggregator_counter">
+<code class="descname">get_aggregator_counter</code><span class="sig-paren">(</span><em>step_name</em>, <em>aggregator</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/counters.html#CounterFactory.get_aggregator_counter"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.counters.CounterFactory.get_aggregator_counter" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns an AggregationCounter for this step&#8217;s aggregator.</p>
+<p>Passing in the same values will return the same counter.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>step_name</strong> &#8211; the name of this step.</li>
+<li><strong>aggregator</strong> &#8211; an Aggregator object.</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">A new or existing counter.</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.utils.counters.CounterFactory.get_aggregator_values">
+<code class="descname">get_aggregator_values</code><span class="sig-paren">(</span><em>aggregator_or_name</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/counters.html#CounterFactory.get_aggregator_values"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.counters.CounterFactory.get_aggregator_values" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns dict of step names to values of the aggregator.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.utils.counters.CounterFactory.get_counter">
+<code class="descname">get_counter</code><span class="sig-paren">(</span><em>name</em>, <em>combine_fn</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/counters.html#CounterFactory.get_counter"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.counters.CounterFactory.get_counter" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns a counter with the requested name.</p>
+<p>Passing in the same name will return the same counter; the
+combine_fn must agree.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>name</strong> &#8211; the name of this counter.  Typically has three parts:
+&#8220;step-output-counter&#8221;.</li>
+<li><strong>combine_fn</strong> &#8211; the CombineFn to use for aggregation</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">A new or existing counter with the requested name.</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.utils.counters.CounterFactory.get_counters">
+<code class="descname">get_counters</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/counters.html#CounterFactory.get_counters"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.counters.CounterFactory.get_counters" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns the current set of counters.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body">An iterable that contains the current set of counters. To make sure that
+multiple threads can iterate over the set of counters, we return a new
+iterable here. Note that the actual set of counters may get modified after
+this method returns hence the returned iterable may be stale.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.utils.counters.get_aggregator_values">
+<code class="descclassname">apache_beam.utils.counters.</code><code class="descname">get_aggregator_values</code><span class="sig-paren">(</span><em>aggregator_or_name</em>, <em>counter_dict</em>, <em>value_extractor=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/counters.html#get_aggregator_values"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.counters.get_aggregator_values" title="Permalink to this definition">¶</a></dt>
+<dd><p>Extracts the named aggregator value from a set of counters.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>aggregator_or_name</strong> &#8211; an Aggregator object or the name of one.</li>
+<li><strong>counter_dict</strong> &#8211; a dict object of {name: value_wrapper}</li>
+<li><strong>value_extractor</strong> &#8211; a function to convert the value_wrapper into a value.
+If None, no extraction is done and the value is return unchanged.</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">dict of step names to values of the aggregator.</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</div>
+<div class="section" id="module-apache_beam.utils.path">
+<span id="apache-beam-utils-path-module"></span><h2>apache_beam.utils.path module<a class="headerlink" href="#module-apache_beam.utils.path" title="Permalink to this headline">¶</a></h2>
+<p>Utilities for dealing with file paths.</p>
+<dl class="function">
+<dt id="apache_beam.utils.path.join">
+<code class="descclassname">apache_beam.utils.path.</code><code class="descname">join</code><span class="sig-paren">(</span><em>path</em>, <em>*paths</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/path.html#join"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.path.join" title="Permalink to this definition">¶</a></dt>
+<dd><p>Joins given path pieces with the appropriate separator.</p>
+<p>This function is useful for joining parts of a path that could at times refer
+to either a GCS path or a local path.  In particular, this is useful for
+ensuring Windows compatibility as on Windows, the GCS path separator is
+different from the separator for local paths.</p>
+<p>Use os.path.join instead if a path always refers to a local path.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>path</strong> &#8211; First part of path to join.  If this part starts with &#8216;gs:/&#8217;, the GCS
+separator will be used in joining this path.</li>
+<li><strong>*paths</strong> &#8211; Remaining part(s) of path to join.</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">Pieces joined by the appropriate path separator.</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</div>
+<div class="section" id="module-apache_beam.utils.path_test">
+<span id="apache-beam-utils-path-test-module"></span><h2>apache_beam.utils.path_test module<a class="headerlink" href="#module-apache_beam.utils.path_test" title="Permalink to this headline">¶</a></h2>
+<p>Unit tests for the path module.</p>
+<dl class="class">
+<dt id="apache_beam.utils.path_test.Path">
+<em class="property">class </em><code class="descclassname">apache_beam.utils.path_test.</code><code class="descname">Path</code><span class="sig-paren">(</span><em>methodName='runTest'</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/path_test.html#Path"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.path_test.Path" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">unittest.case.TestCase</span></code></p>
+<dl class="method">
+<dt id="apache_beam.utils.path_test.Path.setUp">
+<code class="descname">setUp</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/path_test.html#Path.setUp"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.path_test.Path.setUp" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.utils.path_test.Path.test_gcs_path">
+<code class="descname">test_gcs_path</code><span class="sig-paren">(</span><em>*args</em>, <em>**keywargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/path_test.html#Path.test_gcs_path"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.path_test.Path.test_gcs_path" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.utils.path_test.Path.test_unix_path">
+<code class="descname">test_unix_path</code><span class="sig-paren">(</span><em>*args</em>, <em>**keywargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/path_test.html#Path.test_unix_path"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.path_test.Path.test_unix_path" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.utils.path_test.Path.test_windows_path">
+<code class="descname">test_windows_path</code><span class="sig-paren">(</span><em>*args</em>, <em>**keywargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/path_test.html#Path.test_windows_path"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.path_test.Path.test_windows_path" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="module-apache_beam.utils.pipeline_options">
+<span id="apache-beam-utils-pipeline-options-module"></span><h2>apache_beam.utils.pipeline_options module<a class="headerlink" href="#module-apache_beam.utils.pipeline_options" title="Permalink to this headline">¶</a></h2>
+<p>Pipeline options obtained from command line parsing.</p>
+<dl class="class">
+<dt id="apache_beam.utils.pipeline_options.DebugOptions">
+<em class="property">class </em><code class="descclassname">apache_beam.utils.pipeline_options.</code><code class="descname">DebugOptions</code><span class="sig-paren">(</span><em>flags=None</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/pipeline_options.html#DebugOptions"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.pipeline_options.DebugOptions" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#apache_beam.utils.pipeline_options.PipelineOptions" title="apache_beam.utils.pipeline_options.PipelineOptions"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.utils.pipeline_options.PipelineOptions</span></code></a></p>
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.utils.pipeline_options.DirectOptions">
+<em class="property">class </em><code class="descclassname">apache_beam.utils.pipeline_options.</code><code class="descname">DirectOptions</code><span class="sig-paren">(</span><em>flags=None</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/pipeline_options.html#DirectOptions"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.pipeline_options.DirectOptions" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#apache_beam.utils.pipeline_options.PipelineOptions" title="apache_beam.utils.pipeline_options.PipelineOptions"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.utils.pipeline_options.PipelineOptions</span></code></a></p>
+<p>DirectRunner-specific execution options.</p>
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.utils.pipeline_options.GoogleCloudOptions">
+<em class="property">class </em><code class="descclassname">apache_beam.utils.pipeline_options.</code><code class="descname">GoogleCloudOptions</code><span class="sig-paren">(</span><em>flags=None</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/pipeline_options.html#GoogleCloudOptions"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.pipeline_options.GoogleCloudOptions" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#apache_beam.utils.pipeline_options.PipelineOptions" title="apache_beam.utils.pipeline_options.PipelineOptions"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.utils.pipeline_options.PipelineOptions</span></code></a></p>
+<p>Google Cloud Dataflow service execution options.</p>
+<dl class="attribute">
+<dt id="apache_beam.utils.pipeline_options.GoogleCloudOptions.BIGQUERY_API_SERVICE">
+<code class="descname">BIGQUERY_API_SERVICE</code><em class="property"> = 'bigquery.googleapis.com'</em><a class="headerlink" href="#apache_beam.utils.pipeline_options.GoogleCloudOptions.BIGQUERY_API_SERVICE" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.utils.pipeline_options.GoogleCloudOptions.COMPUTE_API_SERVICE">
+<code class="descname">COMPUTE_API_SERVICE</code><em class="property"> = 'compute.googleapis.com'</em><a class="headerlink" href="#apache_beam.utils.pipeline_options.GoogleCloudOptions.COMPUTE_API_SERVICE" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.utils.pipeline_options.GoogleCloudOptions.DATAFLOW_ENDPOINT">
+<code class="descname">DATAFLOW_ENDPOINT</code><em class="property"> = 'https://dataflow.googleapis.com'</em><a class="headerlink" href="#apache_beam.utils.pipeline_options.GoogleCloudOptions.DATAFLOW_ENDPOINT" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.utils.pipeline_options.GoogleCloudOptions.STORAGE_API_SERVICE">
+<code class="descname">STORAGE_API_SERVICE</code><em class="property"> = 'storage.googleapis.com'</em><a class="headerlink" href="#apache_beam.utils.pipeline_options.GoogleCloudOptions.STORAGE_API_SERVICE" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.utils.pipeline_options.GoogleCloudOptions.validate">
+<code class="descname">validate</code><span class="sig-paren">(</span><em>validator</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/pipeline_options.html#GoogleCloudOptions.validate"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.pipeline_options.GoogleCloudOptions.validate" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.utils.pipeline_options.OptionsContext">
+<em class="property">class </em><code class="descclassname">apache_beam.utils.pipeline_options.</code><code class="descname">OptionsContext</code><span class="sig-paren">(</span><em>**options</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/pipeline_options.html#OptionsContext"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.pipeline_options.OptionsContext" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">object</span></code></p>
+<p>Set default pipeline options for pipelines created in this block.</p>
+<p>This is particularly useful for pipelines implicitly created with the</p>
+<blockquote>
+<div>[python list] | PTransform</div></blockquote>
+<p>construct.</p>
+<p>Can also be used as a decorator.</p>
+<dl class="classmethod">
+<dt id="apache_beam.utils.pipeline_options.OptionsContext.augment_options">
+<em class="property">classmethod </em><code class="descname">augment_options</code><span class="sig-paren">(</span><em>options</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/pipeline_options.html#OptionsContext.augment_options"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.pipeline_options.OptionsContext.augment_options" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.utils.pipeline_options.OptionsContext.overrides">
+<code class="descname">overrides</code><em class="property"> = []</em><a class="headerlink" href="#apache_beam.utils.pipeline_options.OptionsContext.overrides" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.utils.pipeline_options.PipelineOptions">
+<em class="property">class </em><code class="descclassname">apache_beam.utils.pipeline_options.</code><code class="descname">PipelineOptions</code><span class="sig-paren">(</span><em>flags=None</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/pipeline_options.html#PipelineOptions"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.pipeline_options.PipelineOptions" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="apache_beam.transforms.html#apache_beam.transforms.display.HasDisplayData" title="apache_beam.transforms.display.HasDisplayData"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.transforms.display.HasDisplayData</span></code></a></p>
+<p>Pipeline options class used as container for command line options.</p>
+<p>The class is essentially a wrapper over the standard argparse Python module
+(see <a class="reference external" href="https://docs.python.org/3/library/argparse.html">https://docs.python.org/3/library/argparse.html</a>).  To define one option
+or a group of options you subclass from PipelineOptions:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="k">class</span> <span class="nc">XyzOptions</span><span class="p">(</span><span class="n">PipelineOptions</span><span class="p">):</span>
+
+  <span class="nd">@classmethod</span>
+  <span class="k">def</span> <span class="nf">_add_argparse_args</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">parser</span><span class="p">):</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;--abc&#39;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="s1">&#39;start&#39;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;--xyz&#39;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="s1">&#39;end&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>The arguments for the add_argument() method are exactly the ones
+described in the argparse public documentation.</p>
+<p>Pipeline objects require an options object during initialization.
+This is obtained simply by initializing an options class as defined above:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">p</span> <span class="o">=</span> <span class="n">Pipeline</span><span class="p">(</span><span class="n">options</span><span class="o">=</span><span class="n">XyzOptions</span><span class="p">())</span>
+<span class="k">if</span> <span class="n">p</span><span class="o">.</span><span class="n">options</span><span class="o">.</span><span class="n">xyz</span> <span class="o">==</span> <span class="s1">&#39;end&#39;</span><span class="p">:</span>
+  <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Option xyz has an invalid value.&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>By default the options classes will use command line arguments to initialize
+the options.</p>
+<dl class="method">
+<dt id="apache_beam.utils.pipeline_options.PipelineOptions.display_data">
+<code class="descname">display_data</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/pipeline_options.html#PipelineOptions.display_data"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.pipeline_options.PipelineOptions.display_data" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="classmethod">
+<dt id="apache_beam.utils.pipeline_options.PipelineOptions.from_dictionary">
+<em class="property">classmethod </em><code class="descname">from_dictionary</code><span class="sig-paren">(</span><em>options</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/pipeline_options.html#PipelineOptions.from_dictionary"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.pipeline_options.PipelineOptions.from_dictionary" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns a PipelineOptions from a dictionary of arguments.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>options</strong> &#8211; Dictinary of argument value pairs.</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">A PipelineOptions object representing the given arguments.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.utils.pipeline_options.PipelineOptions.get_all_options">
+<code class="descname">get_all_options</code><span class="sig-paren">(</span><em>drop_default=False</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/pipeline_options.html#PipelineOptions.get_all_options"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.pipeline_options.PipelineOptions.get_all_options" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns a dictionary of all defined arguments.</p>
+<p>Returns a dictionary of all defined arguments (arguments that are defined in
+any subclass of PipelineOptions) into a dictionary.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>drop_default</strong> &#8211; If set to true, options that are equal to their default
+values, are not returned as part of the result dictionary.</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">Dictionary of all args and values.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.utils.pipeline_options.PipelineOptions.view_as">
+<code class="descname">view_as</code><span class="sig-paren">(</span><em>cls</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/pipeline_options.html#PipelineOptions.view_as"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.pipeline_options.PipelineOptions.view_as" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.utils.pipeline_options.ProfilingOptions">
+<em class="property">class </em><code class="descclassname">apache_beam.utils.pipeline_options.</code><code class="descname">ProfilingOptions</code><span class="sig-paren">(</span><em>flags=None</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/pipeline_options.html#ProfilingOptions"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.pipeline_options.ProfilingOptions" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#apache_beam.utils.pipeline_options.PipelineOptions" title="apache_beam.utils.pipeline_options.PipelineOptions"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.utils.pipeline_options.PipelineOptions</span></code></a></p>
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.utils.pipeline_options.SetupOptions">
+<em class="property">class </em><code class="descclassname">apache_beam.utils.pipeline_options.</code><code class="descname">SetupOptions</code><span class="sig-paren">(</span><em>flags=None</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/pipeline_options.html#SetupOptions"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.pipeline_options.SetupOptions" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#apache_beam.utils.pipeline_options.PipelineOptions" title="apache_beam.utils.pipeline_options.PipelineOptions"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.utils.pipeline_options.PipelineOptions</span></code></a></p>
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.utils.pipeline_options.StandardOptions">
+<em class="property">class </em><code class="descclassname">apache_beam.utils.pipeline_options.</code><code class="descname">StandardOptions</code><span class="sig-paren">(</span><em>flags=None</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/pipeline_options.html#StandardOptions"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.pipeline_options.StandardOptions" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#apache_beam.utils.pipeline_options.PipelineOptions" title="apache_beam.utils.pipeline_options.PipelineOptions"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.utils.pipeline_options.PipelineOptions</span></code></a></p>
+<dl class="attribute">
+<dt id="apache_beam.utils.pipeline_options.StandardOptions.DEFAULT_RUNNER">
+<code class="descname">DEFAULT_RUNNER</code><em class="property"> = 'DirectRunner'</em><a class="headerlink" href="#apache_beam.utils.pipeline_options.StandardOptions.DEFAULT_RUNNER" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.utils.pipeline_options.StandardOptions.validate">
+<code class="descname">validate</code><span class="sig-paren">(</span><em>validator</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/pipeline_options.html#StandardOptions.validate"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.pipeline_options.StandardOptions.validate" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.utils.pipeline_options.TestOptions">
+<em class="property">class </em><code class="descclassname">apache_beam.utils.pipeline_options.</code><code class="descname">TestOptions</code><span class="sig-paren">(</span><em>flags=None</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/pipeline_options.html#TestOptions"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.pipeline_options.TestOptions" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#apache_beam.utils.pipeline_options.PipelineOptions" title="apache_beam.utils.pipeline_options.PipelineOptions"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.utils.pipeline_options.PipelineOptions</span></code></a></p>
+<dl class="method">
+<dt id="apache_beam.utils.pipeline_options.TestOptions.validate">
+<code class="descname">validate</code><span class="sig-paren">(</span><em>validator</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/pipeline_options.html#TestOptions.validate"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.pipeline_options.TestOptions.validate" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.utils.pipeline_options.TypeOptions">
+<em class="property">class </em><code class="descclassname">apache_beam.utils.pipeline_options.</code><code class="descname">TypeOptions</code><span class="sig-paren">(</span><em>flags=None</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/pipeline_options.html#TypeOptions"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.pipeline_options.TypeOptions" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#apache_beam.utils.pipeline_options.PipelineOptions" title="apache_beam.utils.pipeline_options.PipelineOptions"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.utils.pipeline_options.PipelineOptions</span></code></a></p>
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.utils.pipeline_options.WorkerOptions">
+<em class="property">class </em><code class="descclassname">apache_beam.utils.pipeline_options.</code><code class="descname">WorkerOptions</code><span class="sig-paren">(</span><em>flags=None</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/pipeline_options.html#WorkerOptions"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.pipeline_options.WorkerOptions" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#apache_beam.utils.pipeline_options.PipelineOptions" title="apache_beam.utils.pipeline_options.PipelineOptions"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.utils.pipeline_options.PipelineOptions</span></code></a></p>
+<p>Worker pool configuration options.</p>
+<dl class="method">
+<dt id="apache_beam.utils.pipeline_options.WorkerOptions.validate">
+<code class="descname">validate</code><span class="sig-paren">(</span><em>validator</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/pipeline_options.html#WorkerOptions.validate"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.pipeline_options.WorkerOptions.validate" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="module-apache_beam.utils.pipeline_options_test">
+<span id="apache-beam-utils-pipeline-options-test-module"></span><h2>apache_beam.utils.pipeline_options_test module<a class="headerlink" href="#module-apache_beam.utils.pipeline_options_test" title="Permalink to this headline">¶</a></h2>
+<p>Unit tests for the pipeline options module.</p>
+<dl class="class">
+<dt id="apache_beam.utils.pipeline_options_test.PipelineOptionsTest">
+<em class="property">class </em><code class="descclassname">apache_beam.utils.pipeline_options_test.</code><code class="descname">PipelineOptionsTest</code><span class="sig-paren">(</span><em>methodName='runTest'</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/pipeline_options_test.html#PipelineOptionsTest"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.pipeline_options_test.PipelineOptionsTest" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">unittest.case.TestCase</span></code></p>
+<dl class="class">
+<dt id="apache_beam.utils.pipeline_options_test.PipelineOptionsTest.MockOptions">
+<em class="property">class </em><code class="descname">MockOptions</code><span class="sig-paren">(</span><em>flags=None</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/pipeline_options_test.html#PipelineOptionsTest.MockOptions"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.pipeline_options_test.PipelineOptionsTest.MockOptions" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#apache_beam.utils.pipeline_options.PipelineOptions" title="apache_beam.utils.pipeline_options.PipelineOptions"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.utils.pipeline_options.PipelineOptions</span></code></a></p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.utils.pipeline_options_test.PipelineOptionsTest.TEST_CASES">
+<code class="descclassname">PipelineOptionsTest.</code><code class="descname">TEST_CASES</code><em class="property"> = [{'display_data': [&lt;apache_beam.transforms.display_test.DisplayDataItemMatcher object&gt;], 'expected': {'mock_option': None, 'num_workers': 5, 'mock_flag': False}, 'flags': ['--num_workers', '5']}, {'display_data': [&lt;apache_beam.transforms.display_test.DisplayDataItemMatcher object&gt;, &lt;apache_beam.transforms.display_test.DisplayDataItemMatcher object&gt;], 'expected': {'profile_cpu': True, 'profile_location': 'gs://bucket/', 'mock_option': None, 'mock_flag': False}, 'flags': ['--profile_cpu', '--profile_location', 'gs://bucket/', 'ignored']}, {'display_data': [&lt;apache_beam.transforms.display_test.DisplayDataItemMatcher object&gt;, &lt;apache_beam.transforms.display_test.DisplayDataItemMatcher object&gt;], 'expected': {'mock_option': None, 'num_workers': 5, 'mock_flag': True}, 'flags': ['--num_workers', '5', '--mock_flag']}, {'display_data': [&lt;apache_beam.transforms.display_test.DisplayDataItemMatcher object&gt;], 'expected': {'mock_option': 'abc', 'mock_flag': False}, 'flags': ['--mock_option', 'abc']}, {'display_data': [&lt;apache_beam.transforms.display_test.DisplayDataItemMatcher object&gt;], 'expected': {'mock_option': ' abc def ', 'mock_flag': False}, 'flags': ['--mock_option', ' abc def ']}, {'display_data': [&lt;apache_beam.transforms.display_test.DisplayDataItemMatcher object&gt;], 'expected': {'mock_option': ' abc xyz ', 'mock_flag': False}, 'flags': ['--mock_option= abc xyz ']}, {'display_data': [&lt;apache_beam.transforms.display_test.DisplayDataItemMatcher object&gt;], 'expected': {'mock_option': 'gs://my bucket/my folder/my file', 'mock_flag': False}, 'flags': ['--mock_option=gs://my bucket/my folder/my file']}]</em><a class="headerlink" href="#apache_beam.utils.pipeline_options_test.PipelineOptionsTest.TEST_CASES" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.utils.pipeline_options_test.PipelineOptionsTest.test_dataflow_job_file">
+<code class="descclassname">PipelineOptionsTest.</code><code class="descname">test_dataflow_job_file</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/pipeline_options_test.html#PipelineOptionsTest.test_dataflow_job_file"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.pipeline_options_test.PipelineOptionsTest.test_dataflow_job_file" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.utils.pipeline_options_test.PipelineOptionsTest.test_display_data">
+<code class="descclassname">PipelineOptionsTest.</code><code class="descname">test_display_data</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/pipeline_options_test.html#PipelineOptionsTest.test_display_data"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.pipeline_options_test.PipelineOptionsTest.test_display_data" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.utils.pipeline_options_test.PipelineOptionsTest.test_experiments">
+<code class="descclassname">PipelineOptionsTest.</code><code class="descname">test_experiments</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/pipeline_options_test.html#PipelineOptionsTest.test_experiments"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.pipeline_options_test.PipelineOptionsTest.test_experiments" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.utils.pipeline_options_test.PipelineOptionsTest.test_extra_package">
+<code class="descclassname">PipelineOptionsTest.</code><code class="descname">test_extra_package</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/pipeline_options_test.html#PipelineOptionsTest.test_extra_package"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.pipeline_options_test.PipelineOptionsTest.test_extra_package" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.utils.pipeline_options_test.PipelineOptionsTest.test_from_dictionary">
+<code class="descclassname">PipelineOptionsTest.</code><code class="descname">test_from_dictionary</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/pipeline_options_test.html#PipelineOptionsTest.test_from_dictionary"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.pipeline_options_test.PipelineOptionsTest.test_from_dictionary" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.utils.pipeline_options_test.PipelineOptionsTest.test_get_all_options">
+<code class="descclassname">PipelineOptionsTest.</code><code class="descname">test_get_all_options</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/pipeline_options_test.html#PipelineOptionsTest.test_get_all_options"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.pipeline_options_test.PipelineOptionsTest.test_get_all_options" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.utils.pipeline_options_test.PipelineOptionsTest.test_option_with_space">
+<code class="descclassname">PipelineOptionsTest.</code><code class="descname">test_option_with_space</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/pipeline_options_test.html#PipelineOptionsTest.test_option_with_space"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.pipeline_options_test.PipelineOptionsTest.test_option_with_space" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.utils.pipeline_options_test.PipelineOptionsTest.test_override_options">
+<code class="descclassname">PipelineOptionsTest.</code><code class="descname">test_override_options</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/pipeline_options_test.html#PipelineOptionsTest.test_override_options"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.pipeline_options_test.PipelineOptionsTest.test_override_options" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.utils.pipeline_options_test.PipelineOptionsTest.test_redefine_options">
+<code class="descclassname">PipelineOptionsTest.</code><code class="descname">test_redefine_options</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/pipeline_options_test.html#PipelineOptionsTest.test_redefine_options"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.pipeline_options_test.PipelineOptionsTest.test_redefine_options" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.utils.pipeline_options_test.PipelineOptionsTest.test_template_location">
+<code class="descclassname">PipelineOptionsTest.</code><code class="descname">test_template_location</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/pipeline_options_test.html#PipelineOptionsTest.test_template_location"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.pipeline_options_test.PipelineOptionsTest.test_template_location" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="module-apache_beam.utils.pipeline_options_validator">
+<span id="apache-beam-utils-pipeline-options-validator-module"></span><h2>apache_beam.utils.pipeline_options_validator module<a class="headerlink" href="#module-apache_beam.utils.pipeline_options_validator" title="Permalink to this headline">¶</a></h2>
+<p>Pipeline options validator.</p>
+<dl class="class">
+<dt id="apache_beam.utils.pipeline_options_validator.PipelineOptionsValidator">
+<em class="property">class </em><code class="descclassname">apache_beam.utils.pipeline_options_validator.</code><code class="descname">PipelineOptionsValidator</code><span class="sig-paren">(</span><em>options</em>, <em>runner</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/pipeline_options_validator.html#PipelineOptionsValidator"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.pipeline_options_validator.PipelineOptionsValidator" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">object</span></code></p>
+<p>Validates PipelineOptions.</p>
+<p>Goes through a list of known PipelineOption subclassess and calls:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">validate</span><span class="p">(</span><span class="n">validator</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>if one is implemented. Aggregates a list of validation errors from all and
+returns an aggregated list.</p>
+<dl class="attribute">
+<dt id="apache_beam.utils.pipeline_options_validator.PipelineOptionsValidator.ENDPOINT_PATTERN">
+<code class="descname">ENDPOINT_PATTERN</code><em class="property"> = 'https://[\\S]*googleapis\\.com[/]?'</em><a class="headerlink" href="#apache_beam.utils.pipeline_options_validator.PipelineOptionsValidator.ENDPOINT_PATTERN" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.utils.pipeline_options_validator.PipelineOptionsValidator.ERR_INVALID_GCS_BUCKET">
+<code class="descname">ERR_INVALID_GCS_BUCKET</code><em class="property"> = 'Invalid GCS bucket (%s), given for the option: %s. See https://developers.google.com/storage/docs/bucketnaming for more details.'</em><a class="headerlink" href="#apache_beam.utils.pipeline_options_validator.PipelineOptionsValidator.ERR_INVALID_GCS_BUCKET" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.utils.pipeline_options_validator.PipelineOptionsValidator.ERR_INVALID_GCS_OBJECT">
+<code class="descname">ERR_INVALID_GCS_OBJECT</code><em class="property"> = 'Invalid GCS object (%s), given for the option: %s.'</em><a class="headerlink" href="#apache_beam.utils.pipeline_options_validator.PipelineOptionsValidator.ERR_INVALID_GCS_OBJECT" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.utils.pipeline_options_validator.PipelineOptionsValidator.ERR_INVALID_GCS_PATH">
+<code class="descname">ERR_INVALID_GCS_PATH</code><em class="property"> = 'Invalid GCS path (%s), given for the option: %s.'</em><a class="headerlink" href="#apache_beam.utils.pipeline_options_validator.PipelineOptionsValidator.ERR_INVALID_GCS_PATH" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.utils.pipeline_options_validator.PipelineOptionsValidator.ERR_INVALID_JOB_NAME">
+<code class="descname">ERR_INVALID_JOB_NAME</code><em class="property"> = 'Invalid job_name (%s); the name must consist of only the characters [-a-z0-9], starting with a letter and ending with a letter or number'</em><a class="headerlink" href="#apache_beam.utils.pipeline_options_validator.PipelineOptionsValidator.ERR_INVALID_JOB_NAME" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.utils.pipeline_options_validator.PipelineOptionsValidator.ERR_INVALID_NOT_POSITIVE">
+<code class="descname">ERR_INVALID_NOT_POSITIVE</code><em class="property"> = 'Invalid value (%s) for option: %s. Value needs to be positive.'</em><a class="headerlink" href="#apache_beam.utils.pipeline_options_validator.PipelineOptionsValidator.ERR_INVALID_NOT_POSITIVE" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.utils.pipeline_options_validator.PipelineOptionsValidator.ERR_INVALID_PROJECT_ID">
+<code class="descname">ERR_INVALID_PROJECT_ID</code><em class="property"> = 'Invalid Project ID (%s). Please make sure you specified the Project ID, not project description.'</em><a class="headerlink" href="#apache_beam.utils.pipeline_options_validator.PipelineOptionsValidator.ERR_INVALID_PROJECT_ID" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.utils.pipeline_options_validator.PipelineOptionsValidator.ERR_INVALID_PROJECT_NUMBER">
+<code class="descname">ERR_INVALID_PROJECT_NUMBER</code><em class="property"> = 'Invalid Project ID (%s). Please make sure you specified the Project ID, not project number.'</em><a class="headerlink" href="#apache_beam.utils.pipeline_options_validator.PipelineOptionsValidator.ERR_INVALID_PROJECT_NUMBER" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.utils.pipeline_options_validator.PipelineOptionsValidator.ERR_INVALID_TEST_MATCHER_TYPE">
+<code class="descname">ERR_INVALID_TEST_MATCHER_TYPE</code><em class="property"> = 'Invalid value (%s) for option: %s. Please extend your matcher object from hamcrest.core.base_matcher.BaseMatcher.'</em><a class="headerlink" href="#apache_beam.utils.pipeline_options_validator.PipelineOptionsValidator.ERR_INVALID_TEST_MATCHER_TYPE" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.utils.pipeline_options_validator.PipelineOptionsValidator.ERR_INVALID_TEST_MATCHER_UNPICKLABLE">
+<code class="descname">ERR_INVALID_TEST_MATCHER_UNPICKLABLE</code><em class="property"> = 'Invalid value (%s) for option: %s. Please make sure the test matcher is unpicklable.'</em><a class="headerlink" href="#apache_beam.utils.pipeline_options_validator.PipelineOptionsValidator.ERR_INVALID_TEST_MATCHER_UNPICKLABLE" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.utils.pipeline_options_validator.PipelineOptionsValidator.ERR_MISSING_GCS_PATH">
+<code class="descname">ERR_MISSING_GCS_PATH</code><em class="property"> = 'Missing GCS path option: %s.'</em><a class="headerlink" href="#apache_beam.utils.pipeline_options_validator.PipelineOptionsValidator.ERR_MISSING_GCS_PATH" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.utils.pipeline_options_validator.PipelineOptionsValidator.ERR_MISSING_OPTION">
+<code class="descname">ERR_MISSING_OPTION</code><em class="property"> = 'Missing required option: %s.'</em><a class="headerlink" href="#apache_beam.utils.pipeline_options_validator.PipelineOptionsValidator.ERR_MISSING_OPTION" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.utils.pipeline_options_validator.PipelineOptionsValidator.GCS_BUCKET">
+<code class="descname">GCS_BUCKET</code><em class="property"> = '^[a-z0-9][-_a-z0-9.]+[a-z0-9]$'</em><a class="headerlink" href="#apache_beam.utils.pipeline_options_validator.PipelineOptionsValidator.GCS_BUCKET" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.utils.pipeline_options_validator.PipelineOptionsValidator.GCS_SCHEME">
+<code class="descname">GCS_SCHEME</code><em class="property"> = 'gs'</em><a class="headerlink" href="#apache_beam.utils.pipeline_options_validator.PipelineOptionsValidator.GCS_SCHEME" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.utils.pipeline_options_validator.PipelineOptionsValidator.GCS_URI">
+<code class="descname">GCS_URI</code><em class="property"> = '(?P&lt;SCHEME&gt;[^:]+)://(?P&lt;BUCKET&gt;[^/]+)(/(?P&lt;OBJECT&gt;.*))?'</em><a class="headerlink" href="#apache_beam.utils.pipeline_options_validator.PipelineOptionsValidator.GCS_URI" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.utils.pipeline_options_validator.PipelineOptionsValidator.JOB_PATTERN">
+<code class="descname">JOB_PATTERN</code><em class="property"> = '[a-z]([-a-z0-9]*[a-z0-9])?'</em><a class="headerlink" href="#apache_beam.utils.pipeline_options_validator.PipelineOptionsValidator.JOB_PATTERN" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.utils.pipeline_options_validator.PipelineOptionsValidator.OPTIONS">
+<code class="descname">OPTIONS</code><em class="property"> = [&lt;class 'apache_beam.utils.pipeline_options.DebugOptions'&gt;, &lt;class 'apache_beam.utils.pipeline_options.GoogleCloudOptions'&gt;, &lt;class 'apache_beam.utils.pipeline_options.SetupOptions'&gt;, &lt;class 'apache_beam.utils.pipeline_options.StandardOptions'&gt;, &lt;class 'apache_beam.utils.pipeline_options.TypeOptions'&gt;, &lt;class 'apache_beam.utils.pipeline_options.WorkerOptions'&gt;, &lt;class 'apache_beam.utils.pipeline_options.TestOptions'&gt;]</em><a class="headerlink" href="#apache_beam.utils.pipeline_options_validator.PipelineOptionsValidator.OPTIONS" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.utils.pipeline_options_validator.PipelineOptionsValidator.PROJECT_ID_PATTERN">
+<code class="descname">PROJECT_ID_PATTERN</code><em class="property"> = '[a-z][-a-z0-9:.]+[a-z0-9]'</em><a class="headerlink" href="#apache_beam.utils.pipeline_options_validator.PipelineOptionsValidator.PROJECT_ID_PATTERN" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.utils.pipeline_options_validator.PipelineOptionsValidator.PROJECT_NUMBER_PATTERN">
+<code class="descname">PROJECT_NUMBER_PATTERN</code><em class="property"> = '[0-9]*'</em><a class="headerlink" href="#apache_beam.utils.pipeline_options_validator.PipelineOptionsValidator.PROJECT_NUMBER_PATTERN" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.utils.pipeline_options_validator.PipelineOptionsValidator.is_full_string_match">
+<code class="descname">is_full_string_match</code><span class="sig-paren">(</span><em>pattern</em>, <em>string</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/pipeline_options_validator.html#PipelineOptionsValidator.is_full_string_match"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.pipeline_options_validator.PipelineOptionsValidator.is_full_string_match" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns True if the pattern matches the whole string.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.utils.pipeline_options_validator.PipelineOptionsValidator.is_service_runner">
+<code class="descname">is_service_runner</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/pipeline_options_validator.html#PipelineOptionsValidator.is_service_runner"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.pipeline_options_validator.PipelineOptionsValidator.is_service_runner" title="Permalink to this definition">¶</a></dt>
+<dd><p>True if pipeline will execute on the Google Cloud Dataflow service.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.utils.pipeline_options_validator.PipelineOptionsValidator.validate">
+<code class="descname">validate</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/pipeline_options_validator.html#PipelineOptionsValidator.validate"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.pipeline_options_validator.PipelineOptionsValidator.validate" title="Permalink to this definition">¶</a></dt>
+<dd><p>Calls validate on subclassess and returns a list of errors.</p>
+<p>validate will call validate method on subclasses, accumulate the returned
+list of errors, and returns the aggregate list.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body">Aggregate list of errors after all calling all possible validate methods.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.utils.pipeline_options_validator.PipelineOptionsValidator.validate_cloud_options">
+<code class="descname">validate_cloud_options</code><span class="sig-paren">(</span><em>view</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/pipeline_options_validator.html#PipelineOptionsValidator.validate_cloud_options"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.pipeline_options_validator.PipelineOptionsValidator.validate_cloud_options" title="Permalink to this definition">¶</a></dt>
+<dd><p>Validates job_name and project arguments.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.utils.pipeline_options_validator.PipelineOptionsValidator.validate_gcs_path">
+<code class="descname">validate_gcs_path</code><span class="sig-paren">(</span><em>view</em>, <em>arg_name</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/pipeline_options_validator.html#PipelineOptionsValidator.validate_gcs_path"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.pipeline_options_validator.PipelineOptionsValidator.validate_gcs_path" title="Permalink to this definition">¶</a></dt>
+<dd><p>Validates a GCS path against gs://bucket/object URI format.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.utils.pipeline_options_validator.PipelineOptionsValidator.validate_optional_argument_positive">
+<code class="descname">validate_optional_argument_positive</code><span class="sig-paren">(</span><em>view</em>, <em>arg_name</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/pipeline_options_validator.html#PipelineOptionsValidator.validate_optional_argument_positive"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.pipeline_options_validator.PipelineOptionsValidator.validate_optional_argument_positive" title="Permalink to this definition">¶</a></dt>
+<dd><p>Validates that an optional argument (if set) has a positive value.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.utils.pipeline_options_validator.PipelineOptionsValidator.validate_test_matcher">
+<code class="descname">validate_test_matcher</code><span class="sig-paren">(</span><em>view</em>, <em>arg_name</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/pipeline_options_validator.html#PipelineOptionsValidator.validate_test_matcher"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.pipeline_options_validator.PipelineOptionsValidator.validate_test_matcher" title="Permalink to this definition">¶</a></dt>
+<dd><p>Validates that on_success_matcher argument if set.</p>
+<p>Validates that on_success_matcher is unpicklable and is instance
+of <cite>hamcrest.core.base_matcher.BaseMatcher</cite>.</p>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="module-apache_beam.utils.pipeline_options_validator_test">
+<span id="apache-beam-utils-pipeline-options-validator-test-module"></span><h2>apache_beam.utils.pipeline_options_validator_test module<a class="headerlink" href="#module-apache_beam.utils.pipeline_options_validator_test" title="Permalink to this headline">¶</a></h2>
+<p>Unit tests for the pipeline options validator module.</p>
+<dl class="class">
+<dt id="apache_beam.utils.pipeline_options_validator_test.AlwaysPassMatcher">
+<em class="property">class </em><code class="descclassname">apache_beam.utils.pipeline_options_validator_test.</code><code class="descname">AlwaysPassMatcher</code><a class="reference internal" href="_modules/apache_beam/utils/pipeline_options_validator_test.html#AlwaysPassMatcher"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.pipeline_options_validator_test.AlwaysPassMatcher" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">hamcrest.core.base_matcher.BaseMatcher</span></code></p>
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.utils.pipeline_options_validator_test.MockRunners">
+<em class="property">class </em><code class="descclassname">apache_beam.utils.pipeline_options_validator_test.</code><code class="descname">MockRunners</code><a class="reference internal" href="_modules/apache_beam/utils/pipeline_options_validator_test.html#MockRunners"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.pipeline_options_validator_test.MockRunners" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">object</span></code></p>
+<dl class="class">
+<dt id="apache_beam.utils.pipeline_options_validator_test.MockRunners.DataflowRunner">
+<em class="property">class </em><code class="descname">DataflowRunner</code><a class="reference internal" href="_modules/apache_beam/utils/pipeline_options_validator_test.html#MockRunners.DataflowRunner"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.pipeline_options_validator_test.MockRunners.DataflowRunner" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">object</span></code></p>
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.utils.pipeline_options_validator_test.MockRunners.OtherRunner">
+<em class="property">class </em><code class="descclassname">MockRunners.</code><code class="descname">OtherRunner</code><a class="reference internal" href="_modules/apache_beam/utils/pipeline_options_validator_test.html#MockRunners.OtherRunner"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.pipeline_options_validator_test.MockRunners.OtherRunner" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">object</span></code></p>
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.utils.pipeline_options_validator_test.MockRunners.TestDataflowRunner">
+<em class="property">class </em><code class="descclassname">MockRunners.</code><code class="descname">TestDataflowRunner</code><a class="reference internal" href="_modules/apache_beam/utils/pipeline_options_validator_test.html#MockRunners.TestDataflowRunner"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.pipeline_options_validator_test.MockRunners.TestDataflowRunner" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">object</span></code></p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.utils.pipeline_options_validator_test.SetupTest">
+<em class="property">class </em><code class="descclassname">apache_beam.utils.pipeline_options_validator_test.</code><code class="descname">SetupTest</code><span class="sig-paren">(</span><em>methodName='runTest'</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/pipeline_options_validator_test.html#SetupTest"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.pipeline_options_validator_test.SetupTest" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">unittest.case.TestCase</span></code></p>
+<dl class="method">
+<dt id="apache_beam.utils.pipeline_options_validator_test.SetupTest.check_errors_for_arguments">
+<code class="descname">check_errors_for_arguments</code><span class="sig-paren">(</span><em>errors</em>, <em>args</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/pipeline_options_validator_test.html#SetupTest.check_errors_for_arguments"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.pipeline_options_validator_test.SetupTest.check_errors_for_arguments" title="Permalink to this definition">¶</a></dt>
+<dd><p>Checks that there is exactly one error for each given argument.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.utils.pipeline_options_validator_test.SetupTest.test_dataflow_job_file_and_template_location_mutually_exclusive">
+<code class="descname">test_dataflow_job_file_and_template_location_mutually_exclusive</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/pipeline_options_validator_test.html#SetupTest.test_dataflow_job_file_and_template_location_mutually_exclusive"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.pipeline_options_validator_test.SetupTest.test_dataflow_job_file_and_template_location_mutually_exclusive" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.utils.pipeline_options_validator_test.SetupTest.test_gcs_path">
+<code class="descname">test_gcs_path</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/pipeline_options_validator_test.html#SetupTest.test_gcs_path"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.pipeline_options_validator_test.SetupTest.test_gcs_path" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.utils.pipeline_options_validator_test.SetupTest.test_is_service_runner">
+<code class="descname">test_is_service_runner</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/pipeline_options_validator_test.html#SetupTest.test_is_service_runner"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.pipeline_options_validator_test.SetupTest.test_is_service_runner" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.utils.pipeline_options_validator_test.SetupTest.test_job_name">
+<code class="descname">test_job_name</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/pipeline_options_validator_test.html#SetupTest.test_job_name"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.pipeline_options_validator_test.SetupTest.test_job_name" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.utils.pipeline_options_validator_test.SetupTest.test_local_runner">
+<code class="descname">test_local_runner</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/pipeline_options_validator_test.html#SetupTest.test_local_runner"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.pipeline_options_validator_test.SetupTest.test_local_runner" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.utils.pipeline_options_validator_test.SetupTest.test_missing_required_options">
+<code class="descname">test_missing_required_options</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/pipeline_options_validator_test.html#SetupTest.test_missing_required_options"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.pipeline_options_validator_test.SetupTest.test_missing_required_options" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.utils.pipeline_options_validator_test.SetupTest.test_num_workers">
+<code class="descname">test_num_workers</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/pipeline_options_validator_test.html#SetupTest.test_num_workers"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.pipeline_options_validator_test.SetupTest.test_num_workers" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.utils.pipeline_options_validator_test.SetupTest.test_project">
+<code class="descname">test_project</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/pipeline_options_validator_test.html#SetupTest.test_project"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.pipeline_options_validator_test.SetupTest.test_project" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.utils.pipeline_options_validator_test.SetupTest.test_streaming">
+<code class="descname">test_streaming</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/pipeline_options_validator_test.html#SetupTest.test_streaming"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.pipeline_options_validator_test.SetupTest.test_streaming" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.utils.pipeline_options_validator_test.SetupTest.test_test_matcher">
+<code class="descname">test_test_matcher</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/pipeline_options_validator_test.html#SetupTest.test_test_matcher"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.pipeline_options_validator_test.SetupTest.test_test_matcher" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.utils.pipeline_options_validator_test.SetupTest.test_validate_dataflow_job_file">
+<code class="descname">test_validate_dataflow_job_file</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/pipeline_options_validator_test.html#SetupTest.test_validate_dataflow_job_file"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.pipeline_options_validator_test.SetupTest.test_validate_dataflow_job_file" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.utils.pipeline_options_validator_test.SetupTest.test_validate_template_location">
+<code class="descname">test_validate_template_location</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/pipeline_options_validator_test.html#SetupTest.test_validate_template_location"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.pipeline_options_validator_test.SetupTest.test_validate_template_location" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="module-apache_beam.utils.processes">
+<span id="apache-beam-utils-processes-module"></span><h2>apache_beam.utils.processes module<a class="headerlink" href="#module-apache_beam.utils.processes" title="Permalink to this headline">¶</a></h2>
+<p>Cross-platform utilities for creating subprocesses.</p>
+<dl class="function">
+<dt id="apache_beam.utils.processes.Popen">
+<code class="descclassname">apache_beam.utils.processes.</code><code class="descname">Popen</code><span class="sig-paren">(</span><em>*args</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/processes.html#Popen"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.processes.Popen" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.utils.processes.call">
+<code class="descclassname">apache_beam.utils.processes.</code><code class="descname">call</code><span class="sig-paren">(</span><em>*args</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/processes.html#call"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.processes.call" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.utils.processes.check_call">
+<code class="descclassname">apache_beam.utils.processes.</code><code class="descname">check_call</code><span class="sig-paren">(</span><em>*args</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/processes.html#check_call"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.processes.check_call" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.utils.processes.check_output">
+<code class="descclassname">apache_beam.utils.processes.</code><code class="descname">check_output</code><span class="sig-paren">(</span><em>*args</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/processes.html#check_output"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.processes.check_output" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</div>
+<div class="section" id="module-apache_beam.utils.processes_test">
+<span id="apache-beam-utils-processes-test-module"></span><h2>apache_beam.utils.processes_test module<a class="headerlink" href="#module-apache_beam.utils.processes_test" title="Permalink to this headline">¶</a></h2>
+<p>Unit tests for the processes module.</p>
+<dl class="class">
+<dt id="apache_beam.utils.processes_test.Exec">
+<em class="property">class </em><code class="descclassname">apache_beam.utils.processes_test.</code><code class="descname">Exec</code><span class="sig-paren">(</span><em>methodName='runTest'</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/processes_test.html#Exec"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.processes_test.Exec" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">unittest.case.TestCase</span></code></p>
+<dl class="method">
+<dt id="apache_beam.utils.processes_test.Exec.setUp">
+<code class="descname">setUp</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/processes_test.html#Exec.setUp"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.processes_test.Exec.setUp" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.utils.processes_test.Exec.test_method_forwarding_not_windows">
+<code class="descname">test_method_forwarding_not_windows</code><span class="sig-paren">(</span><em>*args</em>, <em>**keywargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/processes_test.html#Exec.test_method_forwarding_not_windows"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.processes_test.Exec.test_method_forwarding_not_windows" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.utils.processes_test.Exec.test_method_forwarding_windows">
+<code class="descname">test_method_forwarding_windows</code><span class="sig-paren">(</span><em>*args</em>, <em>**keywargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/processes_test.html#Exec.test_method_forwarding_windows"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.processes_test.Exec.test_method_forwarding_windows" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="module-apache_beam.utils.profiler">
+<span id="apache-beam-utils-profiler-module"></span><h2>apache_beam.utils.profiler module<a class="headerlink" href="#module-apache_beam.utils.profiler" title="Permalink to this headline">¶</a></h2>
+<p>A profiler context manager based on cProfile.Profile objects.</p>
+<dl class="class">
+<dt id="apache_beam.utils.profiler.MemoryReporter">
+<em class="property">class </em><code class="descclassname">apache_beam.utils.profiler.</code><code class="descname">MemoryReporter</code><span class="sig-paren">(</span><em>interval_second=60.0</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/profiler.html#MemoryReporter"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.profiler.MemoryReporter" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">object</span></code></p>
+<p>A memory reporter that reports the memory usage and heap profile.
+Usage::</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">mr</span> <span class="o">=</span> <span class="n">MemoryReporter</span><span class="p">(</span><span class="n">interval_second</span><span class="o">=</span><span class="mf">30.0</span><span class="p">)</span>
+<span class="n">mr</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
+<span class="k">while</span> <span class="o">...</span>
+  <span class="o">&lt;</span><span class="n">do</span> <span class="n">something</span><span class="o">&gt;</span>
+  <span class="c1"># this will report continuously with 30 seconds between reports.</span>
+<span class="n">mr</span><span class="o">.</span><span class="n">stop</span><span class="p">()</span>
+</pre></div>
+</div>
+<p>NOTE: A reporter with start() should always stop(), or the parent process can
+never finish.</p>
+<dl class="docutils">
+<dt>Or simply the following which does star() and stop():</dt>
+<dd><dl class="first last docutils">
+<dt>with MemoryReporter(interval_second=100):</dt>
+<dd><dl class="first last docutils">
+<dt>while ...</dt>
+<dd>&lt;do some thing&gt;</dd>
+</dl>
+</dd>
+</dl>
+</dd>
+</dl>
+<p>Also it could report on demand without continuous reporting.:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">mr</span> <span class="o">=</span> <span class="n">MemoryReporter</span><span class="p">()</span>  <span class="c1"># default interval 60s but not started.</span>
+<span class="o">&lt;</span><span class="n">do</span> <span class="n">something</span><span class="o">&gt;</span>
+<span class="n">mr</span><span class="o">.</span><span class="n">report_once</span><span class="p">()</span>
+</pre></div>
+</div>
+<dl class="method">
+<dt id="apache_beam.utils.profiler.MemoryReporter.report_once">
+<code class="descname">report_once</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/profiler.html#MemoryReporter.report_once"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.profiler.MemoryReporter.report_once" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.utils.profiler.MemoryReporter.start">
+<code class="descname">start</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/profiler.html#MemoryReporter.start"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.profiler.MemoryReporter.start" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.utils.profiler.MemoryReporter.stop">
+<code class="descname">stop</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/profiler.html#MemoryReporter.stop"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.profiler.MemoryReporter.stop" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.utils.profiler.Profile">
+<em class="property">class </em><code class="descclassname">apache_beam.utils.profiler.</code><code class="descname">Profile</code><span class="sig-paren">(</span><em>profile_id</em>, <em>profile_location=None</em>, <em>log_results=False</em>, <em>file_copy_fn=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/profiler.html#Profile"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.profiler.Profile" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">object</span></code></p>
+<p>cProfile wrapper context for saving and logging profiler results.</p>
+<dl class="attribute">
+<dt id="apache_beam.utils.profiler.Profile.SORTBY">
+<code class="descname">SORTBY</code><em class="property"> = 'cumulative'</em><a class="headerlink" href="#apache_beam.utils.profiler.Profile.SORTBY" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="module-apache_beam.utils.retry">
+<span id="apache-beam-utils-retry-module"></span><h2>apache_beam.utils.retry module<a class="headerlink" href="#module-apache_beam.utils.retry" title="Permalink to this headline">¶</a></h2>
+<p>Retry decorators for calls raising exceptions.</p>
+<p>This module is used mostly to decorate all integration points where the code
+makes calls to remote services. Searching through the code base for &#64;retry
+should find all such places. For this reason even places where retry is not
+needed right now use a &#64;retry.no_retries decorator.</p>
+<dl class="class">
+<dt id="apache_beam.utils.retry.Clock">
+<em class="property">class </em><code class="descclassname">apache_beam.utils.retry.</code><code class="descname">Clock</code><a class="reference internal" href="_modules/apache_beam/utils/retry.html#Clock"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.retry.Clock" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">object</span></code></p>
+<p>A simple clock implementing sleep().</p>
+<dl class="method">
+<dt id="apache_beam.utils.retry.Clock.sleep">
+<code class="descname">sleep</code><span class="sig-paren">(</span><em>value</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/retry.html#Clock.sleep"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.retry.Clock.sleep" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.utils.retry.FuzzedExponentialIntervals">
+<em class="property">class </em><code class="descclassname">apache_beam.utils.retry.</code><code class="descname">FuzzedExponentialIntervals</code><span class="sig-paren">(</span><em>initial_delay_secs</em>, <em>num_retries</em>, <em>factor=2</em>, <em>fuzz=0.5</em>, <em>max_delay_secs=3600</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/retry.html#FuzzedExponentialIntervals"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.retry.FuzzedExponentialIntervals" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">object</span></code></p>
+<p>Iterable for intervals that are exponentially spaced, with fuzzing.</p>
+<p>On iteration, yields retry interval lengths, in seconds. Every iteration over
+this iterable will yield differently fuzzed interval lengths, as long as fuzz
+is nonzero.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>initial_delay_secs</strong> &#8211; The delay before the first retry, in seconds.</li>
+<li><strong>num_retries</strong> &#8211; The total number of times to retry.</li>
+<li><strong>factor</strong> &#8211; The exponential factor to use on subsequent retries.
+Default is 2 (doubling).</li>
+<li><strong>fuzz</strong> &#8211; A value between 0 and 1, indicating the fraction of fuzz. For a
+given delay d, the fuzzed delay is randomly chosen between
+[(1 - fuzz) * d, d].</li>
+<li><strong>max_delay_sec</strong> &#8211; Maximum delay (in seconds). After this limit is reached,
+further tries use max_delay_sec instead of exponentially increasing
+the time. Defaults to 1 hour.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="exception">
+<dt id="apache_beam.utils.retry.PermanentException">
+<em class="property">exception </em><code class="descclassname">apache_beam.utils.retry.</code><code class="descname">PermanentException</code><a class="reference internal" href="_modules/apache_beam/utils/retry.html#PermanentException"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.retry.PermanentException" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">exceptions.Exception</span></code></p>
+<p>Base class for exceptions that should not be retried.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.utils.retry.no_retries">
+<code class="descclassname">apache_beam.utils.retry.</code><code class="descname">no_retries</code><span class="sig-paren">(</span><em>fun</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/retry.html#no_retries"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.retry.no_retries" title="Permalink to this definition">¶</a></dt>
+<dd><p>A retry decorator for places where we do not want retries.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.utils.retry.retry_on_server_errors_and_timeout_filter">
+<code class="descclassname">apache_beam.utils.retry.</code><code class="descname">retry_on_server_errors_and_timeout_filter</code><span class="sig-paren">(</span><em>exception</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/retry.html#retry_on_server_errors_and_timeout_filter"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.retry.retry_on_server_errors_and_timeout_filter" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.utils.retry.retry_on_server_errors_filter">
+<code class="descclassname">apache_beam.utils.retry.</code><code class="descname">retry_on_server_errors_filter</code><span class="sig-paren">(</span><em>exception</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/retry.html#retry_on_server_errors_filter"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.retry.retry_on_server_errors_filter" title="Permalink to this definition">¶</a></dt>
+<dd><p>Filter allowing retries on server errors and non-HttpErrors.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.utils.retry.with_exponential_backoff">
+<code class="descclassname">apache_beam.utils.retry.</code><code class="descname">with_exponential_backoff</code><span class="sig-paren">(</span><em>num_retries=7</em>, <em>initial_delay_secs=5.0</em>, <em>logger=&lt;function warning&gt;</em>, <em>retry_filter=&lt;function retry_on_server_errors_filter&gt;</em>, <em>clock=&lt;apache_beam.utils.retry.Clock object&gt;</em>, <em>fuzz=True</em>, <em>factor=2</em>, <em>max_delay_secs=3600</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/retry.html#with_exponential_backoff"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.retry.with_exponential_backoff" title="Permalink to this definition">¶</a></dt>
+<dd><p>Decorator with arguments that control the retry logic.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>num_retries</strong> &#8211; The total number of times to retry.</li>
+<li><strong>initial_delay_secs</strong> &#8211; The delay before the first retry, in seconds.</li>
+<li><strong>logger</strong> &#8211; A callable used to report an exception. Must have the same signature
+as functions in the standard logging module. The default is
+logging.warning.</li>
+<li><strong>retry_filter</strong> &#8211; A callable getting the exception raised and returning True
+if the retry should happen. For instance we do not want to retry on
+404 Http errors most of the time. The default value will return true
+for server errors (HTTP status code &gt;= 500) and non Http errors.</li>
+<li><strong>clock</strong> &#8211; A clock object implementing a sleep method. The default clock will
+use time.sleep().</li>
+<li><strong>fuzz</strong> &#8211; True if the delay should be fuzzed (default). During testing False
+can be used so that the delays are not randomized.</li>
+<li><strong>factor</strong> &#8211; The exponential factor to use on subsequent retries.
+Default is 2 (doubling).</li>
+<li><strong>max_delay_sec</strong> &#8211; Maximum delay (in seconds). After this limit is reached,
+further tries use max_delay_sec instead of exponentially increasing
+the time. Defaults to 4 hours.</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">As per Python decorators with arguments pattern returns a decorator
+for the function which in turn will return the wrapped (decorated) function.</p>
+</td>
+</tr>
+</tbody>
+</table>
+<p>The decorator is intended to be used on callables that make HTTP or RPC
+requests that can temporarily timeout or have transient errors. For instance
+the make_http_request() call below will be retried 16 times with exponential
+backoff and fuzzing of the delay interval (default settings).</p>
+<p>from apache_beam.utils import retry
+# ...
+&#64;retry.with_exponential_backoff()
+make_http_request(args)</p>
+</dd></dl>
+
+</div>
+<div class="section" id="module-apache_beam.utils.retry_test">
+<span id="apache-beam-utils-retry-test-module"></span><h2>apache_beam.utils.retry_test module<a class="headerlink" href="#module-apache_beam.utils.retry_test" title="Permalink to this headline">¶</a></h2>
+<p>Unit tests for the retry module.</p>
+<dl class="class">
+<dt id="apache_beam.utils.retry_test.DummyClass">
+<em class="property">class </em><code class="descclassname">apache_beam.utils.retry_test.</code><code class="descname">DummyClass</code><span class="sig-paren">(</span><em>results</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/retry_test.html#DummyClass"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.retry_test.DummyClass" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">object</span></code></p>
+<dl class="method">
+<dt id="apache_beam.utils.retry_test.DummyClass.func">
+<code class="descname">func</code><span class="sig-paren">(</span><em>*args</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#apache_beam.utils.retry_test.DummyClass.func" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.utils.retry_test.FakeClock">
+<em class="property">class </em><code class="descclassname">apache_beam.utils.retry_test.</code><code class="descname">FakeClock</code><a class="reference internal" href="_modules/apache_beam/utils/retry_test.html#FakeClock"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.retry_test.FakeClock" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">object</span></code></p>
+<p>A fake clock object implementing sleep() and recording calls.</p>
+<dl class="method">
+<dt id="apache_beam.utils.retry_test.FakeClock.sleep">
+<code class="descname">sleep</code><span class="sig-paren">(</span><em>value</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/retry_test.html#FakeClock.sleep"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.retry_test.FakeClock.sleep" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.utils.retry_test.FakeLogger">
+<em class="property">class </em><code class="descclassname">apache_beam.utils.retry_test.</code><code class="descname">FakeLogger</code><a class="reference internal" href="_modules/apache_beam/utils/retry_test.html#FakeLogger"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.retry_test.FakeLogger" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">object</span></code></p>
+<p>A fake logger object implementing log() and recording calls.</p>
+<dl class="method">
+<dt id="apache_beam.utils.retry_test.FakeLogger.log">
+<code class="descname">log</code><span class="sig-paren">(</span><em>message</em>, <em>interval</em>, <em>func_name</em>, <em>exn_name</em>, <em>exn_traceback</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/retry_test.html#FakeLogger.log"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.retry_test.FakeLogger.log" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.utils.retry_test.RetryStateTest">
+<em class="property">class </em><code class="descclassname">apache_beam.utils.retry_test.</code><code class="descname">RetryStateTest</code><span class="sig-paren">(</span><em>methodName='runTest'</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/retry_test.html#RetryStateTest"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.retry_test.RetryStateTest" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">unittest.case.TestCase</span></code></p>
+<p>The test_two_failures and test_single_failure would fail if we have
+any shared state for the retry decorator. This test tries to prevent a bug we
+found where the state in the decorator was shared across objects and retries
+were not available correctly.</p>
+<p>The test_call_two_objects would test this inside the same test.</p>
+<dl class="method">
+<dt id="apache_beam.utils.retry_test.RetryStateTest.test_call_two_objects">
+<code class="descname">test_call_two_objects</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/retry_test.html#RetryStateTest.test_call_two_objects"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.retry_test.RetryStateTest.test_call_two_objects" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.utils.retry_test.RetryStateTest.test_single_failure">
+<code class="descname">test_single_failure</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/retry_test.html#RetryStateTest.test_single_failure"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.retry_test.RetryStateTest.test_single_failure" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.utils.retry_test.RetryStateTest.test_two_failures">
+<code class="descname">test_two_failures</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/retry_test.html#RetryStateTest.test_two_failures"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.retry_test.RetryStateTest.test_two_failures" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.utils.retry_test.RetryTest">
+<em class="property">class </em><code class="descclassname">apache_beam.utils.retry_test.</code><code class="descname">RetryTest</code><span class="sig-paren">(</span><em>methodName='runTest'</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/retry_test.html#RetryTest"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.retry_test.RetryTest" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">unittest.case.TestCase</span></code></p>
+<dl class="method">
+<dt id="apache_beam.utils.retry_test.RetryTest.http_error">
+<code class="descname">http_error</code><span class="sig-paren">(</span><em>code</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/retry_test.html#RetryTest.http_error"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.retry_test.RetryTest.http_error" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.utils.retry_test.RetryTest.permanent_failure">
+<code class="descname">permanent_failure</code><span class="sig-paren">(</span><em>a</em>, <em>b</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/retry_test.html#RetryTest.permanent_failure"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.retry_test.RetryTest.permanent_failure" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.utils.retry_test.RetryTest.setUp">
+<code class="descname">setUp</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/retry_test.html#RetryTest.setUp"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.retry_test.RetryTest.setUp" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.utils.retry_test.RetryTest.test_log_calls_for_permanent_failure">
+<code class="descname">test_log_calls_for_permanent_failure</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/retry_test.html#RetryTest.test_log_calls_for_permanent_failure"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.retry_test.RetryTest.test_log_calls_for_permanent_failure" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.utils.retry_test.RetryTest.test_log_calls_for_transient_failure">
+<code class="descname">test_log_calls_for_transient_failure</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/retry_test.html#RetryTest.test_log_calls_for_transient_failure"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.retry_test.RetryTest.test_log_calls_for_transient_failure" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.utils.retry_test.RetryTest.test_with_default_number_of_retries">
+<code class="descname">test_with_default_number_of_retries</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/retry_test.html#RetryTest.test_with_default_number_of_retries"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.retry_test.RetryTest.test_with_default_number_of_retries" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.utils.retry_test.RetryTest.test_with_explicit_decorator">
+<code class="descname">test_with_explicit_decorator</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/retry_test.html#RetryTest.test_with_explicit_decorator"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.retry_test.RetryTest.test_with_explicit_decorator" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.utils.retry_test.RetryTest.test_with_explicit_initial_delay">
+<code class="descname">test_with_explicit_initial_delay</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/retry_test.html#RetryTest.test_with_explicit_initial_delay"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.retry_test.RetryTest.test_with_explicit_initial_delay" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.utils.retry_test.RetryTest.test_with_explicit_number_of_retries">
+<code class="descname">test_with_explicit_number_of_retries</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/retry_test.html#RetryTest.test_with_explicit_number_of_retries"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.retry_test.RetryTest.test_with_explicit_number_of_retries" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.utils.retry_test.RetryTest.test_with_http_error_that_should_be_retried">
+<code class="descname">test_with_http_error_that_should_be_retried</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/retry_test.html#RetryTest.test_with_http_error_that_should_be_retried"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.retry_test.RetryTest.test_with_http_error_that_should_be_retried" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.utils.retry_test.RetryTest.test_with_http_error_that_should_not_be_retried">
+<code class="descname">test_with_http_error_that_should_not_be_retried</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/retry_test.html#RetryTest.test_with_http_error_that_should_not_be_retried"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.retry_test.RetryTest.test_with_http_error_that_should_not_be_retried" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.utils.retry_test.RetryTest.test_with_no_retry_decorator">
+<code class="descname">test_with_no_retry_decorator</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/retry_test.html#RetryTest.test_with_no_retry_decorator"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.retry_test.RetryTest.test_with_no_retry_decorator" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.utils.retry_test.RetryTest.test_with_real_clock">
+<code class="descname">test_with_real_clock</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/retry_test.html#RetryTest.test_with_real_clock"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.retry_test.RetryTest.test_with_real_clock" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.utils.retry_test.RetryTest.transient_failure">
+<code class="descname">transient_failure</code><span class="sig-paren">(</span><em>a</em>, <em>b</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/retry_test.html#RetryTest.transient_failure"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.retry_test.RetryTest.transient_failure" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="module-apache_beam.utils.timestamp">
+<span id="apache-beam-utils-timestamp-module"></span><h2>apache_beam.utils.timestamp module<a class="headerlink" href="#module-apache_beam.utils.timestamp" title="Permalink to this headline">¶</a></h2>
+<p>Timestamp utilities.</p>
+<dl class="class">
+<dt id="apache_beam.utils.timestamp.Duration">
+<em class="property">class </em><code class="descclassname">apache_beam.utils.timestamp.</code><code class="descname">Duration</code><span class="sig-paren">(</span><em>seconds=0</em>, <em>micros=0</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/timestamp.html#Duration"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.timestamp.Duration" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">object</span></code></p>
+<p>Represents a second duration with microsecond granularity.</p>
+<p>Can be treated in common arithmetic operations as a numeric type.</p>
+<p>Internally stores a time interval as an int of microseconds. This strategy
+is necessary since floating point values lose precision when storing values,
+especially after arithmetic operations (for example, 10000000 % 0.1 evaluates
+to 0.0999999994448885).</p>
+<dl class="staticmethod">
+<dt id="apache_beam.utils.timestamp.Duration.of">
+<em class="property">static </em><code class="descname">of</code><span class="sig-paren">(</span><em>seconds</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/timestamp.html#Duration.of"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.timestamp.Duration.of" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return the Duration for the given number of seconds since Unix epoch.</p>
+<p>If the input is already a Duration, the input itself will be returned.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>seconds</strong> &#8211; Number of seconds as int, float or Duration.</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">Corresponding Duration object.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.utils.timestamp.Timestamp">
+<em class="property">class </em><code class="descclassname">apache_beam.utils.timestamp.</code><code class="descname">Timestamp</code><span class="sig-paren">(</span><em>seconds=0</em>, <em>micros=0</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/timestamp.html#Timestamp"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.timestamp.Timestamp" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">object</span></code></p>
+<p>Represents a Unix second timestamp with microsecond granularity.</p>
+<p>Can be treated in common timestamp arithmetic operations as a numeric type.</p>
+<p>Internally stores a time interval as an int of microseconds. This strategy
+is necessary since floating point values lose precision when storing values,
+especially after arithmetic operations (for example, 10000000 % 0.1 evaluates
+to 0.0999999994448885).</p>
+<dl class="method">
+<dt id="apache_beam.utils.timestamp.Timestamp.isoformat">
+<code class="descname">isoformat</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/timestamp.html#Timestamp.isoformat"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.timestamp.Timestamp.isoformat" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="staticmethod">
+<dt id="apache_beam.utils.timestamp.Timestamp.of">
+<em class="property">static </em><code class="descname">of</code><span class="sig-paren">(</span><em>seconds</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/timestamp.html#Timestamp.of"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.timestamp.Timestamp.of" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return the Timestamp for the given number of seconds.</p>
+<p>If the input is already a Timestamp, the input itself will be returned.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>seconds</strong> &#8211; Number of seconds as int, float or Timestamp.</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">Corresponding Timestamp object.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.utils.timestamp.Timestamp.predecessor">
+<code class="descname">predecessor</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/timestamp.html#Timestamp.predecessor"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.timestamp.Timestamp.predecessor" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns the largest timestamp smaller than self.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.utils.timestamp.Timestamp.to_utc_datetime">
+<code class="descname">to_utc_datetime</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/timestamp.html#Timestamp.to_utc_datetime"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.timestamp.Timestamp.to_utc_datetime" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="module-apache_beam.utils.timestamp_test">
+<span id="apache-beam-utils-timestamp-test-module"></span><h2>apache_beam.utils.timestamp_test module<a class="headerlink" href="#module-apache_beam.utils.timestamp_test" title="Permalink to this headline">¶</a></h2>
+<p>Unit tests for time utilities.</p>
+<dl class="class">
+<dt id="apache_beam.utils.timestamp_test.DurationTest">
+<em class="property">class </em><code class="descclassname">apache_beam.utils.timestamp_test.</code><code class="descname">DurationTest</code><span class="sig-paren">(</span><em>methodName='runTest'</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/timestamp_test.html#DurationTest"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.timestamp_test.DurationTest" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">unittest.case.TestCase</span></code></p>
+<dl class="method">
+<dt id="apache_beam.utils.timestamp_test.DurationTest.test_arithmetic">
+<code class="descname">test_arithmetic</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/timestamp_test.html#DurationTest.test_arithmetic"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.timestamp_test.DurationTest.test_arithmetic" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.utils.timestamp_test.DurationTest.test_of">
+<code class="descname">test_of</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/timestamp_test.html#DurationTest.test_of"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.timestamp_test.DurationTest.test_of" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.utils.timestamp_test.DurationTest.test_precision">
+<code class="descname">test_precision</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/timestamp_test.html#DurationTest.test_precision"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.timestamp_test.DurationTest.test_precision" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.utils.timestamp_test.DurationTest.test_sort_order">
+<code class="descname">test_sort_order</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/timestamp_test.html#DurationTest.test_sort_order"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.timestamp_test.DurationTest.test_sort_order" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.utils.timestamp_test.DurationTest.test_str">
+<code class="descname">test_str</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/timestamp_test.html#DurationTest.test_str"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.timestamp_test.DurationTest.test_str" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.utils.timestamp_test.TimestampTest">
+<em class="property">class </em><code class="descclassname">apache_beam.utils.timestamp_test.</code><code class="descname">TimestampTest</code><span class="sig-paren">(</span><em>methodName='runTest'</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/timestamp_test.html#TimestampTest"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.timestamp_test.TimestampTest" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">unittest.case.TestCase</span></code></p>
+<dl class="method">
+<dt id="apache_beam.utils.timestamp_test.TimestampTest.test_arithmetic">
+<code class="descname">test_arithmetic</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/timestamp_test.html#TimestampTest.test_arithmetic"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.timestamp_test.TimestampTest.test_arithmetic" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.utils.timestamp_test.TimestampTest.test_of">
+<code class="descname">test_of</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/timestamp_test.html#TimestampTest.test_of"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.timestamp_test.TimestampTest.test_of" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.utils.timestamp_test.TimestampTest.test_precision">
+<code class="descname">test_precision</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/timestamp_test.html#TimestampTest.test_precision"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.timestamp_test.TimestampTest.test_precision" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.utils.timestamp_test.TimestampTest.test_sort_order">
+<code class="descname">test_sort_order</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/timestamp_test.html#TimestampTest.test_sort_order"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.timestamp_test.TimestampTest.test_sort_order" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.utils.timestamp_test.TimestampTest.test_str">
+<code class="descname">test_str</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/timestamp_test.html#TimestampTest.test_str"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.timestamp_test.TimestampTest.test_str" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.utils.timestamp_test.TimestampTest.test_utc_timestamp">
+<code class="descname">test_utc_timestamp</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/timestamp_test.html#TimestampTest.test_utc_timestamp"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.timestamp_test.TimestampTest.test_utc_timestamp" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="module-apache_beam.utils.windowed_value">
+<span id="apache-beam-utils-windowed-value-module"></span><h2>apache_beam.utils.windowed_value module<a class="headerlink" href="#module-apache_beam.utils.windowed_value" title="Permalink to this headline">¶</a></h2>
+<p>Core windowing data structures.</p>
+<dl class="class">
+<dt id="apache_beam.utils.windowed_value.WindowedValue">
+<em class="property">class </em><code class="descclassname">apache_beam.utils.windowed_value.</code><code class="descname">WindowedValue</code><span class="sig-paren">(</span><em>value</em>, <em>timestamp</em>, <em>windows</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/windowed_value.html#WindowedValue"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.windowed_value.WindowedValue" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">object</span></code></p>
+<p>A windowed value having a value, a timestamp and set of windows.</p>
+<dl class="attribute">
+<dt id="apache_beam.utils.windowed_value.WindowedValue.value">
+<code class="descname">value</code><a class="headerlink" href="#apache_beam.utils.windowed_value.WindowedValue.value" title="Permalink to this definition">¶</a></dt>
+<dd><p>The underlying value of a windowed value.</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.utils.windowed_value.WindowedValue.timestamp">
+<code class="descname">timestamp</code><a class="headerlink" href="#apache_beam.utils.windowed_value.WindowedValue.timestamp" title="Permalink to this definition">¶</a></dt>
+<dd><p>Timestamp associated with the value as seconds since Unix epoch.</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.utils.windowed_value.WindowedValue.windows">
+<code class="descname">windows</code><a class="headerlink" href="#apache_beam.utils.windowed_value.WindowedValue.windows" title="Permalink to this definition">¶</a></dt>
+<dd><p>A set (iterable) of window objects for the value. The window
+object are descendants of the BoundedWindow class.</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt>
+<code class="descname">timestamp</code></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.utils.windowed_value.WindowedValue.timestamp_object">
+<code class="descname">timestamp_object</code><em class="property"> = None</em><a class="headerlink" href="#apache_beam.utils.windowed_value.WindowedValue.timestamp_object" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.utils.windowed_value.WindowedValue.with_value">
+<code class="descname">with_value</code><span class="sig-paren">(</span><em>new_value</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/windowed_value.html#WindowedValue.with_value"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.windowed_value.WindowedValue.with_value" title="Permalink to this definition">¶</a></dt>
+<dd><p>Creates a new WindowedValue with the same timestamps and windows as this.</p>
+<p>This is the fasted way to create a new WindowedValue.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.utils.windowed_value.create">
+<code class="descclassname">apache_beam.utils.windowed_value.</code><code class="descname">create</code><span class="sig-paren">(</span><em>value</em>, <em>timestamp_micros</em>, <em>windows</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/windowed_value.html#create"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.windowed_value.create" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</div>
+<div class="section" id="module-apache_beam.utils.windowed_value_test">
+<span id="apache-beam-utils-windowed-value-test-module"></span><h2>apache_beam.utils.windowed_value_test module<a class="headerlink" href="#module-apache_beam.utils.windowed_value_test" title="Permalink to this headline">¶</a></h2>
+<p>Unit tests for the windowed_value.</p>
+<dl class="class">
+<dt id="apache_beam.utils.windowed_value_test.WindowedValueTest">
+<em class="property">class </em><code class="descclassname">apache_beam.utils.windowed_value_test.</code><code class="descname">WindowedValueTest</code><span class="sig-paren">(</span><em>methodName='runTest'</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/windowed_value_test.html#WindowedValueTest"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.windowed_value_test.WindowedValueTest" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">unittest.case.TestCase</span></code></p>
+<dl class="method">
+<dt id="apache_beam.utils.windowed_value_test.WindowedValueTest.test_equality">
+<code class="descname">test_equality</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/windowed_value_test.html#WindowedValueTest.test_equality"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.windowed_value_test.WindowedValueTest.test_equality" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.utils.windowed_value_test.WindowedValueTest.test_hash">
+<code class="descname">test_hash</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/windowed_value_test.html#WindowedValueTest.test_hash"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.windowed_value_test.WindowedValueTest.test_hash" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.utils.windowed_value_test.WindowedValueTest.test_pickle">
+<code class="descname">test_pickle</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/windowed_value_test.html#WindowedValueTest.test_pickle"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.windowed_value_test.WindowedValueTest.test_pickle" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.utils.windowed_value_test.WindowedValueTest.test_timestamps">
+<code class="descname">test_timestamps</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/windowed_value_test.html#WindowedValueTest.test_timestamps"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.windowed_value_test.WindowedValueTest.test_timestamps" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.utils.windowed_value_test.WindowedValueTest.test_with_value">
+<code class="descname">test_with_value</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/windowed_value_test.html#WindowedValueTest.test_with_value"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.windowed_value_test.WindowedValueTest.test_with_value" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="module-apache_beam.utils">
+<span id="module-contents"></span><h2>Module contents<a class="headerlink" href="#module-apache_beam.utils" title="Permalink to this headline">¶</a></h2>
+<p>A package containing utilities.</p>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="apache_beam.typehints.html" title="apache_beam.typehints package"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="apache_beam.html" >apache_beam package</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright .
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.5.3.
+    </div>
+  </body>
+</html>

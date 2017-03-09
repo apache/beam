@@ -1,0 +1,5 @@
+Manifest-Version: 1.0
+Ant-Version: Apache Ant 1.9.4
+Created-By: 1.8.0_112-google-v7-146844476-143772575 (Oracle Corporatio
+ n)
+
