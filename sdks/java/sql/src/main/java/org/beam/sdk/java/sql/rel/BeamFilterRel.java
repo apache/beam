@@ -1,15 +1,11 @@
 package org.beam.sdk.java.sql.rel;
 
-import java.util.ArrayList;
-import java.util.List;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.Filter;
-import org.apache.calcite.rex.RexCall;
-import org.apache.calcite.rex.RexInputRef;
 import org.apache.calcite.rex.RexNode;
 import org.beam.sdk.java.sql.interpreter.BeamSQLExpressionExecutor;
 import org.beam.sdk.java.sql.interpreter.BeamSQLSpELExecutor;

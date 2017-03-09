@@ -1,19 +1,16 @@
 package org.beam.sdk.java.sql.rel;
 
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Map;
-
-import org.apache.beam.sdk.coders.ByteArrayCoder;
-import org.apache.beam.sdk.io.kafka.KafkaIO;
-import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptTable;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.core.TableScan;
-import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.beam.sdk.java.sql.planner.BeamPipelineCreator;
+import org.beam.sdk.java.sql.planner.BeamSQLRelUtils;
+import org.beam.sdk.java.sql.schema.BaseBeamTable;
+import org.beam.sdk.java.sql.schema.BeamSQLRow;
+
+import com.google.common.base.Joiner;
 
 public class BeamIOSourceRel extends TableScan implements BeamRelNode {
 
@@ -23,8 +20,20 @@ public class BeamIOSourceRel extends TableScan implements BeamRelNode {
 
   @Override
   public void buildBeamPipeline(BeamPipelineCreator planCreator) throws Exception {
-    // TODO Auto-generated method stub
-    
+
+    String sourceName = Joiner.on('.').join(getTable().getQualifiedName()).replace(".(STREAM)", "");
+
+    BaseBeamTable sourceTable = planCreator.getKafkaTables().get(sourceName);
+
+    String stageName = BeamSQLRelUtils.getStageName(this);
+
+    PCollection<BeamSQLRow> sourceStream = planCreator.getPipeline()
+        .apply(stageName,  sourceTable.buildReadTransform());
+    PCollection<BeamSQLRow> reformattedSourceStream = sourceStream.apply("sourceReformat", sourceTable.getSourceConverter());
+
+    planCreator.setLatestStream(reformattedSourceStream);
+
+    System.out.println("Build: add_source " + sourceName);
   }
 
 }

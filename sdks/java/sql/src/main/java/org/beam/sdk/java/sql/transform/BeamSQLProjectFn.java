@@ -1,19 +1,11 @@
 package org.beam.sdk.java.sql.transform;
 
-import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.DoFn.Setup;
-import org.apache.beam.sdk.transforms.DoFn.Teardown;
 import org.beam.sdk.java.sql.interpreter.BeamSQLExpressionExecutor;
 import org.beam.sdk.java.sql.schema.BeamSQLRecordType;
 import org.beam.sdk.java.sql.schema.BeamSQLRow;
-import org.springframework.expression.Expression;
-import org.springframework.expression.ExpressionParser;
-import org.springframework.expression.spel.SpelParserConfiguration;
-import org.springframework.expression.spel.standard.SpelExpressionParser;
-import org.springframework.expression.spel.support.StandardEvaluationContext;
 
 public class BeamSQLProjectFn extends DoFn<BeamSQLRow, BeamSQLRow> {
 

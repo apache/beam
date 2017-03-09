@@ -20,6 +20,35 @@
     <calcite-version>1.11.0</calcite-version>
   </properties>
 
+
+  <repositories>
+  <repository>
+      <id>apache-snapshot</id>
+      <url>https://repository.apache.org/content/repositories/snapshots/</url>
+    </repository>
+    <repository>
+      <id>apache-release</id>
+      <url>https://repository.apache.org/content/repositories/releases/</url>
+    </repository>
+    <repository>
+      <id>ebaycentral-release</id>
+      <name>ebaycentral-release repository</name>
+      <url>http://ebaycentral/content/repositories/releases/</url>
+    </repository>
+    <repository>
+      <id>raptor-snapshots</id>
+      <url>http://ebaycentral/content/repositories/snapshots/</url>
+    </repository>
+    <repository>
+      <id>central</id>
+      <url>http://ebaycentral/content/repositories/central</url>
+    </repository>
+    <repository>
+      <id>raptor-thirdparty</id>
+      <url>http://ebaycentral/content/repositories/thirdparty</url>
+    </repository>
+  </repositories>
+  
   <build>
     <resources>
       <resource>
@@ -126,6 +155,12 @@
     <dependency>
       <groupId>org.apache.beam</groupId>
       <artifactId>beam-sdks-java-io-kafka</artifactId>
+      <exclusions>
+      	<exclusion>
+      		<groupId>org.apache.kafka</groupId>
+      		<artifactId>kafka-clients</artifactId>
+      	</exclusion>
+      </exclusions>
     </dependency>
     <dependency>
       <groupId>org.springframework</groupId>
@@ -135,5 +170,11 @@
       <groupId>com.google.guava</groupId>
       <artifactId>guava</artifactId>
     </dependency>
+    <dependency>
+      <groupId>io.ebay.rheos</groupId>
+      <artifactId>rheos-client</artifactId>
+      <version>0.0.4</version>
+    </dependency>
   </dependencies>
 </project>
+

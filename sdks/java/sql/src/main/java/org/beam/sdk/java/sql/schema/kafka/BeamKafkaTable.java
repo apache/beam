@@ -31,7 +31,7 @@ public class BeamKafkaTable extends BaseBeamTable<KafkaRecord<byte[], byte[]>> {
   private List<String> topics;
   private Map<String, Object> configUpdates;
 
-  public BeamKafkaTable(RelProtoDataType protoRowType,
+  protected BeamKafkaTable(RelProtoDataType protoRowType,
       PTransform<PCollection<KafkaRecord<byte[], byte[]>>, PCollection<BeamSQLRow>> sourceConverter,
       PTransform<PCollection<BeamSQLRow>, PCollection<KafkaRecord<byte[], byte[]>>> sinkConcerter) {
     super(protoRowType, sourceConverter, sinkConcerter);

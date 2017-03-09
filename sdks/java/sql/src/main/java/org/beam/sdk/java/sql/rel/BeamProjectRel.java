@@ -1,7 +1,7 @@
 package org.beam.sdk.java.sql.rel;
 
-import java.util.ArrayList;
 import java.util.List;
+
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.calcite.plan.RelOptCluster;

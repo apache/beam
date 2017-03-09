@@ -7,7 +7,6 @@ import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexInputRef;
 import org.apache.calcite.rex.RexNode;
 import org.beam.sdk.java.sql.planner.BeamSqlUnsupportedException;
-import org.beam.sdk.java.sql.schema.BeamSQLRecordType;
 
 import com.google.common.base.Joiner;
 

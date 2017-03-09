@@ -32,7 +32,7 @@ public class BeamSQLFilterFn extends DoFn<BeamSQLRow, BeamSQLRow> {
 
     List<Object> result = executor.execute(in);
 
-    if ((boolean)result.get(0)) {
+    if ((Boolean)result.get(0)) {
       c.output(in);
     }
   }
