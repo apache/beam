@@ -51,7 +51,7 @@ matrixJob('beam_PostCommit_Java_Version_Test') {
       // Set maven parameters.
       common_job_properties.setMavenConfig(delegate)
 
-      // Maven build Java SDK related project
+      // Maven build project, excluding Python SDK
       goals('-B -e -P release clean install -pl !sdks/python coveralls:report -DrepoToken=$COVERALLS_REPO_TOKEN')
 
       // Run WordCountIT
