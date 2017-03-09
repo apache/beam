@@ -17,7 +17,7 @@
 # under the License.
 #
 
-# Cassandra storage config YAML
+# Cassandra storage config YAML required for Embedded Cassandra server test
 
 # NOTE:
 #   See http://wiki.apache.org/cassandra/StorageConfiguration for

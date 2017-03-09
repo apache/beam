@@ -15,6 +15,9 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 -->
+<!-- This child module is required only for executing the tests for Casandra and Elasticsearch
+	 Here the ensure jdk1.7 enforcer rule from Beam is overridden, as the tests require JDK 1.8  -->
+	 
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
   xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
   <modelVersion>4.0.0</modelVersion>
@@ -28,6 +31,7 @@
   <name>jdk1.8-hifio-tests</name>
   <build>
     <plugins>
+    <!--  Overridden enforcer plugin for JDK1.8 for running tests -->
 	  <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-enforcer-plugin</artifactId>
