@@ -35,6 +35,8 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.View;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
+import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PDone;
@@ -74,6 +76,7 @@ class WriteWithShardingFactory<InputT>
     @Override
     public PCollectionView<Integer> expand(PCollection<T> records) {
       return records
+          .apply(Window.<T>into(new GlobalWindows()))
           .apply("CountRecords", Count.<T>globally())
           .apply("GenerateShardCount", ParDo.of(new CalculateShardsFn()))
           .apply(View.<Integer>asSingleton());

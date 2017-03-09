@@ -40,6 +40,8 @@ import org.apache.beam.sdk.io.Sink;
 import org.apache.beam.sdk.io.hadoop.SerializableConfiguration;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.values.KV;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
@@ -284,6 +286,10 @@ public abstract class HDFSFileSink<T, K, V> extends Sink<T> {
     }
 
     @Override
+    public void setWindowedWrites(boolean windowedWrites) {
+    }
+
+    @Override
     public void finalize(final Iterable<String> writerResults, PipelineOptions options)
         throws Exception {
       UGIHelper.getBestUGI(sink.username()).doAs(new PrivilegedExceptionAction<Void>() {
@@ -298,7 +304,6 @@ public abstract class HDFSFileSink<T, K, V> extends Sink<T> {
     private void doFinalize(Iterable<String> writerResults) throws Exception {
       Job job = sink.newJob();
       FileSystem fs = FileSystem.get(new URI(path), job.getConfiguration());
-
       // If there are 0 output shards, just create output folder.
       if (!writerResults.iterator().hasNext()) {
         fs.mkdirs(new Path(path));
@@ -389,7 +394,16 @@ public abstract class HDFSFileSink<T, K, V> extends Sink<T> {
     }
 
     @Override
-    public void open(final String uId) throws Exception {
+
+    public void open(final String uId,
+                     @Nullable BoundedWindow window,
+                     @Nullable PaneInfo paneInfo,
+                     int shard,
+                     int numShards) throws Exception {
+      if (window != null || paneInfo != null) {
+        throw new UnsupportedOperationException("Windowing support not implemented yet for"
+            + "HDFS. Window " + window);
+      }
       UGIHelper.getBestUGI(writeOperation.sink.username()).doAs(
           new PrivilegedExceptionAction<Void>() {
             @Override
@@ -424,6 +438,11 @@ public abstract class HDFSFileSink<T, K, V> extends Sink<T> {
           "Record writer can't be null. Make sure to open Writer first!");
       KV<K, V> kv = writeOperation.sink.outputConverter().apply(value);
       recordWriter.write(kv.getKey(), kv.getValue());
+    }
+
+    @Override
+    public void cleanup() throws Exception {
+
     }
 
     @Override

@@ -18,11 +18,14 @@
 package org.apache.beam.sdk.io;
 
 import java.io.Serializable;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.HasDisplayData;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.values.PCollection;
 
 /**
@@ -174,6 +177,11 @@ public abstract class Sink<T> implements Serializable, HasDisplayData {
     public abstract void initialize(PipelineOptions options) throws Exception;
 
     /**
+     * Indicates that the operation will be performing windowed writes.
+     */
+    public abstract void setWindowedWrites(boolean windowedWrites);
+
+    /**
      * Given an Iterable of results from bundle writes, performs finalization after writing and
      * closes the sink. Called after all bundle writes are complete.
      *
@@ -238,8 +246,18 @@ public abstract class Sink<T> implements Serializable, HasDisplayData {
      * <p>The unique id that is given to open should be used to ensure that the writer's output does
      * not interfere with the output of other Writers, as a bundle may be executed many times for
      * fault tolerance. See {@link Sink} for more information about bundle ids.
+     *
+     * <p></p>The window and paneInfo arguments are populated when windowed writes are requested.
+     * shard and numbShards are populated for the case of static sharding. In cases where the
+     * runner is dynamically picking sharding, shard and numShards might both be set to -1.
      */
-    public abstract void open(String uId) throws Exception;
+    public abstract void open(String uId,
+                              @Nullable BoundedWindow window,
+                              @Nullable PaneInfo paneInfo,
+                              int shard,
+                              int numShards) throws Exception;
+
+    public abstract void cleanup() throws Exception;
 
     /**
      * Called for each value in the bundle.
@@ -262,5 +280,7 @@ public abstract class Sink<T> implements Serializable, HasDisplayData {
      * Returns the write operation this writer belongs to.
      */
     public abstract WriteOperation<T, WriteT> getWriteOperation();
+
+
   }
 }
