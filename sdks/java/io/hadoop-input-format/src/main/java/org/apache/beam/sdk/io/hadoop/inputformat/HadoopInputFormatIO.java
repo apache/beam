@@ -789,8 +789,7 @@ public class HadoopInputFormatIO {
 
       /**
        * Beam expects immutable objects, but the Hadoop InputFormats tend to re-use the same object
-       * when returning them. Hence mutable objects returned by Hadoop InputFormats are cloned., but
-       * the Hadoop InputFormats tend to re-use the same
+       * when returning them. Hence, mutable objects returned by Hadoop InputFormats are cloned.
        */
       private <T> T cloneIfPossiblyMutable(T input, Coder<T> coder) throws CoderException,
           ClassCastException {
