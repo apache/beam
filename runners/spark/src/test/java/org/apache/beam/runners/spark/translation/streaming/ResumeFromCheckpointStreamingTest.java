@@ -101,7 +101,7 @@ public class ResumeFromCheckpointStreamingTest {
   private static final String TOPIC = "kafka_beam_test_topic";
 
   @Rule
-  public final transient ReuseSparkContextRule noContextResue = ReuseSparkContextRule.no();
+  public final transient ReuseSparkContextRule noContextReuse = ReuseSparkContextRule.no();
   @Rule
   public final transient PipelineRule pipelineRule = PipelineRule.streaming();
 
