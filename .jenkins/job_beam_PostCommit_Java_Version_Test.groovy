@@ -36,9 +36,6 @@ matrixJob('beam_PostCommit_Java_Version_Test') {
         'OpenJDK 8 (on Ubuntu only)')
   }
 
-  // Set maven parameters.
-  common_job_properties.setMavenConfig(delegate.maven)
-
   // Sets that this is a PostCommit job.
   common_job_properties.setPostCommit(delegate)
 
