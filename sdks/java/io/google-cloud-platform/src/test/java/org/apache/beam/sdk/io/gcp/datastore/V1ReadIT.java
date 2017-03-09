@@ -120,7 +120,7 @@ public class V1ReadIT {
 
     long expectedNumEntities = numEntities;
     if (limit > 0) {
-      gqlQuery = String.format("%s %s %d", gqlQuery, "LIMIT", limit);
+      gqlQuery = String.format("%s LIMIT %d", gqlQuery, limit);
       expectedNumEntities = limit;
     }
 

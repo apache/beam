@@ -179,7 +179,7 @@ public class DatastoreV1Test {
   @Test
   public void testBuildReadAlt() throws Exception {
     DatastoreV1.Read read = DatastoreIO.v1().read()
-        .withProjectId(PROJECT_ID).withNamespace(NAMESPACE).withQuery(QUERY)
+        .withQuery(QUERY).withNamespace(NAMESPACE).withProjectId(PROJECT_ID)
         .withLocalhost(LOCALHOST);
     assertEquals(QUERY, read.getQuery());
     assertEquals(PROJECT_ID, read.getProjectId().get());
@@ -270,7 +270,6 @@ public class DatastoreV1Test {
   }
 
   @Test
-  @Category(RunnableOnService.class)
   public void testSourcePrimitiveDisplayData() {
     DisplayDataEvaluator evaluator = DisplayDataEvaluator.create();
     PTransform<PBegin, PCollection<Entity>> read = DatastoreIO.v1().read().withProjectId(
@@ -282,7 +281,6 @@ public class DatastoreV1Test {
   }
 
   @Test
-  @Category(RunnableOnService.class)
   public void testSourcePrimitiveDisplayDataWithGqlQuery() {
     DisplayDataEvaluator evaluator = DisplayDataEvaluator.create();
     PTransform<PBegin, PCollection<Entity>> read = DatastoreIO.v1().read().withProjectId(
@@ -838,6 +836,10 @@ public class DatastoreV1Test {
     void setNamespace(ValueProvider<String> value);
   }
 
+  /**
+   * Test to ensure that {@link ValueProvider} values are not accessed at pipeline construction time
+   * when built with {@link DatastoreV1.Read#withQuery(Query)}.
+   */
   @Test
   public void testRuntimeOptionsNotCalledInApplyQuery() {
     RuntimeTestOptions options = PipelineOptionsFactory.as(RuntimeTestOptions.class);
@@ -850,6 +852,10 @@ public class DatastoreV1Test {
         .apply(DatastoreIO.v1().write().withProjectId(options.getDatastoreProject()));
   }
 
+  /**
+   * Test to ensure that {@link ValueProvider} values are not accessed at pipeline construction time
+   * when built with {@link DatastoreV1.Read#withGqlQuery(String)}.
+   */
   @Test
   public void testRuntimeOptionsNotCalledInApplyGqlQuery() {
     RuntimeTestOptions options = PipelineOptionsFactory.as(RuntimeTestOptions.class);
