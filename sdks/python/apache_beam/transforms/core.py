@@ -1235,6 +1235,7 @@ class Windowing(object):
         trigger=self.triggerfn.to_runner_api(context),
         accumulation_mode=self.accumulation_mode,
         output_time=self.output_time_fn,
+        # TODO(robertwb): Support EMIT_IF_NONEMPTY
         closing_behavior=beam_runner_api_pb2.EMIT_ALWAYS,
         allowed_lateness=0)
 

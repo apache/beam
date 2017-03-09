@@ -25,6 +25,7 @@ import unittest
 import yaml
 
 import apache_beam as beam
+from apache_beam.runners import pipeline_context
 from apache_beam.test_pipeline import TestPipeline
 from apache_beam.transforms import trigger
 from apache_beam.transforms.core import Windowing
@@ -392,22 +393,7 @@ class RunnerApiTest(unittest.TestCase):
         AfterWatermark(early=AfterCount(1000), late=AfterCount(1)),
         Repeatedly(AfterCount(100)),
         trigger.OrFinally(AfterCount(3), AfterCount(10))):
-      context = beam.pipeline.PipelineContext()
-      self.assertEqual(
-          trigger_fn,
-          TriggerFn.from_runner_api(trigger_fn.to_runner_api(context), context))
-
-  def test_windowing_strategy_encoding(self):
-    for trigger_fn in (
-        DefaultTrigger(),
-        AfterAll(AfterCount(1), AfterCount(10)),
-        AfterFirst(AfterCount(10), AfterCount(100)),
-        AfterEach(AfterCount(100), AfterCount(1000)),
-        AfterWatermark(early=AfterCount(1000)),
-        AfterWatermark(early=AfterCount(1000), late=AfterCount(1)),
-        Repeatedly(AfterCount(100)),
-        trigger.OrFinally(AfterCount(3), AfterCount(10))):
-      context = beam.pipeline.PipelineContext()
+      context = pipeline_context.PipelineContext()
       self.assertEqual(
           trigger_fn,
           TriggerFn.from_runner_api(trigger_fn.to_runner_api(context), context))

@@ -19,7 +19,7 @@
 
 import unittest
 
-from apache_beam import pipeline
+from apache_beam.runners import pipeline_context
 from apache_beam.test_pipeline import TestPipeline
 from apache_beam.transforms import CombinePerKey
 from apache_beam.transforms import combiners
@@ -238,7 +238,7 @@ class RunnerApiTest(unittest.TestCase):
                       FixedWindows(37),
                       SlidingWindows(2, 389),
                       Sessions(5077)):
-      context = pipeline.PipelineContext()
+      context = pipeline_context.PipelineContext()
       self.assertEqual(
           window_fn,
           WindowFn.from_runner_api(window_fn.to_runner_api(context), context))
@@ -251,7 +251,7 @@ class RunnerApiTest(unittest.TestCase):
         Windowing(SlidingWindows(10, 15, 21), AfterCount(28),
                   output_time_fn=OutputTimeFn.OUTPUT_AT_LATEST,
                   accumulation_mode=AccumulationMode.DISCARDING)):
-      context = pipeline.PipelineContext()
+      context = pipeline_context.PipelineContext()
       self.assertEqual(
           windowing,
           Windowing.from_runner_api(windowing.to_runner_api(context), context))
