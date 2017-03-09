@@ -89,7 +89,7 @@ import org.apache.commons.dbcp2.BasicDataSource;
  *       "username", "password"))
  *   .withQuery("select id,name from Person where name = ?")
  *   .withCoder(KvCoder.of(BigEndianIntegerCoder.of(), StringUtf8Coder.of()))
- *   .withStatementPrepator(new JdbcIO.StatementPreparator() {
+ *   .withStatementPreparator(new JdbcIO.StatementPreparator() {
  *     public void setParameters(PreparedStatement preparedStatement) throws Exception {
  *       preparedStatement.setString(1, "Darwin");
  *     }
@@ -283,10 +283,10 @@ public class JdbcIO {
       return toBuilder().setQuery(query).build();
     }
 
-    public Read<T> withStatementPrepator(StatementPreparator statementPreparator) {
+    public Read<T> withStatementPreparator(StatementPreparator statementPreparator) {
       checkArgument(statementPreparator != null,
-          "JdbcIO.read().withStatementPrepator(statementPreparator) called "
-              + "with null statementPrepator");
+          "JdbcIO.read().withStatementPreparator(statementPreparator) called "
+              + "with null statementPreparator");
       return toBuilder().setStatementPreparator(statementPreparator).build();
     }
 
