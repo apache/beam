@@ -1,4 +1,4 @@
-package org.beam.sdk.java.sql.transform;
+package org.beam.sdk.java.sql.interpreter;
 
 import java.io.Serializable;
 

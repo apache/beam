@@ -22,10 +22,11 @@ import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.tools.Frameworks;
 import org.apache.calcite.util.ImmutableBitSet;
 import org.beam.sdk.java.sql.planner.BeamQueryPlanner;
+import org.beam.sdk.java.sql.schema.kafka.BeamKafkaTable;
 
 import com.google.common.collect.ImmutableList;
 
-public class BeamSqlRunner {
+public class BeamSqlExample {
   private final JavaTypeFactory typeFactory = new JavaTypeFactoryImpl(RelDataTypeSystem.DEFAULT);
   private final SchemaPlus schema = Frameworks.createRootSchema(true);
 
@@ -50,18 +51,13 @@ public class BeamSqlRunner {
   }
 
   public static void main(String[] args) throws IOException, SQLException {
-    BeamSqlRunner runner = new BeamSqlRunner();
+    BeamSqlExample runner = new BeamSqlExample();
     runner.initTables();
     
     // case 2: insert into <table>(<fields>) select STREAM <fields> from
     // <table> from <clause>
-    String sql = "SELECT " + " SITEID, PAGEID as new_pageId,floor(EVENTTIMESTAMP TO HOUR) AS EVENT_HOUR"
-        + ", COUNT(*) AS SIZE " + "FROM SOJ_EVENT "
-        + "WHERE SITEID >= 0 " + "GROUP BY SITEID, PAGEID, floor(EVENTTIMESTAMP TO HOUR)";
-    
-    sql = "SELECT " + " SITEID, PAGEID, HOP_START(EVENTTIMESTAMP, INTERVAL '1' HOUR, INTERVAL '3' HOUR) "
-        + ", COUNT(*) AS SIZE " + "FROM SOJ_EVENT "
-        + "WHERE SITEID >= 0 " + "GROUP BY SITEID, PAGEID, HOP(EVENTTIMESTAMP, INTERVAL '1' HOUR, INTERVAL '3' HOUR) ";
+    String sql = "SELECT " + " SITEID, PAGEID as new_pageId " + "FROM SOJ_EVENT "
+        + "WHERE SITEID >= 0 ";
     
     runner.explainAndRun(sql);
   }
@@ -97,7 +93,7 @@ RelCollations.createSingleton(0));
     
     stat = Statistics.UNKNOWN;
     
-//    addTable(tableName,
-//        new BeamKafkaTable(protoRowType, stat, bootstrapServer, topic));
+    addTable(tableName,
+        new BeamKafkaTable(protoRowType, null, null));
   }
 }

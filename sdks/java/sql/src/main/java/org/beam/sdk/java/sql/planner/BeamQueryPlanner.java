@@ -103,7 +103,7 @@ public class BeamQueryPlanner {
     System.out.println("SQLPlan>\n" + RelOptUtil.toString(relNode));
 
     // PlannerImpl.transform() optimizes RelNode with ruleset
-    return planner.transform(1, traitSet.replace(BeamLogicalConvention.INSTANCE), relNode);
+    return planner.transform(0, traitSet.replace(BeamLogicalConvention.INSTANCE), relNode);
   }
 
   private RelNode convertToRelNode(SqlNode sqlNode) throws RelConversionException {

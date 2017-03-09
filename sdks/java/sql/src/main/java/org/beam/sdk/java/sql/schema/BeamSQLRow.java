@@ -36,6 +36,10 @@ public class BeamSQLRow implements Serializable {
       // dataMap.put(fieldName, null);
     }
   }
+  
+  public void addField(int index, Object fieldValue){
+    addField(dataType.getFieldsName().get(index), fieldValue);
+  }
 
   public Object getFieldValue(int fieldIdx) {
     return getFieldValue(dataType.getFieldsName().get(fieldIdx),

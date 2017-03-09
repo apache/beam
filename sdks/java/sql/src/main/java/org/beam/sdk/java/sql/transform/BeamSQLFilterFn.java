@@ -1,12 +1,10 @@
 package org.beam.sdk.java.sql.transform;
 
+import java.util.List;
+
 import org.apache.beam.sdk.transforms.DoFn;
+import org.beam.sdk.java.sql.interpreter.BeamSQLExpressionExecutor;
 import org.beam.sdk.java.sql.schema.BeamSQLRow;
-import org.springframework.expression.Expression;
-import org.springframework.expression.ExpressionParser;
-import org.springframework.expression.spel.SpelParserConfiguration;
-import org.springframework.expression.spel.standard.SpelExpressionParser;
-import org.springframework.expression.spel.support.StandardEvaluationContext;
 
 public class BeamSQLFilterFn extends DoFn<BeamSQLRow, BeamSQLRow> {
   /**
@@ -15,33 +13,33 @@ public class BeamSQLFilterFn extends DoFn<BeamSQLRow, BeamSQLRow> {
   private static final long serialVersionUID = -1256111753670606705L;
 
   private String stepName;
-  private String filterInString;
-  private Expression expression;
+  private BeamSQLExpressionExecutor executor;
 
-  public BeamSQLFilterFn(String stepName, String filterInString) {
+  public BeamSQLFilterFn(String stepName, BeamSQLExpressionExecutor executor) {
     super();
     this.stepName = stepName;
-    this.filterInString = filterInString;
+    this.executor = executor;
   }
 
   @Setup
   public void setup() {
-    SpelParserConfiguration config = new SpelParserConfiguration(true, true);
-    ExpressionParser parser = new SpelExpressionParser(config);
-    expression = parser.parseExpression(filterInString);
+    executor.prepare();
   }
 
   @ProcessElement
   public void processElement(ProcessContext c) {
-    BeamSQLRow map = c.element();
+    BeamSQLRow in = c.element();
 
-    StandardEvaluationContext mapContext = new StandardEvaluationContext();
-    mapContext.setVariable("map", map);
-    boolean trueValue = expression.getValue(mapContext, Boolean.class);
+    List<Object> result = executor.execute(in);
 
-    if (trueValue) {
-      c.output(map);
+    if ((boolean)result.get(0)) {
+      c.output(in);
     }
+  }
+  
+  @Teardown
+  public void close(){
+    executor.close();
   }
 
 }

@@ -1,4 +1,4 @@
-package org.beam.sdk.java.sql.transform;
+package org.beam.sdk.java.sql.interpreter;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -6,21 +6,21 @@ import java.util.List;
 import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexInputRef;
 import org.apache.calcite.rex.RexNode;
+import org.beam.sdk.java.sql.planner.BeamSqlUnsupportedException;
+import org.beam.sdk.java.sql.schema.BeamSQLRecordType;
 
-import com.ebay.dss.tora.beam_sql_poc.planner.BeamSqlUnsupportedException;
 import com.google.common.base.Joiner;
 
 public class CalciteToSpEL {
 
-  public static String rexcall2SpEL(RexCall cdn, RecordType recordType) {
+  public static String rexcall2SpEL(RexCall cdn) {
     List<String> parts = new ArrayList<>();
     for (RexNode subcdn : cdn.operands) {
       if (subcdn instanceof RexCall) {
-        parts.add(rexcall2SpEL((RexCall) subcdn, recordType));
+        parts.add(rexcall2SpEL((RexCall) subcdn));
       } else {
         parts.add(subcdn instanceof RexInputRef
-            ? "#map.getFieldValue('"
-                + recordType.getFieldsName().get(((RexInputRef) subcdn).getIndex()) + "')"
+            ? "#in.getFieldValue("+ ((RexInputRef) subcdn).getIndex() + ")"
             : subcdn.toString());
       }
     }
@@ -54,9 +54,6 @@ public class CalciteToSpEL {
       default:
         throw new BeamSqlUnsupportedException();
       }
-    case "SqlFloorFunction":
-      return String.format("%s / %s", parts.get(0), 3600000);
-//      throw new BeamSqlUnsupportedException("TODO");
     default:
       throw new BeamSqlUnsupportedException();
     }
