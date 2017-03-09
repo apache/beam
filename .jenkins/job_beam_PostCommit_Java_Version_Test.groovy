@@ -30,6 +30,7 @@ matrixJob('beam_PostCommit_Java_Version_Test') {
 
   // Override jdk version here
   axes {
+    label('label', 'beam')
     jdk('JDK 1.7 (latest)',
         'OpenJDK 7 (on Ubuntu only)',
         'OpenJDK 8 (on Ubuntu only)')
@@ -52,9 +53,6 @@ matrixJob('beam_PostCommit_Java_Version_Test') {
 
       // Maven build project
       goals('-B -e -P release,dataflow-runner clean install coveralls:report -DrepoToken=$COVERALLS_REPO_TOKEN -DskipITs=false -DintegrationTestPipelineOptions=\'[ "--project=apache-beam-testing", "--tempRoot=gs://temp-storage-for-end-to-end-tests", "--runner=org.apache.beam.runners.dataflow.testing.TestDataflowRunner" ]\'')
-
-      // Run WordCountIT
-      // goals('-B -e -P dataflow-runner,release clean verify coveralls:report -pl examples/java -DrepoToken=$COVERALLS_REPO_TOKEN -DskipITs=false -Dit.test=WordCountIT -DintegrationTestPipelineOptions=\'[ "--project=apache-beam-testing", "--tempRoot=gs://temp-storage-for-end-to-end-tests", "--runner=org.apache.beam.runners.dataflow.testing.TestDataflowRunner"]\'')
     }
   }
 }
