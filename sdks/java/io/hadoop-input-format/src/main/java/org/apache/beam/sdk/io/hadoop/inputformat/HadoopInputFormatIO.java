@@ -714,6 +714,7 @@ public class HadoopInputFormatIO {
                   taskAttemptContext);
           if (recordReader != null) {
             recordReader.initialize(split.getSplit(), taskAttemptContext);
+            progressValue.set(getProgress());
             if (recordReader.nextKeyValue()) {
               recordsReturned++;
               doneReading = false;
