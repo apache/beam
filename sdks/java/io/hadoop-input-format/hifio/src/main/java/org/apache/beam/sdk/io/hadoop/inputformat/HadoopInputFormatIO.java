@@ -845,7 +845,8 @@ public class HadoopInputFormatIO {
        */
       private Double getProgress() throws IOException, InterruptedException {
         try {
-          return (double) recordReader.getProgress();
+          float progress = recordReader.getProgress();
+          return (double) progress < 0 || progress > 1 ? 0.0 : progress;
         } catch (IOException e) {
           LOG.error(
               "Error in computing the fractions consumed as RecordReader.getProgress() throws an "
