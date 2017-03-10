@@ -13,6 +13,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
 #Headless service that allows us to get the IP addresses of our Cassandra nodes
 apiVersion: v1
 kind: Service

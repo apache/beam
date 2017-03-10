@@ -16,6 +16,7 @@
 
 #!/bin/sh
 
+# Create Cassandra services and Replication controller.
 kubectl create -f cassandra-peer-service.yml
 kubectl create -f cassandra_service.yml
 kubectl create -f cassandra_controller.yml

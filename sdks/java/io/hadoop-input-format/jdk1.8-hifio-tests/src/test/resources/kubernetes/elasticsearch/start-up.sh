@@ -15,6 +15,7 @@
 #    limitations under the License.
 #
 
+# Create Elasticsearch services and deployments.
 kubectl create -f es-discovery-service.yaml
 kubectl create -f es-service.yaml
 kubectl create -f es-master_rc.yaml
