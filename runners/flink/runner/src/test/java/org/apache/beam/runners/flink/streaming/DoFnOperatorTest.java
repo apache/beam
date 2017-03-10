@@ -17,7 +17,9 @@
  */
 package org.apache.beam.runners.flink.streaming;
 
+import static org.hamcrest.Matchers.emptyIterable;
 import static org.hamcrest.collection.IsIterableContainingInOrder.contains;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 
 import com.google.common.base.Function;
@@ -29,9 +31,12 @@ import java.util.Collections;
 import java.util.HashMap;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.flink.FlinkPipelineOptions;
+import org.apache.beam.runners.flink.translation.types.CoderTypeInformation;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.DoFnOperator;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PCollectionViewTesting;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -40,14 +45,23 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
+import org.apache.beam.sdk.util.TimeDomain;
+import org.apache.beam.sdk.util.Timer;
+import org.apache.beam.sdk.util.TimerSpec;
+import org.apache.beam.sdk.util.TimerSpecs;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowingStrategy;
+import org.apache.beam.sdk.util.state.StateSpec;
+import org.apache.beam.sdk.util.state.StateSpecs;
+import org.apache.beam.sdk.util.state.ValueState;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.KeyedTwoInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.TwoInputStreamOperatorTestHarness;
@@ -165,6 +179,217 @@ public class DoFnOperatorTest {
             new RawUnionValue(1, WindowedValue.valueInGlobalWindow("got: hello")),
             new RawUnionValue(2, WindowedValue.valueInGlobalWindow("got: hello")),
             new RawUnionValue(3, WindowedValue.valueInGlobalWindow("got: hello"))));
+
+    testHarness.close();
+  }
+
+  @Test
+  public void testLateDroppingForStatefulFn() throws Exception {
+
+    WindowingStrategy<Object, IntervalWindow> windowingStrategy =
+        WindowingStrategy.of(FixedWindows.of(new Duration(10)));
+
+    DoFn<Integer, String> fn = new DoFn<Integer, String>() {
+
+      @StateId("state")
+      private final StateSpec<Object, ValueState<String>> stateSpec =
+          StateSpecs.value(StringUtf8Coder.of());
+
+      @ProcessElement
+      public void processElement(ProcessContext context) {
+        context.output(context.element().toString());
+      }
+    };
+
+    WindowedValue.FullWindowedValueCoder<Integer> windowedValueCoder =
+        WindowedValue.getFullCoder(
+            VarIntCoder.of(),
+            windowingStrategy.getWindowFn().windowCoder());
+
+    TupleTag<String> outputTag = new TupleTag<>("main-output");
+
+    DoFnOperator<Integer, String, WindowedValue<String>> doFnOperator = new DoFnOperator<>(
+        fn,
+        windowedValueCoder,
+        outputTag,
+        Collections.<TupleTag<?>>emptyList(),
+        new DoFnOperator.DefaultOutputManagerFactory<WindowedValue<String>>(),
+        windowingStrategy,
+        new HashMap<Integer, PCollectionView<?>>(), /* side-input mapping */
+        Collections.<PCollectionView<?>>emptyList(), /* side inputs */
+        PipelineOptionsFactory.as(FlinkPipelineOptions.class),
+        VarIntCoder.of() /* key coder */);
+
+    OneInputStreamOperatorTestHarness<WindowedValue<Integer>, WindowedValue<String>> testHarness =
+        new KeyedOneInputStreamOperatorTestHarness<>(
+            doFnOperator,
+            new KeySelector<WindowedValue<Integer>, Integer>() {
+              @Override
+              public Integer getKey(WindowedValue<Integer> integerWindowedValue) throws Exception {
+                return integerWindowedValue.getValue();
+              }
+            },
+            new CoderTypeInformation<>(VarIntCoder.of()));
+
+    testHarness.open();
+
+    testHarness.processWatermark(0);
+
+    IntervalWindow window1 = new IntervalWindow(new Instant(0), Duration.millis(10));
+
+    // this should not be late
+    testHarness.processElement(
+        new StreamRecord<>(WindowedValue.of(13, new Instant(0), window1, PaneInfo.NO_FIRING)));
+
+    assertThat(
+        this.<String>stripStreamRecordFromWindowedValue(testHarness.getOutput()),
+        contains(WindowedValue.of("13", new Instant(0), window1, PaneInfo.NO_FIRING)));
+
+    testHarness.getOutput().clear();
+
+    testHarness.processWatermark(9);
+
+    // this should still not be considered late
+    testHarness.processElement(
+        new StreamRecord<>(WindowedValue.of(17, new Instant(0), window1, PaneInfo.NO_FIRING)));
+
+    assertThat(
+        this.<String>stripStreamRecordFromWindowedValue(testHarness.getOutput()),
+        contains(WindowedValue.of("17", new Instant(0), window1, PaneInfo.NO_FIRING)));
+
+    testHarness.getOutput().clear();
+
+    testHarness.processWatermark(10);
+
+    // this should now be considered late
+    testHarness.processElement(
+        new StreamRecord<>(WindowedValue.of(17, new Instant(0), window1, PaneInfo.NO_FIRING)));
+
+    assertThat(
+        this.<String>stripStreamRecordFromWindowedValue(testHarness.getOutput()),
+        emptyIterable());
+
+    testHarness.close();
+  }
+
+  @Test
+  public void testStateGCForStatefulFn() throws Exception {
+
+    WindowingStrategy<Object, IntervalWindow> windowingStrategy =
+        WindowingStrategy.of(FixedWindows.of(new Duration(10)));
+
+    final String timerId = "boo";
+    final String stateId = "dazzle";
+
+    final int offset = 5000;
+    final int timerOutput = 4093;
+
+    DoFn<KV<String, Integer>, KV<String, Integer>> fn =
+        new DoFn<KV<String, Integer>, KV<String, Integer>>() {
+
+          @TimerId(timerId)
+          private final TimerSpec spec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
+
+          @StateId(stateId)
+          private final StateSpec<Object, ValueState<String>> stateSpec =
+              StateSpecs.value(StringUtf8Coder.of());
+
+          @ProcessElement
+          public void processElement(
+              ProcessContext context,
+              @TimerId(timerId) Timer timer,
+              @StateId(stateId) ValueState<String> state,
+              BoundedWindow window) {
+            timer.set(window.maxTimestamp());
+            state.write(context.element().getKey());
+            context.output(
+                KV.of(context.element().getKey(), context.element().getValue() + offset));
+          }
+
+          @OnTimer(timerId)
+          public void onTimer(OnTimerContext context, @StateId(stateId) ValueState<String> state) {
+            context.output(KV.of(state.read(), timerOutput));
+          }
+        };
+
+    WindowedValue.FullWindowedValueCoder<KV<String, Integer>> windowedValueCoder =
+        WindowedValue.getFullCoder(
+            KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of()),
+            windowingStrategy.getWindowFn().windowCoder());
+
+    TupleTag<KV<String, Integer>> outputTag = new TupleTag<>("main-output");
+
+    DoFnOperator<
+        KV<String, Integer>, KV<String, Integer>, WindowedValue<KV<String, Integer>>> doFnOperator =
+        new DoFnOperator<>(
+            fn,
+            windowedValueCoder,
+            outputTag,
+            Collections.<TupleTag<?>>emptyList(),
+            new DoFnOperator.DefaultOutputManagerFactory<WindowedValue<KV<String, Integer>>>(),
+            windowingStrategy,
+            new HashMap<Integer, PCollectionView<?>>(), /* side-input mapping */
+            Collections.<PCollectionView<?>>emptyList(), /* side inputs */
+            PipelineOptionsFactory.as(FlinkPipelineOptions.class),
+            StringUtf8Coder.of() /* key coder */);
+
+    KeyedOneInputStreamOperatorTestHarness<
+        String,
+        WindowedValue<KV<String, Integer>>,
+        WindowedValue<KV<String, Integer>>> testHarness =
+        new KeyedOneInputStreamOperatorTestHarness<>(
+            doFnOperator,
+            new KeySelector<WindowedValue<KV<String, Integer>>, String>() {
+              @Override
+              public String getKey(
+                  WindowedValue<KV<String, Integer>> kvWindowedValue) throws Exception {
+                return kvWindowedValue.getValue().getKey();
+              }
+            },
+            new CoderTypeInformation<>(StringUtf8Coder.of()));
+
+    testHarness.open();
+
+    testHarness.processWatermark(0);
+
+    assertEquals(0, testHarness.numKeyedStateEntries());
+
+    IntervalWindow window1 = new IntervalWindow(new Instant(0), Duration.millis(10));
+
+    testHarness.processElement(
+        new StreamRecord<>(
+            WindowedValue.of(KV.of("key1", 5), new Instant(1), window1, PaneInfo.NO_FIRING)));
+
+    testHarness.processElement(
+        new StreamRecord<>(
+            WindowedValue.of(KV.of("key2", 7), new Instant(3), window1, PaneInfo.NO_FIRING)));
+
+    assertThat(
+        this.<KV<String, Integer>>stripStreamRecordFromWindowedValue(testHarness.getOutput()),
+        contains(
+            WindowedValue.of(
+                KV.of("key1", 5 + offset), new Instant(1), window1, PaneInfo.NO_FIRING),
+            WindowedValue.of(
+                KV.of("key2", 7 + offset), new Instant(3), window1, PaneInfo.NO_FIRING)));
+
+    assertEquals(2, testHarness.numKeyedStateEntries());
+
+    testHarness.getOutput().clear();
+
+    // this should trigger both the window.maxTimestamp() timer and the GC timer
+    // this tests that the GC timer fires after the user timer
+    testHarness.processWatermark(15);
+
+    assertThat(
+        this.<KV<String, Integer>>stripStreamRecordFromWindowedValue(testHarness.getOutput()),
+        contains(
+            WindowedValue.of(
+                KV.of("key1", timerOutput), new Instant(9), window1, PaneInfo.NO_FIRING),
+            WindowedValue.of(
+                KV.of("key2", timerOutput), new Instant(9), window1, PaneInfo.NO_FIRING)));
+
+    // ensure the state was garbage collected
+    assertEquals(0, testHarness.numKeyedStateEntries());
 
     testHarness.close();
   }
