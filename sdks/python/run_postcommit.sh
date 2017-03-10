@@ -61,7 +61,6 @@ GCS_LOCATION=gs://temp-storage-for-end-to-end-tests
 
 # Job name needs to be unique
 JOBNAME_E2E_WC=py-wordcount-`date +%s`
-JOBNAME_VR_TEST=py-validatesrunner-`date +%s`
 
 PROJECT=apache-beam-testing
 
@@ -86,7 +85,6 @@ python setup.py nosetests \
     --staging_location=$GCS_LOCATION/staging-validatesrunner-test \
     --temp_location=$GCS_LOCATION/temp-validatesrunner-test \
     --sdk_location=$SDK_LOCATION \
-    --job_name=$JOBNAME_VR_TEST \
     --requirements_file=postcommit_requirements.txt \
     --num_workers=1"
 
