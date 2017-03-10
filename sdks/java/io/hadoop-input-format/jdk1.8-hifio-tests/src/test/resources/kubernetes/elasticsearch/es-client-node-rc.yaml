@@ -1,4 +1,3 @@
-#
 #    Licensed to the Apache Software Foundation (ASF) under one or more
 #    contributor license agreements.  See the NOTICE file distributed with
 #    this work for additional information regarding copyright ownership.
@@ -13,7 +12,6 @@
 #    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
-#
 
 apiVersion: extensions/v1beta1
 kind: Deployment
@@ -29,22 +27,38 @@ spec:
       labels:
         component: elasticsearch
         role: client
-
+      annotations:
+        pod.beta.kubernetes.io/init-containers: '[
+          {
+          "name": "sysctl",
+            "image": "busybox",
+            "imagePullPolicy": "IfNotPresent",
+            "command": ["sysctl", "-w", "vm.max_map_count=262144"],
+            "securityContext": {
+              "privileged": true
+            }
+          }
+        ]'
     spec:
       containers:
       - name: es-client
         securityContext:
-          privileged: true
+          privileged: false
           capabilities:
             add:
               - IPC_LOCK
-        image: elasticsearch
+              - SYS_RESOURCE
+        image: quay.io/pires/docker-elasticsearch-kubernetes:5.2.2
         imagePullPolicy: Always
         env:
         - name: NAMESPACE
           valueFrom:
             fieldRef:
               fieldPath: metadata.namespace
+        - name: NODE_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
         - name: "CLUSTER_NAME"
           value: "myesdb"
         - name: NODE_MASTER
