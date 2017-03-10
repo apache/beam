@@ -240,7 +240,7 @@ As a rule of thumb: expose these if you anticipate that the full packaged <code 
 <p>Do:</p>
 
 <ul>
-  <li>Respect language-specific naming conventions, e.g. name classes in <code class="highlighter-rouge">CamelCase</code> in Java and Python, functions in <code class="highlighter-rouge">snakeCase</code> in Java but <code class="highlighter-rouge">with_underscores</code> in Python, etc.</li>
+  <li>Respect language-specific naming conventions, e.g. name classes in <code class="highlighter-rouge">PascalCase</code> in Java and Python, functions in <code class="highlighter-rouge">camelCase</code> in Java but <code class="highlighter-rouge">snake_case</code> in Python, etc.</li>
   <li>Name factory functions so that either the function name is a verb, or referring to the transform reads like a verb: e.g. <code class="highlighter-rouge">MongoDbIO.read()</code>, <code class="highlighter-rouge">Flatten.iterables()</code>.</li>
   <li>In typed languages, name <code class="highlighter-rouge">PTransform</code> classes also like verbs (e.g.: <code class="highlighter-rouge">MongoDbIO.Read</code>, <code class="highlighter-rouge">Flatten.Iterables</code>).</li>
   <li>Name families of transforms for interacting with a storage system using the word “IO”: <code class="highlighter-rouge">MongoDbIO</code>, <code class="highlighter-rouge">JdbcIO</code>.</li>
