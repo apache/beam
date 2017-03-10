@@ -17,9 +17,12 @@
  */
 package org.apache.beam.sdk.testing;
 
+import org.apache.beam.sdk.runners.PipelineRunner;
+
 /**
- * Category tag for validation tests which utilize {@link TestPipeline} for execution and
- * {@link PAssert} for validation. Example usage:
+ * Category tag for tests which utilize {@link TestPipeline} for execution and
+ * {@link PAssert} for validation. Tests in this category are used to validate
+ * the correct implementation of a {@link PipelineRunner}. Example usage:
  * <pre><code>
  *     {@literal @}Test
  *     {@literal @}Category(RunnableOnService.class)

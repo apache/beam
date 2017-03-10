@@ -27,8 +27,8 @@ import java.util.Set;
 
 import org.apache.activemq.broker.BrokerService;
 import org.apache.activemq.broker.Connection;
+import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
-import org.apache.beam.sdk.testing.RunnableOnService;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.values.PCollection;
@@ -78,7 +78,7 @@ public class MqttIOTest {
   }
 
   @Test(timeout = 60 * 1000)
-  @Category(RunnableOnService.class)
+  @Category(NeedsRunner.class)
   public void testRead() throws Exception {
     PCollection<byte[]> output = pipeline.apply(
         MqttIO.read()
@@ -138,7 +138,7 @@ public class MqttIOTest {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(NeedsRunner.class)
   public void testWrite() throws Exception {
     MQTT client = new MQTT();
     client.setHost("tcp://localhost:" + port);
