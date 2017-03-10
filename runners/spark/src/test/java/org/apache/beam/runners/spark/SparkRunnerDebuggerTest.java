@@ -20,8 +20,6 @@ package org.apache.beam.runners.spark;
 
 import static org.junit.Assert.assertThat;
 
-import java.io.File;
-import java.io.IOException;
 import java.util.Collections;
 import org.apache.beam.runners.spark.examples.WordCount;
 import org.apache.beam.sdk.Pipeline;
@@ -48,10 +46,8 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.hamcrest.Matchers;
 import org.joda.time.Duration;
-import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
 
 
 /**
@@ -64,18 +60,6 @@ public class SparkRunnerDebuggerTest {
 
   @Rule
   public final PipelineRule streamingPipelineRule = PipelineRule.streaming();
-
-  private File outputDir;
-
-  private final TemporaryFolder tmpDir = new TemporaryFolder();
-
-  @SuppressWarnings("ResultOfMethodCallIgnored")
-  @Before
-  public void setUp() throws IOException {
-    tmpDir.create();
-    outputDir = tmpDir.newFolder("out");
-    outputDir.delete();
-  }
 
   @Test
   public void debugBatchPipeline() {
@@ -102,7 +86,7 @@ public class SparkRunnerDebuggerTest {
 
     wordCounts
         .apply(MapElements.via(new WordCount.FormatAsTextFn()))
-        .apply(TextIO.Write.to(outputDir.getAbsolutePath()).withNumShards(3).withSuffix(".txt"));
+        .apply(TextIO.Write.to("!!PLACEHOLDER-OUTPUT-DIR!!").withNumShards(3).withSuffix(".txt"));
 
     final String expectedPipeline = "sparkContext.parallelize(Arrays.asList(...))\n"
         + "_.mapPartitions(new org.apache.beam.runners.spark.examples.WordCount$ExtractWordsFn())\n"
