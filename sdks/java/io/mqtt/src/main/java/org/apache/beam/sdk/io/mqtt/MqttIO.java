@@ -209,6 +209,10 @@ public class MqttIO {
         String clientId = getClientId() + "-" + UUID.randomUUID().toString();
         LOG.debug("MQTT client id set to {}", clientId);
         client.setClientId(clientId);
+      } else {
+        String clientId = UUID.randomUUID().toString();
+        LOG.debug("MQTT client id set to random value {}", clientId);
+        client.setClientId(clientId);
       }
       return client;
     }
