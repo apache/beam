@@ -24,7 +24,7 @@
    <parent>
     <groupId>hadoop</groupId>
     <artifactId>beam-sdks-java-io-hadoop-input-format</artifactId>
-    <version>0.6.0-SNAPSHOT</version>
+    <version>0.7.0-SNAPSHOT</version>
     <relativePath>../pom.xml</relativePath>
   </parent>
   <artifactId>jdk1.8-hifio-tests</artifactId>
