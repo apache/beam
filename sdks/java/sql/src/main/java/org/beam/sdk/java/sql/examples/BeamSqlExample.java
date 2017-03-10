@@ -1,3 +1,20 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package org.beam.sdk.java.sql.examples;
 
 import java.io.IOException;
@@ -84,15 +101,6 @@ public class BeamSqlExample implements Serializable {
             .add("PAGEID", SqlTypeName.INTEGER).add("PAGENAME", SqlTypeName.VARCHAR).build();
       }
     };
-    Direction dir = Direction.ASCENDING;
-    RelFieldCollation collation = new RelFieldCollation(0, dir, NullDirection.UNSPECIFIED);
-    Statistic stat = Statistics.of(5, ImmutableList.of(ImmutableBitSet.of(0)),
-        ImmutableList.of(RelCollations.of(collation)));
-
-    stat = Statistics.of(100d, ImmutableList.<ImmutableBitSet>of(),
-        RelCollations.createSingleton(0));
-
-    stat = Statistics.UNKNOWN;
 
     Map<String, Object> consumerPara = new HashMap<String, Object>();
     consumerPara.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "latest"); // latest
