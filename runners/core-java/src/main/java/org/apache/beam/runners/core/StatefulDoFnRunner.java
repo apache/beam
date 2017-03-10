@@ -76,33 +76,31 @@ public class StatefulDoFnRunner<InputT, OutputT, W extends BoundedWindow>
   }
 
   @Override
-  public void processElement(WindowedValue<InputT> compressedElem) {
+  public void processElement(WindowedValue<InputT> input) {
 
     // StatefulDoFnRunner always observes windows, so we need to explode
-    for (WindowedValue<InputT> value : compressedElem.explodeWindows()) {
+    for (WindowedValue<InputT> value : input.explodeWindows()) {
 
       BoundedWindow window = value.getWindows().iterator().next();
 
-      if (!dropLateData(window)) {
+      if (isLate(window)) {
+        // The element is too late for this window.
+        droppedDueToLateness.addValue(1L);
+        WindowTracing.debug(
+            "StatefulDoFnRunner.processElement: Dropping element at {}; window:{} "
+                + "since too far behind inputWatermark:{}",
+            input.getTimestamp(), window, cleanupTimer.currentInputWatermarkTime());
+      } else {
         cleanupTimer.setForWindow(window);
         doFnRunner.processElement(value);
       }
     }
   }
 
-  private boolean dropLateData(BoundedWindow window) {
+  private boolean isLate(BoundedWindow window) {
     Instant gcTime = window.maxTimestamp().plus(windowingStrategy.getAllowedLateness());
     Instant inputWM = cleanupTimer.currentInputWatermarkTime();
-    if (gcTime.isBefore(inputWM)) {
-      // The element is too late for this window.
-      droppedDueToLateness.addValue(1L);
-      WindowTracing.debug(
-          "StatefulDoFnRunner.processElement/onTimer: Dropping element for window:{} "
-              + "since too far behind inputWatermark:{}", window, inputWM);
-      return true;
-    } else {
-      return false;
-    }
+    return gcTime.isBefore(inputWM);
   }
 
   @Override
@@ -112,8 +110,18 @@ public class StatefulDoFnRunner<InputT, OutputT, W extends BoundedWindow>
       stateCleaner.clearForWindow(window);
       // There should invoke the onWindowExpiration of DoFn
     } else {
-      // a timer can never be late because we don't allow setting timers after GC time
-      doFnRunner.onTimer(timerId, window, timestamp, timeDomain);
+      // An event-time timer can never be late because we don't allow setting timers after GC time.
+      // Ot can happen that a processing-time time fires for a late window, we need to ignore
+      // this.
+      if (!timeDomain.equals(TimeDomain.EVENT_TIME) && isLate(window)) {
+        // don't increment the dropped counter, only do that for elements
+        WindowTracing.debug(
+            "StatefulDoFnRunner.onTimer: Ignoring processing-time timer at {}; window:{} "
+                + "since window is too far behind inputWatermark:{}",
+            timestamp, window, cleanupTimer.currentInputWatermarkTime());
+      } else {
+        doFnRunner.onTimer(timerId, window, timestamp, timeDomain);
+      }
     }
   }
 
