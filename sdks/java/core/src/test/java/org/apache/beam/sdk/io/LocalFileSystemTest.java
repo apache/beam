@@ -168,28 +168,24 @@ public class LocalFileSystemTest {
 
   @Test
   public void testMatchPatternNone() throws Exception {
-    List<String> expected = ImmutableList.of();
     temporaryFolder.newFile("a");
     temporaryFolder.newFile("aa");
     temporaryFolder.newFile("ab");
 
     List<MatchResult> matchResults =
         matchGlobWithPathPrefix(temporaryFolder.getRoot().toPath().resolve("b"), "*");
-    assertThat(
-        toFilenames(matchResults),
-        containsInAnyOrder(expected.toArray(new String[expected.size()])));
+    assertEquals(1, matchResults.size());
+    assertEquals(MatchResult.Status.NOT_FOUND, matchResults.get(0).status());
   }
 
   @Test
   public void testMatchForNonExistentFile() throws Exception {
-    List<String> expected = ImmutableList.of();
     temporaryFolder.newFile("aa");
 
     List<MatchResult> matchResults = localFileSystem.match(
         ImmutableList.of(temporaryFolder.getRoot().toPath().resolve("a").toString()));
-    assertThat(
-        toFilenames(matchResults),
-        containsInAnyOrder(expected.toArray(new String[expected.size()])));
+    assertEquals(1, matchResults.size());
+    assertEquals(MatchResult.Status.NOT_FOUND, matchResults.get(0).status());
   }
 
   @Test
