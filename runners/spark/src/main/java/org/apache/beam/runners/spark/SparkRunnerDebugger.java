@@ -20,12 +20,14 @@ package org.apache.beam.runners.spark;
 
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
+
 import org.apache.beam.runners.spark.translation.EvaluationContext;
 import org.apache.beam.runners.spark.translation.SparkPipelineTranslator;
 import org.apache.beam.runners.spark.translation.TransformTranslator;
 import org.apache.beam.runners.spark.translation.streaming.StreamingTransformTranslator;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.PipelineOptionsValidator;
 import org.apache.beam.sdk.runners.PipelineRunner;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.streaming.api.java.JavaStreamingContext;
@@ -53,23 +55,34 @@ public final class SparkRunnerDebugger extends PipelineRunner<SparkPipelineResul
 
   private static final Logger LOG = LoggerFactory.getLogger(SparkRunnerDebugger.class);
 
-  private SparkRunnerDebugger() {}
+  private final SparkPipelineOptions options;
 
-  @SuppressWarnings("unused")
+  private SparkRunnerDebugger(SparkPipelineOptions options) {
+    this.options = options;
+  }
+
   public static SparkRunnerDebugger fromOptions(PipelineOptions options) {
-    return new SparkRunnerDebugger();
+    if (options instanceof TestSparkPipelineOptions) {
+      TestSparkPipelineOptions testSparkPipelineOptions =
+          PipelineOptionsValidator.validate(TestSparkPipelineOptions.class, options);
+      return new SparkRunnerDebugger(testSparkPipelineOptions);
+    } else {
+      SparkPipelineOptions sparkPipelineOptions =
+          PipelineOptionsValidator.validate(SparkPipelineOptions.class, options);
+      return new SparkRunnerDebugger(sparkPipelineOptions);
+    }
   }
 
   @Override
   public SparkPipelineResult run(Pipeline pipeline) {
-    SparkPipelineResult result;
-
-    SparkPipelineOptions options = (SparkPipelineOptions) pipeline.getOptions();
-
     JavaSparkContext jsc = new JavaSparkContext("local[1]", "Debug_Pipeline");
     JavaStreamingContext jssc =
         new JavaStreamingContext(jsc, new org.apache.spark.streaming.Duration(1000));
+
+    SparkRunner.initAccumulators(options, jsc);
+
     TransformTranslator.Translator translator = new TransformTranslator.Translator();
+
     SparkNativePipelineVisitor visitor;
     if (options.isStreaming()
         || options instanceof TestSparkPipelineOptions
@@ -82,8 +95,11 @@ public final class SparkRunnerDebugger extends PipelineRunner<SparkPipelineResul
       EvaluationContext ctxt = new EvaluationContext(jsc, pipeline, jssc);
       visitor = new SparkNativePipelineVisitor(translator, ctxt);
     }
+
     pipeline.traverseTopologically(visitor);
+
     jsc.stop();
+
     String debugString = visitor.getDebugString();
     LOG.info("Translated Native Spark pipeline:\n" + debugString);
     return new DebugSparkPipelineResult(debugString);
