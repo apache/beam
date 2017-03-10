@@ -456,13 +456,6 @@ public class Pipeline {
   }
 
   /**
-   * Returns the configured {@link PipelineRunner}.
-   */
-  public PipelineRunner<?> getRunner() {
-    return runner;
-  }
-
-  /**
    * Returns the configured {@link PipelineOptions}.
    *
    * @deprecated see BEAM-818 Remove Pipeline.getPipelineOptions. Configuration should be explicitly
