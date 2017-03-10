@@ -29,6 +29,7 @@ import org.apache.beam.sdk.options.PipelineOptions;
  */
 public class BoundedSourceWrapper<T> extends GearpumpSource<T> {
 
+  private static final long serialVersionUID = 8199570485738786123L;
   private final BoundedSource<T> source;
 
   public BoundedSourceWrapper(BoundedSource<T> source, PipelineOptions options) {

@@ -33,6 +33,8 @@ import org.apache.gearpump.streaming.dsl.javaapi.JavaStream;
  */
 public class CreateValuesTranslator<T> implements TransformTranslator<Create.Values<T>> {
 
+  private static final long serialVersionUID = 5411841848199229738L;
+
   @Override
   public void translate(Create.Values<T> transform, TranslationContext context) {
     try {

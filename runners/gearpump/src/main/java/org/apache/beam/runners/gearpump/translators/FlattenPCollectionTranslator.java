@@ -18,10 +18,21 @@
 
 package org.apache.beam.runners.gearpump.translators;
 
+import com.google.common.collect.Lists;
+
+import java.util.HashSet;
+import java.util.Set;
+
+import org.apache.beam.runners.gearpump.translators.io.UnboundedSourceWrapper;
+import org.apache.beam.runners.gearpump.translators.io.ValuesSource;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.values.PCollection;
 
+import org.apache.gearpump.streaming.dsl.api.functions.MapFunction;
 import org.apache.gearpump.streaming.dsl.javaapi.JavaStream;
+
+
 
 /**
  * Flatten.FlattenPCollectionList is translated to Gearpump merge function.
@@ -30,17 +41,44 @@ import org.apache.gearpump.streaming.dsl.javaapi.JavaStream;
 public class FlattenPCollectionTranslator<T> implements
     TransformTranslator<Flatten.FlattenPCollectionList<T>> {
 
+  private static final long serialVersionUID = -5552148802472944759L;
+
   @Override
   public void translate(Flatten.FlattenPCollectionList<T> transform, TranslationContext context) {
     JavaStream<T> merged = null;
+    Set<PCollection<T>> unique = new HashSet<>();
     for (PCollection<T> collection : context.getInput(transform).getAll()) {
+      unique.add(collection);
       JavaStream<T> inputStream = context.getInputStream(collection);
       if (null == merged) {
         merged = inputStream;
       } else {
+        // duplicate edges are not allowed in Gearpump graph
+        // so we route through a dummy node
+        if (unique.contains(collection)) {
+          inputStream = inputStream.map(new DummyFunction<T>(), "dummy");
+        }
+
         merged = merged.merge(inputStream, transform.getName());
       }
     }
+
+    if (null == merged) {
+      UnboundedSourceWrapper<String, ?> unboundedSourceWrapper = new UnboundedSourceWrapper<>(
+          new ValuesSource<>(Lists.newArrayList("dummy"),
+              StringUtf8Coder.of()), context.getPipelineOptions());
+      merged = context.getSourceStream(unboundedSourceWrapper);
+    }
     context.setOutputStream(context.getOutput(transform), merged);
+  }
+
+  private static class DummyFunction<T> extends MapFunction<T, T> {
+
+    private static final long serialVersionUID = 5454396869997290471L;
+
+    @Override
+    public T map(T t) {
+      return t;
+    }
   }
 }

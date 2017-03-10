@@ -18,14 +18,21 @@
 
 package org.apache.beam.runners.gearpump.translators;
 
+import java.util.Collection;
+import java.util.List;
+import java.util.Map;
+
 import org.apache.beam.runners.gearpump.translators.functions.DoFnFunction;
-import org.apache.beam.runners.gearpump.translators.utils.NoOpSideInputReader;
+import org.apache.beam.runners.gearpump.translators.utils.TranslatorUtils;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.PCollection;
 
+import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.gearpump.streaming.dsl.javaapi.JavaStream;
 
 
@@ -36,18 +43,33 @@ import org.apache.gearpump.streaming.dsl.javaapi.JavaStream;
 public class ParDoBoundTranslator<InputT, OutputT> implements
     TransformTranslator<ParDo.Bound<InputT, OutputT>> {
 
+  private static final long serialVersionUID = -3413205558160983784L;
+  private final TupleTag<OutputT> mainOutput = new TupleTag<>();
+  private final List<TupleTag<?>> sideOutputs = TupleTagList.empty().getAll();
+
   @Override
   public void translate(ParDo.Bound<InputT, OutputT> transform, TranslationContext context) {
     DoFn<InputT, OutputT> doFn = transform.getFn();
     PCollection<OutputT> output = context.getOutput(transform);
     WindowingStrategy<?, ?> windowingStrategy = output.getWindowingStrategy();
 
+    Collection<PCollectionView<?>> sideInputs = transform.getSideInputs();
+    Map<String, PCollectionView<?>> tagsToSideInputs =
+        TranslatorUtils.getTagsToSideInputs(sideInputs);
+    JavaStream<WindowedValue<InputT>> inputStream = context.getInputStream(
+        context.getInput(transform));
+    JavaStream<TranslatorUtils.RawUnionValue> unionStream =
+        TranslatorUtils.withSideInputStream(context,
+        inputStream, tagsToSideInputs);
+
     DoFnFunction<InputT, OutputT> doFnFunction = new DoFnFunction<>(context.getPipelineOptions(),
-        doFn, windowingStrategy, new NoOpSideInputReader());
-    JavaStream<WindowedValue<InputT>> inputStream =
-        context.getInputStream(context.getInput(transform));
+        doFn, windowingStrategy, sideInputs, tagsToSideInputs,
+        mainOutput, sideOutputs);
+
     JavaStream<WindowedValue<OutputT>> outputStream =
-        inputStream.flatMap(doFnFunction, transform.getName());
+        TranslatorUtils.toList(unionStream)
+            .flatMap(doFnFunction, transform.getName())
+            .map(new TranslatorUtils.FromRawUnionValue<OutputT>(), "from_RawUnionValue");
 
     context.setOutputStream(context.getOutput(transform), outputStream);
   }

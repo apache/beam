@@ -18,158 +18,93 @@
 
 package org.apache.beam.runners.gearpump.translators;
 
-import com.google.common.collect.Lists;
 
-import java.util.Iterator;
+import com.google.common.base.Predicate;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
+
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 
-import org.apache.beam.runners.core.DoFnRunner;
-import org.apache.beam.runners.core.DoFnRunners;
-import org.apache.beam.runners.gearpump.GearpumpPipelineOptions;
-import org.apache.beam.runners.gearpump.translators.utils.DoFnRunnerFactory;
-import org.apache.beam.runners.gearpump.translators.utils.NoOpAggregatorFactory;
-import org.apache.beam.runners.gearpump.translators.utils.NoOpSideInputReader;
-import org.apache.beam.runners.gearpump.translators.utils.NoOpStepContext;
+import javax.annotation.Nullable;
+
+import org.apache.beam.runners.gearpump.translators.functions.DoFnFunction;
+import org.apache.beam.runners.gearpump.translators.utils.TranslatorUtils;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
-import org.apache.beam.sdk.util.SideInputReader;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.sdk.util.WindowingStrategy;
-import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
-import org.apache.beam.sdk.values.TupleTagList;
 
 import org.apache.gearpump.streaming.dsl.api.functions.FilterFunction;
-import org.apache.gearpump.streaming.dsl.api.functions.MapFunction;
 import org.apache.gearpump.streaming.dsl.javaapi.JavaStream;
-import org.apache.gearpump.streaming.dsl.javaapi.functions.FlatMapFunction;
 
 /**
  * {@link ParDo.BoundMulti} is translated to Gearpump flatMap function
- * with {@link DoFn} wrapped in {@link DoFnMultiFunction}. The outputs are
+ * with {@link DoFn} wrapped in {@link DoFnFunction}. The outputs are
  * further filtered with Gearpump filter function by output tag
  */
 @SuppressWarnings({"rawtypes", "unchecked"})
 public class ParDoBoundMultiTranslator<InputT, OutputT> implements
     TransformTranslator<ParDo.BoundMulti<InputT, OutputT>> {
 
+  private static final long serialVersionUID = -6023461558200028849L;
+
   @Override
   public void translate(ParDo.BoundMulti<InputT, OutputT> transform, TranslationContext context) {
     PCollection<InputT> inputT = (PCollection<InputT>) context.getInput(transform);
     JavaStream<WindowedValue<InputT>> inputStream = context.getInputStream(inputT);
+    Collection<PCollectionView<?>> sideInputs = transform.getSideInputs();
+    Map<String, PCollectionView<?>> tagsToSideInputs =
+        TranslatorUtils.getTagsToSideInputs(sideInputs);
+
     Map<TupleTag<?>, PCollection<?>> outputs = context.getOutput(transform).getAll();
+    final TupleTag<OutputT> mainOutput = transform.getMainOutputTag();
+    List<TupleTag<?>> sideOutputs = Lists.newLinkedList(Sets.filter(outputs.keySet(),
+        new Predicate<TupleTag<?>>() {
+          @Override
+          public boolean apply(@Nullable TupleTag<?> tupleTag) {
+            return tupleTag != null && !tupleTag.getId().equals(mainOutput.getId());
+          }
+        }));
 
-    JavaStream<WindowedValue<KV<TupleTag<OutputT>, OutputT>>> outputStream = inputStream.flatMap(
-        new DoFnMultiFunction<>(
-            context.getPipelineOptions(),
-            transform.getFn(),
-            transform.getMainOutputTag(),
-            transform.getSideOutputTags(),
-            inputT.getWindowingStrategy(),
-            new NoOpSideInputReader()
-        ), transform.getName());
-    for (Map.Entry<TupleTag<?>, PCollection<?>> output : outputs.entrySet()) {
+    JavaStream<TranslatorUtils.RawUnionValue> unionStream = TranslatorUtils.withSideInputStream(
+        context, inputStream, tagsToSideInputs);
+
+    JavaStream<TranslatorUtils.RawUnionValue> outputStream =
+        TranslatorUtils.toList(unionStream).flatMap(
+            new DoFnFunction<>(
+                context.getPipelineOptions(),
+                transform.getFn(),
+                inputT.getWindowingStrategy(),
+                sideInputs,
+                tagsToSideInputs,
+                mainOutput,
+                sideOutputs), transform.getName());
+    for (Map.Entry<TupleTag<?>, PCollection<?>> output: outputs.entrySet()) {
+      output.getValue().getCoder();
       JavaStream<WindowedValue<OutputT>> taggedStream = outputStream
-          .filter(new FilterByOutputTag<>((TupleTag<OutputT>) output.getKey())
-              , "filter_by_output_tag")
-          .map(new ExtractOutput<OutputT>(), "extract output");
-
+          .filter(new FilterByOutputTag(output.getKey().getId()),
+              "filter_by_output_tag")
+          .map(new TranslatorUtils.FromRawUnionValue<OutputT>(), "from_RawUnionValue");
       context.setOutputStream(output.getValue(), taggedStream);
     }
   }
 
-  /**
-   * Gearpump {@link FlatMapFunction} wrapper over Beam {@link DoFnMultiFunction}.
-   */
-  private static class DoFnMultiFunction<InputT, OutputT>
-    extends FlatMapFunction<WindowedValue<InputT>, WindowedValue<KV<TupleTag<OutputT>, OutputT>>>
-    implements DoFnRunners.OutputManager {
+  private static class FilterByOutputTag extends FilterFunction<TranslatorUtils.RawUnionValue> {
 
-    private final DoFnRunnerFactory<InputT, OutputT> doFnRunnerFactory;
-    private DoFnRunner<InputT, OutputT> doFnRunner;
-    private final DoFn<InputT, OutputT> doFn;
-    private List<WindowedValue<KV<TupleTag<OutputT>, OutputT>>> outputs;
+    private static final long serialVersionUID = 7276155265895637526L;
+    private final String tag;
 
-    public DoFnMultiFunction(
-        GearpumpPipelineOptions pipelineOptions,
-        DoFn<InputT, OutputT> doFn,
-        TupleTag<OutputT> mainOutputTag,
-        TupleTagList sideOutputTags,
-        WindowingStrategy<?, ?> windowingStrategy,
-        SideInputReader sideInputReader) {
-      this.doFn = doFn;
-      this.doFnRunnerFactory = new DoFnRunnerFactory<>(
-          pipelineOptions,
-          doFn,
-          sideInputReader,
-          this,
-          mainOutputTag,
-          sideOutputTags.getAll(),
-          new NoOpStepContext(),
-          new NoOpAggregatorFactory(),
-          windowingStrategy
-      );
+    FilterByOutputTag(String tag) {
+      this.tag = tag;
     }
 
     @Override
-    public void setup() {
-      DoFnInvokers.invokerFor(doFn).invokeSetup();
-    }
-
-    @Override
-    public void teardown() {
-      DoFnInvokers.invokerFor(doFn).invokeTeardown();
-    }
-
-    @Override
-    public Iterator<WindowedValue<KV<TupleTag<OutputT>, OutputT>>> apply(WindowedValue<InputT> wv) {
-      outputs = Lists.newArrayList();
-
-      if (null == doFnRunner) {
-        doFnRunner = doFnRunnerFactory.createRunner();
-      }
-      doFnRunner.startBundle();
-      doFnRunner.processElement(wv);
-      doFnRunner.finishBundle();
-
-      return outputs.iterator();
-    }
-
-    @Override
-    public <T> void output(TupleTag<T> tag, WindowedValue<T> output) {
-      KV<TupleTag<OutputT>, OutputT> kv = KV.of((TupleTag<OutputT>) tag,
-          (OutputT) output.getValue());
-      outputs.add(WindowedValue.of(kv, output.getTimestamp(),
-          output.getWindows(), output.getPane()));
-    }
-  }
-
-  private static class FilterByOutputTag<OutputT> extends
-      FilterFunction<WindowedValue<KV<TupleTag<OutputT>, OutputT>>> {
-
-    private final TupleTag<OutputT> tupleTag;
-
-    public FilterByOutputTag(TupleTag<OutputT> tupleTag) {
-      this.tupleTag = tupleTag;
-    }
-
-    @Override
-    public boolean apply(WindowedValue<KV<TupleTag<OutputT>, OutputT>> wv) {
-      return wv.getValue().getKey().equals(tupleTag);
-    }
-  }
-
-  private static class ExtractOutput<OutputT> extends
-      MapFunction<WindowedValue<KV<TupleTag<OutputT>, OutputT>>, WindowedValue<OutputT>> {
-
-    @Override
-    public WindowedValue<OutputT> apply(WindowedValue<KV<TupleTag<OutputT>, OutputT>> wv) {
-      // System.out.println(wv.getValue().getKey() + ":" + wv.getValue().getValue());
-      return WindowedValue.of(wv.getValue().getValue(), wv.getTimestamp(),
-          wv.getWindows(), wv.getPane());
+    public boolean filter(TranslatorUtils.RawUnionValue value) {
+      return value.getUnionTag().equals(tag);
     }
   }
 }

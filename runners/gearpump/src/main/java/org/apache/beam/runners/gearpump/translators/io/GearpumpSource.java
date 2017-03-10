@@ -28,10 +28,13 @@ import org.apache.beam.runners.gearpump.translators.utils.TranslatorUtils;
 import org.apache.beam.sdk.io.Source;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.options.PipelineOptions;
+// import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 
 import org.apache.gearpump.Message;
 import org.apache.gearpump.streaming.source.DataSource;
+import org.apache.gearpump.streaming.source.Watermark;
 import org.apache.gearpump.streaming.task.TaskContext;
 
 /**
@@ -74,11 +77,11 @@ public abstract class GearpumpSource<T> implements DataSource {
       if (available) {
         T data = reader.getCurrent();
         org.joda.time.Instant timestamp = reader.getCurrentTimestamp();
-        available = reader.advance();
         message = Message.apply(
-            WindowedValue.valueInGlobalWindow(data),
+            WindowedValue.timestampedValueInGlobalWindow(data, timestamp),
             timestamp.getMillis());
       }
+      available = reader.advance();
     } catch (Exception e) {
       close();
       throw new RuntimeException(e);
@@ -100,11 +103,19 @@ public abstract class GearpumpSource<T> implements DataSource {
   @Override
   public Instant getWatermark() {
     if (reader instanceof UnboundedSource.UnboundedReader) {
-      return TranslatorUtils.jodaTimeToJava8Time(
-          ((UnboundedSource.UnboundedReader) reader).getWatermark());
+      org.joda.time.Instant watermark =
+          ((UnboundedSource.UnboundedReader) reader).getWatermark();
+      if (watermark == BoundedWindow.TIMESTAMP_MAX_VALUE) {
+        return Watermark.MAX();
+      } else {
+        return TranslatorUtils.jodaTimeToJava8Time(watermark);
+      }
     } else {
-      return Instant.now();
+      if (available) {
+        return TranslatorUtils.jodaTimeToJava8Time(reader.getCurrentTimestamp());
+      } else {
+        return Watermark.MAX();
+      }
     }
   }
-
 }

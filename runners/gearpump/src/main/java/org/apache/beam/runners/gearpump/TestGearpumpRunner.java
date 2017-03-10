@@ -18,8 +18,9 @@
 
 package org.apache.beam.runners.gearpump;
 
+import com.typesafe.config.Config;
+import com.typesafe.config.ConfigValueFactory;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsValidator;
 import org.apache.beam.sdk.runners.PipelineRunner;
@@ -27,7 +28,9 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
 
+import org.apache.gearpump.cluster.ClusterConfig;
 import org.apache.gearpump.cluster.embedded.EmbeddedCluster;
+import org.apache.gearpump.util.Constants;
 
 /**
  * Gearpump {@link PipelineRunner} for tests, which uses {@link EmbeddedCluster}.
@@ -38,7 +41,10 @@ public class TestGearpumpRunner extends PipelineRunner<GearpumpPipelineResult> {
   private final EmbeddedCluster cluster;
 
   private TestGearpumpRunner(GearpumpPipelineOptions options) {
-    cluster = EmbeddedCluster.apply();
+    Config config = ClusterConfig.master(null);
+    config = config.withValue(Constants.APPLICATION_TOTAL_RETRIES(),
+      ConfigValueFactory.fromAnyRef(0));
+    cluster = new EmbeddedCluster(config);
     cluster.start();
     options.setEmbeddedCluster(cluster);
     delegate = GearpumpRunner.fromOptions(options);
@@ -52,12 +58,31 @@ public class TestGearpumpRunner extends PipelineRunner<GearpumpPipelineResult> {
 
   @Override
   public GearpumpPipelineResult run(Pipeline pipeline) {
-    GearpumpPipelineResult result = delegate.run(pipeline);
-    PipelineResult.State state = result.waitUntilFinish();
-    cluster.stop();
-    assert(state == PipelineResult.State.DONE);
+    try {
+      GearpumpPipelineResult result = delegate.run(pipeline);
+      result.waitUntilFinish();
+      cluster.stop();
+      return result;
+    } catch (Throwable e) {
+      // copied from TestFlinkRunner to pull out AssertionError
+      // which is wrapped in UserCodeException
+      Throwable cause = e;
+      Throwable oldCause;
+      do {
+        if (cause.getCause() == null) {
+          break;
+        }
 
-    return result;
+        oldCause = cause;
+        cause = cause.getCause();
+
+      } while (!oldCause.equals(cause));
+      if (cause instanceof AssertionError) {
+        throw (AssertionError) cause;
+      } else {
+        throw e;
+      }
+    }
   }
 
   @Override
