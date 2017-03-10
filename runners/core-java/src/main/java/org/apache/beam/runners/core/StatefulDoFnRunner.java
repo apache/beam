@@ -17,12 +17,8 @@
  */
 package org.apache.beam.runners.core;
 
-import java.util.Map;
-import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
-import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.NonMergingWindowFn;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
@@ -30,8 +26,6 @@ import org.apache.beam.sdk.util.TimeDomain;
 import org.apache.beam.sdk.util.WindowTracing;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowingStrategy;
-import org.apache.beam.sdk.util.state.State;
-import org.apache.beam.sdk.util.state.StateSpec;
 import org.joda.time.Instant;
 
 /**
@@ -45,7 +39,6 @@ import org.joda.time.Instant;
 public class StatefulDoFnRunner<InputT, OutputT, W extends BoundedWindow>
     implements DoFnRunner<InputT, OutputT> {
 
-  public static final String GC_TIMER_ID = "__StatefulParDoGcTimerId";
   public static final String DROPPED_DUE_TO_LATENESS_COUNTER = "StatefulParDoDropped";
 
   private final DoFnRunner<InputT, OutputT> doFnRunner;
@@ -167,84 +160,4 @@ public class StatefulDoFnRunner<InputT, OutputT, W extends BoundedWindow>
 
     void clearForWindow(W window);
   }
-
-  /**
-   * A {@link CleanupTimer} implemented by TimerInternals.
-   */
-  public static class TimeInternalsCleanupTimer implements CleanupTimer {
-
-    private final TimerInternals timerInternals;
-    private final WindowingStrategy<?, ?> windowingStrategy;
-    private final Coder<BoundedWindow> windowCoder;
-
-    public TimeInternalsCleanupTimer(
-        TimerInternals timerInternals,
-        WindowingStrategy<?, ?> windowingStrategy) {
-      this.windowingStrategy = windowingStrategy;
-      WindowFn<?, ?> windowFn = windowingStrategy.getWindowFn();
-      windowCoder = (Coder<BoundedWindow>) windowFn.windowCoder();
-      this.timerInternals = timerInternals;
-    }
-
-    @Override
-    public Instant currentInputWatermarkTime() {
-      return timerInternals.currentInputWatermarkTime();
-    }
-
-    @Override
-    public void setForWindow(BoundedWindow window) {
-      Instant gcTime = window.maxTimestamp().plus(windowingStrategy.getAllowedLateness());
-      timerInternals.setTimer(StateNamespaces.window(windowCoder, window),
-          GC_TIMER_ID, gcTime, TimeDomain.EVENT_TIME);
-    }
-
-    @Override
-    public boolean isForWindow(
-        String timerId,
-        BoundedWindow window,
-        Instant timestamp,
-        TimeDomain timeDomain) {
-      boolean isEventTimer = timeDomain.equals(TimeDomain.EVENT_TIME);
-      Instant gcTime = window.maxTimestamp().plus(windowingStrategy.getAllowedLateness());
-      return isEventTimer && GC_TIMER_ID.equals(timerId) && gcTime.equals(timestamp);
-    }
-  }
-
-  /**
-   * A {@link StateCleaner} implemented by StateInternals.
-   */
-  public static class StateInternalsStateCleaner<W extends BoundedWindow>
-      implements StateCleaner<W> {
-
-    private final DoFn<?, ?> fn;
-    private final DoFnSignature signature;
-    private final StateInternals<?> stateInternals;
-    private final Coder<W> windowCoder;
-
-    public StateInternalsStateCleaner(
-        DoFn<?, ?> fn,
-        StateInternals<?> stateInternals,
-        Coder<W> windowCoder) {
-      this.fn = fn;
-      this.signature = DoFnSignatures.getSignature(fn.getClass());
-      this.stateInternals = stateInternals;
-      this.windowCoder = windowCoder;
-    }
-
-    @Override
-    public void clearForWindow(W window) {
-      for (Map.Entry<String, DoFnSignature.StateDeclaration> entry :
-          signature.stateDeclarations().entrySet()) {
-        try {
-          StateSpec<?, ?> spec = (StateSpec<?, ?>) entry.getValue().field().get(fn);
-          State state = stateInternals.state(StateNamespaces.window(windowCoder, window),
-              StateTags.tagForSpec(entry.getKey(), (StateSpec) spec));
-          state.clear();
-        } catch (IllegalAccessException e) {
-          throw new RuntimeException(e);
-        }
-      }
-    }
-  }
-
 }

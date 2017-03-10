@@ -21,9 +21,6 @@ import java.util.List;
 import org.apache.beam.runners.core.ExecutionContext.StepContext;
 import org.apache.beam.runners.core.StatefulDoFnRunner.CleanupTimer;
 import org.apache.beam.runners.core.StatefulDoFnRunner.StateCleaner;
-import org.apache.beam.runners.core.StatefulDoFnRunner.StateInternalsStateCleaner;
-import org.apache.beam.runners.core.StatefulDoFnRunner.TimeInternalsCleanupTimer;
-import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -135,17 +132,12 @@ public class DoFnRunners {
           DoFnRunner<InputT, OutputT> doFnRunner,
           StepContext stepContext,
           AggregatorFactory aggregatorFactory,
-          WindowingStrategy<?, ?> windowingStrategy) {
+          WindowingStrategy<?, ?> windowingStrategy,
+          CleanupTimer cleanupTimer,
+          StateCleaner<W> stateCleaner) {
     Aggregator<Long, Long> droppedDueToLateness = aggregatorFactory.createAggregatorForDoFn(
         fn.getClass(), stepContext, StatefulDoFnRunner.DROPPED_DUE_TO_LATENESS_COUNTER,
         Sum.ofLongs());
-
-    CleanupTimer cleanupTimer =
-        new TimeInternalsCleanupTimer(stepContext.timerInternals(), windowingStrategy);
-
-    Coder<W> windowCoder = (Coder<W>) windowingStrategy.getWindowFn().windowCoder();
-    StateCleaner<W> stateCleaner =
-        new StateInternalsStateCleaner<>(fn, stepContext.stateInternals(), windowCoder);
 
     return new StatefulDoFnRunner<>(
         doFnRunner,
@@ -154,5 +146,4 @@ public class DoFnRunners {
         stateCleaner,
         droppedDueToLateness);
   }
-
 }
