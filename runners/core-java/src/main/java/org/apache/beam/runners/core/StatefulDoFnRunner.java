@@ -17,12 +17,8 @@
  */
 package org.apache.beam.runners.core;
 
-import java.util.Map;
-import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
-import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.NonMergingWindowFn;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
@@ -30,8 +26,6 @@ import org.apache.beam.sdk.util.TimeDomain;
 import org.apache.beam.sdk.util.WindowTracing;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowingStrategy;
-import org.apache.beam.sdk.util.state.State;
-import org.apache.beam.sdk.util.state.StateSpec;
 import org.joda.time.Instant;
 
 /**
@@ -45,7 +39,6 @@ import org.joda.time.Instant;
 public class StatefulDoFnRunner<InputT, OutputT, W extends BoundedWindow>
     implements DoFnRunner<InputT, OutputT> {
 
-  public static final String GC_TIMER_ID = "__StatefulParDoGcTimerId";
   public static final String DROPPED_DUE_TO_LATENESS_COUNTER = "StatefulParDoDropped";
 
   private final DoFnRunner<InputT, OutputT> doFnRunner;
@@ -83,45 +76,50 @@ public class StatefulDoFnRunner<InputT, OutputT, W extends BoundedWindow>
   }
 
   @Override
-  public void processElement(WindowedValue<InputT> compressedElem) {
+  public void processElement(WindowedValue<InputT> input) {
 
     // StatefulDoFnRunner always observes windows, so we need to explode
-    for (WindowedValue<InputT> value : compressedElem.explodeWindows()) {
+    for (WindowedValue<InputT> value : input.explodeWindows()) {
 
       BoundedWindow window = value.getWindows().iterator().next();
 
-      if (!dropLateData(window)) {
+      if (isLate(window)) {
+        // The element is too late for this window.
+        droppedDueToLateness.addValue(1L);
+        WindowTracing.debug(
+            "StatefulDoFnRunner.processElement: Dropping element at {}; window:{} "
+                + "since too far behind inputWatermark:{}",
+            input.getTimestamp(), window, cleanupTimer.currentInputWatermarkTime());
+      } else {
         cleanupTimer.setForWindow(window);
         doFnRunner.processElement(value);
       }
     }
   }
 
-  private boolean dropLateData(BoundedWindow window) {
+  private boolean isLate(BoundedWindow window) {
     Instant gcTime = window.maxTimestamp().plus(windowingStrategy.getAllowedLateness());
     Instant inputWM = cleanupTimer.currentInputWatermarkTime();
-    if (gcTime.isBefore(inputWM)) {
-      // The element is too late for this window.
-      droppedDueToLateness.addValue(1L);
-      WindowTracing.debug(
-          "StatefulDoFnRunner.processElement/onTimer: Dropping element for window:{} "
-              + "since too far behind inputWatermark:{}", window, inputWM);
-      return true;
-    } else {
-      return false;
-    }
+    return gcTime.isBefore(inputWM);
   }
 
   @Override
   public void onTimer(
       String timerId, BoundedWindow window, Instant timestamp, TimeDomain timeDomain) {
-    boolean isEventTimer = timeDomain.equals(TimeDomain.EVENT_TIME);
-    Instant gcTime = window.maxTimestamp().plus(windowingStrategy.getAllowedLateness());
-    if (isEventTimer && GC_TIMER_ID.equals(timerId) && gcTime.equals(timestamp)) {
+    if (cleanupTimer.isForWindow(timerId, window, timestamp, timeDomain)) {
       stateCleaner.clearForWindow(window);
       // There should invoke the onWindowExpiration of DoFn
     } else {
-      if (isEventTimer || !dropLateData(window)) {
+      // An event-time timer can never be late because we don't allow setting timers after GC time.
+      // Ot can happen that a processing-time time fires for a late window, we need to ignore
+      // this.
+      if (!timeDomain.equals(TimeDomain.EVENT_TIME) && isLate(window)) {
+        // don't increment the dropped counter, only do that for elements
+        WindowTracing.debug(
+            "StatefulDoFnRunner.onTimer: Ignoring processing-time timer at {}; window:{} "
+                + "since window is too far behind inputWatermark:{}",
+            timestamp, window, cleanupTimer.currentInputWatermarkTime());
+      } else {
         doFnRunner.onTimer(timerId, window, timestamp, timeDomain);
       }
     }
@@ -151,6 +149,16 @@ public class StatefulDoFnRunner<InputT, OutputT, W extends BoundedWindow>
      * Set the garbage collect time of the window to timer.
      */
     void setForWindow(BoundedWindow window);
+
+    /**
+     * Checks whether the given timer is a cleanup timer for the window.
+     */
+    boolean isForWindow(
+        String timerId,
+        BoundedWindow window,
+        Instant timestamp,
+        TimeDomain timeDomain);
+
   }
 
   /**
@@ -160,74 +168,4 @@ public class StatefulDoFnRunner<InputT, OutputT, W extends BoundedWindow>
 
     void clearForWindow(W window);
   }
-
-  /**
-   * A {@link CleanupTimer} implemented by TimerInternals.
-   */
-  public static class TimeInternalsCleanupTimer implements CleanupTimer {
-
-    private final TimerInternals timerInternals;
-    private final WindowingStrategy<?, ?> windowingStrategy;
-    private final Coder<BoundedWindow> windowCoder;
-
-    public TimeInternalsCleanupTimer(
-        TimerInternals timerInternals,
-        WindowingStrategy<?, ?> windowingStrategy) {
-      this.windowingStrategy = windowingStrategy;
-      WindowFn<?, ?> windowFn = windowingStrategy.getWindowFn();
-      windowCoder = (Coder<BoundedWindow>) windowFn.windowCoder();
-      this.timerInternals = timerInternals;
-    }
-
-    @Override
-    public Instant currentInputWatermarkTime() {
-      return timerInternals.currentInputWatermarkTime();
-    }
-
-    @Override
-    public void setForWindow(BoundedWindow window) {
-      Instant gcTime = window.maxTimestamp().plus(windowingStrategy.getAllowedLateness());
-      timerInternals.setTimer(StateNamespaces.window(windowCoder, window),
-          GC_TIMER_ID, gcTime, TimeDomain.EVENT_TIME);
-    }
-
-  }
-
-  /**
-   * A {@link StateCleaner} implemented by StateInternals.
-   */
-  public static class StateInternalsStateCleaner<W extends BoundedWindow>
-      implements StateCleaner<W> {
-
-    private final DoFn<?, ?> fn;
-    private final DoFnSignature signature;
-    private final StateInternals<?> stateInternals;
-    private final Coder<W> windowCoder;
-
-    public StateInternalsStateCleaner(
-        DoFn<?, ?> fn,
-        StateInternals<?> stateInternals,
-        Coder<W> windowCoder) {
-      this.fn = fn;
-      this.signature = DoFnSignatures.getSignature(fn.getClass());
-      this.stateInternals = stateInternals;
-      this.windowCoder = windowCoder;
-    }
-
-    @Override
-    public void clearForWindow(W window) {
-      for (Map.Entry<String, DoFnSignature.StateDeclaration> entry :
-          signature.stateDeclarations().entrySet()) {
-        try {
-          StateSpec<?, ?> spec = (StateSpec<?, ?>) entry.getValue().field().get(fn);
-          State state = stateInternals.state(StateNamespaces.window(windowCoder, window),
-              StateTags.tagForSpec(entry.getKey(), (StateSpec) spec));
-          state.clear();
-        } catch (IllegalAccessException e) {
-          throw new RuntimeException(e);
-        }
-      }
-    }
-  }
-
 }
