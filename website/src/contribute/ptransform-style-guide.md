@@ -41,7 +41,7 @@ Do not:
 
 Do:
 
-* Respect language-specific naming conventions, e.g. name classes in `CamelCase` in Java and Python, functions in `snakeCase` in Java but `with_underscores` in Python, etc.
+* Respect language-specific naming conventions, e.g. name classes in `PascalCase` in Java and Python, functions in `camelCase` in Java but `snake_case` in Python, etc.
 * Name factory functions so that either the function name is a verb, or referring to the transform reads like a verb: e.g. `MongoDbIO.read()`, `Flatten.iterables()`.
 * In typed languages, name `PTransform` classes also like verbs (e.g.: `MongoDbIO.Read`, `Flatten.Iterables`).
 * Name families of transforms for interacting with a storage system using the word "IO": `MongoDbIO`, `JdbcIO`.
