@@ -77,7 +77,10 @@ echo "mock" >> postcommit_requirements.txt
 # Run ValidatesRunner tests on Google Cloud Dataflow service
 echo ">>> RUNNING DATAFLOW RUNNER VALIDATESRUNNER TESTS"
 python setup.py nosetests \
-  -a ValidatesRunner --test-pipeline-options=" \
+  -a ValidatesRunner \
+  --processes=4 \
+  --process-timeout=600 \
+  --test-pipeline-options=" \
     --runner=TestDataflowRunner \
     --project=$PROJECT \
     --staging_location=$GCS_LOCATION/staging-validatesrunner-test \
@@ -91,7 +94,8 @@ python setup.py nosetests \
 # and validate job that finishes successfully.
 echo ">>> RUNNING TEST DATAFLOW RUNNER py-wordcount"
 python setup.py nosetests \
-  -a IT --test-pipeline-options=" \
+  -a IT \
+  --test-pipeline-options=" \
     --runner=TestDataflowRunner \
     --project=$PROJECT \
     --staging_location=$GCS_LOCATION/staging-wordcount \

@@ -29,6 +29,8 @@ from apache_beam.transforms.util import assert_that, equal_to
 
 
 class SideInputsTest(unittest.TestCase):
+  # Enable ValidatesRunner tests running in parallel
+  _multiprocess_can_split_ = True
 
   def create_pipeline(self):
     return TestPipeline()
