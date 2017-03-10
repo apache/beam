@@ -752,11 +752,6 @@ public class GcsUtil {
 
       @Override
       public void onFailure(GoogleJsonError e, HttpHeaders responseHeaders) throws IOException {
-        if (errorExtractor.itemNotFound(e)) {
-          // Do nothing on item not found.
-          LOG.debug("{} does not exist, assuming this is a retry after deletion.", from);
-          return;
-        }
         throw new IOException(
             String.format("Error trying to copy %s to %s: %s", from, to, e));
       }
@@ -774,11 +769,6 @@ public class GcsUtil {
 
       @Override
       public void onFailure(GoogleJsonError e, HttpHeaders responseHeaders) throws IOException {
-        if (errorExtractor.itemNotFound(e)) {
-          // Do nothing on item not found.
-          LOG.debug("{} does not exist.", file);
-          return;
-        }
         throw new IOException(String.format("Error trying to delete %s: %s", file, e));
       }
     });
