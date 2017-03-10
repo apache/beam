@@ -34,7 +34,8 @@ EXCLUDED_GENERATED_FILES=(
 "apache_beam/runners/dataflow/internal/clients/dataflow/dataflow_v1b3_messages.py"
 "apache_beam/io/gcp/internal/clients/storage/storage_v1_client.py"
 "apache_beam/io/gcp/internal/clients/storage/storage_v1_messages.py"
-"apache_beam/coders/proto2_coder_test_messages_pb2.py")
+"apache_beam/coders/proto2_coder_test_messages_pb2.py"
+"apache_beam/runners/api/beam_runner_api_pb2.py")
 
 FILES_TO_IGNORE=""
 for file in "${EXCLUDED_GENERATED_FILES[@]}"; do

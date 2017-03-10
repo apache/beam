@@ -27,6 +27,7 @@ from apache_beam import pvalue
 from apache_beam import typehints
 from apache_beam.coders import typecoders
 from apache_beam.internal import util
+from apache_beam.runners.api import beam_runner_api_pb2
 from apache_beam.transforms import ptransform
 from apache_beam.transforms.display import HasDisplayData, DisplayDataItem
 from apache_beam.transforms.ptransform import PTransform
@@ -48,6 +49,7 @@ from apache_beam.typehints import Union
 from apache_beam.typehints import WithTypeHints
 from apache_beam.typehints.trivial_inference import element_type
 from apache_beam.utils.pipeline_options import TypeOptions
+
 
 # Type variables
 T = typehints.TypeVariable('T')
@@ -1207,8 +1209,45 @@ class Windowing(object):
                                           self.accumulation_mode,
                                           self.output_time_fn)
 
+  def __eq__(self, other):
+    if type(self) == type(other):
+      if self._is_default and other._is_default:
+        return True
+      else:
+        return (
+            self.windowfn == other.windowfn
+            and self.triggerfn == other.triggerfn
+            and self.accumulation_mode == other.accumulation_mode
+            and self.output_time_fn == other.output_time_fn)
+
   def is_default(self):
     return self._is_default
+
+  def to_runner_api(self, context):
+    return beam_runner_api_pb2.WindowingStrategy(
+        window_fn=self.windowfn.to_runner_api(context),
+        # TODO(robertwb): Prohibit implicit multi-level merging.
+        merge_status=(beam_runner_api_pb2.NEEDS_MERGE
+                      if self.windowfn.is_merging()
+                      else beam_runner_api_pb2.NON_MERGING),
+        window_coder_id=context.coders.get_id(
+            self.windowfn.get_window_coder()),
+        trigger=self.triggerfn.to_runner_api(context),
+        accumulation_mode=self.accumulation_mode,
+        output_time=self.output_time_fn,
+        # TODO(robertwb): Support EMIT_IF_NONEMPTY
+        closing_behavior=beam_runner_api_pb2.EMIT_ALWAYS,
+        allowed_lateness=0)
+
+  @staticmethod
+  def from_runner_api(proto, context):
+    # pylint: disable=wrong-import-order, wrong-import-position
+    from apache_beam.transforms.trigger import TriggerFn
+    return Windowing(
+        windowfn=WindowFn.from_runner_api(proto.window_fn, context),
+        triggerfn=TriggerFn.from_runner_api(proto.trigger, context),
+        accumulation_mode=proto.accumulation_mode,
+        output_time_fn=proto.output_time)
 
 
 @typehints.with_input_types(T)
