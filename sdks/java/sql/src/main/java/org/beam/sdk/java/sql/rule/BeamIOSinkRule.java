@@ -43,6 +43,7 @@ public class BeamIOSinkRule extends ConverterRule {
     final Table table = tableModify.getTable().unwrap(Table.class);
 
     switch (table.getJdbcTableType()) {
+    case TABLE:
     case STREAM:
       if (operation != TableModify.Operation.INSERT) {
         throw new UnsupportedOperationException(

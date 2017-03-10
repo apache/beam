@@ -23,7 +23,7 @@ public class BeamIOSourceRel extends TableScan implements BeamRelNode {
 
     String sourceName = Joiner.on('.').join(getTable().getQualifiedName()).replace(".(STREAM)", "");
 
-    BaseBeamTable sourceTable = planCreator.getKafkaTables().get(sourceName);
+    BaseBeamTable sourceTable = planCreator.getSourceTables().get(sourceName);
 
     String stageName = BeamSQLRelUtils.getStageName(this);
 

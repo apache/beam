@@ -14,6 +14,7 @@ import org.apache.beam.sdk.io.kafka.KafkaRecord;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.beam.sdk.java.sql.schema.BeamSQLRecordType;
 import org.beam.sdk.java.sql.schema.BeamSQLRow;
@@ -23,7 +24,11 @@ import io.ebay.rheos.schema.avro.RheosEventDeserializer;
 import io.ebay.rheos.schema.avro.SchemaRegistryAwareAvroDeserializerHelper;
 import io.ebay.rheos.schema.event.RheosEvent;
 
-public class RheosSourceTransform extends PTransform<PCollection<KafkaRecord<byte[], byte[]>>, PCollection<BeamSQLRow>>{
+public class RheosSourceTransform extends PTransform<PCollection<KV<byte[], byte[]>>, PCollection<BeamSQLRow>>{
+  /**
+   * 
+   */
+  private static final long serialVersionUID = -7803885128685230359L;
   private BeamSQLRecordType recordType;
   
 
@@ -34,8 +39,8 @@ public class RheosSourceTransform extends PTransform<PCollection<KafkaRecord<byt
 
 
   @Override
-  public PCollection<BeamSQLRow> expand(PCollection<KafkaRecord<byte[], byte[]>> input) {
-    return input.apply("soureDecode", ParDo.of(new DoFn<KafkaRecord<byte[], byte[]>, BeamSQLRow>(){
+  public PCollection<BeamSQLRow> expand(PCollection<KV<byte[], byte[]>> input) {
+    return input.apply("soureDecode", ParDo.of(new DoFn<KV<byte[], byte[]>, BeamSQLRow>(){
       transient RheosEventDeserializer rheosDeserializer;
       transient SchemaRegistryAwareAvroDeserializerHelper<GenericRecord> deserializerHelper;
       
@@ -52,7 +57,7 @@ public class RheosSourceTransform extends PTransform<PCollection<KafkaRecord<byt
       
       @ProcessElement
       public void processElement(ProcessContext c) throws IOException {
-        byte[] rawBytes = c.element().getKV().getValue();
+        byte[] rawBytes = c.element().getValue();
         RheosEvent event = rheosDeserializer.deserialize("", rawBytes);
 
         DatumReader<GenericRecord> reader = new GenericDatumReader<GenericRecord>(

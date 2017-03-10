@@ -32,7 +32,7 @@ import org.beam.sdk.java.sql.schema.kafka.BeamKafkaTable;
 
 import com.google.common.collect.ImmutableList;
 
-public class BeamSqlExample implements Serializable{
+public class BeamSqlExample implements Serializable {
   private final JavaTypeFactory typeFactory = new JavaTypeFactoryImpl(RelDataTypeSystem.DEFAULT);
   private final SchemaPlus schema = Frameworks.createRootSchema(true);
 
@@ -59,12 +59,12 @@ public class BeamSqlExample implements Serializable{
   public static void main(String[] args) throws IOException, SQLException {
     BeamSqlExample runner = new BeamSqlExample();
     runner.initTables();
-    
+
     // case 2: insert into <table>(<fields>) select STREAM <fields> from
     // <table> from <clause>
-    String sql = "SELECT " + " SITEID, PAGEID as new_pageId " + "FROM SOJ_EVENT "
-        + "WHERE SITEID > 0 ";
-    
+    String sql = "INSERT INTO subrowverevent(SITEID, PAGEID) " + "SELECT "
+        + " SITEID, PAGEID as new_pageId " + "FROM SOJ_EVENT " + "WHERE SITEID > 0 ";
+
     runner.explainAndRun(sql);
   }
 
@@ -81,31 +81,32 @@ public class BeamSqlExample implements Serializable{
       public RelDataType apply(RelDataTypeFactory a0) {
         return a0.builder().add("EVENTTIMESTAMP", SqlTypeName.TIMESTAMP)
             .add("ITEMID", SqlTypeName.BIGINT).add("SITEID", SqlTypeName.INTEGER)
-            .add("PAGEID", SqlTypeName.INTEGER).add("PAGENAME", SqlTypeName.VARCHAR)
-            .build();
+            .add("PAGEID", SqlTypeName.INTEGER).add("PAGENAME", SqlTypeName.VARCHAR).build();
       }
     };
     Direction dir = Direction.ASCENDING;
     RelFieldCollation collation = new RelFieldCollation(0, dir, NullDirection.UNSPECIFIED);
     Statistic stat = Statistics.of(5, ImmutableList.of(ImmutableBitSet.of(0)),
         ImmutableList.of(RelCollations.of(collation)));
-    
-    stat = Statistics.of(100d,
-        ImmutableList.<ImmutableBitSet>of(),
-RelCollations.createSingleton(0));
-    
+
+    stat = Statistics.of(100d, ImmutableList.<ImmutableBitSet>of(),
+        RelCollations.createSingleton(0));
+
     stat = Statistics.UNKNOWN;
-    
+
     Map<String, Object> consumerPara = new HashMap<String, Object>();
     consumerPara.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "latest"); // latest
     // or
     // earliest
     consumerPara.put(ConsumerConfig.GROUP_ID_CONFIG, "toraframeworktest_sojeventproxy");
     consumerPara.put(ConsumerConfig.CLIENT_ID_CONFIG, "107b877c-2694-4298-beed-9007f54602aa");
-    
+
     addTable(tableName,
-        new BeamKafkaTable(protoRowType, new RheosSourceTransform(BeamSQLRecordType.from(protoRowType.apply(new JavaTypeFactoryImpl()))), null, bootstrapServer, Arrays.asList(topic))
-          .updateConsumerProperties(consumerPara)
-          );
+        new BeamKafkaTable(protoRowType,
+            new RheosSourceTransform(
+                BeamSQLRecordType.from(protoRowType.apply(new JavaTypeFactoryImpl()))),
+            new RheosSinkTransform(
+                BeamSQLRecordType.from(protoRowType.apply(new JavaTypeFactoryImpl()))),
+            bootstrapServer, Arrays.asList(topic)).updateConsumerProperties(consumerPara));
   }
 }

@@ -2,6 +2,7 @@ package org.beam.sdk.java.sql.schema.kafka;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
+import java.io.Serializable;
 import java.util.List;
 import java.util.Map;
 
@@ -16,11 +17,13 @@ import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.calcite.rel.type.RelProtoDataType;
+import org.beam.sdk.java.sql.examples.RheosSinkTransform;
+import org.beam.sdk.java.sql.examples.RheosSourceTransform;
 import org.beam.sdk.java.sql.schema.BaseBeamTable;
 import org.beam.sdk.java.sql.schema.BeamIOType;
 import org.beam.sdk.java.sql.schema.BeamSQLRow;
 
-public class BeamKafkaTable extends BaseBeamTable<KafkaRecord<byte[], byte[]>> {
+public class BeamKafkaTable extends BaseBeamTable<KV<byte[], byte[]>> implements Serializable {
 
   /**
    * 
@@ -32,14 +35,14 @@ public class BeamKafkaTable extends BaseBeamTable<KafkaRecord<byte[], byte[]>> {
   private Map<String, Object> configUpdates;
 
   protected BeamKafkaTable(RelProtoDataType protoRowType,
-      PTransform<PCollection<KafkaRecord<byte[], byte[]>>, PCollection<BeamSQLRow>> sourceConverter,
-      PTransform<PCollection<BeamSQLRow>, PCollection<KafkaRecord<byte[], byte[]>>> sinkConcerter) {
+      PTransform<PCollection<KV<byte[], byte[]>>, PCollection<BeamSQLRow>> sourceConverter,
+      PTransform<PCollection<BeamSQLRow>, PCollection<KV<byte[], byte[]>>> sinkConcerter) {
     super(protoRowType, sourceConverter, sinkConcerter);
   }
 
   public BeamKafkaTable(RelProtoDataType protoRowType,
-      PTransform<PCollection<KafkaRecord<byte[], byte[]>>, PCollection<BeamSQLRow>> sourceConverter,
-      PTransform<PCollection<BeamSQLRow>, PCollection<KafkaRecord<byte[], byte[]>>> sinkConcerter,
+      PTransform<PCollection<KV<byte[], byte[]>>, PCollection<BeamSQLRow>> sourceConverter,
+      PTransform<PCollection<BeamSQLRow>, PCollection<KV<byte[], byte[]>>> sinkConcerter,
       String bootstrapServers, List<String> topics) {
     super(protoRowType, sourceConverter, sinkConcerter);
     this.bootstrapServers = bootstrapServers;
@@ -57,37 +60,27 @@ public class BeamKafkaTable extends BaseBeamTable<KafkaRecord<byte[], byte[]>> {
   }
 
   @Override
-  public PTransform<? super PBegin, PCollection<KafkaRecord<byte[], byte[]>>> buildReadTransform() {
+  public PTransform<? super PBegin, PCollection<KV<byte[], byte[]>>> buildReadTransform() {
     return KafkaIO.<byte[], byte[]>read().withBootstrapServers(this.bootstrapServers)
         .withTopics(this.topics).updateConsumerProperties(configUpdates)
-        .withKeyCoder(ByteArrayCoder.of()).withValueCoder(ByteArrayCoder.of());
+        .withKeyCoder(ByteArrayCoder.of()).withValueCoder(ByteArrayCoder.of())
+        .withoutMetadata();
   }
 
   @Override
-  public PTransform<? super PCollection<KafkaRecord<byte[], byte[]>>, PDone> buildWriteTransform() {
-    checkArgument(topics != null && topics.size() == 0,
+  public PTransform<? super PCollection<KV<byte[], byte[]>>, PDone> buildWriteTransform() {
+    checkArgument(topics != null && topics.size() == 1,
         "Only one topic can be acceptable as output.");
 
-    return new PTransform<PCollection<KafkaRecord<byte[], byte[]>>, PDone>() {
+    return new PTransform<PCollection<KV<byte[], byte[]>>, PDone>() {
       /**
        * 
        */
       private static final long serialVersionUID = 1136964183593770265L;
 
       @Override
-      public PDone expand(PCollection<KafkaRecord<byte[], byte[]>> input) {
-        return input.apply("toKafkaKV",
-            ParDo.of(new DoFn<KafkaRecord<byte[], byte[]>, KV<byte[], byte[]>>() {
-              /**
-               * 
-               */
-              private static final long serialVersionUID = 6265036192598208789L;
-
-              @ProcessElement
-              public void processElement(ProcessContext ctx) {
-                ctx.output(ctx.element().getKV());
-              }
-            })).apply("writeToKafka",
+      public PDone expand(PCollection<KV<byte[], byte[]>> input) {
+        return input.apply("writeToKafka",
                 KafkaIO.<byte[], byte[]>write().withBootstrapServers(bootstrapServers)
                     .withTopic(topics.get(0)).withKeyCoder(ByteArrayCoder.of())
                     .withValueCoder(ByteArrayCoder.of()));
