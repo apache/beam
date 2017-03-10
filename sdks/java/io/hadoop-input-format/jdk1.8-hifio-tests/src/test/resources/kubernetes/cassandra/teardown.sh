@@ -16,4 +16,6 @@
 #    limitations under the License.
 #
 
+kubectl delete -f cassandra_service.yml
+kubectl delete -f cassandra-peer-service.yml
 kubectl delete rc cassandra

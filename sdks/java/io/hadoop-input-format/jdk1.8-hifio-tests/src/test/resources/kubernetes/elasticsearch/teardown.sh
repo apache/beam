@@ -16,4 +16,6 @@
 #    limitations under the License.
 #
 
+kubectl delete -f es-service.yaml
+kubectl delete -f es-discovery-service.yaml
 kubectl delete deployment elasticsearch
