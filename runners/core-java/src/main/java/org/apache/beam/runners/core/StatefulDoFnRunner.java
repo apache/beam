@@ -115,15 +115,12 @@ public class StatefulDoFnRunner<InputT, OutputT, W extends BoundedWindow>
   @Override
   public void onTimer(
       String timerId, BoundedWindow window, Instant timestamp, TimeDomain timeDomain) {
-    boolean isEventTimer = timeDomain.equals(TimeDomain.EVENT_TIME);
-    Instant gcTime = window.maxTimestamp().plus(windowingStrategy.getAllowedLateness());
-    if (isEventTimer && GC_TIMER_ID.equals(timerId) && gcTime.equals(timestamp)) {
+    if (cleanupTimer.isForWindow(timerId, window, timestamp, timeDomain)) {
       stateCleaner.clearForWindow(window);
       // There should invoke the onWindowExpiration of DoFn
     } else {
-      if (isEventTimer || !dropLateData(window)) {
-        doFnRunner.onTimer(timerId, window, timestamp, timeDomain);
-      }
+      // a timer can never be late because we don't allow setting timers after GC time
+      doFnRunner.onTimer(timerId, window, timestamp, timeDomain);
     }
   }
 
@@ -151,6 +148,16 @@ public class StatefulDoFnRunner<InputT, OutputT, W extends BoundedWindow>
      * Set the garbage collect time of the window to timer.
      */
     void setForWindow(BoundedWindow window);
+
+    /**
+     * Checks whether the given timer is a cleanup timer for the window.
+     */
+    boolean isForWindow(
+        String timerId,
+        BoundedWindow window,
+        Instant timestamp,
+        TimeDomain timeDomain);
+
   }
 
   /**
@@ -191,6 +198,16 @@ public class StatefulDoFnRunner<InputT, OutputT, W extends BoundedWindow>
           GC_TIMER_ID, gcTime, TimeDomain.EVENT_TIME);
     }
 
+    @Override
+    public boolean isForWindow(
+        String timerId,
+        BoundedWindow window,
+        Instant timestamp,
+        TimeDomain timeDomain) {
+      boolean isEventTimer = timeDomain.equals(TimeDomain.EVENT_TIME);
+      Instant gcTime = window.maxTimestamp().plus(windowingStrategy.getAllowedLateness());
+      return isEventTimer && GC_TIMER_ID.equals(timerId) && gcTime.equals(timestamp);
+    }
   }
 
   /**
