@@ -75,11 +75,6 @@
                   <dependenciesToScan>
                     <dependency>org.apache.beam:beam-sdks-java-core</dependency>
                   </dependenciesToScan>
-                  <excludes>
-                    <exclude>
-                      org.apache.beam.sdk.transforms.ParDoTest
-                    </exclude>
-                  </excludes>
                   <systemPropertyVariables>
                     <beamTestPipelineOptions>
                       [
