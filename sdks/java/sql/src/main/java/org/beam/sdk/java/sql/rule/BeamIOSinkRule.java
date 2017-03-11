@@ -33,6 +33,10 @@ import org.apache.calcite.schema.Table;
 import org.beam.sdk.java.sql.rel.BeamIOSinkRel;
 import org.beam.sdk.java.sql.rel.BeamLogicalConvention;
 
+/**
+ * A {@code ConverterRule} to replace {@link TableModify} with {@link BeamIOSinkRel}.
+ *
+ */
 public class BeamIOSinkRule extends ConverterRule {
   public static final BeamIOSinkRule INSTANCE = new BeamIOSinkRule();
 

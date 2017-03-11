@@ -39,11 +39,15 @@ import org.beam.sdk.java.sql.schema.BeamSQLRecordType;
 import org.beam.sdk.java.sql.schema.BeamSQLRow;
 import org.beam.sdk.java.sql.transform.BeamSQLProjectFn;
 
+/**
+ * BeamRelNode to replace a {@code Project} node.
+ *
+ */
 public class BeamProjectRel extends Project implements BeamRelNode {
 
   /**
-   * projects: {@link RexLiteral}, {@link RexInputRef}, {@link RexCall}
-   * 
+   * projects: {@link RexLiteral}, {@link RexInputRef}, {@link RexCall}.
+   *
    * @param cluster
    * @param traits
    * @param input

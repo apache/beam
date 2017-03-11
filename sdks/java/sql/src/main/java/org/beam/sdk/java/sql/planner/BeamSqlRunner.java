@@ -34,9 +34,13 @@ import org.beam.sdk.java.sql.schema.BaseBeamTable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * Interface to explain, submit a SQL query.
+ *
+ */
 public class BeamSqlRunner implements Serializable {
   /**
-   * 
+   *
    */
   private static final long serialVersionUID = -4708693435115005182L;
 
@@ -49,7 +53,7 @@ public class BeamSqlRunner implements Serializable {
 
   /**
    * Add a schema.
-   * 
+   *
    * @param schemaName
    * @param scheme
    */
@@ -59,7 +63,7 @@ public class BeamSqlRunner implements Serializable {
 
   /**
    * add a {@link BaseBeamTable} to schema repository.
-   * 
+   *
    * @param tableName
    * @param table
    */
@@ -70,7 +74,7 @@ public class BeamSqlRunner implements Serializable {
 
   /**
    * submit as a Beam pipeline.
-   * 
+   *
    * @param sqlString
    * @throws Exception
    */
@@ -81,7 +85,7 @@ public class BeamSqlRunner implements Serializable {
 
   /**
    * explain and display the execution plan.
-   * 
+   *
    * @param sqlString
    * @throws ValidationException
    * @throws RelConversionException

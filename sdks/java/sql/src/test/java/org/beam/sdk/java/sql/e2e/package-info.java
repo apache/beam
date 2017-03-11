@@ -15,8 +15,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 /**
- * contain end-to-end tests
- *
+ * contain end-to-end tests.
  */
 package org.beam.sdk.java.sql.e2e;

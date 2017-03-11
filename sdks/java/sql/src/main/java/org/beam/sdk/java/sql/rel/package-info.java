@@ -15,8 +15,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 /**
- * BeamSQL specified nodes, to replace {@link org.apache.calcite.rel.RelNode}
+ * BeamSQL specified nodes, to replace {@link org.apache.calcite.rel.RelNode}.
  *
  */
 package org.beam.sdk.java.sql.rel;

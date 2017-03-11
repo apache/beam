@@ -17,6 +17,9 @@
  */
 package org.beam.sdk.java.sql.planner;
 
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableSet;
+
 import java.util.Iterator;
 
 import org.apache.calcite.plan.RelOptRule;
@@ -28,13 +31,11 @@ import org.beam.sdk.java.sql.rule.BeamIOSinkRule;
 import org.beam.sdk.java.sql.rule.BeamIOSourceRule;
 import org.beam.sdk.java.sql.rule.BeamProjectRule;
 
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableSet;
-
 /**
- * {@link RuleSet} which translate a standard Calcite {@link RelNode} tree, to
+ * {@link RuleSet} used in {@link BeamQueryPlanner}.
+ * It translates a standard Calcite {@link RelNode} tree, to
  * represent with {@link BeamRelNode}
- * 
+ *
  */
 public class BeamRuleSets {
   private static final ImmutableSet<RelOptRule> calciteToBeamConversionRules = ImmutableSet

@@ -17,6 +17,8 @@
  */
 package org.beam.sdk.java.sql.rel;
 
+import com.google.common.base.Joiner;
+
 import java.util.List;
 
 import org.apache.beam.sdk.Pipeline;
@@ -33,8 +35,10 @@ import org.beam.sdk.java.sql.planner.BeamSQLRelUtils;
 import org.beam.sdk.java.sql.schema.BaseBeamTable;
 import org.beam.sdk.java.sql.schema.BeamSQLRow;
 
-import com.google.common.base.Joiner;
-
+/**
+ * BeamRelNode to replace a {@code TableModify} node.
+ *
+ */
 public class BeamIOSinkRel extends TableModify implements BeamRelNode {
   public BeamIOSinkRel(RelOptCluster cluster, RelTraitSet traits, RelOptTable table,
       Prepare.CatalogReader catalogReader, RelNode child, Operation operation,
@@ -49,7 +53,6 @@ public class BeamIOSinkRel extends TableModify implements BeamRelNode {
         getOperation(), getUpdateColumnList(), getSourceExpressionList(), isFlattened());
   }
 
-  @SuppressWarnings({ "unchecked", "rawtypes" })
   @Override
   public Pipeline buildBeamPipeline(BeamPipelineCreator planCreator) throws Exception {
 
@@ -64,8 +67,7 @@ public class BeamIOSinkRel extends TableModify implements BeamRelNode {
 
     BaseBeamTable targetTable = planCreator.getSourceTables().get(sourceName);
 
-    PCollection preformattedStream = upstream.apply("preformat_to_target", targetTable.getOutputTransform());
-    preformattedStream.apply("persistent", targetTable.buildIOWriter());
+    upstream.apply(stageName, targetTable.buildIOWriter());
 
     planCreator.setHasPersistent(true);
 

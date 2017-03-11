@@ -17,9 +17,13 @@
  */
 package org.beam.sdk.java.sql.planner;
 
+/**
+ * Generic exception for un-supported operations.
+ *
+ */
 public class BeamSqlUnsupportedException extends RuntimeException {
   /**
-   * 
+   *
    */
   private static final long serialVersionUID = 3445015747629217342L;
 

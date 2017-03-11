@@ -15,9 +15,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 /**
- * BeamSQL provides a new interface to generate Beam pipeline from a SQL
- * statement.
- *
+ * BeamSQL provides a new interface to run a SQL statement with Beam.
  */
 package org.beam.sdk.java.sql;
+

@@ -26,10 +26,14 @@ import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.DefaultCoder;
 import org.apache.calcite.sql.type.SqlTypeName;
 
+/**
+ * Repersent a generic ROW record in Beam SQL.
+ *
+ */
 @DefaultCoder(AvroCoder.class)
 public class BeamSQLRow implements Serializable {
   /**
-   * 
+   *
    */
   private static final long serialVersionUID = 4569220242480160895L;
 
@@ -120,12 +124,15 @@ public class BeamSQLRow implements Serializable {
 
   @Override
   public boolean equals(Object obj) {
-    if (this == obj)
+    if (this == obj) {
       return true;
-    if (obj == null)
+    }
+    if (obj == null) {
       return false;
-    if (getClass() != obj.getClass())
+    }
+    if (getClass() != obj.getClass()) {
       return false;
+    }
     BeamSQLRow other = (BeamSQLRow) obj;
     return toString().equals(other.toString());
   }

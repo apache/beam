@@ -26,10 +26,14 @@ import org.apache.beam.sdk.coders.DefaultCoder;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeField;
 
+/**
+ * Field type information in {@link BeamSQLRow}.
+ *
+ */
 @DefaultCoder(AvroCoder.class)
 public class BeamSQLRecordType implements Serializable {
   /**
-   * 
+   *
    */
   private static final long serialVersionUID = -5318734648766104712L;
   private List<String> fieldsName = new ArrayList<>();

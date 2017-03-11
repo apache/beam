@@ -36,26 +36,23 @@ import org.apache.calcite.schema.Statistics;
 /**
  * Each IO in Beam has one table schema, by extending {@link BaseBeamTable}.
  */
-public abstract class BaseBeamTable<T> implements ScannableTable, Serializable {
+public abstract class BaseBeamTable implements ScannableTable, Serializable {
 
   /**
-   * 
+   *
    */
   private static final long serialVersionUID = -1262988061830914193L;
   private RelProtoDataType protoRowType;
-  // A {@link PTransform} that convert a input record of {@code IO.read()} to
-  // {@link BeamSQLRow}
-  private PTransform<PCollection<T>, PCollection<BeamSQLRow>> inputTransform;
-  // A {@link PTransform} that convert a {@link BeamSQLRow} to the required
-  // record of {@code IO.write()}
-  private PTransform<PCollection<BeamSQLRow>, PCollection<T>> outputTransform;
+  // // A {@link PTransform} that convert a input record of {@code IO.read()} to
+  // // {@link BeamSQLRow}
+  // private PTransform<PCollection<T>, PCollection<BeamSQLRow>> inputTransform;
+  // // A {@link PTransform} that convert a {@link BeamSQLRow} to the required
+  // // record of {@code IO.write()}
+  // private PTransform<PCollection<BeamSQLRow>, PCollection<T>>
+  // outputTransform;
 
-  public BaseBeamTable(RelProtoDataType protoRowType,
-      PTransform<PCollection<T>, PCollection<BeamSQLRow>> inputTransform,
-      PTransform<PCollection<BeamSQLRow>, PCollection<T>> outputTransform) {
+  public BaseBeamTable(RelProtoDataType protoRowType) {
     this.protoRowType = protoRowType;
-    this.inputTransform = inputTransform;
-    this.outputTransform = outputTransform;
   }
 
   /**
@@ -66,37 +63,17 @@ public abstract class BaseBeamTable<T> implements ScannableTable, Serializable {
 
   /**
    * create a {@code IO.read()} instance to read from source.
-   * 
+   *
    * @return
    */
-  public abstract PTransform<? super PBegin, PCollection<T>> buildIOReader();
+  public abstract PTransform<? super PBegin, PCollection<BeamSQLRow>> buildIOReader();
 
   /**
    * create a {@code IO.write()} instance to write to target.
-   * 
+   *
    * @return
    */
-  public abstract PTransform<? super PCollection<T>, PDone> buildIOWriter();
-
-  /**
-   * A {@link PTransform} that convert a input record of {@code IO.read()} to
-   * {@link BeamSQLRow}
-   * 
-   * @return
-   */
-  public PTransform<PCollection<T>, PCollection<BeamSQLRow>> getInputTransform() {
-    return inputTransform;
-  }
-
-  /**
-   * A {@link PTransform} that convert a {@link BeamSQLRow} to the required
-   * record of {@code IO.write()}
-   * 
-   * @return
-   */
-  public PTransform<PCollection<BeamSQLRow>, PCollection<T>> getOutputTransform() {
-    return outputTransform;
-  }
+  public abstract PTransform<? super PCollection<BeamSQLRow>, PDone> buildIOWriter();
 
   @Override
   public Enumerable<Object[]> scan(DataContext root) {
@@ -110,7 +87,7 @@ public abstract class BaseBeamTable<T> implements ScannableTable, Serializable {
   }
 
   /**
-   * Not used {@link Statistic} to optimize the plan
+   * Not used {@link Statistic} to optimize the plan.
    */
   @Override
   public Statistic getStatistic() {

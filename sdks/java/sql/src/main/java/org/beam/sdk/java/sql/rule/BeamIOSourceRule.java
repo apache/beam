@@ -25,6 +25,10 @@ import org.apache.calcite.rel.logical.LogicalTableScan;
 import org.beam.sdk.java.sql.rel.BeamIOSourceRel;
 import org.beam.sdk.java.sql.rel.BeamLogicalConvention;
 
+/**
+ * A {@code ConverterRule} to replace {@link TableScan} with {@link BeamIOSourceRel}.
+ *
+ */
 public class BeamIOSourceRule extends ConverterRule {
   public static final BeamIOSourceRule INSTANCE = new BeamIOSourceRule();
 

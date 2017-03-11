@@ -25,6 +25,10 @@ import org.apache.calcite.rel.logical.LogicalProject;
 import org.beam.sdk.java.sql.rel.BeamLogicalConvention;
 import org.beam.sdk.java.sql.rel.BeamProjectRel;
 
+/**
+ * A {@code ConverterRule} to replace {@link Project} with {@link BeamProjectRel}.
+ *
+ */
 public class BeamProjectRule extends ConverterRule {
   public static final BeamProjectRule INSTANCE = new BeamProjectRule();
 

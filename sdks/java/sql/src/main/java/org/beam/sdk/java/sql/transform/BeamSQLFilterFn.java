@@ -21,11 +21,16 @@ import java.util.List;
 
 import org.apache.beam.sdk.transforms.DoFn;
 import org.beam.sdk.java.sql.interpreter.BeamSQLExpressionExecutor;
+import org.beam.sdk.java.sql.rel.BeamFilterRel;
 import org.beam.sdk.java.sql.schema.BeamSQLRow;
 
+/**
+ * {@code BeamSQLFilterFn} is the executor for a {@link BeamFilterRel} step.
+ *
+ */
 public class BeamSQLFilterFn extends DoFn<BeamSQLRow, BeamSQLRow> {
   /**
-   * 
+   *
    */
   private static final long serialVersionUID = -1256111753670606705L;
 

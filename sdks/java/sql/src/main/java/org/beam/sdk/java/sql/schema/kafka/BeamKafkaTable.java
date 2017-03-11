@@ -23,10 +23,7 @@ import java.io.Serializable;
 import java.util.List;
 import java.util.Map;
 
-import org.apache.beam.sdk.coders.ByteArrayCoder;
-import org.apache.beam.sdk.io.kafka.KafkaIO;
 import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
@@ -35,10 +32,15 @@ import org.beam.sdk.java.sql.schema.BaseBeamTable;
 import org.beam.sdk.java.sql.schema.BeamIOType;
 import org.beam.sdk.java.sql.schema.BeamSQLRow;
 
-public class BeamKafkaTable extends BaseBeamTable<KV<byte[], byte[]>> implements Serializable {
+/**
+ * {@code BeamKafkaTable} represent a Kafka topic, as source or target.
+ * A user PTransform is required to handle the input/output as KV<byte[], byte[]>.
+ *
+ */
+public class BeamKafkaTable extends BaseBeamTable implements Serializable {
 
   /**
-   * 
+   *
    */
   private static final long serialVersionUID = -634715473399906527L;
 
@@ -46,17 +48,13 @@ public class BeamKafkaTable extends BaseBeamTable<KV<byte[], byte[]>> implements
   private List<String> topics;
   private Map<String, Object> configUpdates;
 
-  protected BeamKafkaTable(RelProtoDataType protoRowType,
-      PTransform<PCollection<KV<byte[], byte[]>>, PCollection<BeamSQLRow>> sourceConverter,
-      PTransform<PCollection<BeamSQLRow>, PCollection<KV<byte[], byte[]>>> sinkConcerter) {
-    super(protoRowType, sourceConverter, sinkConcerter);
+  protected BeamKafkaTable(RelProtoDataType protoRowType) {
+    super(protoRowType);
   }
 
-  public BeamKafkaTable(RelProtoDataType protoRowType,
-      PTransform<PCollection<KV<byte[], byte[]>>, PCollection<BeamSQLRow>> sourceConverter,
-      PTransform<PCollection<BeamSQLRow>, PCollection<KV<byte[], byte[]>>> sinkConcerter,
-      String bootstrapServers, List<String> topics) {
-    super(protoRowType, sourceConverter, sinkConcerter);
+  public BeamKafkaTable(RelProtoDataType protoRowType, String bootstrapServers,
+      List<String> topics) {
+    super(protoRowType);
     this.bootstrapServers = bootstrapServers;
     this.topics = topics;
   }
@@ -72,20 +70,24 @@ public class BeamKafkaTable extends BaseBeamTable<KV<byte[], byte[]>> implements
   }
 
   @Override
-  public PTransform<? super PBegin, PCollection<KV<byte[], byte[]>>> buildIOReader() {
-    return KafkaIO.<byte[], byte[]>read().withBootstrapServers(this.bootstrapServers)
-        .withTopics(this.topics).updateConsumerProperties(configUpdates)
-        .withKeyCoder(ByteArrayCoder.of()).withValueCoder(ByteArrayCoder.of()).withoutMetadata();
+  public PTransform<? super PBegin, PCollection<BeamSQLRow>> buildIOReader() {
+    return null;
+    // return KafkaIO.<byte[],
+    // byte[]>read().withBootstrapServers(this.bootstrapServers)
+    // .withTopics(this.topics).updateConsumerProperties(configUpdates)
+    // .withKeyCoder(ByteArrayCoder.of()).withValueCoder(ByteArrayCoder.of()).withoutMetadata();
   }
 
   @Override
-  public PTransform<? super PCollection<KV<byte[], byte[]>>, PDone> buildIOWriter() {
+  public PTransform<? super PCollection<BeamSQLRow>, PDone> buildIOWriter() {
     checkArgument(topics != null && topics.size() == 1,
         "Only one topic can be acceptable as output.");
 
-    return KafkaIO.<byte[], byte[]>write().withBootstrapServers(bootstrapServers)
-        .withTopic(topics.get(0)).withKeyCoder(ByteArrayCoder.of())
-        .withValueCoder(ByteArrayCoder.of());
+    return null;
+    // return KafkaIO.<byte[],
+    // byte[]>write().withBootstrapServers(bootstrapServers)
+    // .withTopic(topics.get(0)).withKeyCoder(ByteArrayCoder.of())
+    // .withValueCoder(ByteArrayCoder.of());
   }
 
 }

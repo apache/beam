@@ -17,15 +17,16 @@
  */
 package org.beam.sdk.java.sql.interpreter;
 
+import com.google.common.base.Joiner;
+
 import java.util.ArrayList;
 import java.util.List;
+
 
 import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexInputRef;
 import org.apache.calcite.rex.RexNode;
 import org.beam.sdk.java.sql.planner.BeamSqlUnsupportedException;
-
-import com.google.common.base.Joiner;
 
 /**
  * {@code CalciteToSpEL} is used in {@link BeamSQLSpELExecutor}, to convert a

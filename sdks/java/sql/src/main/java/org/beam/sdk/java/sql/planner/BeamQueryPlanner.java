@@ -69,7 +69,7 @@ public class BeamQueryPlanner {
   private final JavaTypeFactory typeFactory = new JavaTypeFactoryImpl(RelDataTypeSystem.DEFAULT);
 
   /**
-   * 
+   *
    * @param schema
    */
   public BeamQueryPlanner(SchemaPlus schema) {
@@ -96,7 +96,7 @@ public class BeamQueryPlanner {
   /**
    * With a Beam pipeline generated in {@link #compileBeamPipeline(String)},
    * submit it to run and wait until finish.
-   * 
+   *
    * @param sqlStatement
    * @throws Exception
    */
@@ -110,7 +110,7 @@ public class BeamQueryPlanner {
   /**
    * With the @{@link BeamRelNode} tree generated in
    * {@link #convertToBeamRel(String)}, a Beam pipeline is generated.
-   * 
+   *
    * @param sqlStatement
    * @return
    * @throws Exception
@@ -125,7 +125,7 @@ public class BeamQueryPlanner {
   /**
    * It parses and validate the input query, then convert into a
    * {@link BeamRelNode} tree.
-   * 
+   *
    * @param query
    * @return
    * @throws ValidationException

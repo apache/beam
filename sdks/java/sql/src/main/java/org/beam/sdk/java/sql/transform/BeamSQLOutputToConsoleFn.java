@@ -20,9 +20,13 @@ package org.beam.sdk.java.sql.transform;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.beam.sdk.java.sql.schema.BeamSQLRow;
 
+/**
+ * A test PTransform to display output in console.
+ *
+ */
 public class BeamSQLOutputToConsoleFn extends DoFn<BeamSQLRow, Void> {
   /**
-   * 
+   *
    */
   private static final long serialVersionUID = -1256111753670606705L;
 

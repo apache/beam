@@ -44,7 +44,7 @@ import org.springframework.expression.spel.support.StandardEvaluationContext;
  */
 public class BeamSQLSpELExecutor implements BeamSQLExpressionExecutor {
   /**
-   * 
+   *
    */
   private static final long serialVersionUID = 6777232573390074408L;
 

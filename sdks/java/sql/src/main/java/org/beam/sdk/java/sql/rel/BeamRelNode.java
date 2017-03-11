@@ -32,7 +32,7 @@ public interface BeamRelNode extends RelNode {
    * A {@link BeamRelNode} is a recursive structure, the
    * {@link BeamPipelineCreator} visits it with a DFS(Depth-First-Search)
    * algorithm.
-   * 
+   *
    * @param planCreator
    * @throws Exception
    */

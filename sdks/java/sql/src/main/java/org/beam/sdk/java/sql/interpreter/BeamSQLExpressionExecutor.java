@@ -36,7 +36,7 @@ public interface BeamSQLExpressionExecutor extends Serializable {
 
   /**
    * apply transformation to input record {@link BeamSQLRow}.
-   * 
+   *
    * @param inputRecord
    * @return
    */

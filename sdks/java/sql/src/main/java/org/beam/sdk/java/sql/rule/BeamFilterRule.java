@@ -25,6 +25,10 @@ import org.apache.calcite.rel.logical.LogicalFilter;
 import org.beam.sdk.java.sql.rel.BeamFilterRel;
 import org.beam.sdk.java.sql.rel.BeamLogicalConvention;
 
+/**
+ * A {@code ConverterRule} to replace {@link Filter} with {@link BeamFilterRel}.
+ *
+ */
 public class BeamFilterRule extends ConverterRule {
   public static BeamFilterRule INSTANCE = new BeamFilterRule();
 

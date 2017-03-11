@@ -24,6 +24,10 @@ import org.apache.calcite.plan.RelTrait;
 import org.apache.calcite.plan.RelTraitDef;
 import org.apache.calcite.plan.RelTraitSet;
 
+/**
+ * Convertion for Beam SQL.
+ *
+ */
 public enum BeamLogicalConvention implements Convention {
   INSTANCE;
 

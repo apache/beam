@@ -32,6 +32,10 @@ import org.beam.sdk.java.sql.planner.BeamSQLRelUtils;
 import org.beam.sdk.java.sql.schema.BeamSQLRow;
 import org.beam.sdk.java.sql.transform.BeamSQLFilterFn;
 
+/**
+ * BeamRelNode to replace a {@code Filter} node.
+ *
+ */
 public class BeamFilterRel extends Filter implements BeamRelNode {
 
   public BeamFilterRel(RelOptCluster cluster, RelTraitSet traits, RelNode child,

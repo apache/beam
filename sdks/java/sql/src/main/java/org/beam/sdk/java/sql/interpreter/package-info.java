@@ -15,8 +15,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 /**
  * interpreter generate runnable 'code' to execute SQL relational expressions.
- *
  */
 package org.beam.sdk.java.sql.interpreter;

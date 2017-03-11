@@ -21,13 +21,19 @@ import java.util.List;
 
 import org.apache.beam.sdk.transforms.DoFn;
 import org.beam.sdk.java.sql.interpreter.BeamSQLExpressionExecutor;
+import org.beam.sdk.java.sql.rel.BeamProjectRel;
 import org.beam.sdk.java.sql.schema.BeamSQLRecordType;
 import org.beam.sdk.java.sql.schema.BeamSQLRow;
 
+/**
+ *
+ * {@code BeamSQLProjectFn} is the executor for a {@link BeamProjectRel} step.
+ *
+ */
 public class BeamSQLProjectFn extends DoFn<BeamSQLRow, BeamSQLRow> {
 
   /**
-   * 
+   *
    */
   private static final long serialVersionUID = -1046605249999014608L;
   private String stepName;

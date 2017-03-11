@@ -27,6 +27,9 @@ import org.beam.sdk.java.sql.rel.BeamRelNode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * Utilities for {@code BeamRelNode}.
+ */
 public class BeamSQLRelUtils {
   private static final Logger LOG = LoggerFactory.getLogger(BeamSQLRelUtils.class);
 
@@ -61,10 +64,12 @@ public class BeamSQLRelUtils {
       explain = RelOptUtil.toString(rel);
     } catch (StackOverflowError e) {
       LOG.error(
-          "StackOverflowError occurred while extracting plan. Please report it to the dev@ mailing list.");
+          "StackOverflowError occurred while extracting plan. "
+          + "Please report it to the dev@ mailing list.");
       LOG.error("RelNode " + rel + " ExplainLevel " + detailLevel, e);
       LOG.error(
-          "Forcing plan to empty string and continue... SQL Runner may not working properly after.");
+          "Forcing plan to empty string and continue... "
+          + "SQL Runner may not working properly after.");
     }
     return explain;
   }

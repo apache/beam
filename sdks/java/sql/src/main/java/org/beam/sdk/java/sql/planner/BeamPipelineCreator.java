@@ -30,7 +30,7 @@ import org.beam.sdk.java.sql.schema.BeamSQLRow;
 /**
  * {@link BeamPipelineCreator} converts a {@link BeamRelNode} tree, into a Beam
  * pipeline.
- * 
+ *
  */
 public class BeamPipelineCreator {
   private Map<String, BaseBeamTable> sourceTables;

@@ -19,6 +19,10 @@ package org.beam.sdk.java.sql.planner;
 
 import org.apache.calcite.sql.util.SqlShuttle;
 
+/**
+ * Unsupported operation to visit a RelNode.
+ *
+ */
 public class UnsupportedOperatorsVisitor extends SqlShuttle {
 
 }

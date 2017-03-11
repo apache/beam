@@ -15,8 +15,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 /**
- * table schema for KafkaIO
- *
+ * table schema for KafkaIO.
  */
 package org.beam.sdk.java.sql.schema.kafka;
