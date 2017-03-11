@@ -52,12 +52,16 @@ import org.apache.calcite.tools.ValidationException;
 import org.beam.sdk.java.sql.rel.BeamLogicalConvention;
 import org.beam.sdk.java.sql.rel.BeamRelNode;
 import org.beam.sdk.java.sql.schema.BaseBeamTable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
- * The core component to handle through a SQL statement, to submit a Beam pipeline.
+ * The core component to handle through a SQL statement, to submit a Beam
+ * pipeline.
  *
  */
 public class BeamQueryPlanner {
+  private static final Logger LOG = LoggerFactory.getLogger(BeamQueryPlanner.class);
 
   protected final Planner planner;
   private Map<String, BaseBeamTable> sourceTables = new HashMap<>();
@@ -79,9 +83,7 @@ public class BeamQueryPlanner {
         Collections.<String>emptyList(), typeFactory));
 
     FrameworkConfig config = Frameworks.newConfigBuilder()
-        .parserConfig(SqlParser.configBuilder()
-            .setLex(Lex.MYSQL).build())
-        .defaultSchema(schema)
+        .parserConfig(SqlParser.configBuilder().setLex(Lex.MYSQL).build()).defaultSchema(schema)
         .traitDefs(traitDefs).context(Contexts.EMPTY_CONTEXT).ruleSets(BeamRuleSets.getRuleSets())
         .costFactory(null).typeSystem(BeamRelDataTypeSystem.BEAM_REL_DATATYPE_SYSTEM).build();
     this.planner = Frameworks.getPlanner(config);
@@ -92,20 +94,22 @@ public class BeamQueryPlanner {
   }
 
   /**
-   * With a Beam pipeline generated in {@link #compileBeamPipeline(String)}, submit it to run and wait until finish.
+   * With a Beam pipeline generated in {@link #compileBeamPipeline(String)},
+   * submit it to run and wait until finish.
    * 
    * @param sqlStatement
    * @throws Exception
    */
-  public void submitToRun(String sqlStatement) throws Exception{
+  public void submitToRun(String sqlStatement) throws Exception {
     Pipeline pipeline = compileBeamPipeline(sqlStatement);
-    
+
     PipelineResult result = pipeline.run();
     result.waitUntilFinish();
   }
-  
+
   /**
-   * With the @{@link BeamRelNode} tree generated in {@link #convertToBeamRel(String)}, a Beam pipeline is generated.
+   * With the @{@link BeamRelNode} tree generated in
+   * {@link #convertToBeamRel(String)}, a Beam pipeline is generated.
    * 
    * @param sqlStatement
    * @return
@@ -119,7 +123,9 @@ public class BeamQueryPlanner {
   }
 
   /**
-   * It parses and validate the input query, then convert into a {@link BeamRelNode} tree.
+   * It parses and validate the input query, then convert into a
+   * {@link BeamRelNode} tree.
+   * 
    * @param query
    * @return
    * @throws ValidationException
@@ -134,15 +140,15 @@ public class BeamQueryPlanner {
   private RelNode validateAndConvert(SqlNode sqlNode)
       throws ValidationException, RelConversionException {
     SqlNode validated = validateNode(sqlNode);
+    LOG.info("SQL:\n" + validated);
     RelNode relNode = convertToRelNode(validated);
     return convertToBeamRel(relNode);
   }
 
   private RelNode convertToBeamRel(RelNode relNode) throws RelConversionException {
     RelTraitSet traitSet = relNode.getTraitSet();
-    // traitSet = traitSet.simplify();
 
-    System.out.println("SQLPlan>\n" + RelOptUtil.toString(relNode));
+    LOG.info("SQLPlan>\n" + RelOptUtil.toString(relNode));
 
     // PlannerImpl.transform() optimizes RelNode with ruleset
     return planner.transform(0, traitSet.replace(BeamLogicalConvention.INSTANCE), relNode);
@@ -162,5 +168,4 @@ public class BeamQueryPlanner {
     return sourceTables;
   }
 
-  
 }

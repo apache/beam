@@ -16,7 +16,9 @@
  * limitations under the License.
  */
 /**
- * {@link org.beam.sdk.java.sql.planner.BeamQueryPlanner} is the main interface, to define data sources, validate a SQL statement, and convert it as a Beam pipeline.
+ * {@link org.beam.sdk.java.sql.planner.BeamQueryPlanner} is the main interface,
+ * to define data sources, validate a SQL statement, and convert it as a Beam
+ * pipeline.
  *
  */
 package org.beam.sdk.java.sql.planner;

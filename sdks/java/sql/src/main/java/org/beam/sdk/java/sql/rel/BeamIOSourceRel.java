@@ -36,6 +36,7 @@ public class BeamIOSourceRel extends TableScan implements BeamRelNode {
     super(cluster, traitSet, table);
   }
 
+  @SuppressWarnings({ "unchecked", "rawtypes" })
   @Override
   public Pipeline buildBeamPipeline(BeamPipelineCreator planCreator) throws Exception {
 
@@ -45,9 +46,10 @@ public class BeamIOSourceRel extends TableScan implements BeamRelNode {
 
     String stageName = BeamSQLRelUtils.getStageName(this);
 
-    PCollection<BeamSQLRow> sourceStream = planCreator.getPipeline()
-        .apply(stageName,  sourceTable.buildIOReader());
-    PCollection<BeamSQLRow> reformattedSourceStream = sourceStream.apply("sourceReformat", sourceTable.getInputTransform());
+    PCollection<BeamSQLRow> sourceStream = planCreator.getPipeline().apply(stageName,
+        sourceTable.buildIOReader());
+    PCollection<BeamSQLRow> reformattedSourceStream = sourceStream.apply("sourceReformat",
+        sourceTable.getInputTransform());
 
     planCreator.setLatestStream(reformattedSourceStream);
 

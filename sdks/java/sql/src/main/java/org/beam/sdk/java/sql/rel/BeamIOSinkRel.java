@@ -20,10 +20,6 @@ package org.beam.sdk.java.sql.rel;
 import java.util.List;
 
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.coders.StringUtf8Coder;
-import org.apache.beam.sdk.coders.VoidCoder;
-import org.apache.beam.sdk.io.kafka.KafkaIO;
-import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptTable;
@@ -49,11 +45,11 @@ public class BeamIOSinkRel extends TableModify implements BeamRelNode {
 
   @Override
   public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
-    return new BeamIOSinkRel(getCluster(), traitSet, getTable(), getCatalogReader(),
-        sole(inputs), getOperation(), getUpdateColumnList(), getSourceExpressionList(),
-        isFlattened());
+    return new BeamIOSinkRel(getCluster(), traitSet, getTable(), getCatalogReader(), sole(inputs),
+        getOperation(), getUpdateColumnList(), getSourceExpressionList(), isFlattened());
   }
 
+  @SuppressWarnings({ "unchecked", "rawtypes" })
   @Override
   public Pipeline buildBeamPipeline(BeamPipelineCreator planCreator) throws Exception {
 
@@ -68,13 +64,12 @@ public class BeamIOSinkRel extends TableModify implements BeamRelNode {
 
     BaseBeamTable targetTable = planCreator.getSourceTables().get(sourceName);
 
-    PCollection formattedOutput = upstream.apply("preformat_to_target", targetTable.getOutputTransform());
-    formattedOutput.apply("persistent", targetTable.buildIOWriter());
+    PCollection preformattedStream = upstream.apply("preformat_to_target", targetTable.getOutputTransform());
+    preformattedStream.apply("persistent", targetTable.buildIOWriter());
 
     planCreator.setHasPersistent(true);
 
     return planCreator.getPipeline();
   }
-
 
 }

@@ -71,14 +71,14 @@ public class BeamProjectRel extends Project implements BeamRelNode {
     PCollection<BeamSQLRow> upstream = planCreator.getLatestStream();
 
     BeamSQLExpressionExecutor executor = new BeamSQLSpELExecutor(this);
-    
-    PCollection<BeamSQLRow> projectStream = upstream.apply(stageName,
-        ParDo.of(new BeamSQLProjectFn(getRelTypeName(), executor, BeamSQLRecordType.from(rowType))));
+
+    PCollection<BeamSQLRow> projectStream = upstream.apply(stageName, ParDo
+        .of(new BeamSQLProjectFn(getRelTypeName(), executor, BeamSQLRecordType.from(rowType))));
 
     planCreator.setLatestStream(projectStream);
 
     return planCreator.getPipeline();
-    
+
   }
 
 }

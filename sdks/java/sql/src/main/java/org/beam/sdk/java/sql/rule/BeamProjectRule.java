@@ -29,8 +29,7 @@ public class BeamProjectRule extends ConverterRule {
   public static final BeamProjectRule INSTANCE = new BeamProjectRule();
 
   private BeamProjectRule() {
-    super(LogicalProject.class, Convention.NONE, BeamLogicalConvention.INSTANCE,
-        "BeamProjectRule");
+    super(LogicalProject.class, Convention.NONE, BeamLogicalConvention.INSTANCE, "BeamProjectRule");
   }
 
   @Override

@@ -32,20 +32,19 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 
 /**
- * {@link RuleSet} which translate a standard Calcite {@link RelNode} tree, to represent with {@link BeamRelNode}
+ * {@link RuleSet} which translate a standard Calcite {@link RelNode} tree, to
+ * represent with {@link BeamRelNode}
  * 
  */
 public class BeamRuleSets {
   private static final ImmutableSet<RelOptRule> calciteToBeamConversionRules = ImmutableSet
-      .<RelOptRule>builder()
-      .add(
-          BeamIOSourceRule.INSTANCE, BeamProjectRule.INSTANCE, BeamFilterRule.INSTANCE,
-          BeamIOSinkRule.INSTANCE
-      ).build();
+      .<RelOptRule>builder().add(BeamIOSourceRule.INSTANCE, BeamProjectRule.INSTANCE,
+          BeamFilterRule.INSTANCE, BeamIOSinkRule.INSTANCE)
+      .build();
 
   public static RuleSet[] getRuleSets() {
-    return new RuleSet[] {new BeamRuleSet(ImmutableSet.<RelOptRule>builder()
-            .addAll(calciteToBeamConversionRules).build()) };
+    return new RuleSet[] { new BeamRuleSet(
+        ImmutableSet.<RelOptRule>builder().addAll(calciteToBeamConversionRules).build()) };
   }
 
   private static class BeamRuleSet implements RuleSet {

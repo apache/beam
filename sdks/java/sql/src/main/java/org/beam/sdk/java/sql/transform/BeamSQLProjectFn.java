@@ -34,7 +34,8 @@ public class BeamSQLProjectFn extends DoFn<BeamSQLRow, BeamSQLRow> {
   private BeamSQLExpressionExecutor executor;
   private BeamSQLRecordType outputRecordType;
 
-  public BeamSQLProjectFn(String stepName, BeamSQLExpressionExecutor executor, BeamSQLRecordType outputRecordType) {
+  public BeamSQLProjectFn(String stepName, BeamSQLExpressionExecutor executor,
+      BeamSQLRecordType outputRecordType) {
     super();
     this.stepName = stepName;
     this.executor = executor;
@@ -49,17 +50,17 @@ public class BeamSQLProjectFn extends DoFn<BeamSQLRow, BeamSQLRow> {
   @ProcessElement
   public void processElement(ProcessContext c) {
     List<Object> results = executor.execute(c.element());
-    
+
     BeamSQLRow outRow = new BeamSQLRow(outputRecordType);
-    for(int idx=0; idx<results.size(); ++idx){
+    for (int idx = 0; idx < results.size(); ++idx) {
       outRow.addField(idx, results.get(idx));
     }
-    
+
     c.output(outRow);
   }
-  
+
   @Teardown
-  public void close(){
+  public void close() {
     executor.close();
   }
 

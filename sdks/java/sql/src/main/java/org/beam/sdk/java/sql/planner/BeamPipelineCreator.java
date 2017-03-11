@@ -20,23 +20,16 @@ package org.beam.sdk.java.sql.planner;
 import java.util.Map;
 
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.coders.ByteArrayCoder;
-import org.apache.beam.sdk.coders.CoderRegistry;
-import org.apache.beam.sdk.io.kafka.KafkaRecord;
-import org.apache.beam.sdk.io.kafka.KafkaRecordCoder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
 import org.beam.sdk.java.sql.rel.BeamRelNode;
 import org.beam.sdk.java.sql.schema.BaseBeamTable;
 import org.beam.sdk.java.sql.schema.BeamSQLRow;
-import org.beam.sdk.java.sql.transform.BeamSQLOutputToConsoleFn;
-
-import io.ebay.rheos.schema.event.RheosEvent;
 
 /**
- * {@link BeamPipelineCreator} converts a {@link BeamRelNode} tree, into a Beam pipeline.
+ * {@link BeamPipelineCreator} converts a {@link BeamRelNode} tree, into a Beam
+ * pipeline.
  * 
  */
 public class BeamPipelineCreator {

@@ -17,6 +17,8 @@
  */
 package org.beam.sdk.java.sql.interpreter;
 
+import static com.google.common.base.Preconditions.checkArgument;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -36,7 +38,8 @@ import org.springframework.expression.spel.standard.SpelExpressionParser;
 import org.springframework.expression.spel.support.StandardEvaluationContext;
 
 /**
- * {@code BeamSQLSpELExecutor} is one implementation, to convert Calcite SQL relational expression to SpEL expression.
+ * {@code BeamSQLSpELExecutor} is one implementation, to convert Calcite SQL
+ * relational expression to SpEL expression.
  *
  */
 public class BeamSQLSpELExecutor implements BeamSQLExpressionExecutor {
@@ -55,10 +58,11 @@ public class BeamSQLSpELExecutor implements BeamSQLExpressionExecutor {
           .rexcall2SpEL((RexCall) ((BeamFilterRel) relNode).getCondition());
       spelString.add(filterSpEL);
     } else if (relNode instanceof BeamProjectRel) {
-      List<ProjectRule> projectRules = createProjectRules((BeamProjectRel) relNode);
-      for (int idx = 0; idx < projectRules.size(); ++idx) {
-          spelString.add(projectRules.get(idx).getProjectExp());
-      }
+      spelString.addAll(createProjectExps((BeamProjectRel) relNode));
+      // List<ProjectRule> projectRules =
+      // for (int idx = 0; idx < projectRules.size(); ++idx) {
+      // spelString.add(projectRules.get(idx).getProjectExp());
+      // }
     } else {
       throw new BeamSqlUnsupportedException(
           String.format("%s is not supported yet", relNode.getClass().toString()));
@@ -93,32 +97,30 @@ public class BeamSQLSpELExecutor implements BeamSQLExpressionExecutor {
 
   }
 
-  private List<ProjectRule> createProjectRules(BeamProjectRel projectRel) {
-    List<ProjectRule> rules = new ArrayList<>();
+  private List<String> createProjectExps(BeamProjectRel projectRel) {
+    List<String> rules = new ArrayList<>();
 
     List<RexNode> exps = projectRel.getProjects();
 
     for (int idx = 0; idx < exps.size(); ++idx) {
       RexNode node = exps.get(idx);
-      ProjectRule rule = new ProjectRule();
+      if (node == null) {
+        rules.add("null");
+      }
 
       if (node instanceof RexLiteral) {
-        rule.setType(ProjectType.RexLiteral);
-        rule.setProjectExp(((RexLiteral) node).getValue() + "");
-      }else{
-        
-      if (node instanceof RexInputRef) {
-        rule.setType(ProjectType.RexInputRef);
-//        rule.setSourceIndex( ((RexInputRef) node).getIndex() );
-        rule.setProjectExp("#in.getFieldValue("+((RexInputRef) node).getIndex()+")");
+        rules.add(((RexLiteral) node).getValue() + "");
+      } else {
+        if (node instanceof RexInputRef) {
+          rules.add("#in.getFieldValue(" + ((RexInputRef) node).getIndex() + ")");
+        }
+        if (node instanceof RexCall) {
+          rules.add(CalciteToSpEL.rexcall2SpEL((RexCall) node));
+        }
       }
-      if (node instanceof RexCall) {
-        rule.setType(ProjectType.RexCall);
-        rule.setProjectExp(CalciteToSpEL.rexcall2SpEL((RexCall) node));
-      }
-      rules.add(rule);
     }
-    }
+
+    checkArgument(rules.size() == exps.size(), "missing projects rules after conversion.");
 
     return rules;
   }

@@ -43,9 +43,11 @@ public abstract class BaseBeamTable<T> implements ScannableTable, Serializable {
    */
   private static final long serialVersionUID = -1262988061830914193L;
   private RelProtoDataType protoRowType;
-  // A {@link PTransform} that convert a input record of {@code IO.read()} to {@link BeamSQLRow}
+  // A {@link PTransform} that convert a input record of {@code IO.read()} to
+  // {@link BeamSQLRow}
   private PTransform<PCollection<T>, PCollection<BeamSQLRow>> inputTransform;
-  // A {@link PTransform} that convert a {@link BeamSQLRow} to the required record of {@code IO.write()}
+  // A {@link PTransform} that convert a {@link BeamSQLRow} to the required
+  // record of {@code IO.write()}
   private PTransform<PCollection<BeamSQLRow>, PCollection<T>> outputTransform;
 
   public BaseBeamTable(RelProtoDataType protoRowType,
@@ -76,10 +78,10 @@ public abstract class BaseBeamTable<T> implements ScannableTable, Serializable {
    */
   public abstract PTransform<? super PCollection<T>, PDone> buildIOWriter();
 
-  
-
   /**
-   * A {@link PTransform} that convert a input record of {@code IO.read()} to {@link BeamSQLRow}
+   * A {@link PTransform} that convert a input record of {@code IO.read()} to
+   * {@link BeamSQLRow}
+   * 
    * @return
    */
   public PTransform<PCollection<T>, PCollection<BeamSQLRow>> getInputTransform() {
@@ -87,7 +89,9 @@ public abstract class BaseBeamTable<T> implements ScannableTable, Serializable {
   }
 
   /**
-   * A {@link PTransform} that convert a {@link BeamSQLRow} to the required record of {@code IO.write()}
+   * A {@link PTransform} that convert a {@link BeamSQLRow} to the required
+   * record of {@code IO.write()}
+   * 
    * @return
    */
   public PTransform<PCollection<BeamSQLRow>, PCollection<T>> getOutputTransform() {

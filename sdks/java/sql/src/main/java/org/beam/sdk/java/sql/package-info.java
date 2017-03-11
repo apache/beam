@@ -16,7 +16,8 @@
  * limitations under the License.
  */
 /**
- * BeamSQL provides a new interface to generate Beam pipeline from a SQL statement.
+ * BeamSQL provides a new interface to generate Beam pipeline from a SQL
+ * statement.
  *
  */
 package org.beam.sdk.java.sql;

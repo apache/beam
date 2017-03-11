@@ -53,8 +53,8 @@ public class BeamSQLRow implements Serializable {
       // dataMap.put(fieldName, null);
     }
   }
-  
-  public void addField(int index, Object fieldValue){
+
+  public void addField(int index, Object fieldValue) {
     addField(dataType.getFieldsName().get(index), fieldValue);
   }
 
@@ -80,7 +80,7 @@ public class BeamSQLRow implements Serializable {
       return Integer.valueOf(dataMap.get(fieldName));
     case VARCHAR:
       return dataMap.get(fieldName);
-    case TIMESTAMP: //TODO
+    case TIMESTAMP: // TODO
     case BIGINT:
       return Long.valueOf(dataMap.get(fieldName));
     default:
@@ -127,9 +127,7 @@ public class BeamSQLRow implements Serializable {
     if (getClass() != obj.getClass())
       return false;
     BeamSQLRow other = (BeamSQLRow) obj;
-   return toString().equals(other.toString());
+    return toString().equals(other.toString());
   }
-  
 
 }
-

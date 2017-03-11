@@ -17,54 +17,31 @@
  */
 package org.beam.sdk.java.sql.planner;
 
-import java.io.IOException;
 import java.io.Serializable;
-import java.sql.SQLException;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Map;
 
 import org.apache.calcite.adapter.java.JavaTypeFactory;
 import org.apache.calcite.jdbc.JavaTypeFactoryImpl;
 import org.apache.calcite.plan.RelOptUtil;
-import org.apache.calcite.rel.RelCollations;
-import org.apache.calcite.rel.RelFieldCollation;
-import org.apache.calcite.rel.RelFieldCollation.Direction;
-import org.apache.calcite.rel.RelFieldCollation.NullDirection;
-import org.apache.calcite.rel.type.RelDataType;
-import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.rel.type.RelDataTypeSystem;
-import org.apache.calcite.rel.type.RelProtoDataType;
 import org.apache.calcite.schema.Schema;
 import org.apache.calcite.schema.SchemaPlus;
-import org.apache.calcite.schema.Statistic;
-import org.apache.calcite.schema.Statistics;
-import org.apache.calcite.schema.Table;
 import org.apache.calcite.sql.parser.SqlParseException;
-import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.tools.Frameworks;
 import org.apache.calcite.tools.RelConversionException;
 import org.apache.calcite.tools.ValidationException;
-import org.apache.calcite.util.ImmutableBitSet;
-import org.apache.kafka.clients.consumer.ConsumerConfig;
-import org.beam.sdk.java.sql.planner.BeamQueryPlanner;
 import org.beam.sdk.java.sql.rel.BeamRelNode;
 import org.beam.sdk.java.sql.schema.BaseBeamTable;
-import org.beam.sdk.java.sql.schema.BeamSQLRecordType;
-import org.beam.sdk.java.sql.schema.kafka.BeamKafkaTable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import com.google.common.collect.ImmutableList;
 
 public class BeamSqlRunner implements Serializable {
   /**
    * 
    */
   private static final long serialVersionUID = -4708693435115005182L;
-  
+
   private static final Logger LOG = LoggerFactory.getLogger(BeamSqlRunner.class);
-      
+
   private JavaTypeFactory typeFactory = new JavaTypeFactoryImpl(RelDataTypeSystem.DEFAULT);
   private SchemaPlus schema = Frameworks.createRootSchema(true);
 
@@ -82,7 +59,7 @@ public class BeamSqlRunner implements Serializable {
 
   /**
    * add a {@link BaseBeamTable} to schema repository.
-   *  
+   * 
    * @param tableName
    * @param table
    */
@@ -97,11 +74,11 @@ public class BeamSqlRunner implements Serializable {
    * @param sqlString
    * @throws Exception
    */
-  public void submitQuery(String sqlString) throws Exception{
+  public void submitQuery(String sqlString) throws Exception {
     planner.submitToRun(sqlString);
     planner.planner.close();
   }
-  
+
   /**
    * explain and display the execution plan.
    * 
@@ -110,11 +87,11 @@ public class BeamSqlRunner implements Serializable {
    * @throws RelConversionException
    * @throws SqlParseException
    */
-  public void explainQuery(String sqlString) throws ValidationException, RelConversionException, SqlParseException {
+  public void explainQuery(String sqlString)
+      throws ValidationException, RelConversionException, SqlParseException {
     BeamRelNode exeTree = planner.convertToBeamRel(sqlString);
     String beamPlan = RelOptUtil.toString(exeTree);
-    LOG.info("beamPlan>");
-    LOG.info(beamPlan);
+    System.out.println(String.format("beamPlan>\n%s", beamPlan));
     planner.planner.close();
   }
 }

@@ -28,7 +28,8 @@ import org.beam.sdk.java.sql.planner.BeamSqlUnsupportedException;
 import com.google.common.base.Joiner;
 
 /**
- * {@code CalciteToSpEL} is used in {@link BeamSQLSpELExecutor}, to convert a relational expression {@link RexCall} to SpEL expression.
+ * {@code CalciteToSpEL} is used in {@link BeamSQLSpELExecutor}, to convert a
+ * relational expression {@link RexCall} to SpEL expression.
  *
  */
 public class CalciteToSpEL {
@@ -40,8 +41,7 @@ public class CalciteToSpEL {
         parts.add(rexcall2SpEL((RexCall) subcdn));
       } else {
         parts.add(subcdn instanceof RexInputRef
-            ? "#in.getFieldValue("+ ((RexInputRef) subcdn).getIndex() + ")"
-            : subcdn.toString());
+            ? "#in.getFieldValue(" + ((RexInputRef) subcdn).getIndex() + ")" : subcdn.toString());
       }
     }
 
@@ -51,15 +51,15 @@ public class CalciteToSpEL {
     case "SqlBinaryOperator": // > < = >= <= <> OR AND || / .
       switch (cdn.op.getName().toUpperCase()) {
       case "AND":
-        return String.format(" ( %s ) ", Joiner.on("&&").join(parts) );
+        return String.format(" ( %s ) ", Joiner.on("&&").join(parts));
       case "OR":
-        return String.format(" ( %s ) ", Joiner.on("||").join(parts) );
+        return String.format(" ( %s ) ", Joiner.on("||").join(parts));
       case "=":
-        return String.format(" ( %s ) ", Joiner.on("==").join(parts) );
+        return String.format(" ( %s ) ", Joiner.on("==").join(parts));
       case "<>":
-        return String.format(" ( %s ) ", Joiner.on("!=").join(parts) );
+        return String.format(" ( %s ) ", Joiner.on("!=").join(parts));
       default:
-        return String.format(" ( %s ) ", Joiner.on(cdn.op.getName().toUpperCase()).join(parts) );
+        return String.format(" ( %s ) ", Joiner.on(cdn.op.getName().toUpperCase()).join(parts));
       }
     case "SqlCaseOperator": // CASE
       return String.format(" (%s ? %s : %s)", parts.get(0), parts.get(1), parts.get(2));

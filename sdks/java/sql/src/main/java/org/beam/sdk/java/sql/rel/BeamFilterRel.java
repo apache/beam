@@ -43,7 +43,7 @@ public class BeamFilterRel extends Filter implements BeamRelNode {
   public Filter copy(RelTraitSet traitSet, RelNode input, RexNode condition) {
     return new BeamFilterRel(getCluster(), traitSet, input, condition);
   }
-  
+
   @Override
   public Pipeline buildBeamPipeline(BeamPipelineCreator planCreator) throws Exception {
 
@@ -63,6 +63,5 @@ public class BeamFilterRel extends Filter implements BeamRelNode {
 
     return planCreator.getPipeline();
   }
-
 
 }

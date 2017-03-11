@@ -23,7 +23,8 @@ import java.util.List;
 import org.beam.sdk.java.sql.schema.BeamSQLRow;
 
 /**
- * {@code BeamSQLExpressionExecutor} fills the gap between relational expressions in Calcite SQL and executable code.
+ * {@code BeamSQLExpressionExecutor} fills the gap between relational
+ * expressions in Calcite SQL and executable code.
  *
  */
 public interface BeamSQLExpressionExecutor extends Serializable {

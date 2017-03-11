@@ -25,17 +25,12 @@ import java.util.Map;
 
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.io.kafka.KafkaIO;
-import org.apache.beam.sdk.io.kafka.KafkaRecord;
-import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.calcite.rel.type.RelProtoDataType;
-import org.beam.sdk.java.sql.examples.RheosSinkTransform;
-import org.beam.sdk.java.sql.examples.RheosSourceTransform;
 import org.beam.sdk.java.sql.schema.BaseBeamTable;
 import org.beam.sdk.java.sql.schema.BeamIOType;
 import org.beam.sdk.java.sql.schema.BeamSQLRow;
@@ -80,8 +75,7 @@ public class BeamKafkaTable extends BaseBeamTable<KV<byte[], byte[]>> implements
   public PTransform<? super PBegin, PCollection<KV<byte[], byte[]>>> buildIOReader() {
     return KafkaIO.<byte[], byte[]>read().withBootstrapServers(this.bootstrapServers)
         .withTopics(this.topics).updateConsumerProperties(configUpdates)
-        .withKeyCoder(ByteArrayCoder.of()).withValueCoder(ByteArrayCoder.of())
-        .withoutMetadata();
+        .withKeyCoder(ByteArrayCoder.of()).withValueCoder(ByteArrayCoder.of()).withoutMetadata();
   }
 
   @Override
@@ -90,8 +84,8 @@ public class BeamKafkaTable extends BaseBeamTable<KV<byte[], byte[]>> implements
         "Only one topic can be acceptable as output.");
 
     return KafkaIO.<byte[], byte[]>write().withBootstrapServers(bootstrapServers)
-            .withTopic(topics.get(0)).withKeyCoder(ByteArrayCoder.of())
-            .withValueCoder(ByteArrayCoder.of());
+        .withTopic(topics.get(0)).withKeyCoder(ByteArrayCoder.of())
+        .withValueCoder(ByteArrayCoder.of());
   }
 
 }
