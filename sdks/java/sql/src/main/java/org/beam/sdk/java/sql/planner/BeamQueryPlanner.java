@@ -23,6 +23,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.PipelineResult;
 import org.apache.calcite.adapter.java.JavaTypeFactory;
 import org.apache.calcite.config.Lex;
 import org.apache.calcite.jdbc.CalciteSchema;
@@ -52,18 +54,20 @@ import org.beam.sdk.java.sql.rel.BeamRelNode;
 import org.beam.sdk.java.sql.schema.BaseBeamTable;
 
 /**
- * The core component to handle through a SQL statement, to a Beam pipeline.
+ * The core component to handle through a SQL statement, to submit a Beam pipeline.
  *
  */
 public class BeamQueryPlanner {
 
-  public static final int BEAM_REL_CONVERSION_RULES = 1;
-
-  private final Planner planner;
-  private Map<String, BaseBeamTable> kafkaTables = new HashMap<>();
+  protected final Planner planner;
+  private Map<String, BaseBeamTable> sourceTables = new HashMap<>();
 
   private final JavaTypeFactory typeFactory = new JavaTypeFactoryImpl(RelDataTypeSystem.DEFAULT);
 
+  /**
+   * 
+   * @param schema
+   */
   public BeamQueryPlanner(SchemaPlus schema) {
     final List<RelTraitDef> traitDefs = new ArrayList<RelTraitDef>();
     traitDefs.add(ConventionTraitDef.INSTANCE);
@@ -83,27 +87,48 @@ public class BeamQueryPlanner {
     this.planner = Frameworks.getPlanner(config);
 
     for (String t : schema.getTableNames()) {
-      kafkaTables.put(t, (BaseBeamTable) schema.getTable(t));
+      sourceTables.put(t, (BaseBeamTable) schema.getTable(t));
     }
   }
 
-  public void compileAndRun(String query) throws Exception {
-    BeamRelNode relNode = getPlan(query);
+  /**
+   * With a Beam pipeline generated in {@link #compileBeamPipeline(String)}, submit it to run and wait until finish.
+   * 
+   * @param sqlStatement
+   * @throws Exception
+   */
+  public void submitToRun(String sqlStatement) throws Exception{
+    Pipeline pipeline = compileBeamPipeline(sqlStatement);
+    
+    PipelineResult result = pipeline.run();
+    result.waitUntilFinish();
+  }
+  
+  /**
+   * With the @{@link BeamRelNode} tree generated in {@link #convertToBeamRel(String)}, a Beam pipeline is generated.
+   * 
+   * @param sqlStatement
+   * @return
+   * @throws Exception
+   */
+  public Pipeline compileBeamPipeline(String sqlStatement) throws Exception {
+    BeamRelNode relNode = convertToBeamRel(sqlStatement);
 
-    BeamPipelineCreator planCreator = new BeamPipelineCreator(kafkaTables);
-
-    String beamPlan = RelOptUtil.toString(relNode);
-    System.out.println("beamPlan>");
-    System.out.println(beamPlan);
-
-    relNode.buildBeamPipeline(planCreator);
-
-    planCreator.runJob();
+    BeamPipelineCreator planCreator = new BeamPipelineCreator(sourceTables);
+    return relNode.buildBeamPipeline(planCreator);
   }
 
-  public BeamRelNode getPlan(String query)
+  /**
+   * It parses and validate the input query, then convert into a {@link BeamRelNode} tree.
+   * @param query
+   * @return
+   * @throws ValidationException
+   * @throws RelConversionException
+   * @throws SqlParseException
+   */
+  public BeamRelNode convertToBeamRel(String sqlStatement)
       throws ValidationException, RelConversionException, SqlParseException {
-    return (BeamRelNode) validateAndConvert(planner.parse(query));
+    return (BeamRelNode) validateAndConvert(planner.parse(sqlStatement));
   }
 
   private RelNode validateAndConvert(SqlNode sqlNode)
@@ -133,4 +158,9 @@ public class BeamQueryPlanner {
     return validatedSqlNode;
   }
 
+  public Map<String, BaseBeamTable> getSourceTables() {
+    return sourceTables;
+  }
+
+  
 }

@@ -17,6 +17,7 @@
  */
 package org.beam.sdk.java.sql.rel;
 
+import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.calcite.plan.RelOptCluster;
@@ -44,7 +45,7 @@ public class BeamFilterRel extends Filter implements BeamRelNode {
   }
   
   @Override
-  public void buildBeamPipeline(BeamPipelineCreator planCreator) throws Exception {
+  public Pipeline buildBeamPipeline(BeamPipelineCreator planCreator) throws Exception {
 
     RelNode input = getInput();
     BeamSQLRelUtils.getBeamRelInput(input).buildBeamPipeline(planCreator);
@@ -60,7 +61,7 @@ public class BeamFilterRel extends Filter implements BeamRelNode {
 
     planCreator.setLatestStream(projectStream);
 
-    System.out.println("Build: apply_filter " + stageName );
+    return planCreator.getPipeline();
   }
 
 

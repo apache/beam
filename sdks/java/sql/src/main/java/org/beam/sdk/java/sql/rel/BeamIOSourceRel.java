@@ -17,6 +17,7 @@
  */
 package org.beam.sdk.java.sql.rel;
 
+import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptTable;
@@ -36,7 +37,7 @@ public class BeamIOSourceRel extends TableScan implements BeamRelNode {
   }
 
   @Override
-  public void buildBeamPipeline(BeamPipelineCreator planCreator) throws Exception {
+  public Pipeline buildBeamPipeline(BeamPipelineCreator planCreator) throws Exception {
 
     String sourceName = Joiner.on('.').join(getTable().getQualifiedName()).replace(".(STREAM)", "");
 
@@ -45,12 +46,12 @@ public class BeamIOSourceRel extends TableScan implements BeamRelNode {
     String stageName = BeamSQLRelUtils.getStageName(this);
 
     PCollection<BeamSQLRow> sourceStream = planCreator.getPipeline()
-        .apply(stageName,  sourceTable.buildReadTransform());
-    PCollection<BeamSQLRow> reformattedSourceStream = sourceStream.apply("sourceReformat", sourceTable.getSourceConverter());
+        .apply(stageName,  sourceTable.buildIOReader());
+    PCollection<BeamSQLRow> reformattedSourceStream = sourceStream.apply("sourceReformat", sourceTable.getInputTransform());
 
     planCreator.setLatestStream(reformattedSourceStream);
 
-    System.out.println("Build: add_source " + sourceName);
+    return planCreator.getPipeline();
   }
 
 }

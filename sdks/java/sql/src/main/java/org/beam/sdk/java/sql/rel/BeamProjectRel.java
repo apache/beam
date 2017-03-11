@@ -19,6 +19,7 @@ package org.beam.sdk.java.sql.rel;
 
 import java.util.List;
 
+import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.calcite.plan.RelOptCluster;
@@ -61,7 +62,7 @@ public class BeamProjectRel extends Project implements BeamRelNode {
   }
 
   @Override
-  public void buildBeamPipeline(BeamPipelineCreator planCreator) throws Exception {
+  public Pipeline buildBeamPipeline(BeamPipelineCreator planCreator) throws Exception {
     RelNode input = getInput();
     BeamSQLRelUtils.getBeamRelInput(input).buildBeamPipeline(planCreator);
 
@@ -76,7 +77,7 @@ public class BeamProjectRel extends Project implements BeamRelNode {
 
     planCreator.setLatestStream(projectStream);
 
-    System.out.println("Build: apply_project " + stageName);
+    return planCreator.getPipeline();
     
   }
 

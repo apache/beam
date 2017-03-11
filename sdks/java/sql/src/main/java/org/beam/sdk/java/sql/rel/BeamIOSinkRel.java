@@ -19,6 +19,7 @@ package org.beam.sdk.java.sql.rel;
 
 import java.util.List;
 
+import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.io.kafka.KafkaIO;
@@ -54,7 +55,7 @@ public class BeamIOSinkRel extends TableModify implements BeamRelNode {
   }
 
   @Override
-  public void buildBeamPipeline(BeamPipelineCreator planCreator) throws Exception {
+  public Pipeline buildBeamPipeline(BeamPipelineCreator planCreator) throws Exception {
 
     RelNode input = getInput();
     BeamSQLRelUtils.getBeamRelInput(input).buildBeamPipeline(planCreator);
@@ -67,12 +68,12 @@ public class BeamIOSinkRel extends TableModify implements BeamRelNode {
 
     BaseBeamTable targetTable = planCreator.getSourceTables().get(sourceName);
 
-    PCollection formattedOutput = upstream.apply("preformat_to_target", targetTable.getSinkConcerter());
-    formattedOutput.apply("persistent", targetTable.buildWriteTransform());
+    PCollection formattedOutput = upstream.apply("preformat_to_target", targetTable.getOutputTransform());
+    formattedOutput.apply("persistent", targetTable.buildIOWriter());
 
     planCreator.setHasPersistent(true);
 
-    System.out.println("Build: add_persistent " + stageName);
+    return planCreator.getPipeline();
   }
 
 

@@ -15,22 +15,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.beam.sdk.java.sql.rel;
-
-import org.apache.beam.sdk.Pipeline;
-import org.apache.calcite.rel.RelNode;
-import org.beam.sdk.java.sql.planner.BeamPipelineCreator;
-
 /**
- * A new method {@link #buildBeamPipeline(BeamPipelineCreator)} is added, it's called by {@link BeamPipelineCreator}.
+ * contain end-to-end tests
  *
  */
-public interface BeamRelNode extends RelNode {
-  
-  /**
-   * A {@link BeamRelNode} is a recursive structure, the {@link BeamPipelineCreator} visits it with a DFS(Depth-First-Search) algorithm.
-   * @param planCreator
-   * @throws Exception
-   */
-  Pipeline buildBeamPipeline(BeamPipelineCreator planCreator) throws Exception;
-}
+package org.beam.sdk.java.sql.e2e;

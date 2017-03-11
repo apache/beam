@@ -77,7 +77,7 @@ public class BeamKafkaTable extends BaseBeamTable<KV<byte[], byte[]>> implements
   }
 
   @Override
-  public PTransform<? super PBegin, PCollection<KV<byte[], byte[]>>> buildReadTransform() {
+  public PTransform<? super PBegin, PCollection<KV<byte[], byte[]>>> buildIOReader() {
     return KafkaIO.<byte[], byte[]>read().withBootstrapServers(this.bootstrapServers)
         .withTopics(this.topics).updateConsumerProperties(configUpdates)
         .withKeyCoder(ByteArrayCoder.of()).withValueCoder(ByteArrayCoder.of())
@@ -85,24 +85,13 @@ public class BeamKafkaTable extends BaseBeamTable<KV<byte[], byte[]>> implements
   }
 
   @Override
-  public PTransform<? super PCollection<KV<byte[], byte[]>>, PDone> buildWriteTransform() {
+  public PTransform<? super PCollection<KV<byte[], byte[]>>, PDone> buildIOWriter() {
     checkArgument(topics != null && topics.size() == 1,
         "Only one topic can be acceptable as output.");
 
-    return new PTransform<PCollection<KV<byte[], byte[]>>, PDone>() {
-      /**
-       * 
-       */
-      private static final long serialVersionUID = 1136964183593770265L;
-
-      @Override
-      public PDone expand(PCollection<KV<byte[], byte[]>> input) {
-        return input.apply("writeToKafka",
-                KafkaIO.<byte[], byte[]>write().withBootstrapServers(bootstrapServers)
-                    .withTopic(topics.get(0)).withKeyCoder(ByteArrayCoder.of())
-                    .withValueCoder(ByteArrayCoder.of()));
-      }
-    };
+    return KafkaIO.<byte[], byte[]>write().withBootstrapServers(bootstrapServers)
+            .withTopic(topics.get(0)).withKeyCoder(ByteArrayCoder.of())
+            .withValueCoder(ByteArrayCoder.of());
   }
 
 }

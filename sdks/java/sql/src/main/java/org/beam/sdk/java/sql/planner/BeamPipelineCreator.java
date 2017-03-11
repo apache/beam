@@ -59,14 +59,6 @@ public class BeamPipelineCreator {
     pipeline = Pipeline.create(options);
   }
 
-  public void runJob() {
-    if (!hasPersistent) {
-      latestStream.apply("emit_to_console", ParDo.of(new BeamSQLOutputToConsoleFn("emit_to_console")));
-    }
-
-    pipeline.run();
-  }
-
   public PCollection<BeamSQLRow> getLatestStream() {
     return latestStream;
   }

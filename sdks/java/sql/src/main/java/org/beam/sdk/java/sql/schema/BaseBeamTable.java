@@ -43,17 +43,17 @@ public abstract class BaseBeamTable<T> implements ScannableTable, Serializable {
    */
   private static final long serialVersionUID = -1262988061830914193L;
   private RelProtoDataType protoRowType;
-  // A transform to convert from a rawRecord of input
-  private PTransform<PCollection<T>, PCollection<BeamSQLRow>> sourceConverter;
-  // A transform to convert one record to a rawRecord for output
-  private PTransform<PCollection<BeamSQLRow>, PCollection<T>> sinkConcerter;
+  // A {@link PTransform} that convert a input record of {@code IO.read()} to {@link BeamSQLRow}
+  private PTransform<PCollection<T>, PCollection<BeamSQLRow>> inputTransform;
+  // A {@link PTransform} that convert a {@link BeamSQLRow} to the required record of {@code IO.write()}
+  private PTransform<PCollection<BeamSQLRow>, PCollection<T>> outputTransform;
 
   public BaseBeamTable(RelProtoDataType protoRowType,
-      PTransform<PCollection<T>, PCollection<BeamSQLRow>> sourceConverter,
-      PTransform<PCollection<BeamSQLRow>, PCollection<T>> sinkConcerter) {
+      PTransform<PCollection<T>, PCollection<BeamSQLRow>> inputTransform,
+      PTransform<PCollection<BeamSQLRow>, PCollection<T>> outputTransform) {
     this.protoRowType = protoRowType;
-    this.sourceConverter = sourceConverter;
-    this.sinkConcerter = sinkConcerter;
+    this.inputTransform = inputTransform;
+    this.outputTransform = outputTransform;
   }
 
   /**
@@ -63,25 +63,35 @@ public abstract class BaseBeamTable<T> implements ScannableTable, Serializable {
   public abstract BeamIOType getSourceType();
 
   /**
-   * create a READ PTransform.
+   * create a {@code IO.read()} instance to read from source.
    * 
    * @return
    */
-  public abstract PTransform<? super PBegin, PCollection<T>> buildReadTransform();
+  public abstract PTransform<? super PBegin, PCollection<T>> buildIOReader();
 
   /**
-   * create a WRITE PTransform
+   * create a {@code IO.write()} instance to write to target.
    * 
    * @return
    */
-  public abstract PTransform<? super PCollection<T>, PDone> buildWriteTransform();
+  public abstract PTransform<? super PCollection<T>, PDone> buildIOWriter();
 
-  public PTransform<PCollection<T>, PCollection<BeamSQLRow>> getSourceConverter() {
-    return sourceConverter;
+  
+
+  /**
+   * A {@link PTransform} that convert a input record of {@code IO.read()} to {@link BeamSQLRow}
+   * @return
+   */
+  public PTransform<PCollection<T>, PCollection<BeamSQLRow>> getInputTransform() {
+    return inputTransform;
   }
 
-  public PTransform<PCollection<BeamSQLRow>, PCollection<T>> getSinkConcerter() {
-    return sinkConcerter;
+  /**
+   * A {@link PTransform} that convert a {@link BeamSQLRow} to the required record of {@code IO.write()}
+   * @return
+   */
+  public PTransform<PCollection<BeamSQLRow>, PCollection<T>> getOutputTransform() {
+    return outputTransform;
   }
 
   @Override
