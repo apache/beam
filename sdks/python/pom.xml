@@ -136,6 +136,8 @@
                 <argument>sdist</argument>
                 <argument>--dist-dir</argument>
                 <argument>${project.build.directory}</argument>
+                <argument>--formats</argument>
+                <argument>zip,gztar</argument>
               </arguments>
               <environmentVariables>
                 <PYTHONUSERBASE>${python.user.base}</PYTHONUSERBASE>
