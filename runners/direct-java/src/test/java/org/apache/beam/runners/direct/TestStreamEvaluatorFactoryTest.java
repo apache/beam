@@ -60,10 +60,12 @@ public class TestStreamEvaluatorFactoryTest {
 
   @Rule
   public TestPipeline p = TestPipeline.create().enableAbandonedNodeEnforcement(false);
+  private DirectRunner runner;
 
   @Before
   public void setup() {
     context = mock(EvaluationContext.class);
+    runner = DirectRunner.fromOptions(TestPipeline.testingPipelineOptions());
     factory = new TestStreamEvaluatorFactory(context);
     bundleFactory = ImmutableListBundleFactory.create();
   }
@@ -80,7 +82,7 @@ public class TestStreamEvaluatorFactoryTest {
         .advanceProcessingTime(Duration.standardMinutes(10))
         .advanceWatermarkToInfinity();
     PCollection<Integer> streamVals =
-        p.apply(new DirectTestStream<Integer>(testStream));
+        p.apply(new DirectTestStream<Integer>(runner, testStream));
 
     TestClock clock = new TestClock();
     when(context.getClock()).thenReturn(clock);
@@ -180,7 +182,7 @@ public class TestStreamEvaluatorFactoryTest {
 
   @Test
   public void overrideFactoryGetInputSucceeds() {
-    DirectTestStreamFactory<?> factory = new DirectTestStreamFactory<>();
+    DirectTestStreamFactory<?> factory = new DirectTestStreamFactory<>(runner);
     PBegin begin = factory.getInput(Collections.<TaggedPValue>emptyList(), p);
     assertThat(begin.getPipeline(), Matchers.<Pipeline>equalTo(p));
   }

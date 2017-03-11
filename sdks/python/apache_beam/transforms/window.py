@@ -49,13 +49,20 @@ WindowFn.
 
 from __future__ import absolute_import
 
+from google.protobuf import struct_pb2
+from google.protobuf import wrappers_pb2
+
 from apache_beam import coders
+from apache_beam.internal import pickler
+from apache_beam.runners.api import beam_runner_api_pb2
 from apache_beam.transforms import timeutil
 from apache_beam.transforms.timeutil import Duration
 from apache_beam.transforms.timeutil import MAX_TIMESTAMP
 from apache_beam.transforms.timeutil import MIN_TIMESTAMP
 from apache_beam.transforms.timeutil import Timestamp
 from apache_beam.utils.windowed_value import WindowedValue
+from apache_beam.utils import proto_utils
+from apache_beam.utils import urns
 
 
 # TODO(ccy): revisit naming and semantics once Java Apache Beam finalizes their
@@ -63,9 +70,10 @@ from apache_beam.utils.windowed_value import WindowedValue
 class OutputTimeFn(object):
   """Determines how output timestamps of grouping operations are assigned."""
 
-  OUTPUT_AT_EOW = 'OUTPUT_AT_EOW'
-  OUTPUT_AT_EARLIEST = 'OUTPUT_AT_EARLIEST'
-  OUTPUT_AT_LATEST = 'OUTPUT_AT_LATEST'
+  OUTPUT_AT_EOW = beam_runner_api_pb2.END_OF_WINDOW
+  OUTPUT_AT_EARLIEST = beam_runner_api_pb2.EARLIEST_IN_PANE
+  OUTPUT_AT_LATEST = beam_runner_api_pb2.LATEST_IN_PANE
+  # TODO(robertwb): Add this to the runner API or remove it.
   OUTPUT_AT_EARLIEST_TRANSFORMED = 'OUTPUT_AT_EARLIEST_TRANSFORMED'
 
   @staticmethod
@@ -109,6 +117,10 @@ class WindowFn(object):
     """Returns a window that is the result of merging a set of windows."""
     raise NotImplementedError
 
+  def is_merging(self):
+    """Returns whether this WindowFn merges windows."""
+    return True
+
   def get_window_coder(self):
     return coders.WindowCoder()
 
@@ -130,6 +142,40 @@ class WindowFn(object):
     """
     # By default, just return the input timestamp.
     return input_timestamp
+
+  _known_urns = {}
+
+  @classmethod
+  def register_urn(cls, urn, parameter_type, constructor):
+    cls._known_urns[urn] = parameter_type, constructor
+
+  @classmethod
+  def from_runner_api(cls, fn_proto, context):
+    parameter_type, constructor = cls._known_urns[fn_proto.spec.urn]
+    return constructor(
+        proto_utils.unpack_Any(fn_proto.spec.parameter, parameter_type),
+        context)
+
+  def to_runner_api(self, context):
+    urn, typed_param = self.to_runner_api_parameter(context)
+    return beam_runner_api_pb2.FunctionSpec(
+        spec=beam_runner_api_pb2.UrnWithParameter(
+            urn=urn,
+            parameter=proto_utils.pack_Any(typed_param)))
+
+  @staticmethod
+  def from_runner_api_parameter(fn_parameter, unused_context):
+    return pickler.loads(fn_parameter.value)
+
+  def to_runner_api_parameter(self, context):
+    return (urns.PICKLED_WINDOW_FN,
+            wrappers_pb2.BytesValue(value=pickler.dumps(self)))
+
+
+WindowFn.register_urn(
+    urns.PICKLED_WINDOW_FN,
+    wrappers_pb2.BytesValue,
+    WindowFn.from_runner_api_parameter)
 
 
 class BoundedWindow(object):
@@ -225,7 +271,16 @@ class GlobalWindow(BoundedWindow):
     return self is other or type(self) is type(other)
 
 
-class GlobalWindows(WindowFn):
+class NonMergingWindowFn(WindowFn):
+
+  def is_merging(self):
+    return False
+
+  def merge(self, merge_context):
+    pass  # No merging.
+
+
+class GlobalWindows(NonMergingWindowFn):
   """A windowing function that assigns everything to one global window."""
 
   @classmethod
@@ -234,9 +289,6 @@ class GlobalWindows(WindowFn):
 
   def assign(self, assign_context):
     return [GlobalWindow()]
-
-  def merge(self, merge_context):
-    pass  # No merging.
 
   def get_window_coder(self):
     return coders.GlobalWindowCoder()
@@ -251,8 +303,18 @@ class GlobalWindows(WindowFn):
   def __ne__(self, other):
     return not self == other
 
+  @staticmethod
+  def from_runner_api_parameter(unused_fn_parameter, unused_context):
+    return GlobalWindows()
 
-class FixedWindows(WindowFn):
+  def to_runner_api_parameter(self, context):
+    return urns.GLOBAL_WINDOWS_FN, None
+
+WindowFn.register_urn(
+    urns.GLOBAL_WINDOWS_FN, None, GlobalWindows.from_runner_api_parameter)
+
+
+class FixedWindows(NonMergingWindowFn):
   """A windowing function that assigns each element to one time interval.
 
   The attributes size and offset determine in what time interval a timestamp
@@ -277,11 +339,31 @@ class FixedWindows(WindowFn):
     start = timestamp - (timestamp - self.offset) % self.size
     return [IntervalWindow(start, start + self.size)]
 
-  def merge(self, merge_context):
-    pass  # No merging.
+  def __eq__(self, other):
+    if type(self) == type(other) == FixedWindows:
+      return self.size == other.size and self.offset == other.offset
+
+  def __ne__(self, other):
+    return not self == other
+
+  @staticmethod
+  def from_runner_api_parameter(fn_parameter, unused_context):
+    return FixedWindows(
+        size=Duration(micros=fn_parameter['size']),
+        offset=Timestamp(micros=fn_parameter['offset']))
+
+  def to_runner_api_parameter(self, context):
+    return (urns.FIXED_WINDOWS_FN,
+            proto_utils.pack_Struct(size=self.size.micros,
+                                    offset=self.offset.micros))
+
+WindowFn.register_urn(
+    urns.FIXED_WINDOWS_FN,
+    struct_pb2.Struct,
+    FixedWindows.from_runner_api_parameter)
 
 
-class SlidingWindows(WindowFn):
+class SlidingWindows(NonMergingWindowFn):
   """A windowing function that assigns each element to a set of sliding windows.
 
   The attributes size and offset determine in what time interval a timestamp
@@ -309,8 +391,30 @@ class SlidingWindows(WindowFn):
     return [IntervalWindow(Timestamp.of(s), Timestamp.of(s) + self.size)
             for s in range(start, start - self.size, -self.period)]
 
-  def merge(self, merge_context):
-    pass  # No merging.
+  def __eq__(self, other):
+    if type(self) == type(other) == SlidingWindows:
+      return (self.size == other.size
+              and self.offset == other.offset
+              and self.period == other.period)
+
+  @staticmethod
+  def from_runner_api_parameter(fn_parameter, unused_context):
+    return SlidingWindows(
+        size=Duration(micros=fn_parameter['size']),
+        offset=Timestamp(micros=fn_parameter['offset']),
+        period=Duration(micros=fn_parameter['period']))
+
+  def to_runner_api_parameter(self, context):
+    return (urns.SLIDING_WINDOWS_FN,
+            proto_utils.pack_Struct(
+                size=self.size.micros,
+                offset=self.offset.micros,
+                period=self.period.micros))
+
+WindowFn.register_urn(
+    urns.SLIDING_WINDOWS_FN,
+    struct_pb2.Struct,
+    SlidingWindows.from_runner_api_parameter)
 
 
 class Sessions(WindowFn):
@@ -352,3 +456,20 @@ class Sessions(WindowFn):
         end = w.end
     if len(to_merge) > 1:
       merge_context.merge(to_merge, IntervalWindow(to_merge[0].start, end))
+
+  def __eq__(self, other):
+    if type(self) == type(other) == Sessions:
+      return self.gap_size == other.gap_size
+
+  @staticmethod
+  def from_runner_api_parameter(fn_parameter, unused_context):
+    return Sessions(gap_size=Duration(micros=fn_parameter['gap_size']))
+
+  def to_runner_api_parameter(self, context):
+    return (urns.SESSION_WINDOWS_FN,
+            proto_utils.pack_Struct(gap_size=self.gap_size.micros))
+
+WindowFn.register_urn(
+    urns.SESSION_WINDOWS_FN,
+    struct_pb2.Struct,
+    Sessions.from_runner_api_parameter)

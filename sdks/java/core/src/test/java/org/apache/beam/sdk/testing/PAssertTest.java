@@ -297,6 +297,42 @@ public class PAssertTest implements Serializable {
   }
 
   /**
+   * Test that we throw an error for false assertion on singleton.
+   */
+  @Test
+  @Category(RunnableOnService.class)
+  public void testPAssertEqualsSingletonFalse() throws Exception {
+    PCollection<Integer> pcollection = pipeline.apply(Create.of(42));
+    PAssert.thatSingleton("The value was not equal to 44", pcollection).isEqualTo(44);
+
+    Throwable thrown = runExpectingAssertionFailure(pipeline);
+
+    String message = thrown.getMessage();
+
+    assertThat(message, containsString("The value was not equal to 44"));
+    assertThat(message, containsString("Expected: <44>"));
+    assertThat(message, containsString("but: was <42>"));
+  }
+
+  /**
+   * Test that we throw an error for false assertion on singleton.
+   */
+  @Test
+  @Category(RunnableOnService.class)
+  public void testPAssertEqualsSingletonFalseDefaultReasonString() throws Exception {
+    PCollection<Integer> pcollection = pipeline.apply(Create.of(42));
+    PAssert.thatSingleton(pcollection).isEqualTo(44);
+
+    Throwable thrown = runExpectingAssertionFailure(pipeline);
+
+    String message = thrown.getMessage();
+
+    assertThat(message, containsString("Create.Values/Read(CreateSource).out"));
+    assertThat(message, containsString("Expected: <44>"));
+    assertThat(message, containsString("but: was <42>"));
+  }
+
+  /**
    * Tests that {@code containsInAnyOrder} is actually order-independent.
    */
   @Test
@@ -389,11 +425,29 @@ public class PAssertTest implements Serializable {
   @Category(RunnableOnService.class)
   public void testEmptyFalse() throws Exception {
     PCollection<Long> vals = pipeline.apply(CountingInput.upTo(5L));
+    PAssert.that("Vals should have been empty", vals).empty();
+
+    Throwable thrown = runExpectingAssertionFailure(pipeline);
+
+    String message = thrown.getMessage();
+
+    assertThat(message, containsString("Vals should have been empty"));
+    assertThat(message, containsString("Expected: iterable over [] in any order"));
+  }
+
+  @Test
+  @Category(RunnableOnService.class)
+  public void testEmptyFalseDefaultReasonString() throws Exception {
+    PCollection<Long> vals = pipeline.apply(CountingInput.upTo(5L));
     PAssert.that(vals).empty();
 
     Throwable thrown = runExpectingAssertionFailure(pipeline);
 
-    assertThat(thrown.getMessage(), containsString("Expected: iterable over [] in any order"));
+    String message = thrown.getMessage();
+
+    assertThat(message,
+        containsString("CountingInput.BoundedCountingInput/Read(BoundedCountingSource).out"));
+    assertThat(message, containsString("Expected: iterable over [] in any order"));
   }
 
   private static Throwable runExpectingAssertionFailure(Pipeline pipeline) {

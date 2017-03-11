@@ -43,6 +43,7 @@ import org.apache.beam.runners.core.StateNamespaces;
 import org.apache.beam.runners.core.StateNamespaces.WindowNamespace;
 import org.apache.beam.runners.core.StateTag;
 import org.apache.beam.runners.core.StateTags;
+import org.apache.beam.runners.core.StatefulDoFnRunner;
 import org.apache.beam.runners.core.TimerInternals;
 import org.apache.beam.runners.core.TimerInternals.TimerData;
 import org.apache.beam.runners.flink.translation.types.CoderTypeSerializer;
@@ -61,13 +62,18 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.join.RawUnionValue;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.NullSideInputReader;
 import org.apache.beam.sdk.util.SideInputReader;
 import org.apache.beam.sdk.util.TimeDomain;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.util.state.BagState;
+import org.apache.beam.sdk.util.state.State;
+import org.apache.beam.sdk.util.state.StateSpec;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
@@ -286,6 +292,7 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
       //
       // for some K, V
 
+
       doFnRunner = DoFnRunners.lateDataDroppingRunner(
           (DoFnRunner) doFnRunner,
           stepContext,
@@ -293,8 +300,27 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
           ((GroupAlsoByWindowViaWindowSetNewDoFn) doFn).getDroppedDueToLatenessAggregator());
     } else if (keyCoder != null) {
       // It is a stateful DoFn
+
+      StatefulDoFnRunner.CleanupTimer cleanupTimer =
+          new TimeInternalsCleanupTimer(stepContext.timerInternals(), windowingStrategy);
+
+      // we don't know the window type
+      @SuppressWarnings({"unchecked", "rawtypes"})
+      Coder windowCoder = windowingStrategy.getWindowFn().windowCoder();
+
+      @SuppressWarnings({"unchecked", "rawtypes"})
+      StatefulDoFnRunner.StateCleaner<?> stateCleaner =
+          new StateInternalsStateCleaner<>(
+              doFn, stepContext.stateInternals(), windowCoder);
+
       doFnRunner = DoFnRunners.defaultStatefulDoFnRunner(
-          doFn, doFnRunner, stepContext, aggregatorFactory, windowingStrategy);
+          doFn,
+          doFnRunner,
+          stepContext,
+          aggregatorFactory,
+          windowingStrategy,
+          cleanupTimer,
+          stateCleaner);
     }
 
     pushbackDoFnRunner =
@@ -746,7 +772,90 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
     public Instant currentOutputWatermarkTime() {
       return new Instant(currentOutputWatermark);
     }
-
   }
 
+
+  /**
+   * A {@link StatefulDoFnRunner.CleanupTimer} implemented by TimerInternals.
+   */
+  public static class TimeInternalsCleanupTimer implements StatefulDoFnRunner.CleanupTimer {
+
+    public static final String GC_TIMER_ID = "__StatefulParDoGcTimerId";
+
+    private final TimerInternals timerInternals;
+    private final WindowingStrategy<?, ?> windowingStrategy;
+    private final Coder<BoundedWindow> windowCoder;
+
+    public TimeInternalsCleanupTimer(
+        TimerInternals timerInternals,
+        WindowingStrategy<?, ?> windowingStrategy) {
+      this.windowingStrategy = windowingStrategy;
+      WindowFn<?, ?> windowFn = windowingStrategy.getWindowFn();
+      windowCoder = (Coder<BoundedWindow>) windowFn.windowCoder();
+      this.timerInternals = timerInternals;
+    }
+
+    @Override
+    public Instant currentInputWatermarkTime() {
+      return timerInternals.currentInputWatermarkTime();
+    }
+
+    @Override
+    public void setForWindow(BoundedWindow window) {
+      Instant gcTime = window.maxTimestamp().plus(windowingStrategy.getAllowedLateness());
+      // make sure this fires after any window.maxTimestamp() timers
+      gcTime = gcTime.plus(1L);
+      timerInternals.setTimer(StateNamespaces.window(windowCoder, window),
+          GC_TIMER_ID, gcTime, TimeDomain.EVENT_TIME);
+    }
+
+    @Override
+    public boolean isForWindow(
+        String timerId,
+        BoundedWindow window,
+        Instant timestamp,
+        TimeDomain timeDomain) {
+      boolean isEventTimer = timeDomain.equals(TimeDomain.EVENT_TIME);
+      Instant gcTime = window.maxTimestamp().plus(windowingStrategy.getAllowedLateness());
+      gcTime = gcTime.plus(1L);
+      return isEventTimer && GC_TIMER_ID.equals(timerId) && gcTime.equals(timestamp);
+    }
+  }
+
+  /**
+   * A {@link StatefulDoFnRunner.StateCleaner} implemented by StateInternals.
+   */
+  public static class StateInternalsStateCleaner<W extends BoundedWindow>
+      implements StatefulDoFnRunner.StateCleaner<W> {
+
+    private final DoFn<?, ?> fn;
+    private final DoFnSignature signature;
+    private final StateInternals<?> stateInternals;
+    private final Coder<W> windowCoder;
+
+    public StateInternalsStateCleaner(
+        DoFn<?, ?> fn,
+        StateInternals<?> stateInternals,
+        Coder<W> windowCoder) {
+      this.fn = fn;
+      this.signature = DoFnSignatures.getSignature(fn.getClass());
+      this.stateInternals = stateInternals;
+      this.windowCoder = windowCoder;
+    }
+
+    @Override
+    public void clearForWindow(W window) {
+      for (Map.Entry<String, DoFnSignature.StateDeclaration> entry :
+          signature.stateDeclarations().entrySet()) {
+        try {
+          StateSpec<?, ?> spec = (StateSpec<?, ?>) entry.getValue().field().get(fn);
+          State state = stateInternals.state(StateNamespaces.window(windowCoder, window),
+              StateTags.tagForSpec(entry.getKey(), (StateSpec) spec));
+          state.clear();
+        } catch (IllegalAccessException e) {
+          throw new RuntimeException(e);
+        }
+      }
+    }
+  }
 }

@@ -122,6 +122,17 @@ class DisplayDataTest(unittest.TestCase):
         DisplayDataItemMatcher('extra_packages',
                                str(['package1', 'package2']))))
 
+  def test_unicode_type_display_data(self):
+    class MyDoFn(beam.DoFn):
+      def display_data(self):
+        return {'unicode_string': unicode('my string'),
+                'unicode_literal_string': u'my literal string'}
+
+    fn = MyDoFn()
+    dd = DisplayData.create_from(fn)
+    for item in dd.items:
+      self.assertEqual(item.type, 'STRING')
+
   def test_base_cases(self):
     """ Tests basic display data cases (key:value, key:dict)
     It does not test subcomponent inclusion
