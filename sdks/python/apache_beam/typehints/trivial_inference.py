@@ -218,9 +218,10 @@ def infer_return_type(c, input_types, debug=False, depth=5):
   """Analyses a callable to deduce its return type.
 
   Args:
-    f: A Python function object to infer the return type of.
+    c: A Python callable to infer the return type of.
     input_types: A sequence of inputs corresponding to the input types.
     debug: Whether to print verbose debugging information.
+    depth: Maximal inspection depth of function calls during type inference
 
   Returns:
     A TypeConstraint that that the return value of this function will (likely)
@@ -268,6 +269,7 @@ def infer_return_type_func(f, input_types, debug=False, depth=0):
     f: A Python function object to infer the return type of.
     input_types: A sequence of inputs corresponding to the input types.
     debug: Whether to print verbose debugging information.
+    depth: Maximal inspection depth of function calls during type inference
 
   Returns:
     A TypeConstraint that that the return value of this function will (likely)

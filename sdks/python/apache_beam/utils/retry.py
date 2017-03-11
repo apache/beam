@@ -59,7 +59,7 @@ class FuzzedExponentialIntervals(object):
     fuzz: A value between 0 and 1, indicating the fraction of fuzz. For a
       given delay d, the fuzzed delay is randomly chosen between
       [(1 - fuzz) * d, d].
-    max_delay_sec: Maximum delay (in seconds). After this limit is reached,
+    max_delay_secs: Maximum delay (in seconds). After this limit is reached,
       further tries use max_delay_sec instead of exponentially increasing
       the time. Defaults to 1 hour.
   """
@@ -143,7 +143,7 @@ def with_exponential_backoff(
       can be used so that the delays are not randomized.
     factor: The exponential factor to use on subsequent retries.
       Default is 2 (doubling).
-    max_delay_sec: Maximum delay (in seconds). After this limit is reached,
+    max_delay_secs: Maximum delay (in seconds). After this limit is reached,
       further tries use max_delay_sec instead of exponentially increasing
       the time. Defaults to 4 hours.
 

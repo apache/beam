@@ -155,6 +155,8 @@ class GcsIO(object):
 
     Args:
       pattern: GCS file path pattern in the form gs://<bucket>/<name_pattern>.
+      limit: Maximal number of path names to return.
+        All matching paths are returned if set to None.
 
     Returns:
       list of GCS file paths matching the given pattern.
@@ -370,7 +372,7 @@ class GcsIO(object):
     """Returns the size of all the files in the glob as a dictionary
 
     Args:
-      path: a file path pattern that reads the size of all the files
+      pattern: a file path pattern that reads the size of all the files
     """
     bucket, name_pattern = parse_gcs_path(pattern)
     # Get the prefix with which we can list objects in the given bucket.

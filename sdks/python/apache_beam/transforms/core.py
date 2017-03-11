@@ -521,7 +521,7 @@ class PartitionFn(WithTypeHints):
   def default_label(self):
     return self.__class__.__name__
 
-  def partition_for(self, context, num_partitions, *args, **kwargs):
+  def partition_for(self, element, num_partitions, *args, **kwargs):
     """Specify which partition will receive this element.
 
     Args:
