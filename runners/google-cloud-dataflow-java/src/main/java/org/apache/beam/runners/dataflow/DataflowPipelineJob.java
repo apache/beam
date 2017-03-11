@@ -57,7 +57,7 @@ public class DataflowPipelineJob implements PipelineResult {
   /**
    * The id for the job.
    */
-  private String jobId;
+  protected String jobId;
 
   /**
    * The {@link DataflowPipelineOptions} for the job.
@@ -71,6 +71,12 @@ public class DataflowPipelineJob implements PipelineResult {
   private final DataflowClient dataflowClient;
 
   /**
+   * MetricResults object for Dataflow Runner. It allows for querying of metrics from the Dataflow
+   * service.
+   */
+  private final DataflowMetrics dataflowMetrics;
+
+  /**
    * The state the job terminated in or {@code null} if the job has not terminated.
    */
   @Nullable
@@ -82,7 +88,7 @@ public class DataflowPipelineJob implements PipelineResult {
   @Nullable
   private DataflowPipelineJob replacedByJob = null;
 
-  private DataflowAggregatorTransforms aggregatorTransforms;
+  protected DataflowAggregatorTransforms aggregatorTransforms;
 
   /**
    * The Metric Updates retrieved after the job was in a terminal state.
@@ -129,6 +135,7 @@ public class DataflowPipelineJob implements PipelineResult {
     this.dataflowOptions = dataflowOptions;
     this.dataflowClient = (dataflowOptions == null ? null : DataflowClient.create(dataflowOptions));
     this.aggregatorTransforms = aggregatorTransforms;
+    this.dataflowMetrics = new DataflowMetrics(this, this.dataflowClient);
   }
 
   /**
@@ -462,8 +469,7 @@ public class DataflowPipelineJob implements PipelineResult {
 
   @Override
   public MetricResults metrics() {
-    throw new UnsupportedOperationException(
-        "The DataflowRunner does not currently support metrics.");
+    return dataflowMetrics;
   }
 
   private <OutputT> Map<String, OutputT> fromMetricUpdates(Aggregator<?, OutputT> aggregator)
