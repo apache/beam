@@ -191,6 +191,7 @@ class Pipeline(object):
     Args:
       transform: the PTranform to apply.
       pvalueish: the input for the PTransform (typically a PCollection).
+      label: label of the PTransform.
 
     Raises:
       TypeError: if the transform object extracted from the argument list is
