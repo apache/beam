@@ -2272,9 +2272,7 @@ public class BigQueryIO {
 
       public final KV<String, Long> close() throws IOException {
         channel.close();
-        KV<String, Long> record = KV.of(fileName, out.getCount());
-        out.close();
-        return record;
+        return KV.of(fileName, out.getCount());
       }
     }
 
