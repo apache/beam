@@ -28,7 +28,6 @@ import java.io.OutputStream;
 import java.io.Serializable;
 import java.util.Arrays;
 import java.util.List;
-import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
@@ -42,8 +41,6 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Combine.BinaryCombineFn;
 import org.apache.beam.sdk.transforms.CombineFns.CoCombineResult;
 import org.apache.beam.sdk.transforms.CombineWithContext.KeyedCombineFnWithContext;
-import org.apache.beam.sdk.transforms.Max.MaxIntegerFn;
-import org.apache.beam.sdk.transforms.Min.MinIntegerFn;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
@@ -62,6 +59,7 @@ import org.junit.runners.JUnit4;
  */
 @RunWith(JUnit4.class)
 public class  CombineFnsTest {
+  @Rule public final TestPipeline p = TestPipeline.create();
   @Rule public ExpectedException expectedException = ExpectedException.none();
 
   @Test
@@ -71,8 +69,8 @@ public class  CombineFnsTest {
 
     TupleTag<Integer> tag = new TupleTag<Integer>();
     CombineFns.compose()
-      .with(new GetIntegerFunction(), new MaxIntegerFn(), tag)
-      .with(new GetIntegerFunction(), new MinIntegerFn(), tag);
+      .with(new GetIntegerFunction(), Max.ofIntegers(), tag)
+      .with(new GetIntegerFunction(), Min.ofIntegers(), tag);
   }
 
   @Test
@@ -82,8 +80,8 @@ public class  CombineFnsTest {
 
     TupleTag<Integer> tag = new TupleTag<Integer>();
     CombineFns.composeKeyed()
-      .with(new GetIntegerFunction(), new MaxIntegerFn(), tag)
-      .with(new GetIntegerFunction(), new MinIntegerFn(), tag);
+      .with(new GetIntegerFunction(), Max.ofIntegers(), tag)
+      .with(new GetIntegerFunction(), Min.ofIntegers(), tag);
   }
 
   @Test
@@ -123,7 +121,6 @@ public class  CombineFnsTest {
   @Test
   @Category(RunnableOnService.class)
   public void testComposedCombine() {
-    Pipeline p = TestPipeline.create();
     p.getCoderRegistry().registerCoder(UserString.class, UserStringCoder.of());
 
     PCollection<KV<String, KV<Integer, UserString>>> perKeyInput = p.apply(
@@ -146,7 +143,7 @@ public class  CombineFnsTest {
         .apply(Combine.globally(CombineFns.compose()
             .with(
                 new GetIntegerFunction(),
-                new MaxIntegerFn(),
+                Max.ofIntegers(),
                 maxIntTag)
             .with(
                 new GetUserStringFunction(),
@@ -160,7 +157,7 @@ public class  CombineFnsTest {
         .apply(Combine.perKey(CombineFns.composeKeyed()
             .with(
                 new GetIntegerFunction(),
-                new MaxIntegerFn().<String>asKeyedFn(),
+                Max.ofIntegers().<String>asKeyedFn(),
                 maxIntTag)
             .with(
                 new GetUserStringFunction(),
@@ -178,7 +175,6 @@ public class  CombineFnsTest {
   @Test
   @Category(RunnableOnService.class)
   public void testComposedCombineWithContext() {
-    Pipeline p = TestPipeline.create();
     p.getCoderRegistry().registerCoder(UserString.class, UserStringCoder.of());
 
     PCollectionView<String> view = p
@@ -205,7 +201,7 @@ public class  CombineFnsTest {
         .apply(Combine.globally(CombineFns.compose()
             .with(
                 new GetIntegerFunction(),
-                new MaxIntegerFn(),
+                Max.ofIntegers(),
                 maxIntTag)
             .with(
                 new GetUserStringFunction(),
@@ -221,7 +217,7 @@ public class  CombineFnsTest {
         .apply(Combine.perKey(CombineFns.composeKeyed()
             .with(
                 new GetIntegerFunction(),
-                new MaxIntegerFn().<String>asKeyedFn(),
+                Max.ofIntegers().<String>asKeyedFn(),
                 maxIntTag)
             .with(
                 new GetUserStringFunction(),
@@ -240,7 +236,6 @@ public class  CombineFnsTest {
   @Test
   @Category(RunnableOnService.class)
   public void testComposedCombineNullValues() {
-    Pipeline p = TestPipeline.create();
     p.getCoderRegistry().registerCoder(UserString.class, NullableCoder.of(UserStringCoder.of()));
     p.getCoderRegistry().registerCoder(String.class, NullableCoder.of(StringUtf8Coder.of()));
 
@@ -265,7 +260,7 @@ public class  CombineFnsTest {
         .apply(Combine.perKey(CombineFns.composeKeyed()
             .with(
                 new GetIntegerFunction(),
-                new MaxIntegerFn().<String>asKeyedFn(),
+                Max.ofIntegers().<String>asKeyedFn(),
                 maxIntTag)
             .with(
                 new GetUserStringFunction(),

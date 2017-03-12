@@ -75,8 +75,8 @@ import org.joda.time.Instant;
  *
  * <p>Before running this example, it will be useful to familiarize yourself with Beam triggers
  * and understand the concept of 'late data',
- * See: <a href="http://beam.incubator.apache.org/use/walkthroughs/">
- * http://beam.incubator.apache.org/use/walkthroughs/</a>
+ * See: <a href="http://beam.apache.org/use/walkthroughs/">
+ * http://beam.apache.org/use/walkthroughs/</a>
  *
  * <p>The example is configured to use the default BigQuery table from the example common package
  * (there are no defaults for a general Beam pipeline).

@@ -17,14 +17,15 @@
  */
 package org.apache.beam.runners.direct;
 
+import com.google.common.collect.Iterables;
 import java.util.ArrayList;
 import java.util.List;
+import org.apache.beam.runners.core.construction.SingleInputOutputOverrideFactory;
 import org.apache.beam.runners.direct.CommittedResult.OutputType;
 import org.apache.beam.runners.direct.DirectRunner.PCollectionViewWriter;
 import org.apache.beam.runners.direct.StepTransformResult.Builder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
-import org.apache.beam.sdk.runners.PTransformOverrideFactory;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -68,9 +69,10 @@ class ViewEvaluatorFactory implements TransformEvaluatorFactory {
   private <InT, OuT> TransformEvaluator<Iterable<InT>> createEvaluator(
       final AppliedPTransform<PCollection<Iterable<InT>>, PCollectionView<OuT>, WriteView<InT, OuT>>
           application) {
-    PCollection<Iterable<InT>> input = application.getInput();
-    final PCollectionViewWriter<InT, OuT> writer =
-        context.createPCollectionViewWriter(input, application.getOutput());
+    PCollection<Iterable<InT>> input =
+        (PCollection<Iterable<InT>>) Iterables.getOnlyElement(application.getInputs()).getValue();
+    final PCollectionViewWriter<InT, OuT> writer = context.createPCollectionViewWriter(input,
+        (PCollectionView<OuT>) Iterables.getOnlyElement(application.getOutputs()).getValue());
     return new TransformEvaluator<Iterable<InT>>() {
       private final List<WindowedValue<InT>> elements = new ArrayList<>();
 
@@ -95,9 +97,8 @@ class ViewEvaluatorFactory implements TransformEvaluatorFactory {
   }
 
   public static class ViewOverrideFactory<ElemT, ViewT>
-      implements PTransformOverrideFactory<
-          PCollection<ElemT>, PCollectionView<ViewT>, CreatePCollectionView<ElemT, ViewT>> {
-
+      extends SingleInputOutputOverrideFactory<
+                PCollection<ElemT>, PCollectionView<ViewT>, CreatePCollectionView<ElemT, ViewT>> {
     @Override
     public PTransform<PCollection<ElemT>, PCollectionView<ViewT>> getReplacementTransform(
         CreatePCollectionView<ElemT, ViewT> transform) {
@@ -147,6 +148,7 @@ class ViewEvaluatorFactory implements TransformEvaluatorFactory {
     }
 
     @Override
+    @SuppressWarnings("deprecation")
     public PCollectionView<ViewT> expand(PCollection<Iterable<ElemT>> input) {
       return og.getView();
     }

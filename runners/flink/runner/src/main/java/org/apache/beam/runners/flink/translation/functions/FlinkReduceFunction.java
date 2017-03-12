@@ -31,7 +31,6 @@ import org.apache.beam.runners.core.PerKeyCombineFnRunners;
 import org.apache.beam.runners.flink.translation.utils.SerializedPipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.CombineFnBase;
-import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.OutputTimeFn;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
@@ -57,8 +56,6 @@ public class FlinkReduceFunction<K, AccumT, OutputT, W extends BoundedWindow>
 
   protected final CombineFnBase.PerKeyCombineFn<K, ?, AccumT, OutputT> combineFn;
 
-  protected final OldDoFn<KV<K, AccumT>, KV<K, OutputT>> doFn;
-
   protected final WindowingStrategy<?, W> windowingStrategy;
 
   protected final Map<PCollectionView<?>, WindowingStrategy<?, ?>> sideInputs;
@@ -78,13 +75,6 @@ public class FlinkReduceFunction<K, AccumT, OutputT, W extends BoundedWindow>
 
     this.serializedOptions = new SerializedPipelineOptions(pipelineOptions);
 
-    // dummy OldDoFn because we need one for ProcessContext
-    this.doFn = new OldDoFn<KV<K, AccumT>, KV<K, OutputT>>() {
-      @Override
-      public void processElement(ProcessContext c) throws Exception {
-
-      }
-    };
   }
 
   @Override
@@ -92,14 +82,10 @@ public class FlinkReduceFunction<K, AccumT, OutputT, W extends BoundedWindow>
       Iterable<WindowedValue<KV<K, AccumT>>> elements,
       Collector<WindowedValue<KV<K, OutputT>>> out) throws Exception {
 
-    FlinkSingleOutputProcessContext<KV<K, AccumT>, KV<K, OutputT>> processContext =
-        new FlinkSingleOutputProcessContext<>(
-            serializedOptions.getPipelineOptions(),
-            getRuntimeContext(),
-            doFn,
-            windowingStrategy,
-            sideInputs, out
-        );
+    PipelineOptions options = serializedOptions.getPipelineOptions();
+
+    FlinkSideInputReader sideInputReader =
+        new FlinkSideInputReader(sideInputs, getRuntimeContext());
 
     PerKeyCombineFnRunner<K, ?, AccumT, OutputT> combineFnRunner =
         PerKeyCombineFnRunners.create(combineFn);
@@ -150,17 +136,17 @@ public class FlinkReduceFunction<K, AccumT, OutputT, W extends BoundedWindow>
 
       if (nextWindow.equals(currentWindow)) {
         // continue accumulating
-        processContext.setWindowedValue(nextValue);
         accumulator = combineFnRunner.mergeAccumulators(
-            key, ImmutableList.of(accumulator, nextValue.getValue().getValue()), processContext);
+            key, ImmutableList.of(accumulator, nextValue.getValue().getValue()),
+            options, sideInputReader, currentValue.getWindows());
 
         windowTimestamps.add(nextValue.getTimestamp());
       } else {
         // emit the value that we currently have
-        processContext.setWindowedValue(currentValue);
         out.collect(
             WindowedValue.of(
-                KV.of(key, combineFnRunner.extractOutput(key, accumulator, processContext)),
+                KV.of(key, combineFnRunner.extractOutput(key, accumulator,
+                    options, sideInputReader, currentValue.getWindows())),
                 outputTimeFn.merge(currentWindow, windowTimestamps),
                 currentWindow,
                 PaneInfo.NO_FIRING));
@@ -168,23 +154,18 @@ public class FlinkReduceFunction<K, AccumT, OutputT, W extends BoundedWindow>
         windowTimestamps.clear();
 
         currentWindow = nextWindow;
+        currentValue = nextValue;
         accumulator = nextValue.getValue().getValue();
         windowTimestamps.add(nextValue.getTimestamp());
       }
 
-      // we have to keep track so that we can set the context to the right
-      // windowed value when windows change in the iterable
-      currentValue = nextValue;
     }
-
-    // if at the end of the iteration we have a change in windows
-    // the ProcessContext will not have been updated
-    processContext.setWindowedValue(currentValue);
 
     // emit the final accumulator
     out.collect(
         WindowedValue.of(
-            KV.of(key, combineFnRunner.extractOutput(key, accumulator, processContext)),
+            KV.of(key, combineFnRunner.extractOutput(key, accumulator,
+                options, sideInputReader, currentValue.getWindows())),
             outputTimeFn.merge(currentWindow, windowTimestamps),
             currentWindow,
             PaneInfo.NO_FIRING));

@@ -50,7 +50,7 @@ public class Sum {
    * {@code 0} if there are no elements.
    */
   public static Combine.Globally<Integer, Integer> integersGlobally() {
-    return Combine.globally(new SumIntegerFn()).named("Sum.Globally");
+    return Combine.globally(Sum.ofIntegers());
   }
 
   /**
@@ -62,7 +62,7 @@ public class Sum {
    * that key in the input {@code PCollection}.
    */
   public static <K> Combine.PerKey<K, Integer, Integer> integersPerKey() {
-    return Combine.<K, Integer, Integer>perKey(new SumIntegerFn()).named("Sum.PerKey");
+    return Combine.<K, Integer, Integer>perKey(Sum.ofIntegers());
   }
 
   /**
@@ -73,7 +73,7 @@ public class Sum {
    * {@code 0} if there are no elements.
    */
   public static Combine.Globally<Long, Long> longsGlobally() {
-    return Combine.globally(new SumLongFn()).named("Sum.Globally");
+    return Combine.globally(Sum.ofLongs());
   }
 
   /**
@@ -85,7 +85,7 @@ public class Sum {
    * that key in the input {@code PCollection}.
    */
   public static <K> Combine.PerKey<K, Long, Long> longsPerKey() {
-    return Combine.<K, Long, Long>perKey(new SumLongFn()).named("Sum.PerKey");
+    return Combine.<K, Long, Long>perKey(Sum.ofLongs());
   }
 
   /**
@@ -96,7 +96,7 @@ public class Sum {
    * {@code 0} if there are no elements.
    */
   public static Combine.Globally<Double, Double> doublesGlobally() {
-    return Combine.globally(new SumDoubleFn()).named("Sum.Globally");
+    return Combine.globally(Sum.ofDoubles());
   }
 
   /**
@@ -108,18 +108,40 @@ public class Sum {
    * that key in the input {@code PCollection}.
    */
   public static <K> Combine.PerKey<K, Double, Double> doublesPerKey() {
-    return Combine.<K, Double, Double>perKey(new SumDoubleFn()).named("Sum.PerKey");
+    return Combine.<K, Double, Double>perKey(Sum.ofDoubles());
   }
-
-
-  /////////////////////////////////////////////////////////////////////////////
 
   /**
    * A {@code SerializableFunction} that computes the sum of an
    * {@code Iterable} of {@code Integer}s, useful as an argument to
    * {@link Combine#globally} or {@link Combine#perKey}.
    */
-  public static class SumIntegerFn extends Combine.BinaryCombineIntegerFn {
+  public static Combine.BinaryCombineIntegerFn ofIntegers() {
+    return new SumIntegerFn();
+  }
+
+  /**
+   * A {@code SerializableFunction} that computes the sum of an
+   * {@code Iterable} of {@code Double}s, useful as an argument to
+   * {@link Combine#globally} or {@link Combine#perKey}.
+   */
+  public static Combine.BinaryCombineDoubleFn ofDoubles() {
+    return new SumDoubleFn();
+  }
+
+  /**
+   * A {@code SerializableFunction} that computes the sum of an
+   * {@code Iterable} of {@code Long}s, useful as an argument to
+   * {@link Combine#globally} or {@link Combine#perKey}.
+   */
+  public static Combine.BinaryCombineLongFn ofLongs() {
+    return new SumLongFn();
+  }
+
+  /////////////////////////////////////////////////////////////////////////////
+
+  private static class SumIntegerFn extends Combine.BinaryCombineIntegerFn {
+
     @Override
     public int apply(int a, int b) {
       return a + b;
@@ -131,13 +153,8 @@ public class Sum {
     }
   }
 
-  /**
-   * A {@code SerializableFunction} that computes the sum of an
-   * {@code Iterable} of {@code Long}s, useful as an argument to
-   * {@link Combine#globally} or {@link Combine#perKey}.
-   */
-  public static class SumLongFn
-      extends Combine.BinaryCombineLongFn {
+  private static class SumLongFn extends Combine.BinaryCombineLongFn {
+
     @Override
     public long apply(long a, long b) {
       return a + b;
@@ -149,12 +166,8 @@ public class Sum {
     }
   }
 
-  /**
-   * A {@code SerializableFunction} that computes the sum of an
-   * {@code Iterable} of {@code Double}s, useful as an argument to
-   * {@link Combine#globally} or {@link Combine#perKey}.
-   */
-  public static class SumDoubleFn extends Combine.BinaryCombineDoubleFn {
+  private static class SumDoubleFn extends Combine.BinaryCombineDoubleFn {
+
     @Override
     public double apply(double a, double b) {
       return a + b;

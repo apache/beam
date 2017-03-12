@@ -54,14 +54,14 @@ public class BigDecimalCoder extends AtomicCoder<BigDecimal> {
       throws IOException, CoderException {
     checkNotNull(value, String.format("cannot encode a null %s", BigDecimal.class.getSimpleName()));
     integerCoder.encode(value.scale(), outStream, context.nested());
-    bigIntegerCoder.encode(value.unscaledValue(), outStream, context.nested());
+    bigIntegerCoder.encode(value.unscaledValue(), outStream, context);
   }
 
   @Override
   public BigDecimal decode(InputStream inStream, Context context)
       throws IOException, CoderException {
     int scale = integerCoder.decode(inStream, context.nested());
-    BigInteger bigInteger = bigIntegerCoder.decode(inStream, context.nested());
+    BigInteger bigInteger = bigIntegerCoder.decode(inStream, context);
     return new BigDecimal(bigInteger, scale);
   }
 
@@ -96,6 +96,6 @@ public class BigDecimalCoder extends AtomicCoder<BigDecimal> {
   protected long getEncodedElementByteSize(BigDecimal value, Context context) throws Exception {
     checkNotNull(value, String.format("cannot encode a null %s", BigDecimal.class.getSimpleName()));
     return integerCoder.getEncodedElementByteSize(value.scale(), context.nested())
-        + bigIntegerCoder.getEncodedElementByteSize(value.unscaledValue(), context.nested());
+        + bigIntegerCoder.getEncodedElementByteSize(value.unscaledValue(), context);
   }
 }

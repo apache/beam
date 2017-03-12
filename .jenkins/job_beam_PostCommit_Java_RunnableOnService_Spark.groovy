@@ -25,7 +25,7 @@ mavenJob('beam_PostCommit_Java_RunnableOnService_Spark') {
   previousNames('beam_PostCommit_RunnableOnService_SparkLocal')
 
   // Set common parameters.
-  common_job_properties.setTopLevelJobProperties(delegate)
+  common_job_properties.setTopLevelMainJobProperties(delegate)
 
   // Set maven parameters.
   common_job_properties.setMavenConfig(delegate)
@@ -33,6 +33,12 @@ mavenJob('beam_PostCommit_Java_RunnableOnService_Spark') {
   // Sets that this is a PostCommit job.
   common_job_properties.setPostCommit(delegate)
 
+  // Allows triggering this build against pull requests.
+  common_job_properties.enablePhraseTriggeringFromPullRequest(
+    delegate,
+    'Apache Spark Runner RunnableOnService Tests',
+    'Run Spark RunnableOnService')
+
   // Maven goals for this job.
-  goals('-B -e clean verify -am -pl runners/spark -Prunnable-on-service-tests -Plocal-runnable-on-service-tests -Dspark.port.maxRetries=64 -Dspark.ui.enabled=false')
+  goals('-B -e clean verify -am -pl runners/spark -Prunnable-on-service-tests -Plocal-runnable-on-service-tests -Dspark.ui.enabled=false')
 }

@@ -46,8 +46,9 @@ import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Random;
 import java.util.zip.GZIPOutputStream;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
 import javax.annotation.Nullable;
-import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.io.BoundedSource.BoundedReader;
@@ -64,6 +65,7 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.commons.compress.compressors.bzip2.BZip2CompressorOutputStream;
+import org.apache.commons.compress.compressors.deflate.DeflateCompressorOutputStream;
 import org.apache.commons.compress.compressors.gzip.GzipCompressorOutputStream;
 import org.hamcrest.Matchers;
 import org.junit.Rule;
@@ -80,6 +82,10 @@ import org.junit.runners.JUnit4;
  */
 @RunWith(JUnit4.class)
 public class CompressedSourceTest {
+
+  @Rule
+  public TestPipeline p = TestPipeline.create();
+
   @Rule
   public TemporaryFolder tmpFolder = new TemporaryFolder();
 
@@ -113,6 +119,18 @@ public class CompressedSourceTest {
     source = CompressedSource.from(new ByteSource("input.bz2", 1));
     assertFalse(source.isSplittable());
     source = CompressedSource.from(new ByteSource("input.BZ2", 1));
+    assertFalse(source.isSplittable());
+
+    // ZIP files are not splittable
+    source = CompressedSource.from(new ByteSource("input.zip", 1));
+    assertFalse(source.isSplittable());
+    source = CompressedSource.from(new ByteSource("input.ZIP", 1));
+    assertFalse(source.isSplittable());
+
+    // DEFLATE files are not splittable
+    source = CompressedSource.from(new ByteSource("input.deflate", 1));
+    assertFalse(source.isSplittable());
+    source = CompressedSource.from(new ByteSource("input.DEFLATE", 1));
     assertFalse(source.isSplittable());
 
     // Other extensions are assumed to be splittable.
@@ -157,6 +175,26 @@ public class CompressedSourceTest {
   }
 
   /**
+   * Test reading nonempty input with zip.
+   */
+  @Test
+  @Category(NeedsRunner.class)
+  public void testReadZip() throws Exception {
+    byte[] input = generateInput(5000);
+    runReadTest(input, CompressionMode.ZIP);
+  }
+
+  /**
+   * Test reading nonempty input with deflate.
+   */
+  @Test
+  @Category(NeedsRunner.class)
+  public void testReadDeflate() throws Exception {
+    byte[] input = generateInput(5000);
+    runReadTest(input, CompressionMode.DEFLATE);
+  }
+
+  /**
    * Test reading empty input with gzip.
    */
   @Test
@@ -198,8 +236,6 @@ public class CompressedSourceTest {
     try (FileOutputStream os = new FileOutputStream(tmpFile)) {
       os.write(totalGz);
     }
-
-    Pipeline p = TestPipeline.create();
 
     CompressedSource<Byte> source =
         CompressedSource.from(new ByteSource(tmpFile.getAbsolutePath(), 1))
@@ -273,8 +309,6 @@ public class CompressedSourceTest {
     expected.addAll(Bytes.asList(generated));
 
     String filePattern = new File(tmpFolder.getRoot().toString(), baseName + ".*").toString();
-
-    Pipeline p = TestPipeline.create();
 
     CompressedSource<Byte> source =
         CompressedSource.from(new ByteSource(filePattern, 1));
@@ -395,8 +429,6 @@ public class CompressedSourceTest {
       expected.addAll(Bytes.asList(generated));
     }
 
-    Pipeline p = TestPipeline.create();
-
     CompressedSource<Byte> source =
         CompressedSource.from(new ByteSource(filePattern, 1))
             .withDecompression(CompressionMode.GZIP);
@@ -448,9 +480,46 @@ public class CompressedSourceTest {
         return new GzipCompressorOutputStream(stream);
       case BZIP2:
         return new BZip2CompressorOutputStream(stream);
+      case ZIP:
+        return new TestZipOutputStream(stream);
+      case DEFLATE:
+        return new DeflateCompressorOutputStream(stream);
       default:
         throw new RuntimeException("Unexpected compression mode");
     }
+  }
+
+  /**
+   * Extend of {@link ZipOutputStream} that splits up bytes into multiple entries.
+   */
+  private static class TestZipOutputStream extends OutputStream {
+
+    private ZipOutputStream zipOutputStream;
+    private long offset = 0;
+    private int entry = 0;
+
+    public TestZipOutputStream(OutputStream stream) throws IOException {
+      super();
+      zipOutputStream = new ZipOutputStream(stream);
+      zipOutputStream.putNextEntry(new ZipEntry(String.format("entry-%05d", entry)));
+    }
+
+    @Override
+    public void write(int b) throws IOException {
+      zipOutputStream.write(b);
+      offset++;
+      if (offset % 100 == 0) {
+        entry++;
+        zipOutputStream.putNextEntry(new ZipEntry(String.format("entry-%05d", entry)));
+      }
+    }
+
+    @Override
+    public void close() throws IOException {
+      zipOutputStream.closeEntry();
+      super.close();
+    }
+
   }
 
   /**
@@ -476,7 +545,6 @@ public class CompressedSourceTest {
 
   private void verifyReadContents(byte[] expected, File inputFile,
       @Nullable DecompressingChannelFactory decompressionFactory) {
-    Pipeline p = TestPipeline.create();
     CompressedSource<Byte> source =
         CompressedSource.from(new ByteSource(inputFile.toPath().toString(), 1));
     if (decompressionFactory != null) {
@@ -514,11 +582,6 @@ public class CompressedSourceTest {
     @Override
     protected FileBasedReader<Byte> createSingleFileReader(PipelineOptions options) {
       return new ByteReader(this);
-    }
-
-    @Override
-    public boolean producesSortedKeys(PipelineOptions options) throws Exception {
-      return false;
     }
 
     @Override

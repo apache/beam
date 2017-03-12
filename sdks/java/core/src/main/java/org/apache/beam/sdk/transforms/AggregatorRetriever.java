@@ -18,9 +18,10 @@
 package org.apache.beam.sdk.transforms;
 
 import java.util.Collection;
+import java.util.Map;
 
 /**
- * An internal class for extracting {@link Aggregator Aggregators} from {@link OldDoFn DoFns}.
+ * An internal class for extracting {@link Aggregator Aggregators} from {@link DoFn DoFns}.
  */
 public final class AggregatorRetriever {
   private AggregatorRetriever() {
@@ -28,9 +29,17 @@ public final class AggregatorRetriever {
   }
 
   /**
-   * Returns the {@link Aggregator Aggregators} created by the provided {@link OldDoFn}.
+   * Returns the {@link Aggregator Aggregators} created by the provided {@link DoFn}.
    */
   public static Collection<Aggregator<?, ?>> getAggregators(DoFn<?, ?> fn) {
     return fn.getAggregators();
+  }
+
+  /**
+   * Returns the {@link DelegatingAggregator delegating aggregators} created by the provided {@link
+   * DoFn}.
+   */
+  public static Map<String, DelegatingAggregator<?, ?>> getDelegatingAggregators(DoFn<?, ?> fn) {
+    return fn.aggregators;
   }
 }

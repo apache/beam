@@ -124,7 +124,7 @@ public class ProtoCoder<T extends Message> extends AtomicCoder<T> {
    * Returns a {@link ProtoCoder} for the given Protocol Buffers {@link Message}.
    */
   public static <T extends Message> ProtoCoder<T> of(Class<T> protoMessageClass) {
-    return new ProtoCoder<T>(protoMessageClass, ImmutableSet.<Class<?>>of());
+    return new ProtoCoder<>(protoMessageClass, ImmutableSet.<Class<?>>of());
   }
 
   /**
@@ -162,7 +162,7 @@ public class ProtoCoder<T extends Message> extends AtomicCoder<T> {
       }
     }
 
-    return new ProtoCoder<T>(
+    return new ProtoCoder<>(
         protoMessageClass,
         new ImmutableSet.Builder<Class<?>>()
             .addAll(extensionHostClasses)
@@ -337,8 +337,8 @@ public class ProtoCoder<T extends Message> extends AtomicCoder<T> {
   }
 
   @Override
-  public CloudObject asCloudObject() {
-    CloudObject result = super.asCloudObject();
+  public CloudObject initializeCloudObject() {
+    CloudObject result = CloudObject.forClass(getClass());
     Structs.addString(result, PROTO_MESSAGE_CLASS, protoMessageClass.getName());
     List<CloudObject> extensionHostClassNames = Lists.newArrayList();
     for (String className : getSortedExtensionClasses()) {

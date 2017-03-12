@@ -104,7 +104,8 @@ public class BoundedDataset<T> implements Dataset {
 
   @Override
   public void action() {
-    rdd.count();
+    // Empty function to force computation of RDD.
+    rdd.foreach(TranslationUtils.<WindowedValue<T>>emptyVoidFunction());
   }
 
   @Override

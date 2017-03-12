@@ -22,6 +22,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
+import org.apache.beam.sdk.values.TypeDescriptor;
 import org.joda.time.Duration;
 import org.joda.time.ReadableDuration;
 
@@ -39,6 +40,8 @@ public class DurationCoder extends AtomicCoder<ReadableDuration> {
   /////////////////////////////////////////////////////////////////////////////
 
   private static final DurationCoder INSTANCE = new DurationCoder();
+  private static final TypeDescriptor<ReadableDuration> TYPE_DESCRIPTOR =
+      new TypeDescriptor<ReadableDuration>() {};
 
   private final VarLongCoder longCoder = VarLongCoder.of();
 
@@ -91,5 +94,10 @@ public class DurationCoder extends AtomicCoder<ReadableDuration> {
   public void registerByteSizeObserver(
       ReadableDuration value, ElementByteSizeObserver observer, Context context) throws Exception {
     longCoder.registerByteSizeObserver(toLong(value), observer, context);
+  }
+
+  @Override
+  public TypeDescriptor<ReadableDuration> getEncodedTypeDescriptor() {
+    return TYPE_DESCRIPTOR;
   }
 }

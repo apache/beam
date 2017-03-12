@@ -19,7 +19,6 @@ package org.apache.beam.examples.cookbook;
 
 import java.util.Arrays;
 import java.util.List;
-import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.RunnableOnService;
@@ -27,6 +26,7 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.Distinct;
 import org.apache.beam.sdk.values.PCollection;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
@@ -35,6 +35,9 @@ import org.junit.runners.JUnit4;
 /** Unit tests for {@link Distinct}. */
 @RunWith(JUnit4.class)
 public class DistinctExampleTest {
+
+  @Rule
+  public TestPipeline p = TestPipeline.create();
 
   @Test
   @Category(RunnableOnService.class)
@@ -47,8 +50,6 @@ public class DistinctExampleTest {
         "k1",
         "k2",
         "k3");
-
-    Pipeline p = TestPipeline.create();
 
     PCollection<String> input =
         p.apply(Create.of(strings)
@@ -66,8 +67,6 @@ public class DistinctExampleTest {
   @Category(RunnableOnService.class)
   public void testDistinctEmpty() {
     List<String> strings = Arrays.asList();
-
-    Pipeline p = TestPipeline.create();
 
     PCollection<String> input =
         p.apply(Create.of(strings)

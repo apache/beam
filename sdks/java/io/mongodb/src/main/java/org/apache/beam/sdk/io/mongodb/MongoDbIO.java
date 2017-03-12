@@ -205,11 +205,6 @@ public class MongoDbIO {
     }
 
     @Override
-    public boolean producesSortedKeys(PipelineOptions options) {
-      return false;
-    }
-
-    @Override
     public BoundedReader<Document> createReader(PipelineOptions options) {
       return new BoundedMongoDbReader(this);
     }

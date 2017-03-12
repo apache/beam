@@ -24,7 +24,6 @@ import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
 
 import java.util.Arrays;
-import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
@@ -35,6 +34,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.hamcrest.Description;
 import org.hamcrest.Matcher;
 import org.hamcrest.TypeSafeMatcher;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -43,10 +43,11 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class SortValuesTest {
 
+  @Rule
+  public final transient TestPipeline p = TestPipeline.create();
+
   @Test
   public void testSecondaryKeySorting() throws Exception {
-    Pipeline p = TestPipeline.create();
-
     // Create a PCollection of <Key, <SecondaryKey, Value>> pairs.
     PCollection<KV<String, KV<String, Integer>>> input =
         p.apply(
@@ -65,7 +66,7 @@ public class SortValuesTest {
     // For every Key, sort the iterable of <SecondaryKey, Value> pairs by SecondaryKey.
     PCollection<KV<String, Iterable<KV<String, Integer>>>> groupedAndSorted =
         grouped.apply(
-            SortValues.<String, String, Integer>create(new BufferedExternalSorter.Options()));
+            SortValues.<String, String, Integer>create(BufferedExternalSorter.options()));
 
     PAssert.that(groupedAndSorted)
         .satisfies(new AssertThatHasExpectedContentsForTestSecondaryKeySorting());

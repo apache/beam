@@ -46,13 +46,8 @@ import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.util.Timer;
-import org.apache.beam.sdk.util.TimerInternals;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.sdk.util.WindowingInternals;
-import org.apache.beam.sdk.util.state.InMemoryStateInternals;
-import org.apache.beam.sdk.util.state.InMemoryTimerInternals;
-import org.apache.beam.sdk.util.state.StateInternals;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TupleTag;
@@ -138,13 +133,8 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
     windowValues.put(window, value);
   }
 
-  @SuppressWarnings("unchecked")
-  public <K> StateInternals<K> getStateInternals() {
-    return (StateInternals<K>) stateInternals;
-  }
-
-  public TimerInternals getTimerInternals() {
-    return timerInternals;
+  public PipelineOptions getPipelineOptions() {
+    return options;
   }
 
   /**
@@ -231,9 +221,6 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
     }
     TestContext context = new TestContext();
     context.setupDelegateAggregators();
-    // State and timer internals are per-bundle.
-    stateInternals = InMemoryStateInternals.forKey(new Object());
-    timerInternals = new InMemoryTimerInternals();
     try {
       fnInvoker.invokeStartBundle(context);
     } catch (UserCodeException e) {
@@ -295,8 +282,8 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
       startBundle();
     }
     try {
-      final TestProcessContext processContext =
-          new TestProcessContext(
+      final DoFn<InputT, OutputT>.ProcessContext processContext =
+          createProcessContext(
               ValueInSingleWindow.of(element, timestamp, window, PaneInfo.NO_FIRING));
       fnInvoker.invokeProcessElement(
           new DoFnInvoker.ArgumentProvider<InputT, OutputT>() {
@@ -323,25 +310,7 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
             }
 
             @Override
-            public DoFn.InputProvider<InputT> inputProvider() {
-              throw new UnsupportedOperationException(
-                  "Not expected to access InputProvider from DoFnTester");
-            }
-
-            @Override
-            public DoFn.OutputReceiver<OutputT> outputReceiver() {
-              throw new UnsupportedOperationException(
-                  "Not expected to access OutputReceiver from DoFnTester");
-            }
-
-            @Override
-            public WindowingInternals<InputT, OutputT> windowingInternals() {
-              throw new UnsupportedOperationException(
-                  "Not expected to access WindowingInternals from a new DoFn");
-            }
-
-            @Override
-            public <RestrictionT> RestrictionTracker<RestrictionT> restrictionTracker() {
+            public RestrictionTracker<?> restrictionTracker() {
               throw new UnsupportedOperationException(
                   "Not expected to access RestrictionTracker from a regular DoFn in DoFnTester");
             }
@@ -542,34 +511,6 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
     return extractAggregatorValue(agg.getName(), agg.getCombineFn());
   }
 
-  public List<TimerInternals.TimerData> advanceInputWatermark(Instant newWatermark) {
-    try {
-      timerInternals.advanceInputWatermark(newWatermark);
-      final List<TimerInternals.TimerData> firedTimers = new ArrayList<>();
-      TimerInternals.TimerData timer;
-      while ((timer = timerInternals.removeNextEventTimer()) != null) {
-        firedTimers.add(timer);
-      }
-      return firedTimers;
-    } catch (Exception e) {
-      throw new RuntimeException(e);
-    }
-  }
-
-  public List<TimerInternals.TimerData> advanceProcessingTime(Instant newProcessingTime) {
-    try {
-      timerInternals.advanceProcessingTime(newProcessingTime);
-      final List<TimerInternals.TimerData> firedTimers = new ArrayList<>();
-      TimerInternals.TimerData timer;
-      while ((timer = timerInternals.removeNextProcessingTimer()) != null) {
-        firedTimers.add(timer);
-      }
-      return firedTimers;
-    } catch (Exception e) {
-      throw new RuntimeException(e);
-    }
-  }
-
   private <AccumT, AggregateT> AggregateT extractAggregatorValue(
       String name, CombineFn<?, AccumT, AggregateT> combiner) {
     @SuppressWarnings("unchecked")
@@ -682,6 +623,11 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
       }
       return aggregator;
     }
+  }
+
+  public DoFn<InputT, OutputT>.ProcessContext createProcessContext(
+      ValueInSingleWindow<InputT> element) {
+    return new TestProcessContext(element);
   }
 
   private class TestProcessContext extends DoFn<InputT, OutputT>.ProcessContext {
@@ -812,9 +758,6 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
 
   /** The outputs from the {@link DoFn} under test. */
   private Map<TupleTag<?>, List<ValueInSingleWindow<?>>> outputs;
-
-  private InMemoryStateInternals<?> stateInternals;
-  private InMemoryTimerInternals timerInternals;
 
   /** The state of processing of the {@link DoFn} under test. */
   private State state = State.UNINITIALIZED;

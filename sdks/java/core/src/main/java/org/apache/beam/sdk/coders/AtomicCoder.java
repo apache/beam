@@ -32,7 +32,7 @@ public abstract class AtomicCoder<T> extends DeterministicStandardCoder<T> {
   protected AtomicCoder() { }
 
   @Override
-  public List<Coder<?>> getCoderArguments() {
+  public final List<Coder<?>> getCoderArguments() {
     return null;
   }
 

@@ -18,7 +18,6 @@
 package org.apache.beam.runners.direct;
 
 import com.google.common.collect.ImmutableList;
-import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -27,9 +26,11 @@ import org.apache.beam.runners.core.DoFnRunner;
 import org.apache.beam.runners.core.DoFnRunners;
 import org.apache.beam.runners.core.DoFnRunners.OutputManager;
 import org.apache.beam.runners.core.PushbackSideInputDoFnRunner;
+import org.apache.beam.runners.core.TimerInternals.TimerData;
 import org.apache.beam.runners.direct.DirectExecutionContext.DirectStepContext;
 import org.apache.beam.runners.direct.DirectRunner.UncommittedBundle;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.ReadyCheckingSideInputReader;
 import org.apache.beam.sdk.util.UserCodeException;
@@ -46,7 +47,8 @@ class ParDoEvaluator<InputT, OutputT> implements TransformEvaluator<InputT> {
       DirectStepContext stepContext,
       AppliedPTransform<?, ?, ?> application,
       WindowingStrategy<?, ? extends BoundedWindow> windowingStrategy,
-      Serializable fn, // may be OldDoFn or DoFn
+      DoFn<InputT, OutputT> fn,
+      StructuralKey<?> key,
       List<PCollectionView<?>> sideInputs,
       TupleTag<OutputT> mainOutputTag,
       List<TupleTag<?>> sideOutputTags,
@@ -55,15 +57,24 @@ class ParDoEvaluator<InputT, OutputT> implements TransformEvaluator<InputT> {
 
     Map<TupleTag<?>, UncommittedBundle<?>> outputBundles = new HashMap<>();
     for (Map.Entry<TupleTag<?>, PCollection<?>> outputEntry : outputs.entrySet()) {
-      outputBundles.put(
-          outputEntry.getKey(), evaluationContext.createBundle(outputEntry.getValue()));
+      // Just trust the context's decision as to whether the output should be keyed.
+      // The logic for whether this ParDo is key-preserving and whether the input
+      // is keyed lives elsewhere.
+      if (evaluationContext.isKeyed(outputEntry.getValue())) {
+        outputBundles.put(
+            outputEntry.getKey(), evaluationContext.createKeyedBundle(key, outputEntry.getValue()));
+      } else {
+        outputBundles.put(
+            outputEntry.getKey(), evaluationContext.createBundle(outputEntry.getValue()));
+      }
     }
     BundleOutputManager outputManager = BundleOutputManager.create(outputBundles);
 
     ReadyCheckingSideInputReader sideInputReader =
         evaluationContext.createSideInputReader(sideInputs);
+
     DoFnRunner<InputT, OutputT> underlying =
-        DoFnRunners.createDefault(
+        DoFnRunners.simpleRunner(
             evaluationContext.getPipelineOptions(),
             fn,
             sideInputReader,
@@ -122,6 +133,14 @@ class ParDoEvaluator<InputT, OutputT> implements TransformEvaluator<InputT> {
     try {
       Iterable<WindowedValue<InputT>> unprocessed = fnRunner.processElementInReadyWindows(element);
       unprocessedElements.addAll(unprocessed);
+    } catch (Exception e) {
+      throw UserCodeException.wrap(e);
+    }
+  }
+
+  public void onTimer(TimerData timer, BoundedWindow window) {
+    try {
+      fnRunner.onTimer(timer.getTimerId(), window, timer.getTimestamp(), timer.getDomain());
     } catch (Exception e) {
       throw UserCodeException.wrap(e);
     }

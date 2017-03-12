@@ -29,19 +29,27 @@ import org.apache.beam.sdk.values.KV;
  * then fall back to external sorting.
  */
 public class BufferedExternalSorter implements Sorter {
+  public static Options options() {
+    return new Options("/tmp", 100);
+  }
+
   /** Contains configuration for the sorter. */
   public static class Options implements Serializable {
-    private String tempLocation = "/tmp";
-    private int memoryMB = 100;
+    private final String tempLocation;
+    private final int memoryMB;
+
+    private Options(String tempLocation, int memoryMB) {
+      this.tempLocation = tempLocation;
+      this.memoryMB = memoryMB;
+    }
 
     /** Sets the path to a temporary location where the sorter writes intermediate files. */
-    public Options setTempLocation(String tempLocation) {
+    public Options withTempLocation(String tempLocation) {
       checkArgument(
           !tempLocation.startsWith("gs://"),
           "BufferedExternalSorter does not support GCS temporary location");
 
-      this.tempLocation = tempLocation;
-      return this;
+      return new Options(tempLocation, memoryMB);
     }
 
     /** Returns the configured temporary location. */
@@ -54,13 +62,12 @@ public class BufferedExternalSorter implements Sorter {
      * memory sorting and the buffer used when external sorting. Must be greater than zero and less
      * than 2048.
      */
-    public Options setMemoryMB(int memoryMB) {
+    public Options withMemoryMB(int memoryMB) {
       checkArgument(memoryMB > 0, "memoryMB must be greater than zero");
       // Hadoop's external sort stores the number of available memory bytes in an int, this prevents
       // overflow
       checkArgument(memoryMB < 2048, "memoryMB must be less than 2048");
-      this.memoryMB = memoryMB;
-      return this;
+      return new Options(tempLocation, memoryMB);
     }
 
     /** Returns the configured size of the memory buffer. */

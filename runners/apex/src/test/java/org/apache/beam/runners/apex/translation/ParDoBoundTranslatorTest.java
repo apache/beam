@@ -45,6 +45,7 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
+import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.transforms.Create;
@@ -113,6 +114,7 @@ public class ParDoBoundTranslatorTest {
   }
 
   private static class Add extends DoFn<Integer, Integer> {
+    private static final long serialVersionUID = 1L;
     private Integer number;
     private PCollectionView<Integer> sideInputView;
 
@@ -134,6 +136,7 @@ public class ParDoBoundTranslatorTest {
   }
 
   private static class EmbeddedCollector extends DoFn<Object, Void> {
+    private static final long serialVersionUID = 1L;
     private static final Set<Object> RESULTS = Collections.synchronizedSet(new HashSet<>());
 
     public EmbeddedCollector() {
@@ -242,7 +245,7 @@ public class ParDoBoundTranslatorTest {
     operator.sideInput1.process(ApexStreamTuple.DataTuple.of(sideInput));
     Assert.assertEquals("number outputs", 1, results.size());
     Assert.assertEquals("result", WindowedValue.valueInGlobalWindow(23),
-        ((ApexStreamTuple.DataTuple) results.get(0)).getValue());
+        ((ApexStreamTuple.DataTuple<?>) results.get(0)).getValue());
 
     // verify side input checkpointing
     results.clear();
@@ -253,7 +256,7 @@ public class ParDoBoundTranslatorTest {
     operator.input.process(ApexStreamTuple.DataTuple.of(wv2));
     Assert.assertEquals("number outputs", 1, results.size());
     Assert.assertEquals("result", WindowedValue.valueInGlobalWindow(24),
-        ((ApexStreamTuple.DataTuple) results.get(0)).getValue());
+        ((ApexStreamTuple.DataTuple<?>) results.get(0)).getValue());
   }
 
   @Test
@@ -286,21 +289,22 @@ public class ParDoBoundTranslatorTest {
                 Arrays.asList(sideInput1, sideInput2),
                 Arrays.<TupleTag<String>>asList())));
 
-     outputs.get(mainOutputTag).apply(ParDo.of(new EmbeddedCollector()));
-     ApexRunnerResult result = (ApexRunnerResult) pipeline.run();
+    outputs.get(mainOutputTag).apply(ParDo.of(new EmbeddedCollector()));
+    outputs.get(sideOutputTag).setCoder(VoidCoder.of());
+    ApexRunnerResult result = (ApexRunnerResult) pipeline.run();
 
-     HashSet<String> expected = Sets.newHashSet("processing: 3: [11, 222]",
-         "processing: -42: [11, 222]", "processing: 666: [11, 222]");
-     long timeout = System.currentTimeMillis() + TIMEOUT_MILLIS;
-     while (System.currentTimeMillis() < timeout) {
-       if (EmbeddedCollector.RESULTS.containsAll(expected)) {
-         break;
-       }
-       LOG.info("Waiting for expected results.");
-       Thread.sleep(SLEEP_MILLIS);
-     }
-     result.cancel();
-     Assert.assertEquals(Sets.newHashSet(expected), EmbeddedCollector.RESULTS);
+    HashSet<String> expected = Sets.newHashSet("processing: 3: [11, 222]",
+        "processing: -42: [11, 222]", "processing: 666: [11, 222]");
+    long timeout = System.currentTimeMillis() + TIMEOUT_MILLIS;
+    while (System.currentTimeMillis() < timeout) {
+      if (EmbeddedCollector.RESULTS.containsAll(expected)) {
+        break;
+      }
+      LOG.info("Waiting for expected results.");
+      Thread.sleep(SLEEP_MILLIS);
+    }
+    result.cancel();
+    Assert.assertEquals(Sets.newHashSet(expected), EmbeddedCollector.RESULTS);
   }
 
   private static class TestMultiOutputWithSideInputsFn extends DoFn<Integer, String> {

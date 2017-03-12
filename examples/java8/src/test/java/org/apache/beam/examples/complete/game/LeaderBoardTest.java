@@ -41,6 +41,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -54,6 +55,8 @@ public class LeaderBoardTest implements Serializable {
   private static final Duration TEAM_WINDOW_DURATION = Duration.standardMinutes(20);
   private Instant baseTime = new Instant(0);
 
+  @Rule
+  public TestPipeline p = TestPipeline.create();
   /**
    * Some example users, on two separate teams.
    */
@@ -84,7 +87,6 @@ public class LeaderBoardTest implements Serializable {
    */
   @Test
   public void testTeamScoresOnTime() {
-    TestPipeline p = TestPipeline.create();
 
     TestStream<GameActionInfo> createEvents = TestStream.create(AvroCoder.of(GameActionInfo.class))
         // Start at the epoch
@@ -120,7 +122,6 @@ public class LeaderBoardTest implements Serializable {
    */
   @Test
   public void testTeamScoresSpeculative() {
-    TestPipeline p = TestPipeline.create();
 
     TestStream<GameActionInfo> createEvents = TestStream.create(AvroCoder.of(GameActionInfo.class))
         // Start at the epoch
@@ -170,7 +171,6 @@ public class LeaderBoardTest implements Serializable {
    */
   @Test
   public void testTeamScoresUnobservablyLate() {
-    TestPipeline p = TestPipeline.create();
 
     BoundedWindow window = new IntervalWindow(baseTime, TEAM_WINDOW_DURATION);
     TestStream<GameActionInfo> createEvents = TestStream.create(AvroCoder.of(GameActionInfo.class))
@@ -208,7 +208,6 @@ public class LeaderBoardTest implements Serializable {
    */
   @Test
   public void testTeamScoresObservablyLate() {
-    TestPipeline p = TestPipeline.create();
 
     Instant firstWindowCloses = baseTime.plus(ALLOWED_LATENESS).plus(TEAM_WINDOW_DURATION);
     TestStream<GameActionInfo> createEvents = TestStream.create(AvroCoder.of(GameActionInfo.class))
@@ -268,7 +267,6 @@ public class LeaderBoardTest implements Serializable {
    */
   @Test
   public void testTeamScoresDroppablyLate() {
-    TestPipeline p = TestPipeline.create();
 
     BoundedWindow window = new IntervalWindow(baseTime, TEAM_WINDOW_DURATION);
     TestStream<GameActionInfo> infos = TestStream.create(AvroCoder.of(GameActionInfo.class))
@@ -299,6 +297,8 @@ public class LeaderBoardTest implements Serializable {
     // No elements are added before the watermark passes the end of the window plus the allowed
     // lateness, so no refinement should be emitted
     PAssert.that(teamScores).inFinalPane(window).empty();
+
+    p.run().waitUntilFinish();
   }
 
   /**
@@ -308,7 +308,6 @@ public class LeaderBoardTest implements Serializable {
    */
   @Test
   public void testUserScore() {
-    TestPipeline p = TestPipeline.create();
 
     TestStream<GameActionInfo> infos =
         TestStream.create(AvroCoder.of(GameActionInfo.class))

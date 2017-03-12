@@ -24,13 +24,13 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.RunnableOnService;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
@@ -41,6 +41,10 @@ import org.junit.runners.JUnit4;
  */
 @RunWith(JUnit4.class)
 public class DistinctTest {
+
+  @Rule
+  public final TestPipeline p = TestPipeline.create();
+
   @Test
   @Category(RunnableOnService.class)
   public void testDistinct() {
@@ -52,8 +56,6 @@ public class DistinctTest {
         "k1",
         "k2",
         "k3");
-
-    Pipeline p = TestPipeline.create();
 
     PCollection<String> input =
         p.apply(Create.of(strings)
@@ -71,8 +73,6 @@ public class DistinctTest {
   @Category(RunnableOnService.class)
   public void testDistinctEmpty() {
     List<String> strings = Arrays.asList();
-
-    Pipeline p = TestPipeline.create();
 
     PCollection<String> input =
         p.apply(Create.of(strings)
@@ -114,8 +114,6 @@ public class DistinctTest {
         KV.of("k1", "v1"),
         KV.of("k1", "v2"),
         KV.of("k2", "v1"));
-
-    Pipeline p = TestPipeline.create();
 
     PCollection<KV<String, String>> input = p.apply(Create.of(strings));
 

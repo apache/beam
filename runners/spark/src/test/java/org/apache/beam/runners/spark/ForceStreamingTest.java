@@ -21,16 +21,13 @@ package org.apache.beam.runners.spark;
 import static org.hamcrest.MatcherAssert.assertThat;
 
 import java.io.IOException;
-import java.util.List;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.BoundedReadFromUnboundedSource;
+import org.apache.beam.sdk.io.CountingSource;
 import org.apache.beam.sdk.io.Read;
-import org.apache.beam.sdk.io.UnboundedSource;
-import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.junit.Rule;
 import org.junit.Test;
 
 
@@ -47,21 +44,20 @@ import org.junit.Test;
  */
 public class ForceStreamingTest {
 
+  @Rule
+  public final PipelineRule pipelineRule = PipelineRule.streaming();
+
   @Test
   public void test() throws IOException {
-    SparkPipelineOptions options = PipelineOptionsFactory.create().as(SparkPipelineOptions.class);
-    options.setRunner(TestSparkRunner.class);
-    // force streaming.
-    options.setForceStreaming(true);
-
-    Pipeline pipeline = Pipeline.create(options);
+    Pipeline pipeline = pipelineRule.createPipeline();
 
     // apply the BoundedReadFromUnboundedSource.
-    @SuppressWarnings("unchecked")
-    BoundedReadFromUnboundedSource boundedRead =
-        Read.from(new FakeUnboundedSource()).withMaxNumRecords(-1);
+    BoundedReadFromUnboundedSource<?> boundedRead =
+        Read.from(CountingSource.unbounded()).withMaxNumRecords(-1);
     //noinspection unchecked
     pipeline.apply(boundedRead);
+    TestSparkRunner runner = TestSparkRunner.fromOptions(pipelineRule.getOptions());
+    runner.adaptBoundedReads(pipeline);
 
     UnboundedReadDetector unboundedReadDetector = new UnboundedReadDetector();
     pipeline.traverseTopologically(unboundedReadDetector);
@@ -80,44 +76,10 @@ public class ForceStreamingTest {
     @Override
     public void visitPrimitiveTransform(TransformHierarchy.Node node) {
       Class<? extends PTransform> transformClass = node.getTransform().getClass();
-      if (transformClass == Read.Unbounded.class) {
+      if (Read.Unbounded.class.equals(transformClass)) {
         isUnbounded = true;
       }
     }
 
   }
-
-  /**
-   * A fake {@link UnboundedSource} to satisfy the compiler.
-   */
-  private static class FakeUnboundedSource extends UnboundedSource {
-
-    @Override
-    public List<? extends UnboundedSource> generateInitialSplits(
-        int desiredNumSplits,
-        PipelineOptions options) throws Exception {
-      return null;
-    }
-
-    @Override
-    public UnboundedReader createReader(
-        PipelineOptions options,
-        CheckpointMark checkpointMark) throws IOException {
-      return null;
-    }
-
-    @Override
-    public Coder getCheckpointMarkCoder() {
-      return null;
-    }
-
-    @Override
-    public void validate() { }
-
-    @Override
-    public Coder getDefaultOutputCoder() {
-      return null;
-    }
-  }
-
 }

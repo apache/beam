@@ -74,7 +74,11 @@ import java.util.SortedMap;
 import java.util.TreeMap;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.Pipeline.PipelineExecutionException;
+import org.apache.beam.sdk.coders.ByteStringCoder;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.IterableCoder;
+import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.coders.protobuf.ProtoCoder;
 import org.apache.beam.sdk.io.BoundedSource.BoundedReader;
 import org.apache.beam.sdk.io.gcp.bigtable.BigtableIO.BigtableSource;
 import org.apache.beam.sdk.io.range.ByteKey;
@@ -106,6 +110,7 @@ import org.junit.runners.JUnit4;
  */
 @RunWith(JUnit4.class)
 public class BigtableIOTest {
+  @Rule public final transient TestPipeline p = TestPipeline.create();
   @Rule public ExpectedException thrown = ExpectedException.none();
   @Rule public ExpectedLogs logged = ExpectedLogs.none(BigtableIO.class);
 
@@ -140,7 +145,7 @@ public class BigtableIOTest {
     service = new FakeBigtableService();
     defaultRead = defaultRead.withBigtableService(service);
     defaultWrite = defaultWrite.withBigtableService(service);
-    bigtableCoder = TestPipeline.create().getCoderRegistry().getCoder(BIGTABLE_WRITE_TYPE);
+    bigtableCoder = p.getCoderRegistry().getCoder(BIGTABLE_WRITE_TYPE);
   }
 
   @Test
@@ -261,6 +266,8 @@ public class BigtableIOTest {
   /** Tests that when reading from a non-existent table, the read fails. */
   @Test
   public void testReadingFailsTableDoesNotExist() throws Exception {
+    p.enableAbandonedNodeEnforcement(false);
+
     final String table = "TEST-TABLE";
 
     BigtableIO.Read read =
@@ -273,7 +280,7 @@ public class BigtableIOTest {
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage(String.format("Table %s does not exist", table));
 
-    TestPipeline.create().apply(read);
+    p.apply(read);
   }
 
   /** Tests that when reading from an empty table, the read succeeds. */
@@ -326,9 +333,8 @@ public class BigtableIOTest {
         }));
   }
 
-  private static void runReadTest(BigtableIO.Read read, List<Row> expected) {
-    TestPipeline p = TestPipeline.create();
-    PCollection<Row> rows = p.apply(read);
+  private void runReadTest(BigtableIO.Read read, List<Row> expected) {
+    PCollection<Row> rows = p.apply(read.getTableId() + "_" + read.getKeyRange(), read);
     PAssert.that(rows).containsInAnyOrder(expected);
     p.run();
   }
@@ -589,7 +595,6 @@ public class BigtableIOTest {
 
     service.createTable(table);
 
-    TestPipeline p = TestPipeline.create();
     p.apply("single row", Create.of(makeWrite(key, value)).withCoder(bigtableCoder))
         .apply("write", defaultWrite.withTableId(table));
     p.run();
@@ -606,10 +611,14 @@ public class BigtableIOTest {
   /** Tests that when writing to a non-existent table, the write fails. */
   @Test
   public void testWritingFailsTableDoesNotExist() throws Exception {
+    p.enableAbandonedNodeEnforcement(false);
+
     final String table = "TEST-TABLE";
 
     PCollection<KV<ByteString, Iterable<Mutation>>> emptyInput =
-        TestPipeline.create().apply(Create.<KV<ByteString, Iterable<Mutation>>>of());
+        p.apply(
+            Create.empty(
+                KvCoder.of(ByteStringCoder.of(), IterableCoder.of(ProtoCoder.of(Mutation.class)))));
 
     // Exception will be thrown by write.validate() when write is applied.
     thrown.expect(IllegalArgumentException.class);
@@ -625,7 +634,6 @@ public class BigtableIOTest {
     final String key = "KEY";
     service.createTable(table);
 
-    TestPipeline p = TestPipeline.create();
     p.apply(Create.of(makeBadWrite(key)).withCoder(bigtableCoder))
         .apply(defaultWrite.withTableId(table));
 

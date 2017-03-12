@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.values;
 
-import java.util.Collection;
+import java.util.List;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -45,7 +45,7 @@ public interface POutput {
    *
    * <p>Not intended to be invoked directly by user code.
    */
-  Collection<? extends PValue> expand();
+  List<TaggedPValue> expand();
 
   /**
    * Records that this {@code POutput} is an output of the given
@@ -61,16 +61,18 @@ public interface POutput {
   void recordAsOutput(AppliedPTransform<?, ?, ?> transform);
 
   /**
-   * As part of applying the producing {@link PTransform}, finalizes this
-   * output to make it ready for being used as an input and for running.
+   * As part of applying the producing {@link PTransform}, finalizes this output to make it ready
+   * for being used as an input and for running.
    *
-   * <p>This includes ensuring that all {@link PCollection PCollections}
-   * have {@link org.apache.beam.sdk.coders.Coder Coders} specified or defaulted.
+   * <p>This includes ensuring that all {@link PCollection PCollections} have {@link
+   * org.apache.beam.sdk.coders.Coder Coders} specified or defaulted.
    *
-   * <p>Automatically invoked whenever this {@link POutput} is used
-   * as a {@link PInput} to another {@link PTransform}, or if never
-   * used as a {@link PInput}, when {@link Pipeline#run}
-   * is called, so users do not normally call this explicitly.
+   * <p>Automatically invoked whenever this {@link POutput} is output, after {@link
+   * PValue#finishSpecifyingOutput(PInput, PTransform)} has been called on each component {@link
+   * PValue} returned by {@link #expand()}.
+   *
+   * @deprecated see BEAM-1199
    */
-  void finishSpecifyingOutput();
+  @Deprecated
+  void finishSpecifyingOutput(PInput input, PTransform<?, ?> transform);
 }

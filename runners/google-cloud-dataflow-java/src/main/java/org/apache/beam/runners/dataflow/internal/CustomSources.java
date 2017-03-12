@@ -62,12 +62,13 @@ public class CustomSources {
   }
 
   private static int getDesiredNumUnboundedSourceSplits(DataflowPipelineOptions options) {
+    int cores = 4; //TODO: decide at runtime?
     if (options.getMaxNumWorkers() > 0) {
-      return options.getMaxNumWorkers();
+      return options.getMaxNumWorkers() * cores;
     } else if (options.getNumWorkers() > 0) {
-      return options.getNumWorkers() * 3;
+      return options.getNumWorkers() * cores;
     } else {
-      return 20;
+      return 5 * cores;
     }
   }
 
@@ -83,11 +84,6 @@ public class CustomSources {
     SourceMetadata metadata = new SourceMetadata();
     if (source instanceof BoundedSource) {
       BoundedSource<?> boundedSource = (BoundedSource<?>) source;
-      try {
-        metadata.setProducesSortedKeys(boundedSource.producesSortedKeys(options));
-      } catch (Exception e) {
-        LOG.warn("Failed to check if the source produces sorted keys: " + source, e);
-      }
 
       // Size estimation is best effort so we continue even if it fails here.
       try {

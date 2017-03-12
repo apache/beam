@@ -21,24 +21,30 @@ package org.apache.beam.sdk.io;
 import static com.google.common.base.Preconditions.checkState;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.hash.Hashing;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 import javax.annotation.Nullable;
+
 import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.BigEndianLongCoder;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.coders.MapCoder;
 import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
+import org.apache.beam.sdk.io.PubsubIO.PubsubMessage;
 import org.apache.beam.sdk.options.PubsubOptions;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.transforms.Aggregator;
@@ -46,6 +52,7 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.DisplayData.Builder;
@@ -105,23 +112,27 @@ public class PubsubUnboundedSink<T> extends PTransform<PCollection<T>, PDone> {
   private static class OutgoingMessageCoder extends AtomicCoder<OutgoingMessage> {
     private static final NullableCoder<String> RECORD_ID_CODER =
         NullableCoder.of(StringUtf8Coder.of());
+    private static final NullableCoder<Map<String, String>> ATTRIBUTES_CODER =
+            NullableCoder.of(MapCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()));
 
     @Override
     public void encode(
         OutgoingMessage value, OutputStream outStream, Context context)
         throws CoderException, IOException {
-      ByteArrayCoder.of().encode(value.elementBytes, outStream, Context.NESTED);
-      BigEndianLongCoder.of().encode(value.timestampMsSinceEpoch, outStream, Context.NESTED);
-      RECORD_ID_CODER.encode(value.recordId, outStream, Context.NESTED);
+      ByteArrayCoder.of().encode(value.elementBytes, outStream, context.nested());
+      ATTRIBUTES_CODER.encode(value.attributes, outStream, context.nested());
+      BigEndianLongCoder.of().encode(value.timestampMsSinceEpoch, outStream, context.nested());
+      RECORD_ID_CODER.encode(value.recordId, outStream, context.nested());
     }
 
     @Override
     public OutgoingMessage decode(
         InputStream inStream, Context context) throws CoderException, IOException {
-      byte[] elementBytes = ByteArrayCoder.of().decode(inStream, Context.NESTED);
-      long timestampMsSinceEpoch = BigEndianLongCoder.of().decode(inStream, Context.NESTED);
-      @Nullable String recordId = RECORD_ID_CODER.decode(inStream, Context.NESTED);
-      return new OutgoingMessage(elementBytes, timestampMsSinceEpoch, recordId);
+      byte[] elementBytes = ByteArrayCoder.of().decode(inStream, context.nested());
+      Map<String, String> attributes = ATTRIBUTES_CODER.decode(inStream, context.nested());
+      long timestampMsSinceEpoch = BigEndianLongCoder.of().decode(inStream, context.nested());
+      @Nullable String recordId = RECORD_ID_CODER.decode(inStream, context.nested());
+      return new OutgoingMessage(elementBytes, attributes, timestampMsSinceEpoch, recordId);
     }
   }
 
@@ -154,21 +165,33 @@ public class PubsubUnboundedSink<T> extends PTransform<PCollection<T>, PDone> {
    */
   private static class ShardFn<T> extends DoFn<T, KV<Integer, OutgoingMessage>> {
     private final Aggregator<Long, Long> elementCounter =
-        createAggregator("elements", new Sum.SumLongFn());
+        createAggregator("elements", Sum.ofLongs());
     private final Coder<T> elementCoder;
     private final int numShards;
     private final RecordIdMethod recordIdMethod;
+    private final SimpleFunction<T, PubsubMessage> formatFn;
 
-    ShardFn(Coder<T> elementCoder, int numShards, RecordIdMethod recordIdMethod) {
+    ShardFn(Coder<T> elementCoder, int numShards,
+            SimpleFunction<T, PubsubIO.PubsubMessage> formatFn, RecordIdMethod recordIdMethod) {
       this.elementCoder = elementCoder;
       this.numShards = numShards;
+      this.formatFn = formatFn;
       this.recordIdMethod = recordIdMethod;
     }
 
     @ProcessElement
     public void processElement(ProcessContext c) throws Exception {
       elementCounter.addValue(1L);
-      byte[] elementBytes = CoderUtils.encodeToByteArray(elementCoder, c.element());
+      byte[] elementBytes = null;
+      Map<String, String> attributes = ImmutableMap.<String, String>of();
+      if (formatFn != null) {
+        PubsubIO.PubsubMessage message = formatFn.apply(c.element());
+        elementBytes = message.getMessage();
+        attributes = message.getAttributeMap();
+      } else {
+        elementBytes = CoderUtils.encodeToByteArray(elementCoder, c.element());
+      }
+
       long timestampMsSinceEpoch = c.timestamp().getMillis();
       @Nullable String recordId = null;
       switch (recordIdMethod) {
@@ -186,7 +209,8 @@ public class PubsubUnboundedSink<T> extends PTransform<PCollection<T>, PDone> {
           break;
       }
       c.output(KV.of(ThreadLocalRandom.current().nextInt(numShards),
-                     new OutgoingMessage(elementBytes, timestampMsSinceEpoch, recordId)));
+                     new OutgoingMessage(elementBytes, attributes, timestampMsSinceEpoch,
+                             recordId)));
     }
 
     @Override
@@ -219,11 +243,11 @@ public class PubsubUnboundedSink<T> extends PTransform<PCollection<T>, PDone> {
     private transient PubsubClient pubsubClient;
 
     private final Aggregator<Long, Long> batchCounter =
-        createAggregator("batches", new Sum.SumLongFn());
+        createAggregator("batches", Sum.ofLongs());
     private final Aggregator<Long, Long> elementCounter =
-        createAggregator("elements", new Sum.SumLongFn());
+        createAggregator("elements", Sum.ofLongs());
     private final Aggregator<Long, Long> byteCounter =
-        createAggregator("bytes", new Sum.SumLongFn());
+        createAggregator("bytes", Sum.ofLongs());
 
     WriterFn(
         PubsubClientFactory pubsubFactory, ValueProvider<TopicPath> topic,
@@ -365,6 +389,12 @@ public class PubsubUnboundedSink<T> extends PTransform<PCollection<T>, PDone> {
    */
   private final RecordIdMethod recordIdMethod;
 
+  /**
+   * In order to publish attributes, a formatting function is used to format the output into
+   * a {@link PubsubIO.PubsubMessage}.
+   */
+  private final SimpleFunction<T, PubsubIO.PubsubMessage> formatFn;
+
   @VisibleForTesting
   PubsubUnboundedSink(
       PubsubClientFactory pubsubFactory,
@@ -376,6 +406,7 @@ public class PubsubUnboundedSink<T> extends PTransform<PCollection<T>, PDone> {
       int publishBatchSize,
       int publishBatchBytes,
       Duration maxLatency,
+      SimpleFunction<T, PubsubIO.PubsubMessage> formatFn,
       RecordIdMethod recordIdMethod) {
     this.pubsubFactory = pubsubFactory;
     this.topic = topic;
@@ -386,6 +417,7 @@ public class PubsubUnboundedSink<T> extends PTransform<PCollection<T>, PDone> {
     this.publishBatchSize = publishBatchSize;
     this.publishBatchBytes = publishBatchBytes;
     this.maxLatency = maxLatency;
+    this.formatFn = formatFn;
     this.recordIdMethod = idLabel == null ? RecordIdMethod.NONE : recordIdMethod;
   }
 
@@ -395,30 +427,54 @@ public class PubsubUnboundedSink<T> extends PTransform<PCollection<T>, PDone> {
       Coder<T> elementCoder,
       String timestampLabel,
       String idLabel,
+      SimpleFunction<T, PubsubIO.PubsubMessage> formatFn,
       int numShards) {
     this(pubsubFactory, topic, elementCoder, timestampLabel, idLabel, numShards,
          DEFAULT_PUBLISH_BATCH_SIZE, DEFAULT_PUBLISH_BATCH_BYTES, DEFAULT_MAX_LATENCY,
-         RecordIdMethod.RANDOM);
+         formatFn, RecordIdMethod.RANDOM);
   }
 
+  /**
+   * Get the topic being written to.
+   */
   public TopicPath getTopic() {
     return topic.get();
   }
 
+  /**
+   * Get the {@link ValueProvider} for the topic being written to.
+   */
   public ValueProvider<TopicPath> getTopicProvider() {
     return topic;
   }
 
+  /**
+   * Get the timestamp label.
+   */
   @Nullable
   public String getTimestampLabel() {
     return timestampLabel;
   }
 
+  /**
+   * Get the id label.
+   */
   @Nullable
   public String getIdLabel() {
     return idLabel;
   }
 
+  /**
+   * Get the format function used for PubSub attributes.
+   */
+  @Nullable
+  public SimpleFunction<T, PubsubIO.PubsubMessage> getFormatFn() {
+    return formatFn;
+  }
+
+  /**
+   * Get the Coder used to encode output elements.
+   */
   public Coder<T> getElementCoder() {
     return elementCoder;
   }
@@ -433,7 +489,7 @@ public class PubsubUnboundedSink<T> extends PTransform<PCollection<T>, PDone> {
                     .plusDelayOf(maxLatency))))
             .discardingFiredPanes())
          .apply("PubsubUnboundedSink.Shard",
-             ParDo.of(new ShardFn<T>(elementCoder, numShards, recordIdMethod)))
+             ParDo.of(new ShardFn<T>(elementCoder, numShards, formatFn, recordIdMethod)))
          .setCoder(KvCoder.of(VarIntCoder.of(), CODER))
          .apply(GroupByKey.<Integer, OutgoingMessage>create())
          .apply("PubsubUnboundedSink.Writer",

@@ -24,11 +24,8 @@ import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.options.GcsOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsValidator;
-import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.util.IOChannelUtils;
 import org.apache.beam.sdk.util.InstanceBuilder;
-import org.apache.beam.sdk.values.PInput;
-import org.apache.beam.sdk.values.POutput;
 
 /**
  * A {@link PipelineRunner} can execute, translate, or otherwise process a
@@ -64,15 +61,4 @@ public abstract class PipelineRunner<ResultT extends PipelineResult> {
    * Processes the given Pipeline, returning the results.
    */
   public abstract ResultT run(Pipeline pipeline);
-
-  /**
-   * Applies a transform to the given input, returning the output.
-   *
-   * <p>The default implementation calls PTransform.apply(input), but can be overridden
-   * to customize behavior for a particular runner.
-   */
-  public <OutputT extends POutput, InputT extends PInput> OutputT apply(
-      PTransform<InputT, OutputT> transform, InputT input) {
-    return transform.expand(input);
-  }
 }

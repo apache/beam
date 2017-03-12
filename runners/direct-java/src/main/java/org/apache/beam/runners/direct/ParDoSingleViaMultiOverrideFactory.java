@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.direct;
 
+import org.apache.beam.runners.core.construction.SingleInputOutputOverrideFactory;
 import org.apache.beam.sdk.runners.PTransformOverrideFactory;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -31,8 +32,8 @@ import org.apache.beam.sdk.values.TupleTagList;
  * it in terms of multi-output {@link ParDo}.
  */
 class ParDoSingleViaMultiOverrideFactory<InputT, OutputT>
-    implements PTransformOverrideFactory<
-        PCollection<? extends InputT>, PCollection<OutputT>, Bound<InputT, OutputT>>{
+    extends SingleInputOutputOverrideFactory<
+            PCollection<? extends InputT>, PCollection<OutputT>, Bound<InputT, OutputT>> {
   @Override
   public PTransform<PCollection<? extends InputT>, PCollection<OutputT>> getReplacementTransform(
       Bound<InputT, OutputT> transform) {

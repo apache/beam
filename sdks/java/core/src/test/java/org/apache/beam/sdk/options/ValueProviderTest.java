@@ -19,12 +19,14 @@ package org.apache.beam.sdk.options;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertTrue;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.beam.sdk.options.ValueProvider.NestedValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.RuntimeValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
@@ -56,8 +58,7 @@ public class ValueProviderTest {
 
   @Test
   public void testCommandLineNoDefault() {
-    TestOptions options = PipelineOptionsFactory.fromArgs(
-      new String[]{"--foo=baz"}).as(TestOptions.class);
+    TestOptions options = PipelineOptionsFactory.fromArgs("--foo=baz").as(TestOptions.class);
     ValueProvider<String> provider = options.getFoo();
     assertEquals("baz", provider.get());
     assertTrue(provider.isAccessible());
@@ -65,8 +66,7 @@ public class ValueProviderTest {
 
   @Test
   public void testListValueProvider() {
-    TestOptions options = PipelineOptionsFactory.fromArgs(
-      new String[]{"--list=1,2,3"}).as(TestOptions.class);
+    TestOptions options = PipelineOptionsFactory.fromArgs("--list=1,2,3").as(TestOptions.class);
     ValueProvider<List<Integer>> provider = options.getList();
     assertEquals(ImmutableList.of(1, 2, 3), provider.get());
     assertTrue(provider.isAccessible());
@@ -74,8 +74,7 @@ public class ValueProviderTest {
 
   @Test
   public void testCommandLineWithDefault() {
-    TestOptions options = PipelineOptionsFactory.fromArgs(
-      new String[]{"--bar=baz"}).as(TestOptions.class);
+    TestOptions options = PipelineOptionsFactory.fromArgs("--bar=baz").as(TestOptions.class);
     ValueProvider<String> provider = options.getBar();
     assertEquals("baz", provider.get());
     assertTrue(provider.isAccessible());
@@ -213,8 +212,7 @@ public class ValueProviderTest {
 
   @Test
   public void testSerializeDeserializeWithArg() throws Exception {
-    TestOptions submitOptions = PipelineOptionsFactory.fromArgs(
-      new String[]{"--foo=baz"}).as(TestOptions.class);
+    TestOptions submitOptions = PipelineOptionsFactory.fromArgs("--foo=baz").as(TestOptions.class);
     assertEquals("baz", submitOptions.getFoo().get());
     assertTrue(submitOptions.getFoo().isAccessible());
     ObjectMapper mapper = new ObjectMapper();
@@ -288,5 +286,27 @@ public class ValueProviderTest {
     ValueProvider<NonSerializable> nvp = NestedValueProvider.of(
         StaticValueProvider.of("foo"), new NonSerializableTranslator());
     SerializableUtils.ensureSerializable(nvp);
+  }
+
+  private static class IncrementAtomicIntegerTranslator
+      implements SerializableFunction<AtomicInteger, Integer> {
+    @Override
+    public Integer apply(AtomicInteger from) {
+      return from.incrementAndGet();
+    }
+  }
+
+  @Test
+  public void testNestedValueProviderCached() throws Exception {
+    AtomicInteger increment = new AtomicInteger();
+    ValueProvider<Integer> nvp = NestedValueProvider.of(
+        StaticValueProvider.of(increment), new IncrementAtomicIntegerTranslator());
+    Integer originalValue = nvp.get();
+    Integer cachedValue = nvp.get();
+    Integer incrementValue = increment.incrementAndGet();
+    Integer secondCachedValue = nvp.get();
+    assertEquals(originalValue, cachedValue);
+    assertEquals(secondCachedValue, cachedValue);
+    assertNotEquals(originalValue, incrementValue);
   }
 }

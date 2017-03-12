@@ -22,10 +22,10 @@ import static org.junit.Assert.assertEquals;
 
 import java.io.File;
 import java.io.IOException;
-import org.apache.beam.runners.spark.coders.WritableCoder;
-import org.apache.beam.runners.spark.translation.streaming.utils.SparkTestPipelineOptions;
+import org.apache.beam.runners.spark.PipelineRule;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.io.hadoop.WritableCoder;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.hadoop.conf.Configuration;
@@ -52,7 +52,7 @@ public class HadoopFileFormatPipelineTest {
   private File outputFile;
 
   @Rule
-  public final SparkTestPipelineOptions pipelineOptions = new SparkTestPipelineOptions();
+  public final PipelineRule pipelineRule = PipelineRule.batch();
 
   @Rule
   public final TemporaryFolder tmpDir = new TemporaryFolder();
@@ -68,7 +68,7 @@ public class HadoopFileFormatPipelineTest {
   public void testSequenceFile() throws Exception {
     populateFile();
 
-    Pipeline p = Pipeline.create(pipelineOptions.getOptions());
+    Pipeline p = pipelineRule.createPipeline();
     @SuppressWarnings("unchecked")
     Class<? extends FileInputFormat<IntWritable, Text>> inputFormatClass =
         (Class<? extends FileInputFormat<IntWritable, Text>>)

@@ -23,7 +23,6 @@ import static org.junit.Assert.assertEquals;
 
 import java.io.Serializable;
 import java.util.concurrent.atomic.AtomicLong;
-
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.BigEndianLongCoder;
 import org.apache.beam.sdk.coders.Coder;
@@ -37,7 +36,6 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TimestampedValue;
-
 import org.joda.time.Instant;
 import org.junit.Rule;
 import org.junit.Test;
@@ -51,12 +49,13 @@ import org.junit.runners.JUnit4;
  */
 @RunWith(JUnit4.class)
 public class LatestTest implements Serializable {
+
+  @Rule public final transient TestPipeline p = TestPipeline.create();
   @Rule public transient ExpectedException thrown = ExpectedException.none();
 
   @Test
   @Category(NeedsRunner.class)
   public void testGloballyEventTimestamp() {
-    TestPipeline p = TestPipeline.create();
     PCollection<String> output =
         p.apply(Create.timestamped(
             TimestampedValue.of("foo", new Instant(100)),
@@ -71,7 +70,8 @@ public class LatestTest implements Serializable {
 
   @Test
   public void testGloballyOutputCoder() {
-    TestPipeline p = TestPipeline.create();
+    p.enableAbandonedNodeEnforcement(false);
+
     BigEndianLongCoder inputCoder = BigEndianLongCoder.of();
 
     PCollection<Long> output =
@@ -86,10 +86,7 @@ public class LatestTest implements Serializable {
   @Test
   @Category(NeedsRunner.class)
   public void testGloballyEmptyCollection() {
-    TestPipeline p = TestPipeline.create();
-    PCollection<Long> emptyInput = p.apply(Create.<Long>of()
-        // Explicitly set coder such that then runner enforces encodability.
-        .withCoder(VarLongCoder.of()));
+    PCollection<Long> emptyInput = p.apply(Create.empty(VarLongCoder.of()));
     PCollection<Long> output = emptyInput.apply(Latest.<Long>globally());
 
     PAssert.that(output).containsInAnyOrder((Long) null);
@@ -99,7 +96,6 @@ public class LatestTest implements Serializable {
   @Test
   @Category(NeedsRunner.class)
   public void testPerKeyEventTimestamp() {
-    TestPipeline p = TestPipeline.create();
     PCollection<KV<String, String>> output =
         p.apply(Create.timestamped(
             TimestampedValue.of(KV.of("A", "foo"), new Instant(100)),
@@ -114,7 +110,8 @@ public class LatestTest implements Serializable {
 
   @Test
   public void testPerKeyOutputCoder() {
-    TestPipeline p = TestPipeline.create();
+    p.enableAbandonedNodeEnforcement(false);
+
     KvCoder<String, Long> inputCoder = KvCoder.of(
         AvroCoder.of(String.class), AvroCoder.of(Long.class));
 
@@ -128,11 +125,9 @@ public class LatestTest implements Serializable {
   @Test
   @Category(NeedsRunner.class)
   public void testPerKeyEmptyCollection() {
-    TestPipeline p = TestPipeline.create();
     PCollection<KV<String, String>> output =
-        p.apply(Create.<KV<String, String>>of().withCoder(KvCoder.of(
-            StringUtf8Coder.of(), StringUtf8Coder.of())))
-         .apply(Latest.<String, String>perKey());
+        p.apply(Create.empty(KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of())))
+            .apply(Latest.<String, String>perKey());
 
     PAssert.that(output).empty();
     p.run();

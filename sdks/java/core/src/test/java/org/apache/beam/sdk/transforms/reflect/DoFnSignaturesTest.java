@@ -76,7 +76,7 @@ public class DoFnSignaturesTest {
   @Test
   public void testBadExtraContext() throws Exception {
     thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage("Must take a single argument of type Context");
+    thrown.expectMessage("Must take a single argument of type DoFn<Integer, String>.Context");
 
     DoFnSignatures.analyzeBundleMethod(
         errors(),
@@ -656,10 +656,10 @@ public class DoFnSignaturesTest {
   @Test
   public void testStateParameterWrongGenericType() throws Exception {
     thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage("ValueState<java.lang.String>");
+    thrown.expectMessage("ValueState<String>");
     thrown.expectMessage("reference to");
     thrown.expectMessage("different type");
-    thrown.expectMessage("ValueState<java.lang.Integer>");
+    thrown.expectMessage("ValueState<Integer>");
     thrown.expectMessage("my-id");
     thrown.expectMessage("myProcessElement");
     thrown.expectMessage("index 1");

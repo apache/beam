@@ -18,15 +18,16 @@
 package org.apache.beam.sdk.transforms;
 
 import java.util.Arrays;
-import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.RunnableOnService;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
@@ -38,26 +39,28 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 @SuppressWarnings({"rawtypes", "unchecked"})
 public class KvSwapTest {
-  static final KV<String, Integer>[] TABLE = new KV[] {
+  private static final KV<String, Integer>[] TABLE = new KV[] {
     KV.of("one", 1),
     KV.of("two", 2),
     KV.of("three", 3),
     KV.of("four", 4),
     KV.of("dup", 4),
-    KV.of("dup", 5)
+    KV.of("dup", 5),
+    KV.of("null", null),
   };
 
-  static final KV<String, Integer>[] EMPTY_TABLE = new KV[] {
+  private static final KV<String, Integer>[] EMPTY_TABLE = new KV[] {
   };
+
+  @Rule
+  public final TestPipeline p = TestPipeline.create();
 
   @Test
   @Category(RunnableOnService.class)
   public void testKvSwap() {
-    Pipeline p = TestPipeline.create();
-
     PCollection<KV<String, Integer>> input =
         p.apply(Create.of(Arrays.asList(TABLE)).withCoder(
-            KvCoder.of(StringUtf8Coder.of(), BigEndianIntegerCoder.of())));
+            KvCoder.of(StringUtf8Coder.of(), NullableCoder.of(BigEndianIntegerCoder.of()))));
 
     PCollection<KV<Integer, String>> output = input.apply(
         KvSwap.<String, Integer>create());
@@ -68,15 +71,14 @@ public class KvSwapTest {
         KV.of(3, "three"),
         KV.of(4, "four"),
         KV.of(4, "dup"),
-        KV.of(5, "dup"));
+        KV.of(5, "dup"),
+        KV.of((Integer) null, "null"));
     p.run();
   }
 
   @Test
   @Category(RunnableOnService.class)
   public void testKvSwapEmpty() {
-    Pipeline p = TestPipeline.create();
-
     PCollection<KV<String, Integer>> input =
         p.apply(Create.of(Arrays.asList(EMPTY_TABLE)).withCoder(
             KvCoder.of(StringUtf8Coder.of(), BigEndianIntegerCoder.of())));

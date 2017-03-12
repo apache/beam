@@ -85,7 +85,7 @@ public class AutoComplete {
     public PCollection<KV<String, List<CompletionCandidate>>> expand(PCollection<String> input) {
       PCollection<CompletionCandidate> candidates = input
         // First count how often each token appears.
-        .apply(new Count.PerElement<String>())
+        .apply(Count.<String>perElement())
 
         // Map the KV outputs of Count into our own CompletionCandiate class.
         .apply("CreateCompletionCandidates", ParDo.of(
@@ -314,7 +314,7 @@ public class AutoComplete {
 
   static class ExtractWordsFn extends DoFn<String, String> {
     private final Aggregator<Long, Long> emptyLines =
-            createAggregator("emptyLines", new Sum.SumLongFn());
+            createAggregator("emptyLines", Sum.ofLongs());
 
     @ProcessElement
     public void processElement(ProcessContext c) {

@@ -17,9 +17,6 @@
  */
 package org.apache.beam.runners.dataflow.options;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Strings.isNullOrEmpty;
-
 import java.io.IOException;
 import org.apache.beam.runners.dataflow.DataflowRunner;
 import org.apache.beam.sdk.annotations.Experimental;
@@ -100,6 +97,23 @@ public interface DataflowPipelineOptions
   void setServiceAccount(String value);
 
   /**
+   * The Google Compute Engine
+   * <a href="https://cloud.google.com/compute/docs/regions-zones/regions-zones">region</a>
+   * for creating Dataflow jobs.
+   *
+   * <p>NOTE: The Cloud Dataflow service does not yet honor this setting. However, once service
+   * support is added then users of this SDK will be able to control the region.
+   */
+  @Hidden
+  @Experimental
+  @Description("The Google Compute Engine region for creating Dataflow jobs. See "
+      + "https://cloud.google.com/compute/docs/regions-zones/regions-zones for a list of valid "
+      + "options. Default is up to the Dataflow service.")
+  @Default.String("us-central1")
+  String getRegion();
+  void setRegion(String region);
+
+  /**
    * Returns a default staging location under {@link GcpOptions#getGcpTempLocation}.
    */
   class StagingLocationFactory implements DefaultValueFactory<String> {
@@ -107,17 +121,21 @@ public interface DataflowPipelineOptions
     @Override
     public String create(PipelineOptions options) {
       GcsOptions gcsOptions = options.as(GcsOptions.class);
-      String gcpTempLocation = gcsOptions.getGcpTempLocation();
-      checkArgument(!isNullOrEmpty(gcpTempLocation),
-          "Error constructing default value for stagingLocation: gcpTempLocation is missing."
-          + "Either stagingLocation must be set explicitly or a valid value must be provided"
-          + "for gcpTempLocation.");
+      String gcpTempLocation;
+      try {
+        gcpTempLocation = gcsOptions.getGcpTempLocation();
+      } catch (Exception e) {
+        throw new IllegalArgumentException(
+        "Error constructing default value for stagingLocation: failed to retrieve gcpTempLocation. "
+            + "Either stagingLocation must be set explicitly or a valid value must be provided"
+            + "for gcpTempLocation.", e);
+      }
       try {
         gcsOptions.getPathValidator().validateOutputFilePrefixSupported(gcpTempLocation);
       } catch (Exception e) {
         throw new IllegalArgumentException(String.format(
             "Error constructing default value for stagingLocation: gcpTempLocation is not"
-            + " a valid GCS path, %s. ", gcpTempLocation));
+            + " a valid GCS path, %s. ", gcpTempLocation), e);
       }
       try {
         return IOChannelUtils.resolve(gcpTempLocation, "staging");

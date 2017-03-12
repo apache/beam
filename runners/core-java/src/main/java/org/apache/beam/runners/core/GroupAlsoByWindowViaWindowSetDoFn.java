@@ -17,18 +17,14 @@
  */
 package org.apache.beam.runners.core;
 
-import org.apache.beam.runners.core.DoFnRunner.ReduceFnExecutor;
 import org.apache.beam.runners.core.triggers.ExecutableTriggerStateMachine;
 import org.apache.beam.runners.core.triggers.TriggerStateMachines;
 import org.apache.beam.sdk.transforms.Aggregator;
-import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.Triggers;
 import org.apache.beam.sdk.util.SystemDoFnInternal;
-import org.apache.beam.sdk.util.TimerInternals;
 import org.apache.beam.sdk.util.WindowingStrategy;
-import org.apache.beam.sdk.util.state.StateInternals;
-import org.apache.beam.sdk.util.state.StateInternalsFactory;
 import org.apache.beam.sdk.values.KV;
 
 /**
@@ -38,7 +34,7 @@ import org.apache.beam.sdk.values.KV;
 @SystemDoFnInternal
 public class GroupAlsoByWindowViaWindowSetDoFn<
         K, InputT, OutputT, W extends BoundedWindow, RinT extends KeyedWorkItem<K, InputT>>
-    extends OldDoFn<RinT, KV<K, OutputT>> implements ReduceFnExecutor<K, InputT, OutputT, W> {
+    extends OldDoFn<RinT, KV<K, OutputT>> {
 
   public static <K, InputT, OutputT, W extends BoundedWindow>
       OldDoFn<KeyedWorkItem<K, InputT>, KV<K, OutputT>> create(
@@ -50,9 +46,9 @@ public class GroupAlsoByWindowViaWindowSetDoFn<
 
   protected final Aggregator<Long, Long> droppedDueToClosedWindow =
       createAggregator(
-          GroupAlsoByWindowsDoFn.DROPPED_DUE_TO_CLOSED_WINDOW_COUNTER, new Sum.SumLongFn());
+          GroupAlsoByWindowsDoFn.DROPPED_DUE_TO_CLOSED_WINDOW_COUNTER, Sum.ofLongs());
   protected final Aggregator<Long, Long> droppedDueToLateness =
-      createAggregator(GroupAlsoByWindowsDoFn.DROPPED_DUE_TO_LATENESS_COUNTER, new Sum.SumLongFn());
+      createAggregator(GroupAlsoByWindowsDoFn.DROPPED_DUE_TO_LATENESS_COUNTER, Sum.ofLongs());
 
   private final WindowingStrategy<Object, W> windowingStrategy;
   private final StateInternalsFactory<K> stateInternalsFactory;
@@ -82,7 +78,8 @@ public class GroupAlsoByWindowViaWindowSetDoFn<
             key,
             windowingStrategy,
             ExecutableTriggerStateMachine.create(
-                TriggerStateMachines.stateMachineForTrigger(windowingStrategy.getTrigger())),
+                TriggerStateMachines.stateMachineForTrigger(
+                    Triggers.toProto(windowingStrategy.getTrigger()))),
             stateInternals,
             timerInternals,
             WindowingInternalsAdapters.outputWindowedValue(c.windowingInternals()),
@@ -96,7 +93,6 @@ public class GroupAlsoByWindowViaWindowSetDoFn<
     reduceFnRunner.persist();
   }
 
-  @Override
   public OldDoFn<KeyedWorkItem<K, InputT>, KV<K, OutputT>> asDoFn() {
     // Safe contravariant cast
     @SuppressWarnings("unchecked")
@@ -105,7 +101,6 @@ public class GroupAlsoByWindowViaWindowSetDoFn<
     return asFn;
   }
 
-  @Override
   public Aggregator<Long, Long> getDroppedDueToLatenessAggregator() {
     return droppedDueToLateness;
   }

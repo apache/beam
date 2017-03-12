@@ -45,7 +45,7 @@ import org.joda.time.Instant;
  * same behaviour as {@code MergeOverlappingIntervalWindows}.
  */
 public class FlinkMergingPartialReduceFunction<K, InputT, AccumT, W extends IntervalWindow>
-  extends FlinkPartialReduceFunction<K, InputT, AccumT, W> {
+    extends FlinkPartialReduceFunction<K, InputT, AccumT, W> {
 
   public FlinkMergingPartialReduceFunction(
       CombineFnBase.PerKeyCombineFn<K, InputT, AccumT, ?> combineFn,
@@ -60,14 +60,10 @@ public class FlinkMergingPartialReduceFunction<K, InputT, AccumT, W extends Inte
       Iterable<WindowedValue<KV<K, InputT>>> elements,
       Collector<WindowedValue<KV<K, AccumT>>> out) throws Exception {
 
-    FlinkSingleOutputProcessContext<KV<K, InputT>, KV<K, AccumT>> processContext =
-        new FlinkSingleOutputProcessContext<>(
-            serializedOptions.getPipelineOptions(),
-            getRuntimeContext(),
-            doFn,
-            windowingStrategy,
-            sideInputs, out
-        );
+    PipelineOptions options = serializedOptions.getPipelineOptions();
+
+    FlinkSideInputReader sideInputReader =
+        new FlinkSideInputReader(sideInputs, getRuntimeContext());
 
     PerKeyCombineFnRunner<K, InputT, AccumT, ?> combineFnRunner =
         PerKeyCombineFnRunners.create(combineFn);
@@ -80,8 +76,8 @@ public class FlinkMergingPartialReduceFunction<K, InputT, AccumT, W extends Inte
     // memory
     // this seems very unprudent, but correct, for now
     List<WindowedValue<KV<K, InputT>>> sortedInput = Lists.newArrayList();
-    for (WindowedValue<KV<K, InputT>> inputValue: elements) {
-      for (WindowedValue<KV<K, InputT>> exploded: inputValue.explodeWindows()) {
+    for (WindowedValue<KV<K, InputT>> inputValue : elements) {
+      for (WindowedValue<KV<K, InputT>> exploded : inputValue.explodeWindows()) {
         sortedInput.add(exploded);
       }
     }
@@ -109,9 +105,10 @@ public class FlinkMergingPartialReduceFunction<K, InputT, AccumT, W extends Inte
     IntervalWindow currentWindow =
         (IntervalWindow) Iterables.getOnlyElement(currentValue.getWindows());
     InputT firstValue = currentValue.getValue().getValue();
-    processContext.setWindowedValue(currentValue);
-    AccumT accumulator = combineFnRunner.createAccumulator(key, processContext);
-    accumulator = combineFnRunner.addInput(key, accumulator, firstValue, processContext);
+    AccumT accumulator = combineFnRunner.createAccumulator(key,
+        options, sideInputReader, currentValue.getWindows());
+    accumulator = combineFnRunner.addInput(key, accumulator, firstValue,
+        options, sideInputReader, currentValue.getWindows());
 
     // we use this to keep track of the timestamps assigned by the OutputTimeFn
     Instant windowTimestamp =
@@ -125,8 +122,8 @@ public class FlinkMergingPartialReduceFunction<K, InputT, AccumT, W extends Inte
         // continue accumulating and merge windows
 
         InputT value = nextValue.getValue().getValue();
-        processContext.setWindowedValue(nextValue);
-        accumulator = combineFnRunner.addInput(key, accumulator, value, processContext);
+        accumulator = combineFnRunner.addInput(key, accumulator, value,
+            options, sideInputReader, currentValue.getWindows());
 
         windowTimestamp = outputTimeFn.combine(
             windowTimestamp,
@@ -142,10 +139,12 @@ public class FlinkMergingPartialReduceFunction<K, InputT, AccumT, W extends Inte
                 PaneInfo.NO_FIRING));
 
         currentWindow = nextWindow;
+        currentValue = nextValue;
         InputT value = nextValue.getValue().getValue();
-        processContext.setWindowedValue(nextValue);
-        accumulator = combineFnRunner.createAccumulator(key, processContext);
-        accumulator = combineFnRunner.addInput(key, accumulator, value, processContext);
+        accumulator = combineFnRunner.createAccumulator(key,
+            options, sideInputReader, currentValue.getWindows());
+        accumulator = combineFnRunner.addInput(key, accumulator, value,
+            options, sideInputReader, currentValue.getWindows());
         windowTimestamp = outputTimeFn.assignOutputTime(nextValue.getTimestamp(), currentWindow);
       }
     }

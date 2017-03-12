@@ -18,13 +18,18 @@
 
 package org.apache.beam.runners.direct;
 
-import static org.apache.beam.sdk.metrics.MetricMatchers.metricResult;
+import static org.apache.beam.sdk.metrics.MetricMatchers.attemptedMetricsResult;
+import static org.apache.beam.sdk.metrics.MetricMatchers.committedMetricsResult;
 import static org.apache.beam.sdk.metrics.MetricNameFilter.inNamespace;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 
 import com.google.common.collect.ImmutableList;
+import java.util.HashSet;
+import java.util.Set;
 import org.apache.beam.runners.direct.DirectRunner.CommittedBundle;
 import org.apache.beam.sdk.metrics.DistributionData;
 import org.apache.beam.sdk.metrics.DistributionResult;
@@ -63,8 +68,9 @@ public class DirectMetricsTest {
     MockitoAnnotations.initMocks(this);
   }
 
+  @SuppressWarnings("unchecked")
   @Test
-  public void testApplyLogicalQueryNoFilter() {
+  public void testApplyCommittedNoFilter() {
     metrics.commitLogical(bundle1, MetricUpdates.create(
         ImmutableList.of(
             MetricUpdate.create(MetricKey.create("step1", NAME1), 5L),
@@ -82,17 +88,22 @@ public class DirectMetricsTest {
 
     MetricQueryResults results = metrics.queryMetrics(MetricsFilter.builder().build());
     assertThat(results.counters(), containsInAnyOrder(
-        metricResult("ns1", "name1", "step1", 5L, 0L),
-        metricResult("ns1", "name2", "step1", 12L, 0L),
-        metricResult("ns1", "name1", "step2", 7L, 0L)));
+        attemptedMetricsResult("ns1", "name1", "step1", 0L),
+        attemptedMetricsResult("ns1", "name2", "step1", 0L),
+        attemptedMetricsResult("ns1", "name1", "step2", 0L)));
+    assertThat(results.counters(), containsInAnyOrder(
+        committedMetricsResult("ns1", "name1", "step1", 5L),
+        committedMetricsResult("ns1", "name2", "step1", 12L),
+        committedMetricsResult("ns1", "name1", "step2", 7L)));
     assertThat(results.distributions(), contains(
-        metricResult("ns1", "name1", "step1",
-            DistributionResult.create(12, 3, 3, 5),
-            DistributionResult.ZERO)));
+        attemptedMetricsResult("ns1", "name1", "step1", DistributionResult.ZERO)));
+    assertThat(results.distributions(), contains(
+        committedMetricsResult("ns1", "name1", "step1", DistributionResult.create(12, 3, 3, 5))));
   }
 
+  @SuppressWarnings("unchecked")
   @Test
-  public void testApplyPhysicalCountersQueryOneNamespace() {
+  public void testApplyAttemptedCountersQueryOneNamespace() {
     metrics.updatePhysical(bundle1, MetricUpdates.create(
         ImmutableList.of(
             MetricUpdate.create(MetricKey.create("step1", NAME1), 5L),
@@ -104,15 +115,89 @@ public class DirectMetricsTest {
             MetricUpdate.create(MetricKey.create("step1", NAME3), 4L)),
         ImmutableList.<MetricUpdate<DistributionData>>of()));
 
-    assertThat(metrics.queryMetrics(
-        MetricsFilter.builder().addNameFilter(inNamespace("ns1")).build()).counters(),
+    MetricQueryResults results = metrics.queryMetrics(
+        MetricsFilter.builder().addNameFilter(inNamespace("ns1")).build());
+
+    assertThat(results.counters(),
         containsInAnyOrder(
-            metricResult("ns1", "name1", "step1", 0L, 5L),
-            metricResult("ns1", "name1", "step2", 0L, 7L)));
+            attemptedMetricsResult("ns1", "name1", "step1", 5L),
+            attemptedMetricsResult("ns1", "name1", "step2", 7L)));
+
+    assertThat(results.counters(),
+        containsInAnyOrder(
+            committedMetricsResult("ns1", "name1", "step1", 0L),
+            committedMetricsResult("ns1", "name1", "step2", 0L)));
+  }
+
+  private boolean matchesSubPath(String actualScope, String subPath) {
+    return metrics.subPathMatches(actualScope, subPath);
   }
 
   @Test
-  public void testApplyPhysicalQueryCompositeScope() {
+  public void testMatchesSubPath() {
+    assertTrue("Match of the first element",
+        matchesSubPath("Top1/Outer1/Inner1/Bottom1", "Top1"));
+    assertTrue("Match of the first elements",
+        matchesSubPath("Top1/Outer1/Inner1/Bottom1", "Top1/Outer1"));
+    assertTrue("Match of the last elements",
+        matchesSubPath("Top1/Outer1/Inner1/Bottom1", "Inner1/Bottom1"));
+    assertFalse("Substring match but no subpath match",
+        matchesSubPath("Top1/Outer1/Inner1/Bottom1", "op1/Outer1/Inner1"));
+    assertFalse("Substring match from start - but no subpath match",
+        matchesSubPath("Top1/Outer1/Inner1/Bottom1", "Top"));
+  }
+
+  private boolean matchesScopeWithSingleFilter(String actualScope, String filter) {
+    Set<String> scopeFilter = new HashSet<String>();
+    scopeFilter.add(filter);
+    return metrics.matchesScope(actualScope, scopeFilter);
+  }
+
+  @Test
+  public void testMatchesScope() {
+    assertTrue(matchesScopeWithSingleFilter("Top1/Outer1/Inner1/Bottom1", "Top1"));
+    assertTrue(matchesScopeWithSingleFilter(
+        "Top1/Outer1/Inner1/Bottom1", "Top1/Outer1/Inner1/Bottom1"));
+    assertTrue(matchesScopeWithSingleFilter("Top1/Outer1/Inner1/Bottom1", "Top1/Outer1"));
+    assertTrue(matchesScopeWithSingleFilter("Top1/Outer1/Inner1/Bottom1", "Top1/Outer1/Inner1"));
+    assertFalse(matchesScopeWithSingleFilter("Top1/Outer1/Inner1/Bottom1", "Top1/Inner1"));
+    assertFalse(matchesScopeWithSingleFilter("Top1/Outer1/Inner1/Bottom1", "Top1/Outer1/Inn"));
+  }
+
+  @SuppressWarnings("unchecked")
+  @Test
+  public void testPartialScopeMatchingInMetricsQuery() {
+    metrics.updatePhysical(bundle1, MetricUpdates.create(
+        ImmutableList.of(
+            MetricUpdate.create(MetricKey.create("Top1/Outer1/Inner1", NAME1), 5L),
+            MetricUpdate.create(MetricKey.create("Top1/Outer1/Inner2", NAME1), 8L)),
+        ImmutableList.<MetricUpdate<DistributionData>>of()));
+    metrics.updatePhysical(bundle1, MetricUpdates.create(
+        ImmutableList.of(
+            MetricUpdate.create(MetricKey.create("Top2/Outer1/Inner1", NAME1), 12L),
+            MetricUpdate.create(MetricKey.create("Top1/Outer2/Inner2", NAME1), 18L)),
+        ImmutableList.<MetricUpdate<DistributionData>>of()));
+
+    MetricQueryResults results = metrics.queryMetrics(
+        MetricsFilter.builder().addStep("Top1/Outer1").build());
+
+    assertThat(results.counters(),
+        containsInAnyOrder(
+            attemptedMetricsResult("ns1", "name1", "Top1/Outer1/Inner1", 5L),
+            attemptedMetricsResult("ns1", "name1", "Top1/Outer1/Inner2", 8L)));
+
+    results = metrics.queryMetrics(
+        MetricsFilter.builder().addStep("Inner2").build());
+
+    assertThat(results.counters(),
+        containsInAnyOrder(
+            attemptedMetricsResult("ns1", "name1", "Top1/Outer1/Inner2", 8L),
+            attemptedMetricsResult("ns1", "name1", "Top1/Outer2/Inner2", 18L)));
+  }
+
+  @SuppressWarnings("unchecked")
+  @Test
+  public void testApplyAttemptedQueryCompositeScope() {
     metrics.updatePhysical(bundle1, MetricUpdates.create(
         ImmutableList.of(
             MetricUpdate.create(MetricKey.create("Outer1/Inner1", NAME1), 5L),
@@ -124,10 +209,17 @@ public class DirectMetricsTest {
             MetricUpdate.create(MetricKey.create("Outer2/Inner2", NAME1), 18L)),
         ImmutableList.<MetricUpdate<DistributionData>>of()));
 
-    assertThat(metrics.queryMetrics(
-        MetricsFilter.builder().addStep("Outer1").build()).counters(),
+    MetricQueryResults results = metrics.queryMetrics(
+        MetricsFilter.builder().addStep("Outer1").build());
+
+    assertThat(results.counters(),
         containsInAnyOrder(
-            metricResult("ns1", "name1", "Outer1/Inner1", 0L, 12L),
-            metricResult("ns1", "name1", "Outer1/Inner2", 0L, 8L)));
+            attemptedMetricsResult("ns1", "name1", "Outer1/Inner1", 12L),
+            attemptedMetricsResult("ns1", "name1", "Outer1/Inner2", 8L)));
+
+    assertThat(results.counters(),
+        containsInAnyOrder(
+            committedMetricsResult("ns1", "name1", "Outer1/Inner1", 0L),
+            committedMetricsResult("ns1", "name1", "Outer1/Inner2", 0L)));
   }
 }

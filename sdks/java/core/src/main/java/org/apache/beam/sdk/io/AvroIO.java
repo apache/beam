@@ -804,7 +804,7 @@ public class AvroIO {
           throw new IllegalStateException("need to set the schema of an AvroIO.Write transform");
         }
 
-        org.apache.beam.sdk.io.Write.Bound<T> write =
+        org.apache.beam.sdk.io.Write<T> write =
             org.apache.beam.sdk.io.Write.to(
                 new AvroSink<>(
                     filenamePrefix,
@@ -1032,7 +1032,7 @@ public class AvroIO {
       }
 
       @Override
-      protected void writeFooter() throws Exception {
+      protected void finishWrite() throws Exception {
         dataFileWriter.flush();
       }
     }

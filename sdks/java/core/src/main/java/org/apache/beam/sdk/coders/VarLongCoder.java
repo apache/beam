@@ -24,6 +24,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.UTFDataFormatException;
 import org.apache.beam.sdk.util.VarInt;
+import org.apache.beam.sdk.values.TypeDescriptor;
 
 /**
  * A {@link Coder} that encodes {@link Long Longs} using between 1 and 10 bytes. Negative
@@ -40,6 +41,7 @@ public class VarLongCoder extends AtomicCoder<Long> {
   /////////////////////////////////////////////////////////////////////////////
 
   private static final VarLongCoder INSTANCE = new VarLongCoder();
+  private static final TypeDescriptor<Long> TYPE_DESCRIPTOR = new TypeDescriptor<Long>() {};
 
   private VarLongCoder() {}
 
@@ -82,6 +84,11 @@ public class VarLongCoder extends AtomicCoder<Long> {
   @Override
   public boolean isRegisterByteSizeObserverCheap(Long value, Context context) {
     return true;
+  }
+
+  @Override
+  public TypeDescriptor<Long> getEncodedTypeDescriptor() {
+    return TYPE_DESCRIPTOR;
   }
 
   @Override

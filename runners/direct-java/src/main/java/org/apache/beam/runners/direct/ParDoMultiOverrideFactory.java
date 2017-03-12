@@ -17,9 +17,20 @@
  */
 package org.apache.beam.runners.direct;
 
+import static com.google.common.base.Preconditions.checkState;
+
+import com.google.common.collect.Iterables;
+import java.util.List;
+import java.util.Map;
+import org.apache.beam.runners.core.KeyedWorkItem;
+import org.apache.beam.runners.core.KeyedWorkItemCoder;
+import org.apache.beam.runners.core.KeyedWorkItems;
 import org.apache.beam.runners.core.SplittableParDo;
+import org.apache.beam.runners.core.construction.ReplacementOutputs;
+import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.runners.PTransformOverrideFactory;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupByKey;
@@ -28,9 +39,18 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.ParDo.BoundMulti;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
+import org.apache.beam.sdk.transforms.windowing.AfterPane;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.OutputTimeFns;
+import org.apache.beam.sdk.transforms.windowing.Repeatedly;
+import org.apache.beam.sdk.transforms.windowing.Window;
+import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
+import org.apache.beam.sdk.values.PValue;
+import org.apache.beam.sdk.values.TaggedPValue;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.TypedPValue;
 
@@ -51,17 +71,8 @@ class ParDoMultiOverrideFactory<InputT, OutputT>
     DoFnSignature signature = DoFnSignatures.getSignature(fn.getClass());
     if (signature.processElement().isSplittable()) {
       return new SplittableParDo(transform);
-    } else if (signature.timerDeclarations().size() > 0) {
-      // Temporarily actually reject timers
-      throw new UnsupportedOperationException(
-          String.format(
-              "Found %s annotations on %s, but %s cannot yet be used with timers in the %s.",
-              DoFn.TimerId.class.getSimpleName(),
-              fn.getClass().getName(),
-              DoFn.class.getSimpleName(),
-              DirectRunner.class.getSimpleName()));
-
-    } else if (signature.stateDeclarations().size() > 0) {
+    } else if (signature.stateDeclarations().size() > 0
+        || signature.timerDeclarations().size() > 0) {
       // Based on the fact that the signature is stateful, DoFnSignatures ensures
       // that it is also keyed
       ParDo.BoundMulti<KV<?, ?>, OutputT> keyedTransform =
@@ -71,6 +82,18 @@ class ParDoMultiOverrideFactory<InputT, OutputT>
     } else {
       return transform;
     }
+  }
+
+  @Override
+  public PCollection<? extends InputT> getInput(
+      List<TaggedPValue> inputs, Pipeline p) {
+    return (PCollection<? extends InputT>) Iterables.getOnlyElement(inputs).getValue();
+  }
+
+  @Override
+  public Map<PValue, ReplacementOutput> mapOutputs(
+      List<TaggedPValue> outputs, PCollectionTuple newOutput) {
+    return ReplacementOutputs.tagged(outputs, newOutput);
   }
 
   static class GbkThenStatefulParDo<K, InputT, OutputT>
@@ -84,16 +107,64 @@ class ParDoMultiOverrideFactory<InputT, OutputT>
     @Override
     public PCollectionTuple expand(PCollection<KV<K, InputT>> input) {
 
-      PCollectionTuple outputs = input
-          .apply("Group by key", GroupByKey.<K, InputT>create())
-          .apply("Stateful ParDo", new StatefulParDo<>(underlyingParDo, input));
+      WindowingStrategy<?, ?> inputWindowingStrategy = input.getWindowingStrategy();
+
+      // A KvCoder is required since this goes through GBK. Further, WindowedValueCoder
+      // is not registered by default, so we explicitly set the relevant coders.
+      checkState(
+          input.getCoder() instanceof KvCoder,
+          "Input to a %s using state requires a %s, but the coder was %s",
+          ParDo.class.getSimpleName(),
+          KvCoder.class.getSimpleName(),
+          input.getCoder());
+      KvCoder<K, InputT> kvCoder = (KvCoder<K, InputT>) input.getCoder();
+      Coder<K> keyCoder = kvCoder.getKeyCoder();
+      Coder<? extends BoundedWindow> windowCoder =
+          inputWindowingStrategy.getWindowFn().windowCoder();
+
+      PCollection<KeyedWorkItem<K, KV<K, InputT>>> adjustedInput =
+          input
+              // Stash the original timestamps, etc, for when it is fed to the user's DoFn
+              .apply("Reify timestamps", ParDo.of(new ReifyWindowedValueFn<K, InputT>()))
+              .setCoder(KvCoder.of(keyCoder, WindowedValue.getFullCoder(kvCoder, windowCoder)))
+
+              // We are going to GBK to gather keys and windows but otherwise do not want
+              // to alter the flow of data. This entails:
+              //  - trigger as fast as possible
+              //  - maintain the full timestamps of elements
+              //  - ensure this GBK holds to the minimum of those timestamps (via OutputTimeFn)
+              //  - discard past panes as it is "just a stream" of elements
+              .apply(
+                  Window.<KV<K, WindowedValue<KV<K, InputT>>>>triggering(
+                          Repeatedly.forever(AfterPane.elementCountAtLeast(1)))
+                      .discardingFiredPanes()
+                      .withAllowedLateness(inputWindowingStrategy.getAllowedLateness())
+                      .withOutputTimeFn(OutputTimeFns.outputAtEarliestInputTimestamp()))
+
+              // A full GBK to group by key _and_ window
+              .apply("Group by key", GroupByKey.<K, WindowedValue<KV<K, InputT>>>create())
+
+              // Adapt to KeyedWorkItem; that is how this runner delivers timers
+              .apply("To KeyedWorkItem", ParDo.of(new ToKeyedWorkItem<K, InputT>()))
+              .setCoder(KeyedWorkItemCoder.of(keyCoder, kvCoder, windowCoder))
+
+              // Because of the intervening GBK, we may have abused the windowing strategy
+              // of the input, which should be transferred to the output in a straightforward manner
+              // according to what ParDo already does.
+              .setWindowingStrategyInternal(inputWindowingStrategy);
+
+      PCollectionTuple outputs =
+          adjustedInput
+              // Explode the resulting iterable into elements that are exactly the ones from
+              // the input
+              .apply("Stateful ParDo", new StatefulParDo<>(underlyingParDo, input));
 
       return outputs;
     }
   }
 
   static class StatefulParDo<K, InputT, OutputT>
-      extends PTransform<PCollection<? extends KV<K, Iterable<InputT>>>, PCollectionTuple> {
+      extends PTransform<PCollection<? extends KeyedWorkItem<K, KV<K, InputT>>>, PCollectionTuple> {
     private final transient ParDo.BoundMulti<KV<K, InputT>, OutputT> underlyingParDo;
     private final transient PCollection<KV<K, InputT>> originalInput;
 
@@ -110,21 +181,58 @@ class ParDoMultiOverrideFactory<InputT, OutputT>
 
     @Override
     public <T> Coder<T> getDefaultOutputCoder(
-        PCollection<? extends KV<K, Iterable<InputT>>> input, TypedPValue<T> output)
+        PCollection<? extends KeyedWorkItem<K, KV<K, InputT>>> input, TypedPValue<T> output)
         throws CannotProvideCoderException {
       return underlyingParDo.getDefaultOutputCoder(originalInput, output);
     }
 
-    public PCollectionTuple expand(PCollection<? extends KV<K, Iterable<InputT>>> input) {
+    @Override
+    public PCollectionTuple expand(PCollection<? extends KeyedWorkItem<K, KV<K, InputT>>> input) {
 
-      PCollectionTuple outputs = PCollectionTuple.ofPrimitiveOutputsInternal(
-          input.getPipeline(),
-          TupleTagList.of(underlyingParDo.getMainOutputTag())
-              .and(underlyingParDo.getSideOutputTags().getAll()),
-          input.getWindowingStrategy(),
-          input.isBounded());
+      PCollectionTuple outputs =
+          PCollectionTuple.ofPrimitiveOutputsInternal(
+              input.getPipeline(),
+              TupleTagList.of(underlyingParDo.getMainOutputTag())
+                  .and(underlyingParDo.getSideOutputTags().getAll()),
+              input.getWindowingStrategy(),
+              input.isBounded());
 
       return outputs;
+    }
+  }
+
+  /**
+   * A distinguished key-preserving {@link DoFn}.
+   *
+   * <p>This wraps the {@link GroupByKey} output in a {@link KeyedWorkItem} to be able to deliver
+   * timers. It also explodes them into single {@link KV KVs} since this is what the user's {@link
+   * DoFn} needs to process anyhow.
+   */
+  static class ReifyWindowedValueFn<K, V> extends DoFn<KV<K, V>, KV<K, WindowedValue<KV<K, V>>>> {
+    @ProcessElement
+    public void processElement(final ProcessContext c, final BoundedWindow window) {
+      c.output(
+          KV.of(
+              c.element().getKey(),
+              WindowedValue.of(c.element(), c.timestamp(), window, c.pane())));
+    }
+  }
+
+  /**
+   * A runner-specific primitive that is just a key-preserving {@link ParDo}, but we do not have the
+   * machinery to detect or enforce that yet.
+   *
+   * <p>This wraps the {@link GroupByKey} output in a {@link KeyedWorkItem} to be able to deliver
+   * timers. It also explodes them into single {@link KV KVs} since this is what the user's {@link
+   * DoFn} needs to process anyhow.
+   */
+  static class ToKeyedWorkItem<K, V>
+      extends DoFn<KV<K, Iterable<WindowedValue<KV<K, V>>>>, KeyedWorkItem<K, KV<K, V>>> {
+
+    @ProcessElement
+    public void processElement(final ProcessContext c, final BoundedWindow window) {
+      final K key = c.element().getKey();
+      c.output(KeyedWorkItems.elementsWorkItem(key, c.element().getValue()));
     }
   }
 }

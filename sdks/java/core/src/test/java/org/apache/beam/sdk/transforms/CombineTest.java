@@ -24,15 +24,13 @@ import static org.apache.beam.sdk.TestUtils.checkCombineFn;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasNamespace;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.includesDisplayDataFor;
+import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasItem;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.MoreObjects;
 import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.Sets;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -51,12 +49,11 @@ import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.DoubleCoder;
-import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.SerializableCoder;
-import org.apache.beam.sdk.coders.StandardCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
+import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.RunnableOnService;
@@ -74,14 +71,16 @@ import org.apache.beam.sdk.transforms.windowing.Sessions;
 import org.apache.beam.sdk.transforms.windowing.SlidingWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.Window.ClosingBehavior;
-import org.apache.beam.sdk.util.PropertyNames;
 import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.POutput;
+import org.apache.beam.sdk.values.TimestampedValue;
 import org.hamcrest.Matchers;
 import org.joda.time.Duration;
+import org.joda.time.Instant;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
@@ -108,6 +107,9 @@ public class CombineTest implements Serializable {
 
   @Mock private DoFn<?, ?>.ProcessContext processContext;
 
+  @Rule
+  public final transient TestPipeline pipeline = TestPipeline.create();
+
   PCollection<KV<String, Integer>> createInput(Pipeline p,
                                                List<KV<String, Integer>> table) {
     return p.apply(Create.of(table).withCoder(
@@ -117,7 +119,6 @@ public class CombineTest implements Serializable {
   private void runTestSimpleCombine(List<KV<String, Integer>> table,
                                     int globalSum,
                                     List<KV<String, String>> perKeyCombines) {
-    Pipeline pipeline = TestPipeline.create();
     PCollection<KV<String, Integer>> input = createInput(pipeline, table);
 
     PCollection<Integer> sum = input
@@ -138,7 +139,6 @@ public class CombineTest implements Serializable {
                                                int globalSum,
                                                List<KV<String, String>> perKeyCombines,
                                                String[] globallyCombines) {
-    Pipeline pipeline = TestPipeline.create();
     PCollection<KV<String, Integer>> perKeyInput = createInput(pipeline, table);
     PCollection<Integer> globallyInput = perKeyInput.apply(Values.<Integer>create());
 
@@ -197,8 +197,6 @@ public class CombineTest implements Serializable {
   private void runTestBasicCombine(List<KV<String, Integer>> table,
                                    Set<Integer> globalUnique,
                                    List<KV<String, Set<Integer>>> perKeyUnique) {
-    Pipeline pipeline = TestPipeline.create();
-    pipeline.getCoderRegistry().registerCoder(Set.class, SetCoder.class);
     PCollection<KV<String, Integer>> input = createInput(pipeline, table);
 
     PCollection<Set<Integer>> unique = input
@@ -233,7 +231,6 @@ public class CombineTest implements Serializable {
   private void runTestAccumulatingCombine(List<KV<String, Integer>> table,
                                           Double globalMean,
                                           List<KV<String, Double>> perKeyMeans) {
-    Pipeline pipeline = TestPipeline.create();
     PCollection<KV<String, Integer>> input = createInput(pipeline, table);
 
     PCollection<Double> mean = input
@@ -253,8 +250,6 @@ public class CombineTest implements Serializable {
   @Test
   @Category(RunnableOnService.class)
   public void testFixedWindowsCombine() {
-    Pipeline pipeline = TestPipeline.create();
-
     PCollection<KV<String, Integer>> input =
         pipeline.apply(Create.timestamped(TABLE, Arrays.asList(0L, 1L, 6L, 7L, 8L))
                 .withCoder(KvCoder.of(StringUtf8Coder.of(), BigEndianIntegerCoder.of())))
@@ -279,8 +274,6 @@ public class CombineTest implements Serializable {
   @Test
   @Category(RunnableOnService.class)
   public void testFixedWindowsCombineWithContext() {
-    Pipeline pipeline = TestPipeline.create();
-
     PCollection<KV<String, Integer>> perKeyInput =
         pipeline.apply(Create.timestamped(TABLE, Arrays.asList(0L, 1L, 6L, 7L, 8L))
                 .withCoder(KvCoder.of(StringUtf8Coder.of(), BigEndianIntegerCoder.of())))
@@ -316,8 +309,6 @@ public class CombineTest implements Serializable {
   @Test
   @Category(RunnableOnService.class)
   public void testSlidingWindowsCombineWithContext() {
-    Pipeline pipeline = TestPipeline.create();
-
     PCollection<KV<String, Integer>> perKeyInput =
         pipeline.apply(Create.timestamped(TABLE, Arrays.asList(2L, 3L, 8L, 9L, 10L))
                 .withCoder(KvCoder.of(StringUtf8Coder.of(), BigEndianIntegerCoder.of())))
@@ -365,7 +356,6 @@ public class CombineTest implements Serializable {
   @Test
   @Category(RunnableOnService.class)
   public void testGlobalCombineWithDefaultsAndTriggers() {
-    Pipeline pipeline = TestPipeline.create();
     PCollection<Integer> input = pipeline.apply(Create.of(1, 1));
 
     PCollection<String> output = input
@@ -392,8 +382,6 @@ public class CombineTest implements Serializable {
   @Test
   @Category(RunnableOnService.class)
   public void testSessionsCombine() {
-    Pipeline pipeline = TestPipeline.create();
-
     PCollection<KV<String, Integer>> input =
         pipeline.apply(Create.timestamped(TABLE, Arrays.asList(0L, 4L, 7L, 10L, 16L))
                 .withCoder(KvCoder.of(StringUtf8Coder.of(), BigEndianIntegerCoder.of())))
@@ -417,8 +405,6 @@ public class CombineTest implements Serializable {
   @Test
   @Category(RunnableOnService.class)
   public void testSessionsCombineWithContext() {
-    Pipeline pipeline = TestPipeline.create();
-
     PCollection<KV<String, Integer>> perKeyInput =
         pipeline.apply(Create.timestamped(TABLE, Arrays.asList(0L, 4L, 7L, 10L, 16L))
                 .withCoder(KvCoder.of(StringUtf8Coder.of(), BigEndianIntegerCoder.of())));
@@ -459,10 +445,8 @@ public class CombineTest implements Serializable {
   @Test
   @Category(RunnableOnService.class)
   public void testWindowedCombineEmpty() {
-    Pipeline pipeline = TestPipeline.create();
-
     PCollection<Double> mean = pipeline
-        .apply(Create.<Integer>of().withCoder(BigEndianIntegerCoder.of()))
+        .apply(Create.empty(BigEndianIntegerCoder.of()))
         .apply(Window.<Integer>into(FixedWindows.of(Duration.millis(1))))
         .apply(Combine.globally(new MeanInts()).withoutDefaults());
 
@@ -483,8 +467,7 @@ public class CombineTest implements Serializable {
     runTestAccumulatingCombine(EMPTY_TABLE, 0.0, Collections.<KV<String, Double>>emptyList());
   }
 
-  // Checks that Min, Max, Mean, Sum (operations that pass-through to Combine),
-  // provide their own top-level name.
+  // Checks that Min, Max, Mean, Sum (operations that pass-through to Combine) have good names.
   @Test
   public void testCombinerNames() {
     Combine.PerKey<String, Integer, Integer> min = Min.integersPerKey();
@@ -492,10 +475,10 @@ public class CombineTest implements Serializable {
     Combine.PerKey<String, Integer, Double> mean = Mean.perKey();
     Combine.PerKey<String, Integer, Integer> sum = Sum.integersPerKey();
 
-    assertThat(min.getName(), Matchers.startsWith("Min"));
-    assertThat(max.getName(), Matchers.startsWith("Max"));
-    assertThat(mean.getName(), Matchers.startsWith("Mean"));
-    assertThat(sum.getName(), Matchers.startsWith("Sum"));
+    assertThat(min.getName(), equalTo("Combine.perKey(MinInteger)"));
+    assertThat(max.getName(), equalTo("Combine.perKey(MaxInteger)"));
+    assertThat(mean.getName(), equalTo("Combine.perKey(Mean)"));
+    assertThat(sum.getName(), equalTo("Combine.perKey(SumInteger)"));
   }
 
   private static final SerializableFunction<String, Integer> hotKeyFanout =
@@ -517,7 +500,6 @@ public class CombineTest implements Serializable {
   @Test
   @Category(RunnableOnService.class)
   public void testHotKeyCombining() {
-    Pipeline pipeline = TestPipeline.create();
     PCollection<KV<String, Integer>> input = copy(createInput(pipeline, TABLE), 10);
 
     KeyedCombineFn<String, Integer, ?, Double> mean =
@@ -552,7 +534,6 @@ public class CombineTest implements Serializable {
   @Test
   @Category(RunnableOnService.class)
   public void testHotKeyCombiningWithAccumulationMode() {
-    Pipeline pipeline = TestPipeline.create();
     PCollection<Integer> input = pipeline.apply(Create.of(1, 2, 3, 4, 5));
 
     PCollection<Integer> output = input
@@ -577,7 +558,6 @@ public class CombineTest implements Serializable {
   @Test
   @Category(NeedsRunner.class)
   public void testBinaryCombineFn() {
-    Pipeline pipeline = TestPipeline.create();
     PCollection<KV<String, Integer>> input = copy(createInput(pipeline, TABLE), 2);
     PCollection<KV<String, Integer>> intProduct = input
         .apply("IntProduct", Combine.<String, Integer, Integer>perKey(new TestProdInt()));
@@ -632,9 +612,8 @@ public class CombineTest implements Serializable {
   @Test
   @Category(RunnableOnService.class)
   public void testCombineGloballyAsSingletonView() {
-    Pipeline pipeline = TestPipeline.create();
     final PCollectionView<Integer> view = pipeline
-        .apply("CreateEmptySideInput", Create.<Integer>of().withCoder(BigEndianIntegerCoder.of()))
+        .apply("CreateEmptySideInput", Create.empty(BigEndianIntegerCoder.of()))
         .apply(Sum.integersGlobally().asSingletonView());
 
     PCollection<Integer> output = pipeline
@@ -651,19 +630,57 @@ public class CombineTest implements Serializable {
   }
 
   @Test
+  @Category(RunnableOnService.class)
+  public void testWindowedCombineGloballyAsSingletonView() {
+    FixedWindows windowFn = FixedWindows.of(Duration.standardMinutes(1));
+    final PCollectionView<Integer> view =
+        pipeline
+            .apply(
+                "CreateSideInput",
+                Create.timestamped(
+                    TimestampedValue.of(1, new Instant(100)),
+                    TimestampedValue.of(3, new Instant(100))))
+            .apply("WindowSideInput", Window.<Integer>into(windowFn))
+            .apply("CombineSideInput", Sum.integersGlobally().asSingletonView());
+
+    TimestampedValue<Void> nonEmptyElement = TimestampedValue.of(null, new Instant(100));
+    TimestampedValue<Void> emptyElement = TimestampedValue.atMinimumTimestamp(null);
+    PCollection<Integer> output =
+        pipeline
+            .apply(
+                "CreateMainInput",
+                Create.<Void>timestamped(nonEmptyElement, emptyElement).withCoder(VoidCoder.of()))
+            .apply("WindowMainInput", Window.<Void>into(windowFn))
+            .apply(
+                "OutputSideInput",
+                ParDo.of(
+                        new DoFn<Void, Integer>() {
+                          @ProcessElement
+                          public void processElement(ProcessContext c) {
+                            c.output(c.sideInput(view));
+                          }
+                        })
+                    .withSideInputs(view));
+
+    PAssert.that(output).containsInAnyOrder(4, 0);
+    PAssert.that(output)
+        .inWindow(windowFn.assignWindow(nonEmptyElement.getTimestamp()))
+        .containsInAnyOrder(4);
+    PAssert.that(output)
+        .inWindow(windowFn.assignWindow(emptyElement.getTimestamp()))
+        .containsInAnyOrder(0);
+    pipeline.run();
+  }
+
+  @Test
   public void testCombineGetName() {
-    assertEquals("Combine.Globally", Combine.globally(new SumInts()).getName());
-    assertEquals(
-        "MyCombineGlobally", Combine.globally(new SumInts()).named("MyCombineGlobally").getName());
+    assertEquals("Combine.globally(SumInts)", Combine.globally(new SumInts()).getName());
     assertEquals(
         "Combine.GloballyAsSingletonView",
         Combine.globally(new SumInts()).asSingletonView().getName());
-    assertEquals("Combine.PerKey", Combine.perKey(new TestKeyedCombineFn()).getName());
+    assertEquals("Combine.perKey(TestKeyed)", Combine.perKey(new TestKeyedCombineFn()).getName());
     assertEquals(
-        "MyCombinePerKey",
-        Combine.perKey(new TestKeyedCombineFn()).named("MyCombinePerKey").getName());
-    assertEquals(
-        "Combine.PerKeyWithHotKeyFanout",
+        "Combine.perKeyWithFanout(TestKeyed)",
         Combine.perKey(new TestKeyedCombineFn()).withHotKeyFanout(10).getName());
   }
 
@@ -781,69 +798,6 @@ public class CombineTest implements Serializable {
     }
   }
 
-  // Note: not a deterministic encoding
-  private static class SetCoder<T> extends StandardCoder<Set<T>> {
-
-    public static <T> SetCoder<T> of(Coder<T> elementCoder) {
-      return new SetCoder<>(elementCoder);
-    }
-
-    @JsonCreator
-    public static SetCoder<?> of(
-        @JsonProperty(PropertyNames.COMPONENT_ENCODINGS)
-        List<Coder<?>> components) {
-      checkArgument(components.size() == 1, "Expecting 1 component, got %s", components.size());
-      return of((Coder<?>) components.get(0));
-    }
-
-    @SuppressWarnings("unused") // required for coder instantiation
-    public static <T> List<Object> getInstanceComponents(Set<T> exampleValue) {
-      return IterableCoder.getInstanceComponents(exampleValue);
-    }
-
-    private final Coder<Iterable<T>> iterableCoder;
-
-    private SetCoder(Coder<T> elementCoder) {
-      iterableCoder = IterableCoder.of(elementCoder);
-    }
-
-    @Override
-    public void encode(Set<T> value, OutputStream outStream, Context context)
-        throws CoderException, IOException {
-      iterableCoder.encode(value, outStream, context);
-    }
-
-    @Override
-    public Set<T> decode(InputStream inStream, Context context)
-        throws CoderException, IOException {
-      // TODO: Eliminate extra copy if used in production.
-      return Sets.newHashSet(iterableCoder.decode(inStream, context));
-    }
-
-    @Override
-    public List<? extends Coder<?>> getCoderArguments() {
-      return iterableCoder.getCoderArguments();
-    }
-
-    @Override
-    public void verifyDeterministic() throws NonDeterministicException {
-      throw new NonDeterministicException(this,
-          "CombineTest.SetCoder does not encode in a deterministic order.");
-    }
-
-    @Override
-    public boolean isRegisterByteSizeObserverCheap(Set<T> value, Context context) {
-      return iterableCoder.isRegisterByteSizeObserverCheap(value, context);
-    }
-
-    @Override
-    public void registerByteSizeObserver(
-        Set<T> value, ElementByteSizeObserver observer, Context context)
-        throws Exception {
-      iterableCoder.registerByteSizeObserver(value, observer, context);
-    }
-  }
-
   /** Example AccumulatingCombineFn. */
   private static class MeanInts extends
       Combine.AccumulatingCombineFn<Integer, MeanInts.CountSum, Double> {
@@ -922,14 +876,14 @@ public class CombineTest implements Serializable {
       @Override
       public void encode(CountSum value, OutputStream outStream,
           Context context) throws CoderException, IOException {
-        LONG_CODER.encode(value.count, outStream, context);
+        LONG_CODER.encode(value.count, outStream, context.nested());
         DOUBLE_CODER.encode(value.sum, outStream, context);
       }
 
       @Override
       public CountSum decode(InputStream inStream, Coder.Context context)
           throws CoderException, IOException {
-        long count = LONG_CODER.decode(inStream, context);
+        long count = LONG_CODER.decode(inStream, context.nested());
         double sum = DOUBLE_CODER.decode(inStream, context);
         return new CountSum(count, sum);
       }
@@ -947,7 +901,7 @@ public class CombineTest implements Serializable {
       public void registerByteSizeObserver(
           CountSum value, ElementByteSizeObserver observer, Context context)
           throws Exception {
-        LONG_CODER.registerByteSizeObserver(value.count, observer, context);
+        LONG_CODER.registerByteSizeObserver(value.count, observer, context.nested());
         DOUBLE_CODER.registerByteSizeObserver(value.sum, observer, context);
       }
     }

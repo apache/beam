@@ -32,6 +32,8 @@ import org.apache.beam.runners.core.KeyedWorkItem;
 import org.apache.beam.runners.core.OutputWindowedValue;
 import org.apache.beam.runners.core.ReduceFnRunner;
 import org.apache.beam.runners.core.SystemReduceFn;
+import org.apache.beam.runners.core.TimerInternals;
+import org.apache.beam.runners.core.UnsupportedSideInputReader;
 import org.apache.beam.runners.core.triggers.ExecutableTriggerStateMachine;
 import org.apache.beam.runners.core.triggers.TriggerStateMachines;
 import org.apache.beam.runners.direct.DirectExecutionContext.DirectStepContext;
@@ -45,14 +47,12 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
-import org.apache.beam.sdk.util.SideInputReader;
-import org.apache.beam.sdk.util.TimerInternals;
+import org.apache.beam.sdk.transforms.windowing.Triggers;
 import org.apache.beam.sdk.util.WindowTracing;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.joda.time.Instant;
 
@@ -147,10 +147,10 @@ class GroupAlsoByWindowEvaluatorFactory implements TransformEvaluatorFactory {
       reduceFn = SystemReduceFn.buffering(valueCoder);
       droppedDueToClosedWindow = aggregatorChanges.createSystemAggregator(stepContext,
           GroupAlsoByWindowsDoFn.DROPPED_DUE_TO_CLOSED_WINDOW_COUNTER,
-          new Sum.SumLongFn());
+          Sum.ofLongs());
       droppedDueToLateness = aggregatorChanges.createSystemAggregator(stepContext,
           GroupAlsoByWindowsDoFn.DROPPED_DUE_TO_LATENESS_COUNTER,
-          new Sum.SumLongFn());
+          Sum.ofLongs());
     }
 
     @Override
@@ -159,7 +159,10 @@ class GroupAlsoByWindowEvaluatorFactory implements TransformEvaluatorFactory {
       K key = workItem.key();
 
       UncommittedBundle<KV<K, Iterable<V>>> bundle =
-          evaluationContext.createKeyedBundle(structuralKey, application.getOutput());
+          evaluationContext.createKeyedBundle(
+              structuralKey,
+              (PCollection<KV<K, Iterable<V>>>)
+                  Iterables.getOnlyElement(application.getOutputs()).getValue());
       outputBundles.add(bundle);
       CopyOnAccessInMemoryStateInternals<K> stateInternals =
           (CopyOnAccessInMemoryStateInternals<K>) stepContext.stateInternals();
@@ -169,29 +172,12 @@ class GroupAlsoByWindowEvaluatorFactory implements TransformEvaluatorFactory {
               key,
               windowingStrategy,
               ExecutableTriggerStateMachine.create(
-                  TriggerStateMachines.stateMachineForTrigger(windowingStrategy.getTrigger())),
+                  TriggerStateMachines.stateMachineForTrigger(
+                      Triggers.toProto(windowingStrategy.getTrigger()))),
               stateInternals,
               timerInternals,
               new OutputWindowedValueToBundle<>(bundle),
-              new SideInputReader() {
-                @Override
-                public <T> T get(PCollectionView<T> view, BoundedWindow sideInputWindow) {
-                  throw new UnsupportedOperationException(
-                      "GroupAlsoByWindow must not have side inputs");
-                }
-
-                @Override
-                public <T> boolean contains(PCollectionView<T> view) {
-                  throw new UnsupportedOperationException(
-                      "GroupAlsoByWindow must not have side inputs");
-                }
-
-                @Override
-                public boolean isEmpty() {
-                  throw new UnsupportedOperationException(
-                      "GroupAlsoByWindow must not have side inputs");
-                }
-              },
+              new UnsupportedSideInputReader("GroupAlsoByWindow"),
               droppedDueToClosedWindow,
               reduceFn,
               evaluationContext.getPipelineOptions());

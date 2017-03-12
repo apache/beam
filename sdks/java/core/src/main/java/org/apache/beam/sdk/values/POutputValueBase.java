@@ -89,12 +89,12 @@ public abstract class POutputValueBase implements POutput {
   }
 
   /**
-   * Default behavior for {@link #finishSpecifyingOutput()} is
+   * Default behavior for {@link #finishSpecifyingOutput(PInput, PTransform)}} is
    * to do nothing. Override if your {@link PValue} requires
    * finalization.
    */
   @Override
-  public void finishSpecifyingOutput() { }
+  public void finishSpecifyingOutput(PInput input, PTransform<?, ?> transform) { }
 
   /**
    * The {@link PTransform} that produces this {@link POutputValueBase}.

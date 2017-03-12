@@ -70,18 +70,18 @@ public class CombineFnUtilTest {
   @Test
   public void testToFnWithContextIdempotent() throws Exception {
     CombineFnWithContext<Integer, int[], Integer> fnWithContext =
-        CombineFnUtil.toFnWithContext(new Sum.SumIntegerFn());
+        CombineFnUtil.toFnWithContext(Sum.ofIntegers());
     assertTrue(fnWithContext == CombineFnUtil.toFnWithContext(fnWithContext));
 
     KeyedCombineFnWithContext<Object, Integer, int[], Integer> keyedFnWithContext =
-        CombineFnUtil.toFnWithContext(new Sum.SumIntegerFn().asKeyedFn());
+        CombineFnUtil.toFnWithContext(Sum.ofIntegers().asKeyedFn());
     assertTrue(keyedFnWithContext == CombineFnUtil.toFnWithContext(keyedFnWithContext));
   }
 
   @Test
   public void testToFnWithContext() throws Exception {
     CombineFnWithContext<Integer, int[], Integer> fnWithContext =
-        CombineFnUtil.toFnWithContext(new Sum.SumIntegerFn());
+        CombineFnUtil.toFnWithContext(Sum.ofIntegers());
     List<Integer> inputs = ImmutableList.of(1, 2, 3, 4);
     Context nullContext = CombineContextFactory.nullContext();
     int[] accum = fnWithContext.createAccumulator(nullContext);
@@ -91,7 +91,7 @@ public class CombineFnUtilTest {
     assertEquals(10, fnWithContext.extractOutput(accum, nullContext).intValue());
 
     KeyedCombineFnWithContext<String, Integer, int[], Integer> keyedFnWithContext =
-        CombineFnUtil.toFnWithContext(new Sum.SumIntegerFn().<String>asKeyedFn());
+        CombineFnUtil.toFnWithContext(Sum.ofIntegers().<String>asKeyedFn());
     String key = "key";
     accum = keyedFnWithContext.createAccumulator(key, nullContext);
     for (Integer i : inputs) {

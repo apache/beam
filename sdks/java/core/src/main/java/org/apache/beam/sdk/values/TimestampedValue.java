@@ -103,10 +103,10 @@ public class TimestampedValue<V> {
     @JsonCreator
     public static TimestampedValueCoder<?> of(
         @JsonProperty(PropertyNames.COMPONENT_ENCODINGS)
-        List<Object> components) {
+        List<Coder<?>> components) {
       checkArgument(components.size() == 1,
                     "Expecting 1 component, got " + components.size());
-      return of((Coder<?>) components.get(0));
+      return of(components.get(0));
     }
 
     @SuppressWarnings("unchecked")
@@ -150,6 +150,12 @@ public class TimestampedValue<V> {
 
     public static <T> List<Object> getInstanceComponents(TimestampedValue<T> exampleValue) {
       return Arrays.<Object>asList(exampleValue.getValue());
+    }
+
+    @Override
+    public TypeDescriptor<TimestampedValue<T>> getEncodedTypeDescriptor() {
+      return new TypeDescriptor<TimestampedValue<T>>() {}.where(
+          new TypeParameter<T>() {}, valueCoder.getEncodedTypeDescriptor());
     }
   }
 

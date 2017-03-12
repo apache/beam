@@ -27,6 +27,7 @@ import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.testing.CoderProperties;
 import org.apache.beam.sdk.transforms.join.CoGbkResult.CoGbkResultCoder;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.junit.Test;
@@ -79,7 +80,14 @@ public class CoGbkResultCoderTest {
   }
 
   @Test
-  public void testSerializationDeserialization() {
+  public void testCoderIsSerialiable() {
     CoderProperties.coderSerializable(TEST_CODER);
+  }
+
+  @Test
+  public void testCoderIsSerializableWithWellKnownCoderType() {
+    CoderProperties.coderSerializable(CoGbkResultCoder.of(
+        CoGbkResultSchema.of(ImmutableList.<TupleTag<?>>of(new TupleTag<GlobalWindow>())),
+        UnionCoder.of(ImmutableList.<Coder<?>>of(GlobalWindow.Coder.INSTANCE))));
   }
 }

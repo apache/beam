@@ -21,8 +21,18 @@ import com.google.auto.value.AutoValue;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
+import org.apache.beam.runners.core.KeyedWorkItem;
+import org.apache.beam.runners.core.KeyedWorkItems;
+import org.apache.beam.runners.core.StateNamespace;
+import org.apache.beam.runners.core.StateNamespaces;
+import org.apache.beam.runners.core.StateTag;
+import org.apache.beam.runners.core.StateTags;
+import org.apache.beam.runners.core.TimerInternals.TimerData;
 import org.apache.beam.runners.direct.DirectExecutionContext.DirectStepContext;
 import org.apache.beam.runners.direct.DirectRunner.CommittedBundle;
 import org.apache.beam.runners.direct.ParDoMultiOverrideFactory.StatefulParDo;
@@ -36,14 +46,12 @@ import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowingStrategy;
-import org.apache.beam.sdk.util.state.StateNamespace;
-import org.apache.beam.sdk.util.state.StateNamespaces;
 import org.apache.beam.sdk.util.state.StateSpec;
-import org.apache.beam.sdk.util.state.StateTag;
-import org.apache.beam.sdk.util.state.StateTags;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
+import org.apache.beam.sdk.values.TaggedPValue;
+import org.apache.beam.sdk.values.TupleTag;
 
 /** A {@link TransformEvaluatorFactory} for stateful {@link ParDo}. */
 final class StatefulParDoEvaluatorFactory<K, InputT, OutputT> implements TransformEvaluatorFactory {
@@ -77,12 +85,12 @@ final class StatefulParDoEvaluatorFactory<K, InputT, OutputT> implements Transfo
   }
 
   @SuppressWarnings({"unchecked", "rawtypes"})
-  private TransformEvaluator<KV<K, Iterable<InputT>>> createEvaluator(
+  private TransformEvaluator<KeyedWorkItem<K, KV<K, InputT>>> createEvaluator(
       AppliedPTransform<
-              PCollection<? extends KV<K, Iterable<InputT>>>, PCollectionTuple,
+              PCollection<? extends KeyedWorkItem<K, KV<K, InputT>>>, PCollectionTuple,
               StatefulParDo<K, InputT, OutputT>>
           application,
-      CommittedBundle<KV<K, Iterable<InputT>>> inputBundle)
+      CommittedBundle<KeyedWorkItem<K, KV<K, InputT>>> inputBundle)
       throws Exception {
 
     final DoFn<KV<K, InputT>, OutputT> doFn =
@@ -102,7 +110,7 @@ final class StatefulParDoEvaluatorFactory<K, InputT, OutputT> implements Transfo
       }
     }
 
-    TransformEvaluator<KV<K, InputT>> delegateEvaluator =
+    DoFnLifecycleManagerRemovingTransformEvaluator<KV<K, InputT>> delegateEvaluator =
         delegateFactory.createEvaluator(
             (AppliedPTransform) application,
             inputBundle.getKey(),
@@ -128,10 +136,12 @@ final class StatefulParDoEvaluatorFactory<K, InputT, OutputT> implements Transfo
         final AppliedPTransformOutputKeyAndWindow<K, InputT, OutputT> transformOutputWindow) {
       String stepName = evaluationContext.getStepName(transformOutputWindow.getTransform());
 
+      Map<TupleTag<?>, PCollection<?>> taggedValues = new HashMap<>();
+      for (TaggedPValue pv : transformOutputWindow.getTransform().getOutputs()) {
+        taggedValues.put(pv.getTag(), (PCollection<?>) pv.getValue());
+      }
       PCollection<?> pc =
-          transformOutputWindow
-              .getTransform()
-              .getOutput()
+          taggedValues
               .get(
                   transformOutputWindow
                       .getTransform()
@@ -185,7 +195,7 @@ final class StatefulParDoEvaluatorFactory<K, InputT, OutputT> implements Transfo
   @AutoValue
   abstract static class AppliedPTransformOutputKeyAndWindow<K, InputT, OutputT> {
     abstract AppliedPTransform<
-            PCollection<? extends KV<K, Iterable<InputT>>>, PCollectionTuple,
+            PCollection<? extends KeyedWorkItem<K, KV<K, InputT>>>, PCollectionTuple,
             StatefulParDo<K, InputT, OutputT>>
         getTransform();
 
@@ -195,7 +205,7 @@ final class StatefulParDoEvaluatorFactory<K, InputT, OutputT> implements Transfo
 
     static <K, InputT, OutputT> AppliedPTransformOutputKeyAndWindow<K, InputT, OutputT> create(
         AppliedPTransform<
-                PCollection<? extends KV<K, Iterable<InputT>>>, PCollectionTuple,
+                PCollection<? extends KeyedWorkItem<K, KV<K, InputT>>>, PCollectionTuple,
                 StatefulParDo<K, InputT, OutputT>>
             transform,
         StructuralKey<K> key,
@@ -206,31 +216,39 @@ final class StatefulParDoEvaluatorFactory<K, InputT, OutputT> implements Transfo
   }
 
   private static class StatefulParDoEvaluator<K, InputT>
-      implements TransformEvaluator<KV<K, Iterable<InputT>>> {
+      implements TransformEvaluator<KeyedWorkItem<K, KV<K, InputT>>> {
 
-    private final TransformEvaluator<KV<K, InputT>> delegateEvaluator;
+    private final DoFnLifecycleManagerRemovingTransformEvaluator<KV<K, InputT>> delegateEvaluator;
 
-    public StatefulParDoEvaluator(TransformEvaluator<KV<K, InputT>> delegateEvaluator) {
+    public StatefulParDoEvaluator(
+        DoFnLifecycleManagerRemovingTransformEvaluator<KV<K, InputT>> delegateEvaluator) {
       this.delegateEvaluator = delegateEvaluator;
     }
 
     @Override
-    public void processElement(WindowedValue<KV<K, Iterable<InputT>>> gbkResult) throws Exception {
+    public void processElement(WindowedValue<KeyedWorkItem<K, KV<K, InputT>>> gbkResult)
+        throws Exception {
 
-      for (InputT value : gbkResult.getValue().getValue()) {
-        delegateEvaluator.processElement(
-            gbkResult.withValue(KV.of(gbkResult.getValue().getKey(), value)));
+      BoundedWindow window = Iterables.getOnlyElement(gbkResult.getWindows());
+
+      for (WindowedValue<KV<K, InputT>> windowedValue : gbkResult.getValue().elementsIterable()) {
+        delegateEvaluator.processElement(windowedValue);
+      }
+
+      for (TimerData timer : gbkResult.getValue().timersIterable()) {
+        delegateEvaluator.onTimer(timer, window);
       }
     }
 
     @Override
-    public TransformResult<KV<K, Iterable<InputT>>> finishBundle() throws Exception {
+    public TransformResult<KeyedWorkItem<K, KV<K, InputT>>> finishBundle() throws Exception {
       TransformResult<KV<K, InputT>> delegateResult = delegateEvaluator.finishBundle();
 
-      StepTransformResult.Builder<KV<K, Iterable<InputT>>> regroupedResult =
-          StepTransformResult.<KV<K, Iterable<InputT>>>withHold(
+      StepTransformResult.Builder<KeyedWorkItem<K, KV<K, InputT>>> regroupedResult =
+          StepTransformResult.<KeyedWorkItem<K, KV<K, InputT>>>withHold(
                   delegateResult.getTransform(), delegateResult.getWatermarkHold())
               .withTimerUpdate(delegateResult.getTimerUpdate())
+              .withState(delegateResult.getState())
               .withAggregatorChanges(delegateResult.getAggregatorChanges())
               .withMetricUpdates(delegateResult.getLogicalMetricUpdates())
               .addOutput(Lists.newArrayList(delegateResult.getOutputBundles()));
@@ -240,12 +258,10 @@ final class StatefulParDoEvaluatorFactory<K, InputT, OutputT> implements Transfo
       // outputs, but just make a bunch of singletons
       for (WindowedValue<?> untypedUnprocessed : delegateResult.getUnprocessedElements()) {
         WindowedValue<KV<K, InputT>> windowedKv = (WindowedValue<KV<K, InputT>>) untypedUnprocessed;
-        WindowedValue<KV<K, Iterable<InputT>>> pushedBack =
+        WindowedValue<KeyedWorkItem<K, KV<K, InputT>>> pushedBack =
             windowedKv.withValue(
-                KV.of(
-                    windowedKv.getValue().getKey(),
-                    (Iterable<InputT>)
-                        Collections.singletonList(windowedKv.getValue().getValue())));
+                KeyedWorkItems.elementsWorkItem(
+                    windowedKv.getValue().getKey(), Collections.singleton(windowedKv)));
 
         regroupedResult.addUnprocessedElements(pushedBack);
       }

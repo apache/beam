@@ -29,6 +29,7 @@ import org.apache.beam.runners.flink.translation.wrappers.streaming.io.Unbounded
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.io.Write;
 import org.apache.beam.sdk.options.Default;
@@ -78,7 +79,7 @@ public class KafkaIOExamples {
                 new SimpleStringSchema(), getKafkaProps(options));
 
         p
-            .apply(Read.from(UnboundedFlinkSource.of(kafkaConsumer)))
+            .apply(Read.from(UnboundedFlinkSource.of(kafkaConsumer))).setCoder(StringUtf8Coder.of())
             .apply(ParDo.of(new PrintFn<>()));
 
         p.run();
@@ -133,6 +134,7 @@ public class KafkaIOExamples {
 
         p
             .apply(Read.from(UnboundedFlinkSource.of(kafkaConsumer)))
+                .setCoder(AvroCoder.of(MyType.class))
             .apply(ParDo.of(new PrintFn<>()));
 
         p.run();

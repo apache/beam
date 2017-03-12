@@ -164,7 +164,7 @@ public class PipelineOptionsFactory {
    * specifically requested PipelineOptions by invoking
    * {@link PipelineOptionsFactory#printHelp(PrintStream, Class)}.
    */
-  public static Builder fromArgs(String[] args) {
+  public static Builder fromArgs(String... args) {
     return new Builder().fromArgs(args);
   }
 
@@ -235,7 +235,7 @@ public class PipelineOptionsFactory {
      * specifically requested PipelineOptions by invoking
      * {@link PipelineOptionsFactory#printHelp(PrintStream, Class)}.
      */
-    public Builder fromArgs(String[] args) {
+    public Builder fromArgs(String... args) {
       checkNotNull(args, "Arguments should not be null.");
       return new Builder(args, validation, strictParsing);
     }
@@ -608,7 +608,7 @@ public class PipelineOptionsFactory {
         List<PropertyDescriptor> propertyDescriptors =
             validateClass(iface, validatedPipelineOptionsInterfaces, allProxyClass);
         COMBINED_CACHE.put(combinedPipelineOptionsInterfaces,
-            new Registration<T>(allProxyClass, propertyDescriptors));
+            new Registration<>(allProxyClass, propertyDescriptors));
       } catch (IntrospectionException e) {
         throw new RuntimeException(e);
       }
@@ -623,7 +623,7 @@ public class PipelineOptionsFactory {
         List<PropertyDescriptor> propertyDescriptors =
             validateClass(iface, validatedPipelineOptionsInterfaces, proxyClass);
         INTERFACE_CACHE.put(iface,
-            new Registration<T>(proxyClass, propertyDescriptors));
+            new Registration<>(proxyClass, propertyDescriptors));
       } catch (IntrospectionException e) {
         throw new RuntimeException(e);
       }
@@ -1560,7 +1560,7 @@ public class PipelineOptionsFactory {
         // Search for close matches for missing properties.
         // Either off by one or off by two character errors.
         if (!propertyNamesToGetters.containsKey(entry.getKey())) {
-          SortedSet<String> closestMatches = new TreeSet<String>(
+          SortedSet<String> closestMatches = new TreeSet<>(
               Sets.filter(propertyNamesToGetters.keySet(), new Predicate<String>() {
                 @Override
                 public boolean apply(@Nonnull String input) {

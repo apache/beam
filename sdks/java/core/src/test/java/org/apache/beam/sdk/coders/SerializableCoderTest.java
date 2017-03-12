@@ -19,6 +19,7 @@ package org.apache.beam.sdk.coders;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertThat;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -26,7 +27,6 @@ import java.io.Serializable;
 import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
-import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.testing.CoderProperties;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
@@ -38,8 +38,10 @@ import org.apache.beam.sdk.util.CloudObject;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.Serializer;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.TypeDescriptor;
 import org.hamcrest.Matchers;
 import org.junit.Assert;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
@@ -98,6 +100,9 @@ public class SerializableCoderTest implements Serializable {
       "To be,",
       "or not to be");
 
+  @Rule
+  public TestPipeline p = TestPipeline.create().enableAbandonedNodeEnforcement(false);
+
   @Test
   public void testSerializableCoder() throws Exception {
     IterableCoder<MyRecord> coder = IterableCoder
@@ -136,7 +141,7 @@ public class SerializableCoderTest implements Serializable {
   @Test
   @Category(NeedsRunner.class)
   public void testDefaultCoder() throws Exception {
-    Pipeline p = TestPipeline.create();
+    p.enableAbandonedNodeEnforcement(true);
 
     // Use MyRecord as input and output types without explicitly specifying
     // a coder (this uses the default coders, which may not be
@@ -228,5 +233,12 @@ public class SerializableCoderTest implements Serializable {
     CoderProperties.coderHasEncodingId(
         coder,
         String.format("%s:%s", MyRecord.class.getName(), MyRecord.serialVersionUID));
+  }
+
+  @Test
+  public void testEncodedTypeDescriptor() throws Exception {
+    assertThat(
+        SerializableCoder.of(MyRecord.class).getEncodedTypeDescriptor(),
+        Matchers.equalTo(TypeDescriptor.of(MyRecord.class)));
   }
 }

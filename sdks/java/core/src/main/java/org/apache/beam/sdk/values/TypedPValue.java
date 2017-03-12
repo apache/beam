@@ -17,12 +17,15 @@
  */
 package org.apache.beam.sdk.values;
 
+import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkState;
+
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.CannotProvideCoderException.ReasonCode;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
-import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 
@@ -45,10 +48,8 @@ public abstract class TypedPValue<T> extends PValueBase implements PValue {
    * couldn't be inferred.
    */
   public Coder<T> getCoder() {
-    if (coder == null) {
-        coder = inferCoderOrFail();
-    }
-    return coder;
+    checkState(coderOrFailure.coder != null, coderOrFailure.failure);
+    return coderOrFailure.coder;
   }
 
   /**
@@ -60,16 +61,16 @@ public abstract class TypedPValue<T> extends PValueBase implements PValue {
    * {@code apply()} called on it
    */
   public TypedPValue<T> setCoder(Coder<T> coder) {
-    if (isFinishedSpecifyingInternal()) {
-      throw new IllegalStateException(
-          "cannot change the Coder of " + this + " once it's been used");
-    }
-    if (coder == null) {
-      throw new IllegalArgumentException(
-          "Cannot setCoder(null)");
-    }
-    this.coder = coder;
+    checkState(
+        !isFinishedSpecifyingInternal(), "cannot change the Coder of %s once it's been used", this);
+    checkArgument(coder != null, "Cannot setCoder(null)");
+    this.coderOrFailure = new CoderOrFailure<>(coder, null);
     return this;
+  }
+
+  @Override
+  public void finishSpecifyingOutput(PInput input, PTransform<?, ?> transform) {
+    this.coderOrFailure = inferCoderOrFail(input, transform, getPipeline().getCoderRegistry());
   }
 
   /**
@@ -79,24 +80,26 @@ public abstract class TypedPValue<T> extends PValueBase implements PValue {
    * run (useful if this is a {@link PValue} with no consumers).
    */
   @Override
-  public void finishSpecifying() {
+  public void finishSpecifying(PInput input, PTransform<?, ?> transform) {
     if (isFinishedSpecifyingInternal()) {
       return;
     }
-    super.finishSpecifying();
+    this.coderOrFailure = inferCoderOrFail(input, transform, getPipeline().getCoderRegistry());
     // Ensure that this TypedPValue has a coder by inferring the coder if none exists; If not,
     // this will throw an exception.
     getCoder();
+    super.finishSpecifying(input, transform);
   }
 
   /////////////////////////////////////////////////////////////////////////////
   // Internal details below here.
 
   /**
-   * The {@link Coder} used by this {@link TypedPValue} to encode and decode the
-   * values stored in it, or null if not specified nor inferred yet.
+   * The {@link Coder} used by this {@link TypedPValue} to encode and decode the values stored in
+   * it, or null if not specified nor inferred yet.
    */
-  private Coder<T> coder;
+  private CoderOrFailure<T> coderOrFailure =
+      new CoderOrFailure<>(null, "No Coder was specified, and Coder Inference did not occur");
 
   protected TypedPValue(Pipeline p) {
     super(p);
@@ -125,34 +128,31 @@ public abstract class TypedPValue<T> extends PValueBase implements PValue {
   }
 
   /**
-   * If the coder is not explicitly set, this sets the coder for
-   * this {@link TypedPValue} to the best coder that can be inferred
-   * based upon the known {@link TypeDescriptor}. By default, this is null,
-   * but can and should be improved by subclasses.
+   * If the coder is not explicitly set, this sets the coder for this {@link TypedPValue} to the
+   * best coder that can be inferred based upon the known {@link TypeDescriptor}. By default, this
+   * is null, but can and should be improved by subclasses.
    */
   @SuppressWarnings({"unchecked", "rawtypes"})
-  private Coder<T> inferCoderOrFail() {
+  private CoderOrFailure<T> inferCoderOrFail(
+      PInput input, PTransform<?, ?> transform, CoderRegistry registry) {
     // First option for a coder: use the Coder set on this PValue.
-    if (coder != null) {
-      return coder;
+    if (coderOrFailure.coder != null) {
+      return coderOrFailure;
     }
 
-    AppliedPTransform<?, ?, ?> application = getProducingTransformInternal();
-
     // Second option for a coder: Look in the coder registry.
-    CoderRegistry registry = getPipeline().getCoderRegistry();
     TypeDescriptor<T> token = getTypeDescriptor();
     CannotProvideCoderException inferFromTokenException = null;
     if (token != null) {
       try {
-          return registry.getDefaultCoder(token);
+        return new CoderOrFailure<>(registry.getDefaultCoder(token), null);
       } catch (CannotProvideCoderException exc) {
         inferFromTokenException = exc;
         // Attempt to detect when the token came from a TupleTag used for a ParDo side output,
         // and provide a better error message if so. Unfortunately, this information is not
         // directly available from the TypeDescriptor, so infer based on the type of the PTransform
         // and the error message itself.
-        if (application.getTransform() instanceof ParDo.BoundMulti
+        if (transform instanceof ParDo.BoundMulti
             && exc.getReason() == ReasonCode.TYPE_ERASURE) {
           inferFromTokenException = new CannotProvideCoderException(exc.getMessage()
               + " If this error occurs for a side output of the producing ParDo, verify that the "
@@ -165,8 +165,8 @@ public abstract class TypedPValue<T> extends PValueBase implements PValue {
     // Third option for a coder: use the default Coder from the producing PTransform.
     CannotProvideCoderException inputCoderException;
     try {
-      return ((PTransform) application.getTransform()).getDefaultOutputCoder(
-          application.getInput(), this);
+      return new CoderOrFailure<>(
+          ((PTransform) transform).getDefaultOutputCoder(input, this), null);
     } catch (CannotProvideCoderException exc) {
       inputCoderException = exc;
     }
@@ -193,6 +193,16 @@ public abstract class TypedPValue<T> extends PValueBase implements PValue {
     }
 
     // Build and throw the exception.
-    throw new IllegalStateException(messageBuilder.toString());
+    return new CoderOrFailure<>(null, messageBuilder.toString());
+  }
+
+  private static class CoderOrFailure<T> {
+    @Nullable private final Coder<T> coder;
+    @Nullable private final String failure;
+
+    public CoderOrFailure(@Nullable Coder<T> coder, @Nullable String failure) {
+      this.coder = coder;
+      this.failure = failure;
+    }
   }
 }

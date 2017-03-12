@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.transforms.join;
 
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
@@ -28,7 +27,7 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
-import org.apache.beam.sdk.values.PValue;
+import org.apache.beam.sdk.values.TaggedPValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 
@@ -121,10 +120,10 @@ public class KeyedPCollectionTuple<K> implements PInput {
    * any tag-specific information.
    */
   @Override
-  public Collection<? extends PValue> expand() {
-    List<PCollection<?>> retval = new ArrayList<>();
+  public List<TaggedPValue> expand() {
+    List<TaggedPValue> retval = new ArrayList<>();
     for (TaggedKeyedPCollection<K, ?> taggedPCollection : keyedCollections) {
-      retval.add(taggedPCollection.pCollection);
+      retval.add(TaggedPValue.of(taggedPCollection.tupleTag, taggedPCollection.pCollection));
     }
     return retval;
   }
@@ -153,12 +152,20 @@ public class KeyedPCollectionTuple<K> implements PInput {
     return pipeline;
   }
 
-  @Override
-  public void finishSpecifying() {
-    for (TaggedKeyedPCollection<K, ?> taggedPCollection : keyedCollections) {
-      taggedPCollection.pCollection.finishSpecifying();
+  private static <K, V> Coder<K> getKeyCoder(PCollection<KV<K, V>> pc) {
+    // TODO: This should already have run coder inference for output, but may not have been consumed
+    // as input yet (and won't be fully specified); This is fine
+
+    // Assumes that the PCollection uses a KvCoder.
+    Coder<?> entryCoder = pc.getCoder();
+    if (!(entryCoder instanceof KvCoder<?, ?>)) {
+      throw new IllegalArgumentException("PCollection does not use a KvCoder");
     }
+    @SuppressWarnings("unchecked")
+    KvCoder<K, V> coder = (KvCoder<K, V>) entryCoder;
+    return coder.getKeyCoder();
   }
+
 
   /////////////////////////////////////////////////////////////////////////////
 
@@ -198,7 +205,7 @@ public class KeyedPCollectionTuple<K> implements PInput {
    */
   private final List<TaggedKeyedPCollection<K, ?>> keyedCollections;
 
-  private final Coder<K> keyCoder;
+  private Coder<K> keyCoder;
 
   private final CoGbkResultSchema schema;
 
@@ -220,20 +227,6 @@ public class KeyedPCollectionTuple<K> implements PInput {
     this.keyedCollections = keyedCollections;
     this.schema = new CoGbkResultSchema(tupleTagList);
     this.keyCoder = keyCoder;
-  }
-
-  private static <K, V> Coder<K> getKeyCoder(PCollection<KV<K, V>> pc) {
-    // Need to run coder inference on this PCollection before inspecting it.
-    pc.finishSpecifying();
-
-    // Assumes that the PCollection uses a KvCoder.
-    Coder<?> entryCoder = pc.getCoder();
-    if (!(entryCoder instanceof KvCoder<?, ?>)) {
-      throw new IllegalArgumentException("PCollection does not use a KvCoder");
-    }
-    @SuppressWarnings("unchecked")
-    KvCoder<K, V> coder = (KvCoder<K, V>) entryCoder;
-    return coder.getKeyCoder();
   }
 
   private static <K> List<TaggedKeyedPCollection<K, ?>> copyAddLast(

@@ -429,11 +429,6 @@ public class MongoDbGridFSIO {
       }
 
       @Override
-      public boolean producesSortedKeys(PipelineOptions options) throws Exception {
-        return false;
-      }
-
-      @Override
       public BoundedSource.BoundedReader<ObjectId> createReader(
           PipelineOptions options) throws IOException {
         return new GridFSReader(this, objectIds);

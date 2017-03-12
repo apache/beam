@@ -43,6 +43,11 @@ class ParDoBoundTranslator<InputT, OutputT>
     DoFn<InputT, OutputT> doFn = transform.getFn();
     DoFnSignature signature = DoFnSignatures.getSignature(doFn.getClass());
 
+    if (signature.processElement().isSplittable()) {
+      throw new UnsupportedOperationException(
+          String.format(
+              "%s does not support splittable DoFn: %s", ApexRunner.class.getSimpleName(), doFn));
+    }
     if (signature.stateDeclarations().size() > 0) {
       throw new UnsupportedOperationException(
           String.format(
@@ -63,8 +68,8 @@ class ParDoBoundTranslator<InputT, OutputT>
               ApexRunner.class.getSimpleName()));
     }
 
-    PCollection<OutputT> output = context.getOutput();
-    PCollection<InputT> input = context.getInput();
+    PCollection<OutputT> output = (PCollection<OutputT>) context.getOutput();
+    PCollection<InputT> input = (PCollection<InputT>) context.getInput();
     List<PCollectionView<?>> sideInputs = transform.getSideInputs();
     Coder<InputT> inputCoder = input.getCoder();
     WindowedValueCoder<InputT> wvInputCoder =

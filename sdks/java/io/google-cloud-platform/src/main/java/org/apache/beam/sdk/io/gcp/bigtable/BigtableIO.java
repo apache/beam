@@ -872,14 +872,6 @@ public class BigtableIO {
       return estimatedSizeBytes;
     }
 
-    /**
-     * Cloud Bigtable returns query results ordered by key.
-     */
-    @Override
-    public boolean producesSortedKeys(PipelineOptions options) throws Exception {
-      return true;
-    }
-
     @Override
     public BoundedReader<Row> createReader(PipelineOptions options) throws IOException {
       return new BigtableReader(this, serviceFactory.apply(options));

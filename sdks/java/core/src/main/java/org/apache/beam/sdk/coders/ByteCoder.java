@@ -23,6 +23,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.UTFDataFormatException;
+import org.apache.beam.sdk.values.TypeDescriptor;
 
 /**
  * A {@link ByteCoder} encodes {@link Byte} values in 1 byte using Java serialization.
@@ -37,6 +38,7 @@ public class ByteCoder extends AtomicCoder<Byte> {
   /////////////////////////////////////////////////////////////////////////////
 
   private static final ByteCoder INSTANCE = new ByteCoder();
+  private static final TypeDescriptor<Byte> TYPE_DESCRIPTOR = new TypeDescriptor<Byte>() {};
 
   private ByteCoder() {}
 
@@ -93,6 +95,11 @@ public class ByteCoder extends AtomicCoder<Byte> {
   @Override
   public boolean isRegisterByteSizeObserverCheap(Byte value, Context context) {
     return true;
+  }
+
+  @Override
+  public TypeDescriptor<Byte> getEncodedTypeDescriptor() {
+    return TYPE_DESCRIPTOR;
   }
 
   /**

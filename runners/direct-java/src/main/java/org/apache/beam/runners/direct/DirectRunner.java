@@ -30,9 +30,9 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 import javax.annotation.Nullable;
-import org.apache.beam.runners.core.SplittableParDo;
-import org.apache.beam.runners.direct.DirectGroupByKey.DirectGroupAlsoByWindow;
-import org.apache.beam.runners.direct.DirectGroupByKey.DirectGroupByKeyOnly;
+import org.apache.beam.runners.core.SplittableParDo.GBKIntoKeyedWorkItems;
+import org.apache.beam.runners.core.TimerInternals.TimerData;
+import org.apache.beam.runners.core.construction.PTransformMatchers;
 import org.apache.beam.runners.direct.DirectRunner.DirectPipelineResult;
 import org.apache.beam.runners.direct.TestStreamEvaluatorFactory.DirectTestStreamFactory;
 import org.apache.beam.runners.direct.ViewEvaluatorFactory.ViewOverrideFactory;
@@ -42,10 +42,10 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.Pipeline.PipelineExecutionException;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.io.Read;
-import org.apache.beam.sdk.io.Write;
 import org.apache.beam.sdk.metrics.MetricResults;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.runners.PTransformMatcher;
 import org.apache.beam.sdk.runners.PTransformOverrideFactory;
 import org.apache.beam.sdk.runners.PipelineRunner;
 import org.apache.beam.sdk.testing.TestStream;
@@ -54,15 +54,13 @@ import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.ParDo.BoundMulti;
 import org.apache.beam.sdk.transforms.View.CreatePCollectionView;
-import org.apache.beam.sdk.util.TimerInternals.TimerData;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.PCollectionView;
-import org.apache.beam.sdk.values.PInput;
-import org.apache.beam.sdk.values.POutput;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
@@ -71,27 +69,6 @@ import org.joda.time.Instant;
  * {@link PCollection PCollections}.
  */
 public class DirectRunner extends PipelineRunner<DirectPipelineResult> {
-  /**
-   * The default set of transform overrides to use in the {@link DirectRunner}.
-   *
-   * <p>A transform override must have a single-argument constructor that takes an instance of the
-   * type of transform it is overriding.
-   */
-  @SuppressWarnings("rawtypes")
-  private static Map<Class<? extends PTransform>, PTransformOverrideFactory>
-      defaultTransformOverrides =
-          ImmutableMap.<Class<? extends PTransform>, PTransformOverrideFactory>builder()
-              .put(CreatePCollectionView.class, new ViewOverrideFactory())
-              .put(GroupByKey.class, new DirectGroupByKeyOverrideFactory())
-              .put(TestStream.class, new DirectTestStreamFactory())
-              .put(Write.Bound.class, new WriteWithShardingFactory())
-              .put(ParDo.Bound.class, new ParDoSingleViaMultiOverrideFactory())
-              .put(ParDo.BoundMulti.class, new ParDoMultiOverrideFactory())
-              .put(
-                  SplittableParDo.GBKIntoKeyedWorkItems.class,
-                  new DirectGBKIntoKeyedWorkItemsOverrideFactory())
-              .build();
-
   /**
    * Part of a {@link PCollection}. Elements are output to a bundle, which will cause them to be
    * executed by {@link PTransform PTransforms} that consume the {@link PCollection} this bundle is
@@ -283,35 +260,17 @@ public class DirectRunner extends PipelineRunner<DirectPipelineResult> {
   }
 
   @Override
-  public <OutputT extends POutput, InputT extends PInput> OutputT apply(
-      PTransform<InputT, OutputT> transform, InputT input) {
-    PTransformOverrideFactory<InputT, OutputT, PTransform<InputT, OutputT>> overrideFactory =
-        defaultTransformOverrides.get(transform.getClass());
-    if (overrideFactory != null) {
-      PTransform<InputT, OutputT> customTransform =
-          overrideFactory.getReplacementTransform(transform);
-      if (customTransform != transform) {
-        return Pipeline.applyTransform(transform.getName(), input, customTransform);
-      }
-    }
-    // If there is no override, or we should not apply the override, apply the original transform
-    return super.apply(transform, input);
-  }
-
-  @Override
   public DirectPipelineResult run(Pipeline pipeline) {
+    for (Map.Entry<PTransformMatcher, PTransformOverrideFactory> override :
+        defaultTransformOverrides().entrySet()) {
+      pipeline.replace(override.getKey(), override.getValue());
+    }
     MetricsEnvironment.setMetricsSupported(true);
     DirectGraphVisitor graphVisitor = new DirectGraphVisitor();
     pipeline.traverseTopologically(graphVisitor);
-    graphVisitor.finishSpecifyingRemainder();
 
     @SuppressWarnings("rawtypes")
-    KeyedPValueTrackingVisitor keyedPValueVisitor =
-        KeyedPValueTrackingVisitor.create(
-            ImmutableSet.of(
-                SplittableParDo.GBKIntoKeyedWorkItems.class,
-                DirectGroupByKeyOnly.class,
-                DirectGroupAlsoByWindow.class));
+    KeyedPValueTrackingVisitor keyedPValueVisitor = KeyedPValueTrackingVisitor.create();
     pipeline.traverseTopologically(keyedPValueVisitor);
 
     DisplayDataValidator.validatePipeline(pipeline);
@@ -322,14 +281,14 @@ public class DirectRunner extends PipelineRunner<DirectPipelineResult> {
             getPipelineOptions(),
             clockSupplier.get(),
             Enforcement.bundleFactoryFor(enabledEnforcements, graph),
-            graph);
+            graph,
+            keyedPValueVisitor.getKeyedPValues());
 
     RootProviderRegistry rootInputProvider = RootProviderRegistry.defaultRegistry(context);
     TransformEvaluatorRegistry registry = TransformEvaluatorRegistry.defaultRegistry(context);
     PipelineExecutor executor =
         ExecutorServiceParallelExecutor.create(
             options.getTargetParallelism(), graph,
-            keyedPValueVisitor.getKeyedPValues(),
             rootInputProvider,
             registry,
             Enforcement.defaultModelEnforcements(enabledEnforcements),
@@ -352,6 +311,52 @@ public class DirectRunner extends PipelineRunner<DirectPipelineResult> {
       }
     }
     return result;
+  }
+
+  /**
+   * The default set of transform overrides to use in the {@link DirectRunner}.
+   *
+   * <p>The order in which overrides is applied is important, as some overrides are expanded into a
+   * composite. If the composite contains {@link PTransform PTransforms} which are also overridden,
+   * these PTransforms must occur later in the iteration order. {@link ImmutableMap} has an
+   * iteration order based on the order at which elements are added to it.
+   */
+  @SuppressWarnings("rawtypes")
+  private Map<PTransformMatcher, PTransformOverrideFactory> defaultTransformOverrides() {
+    return ImmutableMap.<PTransformMatcher, PTransformOverrideFactory>builder()
+        .put(
+            PTransformMatchers.writeWithRunnerDeterminedSharding(),
+            new WriteWithShardingFactory()) /* Uses a view internally. */
+        .put(
+            PTransformMatchers.classEqualTo(CreatePCollectionView.class),
+            new ViewOverrideFactory()) /* Uses pardos and GBKs */
+        .put(
+            PTransformMatchers.classEqualTo(TestStream.class),
+            new DirectTestStreamFactory(this)) /* primitive */
+        /* Single-output ParDos are implemented in terms of Multi-output ParDos. Any override
+        that is applied to a multi-output ParDo must first have all matching Single-output ParDos
+        converted to match.
+         */
+        .put(PTransformMatchers.splittableParDoSingle(), new ParDoSingleViaMultiOverrideFactory())
+        .put(PTransformMatchers.stateOrTimerParDoSingle(), new ParDoSingleViaMultiOverrideFactory())
+        // SplittableParMultiDo is implemented in terms of nonsplittable single ParDos
+        .put(PTransformMatchers.splittableParDoMulti(), new ParDoMultiOverrideFactory())
+        // state and timer pardos are implemented in terms of nonsplittable single ParDos
+        .put(PTransformMatchers.stateOrTimerParDoMulti(), new ParDoMultiOverrideFactory())
+        .put(
+            PTransformMatchers.classEqualTo(ParDo.Bound.class),
+            new ParDoSingleViaMultiOverrideFactory()) /* returns a BoundMulti */
+        .put(
+            PTransformMatchers.classEqualTo(BoundMulti.class),
+            /* returns one of two primitives; SplittableParDos are replaced above. */
+            new ParDoMultiOverrideFactory())
+        .put(
+            PTransformMatchers.classEqualTo(GBKIntoKeyedWorkItems.class),
+            new DirectGBKIntoKeyedWorkItemsOverrideFactory()) /* Returns a GBKO */
+        .put(
+            PTransformMatchers.classEqualTo(GroupByKey.class),
+            new DirectGroupByKeyOverrideFactory()) /* returns two chained primitives. */
+        .build();
   }
 
   /**
@@ -471,5 +476,8 @@ public class DirectRunner extends PipelineRunner<DirectPipelineResult> {
     public Clock get() {
       return NanosOffsetClock.create();
     }
+  }
+
+  private static class ComplexParDoMatcher {
   }
 }

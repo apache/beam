@@ -31,7 +31,6 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Map;
 import java.util.Queue;
-import java.util.Set;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -45,12 +44,12 @@ import java.util.concurrent.atomic.AtomicReference;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.core.KeyedWorkItem;
 import org.apache.beam.runners.core.KeyedWorkItems;
+import org.apache.beam.runners.core.TimerInternals.TimerData;
 import org.apache.beam.runners.direct.DirectRunner.CommittedBundle;
 import org.apache.beam.runners.direct.WatermarkManager.FiredTimers;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.util.TimerInternals.TimerData;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollection;
@@ -70,7 +69,6 @@ final class ExecutorServiceParallelExecutor implements PipelineExecutor {
   private final ExecutorService executorService;
 
   private final DirectGraph graph;
-  private final Set<PValue> keyedPValues;
   private final RootProviderRegistry rootProviderRegistry;
   private final TransformEvaluatorRegistry registry;
   @SuppressWarnings("rawtypes")
@@ -105,7 +103,6 @@ final class ExecutorServiceParallelExecutor implements PipelineExecutor {
   public static ExecutorServiceParallelExecutor create(
       int targetParallelism,
       DirectGraph graph,
-      Set<PValue> keyedPValues,
       RootProviderRegistry rootProviderRegistry,
       TransformEvaluatorRegistry registry,
       @SuppressWarnings("rawtypes")
@@ -115,7 +112,6 @@ final class ExecutorServiceParallelExecutor implements PipelineExecutor {
     return new ExecutorServiceParallelExecutor(
         targetParallelism,
         graph,
-        keyedPValues,
         rootProviderRegistry,
         registry,
         transformEnforcements,
@@ -125,7 +121,6 @@ final class ExecutorServiceParallelExecutor implements PipelineExecutor {
   private ExecutorServiceParallelExecutor(
       int targetParallelism,
       DirectGraph graph,
-      Set<PValue> keyedPValues,
       RootProviderRegistry rootProviderRegistry,
       TransformEvaluatorRegistry registry,
       @SuppressWarnings("rawtypes")
@@ -134,7 +129,6 @@ final class ExecutorServiceParallelExecutor implements PipelineExecutor {
     this.targetParallelism = targetParallelism;
     this.executorService = Executors.newFixedThreadPool(targetParallelism);
     this.graph = graph;
-    this.keyedPValues = keyedPValues;
     this.rootProviderRegistry = rootProviderRegistry;
     this.registry = registry;
     this.transformEnforcements = transformEnforcements;
@@ -229,7 +223,7 @@ final class ExecutorServiceParallelExecutor implements PipelineExecutor {
   }
 
   private boolean isKeyed(PValue pvalue) {
-    return keyedPValues.contains(pvalue);
+    return evaluationContext.isKeyed(pvalue);
   }
 
   private void scheduleConsumers(ExecutorUpdate update) {
@@ -463,7 +457,9 @@ final class ExecutorServiceParallelExecutor implements PipelineExecutor {
               evaluationContext
                   .createKeyedBundle(
                       transformTimers.getKey(),
-                      (PCollection) transformTimers.getTransform().getInput())
+                      (PCollection)
+                          Iterables.getOnlyElement(transformTimers.getTransform().getInputs())
+                              .getValue())
                   .add(WindowedValue.valueInGlobalWindow(work))
                   .commit(evaluationContext.now());
           scheduleConsumption(

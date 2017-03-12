@@ -62,6 +62,7 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class PipelineTest {
 
+  @Rule public final TestPipeline pipeline = TestPipeline.create();
   @Rule public ExpectedLogs logged = ExpectedLogs.none(Pipeline.class);
   @Rule public ExpectedException thrown = ExpectedException.none();
 
@@ -128,8 +129,7 @@ public class PipelineTest {
     PTransform<PCollection<? extends String>, PCollection<String>> myTransform =
         addSuffix("+");
 
-    Pipeline p = TestPipeline.create();
-    PCollection<String> input = p.apply(Create.<String>of(ImmutableList.of("a", "b")));
+    PCollection<String> input = pipeline.apply(Create.<String>of(ImmutableList.of("a", "b")));
 
     PCollection<String> left = input.apply("Left1", myTransform).apply("Left2", myTransform);
     PCollection<String> right = input.apply("Right", myTransform);
@@ -139,7 +139,7 @@ public class PipelineTest {
 
     PAssert.that(both).containsInAnyOrder("a++", "b++", "a+", "b+");
 
-    p.run();
+    pipeline.run();
   }
 
   private static PTransform<PCollection<? extends String>, PCollection<String>> addSuffix(
@@ -162,35 +162,36 @@ public class PipelineTest {
 
   @Test
   public void testStableUniqueNameOff() {
-    Pipeline p = TestPipeline.create();
-    p.getOptions().setStableUniqueNames(CheckEnabled.OFF);
+    pipeline.enableAbandonedNodeEnforcement(false);
 
-    p.apply(Create.of(5, 6, 7));
-    p.apply(Create.of(5, 6, 7));
+    pipeline.getOptions().setStableUniqueNames(CheckEnabled.OFF);
+
+    pipeline.apply(Create.of(5, 6, 7));
+    pipeline.apply(Create.of(5, 6, 7));
 
     logged.verifyNotLogged("does not have a stable unique name.");
   }
 
   @Test
   public void testStableUniqueNameWarning() {
-    Pipeline p = TestPipeline.create();
-    p.getOptions().setStableUniqueNames(CheckEnabled.WARNING);
+    pipeline.enableAbandonedNodeEnforcement(false);
 
-    p.apply(Create.of(5, 6, 7));
-    p.apply(Create.of(5, 6, 7));
+    pipeline.getOptions().setStableUniqueNames(CheckEnabled.WARNING);
+
+    pipeline.apply(Create.of(5, 6, 7));
+    pipeline.apply(Create.of(5, 6, 7));
 
     logged.verifyWarn("does not have a stable unique name.");
   }
 
   @Test
   public void testStableUniqueNameError() {
-    Pipeline p = TestPipeline.create();
-    p.getOptions().setStableUniqueNames(CheckEnabled.ERROR);
+    pipeline.getOptions().setStableUniqueNames(CheckEnabled.ERROR);
 
-    p.apply(Create.of(5, 6, 7));
+    pipeline.apply(Create.of(5, 6, 7));
 
     thrown.expectMessage("does not have a stable unique name.");
-    p.apply(Create.of(5, 6, 7));
+    pipeline.apply(Create.of(5, 6, 7));
   }
 
   /**
@@ -199,7 +200,6 @@ public class PipelineTest {
   @Test
   @Category(RunnableOnService.class)
   public void testIdentityTransform() throws Exception {
-    Pipeline pipeline = TestPipeline.create();
 
     PCollection<Integer> output = pipeline
         .apply(Create.<Integer>of(1, 2, 3, 4))
@@ -223,8 +223,6 @@ public class PipelineTest {
   @Test
   @Category(RunnableOnService.class)
   public void testTupleProjectionTransform() throws Exception {
-    Pipeline pipeline = TestPipeline.create();
-
     PCollection<Integer> input = pipeline
         .apply(Create.<Integer>of(1, 2, 3, 4));
 
@@ -258,8 +256,6 @@ public class PipelineTest {
   @Test
   @Category(RunnableOnService.class)
   public void testTupleInjectionTransform() throws Exception {
-    Pipeline pipeline = TestPipeline.create();
-
     PCollection<Integer> input = pipeline
         .apply(Create.<Integer>of(1, 2, 3, 4));
 
@@ -292,7 +288,6 @@ public class PipelineTest {
   @Test
   @Category(NeedsRunner.class)
   public void testEmptyPipeline() throws Exception {
-    Pipeline pipeline = TestPipeline.create();
     pipeline.run();
   }
 }

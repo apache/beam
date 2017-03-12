@@ -36,8 +36,6 @@ import org.joda.time.Instant;
  * <ul>
  * <li>Splitting into bundles of given size: {@link #splitIntoBundles};
  * <li>Size estimation: {@link #getEstimatedSizeBytes};
- * <li>Telling whether or not this source produces key/value pairs in sorted order:
- * {@link #producesSortedKeys};
  * <li>The accompanying {@link BoundedReader reader} has additional functionality to enable runners
  * to dynamically adapt based on runtime conditions.
  *     <ul>
@@ -65,12 +63,6 @@ public abstract class BoundedSource<T> extends Source<T> {
    * processing done by the reader.
    */
   public abstract long getEstimatedSizeBytes(PipelineOptions options) throws Exception;
-
-  /**
-   * Whether this source is known to produce key/value pairs sorted by lexicographic order on
-   * the bytes of the encoded key.
-   */
-  public abstract boolean producesSortedKeys(PipelineOptions options) throws Exception;
 
   /**
    * Returns a new {@link BoundedReader} that reads from this source.

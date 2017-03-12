@@ -18,19 +18,14 @@
 
 package org.apache.beam.runners.spark.translation.streaming;
 
-import com.google.common.collect.Iterables;
-import java.util.Queue;
-import java.util.concurrent.LinkedBlockingQueue;
-import javax.annotation.Nullable;
-import org.apache.beam.runners.spark.coders.CoderHelpers;
+import java.util.ArrayList;
+import java.util.List;
 import org.apache.beam.runners.spark.translation.Dataset;
-import org.apache.beam.runners.spark.translation.WindowingHelpers;
-import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.runners.spark.translation.TranslationUtils;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.function.VoidFunction;
 import org.apache.spark.streaming.api.java.JavaDStream;
-import org.apache.spark.streaming.api.java.JavaStreamingContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -42,48 +37,24 @@ public class UnboundedDataset<T> implements Dataset {
 
   private static final Logger LOG = LoggerFactory.getLogger(UnboundedDataset.class);
 
-  // only set if creating a DStream from a static collection
-  @Nullable private transient JavaStreamingContext jssc;
+  private final JavaDStream<WindowedValue<T>> dStream;
+  // points to the input streams that created this UnboundedDataset,
+  // should be greater > 1 in case of Flatten for example.
+  // when using GlobalWatermarkHolder this information helps to take only the relevant watermarks
+  // and reason about them accordingly.
+  private final List<Integer> streamSources = new ArrayList<>();
 
-  private Iterable<Iterable<T>> values;
-  private Coder<T> coder;
-  private JavaDStream<WindowedValue<T>> dStream;
-
-  UnboundedDataset(JavaDStream<WindowedValue<T>> dStream) {
+  public UnboundedDataset(JavaDStream<WindowedValue<T>> dStream, List<Integer> streamSources) {
     this.dStream = dStream;
+    this.streamSources.addAll(streamSources);
   }
 
-  public UnboundedDataset(Iterable<Iterable<T>> values, JavaStreamingContext jssc, Coder<T> coder) {
-    this.values = values;
-    this.jssc = jssc;
-    this.coder = coder;
-  }
-
-  @SuppressWarnings("ConstantConditions")
   JavaDStream<WindowedValue<T>> getDStream() {
-    if (dStream == null) {
-      WindowedValue.ValueOnlyWindowedValueCoder<T> windowCoder =
-          WindowedValue.getValueOnlyCoder(coder);
-      // create the DStream from queue
-      Queue<JavaRDD<WindowedValue<T>>> rddQueue = new LinkedBlockingQueue<>();
-      JavaRDD<WindowedValue<T>> lastRDD = null;
-      for (Iterable<T> v : values) {
-        Iterable<WindowedValue<T>> windowedValues =
-            Iterables.transform(v, WindowingHelpers.<T>windowValueFunction());
-        JavaRDD<WindowedValue<T>> rdd = jssc.sc().parallelize(
-            CoderHelpers.toByteArrays(windowedValues, windowCoder)).map(
-            CoderHelpers.fromByteFunction(windowCoder));
-        rddQueue.offer(rdd);
-        lastRDD = rdd;
-      }
-      // create DStream from queue, one at a time,
-      // with last as default in case batches repeat (graceful stops for example).
-      // if the stream is empty, avoid creating a default empty RDD.
-      // mainly for unit test so no reason to have this configurable.
-      dStream = lastRDD != null ? jssc.queueStream(rddQueue, true, lastRDD)
-          : jssc.queueStream(rddQueue, true);
-    }
     return dStream;
+  }
+
+  List<Integer> getStreamSources() {
+    return streamSources;
   }
 
   public void cache() {
@@ -99,10 +70,11 @@ public class UnboundedDataset<T> implements Dataset {
 
   @Override
   public void action() {
+    // Force computation of DStream.
     dStream.foreachRDD(new VoidFunction<JavaRDD<WindowedValue<T>>>() {
       @Override
       public void call(JavaRDD<WindowedValue<T>> rdd) throws Exception {
-        rdd.count();
+        rdd.foreach(TranslationUtils.<WindowedValue<T>>emptyVoidFunction());
       }
     });
   }
@@ -111,4 +83,5 @@ public class UnboundedDataset<T> implements Dataset {
   public void setName(String name) {
     // ignore
   }
+
 }

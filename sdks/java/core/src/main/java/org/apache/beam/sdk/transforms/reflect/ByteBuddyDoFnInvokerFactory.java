@@ -68,9 +68,7 @@ import org.apache.beam.sdk.transforms.DoFn.ProcessElement;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.OnTimerMethod;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.Cases;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.ContextParameter;
-import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.InputProviderParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.OnTimerContextParameter;
-import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.OutputReceiverParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.ProcessContextParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.RestrictionTrackerParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.StateParameter;
@@ -429,7 +427,7 @@ public class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
                   // Push "this" (DoFnInvoker on top of the stack)
                   MethodVariableAccess.REFERENCE.loadFrom(0),
                   // Access this.delegate (DoFn on top of the stack)
-                  FieldAccess.forField(delegateField).getter(),
+                  FieldAccess.forField(delegateField).read(),
                   // Cast it to the more precise type
                   TypeCasting.to(doFnType),
                   // Run the beforeDelegation manipulations.
@@ -572,16 +570,6 @@ public class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
           }
 
           @Override
-          public StackManipulation dispatch(InputProviderParameter p) {
-            return simpleExtraContextParameter(INPUT_PROVIDER_PARAMETER_METHOD);
-          }
-
-          @Override
-          public StackManipulation dispatch(OutputReceiverParameter p) {
-            return simpleExtraContextParameter(OUTPUT_RECEIVER_PARAMETER_METHOD);
-          }
-
-          @Override
           public StackManipulation dispatch(RestrictionTrackerParameter p) {
             // DoFnInvoker.ArgumentProvider.restrictionTracker() returns a RestrictionTracker,
             // but the @ProcessElement method expects a concrete subtype of it.
@@ -649,7 +637,7 @@ public class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
       StackManipulation pushDelegate =
           new StackManipulation.Compound(
               MethodVariableAccess.REFERENCE.loadFrom(0),
-              FieldAccess.forField(delegateField).getter());
+              FieldAccess.forField(delegateField).read());
 
       StackManipulation pushExtraContextFactory = MethodVariableAccess.REFERENCE.loadFrom(1);
 

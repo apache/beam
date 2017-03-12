@@ -22,6 +22,7 @@ import java.util.Objects;
 import java.util.Set;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.runners.PipelineRunner;
 import org.apache.beam.sdk.runners.TransformHierarchy;
@@ -89,9 +90,12 @@ public class DisplayDataEvaluator {
       final PTransform<? super PCollection<InputT>, ? extends POutput> root,
       Coder<InputT> inputCoder) {
 
-    Create.Values<InputT> input = Create.of();
+    Create.Values<InputT> input;
     if (inputCoder != null) {
-      input = input.withCoder(inputCoder);
+      input = Create.empty(inputCoder);
+    } else {
+      // These types don't actually work, but the pipeline will never be run
+      input = (Create.Values<InputT>) Create.empty(VoidCoder.of());
     }
 
     Pipeline pipeline = Pipeline.create(options);
