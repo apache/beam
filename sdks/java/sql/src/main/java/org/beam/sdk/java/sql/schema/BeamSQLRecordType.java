@@ -48,6 +48,10 @@ public class BeamSQLRecordType implements Serializable {
     return record;
   }
 
+  public int size() {
+    return fieldsName.size();
+  }
+
   public List<String> getFieldsName() {
     return fieldsName;
   }

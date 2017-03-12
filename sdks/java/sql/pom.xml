@@ -19,35 +19,6 @@
     <maven.build.timestamp.format>yyyy-MM-dd HH:mm</maven.build.timestamp.format>
     <calcite-version>1.11.0</calcite-version>
   </properties>
-
-
-  <repositories>
-  <repository>
-      <id>apache-snapshot</id>
-      <url>https://repository.apache.org/content/repositories/snapshots/</url>
-    </repository>
-    <repository>
-      <id>apache-release</id>
-      <url>https://repository.apache.org/content/repositories/releases/</url>
-    </repository>
-    <repository>
-      <id>ebaycentral-release</id>
-      <name>ebaycentral-release repository</name>
-      <url>http://ebaycentral/content/repositories/releases/</url>
-    </repository>
-    <repository>
-      <id>raptor-snapshots</id>
-      <url>http://ebaycentral/content/repositories/snapshots/</url>
-    </repository>
-    <repository>
-      <id>central</id>
-      <url>http://ebaycentral/content/repositories/central</url>
-    </repository>
-    <repository>
-      <id>raptor-thirdparty</id>
-      <url>http://ebaycentral/content/repositories/thirdparty</url>
-    </repository>
-  </repositories>
   
   <build>
     <resources>
@@ -180,10 +151,12 @@
     <dependency>
       <groupId>org.apache.beam</groupId>
       <artifactId>beam-runners-direct-java</artifactId>
+      <scope>provided</scope>
     </dependency>
     <dependency>
       <groupId>org.apache.beam</groupId>
       <artifactId>beam-sdks-java-io-kafka</artifactId>
+      <scope>provided</scope>
     </dependency>
     <dependency>
       <groupId>org.springframework</groupId>
@@ -200,6 +173,15 @@
     <dependency>
     	<groupId>org.slf4j</groupId>
     	<artifactId>slf4j-api</artifactId>
+    </dependency>
+    <dependency>
+    	<groupId>org.apache.avro</groupId>
+    	<artifactId>avro</artifactId>
+    </dependency>
+    <dependency>
+    	<groupId>org.apache.calcite</groupId>
+    	<artifactId>calcite-linq4j</artifactId>
+    	<version>${calcite-version}</version>
     </dependency>
   </dependencies>
 </project>

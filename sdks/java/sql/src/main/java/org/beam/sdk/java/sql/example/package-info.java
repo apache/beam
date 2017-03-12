@@ -15,32 +15,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.beam.sdk.java.sql.interpreter;
-
-import java.io.Serializable;
-import java.util.List;
-
-import org.beam.sdk.java.sql.schema.BeamSQLRow;
 
 /**
- * {@code BeamSQLExpressionExecutor} fills the gap between relational
- * expressions in Calcite SQL and executable code.
+ * examples on how to use BeamSQL.
  *
  */
-public interface BeamSQLExpressionExecutor extends Serializable {
-
-  /**
-   * invoked before data processing.
-   */
-  void prepare();
-
-  /**
-   * apply transformation to input record {@link BeamSQLRow}.
-   *
-   * @param inputRecord
-   * @return
-   */
-  List<Object> execute(BeamSQLRow inputRecord);
-
-  void close();
-}
+package org.beam.sdk.java.sql.example;

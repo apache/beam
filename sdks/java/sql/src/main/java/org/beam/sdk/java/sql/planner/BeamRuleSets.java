@@ -32,9 +32,8 @@ import org.beam.sdk.java.sql.rule.BeamIOSourceRule;
 import org.beam.sdk.java.sql.rule.BeamProjectRule;
 
 /**
- * {@link RuleSet} used in {@link BeamQueryPlanner}.
- * It translates a standard Calcite {@link RelNode} tree, to
- * represent with {@link BeamRelNode}
+ * {@link RuleSet} used in {@link BeamQueryPlanner}. It translates a standard
+ * Calcite {@link RelNode} tree, to represent with {@link BeamRelNode}
  *
  */
 public class BeamRuleSets {

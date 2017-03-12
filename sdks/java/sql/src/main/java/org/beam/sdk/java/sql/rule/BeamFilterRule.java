@@ -30,7 +30,7 @@ import org.beam.sdk.java.sql.rel.BeamLogicalConvention;
  *
  */
 public class BeamFilterRule extends ConverterRule {
-  public static BeamFilterRule INSTANCE = new BeamFilterRule();
+  public static final BeamFilterRule INSTANCE = new BeamFilterRule();
 
   private BeamFilterRule() {
     super(LogicalFilter.class, Convention.NONE, BeamLogicalConvention.INSTANCE, "BeamFilterRule");

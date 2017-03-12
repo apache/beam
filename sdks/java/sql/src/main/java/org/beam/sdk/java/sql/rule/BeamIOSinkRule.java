@@ -34,7 +34,8 @@ import org.beam.sdk.java.sql.rel.BeamIOSinkRel;
 import org.beam.sdk.java.sql.rel.BeamLogicalConvention;
 
 /**
- * A {@code ConverterRule} to replace {@link TableModify} with {@link BeamIOSinkRel}.
+ * A {@code ConverterRule} to replace {@link TableModify} with
+ * {@link BeamIOSinkRel}.
  *
  */
 public class BeamIOSinkRule extends ConverterRule {
@@ -70,7 +71,7 @@ public class BeamIOSinkRule extends ConverterRule {
         throw new UnsupportedOperationException(
             String.format("Streams doesn't support %s modify operation", operation));
       }
-      return new BeamIOSinkRel(cluster, traitSet.replace(BeamLogicalConvention.INSTANCE),
+      return new BeamIOSinkRel(cluster, traitSet,
           relOptTable, catalogReader, convertedInput, operation, updateColumnList,
           sourceExpressionList, flattened);
     default:

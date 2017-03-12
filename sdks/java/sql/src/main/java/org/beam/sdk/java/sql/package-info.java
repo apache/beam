@@ -20,4 +20,3 @@
  * BeamSQL provides a new interface to run a SQL statement with Beam.
  */
 package org.beam.sdk.java.sql;
-

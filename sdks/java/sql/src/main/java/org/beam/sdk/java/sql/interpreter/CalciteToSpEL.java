@@ -22,7 +22,6 @@ import com.google.common.base.Joiner;
 import java.util.ArrayList;
 import java.util.List;
 
-
 import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexInputRef;
 import org.apache.calcite.rex.RexNode;

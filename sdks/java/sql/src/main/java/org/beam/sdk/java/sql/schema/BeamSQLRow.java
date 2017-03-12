@@ -75,6 +75,10 @@ public class BeamSQLRow implements Serializable {
         dataType.getFieldsType().get(dataType.getFieldsName().indexOf(fieldName)));
   }
 
+  public int size() {
+    return dataMap.size();
+  }
+
   private Object getFieldValue(String fieldName, String fieldType) {
     if (dataMap.get(fieldName) == null) {
       return null;
@@ -82,6 +86,8 @@ public class BeamSQLRow implements Serializable {
     switch (SqlTypeName.valueOf(fieldType)) {
     case INTEGER:
       return Integer.valueOf(dataMap.get(fieldName));
+    case DOUBLE:
+      return Double.valueOf(dataMap.get(fieldName));
     case VARCHAR:
       return dataMap.get(fieldName);
     case TIMESTAMP: // TODO

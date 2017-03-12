@@ -23,7 +23,10 @@ import java.io.Serializable;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.beam.sdk.coders.ByteArrayCoder;
+import org.apache.beam.sdk.io.kafka.KafkaIO;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
@@ -33,11 +36,11 @@ import org.beam.sdk.java.sql.schema.BeamIOType;
 import org.beam.sdk.java.sql.schema.BeamSQLRow;
 
 /**
- * {@code BeamKafkaTable} represent a Kafka topic, as source or target.
- * A user PTransform is required to handle the input/output as KV<byte[], byte[]>.
+ * {@code BeamKafkaTable} represent a Kafka topic, as source or target. Need to
+ * extend to convert between {@code BeamSQLRow} and {@code KV<byte[], byte[]>}.
  *
  */
-public class BeamKafkaTable extends BaseBeamTable implements Serializable {
+public abstract class BeamKafkaTable extends BaseBeamTable implements Serializable {
 
   /**
    *
@@ -69,13 +72,38 @@ public class BeamKafkaTable extends BaseBeamTable implements Serializable {
     return BeamIOType.UNBOUNDED;
   }
 
+  /**
+   *
+   * @return
+   */
+  public abstract PTransform<PCollection<KV<byte[], byte[]>>, PCollection<BeamSQLRow>>
+      getPTransformForInput();
+
+  /**
+   *
+   * @return
+   */
+  public abstract PTransform<PCollection<BeamSQLRow>, PCollection<KV<byte[], byte[]>>>
+      getPTransformForOutput();
+
   @Override
   public PTransform<? super PBegin, PCollection<BeamSQLRow>> buildIOReader() {
-    return null;
-    // return KafkaIO.<byte[],
-    // byte[]>read().withBootstrapServers(this.bootstrapServers)
-    // .withTopics(this.topics).updateConsumerProperties(configUpdates)
-    // .withKeyCoder(ByteArrayCoder.of()).withValueCoder(ByteArrayCoder.of()).withoutMetadata();
+    return new PTransform<PBegin, PCollection<BeamSQLRow>>() {
+      /**
+       *
+       */
+      private static final long serialVersionUID = 9167792271351182771L;
+
+      @Override
+      public PCollection<BeamSQLRow> expand(PBegin input) {
+        return input.apply("read",
+            KafkaIO.<byte[], byte[]>read().withBootstrapServers(bootstrapServers).withTopics(topics)
+                .updateConsumerProperties(configUpdates).withKeyCoder(ByteArrayCoder.of())
+                .withValueCoder(ByteArrayCoder.of()).withoutMetadata())
+            .apply("in_format", getPTransformForInput());
+
+      }
+    };
   }
 
   @Override
@@ -83,11 +111,15 @@ public class BeamKafkaTable extends BaseBeamTable implements Serializable {
     checkArgument(topics != null && topics.size() == 1,
         "Only one topic can be acceptable as output.");
 
-    return null;
-    // return KafkaIO.<byte[],
-    // byte[]>write().withBootstrapServers(bootstrapServers)
-    // .withTopic(topics.get(0)).withKeyCoder(ByteArrayCoder.of())
-    // .withValueCoder(ByteArrayCoder.of());
+    return new PTransform<PCollection<BeamSQLRow>, PDone>() {
+      @Override
+      public PDone expand(PCollection<BeamSQLRow> input) {
+        return input.apply("out_reformat", getPTransformForOutput()).apply("persistent",
+            KafkaIO.<byte[], byte[]>write().withBootstrapServers(bootstrapServers)
+                .withTopic(topics.get(0)).withKeyCoder(ByteArrayCoder.of())
+                .withValueCoder(ByteArrayCoder.of()));
+      }
+    };
   }
 
 }

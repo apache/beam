@@ -19,10 +19,7 @@ package org.beam.sdk.java.sql.planner;
 
 import java.io.Serializable;
 
-import org.apache.calcite.adapter.java.JavaTypeFactory;
-import org.apache.calcite.jdbc.JavaTypeFactoryImpl;
 import org.apache.calcite.plan.RelOptUtil;
-import org.apache.calcite.rel.type.RelDataTypeSystem;
 import org.apache.calcite.schema.Schema;
 import org.apache.calcite.schema.SchemaPlus;
 import org.apache.calcite.sql.parser.SqlParseException;
@@ -46,7 +43,6 @@ public class BeamSqlRunner implements Serializable {
 
   private static final Logger LOG = LoggerFactory.getLogger(BeamSqlRunner.class);
 
-  private JavaTypeFactory typeFactory = new JavaTypeFactoryImpl(RelDataTypeSystem.DEFAULT);
   private SchemaPlus schema = Frameworks.createRootSchema(true);
 
   private BeamQueryPlanner planner = new BeamQueryPlanner(schema);

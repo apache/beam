@@ -63,12 +63,10 @@ public class BeamSQLRelUtils {
     try {
       explain = RelOptUtil.toString(rel);
     } catch (StackOverflowError e) {
-      LOG.error(
-          "StackOverflowError occurred while extracting plan. "
+      LOG.error("StackOverflowError occurred while extracting plan. "
           + "Please report it to the dev@ mailing list.");
       LOG.error("RelNode " + rel + " ExplainLevel " + detailLevel, e);
-      LOG.error(
-          "Forcing plan to empty string and continue... "
+      LOG.error("Forcing plan to empty string and continue... "
           + "SQL Runner may not working properly after.");
     }
     return explain;

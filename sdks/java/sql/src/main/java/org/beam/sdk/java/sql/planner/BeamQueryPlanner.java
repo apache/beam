@@ -66,7 +66,8 @@ public class BeamQueryPlanner {
   protected final Planner planner;
   private Map<String, BaseBeamTable> sourceTables = new HashMap<>();
 
-  private final JavaTypeFactory typeFactory = new JavaTypeFactoryImpl(RelDataTypeSystem.DEFAULT);
+  public static final JavaTypeFactory TYPE_FACTORY = new JavaTypeFactoryImpl(
+      RelDataTypeSystem.DEFAULT);
 
   /**
    *
@@ -80,7 +81,7 @@ public class BeamQueryPlanner {
     List<SqlOperatorTable> sqlOperatorTables = new ArrayList<>();
     sqlOperatorTables.add(SqlStdOperatorTable.instance());
     sqlOperatorTables.add(new CalciteCatalogReader(CalciteSchema.from(schema), false,
-        Collections.<String>emptyList(), typeFactory));
+        Collections.<String>emptyList(), TYPE_FACTORY));
 
     FrameworkConfig config = Frameworks.newConfigBuilder()
         .parserConfig(SqlParser.configBuilder().setLex(Lex.MYSQL).build()).defaultSchema(schema)
@@ -151,7 +152,7 @@ public class BeamQueryPlanner {
     LOG.info("SQLPlan>\n" + RelOptUtil.toString(relNode));
 
     // PlannerImpl.transform() optimizes RelNode with ruleset
-    return planner.transform(0, traitSet.replace(BeamLogicalConvention.INSTANCE), relNode);
+    return planner.transform(0, traitSet.plus(BeamLogicalConvention.INSTANCE), relNode);
   }
 
   private RelNode convertToRelNode(SqlNode sqlNode) throws RelConversionException {

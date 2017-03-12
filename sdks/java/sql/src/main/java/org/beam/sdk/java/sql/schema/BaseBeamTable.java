@@ -32,6 +32,7 @@ import org.apache.calcite.schema.ScannableTable;
 import org.apache.calcite.schema.Schema.TableType;
 import org.apache.calcite.schema.Statistic;
 import org.apache.calcite.schema.Statistics;
+import org.beam.sdk.java.sql.planner.BeamQueryPlanner;
 
 /**
  * Each IO in Beam has one table schema, by extending {@link BaseBeamTable}.
@@ -42,17 +43,13 @@ public abstract class BaseBeamTable implements ScannableTable, Serializable {
    *
    */
   private static final long serialVersionUID = -1262988061830914193L;
-  private RelProtoDataType protoRowType;
-  // // A {@link PTransform} that convert a input record of {@code IO.read()} to
-  // // {@link BeamSQLRow}
-  // private PTransform<PCollection<T>, PCollection<BeamSQLRow>> inputTransform;
-  // // A {@link PTransform} that convert a {@link BeamSQLRow} to the required
-  // // record of {@code IO.write()}
-  // private PTransform<PCollection<BeamSQLRow>, PCollection<T>>
-  // outputTransform;
+  private RelDataType relDataType;
+
+  protected BeamSQLRecordType beamSqlRecordType;
 
   public BaseBeamTable(RelProtoDataType protoRowType) {
-    this.protoRowType = protoRowType;
+    this.relDataType = protoRowType.apply(BeamQueryPlanner.TYPE_FACTORY);
+    this.beamSqlRecordType = BeamSQLRecordType.from(relDataType);
   }
 
   /**
@@ -83,7 +80,7 @@ public abstract class BaseBeamTable implements ScannableTable, Serializable {
 
   @Override
   public RelDataType getRowType(RelDataTypeFactory typeFactory) {
-    return protoRowType.apply(typeFactory);
+    return relDataType;
   }
 
   /**

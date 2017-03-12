@@ -26,7 +26,8 @@ import org.beam.sdk.java.sql.rel.BeamIOSourceRel;
 import org.beam.sdk.java.sql.rel.BeamLogicalConvention;
 
 /**
- * A {@code ConverterRule} to replace {@link TableScan} with {@link BeamIOSourceRel}.
+ * A {@code ConverterRule} to replace {@link TableScan} with
+ * {@link BeamIOSourceRel}.
  *
  */
 public class BeamIOSourceRule extends ConverterRule {
