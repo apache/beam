@@ -32,8 +32,8 @@ import java.util.Map;
 import java.util.Queue;
 import java.util.concurrent.LinkedBlockingQueue;
 import javax.annotation.Nonnull;
+import org.apache.beam.runners.spark.aggregators.AggregatorsAccumulator;
 import org.apache.beam.runners.spark.aggregators.NamedAggregators;
-import org.apache.beam.runners.spark.aggregators.SparkAggregators;
 import org.apache.beam.runners.spark.coders.CoderHelpers;
 import org.apache.beam.runners.spark.io.ConsoleIO;
 import org.apache.beam.runners.spark.io.CreateStream;
@@ -90,7 +90,6 @@ import org.apache.spark.streaming.api.java.JavaDStream;
 import org.apache.spark.streaming.api.java.JavaInputDStream;
 import org.apache.spark.streaming.api.java.JavaPairDStream;
 import org.apache.spark.streaming.api.java.JavaStreamingContext;
-
 
 
 /**
@@ -394,8 +393,7 @@ public final class StreamingTransformTranslator {
           public JavaRDD<WindowedValue<OutputT>> call(JavaRDD<WindowedValue<InputT>> rdd) throws
               Exception {
             final JavaSparkContext jsc = new JavaSparkContext(rdd.context());
-            final Accumulator<NamedAggregators> aggAccum =
-                SparkAggregators.getNamedAggregators(jsc);
+            final Accumulator<NamedAggregators> aggAccum = AggregatorsAccumulator.getInstance();
             final Accumulator<SparkMetricsContainer> metricsAccum =
                 MetricsAccumulator.getInstance();
             final Map<TupleTag<?>, KV<WindowingStrategy<?, ?>, SideInputBroadcast<?>>> sideInputs =
@@ -444,9 +442,7 @@ public final class StreamingTransformTranslator {
           public JavaPairRDD<TupleTag<?>, WindowedValue<?>> call(
               JavaRDD<WindowedValue<InputT>> rdd) throws Exception {
             String stepName = context.getCurrentTransform().getFullName();
-            JavaSparkContext jsc = new JavaSparkContext(rdd.context());
-            final Accumulator<NamedAggregators> aggAccum =
-                SparkAggregators.getNamedAggregators(jsc);
+            final Accumulator<NamedAggregators> aggAccum = AggregatorsAccumulator.getInstance();
             final Accumulator<SparkMetricsContainer> metricsAccum =
                 MetricsAccumulator.getInstance();
             final Map<TupleTag<?>, KV<WindowingStrategy<?, ?>, SideInputBroadcast<?>>> sideInputs =
