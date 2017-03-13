@@ -41,7 +41,12 @@ try:
   DEFAULT_READ_BUFFER_SIZE = gcsio.DEFAULT_READ_BUFFER_SIZE
   MAX_BATCH_OPERATION_SIZE = gcsio.MAX_BATCH_OPERATION_SIZE
 except ImportError:
-  gcsio = None
+  class FakeGcsIO(object):
+    def __getattr__(self, attr):
+      raise ImportError(
+          'Google Cloud Platform IO not available, '
+          'please install apache_beam[gcp]')
+  gcsio = FakeGcsIO()
   DEFAULT_READ_BUFFER_SIZE = 16 * 1024 * 1024
   MAX_BATCH_OPERATION_SIZE = 100
 # pylint: enable=wrong-import-order, wrong-import-position
