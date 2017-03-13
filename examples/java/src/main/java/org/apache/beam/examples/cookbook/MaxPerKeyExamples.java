@@ -151,7 +151,7 @@ public class MaxPerKeyExamples {
 
     p.apply(BigQueryIO.read().from(options.getInput()))
      .apply(new MaxMeanTemp())
-     .apply(BigQueryIO.Write
+     .apply(BigQueryIO.write()
         .to(options.getOutput())
         .withSchema(schema)
         .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)

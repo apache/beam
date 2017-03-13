@@ -1351,12 +1351,12 @@ public class BigQueryIO {
    * exist.
    *
    * <p>By default, tables will be created if they do not exist, which corresponds to a
-   * {@link CreateDisposition#CREATE_IF_NEEDED} disposition that matches the default of BigQuery's
-   * Jobs API. A schema must be provided (via {@link BigQueryIO.Write#withSchema(TableSchema)}),
+   * {@link Write.CreateDisposition#CREATE_IF_NEEDED} disposition that matches the default of
+   * BigQuery's Jobs API. A schema must be provided (via {@link Write#withSchema(TableSchema)}),
    * or else the transform may fail at runtime with an {@link IllegalArgumentException}.
    *
    * <p>By default, writes require an empty table, which corresponds to
-   * a {@link WriteDisposition#WRITE_EMPTY} disposition that matches the
+   * a {@link Write.WriteDisposition#WRITE_EMPTY} disposition that matches the
    * default of BigQuery's Jobs API.
    *
    * <p>Here is a sample transform that produces TableRow values containing
@@ -1371,6 +1371,16 @@ public class BigQueryIO {
    *   }
    * }}</pre>
    */
+  public static Write write() {
+    return new AutoValue_BigQueryIO_Write.Builder()
+        .setValidate(true)
+        .setBigQueryServices(new BigQueryServicesImpl())
+        .setCreateDisposition(Write.CreateDisposition.CREATE_IF_NEEDED)
+        .setWriteDisposition(Write.WriteDisposition.WRITE_EMPTY)
+        .build();
+  }
+
+  /** Implementation of {@link #write}. */
   @AutoValue
   public abstract static class Write extends PTransform<PCollection<TableRow>, PDone> {
     @VisibleForTesting
@@ -1414,14 +1424,6 @@ public class BigQueryIO {
       abstract Builder setBigQueryServices(BigQueryServices bigQueryServices);
 
       abstract Write build();
-    }
-
-    private static Builder builder() {
-      return new AutoValue_BigQueryIO_Write.Builder()
-          .setValidate(true)
-          .setBigQueryServices(new BigQueryServicesImpl())
-          .setCreateDisposition(CreateDisposition.CREATE_IF_NEEDED)
-          .setWriteDisposition(WriteDisposition.WRITE_EMPTY);
     }
 
     /**
@@ -1491,23 +1493,30 @@ public class BigQueryIO {
       WRITE_EMPTY
     }
 
+    /** Ensures that methods of the to() family are called at most once. */
+    private void ensureToNotCalledYet() {
+      checkState(
+          getJsonTableRef() == null && getTable() == null, "to() already called");
+    }
+
     /**
      * Creates a write transformation for the given table specification.
      *
      * <p>Refer to {@link #parseTableSpec(String)} for the specification format.
      */
-    public static Write to(String tableSpec) {
+    public Write to(String tableSpec) {
       return to(StaticValueProvider.of(tableSpec));
     }
 
     /** Creates a write transformation for the given table. */
-    public static Write to(TableReference table) {
+    public Write to(TableReference table) {
       return to(StaticValueProvider.of(toTableSpec(table)));
     }
 
     /** Creates a write transformation for the given table. */
-    public static Write to(ValueProvider<String> tableSpec) {
-      return builder()
+    public Write to(ValueProvider<String> tableSpec) {
+      ensureToNotCalledYet();
+      return toBuilder()
           .setJsonTableRef(
               NestedValueProvider.of(
                   NestedValueProvider.of(tableSpec, new TableSpecToTableRef()),
@@ -1526,7 +1535,7 @@ public class BigQueryIO {
      * <p>{@code tableSpecFunction} should be deterministic. When given the same window, it should
      * always return the same table specification.
      */
-    public static Write to(SerializableFunction<BoundedWindow, String> tableSpecFunction) {
+    public Write to(SerializableFunction<BoundedWindow, String> tableSpecFunction) {
       return toTableReference(new TranslateTableSpecFunction(tableSpecFunction));
     }
 
@@ -1537,9 +1546,10 @@ public class BigQueryIO {
      * <p>{@code tableRefFunction} should be deterministic. When given the same window, it should
      * always return the same table reference.
      */
-    private static Write toTableReference(
+    private Write toTableReference(
         SerializableFunction<BoundedWindow, TableReference> tableRefFunction) {
-      return builder().setTableRefFunction(tableRefFunction).build();
+      ensureToNotCalledYet();
+      return toBuilder().setTableRefFunction(tableRefFunction).build();
     }
 
     private static class TranslateTableSpecFunction implements
