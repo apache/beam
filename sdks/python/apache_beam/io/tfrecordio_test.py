@@ -252,7 +252,8 @@ class TestTFRecordSource(_TestCaseWithTempDirCleanUp):
                     _TFRecordSource(
                         path,
                         coder=coders.BytesCoder(),
-                        compression_type=fileio.CompressionTypes.AUTO)))
+                        compression_type=fileio.CompressionTypes.AUTO,
+                        validate=True)))
       beam.assert_that(result, beam.equal_to(['foo']))
 
   def test_process_multiple(self):
@@ -264,7 +265,8 @@ class TestTFRecordSource(_TestCaseWithTempDirCleanUp):
                     _TFRecordSource(
                         path,
                         coder=coders.BytesCoder(),
-                        compression_type=fileio.CompressionTypes.AUTO)))
+                        compression_type=fileio.CompressionTypes.AUTO,
+                        validate=True)))
       beam.assert_that(result, beam.equal_to(['foo', 'bar']))
 
   def test_process_gzip(self):
@@ -276,7 +278,8 @@ class TestTFRecordSource(_TestCaseWithTempDirCleanUp):
                     _TFRecordSource(
                         path,
                         coder=coders.BytesCoder(),
-                        compression_type=fileio.CompressionTypes.GZIP)))
+                        compression_type=fileio.CompressionTypes.GZIP,
+                        validate=True)))
       beam.assert_that(result, beam.equal_to(['foo', 'bar']))
 
   def test_process_auto(self):
@@ -288,7 +291,8 @@ class TestTFRecordSource(_TestCaseWithTempDirCleanUp):
                     _TFRecordSource(
                         path,
                         coder=coders.BytesCoder(),
-                        compression_type=fileio.CompressionTypes.AUTO)))
+                        compression_type=fileio.CompressionTypes.AUTO,
+                        validate=True)))
       beam.assert_that(result, beam.equal_to(['foo', 'bar']))
 
 
@@ -383,6 +387,20 @@ class TestEnd2EndWriteAndRead(_TestCaseWithTempDirCleanUp):
           coder=beam.coders.ProtoCoder(example.__class__)))
       beam.assert_that(actual_data, beam.equal_to([example]))
 
+  def test_end2end_read_write_read(self):
+    path = os.path.join(self._new_tempdir(), 'result')
+    with TestPipeline() as p:
+      # Initial read to validate the pipeline doesn't fail before the file is
+      # created.
+      _ = p | ReadFromTFRecord(path + '-*', validate=False)
+      expected_data = [self.create_inputs() for _ in range(0, 10)]
+      _ = p | beam.Create(expected_data) | WriteToTFRecord(
+          path, file_name_suffix='.gz')
+
+    # Read the file back and compare.
+    with TestPipeline() as p:
+      actual_data = p | ReadFromTFRecord(path+'-*', validate=True)
+      beam.assert_that(actual_data, beam.equal_to(expected_data))
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
