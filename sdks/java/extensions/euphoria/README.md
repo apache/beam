@@ -120,6 +120,19 @@ cd euphoria
 mvn clean install -DskipTests
 ```
 
+For faster local development cycles, building javadocs, preparing
+source code packages, running project and source code validations can
+be avoided by de-activating the "regular-build" profile:
+
+```
+mvn clean install -DskipTests -P-regular-build
+```
+
+This is just a convenient, quick and dirty way to install the binaries
+locally without going through the full build cycle.  However, pull
+requests which do not pass the full build lifecycle as defined by the
+"regular-build" profile cannot be accepted.
+
 
 ## Documentation
 
