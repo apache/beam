@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.direct;
 
+import static com.google.common.base.Preconditions.checkState;
 import static org.apache.beam.runners.direct.DirectGraphs.getProducer;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
@@ -373,6 +374,9 @@ public class UnboundedReadEvaluatorFactoryTest {
     secondEvaluator.finishBundle();
 
     assertThat(TestUnboundedSource.readerClosedCount, equalTo(2));
+    assertThat(
+        Iterables.getOnlyElement(residual.getElements()).getValue().getCheckpoint().isFinalized(),
+        is(true));
   }
 
   /**
@@ -415,9 +419,6 @@ public class UnboundedReadEvaluatorFactoryTest {
     @Override
     public UnboundedSource.UnboundedReader<T> createReader(
         PipelineOptions options, @Nullable TestCheckpointMark checkpointMark) {
-      if (checkpointMark != null) {
-        assertThat(checkpointMark.isFinalized(), is(true));
-      }
       return new TestUnboundedReader(elems, checkpointMark == null ? -1 : checkpointMark.index);
     }
 
@@ -517,6 +518,8 @@ public class UnboundedReadEvaluatorFactoryTest {
 
     @Override
     public void finalizeCheckpoint() throws IOException {
+      checkState(
+          !finalized, "%s was finalized more than once", TestCheckpointMark.class.getSimpleName());
       finalized = true;
     }
 
@@ -530,14 +533,14 @@ public class UnboundedReadEvaluatorFactoryTest {
           TestCheckpointMark value,
           OutputStream outStream,
           org.apache.beam.sdk.coders.Coder.Context context)
-          throws CoderException, IOException {
+          throws IOException {
         VarInt.encode(value.index, outStream);
       }
 
       @Override
       public TestCheckpointMark decode(
           InputStream inStream, org.apache.beam.sdk.coders.Coder.Context context)
-          throws CoderException, IOException {
+          throws IOException {
         return new TestCheckpointMark(VarInt.decodeInt(inStream));
       }
     }
