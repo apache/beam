@@ -238,7 +238,7 @@ public class FilterExamples {
 
     TableSchema schema = buildWeatherSchemaProjection();
 
-    p.apply(BigQueryIO.Read.from(options.getInput()))
+    p.apply(BigQueryIO.read().from(options.getInput()))
      .apply(ParDo.of(new ProjectionFn()))
      .apply(new BelowGlobalMean(options.getMonthFilter()))
      .apply(BigQueryIO.Write

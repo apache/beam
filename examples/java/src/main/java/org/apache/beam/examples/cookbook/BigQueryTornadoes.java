@@ -156,7 +156,7 @@ public class BigQueryTornadoes {
     fields.add(new TableFieldSchema().setName("tornado_count").setType("INTEGER"));
     TableSchema schema = new TableSchema().setFields(fields);
 
-    p.apply(BigQueryIO.Read.from(options.getInput()))
+    p.apply(BigQueryIO.read().from(options.getInput()))
      .apply(new CountTornadoes())
      .apply(BigQueryIO.Write
         .to(options.getOutput())
