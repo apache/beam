@@ -848,6 +848,10 @@ public class DatastoreV1 {
     public String getProjectId() {
       return projectId;
     }
+
+    public String getLocalhost() {
+      return localhost;
+    }
   }
 
   /**
