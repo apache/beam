@@ -18,8 +18,12 @@
 package org.apache.beam.runners.flink;
 
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Iterables;
+import java.util.List;
 import java.util.Map;
+import org.apache.beam.runners.core.SplittableParDo;
 import org.apache.beam.runners.core.construction.PTransformMatchers;
+import org.apache.beam.runners.core.construction.ReplacementOutputs;
 import org.apache.beam.runners.core.construction.SingleInputOutputOverrideFactory;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -29,9 +33,13 @@ import org.apache.beam.sdk.runners.PTransformOverrideFactory;
 import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.util.InstanceBuilder;
+import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PValue;
+import org.apache.beam.sdk.values.TaggedPValue;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -65,6 +73,8 @@ class FlinkStreamingPipelineTranslator extends FlinkPipelineTranslator {
   public void translate(Pipeline pipeline) {
     Map<PTransformMatcher, PTransformOverrideFactory> transformOverrides =
         ImmutableMap.<PTransformMatcher, PTransformOverrideFactory>builder()
+            .put(
+                PTransformMatchers.splittableParDoMulti(), new SplittableParDoOverrideFactory())
             .put(
                 PTransformMatchers.classEqualTo(View.AsIterable.class),
                 new ReflectiveOneToOneOverrideFactory(
@@ -228,4 +238,31 @@ class FlinkStreamingPipelineTranslator extends FlinkPipelineTranslator {
     }
   }
 
+  /**
+   * A {@link PTransformOverrideFactory} that provides overrides for applications of a {@link ParDo}
+   * in the direct runner. Currently overrides applications of <a
+   * href="https://s.apache.org/splittable-do-fn">Splittable DoFn</a>.
+   */
+  static class SplittableParDoOverrideFactory<InputT, OutputT>
+      implements PTransformOverrideFactory<
+      PCollection<? extends InputT>, PCollectionTuple, ParDo.MultiOutput<InputT, OutputT>> {
+    @Override
+    @SuppressWarnings("unchecked")
+    public PTransform<PCollection<? extends InputT>, PCollectionTuple> getReplacementTransform(
+        ParDo.MultiOutput<InputT, OutputT> transform) {
+      return new SplittableParDo(transform);
+    }
+
+    @Override
+    public PCollection<? extends InputT> getInput(
+        List<TaggedPValue> inputs, Pipeline p) {
+      return (PCollection<? extends InputT>) Iterables.getOnlyElement(inputs).getValue();
+    }
+
+    @Override
+    public Map<PValue, ReplacementOutput> mapOutputs(
+        List<TaggedPValue> outputs, PCollectionTuple newOutput) {
+      return ReplacementOutputs.tagged(outputs, newOutput);
+    }
+  }
 }

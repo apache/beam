@@ -34,6 +34,7 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.testing.UsesSplittableParDo;
+import org.apache.beam.sdk.testing.UsesTestStream;
 import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.DoFn.BoundedPerElement;
 import org.apache.beam.sdk.transforms.splittabledofn.OffsetRange;
@@ -292,7 +293,7 @@ public class SplittableDoFnTest {
   }
 
   @Test
-  @Category({ValidatesRunner.class, UsesSplittableParDo.class})
+  @Category({ValidatesRunner.class, UsesSplittableParDo.class, UsesTestStream.class})
   public void testLateData() throws Exception {
 
     Instant base = Instant.now();
