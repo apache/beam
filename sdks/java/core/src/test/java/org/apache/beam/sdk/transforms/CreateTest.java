@@ -303,6 +303,30 @@ public class CreateTest {
   }
 
   @Test
+  public void testCreateTimestampedDefaultOutputCoderUsingCoder() throws Exception {
+    Coder<Record> coder = new RecordCoder();
+    PBegin pBegin = PBegin.in(p);
+    Create.TimestampedValues<Record> values =
+        Create.timestamped(TimestampedValue.of(new Record(), new Instant()),
+            TimestampedValue.of(new Record(), new Instant())).withCoder(coder);
+    Coder<Record> defaultCoder = values.getDefaultOutputCoder(pBegin);
+    assertThat(defaultCoder, equalTo(coder));
+  }
+
+  @Test
+  public void testCreateTimestampedDefaultOutputCoderUsingTypeDescriptor() throws Exception {
+    Coder<Record> coder = new RecordCoder();
+    p.getCoderRegistry().registerCoder(Record.class, coder);
+    PBegin pBegin = PBegin.in(p);
+    Create.TimestampedValues<Record> values =
+        Create.timestamped(TimestampedValue.of(new Record(), new Instant()),
+            TimestampedValue.of(new Record(), new Instant()))
+            .withType(new TypeDescriptor<Record>() {});
+    Coder<Record> defaultCoder = values.getDefaultOutputCoder(pBegin);
+    assertThat(defaultCoder, equalTo(coder));
+  }
+
+  @Test
   @Category(RunnableOnService.class)
   public void testCreateWithVoidType() throws Exception {
     PCollection<Void> output = p.apply(Create.of((Void) null, (Void) null));
