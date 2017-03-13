@@ -113,7 +113,6 @@
               <executable>${python.pip.bin}</executable>
               <arguments>
                 <argument>install</argument>
-                <argument>--user</argument>
                 <argument>--upgrade</argument>
                 <argument>--ignore-installed</argument>
                 <argument>tox</argument>
@@ -170,7 +169,7 @@
                   <goal>exec</goal>
                 </goals>
                 <configuration>
-                  <executable>${python.user.base}/bin/tox</executable>
+                  <executable>tox</executable>
                   <arguments>
                     <argument>-e</argument>
                     <argument>ALL</argument>
