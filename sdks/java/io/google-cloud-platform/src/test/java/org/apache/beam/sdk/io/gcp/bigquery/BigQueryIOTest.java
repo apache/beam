@@ -30,7 +30,6 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyString;
 import static org.mockito.Matchers.eq;
@@ -109,6 +108,7 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.PassThroughThenCleanup;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.PassThroughThenCleanup.CleanupOperation;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Status;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TransformingSource;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.TableRowWriter;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.WriteDisposition;
@@ -132,6 +132,7 @@ import org.apache.beam.sdk.testing.RunnableOnService;
 import org.apache.beam.sdk.testing.SourceTestUtils;
 import org.apache.beam.sdk.testing.SourceTestUtils.ExpectedSplitOutcome;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.testing.ValueInSingleWindow;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFnTester;
@@ -705,7 +706,7 @@ public class BigQueryIOTest implements Serializable {
   }
 
   private void checkWriteObjectWithValidate(
-      BigQueryIO.Write write, String project, String dataset, String table,
+      BigQueryIO.Write<TableRow> write, String project, String dataset, String table,
       TableSchema schema, CreateDisposition createDisposition,
       WriteDisposition writeDisposition, String tableDescription, boolean validate) {
     assertEquals(project, write.getTable().get().getProjectId());
@@ -744,6 +745,7 @@ public class BigQueryIOTest implements Serializable {
     BigQueryIO.Read read =
         BigQueryIO.read().from("foo.com:project:somedataset.sometable").withoutValidation();
     checkReadTableObjectWithValidate(read, "foo.com:project", "somedataset", "sometable", false);
+
   }
 
   @Test
@@ -963,7 +965,7 @@ public class BigQueryIOTest implements Serializable {
         new TableRow().set("name", "b").set("number", 2),
         new TableRow().set("name", "c").set("number", 3))
         .withCoder(TableRowJsonCoder.of()))
-    .apply(BigQueryIO.write().to("dataset-id.table-id")
+    .apply(BigQueryIO.writeTableRows().to("dataset-id.table-id")
         .withCreateDisposition(CreateDisposition.CREATE_IF_NEEDED)
         .withSchema(new TableSchema().setFields(
             ImmutableList.of(
@@ -997,7 +999,7 @@ public class BigQueryIOTest implements Serializable {
         new TableRow().set("name", "d").set("number", 4))
           .withCoder(TableRowJsonCoder.of()))
             .setIsBoundedInternal(PCollection.IsBounded.UNBOUNDED)
-            .apply(BigQueryIO.write().to("project-id:dataset-id.table-id")
+            .apply(BigQueryIO.writeTableRows().to("project-id:dataset-id.table-id")
                 .withCreateDisposition(CreateDisposition.CREATE_IF_NEEDED)
                 .withSchema(new TableSchema().setFields(
                     ImmutableList.of(
@@ -1022,12 +1024,11 @@ public class BigQueryIOTest implements Serializable {
    * <p>Logically, creates multiple global windows, and the user provides a function that
    * decides which global window a value should go into.
    */
-  private static class PartitionedGlobalWindows extends
+  private static class PartitionedGlobalWindows<T> extends
+      NonMergingWindowFn<T, PartitionedGlobalWindow> {
+    private SerializableFunction<T, String> extractPartition;
 
-      NonMergingWindowFn<TableRow, PartitionedGlobalWindow> {
-    private SerializableFunction<TableRow, String> extractPartition;
-
-    public PartitionedGlobalWindows(SerializableFunction<TableRow, String> extractPartition) {
+    public PartitionedGlobalWindows(SerializableFunction<T, String> extractPartition) {
       this.extractPartition = extractPartition;
     }
 
@@ -1119,42 +1120,45 @@ public class BigQueryIOTest implements Serializable {
     FakeBigQueryServices fakeBqServices = new FakeBigQueryServices()
         .withDatasetService(datasetService);
 
-    List<TableRow> inserts = new ArrayList<>();
+    List<Integer> inserts = new ArrayList<>();
     for (int i = 0; i < 10; i++) {
-      inserts.add(new TableRow().set("name", "number" + i).set("number", i));
+      inserts.add(i);
     }
 
     // Create a windowing strategy that puts the input into five different windows depending on
     // record value.
-    WindowFn<TableRow, PartitionedGlobalWindow> window = new PartitionedGlobalWindows(
-        new SerializableFunction<TableRow, String>() {
+    WindowFn<Integer, PartitionedGlobalWindow> window = new PartitionedGlobalWindows(
+        new SerializableFunction<Integer, String>() {
           @Override
-          public String apply(TableRow value) {
-            try {
-              int intValue = (Integer) value.get("number") % 5;
-              return Integer.toString(intValue);
-            } catch (NumberFormatException e) {
-              fail(e.toString());
-            }
-            return value.toString();
+          public String apply(Integer i) {
+            return Integer.toString(i % 5);
           }
         }
     );
 
-    SerializableFunction<BoundedWindow, String> tableFunction =
-        new SerializableFunction<BoundedWindow, String>() {
+    SerializableFunction<ValueInSingleWindow<Integer>, String> tableFunction =
+        new SerializableFunction<ValueInSingleWindow<Integer>, String>() {
           @Override
-          public String apply(BoundedWindow input) {
-            return "project-id:dataset-id.table-id-" + ((PartitionedGlobalWindow) input).value;
+          public String apply(ValueInSingleWindow<Integer> input) {
+            PartitionedGlobalWindow window = (PartitionedGlobalWindow) input.getWindow();
+            // Check that we can access the element as well here.
+            checkArgument(window.value.equals(Integer.toString(input.getValue() % 5)),
+                "Incorrect element");
+            return "project-id:dataset-id.table-id-" + window.value;
           }
     };
 
     Pipeline p = TestPipeline.create(bqOptions);
-    p.apply(Create.of(inserts).withCoder(TableRowJsonCoder.of()))
+    p.apply(Create.of(inserts))
         .setIsBoundedInternal(PCollection.IsBounded.UNBOUNDED)
-        .apply(Window.<TableRow>into(window))
-        .apply(BigQueryIO.write()
+        .apply(Window.<Integer>into(window))
+        .apply(BigQueryIO.<Integer>write()
             .to(tableFunction)
+            .withFormatFunction(new SerializableFunction<Integer, TableRow>() {
+              @Override
+              public TableRow apply(Integer i) {
+                return new TableRow().set("name", "number" + i).set("number", i);
+              }})
             .withCreateDisposition(CreateDisposition.CREATE_IF_NEEDED)
             .withSchema(new TableSchema().setFields(
                 ImmutableList.of(
@@ -1205,7 +1209,7 @@ public class BigQueryIOTest implements Serializable {
         new TableRow().set("name", "b").set("number", 2),
         new TableRow().set("name", "c").set("number", 3))
         .withCoder(TableRowJsonCoder.of()))
-    .apply(BigQueryIO.write().to("project-id:dataset-id.table-id")
+    .apply(BigQueryIO.writeTableRows().to("project-id:dataset-id.table-id")
         .withCreateDisposition(CreateDisposition.CREATE_NEVER)
         .withTestServices(fakeBqServices)
         .withoutValidation());
@@ -1238,7 +1242,7 @@ public class BigQueryIOTest implements Serializable {
         new TableRow().set("name", "b").set("number", 2),
         new TableRow().set("name", "c").set("number", 3))
         .withCoder(TableRowJsonCoder.of()))
-        .apply(BigQueryIO.write().to("dataset-id.table-id")
+        .apply(BigQueryIO.writeTableRows().to("dataset-id.table-id")
             .withCreateDisposition(CreateDisposition.CREATE_NEVER)
             .withTestServices(fakeBqServices)
             .withoutValidation());
@@ -1327,8 +1331,8 @@ public class BigQueryIOTest implements Serializable {
 
   @Test
   public void testBuildWrite() {
-    BigQueryIO.Write write =
-            BigQueryIO.write().to("foo.com:project:somedataset.sometable");
+    BigQueryIO.Write<TableRow> write =
+            BigQueryIO.writeTableRows().to("foo.com:project:somedataset.sometable");
     checkWriteObject(
         write, "foo.com:project", "somedataset", "sometable",
         null, CreateDisposition.CREATE_IF_NEEDED, WriteDisposition.WRITE_EMPTY, null);
@@ -1354,7 +1358,7 @@ public class BigQueryIOTest implements Serializable {
     options.as(StreamingOptions.class).setStreaming(streaming);
     DisplayDataEvaluator evaluator = DisplayDataEvaluator.create(options);
 
-    BigQueryIO.Write write = BigQueryIO.write()
+    BigQueryIO.Write write = BigQueryIO.writeTableRows()
         .to("project:dataset.table")
         .withSchema(new TableSchema().set("col1", "type1").set("col2", "type2"))
         .withTestServices(new FakeBigQueryServices()
@@ -1375,7 +1379,8 @@ public class BigQueryIOTest implements Serializable {
     // This test just checks that using withoutValidation will not trigger object
     // construction errors.
     BigQueryIO.Write write =
-        BigQueryIO.write().to("foo.com:project:somedataset.sometable").withoutValidation();
+        BigQueryIO.<TableRow>write().to("foo.com:project:somedataset.sometable")
+            .withoutValidation();
     checkWriteObjectWithValidate(
         write,
         "foo.com:project",
@@ -1390,10 +1395,11 @@ public class BigQueryIOTest implements Serializable {
 
   @Test
   public void testBuildWriteDefaultProject() {
-    BigQueryIO.Write write = BigQueryIO.write().to("somedataset.sometable");
+    BigQueryIO.Write<TableRow> write = BigQueryIO.writeTableRows().to("somedataset.sometable");
     checkWriteObject(
         write, null, "somedataset", "sometable",
-        null, CreateDisposition.CREATE_IF_NEEDED, WriteDisposition.WRITE_EMPTY, null);
+        null, CreateDisposition.CREATE_IF_NEEDED, WriteDisposition.WRITE_EMPTY,
+        null);
   }
 
   @Test
@@ -1402,7 +1408,7 @@ public class BigQueryIOTest implements Serializable {
         .setProjectId("foo.com:project")
         .setDatasetId("somedataset")
         .setTableId("sometable");
-    BigQueryIO.Write write = BigQueryIO.write().to(table);
+    BigQueryIO.Write<TableRow> write = BigQueryIO.writeTableRows().to(table);
     checkWriteObject(
         write, "foo.com:project", "somedataset", "sometable",
         null, CreateDisposition.CREATE_IF_NEEDED, WriteDisposition.WRITE_EMPTY, null);
@@ -1411,8 +1417,8 @@ public class BigQueryIOTest implements Serializable {
   @Test
   public void testBuildWriteWithSchema() {
     TableSchema schema = new TableSchema();
-    BigQueryIO.Write write =
-        BigQueryIO.write().to("foo.com:project:somedataset.sometable").withSchema(schema);
+    BigQueryIO.Write<TableRow> write =
+        BigQueryIO.<TableRow>write().to("foo.com:project:somedataset.sometable").withSchema(schema);
     checkWriteObject(
         write, "foo.com:project", "somedataset", "sometable",
         schema, CreateDisposition.CREATE_IF_NEEDED, WriteDisposition.WRITE_EMPTY, null);
@@ -1420,7 +1426,7 @@ public class BigQueryIOTest implements Serializable {
 
   @Test
   public void testBuildWriteWithCreateDispositionNever() {
-    BigQueryIO.Write write = BigQueryIO.write()
+    BigQueryIO.Write<TableRow> write = BigQueryIO.<TableRow>write()
         .to("foo.com:project:somedataset.sometable")
         .withCreateDisposition(CreateDisposition.CREATE_NEVER);
     checkWriteObject(
@@ -1430,7 +1436,7 @@ public class BigQueryIOTest implements Serializable {
 
   @Test
   public void testBuildWriteWithCreateDispositionIfNeeded() {
-    BigQueryIO.Write write = BigQueryIO.write()
+    BigQueryIO.Write<TableRow> write = BigQueryIO.writeTableRows()
         .to("foo.com:project:somedataset.sometable")
         .withCreateDisposition(CreateDisposition.CREATE_IF_NEEDED);
     checkWriteObject(
@@ -1440,7 +1446,7 @@ public class BigQueryIOTest implements Serializable {
 
   @Test
   public void testBuildWriteWithWriteDispositionTruncate() {
-    BigQueryIO.Write write = BigQueryIO.write()
+    BigQueryIO.Write<TableRow> write = BigQueryIO.<TableRow>write()
         .to("foo.com:project:somedataset.sometable")
         .withWriteDisposition(WriteDisposition.WRITE_TRUNCATE);
     checkWriteObject(
@@ -1450,7 +1456,7 @@ public class BigQueryIOTest implements Serializable {
 
   @Test
   public void testBuildWriteWithWriteDispositionAppend() {
-    BigQueryIO.Write write = BigQueryIO.write()
+    BigQueryIO.Write<TableRow> write = BigQueryIO.writeTableRows()
         .to("foo.com:project:somedataset.sometable")
         .withWriteDisposition(WriteDisposition.WRITE_APPEND);
     checkWriteObject(
@@ -1460,7 +1466,7 @@ public class BigQueryIOTest implements Serializable {
 
   @Test
   public void testBuildWriteWithWriteDispositionEmpty() {
-    BigQueryIO.Write write = BigQueryIO.write()
+    BigQueryIO.Write<TableRow> write = BigQueryIO.<TableRow>write()
         .to("foo.com:project:somedataset.sometable")
         .withWriteDisposition(WriteDisposition.WRITE_EMPTY);
     checkWriteObject(
@@ -1471,7 +1477,7 @@ public class BigQueryIOTest implements Serializable {
   @Test
   public void testBuildWriteWithWriteWithTableDescription() {
     final String tblDescription = "foo bar table";
-    BigQueryIO.Write write = BigQueryIO.write()
+    BigQueryIO.Write<TableRow> write = BigQueryIO.writeTableRows()
         .to("foo.com:project:somedataset.sometable")
         .withTableDescription(tblDescription);
     checkWriteObject(
@@ -1491,7 +1497,7 @@ public class BigQueryIOTest implements Serializable {
     TableSchema schema = new TableSchema().set("col1", "type1").set("col2", "type2");
     final String tblDescription = "foo bar table";
 
-    BigQueryIO.Write write = BigQueryIO.write()
+    BigQueryIO.Write<TableRow> write = BigQueryIO.writeTableRows()
         .to(tableSpec)
         .withSchema(schema)
         .withCreateDisposition(CreateDisposition.CREATE_IF_NEEDED)
@@ -1556,7 +1562,7 @@ public class BigQueryIOTest implements Serializable {
             .or(Matchers.containsString("BigQuery dataset not found for table")));
     tableRows
         .apply(
-            BigQueryIO.write().to(tableRef)
+            BigQueryIO.writeTableRows().to(tableRef)
                 .withCreateDisposition(CreateDisposition.CREATE_IF_NEEDED)
                 .withSchema(new TableSchema())
                 .withTestServices(fakeBqServices));
@@ -1603,7 +1609,7 @@ public class BigQueryIOTest implements Serializable {
                 }))
         .setCoder(TableRowJsonCoder.of());
     tableRows
-        .apply(BigQueryIO.write().to(tableRef)
+        .apply(BigQueryIO.writeTableRows().to(tableRef)
             .withCreateDisposition(CreateDisposition.CREATE_NEVER)
             .withoutValidation());
   }
@@ -1674,8 +1680,10 @@ public class BigQueryIOTest implements Serializable {
 
   @Test
   public void testBigQueryIOGetName() {
-    assertEquals("BigQueryIO.Read", BigQueryIO.read().from("somedataset.sometable").getName());
-    assertEquals("BigQueryIO.Write", BigQueryIO.write().to("somedataset.sometable").getName());
+    assertEquals("BigQueryIO.Read",
+        BigQueryIO.read().from("somedataset.sometable").getName());
+    assertEquals("BigQueryIO.Write",
+        BigQueryIO.<TableRow>write().to("somedataset.sometable").getName());
   }
 
   @Test
@@ -1686,7 +1694,7 @@ public class BigQueryIOTest implements Serializable {
     thrown.expectMessage("no schema was provided");
     p
         .apply(Create.empty(TableRowJsonCoder.of()))
-        .apply(BigQueryIO.write()
+        .apply(BigQueryIO.writeTableRows()
             .to("dataset.table")
             .withCreateDisposition(CreateDisposition.CREATE_IF_NEEDED));
   }
@@ -2343,7 +2351,7 @@ public class BigQueryIOTest implements Serializable {
     BigQueryOptions bqOptions = options.as(BigQueryOptions.class);
     bqOptions.setTempLocation("gs://testbucket/testdir");
     Pipeline pipeline = TestPipeline.create(options);
-    BigQueryIO.Write write = BigQueryIO.write()
+    BigQueryIO.Write<TableRow> write = BigQueryIO.writeTableRows()
         .to(options.getOutputTable())
         .withSchema(NestedValueProvider.of(
             options.getOutputSchema(), new JsonSchemaToTableSchema()))
@@ -2359,11 +2367,11 @@ public class BigQueryIOTest implements Serializable {
   public void testTagWithUniqueIdsAndTableProjectNotNullWithNvp() {
     BigQueryOptions bqOptions = PipelineOptionsFactory.as(BigQueryOptions.class);
     bqOptions.setProject("project");
-    BigQueryIO.TagWithUniqueIdsAndTable tag =
-        new BigQueryIO.TagWithUniqueIdsAndTable(
+    BigQueryIO.TagWithUniqueIdsAndTable<TableRow> tag =
+        new BigQueryIO.TagWithUniqueIdsAndTable<TableRow>(
             bqOptions, NestedValueProvider.of(
                 StaticValueProvider.of("data_set.table_name"),
-                new BigQueryIO.TableSpecToTableRef()), null);
+                new BigQueryIO.TableSpecToTableRef()), null, null);
     TableReference table = BigQueryIO.parseTableSpec(tag.getTableSpec().get());
     assertNotNull(table.getProjectId());
   }
