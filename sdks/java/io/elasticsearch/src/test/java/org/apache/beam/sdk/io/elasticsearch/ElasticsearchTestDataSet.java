@@ -79,7 +79,7 @@ public class ElasticsearchTestDataSet {
             .addTransportAddress(
                 new InetSocketTransportAddress(
                     getByName(options.getElasticsearchServer()),
-                    Integer.valueOf(options.getElasticsearchTcpPort())));
+                    options.getElasticsearchTcpPort()));
     return client;
   }
 
