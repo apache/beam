@@ -200,7 +200,7 @@ public class CombinePerKeyExamples {
     fields.add(new TableFieldSchema().setName("all_plays").setType("STRING"));
     TableSchema schema = new TableSchema().setFields(fields);
 
-    p.apply(BigQueryIO.Read.from(options.getInput()))
+    p.apply(BigQueryIO.read().from(options.getInput()))
      .apply(new PlaysForWord())
      .apply(BigQueryIO.Write
         .to(options.getOutput())

@@ -727,13 +727,13 @@ public class BigQueryIOTest implements Serializable {
 
   @Test
   public void testBuildTableBasedSource() {
-    BigQueryIO.Read read = BigQueryIO.Read.from("foo.com:project:somedataset.sometable");
+    BigQueryIO.Read read = BigQueryIO.read().from("foo.com:project:somedataset.sometable");
     checkReadTableObject(read, "foo.com:project", "somedataset", "sometable");
   }
 
   @Test
   public void testBuildQueryBasedSource() {
-    BigQueryIO.Read read = BigQueryIO.Read.fromQuery("foo_query");
+    BigQueryIO.Read read = BigQueryIO.read().fromQuery("foo_query");
     checkReadQueryObject(read, "foo_query");
   }
 
@@ -742,7 +742,7 @@ public class BigQueryIOTest implements Serializable {
     // This test just checks that using withoutValidation will not trigger object
     // construction errors.
     BigQueryIO.Read read =
-        BigQueryIO.Read.from("foo.com:project:somedataset.sometable").withoutValidation();
+        BigQueryIO.read().from("foo.com:project:somedataset.sometable").withoutValidation();
     checkReadTableObjectWithValidate(read, "foo.com:project", "somedataset", "sometable", false);
   }
 
@@ -751,14 +751,14 @@ public class BigQueryIOTest implements Serializable {
     // This test just checks that using withoutValidation will not trigger object
     // construction errors.
     BigQueryIO.Read read =
-        BigQueryIO.Read.fromQuery("some_query").withoutValidation();
+        BigQueryIO.read().fromQuery("some_query").withoutValidation();
     checkReadQueryObjectWithValidate(read, "some_query", false);
   }
 
   @Test
   public void testBuildTableBasedSourceWithDefaultProject() {
     BigQueryIO.Read read =
-        BigQueryIO.Read.from("somedataset.sometable");
+        BigQueryIO.read().from("somedataset.sometable");
     checkReadTableObject(read, null, "somedataset", "sometable");
   }
 
@@ -768,7 +768,7 @@ public class BigQueryIOTest implements Serializable {
         .setProjectId("foo.com:project")
         .setDatasetId("somedataset")
         .setTableId("sometable");
-    BigQueryIO.Read read = BigQueryIO.Read.from(table);
+    BigQueryIO.Read read = BigQueryIO.read().from(table);
     checkReadTableObject(read, "foo.com:project", "somedataset", "sometable");
   }
 
@@ -800,7 +800,7 @@ public class BigQueryIOTest implements Serializable {
     thrown.expect(RuntimeException.class);
     // Message will be one of following depending on the execution environment.
     thrown.expectMessage(Matchers.containsString("Unsupported"));
-    p.apply(BigQueryIO.Read.from(tableRef)
+    p.apply(BigQueryIO.read().from(tableRef)
         .withTestServices(fakeBqServices));
   }
 
@@ -817,7 +817,7 @@ public class BigQueryIOTest implements Serializable {
         "Invalid BigQueryIO.Read: Specifies a table with a result flattening preference,"
             + " which only applies to queries");
     p.apply("ReadMyTable",
-        BigQueryIO.Read
+        BigQueryIO.read()
             .from("foo.com:project:somedataset.sometable")
             .withoutResultFlattening());
     p.run();
@@ -836,7 +836,7 @@ public class BigQueryIOTest implements Serializable {
         "Invalid BigQueryIO.Read: Specifies a table with a result flattening preference,"
             + " which only applies to queries");
     p.apply(
-        BigQueryIO.Read
+        BigQueryIO.read()
             .from("foo.com:project:somedataset.sometable")
             .withoutValidation()
             .withoutResultFlattening());
@@ -856,7 +856,7 @@ public class BigQueryIOTest implements Serializable {
         "Invalid BigQueryIO.Read: Specifies a table with a SQL dialect preference,"
             + " which only applies to queries");
     p.apply(
-        BigQueryIO.Read
+        BigQueryIO.read()
             .from("foo.com:project:somedataset.sometable")
             .usingStandardSql());
     p.run();
@@ -929,7 +929,7 @@ public class BigQueryIOTest implements Serializable {
 
     Pipeline p = TestPipeline.create(bqOptions);
     PCollection<String> output = p
-        .apply(BigQueryIO.Read.from("non-executing-project:somedataset.sometable")
+        .apply(BigQueryIO.read().from("non-executing-project:somedataset.sometable")
             .withTestServices(fakeBqServices)
             .withoutValidation())
         .apply(ParDo.of(new DoFn<TableRow, String>() {
@@ -1260,7 +1260,7 @@ public class BigQueryIOTest implements Serializable {
   public void testBuildSourceDisplayDataTable() {
     String tableSpec = "project:dataset.tableid";
 
-    BigQueryIO.Read read = BigQueryIO.Read
+    BigQueryIO.Read read = BigQueryIO.read()
         .from(tableSpec)
         .withoutResultFlattening()
         .usingStandardSql()
@@ -1276,7 +1276,7 @@ public class BigQueryIOTest implements Serializable {
 
   @Test
   public void testBuildSourceDisplayDataQuery() {
-    BigQueryIO.Read read = BigQueryIO.Read
+    BigQueryIO.Read read = BigQueryIO.read()
         .fromQuery("myQuery")
         .withoutResultFlattening()
         .usingStandardSql()
@@ -1295,7 +1295,7 @@ public class BigQueryIOTest implements Serializable {
   @Ignore("[BEAM-436] DirectRunner RunnableOnService tempLocation configuration insufficient")
   public void testTableSourcePrimitiveDisplayData() throws IOException, InterruptedException {
     DisplayDataEvaluator evaluator = DisplayDataEvaluator.create();
-    BigQueryIO.Read read = BigQueryIO.Read
+    BigQueryIO.Read read = BigQueryIO.read()
         .from("project:dataset.tableId")
         .withTestServices(new FakeBigQueryServices()
             .withDatasetService(mockDatasetService)
@@ -1312,7 +1312,7 @@ public class BigQueryIOTest implements Serializable {
   @Ignore("[BEAM-436] DirectRunner RunnableOnService tempLocation configuration insufficient")
   public void testQuerySourcePrimitiveDisplayData() throws IOException, InterruptedException {
     DisplayDataEvaluator evaluator = DisplayDataEvaluator.create();
-    BigQueryIO.Read read = BigQueryIO.Read
+    BigQueryIO.Read read = BigQueryIO.read()
         .fromQuery("foobar")
         .withTestServices(new FakeBigQueryServices()
             .withDatasetService(mockDatasetService)
@@ -1674,7 +1674,7 @@ public class BigQueryIOTest implements Serializable {
 
   @Test
   public void testBigQueryIOGetName() {
-    assertEquals("BigQueryIO.Read", BigQueryIO.Read.from("somedataset.sometable").getName());
+    assertEquals("BigQueryIO.Read", BigQueryIO.read().from("somedataset.sometable").getName());
     assertEquals("BigQueryIO.Write", BigQueryIO.Write.to("somedataset.sometable").getName());
   }
 
@@ -2317,7 +2317,7 @@ public class BigQueryIOTest implements Serializable {
     BigQueryOptions bqOptions = options.as(BigQueryOptions.class);
     bqOptions.setTempLocation("gs://testbucket/testdir");
     Pipeline pipeline = TestPipeline.create(options);
-    BigQueryIO.Read read = BigQueryIO.Read.from(
+    BigQueryIO.Read read = BigQueryIO.read().from(
         options.getInputTable()).withoutValidation();
     pipeline.apply(read);
     // Test that this doesn't throw.
@@ -2330,7 +2330,7 @@ public class BigQueryIOTest implements Serializable {
     BigQueryOptions bqOptions = options.as(BigQueryOptions.class);
     bqOptions.setTempLocation("gs://testbucket/testdir");
     Pipeline pipeline = TestPipeline.create(options);
-    BigQueryIO.Read read = BigQueryIO.Read.fromQuery(
+    BigQueryIO.Read read = BigQueryIO.read().fromQuery(
         options.getInputQuery()).withoutValidation();
     pipeline.apply(read);
     // Test that this doesn't throw.

@@ -166,7 +166,7 @@ import org.slf4j.LoggerFactory;
  * This produces a {@link PCollection} of {@link TableRow TableRows} as output:
  * <pre>{@code
  * PCollection<TableRow> weatherData = pipeline.apply(
- *     BigQueryIO.Read.from("clouddataflow-readonly:samples.weather_stations"));
+ *     BigQueryIO.read().from("clouddataflow-readonly:samples.weather_stations"));
  * }</pre>
  *
  * <p>See {@link TableRow} for more information on the {@link TableRow} object.
@@ -177,7 +177,7 @@ import org.slf4j.LoggerFactory;
  *
  * <pre>{@code
  * PCollection<TableRow> meanTemperatureData = pipeline.apply(
- *     BigQueryIO.Read.fromQuery("SELECT year, mean_temp FROM [samples.weather_stations]"));
+ *     BigQueryIO.read().fromQuery("SELECT year, mean_temp FROM [samples.weather_stations]"));
  * }</pre>
  *
  * <p>When creating a BigQuery input transform, users should provide either a query or a table.
@@ -454,6 +454,14 @@ public class BigQueryIO {
    *   }
    * }}</pre>
    */
+  public static Read read() {
+    return new AutoValue_BigQueryIO_Read.Builder()
+        .setValidate(true)
+        .setBigQueryServices(new BigQueryServicesImpl())
+        .build();
+  }
+
+  /** Implementation of {@link #read}. */
   @AutoValue
   public abstract static class Read extends PTransform<PBegin, PCollection<TableRow>> {
     @Nullable abstract ValueProvider<String> getJsonTableRef();
@@ -477,25 +485,26 @@ public class BigQueryIO {
       abstract Read build();
     }
 
-    private static Builder builder() {
-      return new AutoValue_BigQueryIO_Read.Builder()
-          .setValidate(true)
-          .setBigQueryServices(new BigQueryServicesImpl());
+    /** Ensures that methods of the from() / fromQuery() family are called at most once. */
+    private void ensureFromNotCalledYet() {
+      checkState(
+          getJsonTableRef() == null && getQuery() == null, "from() or fromQuery() already called");
     }
 
     /**
      * Reads a BigQuery table specified as {@code "[project_id]:[dataset_id].[table_id]"} or
      * {@code "[dataset_id].[table_id]"} for tables within the current project.
      */
-    public static Read from(String tableSpec) {
+    public Read from(String tableSpec) {
       return from(StaticValueProvider.of(tableSpec));
     }
 
     /**
      * Same as {@code from(String)}, but with a {@link ValueProvider}.
      */
-    public static Read from(ValueProvider<String> tableSpec) {
-      return builder()
+    public Read from(ValueProvider<String> tableSpec) {
+      ensureFromNotCalledYet();
+      return toBuilder()
           .setJsonTableRef(
               NestedValueProvider.of(
                   NestedValueProvider.of(tableSpec, new TableSpecToTableRef()),
@@ -505,21 +514,22 @@ public class BigQueryIO {
     /**
      * Reads results received after executing the given query.
      */
-    public static Read fromQuery(String query) {
+    public Read fromQuery(String query) {
       return fromQuery(StaticValueProvider.of(query));
     }
 
     /**
      * Same as {@code from(String)}, but with a {@link ValueProvider}.
      */
-    public static Read fromQuery(ValueProvider<String> query) {
-      return builder().setQuery(query).setFlattenResults(true).setUseLegacySql(true).build();
+    public Read fromQuery(ValueProvider<String> query) {
+      ensureFromNotCalledYet();
+      return toBuilder().setQuery(query).setFlattenResults(true).setUseLegacySql(true).build();
     }
 
     /**
      * Reads a BigQuery table specified as a {@link TableReference} object.
      */
-    public static Read from(TableReference table) {
+    public Read from(TableReference table) {
       return from(StaticValueProvider.of(toTableSpec(table)));
     }
 
