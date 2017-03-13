@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.elasticsearch;
 
 import static java.net.InetAddress.getByName;
 
+import java.io.IOException;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.elasticsearch.client.transport.TransportClient;
 import org.elasticsearch.common.transport.InetSocketTransportAddress;
@@ -83,7 +84,7 @@ public class ElasticsearchTestDataSet {
   }
 
   public static ElasticsearchIO.ConnectionConfiguration getConnectionConfiguration(
-      ElasticsearchTestOptions options, ReadOrWrite rOw) {
+      ElasticsearchTestOptions options, ReadOrWrite rOw) throws IOException {
     ElasticsearchIO.ConnectionConfiguration connectionConfiguration =
         ElasticsearchIO.ConnectionConfiguration.create(
             new String[] {
@@ -95,7 +96,7 @@ public class ElasticsearchTestDataSet {
             (rOw == ReadOrWrite.READ) ? ES_INDEX : writeIndex,
             ES_TYPE);
     return connectionConfiguration;
-  };
+  }
 
   public static void deleteIndex(TransportClient client, ReadOrWrite rOw) throws Exception {
     ElasticSearchIOTestUtils.deleteIndex((rOw == ReadOrWrite.READ) ? ES_INDEX : writeIndex, client);
