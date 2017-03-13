@@ -119,6 +119,18 @@ public class BeamSQLRow implements Serializable {
     return "RecordRow [dataMap=" + dataMap + ", dataType=" + dataType + "]";
   }
 
+  /**
+   * Return data fields as key=value.
+   * @return
+   */
+  public String valueInString() {
+    StringBuffer sb = new StringBuffer();
+    for (int idx = 0; idx < size(); ++idx) {
+      sb.append(String.format(",%s=%s", dataType.getFieldsName().get(idx), getFieldValue(idx)));
+    }
+    return sb.substring(1);
+  }
+
   @Override
   public int hashCode() {
     final int prime = 31;

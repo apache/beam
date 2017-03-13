@@ -87,11 +87,18 @@ public class BeamSqlRunner implements Serializable {
    * @throws RelConversionException
    * @throws SqlParseException
    */
-  public void explainQuery(String sqlString)
+  public String explainQuery(String sqlString)
       throws ValidationException, RelConversionException, SqlParseException {
     BeamRelNode exeTree = planner.convertToBeamRel(sqlString);
     String beamPlan = RelOptUtil.toString(exeTree);
     System.out.println(String.format("beamPlan>\n%s", beamPlan));
+
     planner.planner.close();
+    return beamPlan;
   }
+
+  protected BeamQueryPlanner getPlanner() {
+    return planner;
+  }
+
 }
