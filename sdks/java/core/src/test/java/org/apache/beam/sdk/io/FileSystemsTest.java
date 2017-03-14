@@ -202,11 +202,11 @@ public class FileSystemsTest {
     assertFalse(srcPath1.toFile().exists());
     assertFalse(srcPath3.toFile().exists());
     assertThat(
-        Files.readLines(srcPath1.toFile(), StandardCharsets.UTF_8),
+        Files.readLines(destPath1.toFile(), StandardCharsets.UTF_8),
         containsInAnyOrder("content1"));
     assertFalse(destPath2.toFile().exists());
     assertThat(
-        Files.readLines(srcPath3.toFile(), StandardCharsets.UTF_8),
+        Files.readLines(destPath3.toFile(), StandardCharsets.UTF_8),
         containsInAnyOrder("content3"));
   }
 

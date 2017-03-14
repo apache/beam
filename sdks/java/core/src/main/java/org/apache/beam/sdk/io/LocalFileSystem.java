@@ -137,7 +137,6 @@ class LocalFileSystem extends FileSystem<LocalResourceId> {
           src.getPath(),
           dst.getPath(),
           StandardCopyOption.REPLACE_EXISTING,
-          StandardCopyOption.COPY_ATTRIBUTES,
           StandardCopyOption.ATOMIC_MOVE);
     }
   }
