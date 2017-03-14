@@ -51,18 +51,6 @@ echo "Table created successfully."
 echo "-------------------------------"
 echo "$table_creation_command"
 
-# load YCSB tool
-echo
-echo
-echo "Downloading YCSB tool"
-echo "------------------------------"
-curl -O --location https://github.com/brianfrankcooper/YCSB/releases/download/0.12.0/ycsb-0.12.0.tar.gz
-tar xfvz ycsb-0.12.0.tar.gz
-wget https://www.slf4j.org/dist/slf4j-1.7.22.tar.gz
-tar xfvz slf4j-1.7.22.tar.gz
-cp slf4j-1.7.22/slf4j-simple-*.jar ycsb-0.12.0/lib/
-cp slf4j-1.7.22/slf4j-api-*.jar ycsb-0.12.0/lib/
-echo "YCSB tool loaded"
 cd ycsb-0.12.0
 
 echo "Starting to load data"
