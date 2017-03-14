@@ -143,11 +143,24 @@ clicking the "Check Module" button. The scan should report no errors.
 Note: Selecting "Check Project" may report some errors from the archetype
 modules as they are not configured for Checkstyle validation.
 
+###### Code Style
+IntelliJ supports code styles within the IDE. Use one of the following to ensure your code style
+matches the project's checkstyle enforcements.
+
+1. (Option 1) Configure IntelliJ to use "beam-codestyle.xml".
+    1. Go to Settings -> Code Style -> Java.
+    1. Click the cogwheel icon next to 'Scheme' and select Import Scheme -> Eclipse XML Profile.
+    1. Select "sdks/java/build-tools/src/main/resources/beam/beam-codestyle.xml".
+    1. Click "OK".
+    1. Click "Apply" and "OK".
+1. (Option 2) Install [Google Java Format plugin](https://plugins.jetbrains.com/plugin/8527-google-java-format).
+
 ##### Eclipse
 
-Use a recent eclipse version that includes m2e. Currently we recommend Eclipse Neon.
-Start eclipse with a fresh workspace in a separate directory from your checkout.
+Use a recent Eclipse version that includes m2e. Currently we recommend Eclipse Neon.
+Start Eclipse with a fresh workspace in a separate directory from your checkout.
 
+###### Initial setup
 1. Install m2e-apt: Beam uses apt annotation processing to provide auto generated code. One example is the usage of [Google AutoValue](https://github.com/google/auto/tree/master/value). By default m2e does not support this and you will see compile errors.
 
 	Help
@@ -175,6 +188,26 @@ Start eclipse with a fresh workspace in a separate directory from your checkout.
 
 You now should have all the beam projects imported into eclipse and should see no compile errors.
 
+###### Checkstyle
+Eclipse supports checkstyle within the IDE using the Checkstyle plugin.
+
+1. Install the [Checkstyle plugin](https://marketplace.eclipse.org/content/checkstyle-plug).
+1. Configure Checkstyle plugin by going to Preferences - Checkstyle.
+    1. Click "New...".
+    1. Select "External Configuration File" for type.
+    1. Click "Browse..." and select "sdks/java/build-tools/src/main/resources/beam/checkstyle.xml".
+    1. Enter "Beam Checks" under "Name:".
+    1. Click "OK", then "OK".
+
+###### Code Style
+Eclipse supports code styles within the IDE. Use one of the following to ensure your code style
+matches the project's checkstyle enforcements.
+
+1. (Option 1) Configure Eclipse to use "beam-codestyle.xml".
+    1. Go to Preferences -> Java -> Code Style -> Formatter.
+    1. Click "Import..." and select "sdks/java/build-tools/src/main/resources/beam/beam-codestyle.xml".
+    1. Click "Apply" and "OK".
+1. (Option 2) Install [Google Java Format plugin](https://github.com/google/google-java-format#eclipse).
 
 ### Create a branch in your fork
 You’ll work on your contribution in a branch in your own (forked) repository. Create a local branch, initialized with the state of the branch you expect your changes to be merged into. Keep in mind that we use several branches, including `master`, feature-specific, and release-specific branches. If you are unsure, initialize with the state of the `master` branch.
