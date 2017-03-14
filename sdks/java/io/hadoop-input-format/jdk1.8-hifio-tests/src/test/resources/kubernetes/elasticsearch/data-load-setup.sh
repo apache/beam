@@ -13,14 +13,13 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
 #!/bin/sh
 
-# Identify external IP of the pod
-external_ip="$(kubectl get svc elasticsearch -o jsonpath='{.status.loadBalancer.ingress[0].ip}')"
-echo "External IP - $external_ip"
+# Install python
+sudo apt-get update
+sudo apt-get install python-pip
+sudo pip install --upgrade pip
+sudo apt-get install python-dev
+sudo pip install tornado numpy
 echo
-
-#run the script
-/usr/bin/python es_test_data.py --es_url=http://$external_ip:9200
-echo "Test data for Elasticsearch generated"
-
