@@ -1008,13 +1008,10 @@ public class DataflowPipelineTranslatorTest implements Serializable {
       .apply(parDo1)
       .apply(parDo2);
 
+    DataflowRunner runner = DataflowRunner.fromOptions(options);
+    runner.replaceTransforms(pipeline);
     Job job =
-        translator
-            .translate(
-                pipeline,
-                DataflowRunner.fromOptions(options),
-                Collections.<DataflowPackage>emptyList())
-            .getJob();
+        translator.translate(pipeline, runner, Collections.<DataflowPackage>emptyList()).getJob();
     assertAllStepOutputsHaveUniqueIds(job);
 
     List<Step> steps = job.getSteps();
