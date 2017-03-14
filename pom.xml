@@ -1310,7 +1310,52 @@
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-shade-plugin</artifactId>
-          <version>3.0.0</version>
+          <version>2.4.3</version>
+          <executions>
+            <execution>
+              <id>bundle-and-repackage</id>
+              <phase>package</phase>
+              <goals>
+                <goal>shade</goal>
+              </goals>
+              <configuration>
+                <artifactSet>
+                  <includes>
+                    <include>com.google.guava:guava</include>
+                  </includes>
+                </artifactSet>
+                <filters>
+                  <filter>
+                    <artifact>*:*</artifact>
+                    <excludes>
+                      <exclude>META-INF/*.SF</exclude>
+                      <exclude>META-INF/*.DSA</exclude>
+                      <exclude>META-INF/*.RSA</exclude>
+                    </excludes>
+                  </filter>
+                </filters>
+                <relocations>
+                  <relocation>
+                    <pattern>com.google.common</pattern>
+                    <!--suppress MavenModelInspection -->
+                    <shadedPattern>
+                      org.apache.${renderedArtifactId}.repackaged.com.google.common
+                    </shadedPattern>
+                  </relocation>
+                  <relocation>
+                    <pattern>com.google.thirdparty</pattern>
+                    <!--suppress MavenModelInspection -->
+                    <shadedPattern>
+                      org.apache.${renderedArtifactId}.repackaged.com.google.thirdparty
+                    </shadedPattern>
+                  </relocation>
+                </relocations>
+                <transformers>
+                  <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
+                </transformers>
+              </configuration>
+            </execution>
+          </executions>
         </plugin>
 
         <plugin>
@@ -1403,6 +1448,32 @@
             </filesets>
           </configuration>
         </plugin>
+
+        <plugin>
+          <groupId>org.codehaus.mojo</groupId>
+          <artifactId>build-helper-maven-plugin</artifactId>
+          <version>3.0.0</version>
+          <executions>
+            <execution>
+              <id>render-artifact-id</id>
+              <goals>
+                <goal>regex-properties</goal>
+              </goals>
+              <phase>prepare-package</phase>
+              <configuration>
+                <regexPropertySettings>
+                  <regexPropertySetting>
+                    <name>renderedArtifactId</name>
+                    <regex>[^A-Za-z0-9]</regex>
+                    <replacement>.</replacement>
+                    <value>${project.artifactId}</value>
+                    <failIfNoMatch>false</failIfNoMatch>
+                  </regexPropertySetting>
+                </regexPropertySettings>
+              </configuration>
+            </execution>
+          </executions>
+        </plugin>
       </plugins>
     </pluginManagement>
 
@@ -1448,7 +1519,7 @@
                   <version>[1.7,)</version>
                 </requireJavaVersion>
                 <requireMavenVersion>
-                  <!-- Keep aligned with prerequisite section below. -->
+                  <!-- Keep aligned with preqrequisite section below. -->
                   <version>[3.2,)</version>
                 </requireMavenVersion>
               </rules>
@@ -1462,6 +1533,14 @@
             <version>1.0-beta-6</version>
           </dependency>
         </dependencies>
+      </plugin>
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>build-helper-maven-plugin</artifactId>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-shade-plugin</artifactId>
       </plugin>
     </plugins>
   </build>
@@ -1483,6 +1562,7 @@
       </plugin>
     </plugins>
   </reporting>
+
   <prerequisites>
     <!-- Keep aligned with requireMavenVersion section above. -->
     <maven>3.2</maven>
