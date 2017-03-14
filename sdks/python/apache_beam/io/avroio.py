@@ -127,12 +127,11 @@ class _AvroUtils(object):
 
     Args:
       f: Avro file to read.
-      codec: Decompression codec to use.
+      codec: The codec to use for block-level decompression.
         Supported codecs: 'null', 'deflate', 'snappy'
       schema: Avro Schema definition represented as JSON string.
-      expected_sync_marker: Avro synchronization marker.
-        If the block's sync marker does not match with this parameter then
-        ValueError is thrown.
+      expected_sync_marker: Avro synchronization marker. If the block's sync
+        marker does not match with this parameter then ValueError is thrown.
     Returns:
       A single _AvroBlock.
 

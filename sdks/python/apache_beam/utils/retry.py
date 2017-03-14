@@ -145,7 +145,7 @@ def with_exponential_backoff(
       Default is 2 (doubling).
     max_delay_secs: Maximum delay (in seconds). After this limit is reached,
       further tries use max_delay_sec instead of exponentially increasing
-      the time. Defaults to 4 hours.
+      the time. Defaults to 1 hour.
 
   Returns:
     As per Python decorators with arguments pattern returns a decorator
