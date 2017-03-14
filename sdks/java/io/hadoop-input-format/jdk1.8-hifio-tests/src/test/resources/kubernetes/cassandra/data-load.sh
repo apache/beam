@@ -54,4 +54,3 @@ cd ycsb-0.12.0
 echo "Starting to load data"
 echo "-----------------------------"
 ./bin/ycsb load cassandra-cql -p hosts=${external_ip} -P workloads/workloadd -s > workloada_load_res.txt
-echo "Data loaded on ${external_ip} successfully."
