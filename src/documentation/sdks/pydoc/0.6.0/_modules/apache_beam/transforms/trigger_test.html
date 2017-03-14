@@ -1,0 +1,672 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>apache_beam.transforms.trigger_test &#8212; Apache Beam  documentation</title>
+    
+    <link rel="stylesheet" href="../../../_static/sphinxdoc.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../',
+        VERSION:     '',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../index.html" accesskey="U">Module code</a> &#187;</li> 
+      </ul>
+    </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for apache_beam.transforms.trigger_test</h1><div class="highlight"><pre>
+<span></span><span class="c1">#</span>
+<span class="c1"># Licensed to the Apache Software Foundation (ASF) under one or more</span>
+<span class="c1"># contributor license agreements.  See the NOTICE file distributed with</span>
+<span class="c1"># this work for additional information regarding copyright ownership.</span>
+<span class="c1"># The ASF licenses this file to You under the Apache License, Version 2.0</span>
+<span class="c1"># (the &quot;License&quot;); you may not use this file except in compliance with</span>
+<span class="c1"># the License.  You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1">#    http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.</span>
+<span class="c1"># See the License for the specific language governing permissions and</span>
+<span class="c1"># limitations under the License.</span>
+<span class="c1">#</span>
+
+<span class="sd">&quot;&quot;&quot;Unit tests for the triggering classes.&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">collections</span>
+<span class="kn">import</span> <span class="nn">os.path</span>
+<span class="kn">import</span> <span class="nn">pickle</span>
+<span class="kn">import</span> <span class="nn">unittest</span>
+
+<span class="kn">import</span> <span class="nn">yaml</span>
+
+<span class="kn">import</span> <span class="nn">apache_beam</span> <span class="k">as</span> <span class="nn">beam</span>
+<span class="kn">from</span> <span class="nn">apache_beam.test_pipeline</span> <span class="k">import</span> <span class="n">TestPipeline</span>
+<span class="kn">from</span> <span class="nn">apache_beam.transforms</span> <span class="k">import</span> <span class="n">trigger</span>
+<span class="kn">from</span> <span class="nn">apache_beam.transforms.core</span> <span class="k">import</span> <span class="n">Windowing</span>
+<span class="kn">from</span> <span class="nn">apache_beam.transforms.trigger</span> <span class="k">import</span> <span class="n">AccumulationMode</span>
+<span class="kn">from</span> <span class="nn">apache_beam.transforms.trigger</span> <span class="k">import</span> <span class="n">AfterAll</span>
+<span class="kn">from</span> <span class="nn">apache_beam.transforms.trigger</span> <span class="k">import</span> <span class="n">AfterCount</span>
+<span class="kn">from</span> <span class="nn">apache_beam.transforms.trigger</span> <span class="k">import</span> <span class="n">AfterEach</span>
+<span class="kn">from</span> <span class="nn">apache_beam.transforms.trigger</span> <span class="k">import</span> <span class="n">AfterFirst</span>
+<span class="kn">from</span> <span class="nn">apache_beam.transforms.trigger</span> <span class="k">import</span> <span class="n">AfterWatermark</span>
+<span class="kn">from</span> <span class="nn">apache_beam.transforms.trigger</span> <span class="k">import</span> <span class="n">DefaultTrigger</span>
+<span class="kn">from</span> <span class="nn">apache_beam.transforms.trigger</span> <span class="k">import</span> <span class="n">GeneralTriggerDriver</span>
+<span class="kn">from</span> <span class="nn">apache_beam.transforms.trigger</span> <span class="k">import</span> <span class="n">InMemoryUnmergedState</span>
+<span class="kn">from</span> <span class="nn">apache_beam.transforms.trigger</span> <span class="k">import</span> <span class="n">Repeatedly</span>
+<span class="kn">from</span> <span class="nn">apache_beam.transforms.util</span> <span class="k">import</span> <span class="n">assert_that</span><span class="p">,</span> <span class="n">equal_to</span>
+<span class="kn">from</span> <span class="nn">apache_beam.transforms.window</span> <span class="k">import</span> <span class="n">FixedWindows</span>
+<span class="kn">from</span> <span class="nn">apache_beam.transforms.window</span> <span class="k">import</span> <span class="n">IntervalWindow</span>
+<span class="kn">from</span> <span class="nn">apache_beam.transforms.window</span> <span class="k">import</span> <span class="n">MIN_TIMESTAMP</span>
+<span class="kn">from</span> <span class="nn">apache_beam.transforms.window</span> <span class="k">import</span> <span class="n">OutputTimeFn</span>
+<span class="kn">from</span> <span class="nn">apache_beam.transforms.window</span> <span class="k">import</span> <span class="n">Sessions</span>
+<span class="kn">from</span> <span class="nn">apache_beam.transforms.window</span> <span class="k">import</span> <span class="n">TimestampedValue</span>
+<span class="kn">from</span> <span class="nn">apache_beam.transforms.window</span> <span class="k">import</span> <span class="n">WindowedValue</span>
+<span class="kn">from</span> <span class="nn">apache_beam.transforms.window</span> <span class="k">import</span> <span class="n">WindowFn</span>
+
+
+<div class="viewcode-block" id="CustomTimestampingFixedWindowsWindowFn"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.trigger_test.CustomTimestampingFixedWindowsWindowFn">[docs]</a><span class="k">class</span> <span class="nc">CustomTimestampingFixedWindowsWindowFn</span><span class="p">(</span><span class="n">FixedWindows</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;WindowFn for testing custom timestamping.&quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="CustomTimestampingFixedWindowsWindowFn.get_transformed_output_time"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.trigger_test.CustomTimestampingFixedWindowsWindowFn.get_transformed_output_time">[docs]</a>  <span class="k">def</span> <span class="nf">get_transformed_output_time</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">unused_window</span><span class="p">,</span> <span class="n">input_timestamp</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">input_timestamp</span> <span class="o">+</span> <span class="mi">100</span></div></div>
+
+
+<div class="viewcode-block" id="TriggerTest"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.trigger_test.TriggerTest">[docs]</a><span class="k">class</span> <span class="nc">TriggerTest</span><span class="p">(</span><span class="n">unittest</span><span class="o">.</span><span class="n">TestCase</span><span class="p">):</span>
+
+<div class="viewcode-block" id="TriggerTest.run_trigger_simple"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.trigger_test.TriggerTest.run_trigger_simple">[docs]</a>  <span class="k">def</span> <span class="nf">run_trigger_simple</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">window_fn</span><span class="p">,</span> <span class="n">trigger_fn</span><span class="p">,</span> <span class="n">accumulation_mode</span><span class="p">,</span>
+                         <span class="n">timestamped_data</span><span class="p">,</span> <span class="n">expected_panes</span><span class="p">,</span> <span class="o">*</span><span class="n">groupings</span><span class="p">,</span>
+                         <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="n">late_data</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">&#39;late_data&#39;</span><span class="p">,</span> <span class="p">[])</span>
+    <span class="k">assert</span> <span class="ow">not</span> <span class="n">kwargs</span>
+
+    <span class="k">def</span> <span class="nf">bundle_data</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">size</span><span class="p">):</span>
+      <span class="n">bundle</span> <span class="o">=</span> <span class="p">[]</span>
+      <span class="k">for</span> <span class="n">timestamp</span><span class="p">,</span> <span class="n">elem</span> <span class="ow">in</span> <span class="n">data</span><span class="p">:</span>
+        <span class="n">windows</span> <span class="o">=</span> <span class="n">window_fn</span><span class="o">.</span><span class="n">assign</span><span class="p">(</span><span class="n">WindowFn</span><span class="o">.</span><span class="n">AssignContext</span><span class="p">(</span><span class="n">timestamp</span><span class="p">,</span> <span class="n">elem</span><span class="p">))</span>
+        <span class="n">bundle</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">WindowedValue</span><span class="p">(</span><span class="n">elem</span><span class="p">,</span> <span class="n">timestamp</span><span class="p">,</span> <span class="n">windows</span><span class="p">))</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">bundle</span><span class="p">)</span> <span class="o">==</span> <span class="n">size</span><span class="p">:</span>
+          <span class="k">yield</span> <span class="n">bundle</span>
+          <span class="n">bundle</span> <span class="o">=</span> <span class="p">[]</span>
+      <span class="k">if</span> <span class="n">bundle</span><span class="p">:</span>
+        <span class="k">yield</span> <span class="n">bundle</span>
+
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">groupings</span><span class="p">:</span>
+      <span class="n">groupings</span> <span class="o">=</span> <span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+    <span class="k">for</span> <span class="n">group_by</span> <span class="ow">in</span> <span class="n">groupings</span><span class="p">:</span>
+      <span class="n">bundles</span> <span class="o">=</span> <span class="p">[]</span>
+      <span class="n">bundle</span> <span class="o">=</span> <span class="p">[]</span>
+      <span class="k">for</span> <span class="n">timestamp</span><span class="p">,</span> <span class="n">elem</span> <span class="ow">in</span> <span class="n">timestamped_data</span><span class="p">:</span>
+        <span class="n">windows</span> <span class="o">=</span> <span class="n">window_fn</span><span class="o">.</span><span class="n">assign</span><span class="p">(</span><span class="n">WindowFn</span><span class="o">.</span><span class="n">AssignContext</span><span class="p">(</span><span class="n">timestamp</span><span class="p">,</span> <span class="n">elem</span><span class="p">))</span>
+        <span class="n">bundle</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">WindowedValue</span><span class="p">(</span><span class="n">elem</span><span class="p">,</span> <span class="n">timestamp</span><span class="p">,</span> <span class="n">windows</span><span class="p">))</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">bundle</span><span class="p">)</span> <span class="o">==</span> <span class="n">group_by</span><span class="p">:</span>
+          <span class="n">bundles</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">bundle</span><span class="p">)</span>
+          <span class="n">bundle</span> <span class="o">=</span> <span class="p">[]</span>
+      <span class="n">bundles</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">bundle</span><span class="p">)</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">run_trigger</span><span class="p">(</span><span class="n">window_fn</span><span class="p">,</span> <span class="n">trigger_fn</span><span class="p">,</span> <span class="n">accumulation_mode</span><span class="p">,</span>
+                       <span class="n">bundle_data</span><span class="p">(</span><span class="n">timestamped_data</span><span class="p">,</span> <span class="n">group_by</span><span class="p">),</span>
+                       <span class="n">bundle_data</span><span class="p">(</span><span class="n">late_data</span><span class="p">,</span> <span class="n">group_by</span><span class="p">),</span>
+                       <span class="n">expected_panes</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TriggerTest.run_trigger"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.trigger_test.TriggerTest.run_trigger">[docs]</a>  <span class="k">def</span> <span class="nf">run_trigger</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">window_fn</span><span class="p">,</span> <span class="n">trigger_fn</span><span class="p">,</span> <span class="n">accumulation_mode</span><span class="p">,</span>
+                  <span class="n">bundles</span><span class="p">,</span> <span class="n">late_bundles</span><span class="p">,</span>
+                  <span class="n">expected_panes</span><span class="p">):</span>
+    <span class="n">actual_panes</span> <span class="o">=</span> <span class="n">collections</span><span class="o">.</span><span class="n">defaultdict</span><span class="p">(</span><span class="nb">list</span><span class="p">)</span>
+    <span class="n">driver</span> <span class="o">=</span> <span class="n">GeneralTriggerDriver</span><span class="p">(</span>
+        <span class="n">Windowing</span><span class="p">(</span><span class="n">window_fn</span><span class="p">,</span> <span class="n">trigger_fn</span><span class="p">,</span> <span class="n">accumulation_mode</span><span class="p">))</span>
+    <span class="n">state</span> <span class="o">=</span> <span class="n">InMemoryUnmergedState</span><span class="p">()</span>
+
+    <span class="k">for</span> <span class="n">bundle</span> <span class="ow">in</span> <span class="n">bundles</span><span class="p">:</span>
+      <span class="k">for</span> <span class="n">wvalue</span> <span class="ow">in</span> <span class="n">driver</span><span class="o">.</span><span class="n">process_elements</span><span class="p">(</span><span class="n">state</span><span class="p">,</span> <span class="n">bundle</span><span class="p">,</span> <span class="n">MIN_TIMESTAMP</span><span class="p">):</span>
+        <span class="n">window</span><span class="p">,</span> <span class="o">=</span> <span class="n">wvalue</span><span class="o">.</span><span class="n">windows</span>
+        <span class="n">actual_panes</span><span class="p">[</span><span class="n">window</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">wvalue</span><span class="o">.</span><span class="n">value</span><span class="p">))</span>
+
+    <span class="k">while</span> <span class="n">state</span><span class="o">.</span><span class="n">timers</span><span class="p">:</span>
+      <span class="k">for</span> <span class="n">timer_window</span><span class="p">,</span> <span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">time_domain</span><span class="p">,</span> <span class="n">timestamp</span><span class="p">)</span> <span class="ow">in</span> <span class="p">(</span>
+          <span class="n">state</span><span class="o">.</span><span class="n">get_and_clear_timers</span><span class="p">()):</span>
+        <span class="k">for</span> <span class="n">wvalue</span> <span class="ow">in</span> <span class="n">driver</span><span class="o">.</span><span class="n">process_timer</span><span class="p">(</span>
+            <span class="n">timer_window</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">time_domain</span><span class="p">,</span> <span class="n">timestamp</span><span class="p">,</span> <span class="n">state</span><span class="p">):</span>
+          <span class="n">window</span><span class="p">,</span> <span class="o">=</span> <span class="n">wvalue</span><span class="o">.</span><span class="n">windows</span>
+          <span class="n">actual_panes</span><span class="p">[</span><span class="n">window</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">wvalue</span><span class="o">.</span><span class="n">value</span><span class="p">))</span>
+
+    <span class="k">for</span> <span class="n">bundle</span> <span class="ow">in</span> <span class="n">late_bundles</span><span class="p">:</span>
+      <span class="k">for</span> <span class="n">wvalue</span> <span class="ow">in</span> <span class="n">driver</span><span class="o">.</span><span class="n">process_elements</span><span class="p">(</span><span class="n">state</span><span class="p">,</span> <span class="n">bundle</span><span class="p">,</span> <span class="n">MIN_TIMESTAMP</span><span class="p">):</span>
+        <span class="n">window</span><span class="p">,</span> <span class="o">=</span> <span class="n">wvalue</span><span class="o">.</span><span class="n">windows</span>
+        <span class="n">actual_panes</span><span class="p">[</span><span class="n">window</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">wvalue</span><span class="o">.</span><span class="n">value</span><span class="p">))</span>
+
+      <span class="k">while</span> <span class="n">state</span><span class="o">.</span><span class="n">timers</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">timer_window</span><span class="p">,</span> <span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">time_domain</span><span class="p">,</span> <span class="n">timestamp</span><span class="p">)</span> <span class="ow">in</span> <span class="p">(</span>
+            <span class="n">state</span><span class="o">.</span><span class="n">get_and_clear_timers</span><span class="p">()):</span>
+          <span class="k">for</span> <span class="n">wvalue</span> <span class="ow">in</span> <span class="n">driver</span><span class="o">.</span><span class="n">process_timer</span><span class="p">(</span>
+              <span class="n">timer_window</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">time_domain</span><span class="p">,</span> <span class="n">timestamp</span><span class="p">,</span> <span class="n">state</span><span class="p">):</span>
+            <span class="n">window</span><span class="p">,</span> <span class="o">=</span> <span class="n">wvalue</span><span class="o">.</span><span class="n">windows</span>
+            <span class="n">actual_panes</span><span class="p">[</span><span class="n">window</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">wvalue</span><span class="o">.</span><span class="n">value</span><span class="p">))</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">expected_panes</span><span class="p">,</span> <span class="n">actual_panes</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TriggerTest.test_fixed_watermark"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.trigger_test.TriggerTest.test_fixed_watermark">[docs]</a>  <span class="k">def</span> <span class="nf">test_fixed_watermark</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">run_trigger_simple</span><span class="p">(</span>
+        <span class="n">FixedWindows</span><span class="p">(</span><span class="mi">10</span><span class="p">),</span>  <span class="c1"># pyformat break</span>
+        <span class="n">AfterWatermark</span><span class="p">(),</span>
+        <span class="n">AccumulationMode</span><span class="o">.</span><span class="n">ACCUMULATING</span><span class="p">,</span>
+        <span class="p">[(</span><span class="mi">1</span><span class="p">,</span> <span class="s1">&#39;a&#39;</span><span class="p">),</span> <span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="s1">&#39;b&#39;</span><span class="p">),</span> <span class="p">(</span><span class="mi">13</span><span class="p">,</span> <span class="s1">&#39;c&#39;</span><span class="p">)],</span>
+        <span class="p">{</span><span class="n">IntervalWindow</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">10</span><span class="p">):</span> <span class="p">[</span><span class="nb">set</span><span class="p">(</span><span class="s1">&#39;ab&#39;</span><span class="p">)],</span>
+         <span class="n">IntervalWindow</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span> <span class="mi">20</span><span class="p">):</span> <span class="p">[</span><span class="nb">set</span><span class="p">(</span><span class="s1">&#39;c&#39;</span><span class="p">)]},</span>
+        <span class="mi">1</span><span class="p">,</span>
+        <span class="mi">2</span><span class="p">,</span>
+        <span class="mi">3</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TriggerTest.test_fixed_watermark_with_early"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.trigger_test.TriggerTest.test_fixed_watermark_with_early">[docs]</a>  <span class="k">def</span> <span class="nf">test_fixed_watermark_with_early</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">run_trigger_simple</span><span class="p">(</span>
+        <span class="n">FixedWindows</span><span class="p">(</span><span class="mi">10</span><span class="p">),</span>  <span class="c1"># pyformat break</span>
+        <span class="n">AfterWatermark</span><span class="p">(</span><span class="n">early</span><span class="o">=</span><span class="n">AfterCount</span><span class="p">(</span><span class="mi">2</span><span class="p">)),</span>
+        <span class="n">AccumulationMode</span><span class="o">.</span><span class="n">ACCUMULATING</span><span class="p">,</span>
+        <span class="p">[(</span><span class="mi">1</span><span class="p">,</span> <span class="s1">&#39;a&#39;</span><span class="p">),</span> <span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="s1">&#39;b&#39;</span><span class="p">),</span> <span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="s1">&#39;c&#39;</span><span class="p">)],</span>
+        <span class="p">{</span><span class="n">IntervalWindow</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">10</span><span class="p">):</span> <span class="p">[</span><span class="nb">set</span><span class="p">(</span><span class="s1">&#39;ab&#39;</span><span class="p">),</span> <span class="nb">set</span><span class="p">(</span><span class="s1">&#39;abc&#39;</span><span class="p">)]},</span>
+        <span class="mi">2</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">run_trigger_simple</span><span class="p">(</span>
+        <span class="n">FixedWindows</span><span class="p">(</span><span class="mi">10</span><span class="p">),</span>  <span class="c1"># pyformat break</span>
+        <span class="n">AfterWatermark</span><span class="p">(</span><span class="n">early</span><span class="o">=</span><span class="n">AfterCount</span><span class="p">(</span><span class="mi">2</span><span class="p">)),</span>
+        <span class="n">AccumulationMode</span><span class="o">.</span><span class="n">ACCUMULATING</span><span class="p">,</span>
+        <span class="p">[(</span><span class="mi">1</span><span class="p">,</span> <span class="s1">&#39;a&#39;</span><span class="p">),</span> <span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="s1">&#39;b&#39;</span><span class="p">),</span> <span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="s1">&#39;c&#39;</span><span class="p">)],</span>
+        <span class="p">{</span><span class="n">IntervalWindow</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">10</span><span class="p">):</span> <span class="p">[</span><span class="nb">set</span><span class="p">(</span><span class="s1">&#39;abc&#39;</span><span class="p">),</span> <span class="nb">set</span><span class="p">(</span><span class="s1">&#39;abc&#39;</span><span class="p">)]},</span>
+        <span class="mi">3</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TriggerTest.test_fixed_watermark_with_early_late"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.trigger_test.TriggerTest.test_fixed_watermark_with_early_late">[docs]</a>  <span class="k">def</span> <span class="nf">test_fixed_watermark_with_early_late</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">run_trigger_simple</span><span class="p">(</span>
+        <span class="n">FixedWindows</span><span class="p">(</span><span class="mi">100</span><span class="p">),</span>  <span class="c1"># pyformat break</span>
+        <span class="n">AfterWatermark</span><span class="p">(</span><span class="n">early</span><span class="o">=</span><span class="n">AfterCount</span><span class="p">(</span><span class="mi">3</span><span class="p">),</span>
+                       <span class="n">late</span><span class="o">=</span><span class="n">AfterCount</span><span class="p">(</span><span class="mi">2</span><span class="p">)),</span>
+        <span class="n">AccumulationMode</span><span class="o">.</span><span class="n">DISCARDING</span><span class="p">,</span>
+        <span class="nb">zip</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="mi">9</span><span class="p">),</span> <span class="s1">&#39;abcdefghi&#39;</span><span class="p">),</span>
+        <span class="p">{</span><span class="n">IntervalWindow</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">100</span><span class="p">):</span> <span class="p">[</span>
+            <span class="nb">set</span><span class="p">(</span><span class="s1">&#39;abcd&#39;</span><span class="p">),</span> <span class="nb">set</span><span class="p">(</span><span class="s1">&#39;efgh&#39;</span><span class="p">),</span>  <span class="c1"># early</span>
+            <span class="nb">set</span><span class="p">(</span><span class="s1">&#39;i&#39;</span><span class="p">),</span>                  <span class="c1"># on time</span>
+            <span class="nb">set</span><span class="p">(</span><span class="s1">&#39;vw&#39;</span><span class="p">),</span> <span class="nb">set</span><span class="p">(</span><span class="s1">&#39;xy&#39;</span><span class="p">)</span>       <span class="c1"># late</span>
+            <span class="p">]},</span>
+        <span class="mi">2</span><span class="p">,</span>
+        <span class="n">late_data</span><span class="o">=</span><span class="nb">zip</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="mi">5</span><span class="p">),</span> <span class="s1">&#39;vwxyz&#39;</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="TriggerTest.test_sessions_watermark_with_early_late"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.trigger_test.TriggerTest.test_sessions_watermark_with_early_late">[docs]</a>  <span class="k">def</span> <span class="nf">test_sessions_watermark_with_early_late</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">run_trigger_simple</span><span class="p">(</span>
+        <span class="n">Sessions</span><span class="p">(</span><span class="mi">10</span><span class="p">),</span>  <span class="c1"># pyformat break</span>
+        <span class="n">AfterWatermark</span><span class="p">(</span><span class="n">early</span><span class="o">=</span><span class="n">AfterCount</span><span class="p">(</span><span class="mi">2</span><span class="p">),</span>
+                       <span class="n">late</span><span class="o">=</span><span class="n">AfterCount</span><span class="p">(</span><span class="mi">1</span><span class="p">)),</span>
+        <span class="n">AccumulationMode</span><span class="o">.</span><span class="n">ACCUMULATING</span><span class="p">,</span>
+        <span class="p">[(</span><span class="mi">1</span><span class="p">,</span> <span class="s1">&#39;a&#39;</span><span class="p">),</span> <span class="p">(</span><span class="mi">15</span><span class="p">,</span> <span class="s1">&#39;b&#39;</span><span class="p">),</span> <span class="p">(</span><span class="mi">7</span><span class="p">,</span> <span class="s1">&#39;c&#39;</span><span class="p">),</span> <span class="p">(</span><span class="mi">30</span><span class="p">,</span> <span class="s1">&#39;d&#39;</span><span class="p">)],</span>
+        <span class="p">{</span>
+            <span class="n">IntervalWindow</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">25</span><span class="p">):</span> <span class="p">[</span>
+                <span class="nb">set</span><span class="p">(</span><span class="s1">&#39;abc&#39;</span><span class="p">),</span>                <span class="c1"># early</span>
+                <span class="nb">set</span><span class="p">(</span><span class="s1">&#39;abc&#39;</span><span class="p">),</span>                <span class="c1"># on time</span>
+                <span class="nb">set</span><span class="p">(</span><span class="s1">&#39;abcxy&#39;</span><span class="p">)</span>               <span class="c1"># late</span>
+            <span class="p">],</span>
+            <span class="n">IntervalWindow</span><span class="p">(</span><span class="mi">30</span><span class="p">,</span> <span class="mi">40</span><span class="p">):</span> <span class="p">[</span>
+                <span class="nb">set</span><span class="p">(</span><span class="s1">&#39;d&#39;</span><span class="p">),</span>                  <span class="c1"># on time</span>
+            <span class="p">],</span>
+            <span class="n">IntervalWindow</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">40</span><span class="p">):</span> <span class="p">[</span>
+                <span class="nb">set</span><span class="p">(</span><span class="s1">&#39;abcdxyz&#39;</span><span class="p">)</span>             <span class="c1"># late</span>
+            <span class="p">],</span>
+        <span class="p">},</span>
+        <span class="mi">2</span><span class="p">,</span>
+        <span class="n">late_data</span><span class="o">=</span><span class="p">[(</span><span class="mi">1</span><span class="p">,</span> <span class="s1">&#39;x&#39;</span><span class="p">),</span> <span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="s1">&#39;y&#39;</span><span class="p">),</span> <span class="p">(</span><span class="mi">21</span><span class="p">,</span> <span class="s1">&#39;z&#39;</span><span class="p">)])</span></div>
+
+<div class="viewcode-block" id="TriggerTest.test_fixed_after_count"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.trigger_test.TriggerTest.test_fixed_after_count">[docs]</a>  <span class="k">def</span> <span class="nf">test_fixed_after_count</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">run_trigger_simple</span><span class="p">(</span>
+        <span class="n">FixedWindows</span><span class="p">(</span><span class="mi">10</span><span class="p">),</span>  <span class="c1"># pyformat break</span>
+        <span class="n">AfterCount</span><span class="p">(</span><span class="mi">2</span><span class="p">),</span>
+        <span class="n">AccumulationMode</span><span class="o">.</span><span class="n">ACCUMULATING</span><span class="p">,</span>
+        <span class="p">[(</span><span class="mi">1</span><span class="p">,</span> <span class="s1">&#39;a&#39;</span><span class="p">),</span> <span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="s1">&#39;b&#39;</span><span class="p">),</span> <span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="s1">&#39;c&#39;</span><span class="p">),</span> <span class="p">(</span><span class="mi">11</span><span class="p">,</span> <span class="s1">&#39;z&#39;</span><span class="p">)],</span>
+        <span class="p">{</span><span class="n">IntervalWindow</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">10</span><span class="p">):</span> <span class="p">[</span><span class="nb">set</span><span class="p">(</span><span class="s1">&#39;ab&#39;</span><span class="p">)]},</span>
+        <span class="mi">1</span><span class="p">,</span>
+        <span class="mi">2</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">run_trigger_simple</span><span class="p">(</span>
+        <span class="n">FixedWindows</span><span class="p">(</span><span class="mi">10</span><span class="p">),</span>  <span class="c1"># pyformat break</span>
+        <span class="n">AfterCount</span><span class="p">(</span><span class="mi">2</span><span class="p">),</span>
+        <span class="n">AccumulationMode</span><span class="o">.</span><span class="n">ACCUMULATING</span><span class="p">,</span>
+        <span class="p">[(</span><span class="mi">1</span><span class="p">,</span> <span class="s1">&#39;a&#39;</span><span class="p">),</span> <span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="s1">&#39;b&#39;</span><span class="p">),</span> <span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="s1">&#39;c&#39;</span><span class="p">),</span> <span class="p">(</span><span class="mi">11</span><span class="p">,</span> <span class="s1">&#39;z&#39;</span><span class="p">)],</span>
+        <span class="p">{</span><span class="n">IntervalWindow</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">10</span><span class="p">):</span> <span class="p">[</span><span class="nb">set</span><span class="p">(</span><span class="s1">&#39;abc&#39;</span><span class="p">)]},</span>
+        <span class="mi">3</span><span class="p">,</span>
+        <span class="mi">4</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TriggerTest.test_fixed_after_first"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.trigger_test.TriggerTest.test_fixed_after_first">[docs]</a>  <span class="k">def</span> <span class="nf">test_fixed_after_first</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">run_trigger_simple</span><span class="p">(</span>
+        <span class="n">FixedWindows</span><span class="p">(</span><span class="mi">10</span><span class="p">),</span>  <span class="c1"># pyformat break</span>
+        <span class="n">AfterFirst</span><span class="p">(</span><span class="n">AfterCount</span><span class="p">(</span><span class="mi">2</span><span class="p">),</span> <span class="n">AfterWatermark</span><span class="p">()),</span>
+        <span class="n">AccumulationMode</span><span class="o">.</span><span class="n">ACCUMULATING</span><span class="p">,</span>
+        <span class="p">[(</span><span class="mi">1</span><span class="p">,</span> <span class="s1">&#39;a&#39;</span><span class="p">),</span> <span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="s1">&#39;b&#39;</span><span class="p">),</span> <span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="s1">&#39;c&#39;</span><span class="p">)],</span>
+        <span class="p">{</span><span class="n">IntervalWindow</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">10</span><span class="p">):</span> <span class="p">[</span><span class="nb">set</span><span class="p">(</span><span class="s1">&#39;ab&#39;</span><span class="p">)]},</span>
+        <span class="mi">1</span><span class="p">,</span>
+        <span class="mi">2</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">run_trigger_simple</span><span class="p">(</span>
+        <span class="n">FixedWindows</span><span class="p">(</span><span class="mi">10</span><span class="p">),</span>  <span class="c1"># pyformat break</span>
+        <span class="n">AfterFirst</span><span class="p">(</span><span class="n">AfterCount</span><span class="p">(</span><span class="mi">5</span><span class="p">),</span> <span class="n">AfterWatermark</span><span class="p">()),</span>
+        <span class="n">AccumulationMode</span><span class="o">.</span><span class="n">ACCUMULATING</span><span class="p">,</span>
+        <span class="p">[(</span><span class="mi">1</span><span class="p">,</span> <span class="s1">&#39;a&#39;</span><span class="p">),</span> <span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="s1">&#39;b&#39;</span><span class="p">),</span> <span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="s1">&#39;c&#39;</span><span class="p">)],</span>
+        <span class="p">{</span><span class="n">IntervalWindow</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">10</span><span class="p">):</span> <span class="p">[</span><span class="nb">set</span><span class="p">(</span><span class="s1">&#39;abc&#39;</span><span class="p">)]},</span>
+        <span class="mi">1</span><span class="p">,</span>
+        <span class="mi">2</span><span class="p">,</span>
+        <span class="n">late_data</span><span class="o">=</span><span class="p">[(</span><span class="mi">1</span><span class="p">,</span> <span class="s1">&#39;x&#39;</span><span class="p">),</span> <span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="s1">&#39;y&#39;</span><span class="p">),</span> <span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="s1">&#39;z&#39;</span><span class="p">)])</span></div>
+
+<div class="viewcode-block" id="TriggerTest.test_repeatedly_after_first"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.trigger_test.TriggerTest.test_repeatedly_after_first">[docs]</a>  <span class="k">def</span> <span class="nf">test_repeatedly_after_first</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">run_trigger_simple</span><span class="p">(</span>
+        <span class="n">FixedWindows</span><span class="p">(</span><span class="mi">100</span><span class="p">),</span>  <span class="c1"># pyformat break</span>
+        <span class="n">Repeatedly</span><span class="p">(</span><span class="n">AfterFirst</span><span class="p">(</span><span class="n">AfterCount</span><span class="p">(</span><span class="mi">3</span><span class="p">),</span> <span class="n">AfterWatermark</span><span class="p">())),</span>
+        <span class="n">AccumulationMode</span><span class="o">.</span><span class="n">ACCUMULATING</span><span class="p">,</span>
+        <span class="nb">zip</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="mi">7</span><span class="p">),</span> <span class="s1">&#39;abcdefg&#39;</span><span class="p">),</span>
+        <span class="p">{</span><span class="n">IntervalWindow</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">100</span><span class="p">):</span> <span class="p">[</span>
+            <span class="nb">set</span><span class="p">(</span><span class="s1">&#39;abc&#39;</span><span class="p">),</span>
+            <span class="nb">set</span><span class="p">(</span><span class="s1">&#39;abcdef&#39;</span><span class="p">),</span>
+            <span class="nb">set</span><span class="p">(</span><span class="s1">&#39;abcdefg&#39;</span><span class="p">),</span>
+            <span class="nb">set</span><span class="p">(</span><span class="s1">&#39;abcdefgx&#39;</span><span class="p">),</span>
+            <span class="nb">set</span><span class="p">(</span><span class="s1">&#39;abcdefgxy&#39;</span><span class="p">),</span>
+            <span class="nb">set</span><span class="p">(</span><span class="s1">&#39;abcdefgxyz&#39;</span><span class="p">)]},</span>
+        <span class="mi">1</span><span class="p">,</span>
+        <span class="n">late_data</span><span class="o">=</span><span class="nb">zip</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="mi">3</span><span class="p">),</span> <span class="s1">&#39;xyz&#39;</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="TriggerTest.test_sessions_after_all"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.trigger_test.TriggerTest.test_sessions_after_all">[docs]</a>  <span class="k">def</span> <span class="nf">test_sessions_after_all</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">run_trigger_simple</span><span class="p">(</span>
+        <span class="n">Sessions</span><span class="p">(</span><span class="mi">10</span><span class="p">),</span>  <span class="c1"># pyformat break</span>
+        <span class="n">AfterAll</span><span class="p">(</span><span class="n">AfterCount</span><span class="p">(</span><span class="mi">2</span><span class="p">),</span> <span class="n">AfterWatermark</span><span class="p">()),</span>
+        <span class="n">AccumulationMode</span><span class="o">.</span><span class="n">ACCUMULATING</span><span class="p">,</span>
+        <span class="p">[(</span><span class="mi">1</span><span class="p">,</span> <span class="s1">&#39;a&#39;</span><span class="p">),</span> <span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="s1">&#39;b&#39;</span><span class="p">),</span> <span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="s1">&#39;c&#39;</span><span class="p">)],</span>
+        <span class="p">{</span><span class="n">IntervalWindow</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">13</span><span class="p">):</span> <span class="p">[</span><span class="nb">set</span><span class="p">(</span><span class="s1">&#39;abc&#39;</span><span class="p">)]},</span>
+        <span class="mi">1</span><span class="p">,</span>
+        <span class="mi">2</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">run_trigger_simple</span><span class="p">(</span>
+        <span class="n">Sessions</span><span class="p">(</span><span class="mi">10</span><span class="p">),</span>  <span class="c1"># pyformat break</span>
+        <span class="n">AfterAll</span><span class="p">(</span><span class="n">AfterCount</span><span class="p">(</span><span class="mi">5</span><span class="p">),</span> <span class="n">AfterWatermark</span><span class="p">()),</span>
+        <span class="n">AccumulationMode</span><span class="o">.</span><span class="n">ACCUMULATING</span><span class="p">,</span>
+        <span class="p">[(</span><span class="mi">1</span><span class="p">,</span> <span class="s1">&#39;a&#39;</span><span class="p">),</span> <span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="s1">&#39;b&#39;</span><span class="p">),</span> <span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="s1">&#39;c&#39;</span><span class="p">)],</span>
+        <span class="p">{</span><span class="n">IntervalWindow</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">13</span><span class="p">):</span> <span class="p">[</span><span class="nb">set</span><span class="p">(</span><span class="s1">&#39;abcxy&#39;</span><span class="p">)]},</span>
+        <span class="mi">1</span><span class="p">,</span>
+        <span class="mi">2</span><span class="p">,</span>
+        <span class="n">late_data</span><span class="o">=</span><span class="p">[(</span><span class="mi">1</span><span class="p">,</span> <span class="s1">&#39;x&#39;</span><span class="p">),</span> <span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="s1">&#39;y&#39;</span><span class="p">),</span> <span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="s1">&#39;z&#39;</span><span class="p">)])</span></div>
+
+<div class="viewcode-block" id="TriggerTest.test_sessions_default"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.trigger_test.TriggerTest.test_sessions_default">[docs]</a>  <span class="k">def</span> <span class="nf">test_sessions_default</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">run_trigger_simple</span><span class="p">(</span>
+        <span class="n">Sessions</span><span class="p">(</span><span class="mi">10</span><span class="p">),</span>  <span class="c1"># pyformat break</span>
+        <span class="n">DefaultTrigger</span><span class="p">(),</span>
+        <span class="n">AccumulationMode</span><span class="o">.</span><span class="n">ACCUMULATING</span><span class="p">,</span>
+        <span class="p">[(</span><span class="mi">1</span><span class="p">,</span> <span class="s1">&#39;a&#39;</span><span class="p">),</span> <span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="s1">&#39;b&#39;</span><span class="p">)],</span>
+        <span class="p">{</span><span class="n">IntervalWindow</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">12</span><span class="p">):</span> <span class="p">[</span><span class="nb">set</span><span class="p">(</span><span class="s1">&#39;ab&#39;</span><span class="p">)]},</span>
+        <span class="mi">1</span><span class="p">,</span>
+        <span class="mi">2</span><span class="p">)</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">run_trigger_simple</span><span class="p">(</span>
+        <span class="n">Sessions</span><span class="p">(</span><span class="mi">10</span><span class="p">),</span>  <span class="c1"># pyformat break</span>
+        <span class="n">AfterWatermark</span><span class="p">(),</span>
+        <span class="n">AccumulationMode</span><span class="o">.</span><span class="n">ACCUMULATING</span><span class="p">,</span>
+        <span class="p">[(</span><span class="mi">1</span><span class="p">,</span> <span class="s1">&#39;a&#39;</span><span class="p">),</span> <span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="s1">&#39;b&#39;</span><span class="p">),</span> <span class="p">(</span><span class="mi">15</span><span class="p">,</span> <span class="s1">&#39;c&#39;</span><span class="p">),</span> <span class="p">(</span><span class="mi">16</span><span class="p">,</span> <span class="s1">&#39;d&#39;</span><span class="p">),</span> <span class="p">(</span><span class="mi">30</span><span class="p">,</span> <span class="s1">&#39;z&#39;</span><span class="p">),</span> <span class="p">(</span><span class="mi">9</span><span class="p">,</span> <span class="s1">&#39;e&#39;</span><span class="p">),</span>
+         <span class="p">(</span><span class="mi">10</span><span class="p">,</span> <span class="s1">&#39;f&#39;</span><span class="p">),</span> <span class="p">(</span><span class="mi">30</span><span class="p">,</span> <span class="s1">&#39;y&#39;</span><span class="p">)],</span>
+        <span class="p">{</span><span class="n">IntervalWindow</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">26</span><span class="p">):</span> <span class="p">[</span><span class="nb">set</span><span class="p">(</span><span class="s1">&#39;abcdef&#39;</span><span class="p">)],</span>
+         <span class="n">IntervalWindow</span><span class="p">(</span><span class="mi">30</span><span class="p">,</span> <span class="mi">40</span><span class="p">):</span> <span class="p">[</span><span class="nb">set</span><span class="p">(</span><span class="s1">&#39;yz&#39;</span><span class="p">)]},</span>
+        <span class="mi">1</span><span class="p">,</span>
+        <span class="mi">2</span><span class="p">,</span>
+        <span class="mi">3</span><span class="p">,</span>
+        <span class="mi">4</span><span class="p">,</span>
+        <span class="mi">5</span><span class="p">,</span>
+        <span class="mi">6</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TriggerTest.test_sessions_watermark"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.trigger_test.TriggerTest.test_sessions_watermark">[docs]</a>  <span class="k">def</span> <span class="nf">test_sessions_watermark</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">run_trigger_simple</span><span class="p">(</span>
+        <span class="n">Sessions</span><span class="p">(</span><span class="mi">10</span><span class="p">),</span>  <span class="c1"># pyformat break</span>
+        <span class="n">AfterWatermark</span><span class="p">(),</span>
+        <span class="n">AccumulationMode</span><span class="o">.</span><span class="n">ACCUMULATING</span><span class="p">,</span>
+        <span class="p">[(</span><span class="mi">1</span><span class="p">,</span> <span class="s1">&#39;a&#39;</span><span class="p">),</span> <span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="s1">&#39;b&#39;</span><span class="p">)],</span>
+        <span class="p">{</span><span class="n">IntervalWindow</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">12</span><span class="p">):</span> <span class="p">[</span><span class="nb">set</span><span class="p">(</span><span class="s1">&#39;ab&#39;</span><span class="p">)]},</span>
+        <span class="mi">1</span><span class="p">,</span>
+        <span class="mi">2</span><span class="p">)</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">run_trigger_simple</span><span class="p">(</span>
+        <span class="n">Sessions</span><span class="p">(</span><span class="mi">10</span><span class="p">),</span>  <span class="c1"># pyformat break</span>
+        <span class="n">AfterWatermark</span><span class="p">(),</span>
+        <span class="n">AccumulationMode</span><span class="o">.</span><span class="n">ACCUMULATING</span><span class="p">,</span>
+        <span class="p">[(</span><span class="mi">1</span><span class="p">,</span> <span class="s1">&#39;a&#39;</span><span class="p">),</span> <span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="s1">&#39;b&#39;</span><span class="p">),</span> <span class="p">(</span><span class="mi">15</span><span class="p">,</span> <span class="s1">&#39;c&#39;</span><span class="p">),</span> <span class="p">(</span><span class="mi">16</span><span class="p">,</span> <span class="s1">&#39;d&#39;</span><span class="p">),</span> <span class="p">(</span><span class="mi">30</span><span class="p">,</span> <span class="s1">&#39;z&#39;</span><span class="p">),</span> <span class="p">(</span><span class="mi">9</span><span class="p">,</span> <span class="s1">&#39;e&#39;</span><span class="p">),</span>
+         <span class="p">(</span><span class="mi">10</span><span class="p">,</span> <span class="s1">&#39;f&#39;</span><span class="p">),</span> <span class="p">(</span><span class="mi">30</span><span class="p">,</span> <span class="s1">&#39;y&#39;</span><span class="p">)],</span>
+        <span class="p">{</span><span class="n">IntervalWindow</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">26</span><span class="p">):</span> <span class="p">[</span><span class="nb">set</span><span class="p">(</span><span class="s1">&#39;abcdef&#39;</span><span class="p">)],</span>
+         <span class="n">IntervalWindow</span><span class="p">(</span><span class="mi">30</span><span class="p">,</span> <span class="mi">40</span><span class="p">):</span> <span class="p">[</span><span class="nb">set</span><span class="p">(</span><span class="s1">&#39;yz&#39;</span><span class="p">)]},</span>
+        <span class="mi">1</span><span class="p">,</span>
+        <span class="mi">2</span><span class="p">,</span>
+        <span class="mi">3</span><span class="p">,</span>
+        <span class="mi">4</span><span class="p">,</span>
+        <span class="mi">5</span><span class="p">,</span>
+        <span class="mi">6</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TriggerTest.test_sessions_after_count"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.trigger_test.TriggerTest.test_sessions_after_count">[docs]</a>  <span class="k">def</span> <span class="nf">test_sessions_after_count</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">run_trigger_simple</span><span class="p">(</span>
+        <span class="n">Sessions</span><span class="p">(</span><span class="mi">10</span><span class="p">),</span>  <span class="c1"># pyformat break</span>
+        <span class="n">AfterCount</span><span class="p">(</span><span class="mi">2</span><span class="p">),</span>
+        <span class="n">AccumulationMode</span><span class="o">.</span><span class="n">ACCUMULATING</span><span class="p">,</span>
+        <span class="p">[(</span><span class="mi">1</span><span class="p">,</span> <span class="s1">&#39;a&#39;</span><span class="p">),</span> <span class="p">(</span><span class="mi">15</span><span class="p">,</span> <span class="s1">&#39;b&#39;</span><span class="p">),</span> <span class="p">(</span><span class="mi">6</span><span class="p">,</span> <span class="s1">&#39;c&#39;</span><span class="p">),</span> <span class="p">(</span><span class="mi">30</span><span class="p">,</span> <span class="s1">&#39;s&#39;</span><span class="p">),</span> <span class="p">(</span><span class="mi">31</span><span class="p">,</span> <span class="s1">&#39;t&#39;</span><span class="p">),</span> <span class="p">(</span><span class="mi">50</span><span class="p">,</span> <span class="s1">&#39;z&#39;</span><span class="p">),</span>
+         <span class="p">(</span><span class="mi">50</span><span class="p">,</span> <span class="s1">&#39;y&#39;</span><span class="p">)],</span>
+        <span class="p">{</span><span class="n">IntervalWindow</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">25</span><span class="p">):</span> <span class="p">[</span><span class="nb">set</span><span class="p">(</span><span class="s1">&#39;abc&#39;</span><span class="p">)],</span>
+         <span class="n">IntervalWindow</span><span class="p">(</span><span class="mi">30</span><span class="p">,</span> <span class="mi">41</span><span class="p">):</span> <span class="p">[</span><span class="nb">set</span><span class="p">(</span><span class="s1">&#39;st&#39;</span><span class="p">)],</span>
+         <span class="n">IntervalWindow</span><span class="p">(</span><span class="mi">50</span><span class="p">,</span> <span class="mi">60</span><span class="p">):</span> <span class="p">[</span><span class="nb">set</span><span class="p">(</span><span class="s1">&#39;yz&#39;</span><span class="p">)]},</span>
+        <span class="mi">1</span><span class="p">,</span>
+        <span class="mi">2</span><span class="p">,</span>
+        <span class="mi">3</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TriggerTest.test_sessions_repeatedly_after_count"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.trigger_test.TriggerTest.test_sessions_repeatedly_after_count">[docs]</a>  <span class="k">def</span> <span class="nf">test_sessions_repeatedly_after_count</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">run_trigger_simple</span><span class="p">(</span>
+        <span class="n">Sessions</span><span class="p">(</span><span class="mi">10</span><span class="p">),</span>  <span class="c1"># pyformat break</span>
+        <span class="n">Repeatedly</span><span class="p">(</span><span class="n">AfterCount</span><span class="p">(</span><span class="mi">2</span><span class="p">)),</span>
+        <span class="n">AccumulationMode</span><span class="o">.</span><span class="n">ACCUMULATING</span><span class="p">,</span>
+        <span class="p">[(</span><span class="mi">1</span><span class="p">,</span> <span class="s1">&#39;a&#39;</span><span class="p">),</span> <span class="p">(</span><span class="mi">15</span><span class="p">,</span> <span class="s1">&#39;b&#39;</span><span class="p">),</span> <span class="p">(</span><span class="mi">6</span><span class="p">,</span> <span class="s1">&#39;c&#39;</span><span class="p">),</span> <span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="s1">&#39;d&#39;</span><span class="p">),</span> <span class="p">(</span><span class="mi">7</span><span class="p">,</span> <span class="s1">&#39;e&#39;</span><span class="p">)],</span>
+        <span class="p">{</span><span class="n">IntervalWindow</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">25</span><span class="p">):</span> <span class="p">[</span><span class="nb">set</span><span class="p">(</span><span class="s1">&#39;abc&#39;</span><span class="p">),</span> <span class="nb">set</span><span class="p">(</span><span class="s1">&#39;abcde&#39;</span><span class="p">)]},</span>
+        <span class="mi">1</span><span class="p">,</span>
+        <span class="mi">3</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">run_trigger_simple</span><span class="p">(</span>
+        <span class="n">Sessions</span><span class="p">(</span><span class="mi">10</span><span class="p">),</span>  <span class="c1"># pyformat break</span>
+        <span class="n">Repeatedly</span><span class="p">(</span><span class="n">AfterCount</span><span class="p">(</span><span class="mi">2</span><span class="p">)),</span>
+        <span class="n">AccumulationMode</span><span class="o">.</span><span class="n">DISCARDING</span><span class="p">,</span>
+        <span class="p">[(</span><span class="mi">1</span><span class="p">,</span> <span class="s1">&#39;a&#39;</span><span class="p">),</span> <span class="p">(</span><span class="mi">15</span><span class="p">,</span> <span class="s1">&#39;b&#39;</span><span class="p">),</span> <span class="p">(</span><span class="mi">6</span><span class="p">,</span> <span class="s1">&#39;c&#39;</span><span class="p">),</span> <span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="s1">&#39;d&#39;</span><span class="p">),</span> <span class="p">(</span><span class="mi">7</span><span class="p">,</span> <span class="s1">&#39;e&#39;</span><span class="p">)],</span>
+        <span class="p">{</span><span class="n">IntervalWindow</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">25</span><span class="p">):</span> <span class="p">[</span><span class="nb">set</span><span class="p">(</span><span class="s1">&#39;abc&#39;</span><span class="p">),</span> <span class="nb">set</span><span class="p">(</span><span class="s1">&#39;de&#39;</span><span class="p">)]},</span>
+        <span class="mi">1</span><span class="p">,</span>
+        <span class="mi">3</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TriggerTest.test_sessions_after_each"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.trigger_test.TriggerTest.test_sessions_after_each">[docs]</a>  <span class="k">def</span> <span class="nf">test_sessions_after_each</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">run_trigger_simple</span><span class="p">(</span>
+        <span class="n">Sessions</span><span class="p">(</span><span class="mi">10</span><span class="p">),</span>  <span class="c1"># pyformat break</span>
+        <span class="n">AfterEach</span><span class="p">(</span><span class="n">AfterCount</span><span class="p">(</span><span class="mi">2</span><span class="p">),</span> <span class="n">AfterCount</span><span class="p">(</span><span class="mi">3</span><span class="p">)),</span>
+        <span class="n">AccumulationMode</span><span class="o">.</span><span class="n">ACCUMULATING</span><span class="p">,</span>
+        <span class="nb">zip</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="mi">10</span><span class="p">),</span> <span class="s1">&#39;abcdefghij&#39;</span><span class="p">),</span>
+        <span class="p">{</span><span class="n">IntervalWindow</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">11</span><span class="p">):</span> <span class="p">[</span><span class="nb">set</span><span class="p">(</span><span class="s1">&#39;ab&#39;</span><span class="p">)],</span>
+         <span class="n">IntervalWindow</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">15</span><span class="p">):</span> <span class="p">[</span><span class="nb">set</span><span class="p">(</span><span class="s1">&#39;abcdef&#39;</span><span class="p">)]},</span>
+        <span class="mi">2</span><span class="p">)</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">run_trigger_simple</span><span class="p">(</span>
+        <span class="n">Sessions</span><span class="p">(</span><span class="mi">10</span><span class="p">),</span>  <span class="c1"># pyformat break</span>
+        <span class="n">Repeatedly</span><span class="p">(</span><span class="n">AfterEach</span><span class="p">(</span><span class="n">AfterCount</span><span class="p">(</span><span class="mi">2</span><span class="p">),</span> <span class="n">AfterCount</span><span class="p">(</span><span class="mi">3</span><span class="p">))),</span>
+        <span class="n">AccumulationMode</span><span class="o">.</span><span class="n">ACCUMULATING</span><span class="p">,</span>
+        <span class="nb">zip</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="mi">10</span><span class="p">),</span> <span class="s1">&#39;abcdefghij&#39;</span><span class="p">),</span>
+        <span class="p">{</span><span class="n">IntervalWindow</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">11</span><span class="p">):</span> <span class="p">[</span><span class="nb">set</span><span class="p">(</span><span class="s1">&#39;ab&#39;</span><span class="p">)],</span>
+         <span class="n">IntervalWindow</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">15</span><span class="p">):</span> <span class="p">[</span><span class="nb">set</span><span class="p">(</span><span class="s1">&#39;abcdef&#39;</span><span class="p">)],</span>
+         <span class="n">IntervalWindow</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">17</span><span class="p">):</span> <span class="p">[</span><span class="nb">set</span><span class="p">(</span><span class="s1">&#39;abcdefgh&#39;</span><span class="p">)]},</span>
+        <span class="mi">2</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TriggerTest.test_picklable_output"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.trigger_test.TriggerTest.test_picklable_output">[docs]</a>  <span class="k">def</span> <span class="nf">test_picklable_output</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">global_window</span> <span class="o">=</span> <span class="n">trigger</span><span class="o">.</span><span class="n">GlobalWindow</span><span class="p">(),</span>
+    <span class="n">driver</span> <span class="o">=</span> <span class="n">trigger</span><span class="o">.</span><span class="n">DefaultGlobalBatchTriggerDriver</span><span class="p">()</span>
+    <span class="n">unpicklable</span> <span class="o">=</span> <span class="p">(</span><span class="n">WindowedValue</span><span class="p">(</span><span class="n">k</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">global_window</span><span class="p">)</span>
+                   <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">10</span><span class="p">))</span>
+    <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">TypeError</span><span class="p">):</span>
+      <span class="n">pickle</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">unpicklable</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">unwindowed</span> <span class="ow">in</span> <span class="n">driver</span><span class="o">.</span><span class="n">process_elements</span><span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="n">unpicklable</span><span class="p">,</span> <span class="kc">None</span><span class="p">):</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">pickle</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">pickle</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">unwindowed</span><span class="p">))</span><span class="o">.</span><span class="n">value</span><span class="p">,</span>
+                       <span class="nb">range</span><span class="p">(</span><span class="mi">10</span><span class="p">))</span></div></div>
+
+
+<div class="viewcode-block" id="TriggerPipelineTest"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.trigger_test.TriggerPipelineTest">[docs]</a><span class="k">class</span> <span class="nc">TriggerPipelineTest</span><span class="p">(</span><span class="n">unittest</span><span class="o">.</span><span class="n">TestCase</span><span class="p">):</span>
+
+<div class="viewcode-block" id="TriggerPipelineTest.test_after_count"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.trigger_test.TriggerPipelineTest.test_after_count">[docs]</a>  <span class="k">def</span> <span class="nf">test_after_count</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">p</span> <span class="o">=</span> <span class="n">TestPipeline</span><span class="p">()</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="p">(</span><span class="n">p</span>
+              <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">([</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="mi">10</span><span class="p">,</span> <span class="mi">11</span><span class="p">])</span>
+              <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">FlatMap</span><span class="p">(</span><span class="k">lambda</span> <span class="n">t</span><span class="p">:</span> <span class="p">[(</span><span class="s1">&#39;A&#39;</span><span class="p">,</span> <span class="n">t</span><span class="p">),</span> <span class="p">(</span><span class="s1">&#39;B&#39;</span><span class="p">,</span> <span class="n">t</span> <span class="o">+</span> <span class="mi">5</span><span class="p">)])</span>
+              <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">lambda</span> <span class="p">(</span><span class="n">k</span><span class="p">,</span> <span class="n">t</span><span class="p">):</span> <span class="n">TimestampedValue</span><span class="p">((</span><span class="n">k</span><span class="p">,</span> <span class="n">t</span><span class="p">),</span> <span class="n">t</span><span class="p">))</span>
+              <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">WindowInto</span><span class="p">(</span><span class="n">FixedWindows</span><span class="p">(</span><span class="mi">10</span><span class="p">),</span> <span class="n">trigger</span><span class="o">=</span><span class="n">AfterCount</span><span class="p">(</span><span class="mi">3</span><span class="p">),</span>
+                                <span class="n">accumulation_mode</span><span class="o">=</span><span class="n">AccumulationMode</span><span class="o">.</span><span class="n">DISCARDING</span><span class="p">)</span>
+              <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">GroupByKey</span><span class="p">()</span>
+              <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">lambda</span> <span class="p">(</span><span class="n">k</span><span class="p">,</span> <span class="n">v</span><span class="p">):</span> <span class="p">(</span><span class="s1">&#39;</span><span class="si">%s</span><span class="s1">-</span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">k</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">v</span><span class="p">)),</span> <span class="nb">set</span><span class="p">(</span><span class="n">v</span><span class="p">))))</span>
+    <span class="n">assert_that</span><span class="p">(</span><span class="n">result</span><span class="p">,</span> <span class="n">equal_to</span><span class="p">(</span>
+        <span class="p">{</span>
+            <span class="s1">&#39;A-5&#39;</span><span class="p">:</span> <span class="p">{</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">5</span><span class="p">},</span>
+            <span class="c1"># A-10, A-11 never emitted due to AfterCount(3) never firing.</span>
+            <span class="s1">&#39;B-4&#39;</span><span class="p">:</span> <span class="p">{</span><span class="mi">6</span><span class="p">,</span> <span class="mi">7</span><span class="p">,</span> <span class="mi">8</span><span class="p">,</span> <span class="mi">9</span><span class="p">},</span>
+            <span class="s1">&#39;B-3&#39;</span><span class="p">:</span> <span class="p">{</span><span class="mi">10</span><span class="p">,</span> <span class="mi">15</span><span class="p">,</span> <span class="mi">16</span><span class="p">},</span>
+        <span class="p">}</span><span class="o">.</span><span class="n">iteritems</span><span class="p">()))</span></div></div>
+
+
+<div class="viewcode-block" id="TranscriptTest"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.trigger_test.TranscriptTest">[docs]</a><span class="k">class</span> <span class="nc">TranscriptTest</span><span class="p">(</span><span class="n">unittest</span><span class="o">.</span><span class="n">TestCase</span><span class="p">):</span>
+
+  <span class="c1"># We must prepend an underscore to this name so that the open-source unittest</span>
+  <span class="c1"># runner does not execute this method directly as a test.</span>
+  <span class="nd">@classmethod</span>
+  <span class="k">def</span> <span class="nf">_create_test</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">spec</span><span class="p">):</span>
+    <span class="n">counter</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">name</span> <span class="o">=</span> <span class="n">spec</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;name&#39;</span><span class="p">,</span> <span class="s1">&#39;unnamed&#39;</span><span class="p">)</span>
+    <span class="n">unique_name</span> <span class="o">=</span> <span class="s1">&#39;test_&#39;</span> <span class="o">+</span> <span class="n">name</span>
+    <span class="k">while</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">unique_name</span><span class="p">):</span>
+      <span class="n">counter</span> <span class="o">+=</span> <span class="mi">1</span>
+      <span class="n">unique_name</span> <span class="o">=</span> <span class="s1">&#39;test_</span><span class="si">%s</span><span class="s1">_</span><span class="si">%d</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">counter</span><span class="p">)</span>
+    <span class="nb">setattr</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">unique_name</span><span class="p">,</span> <span class="k">lambda</span> <span class="bp">self</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_run_log_test</span><span class="p">(</span><span class="n">spec</span><span class="p">))</span>
+
+  <span class="c1"># We must prepend an underscore to this name so that the open-source unittest</span>
+  <span class="c1"># runner does not execute this method directly as a test.</span>
+  <span class="nd">@classmethod</span>
+  <span class="k">def</span> <span class="nf">_create_tests</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">transcript_filename</span><span class="p">):</span>
+    <span class="k">for</span> <span class="n">spec</span> <span class="ow">in</span> <span class="n">yaml</span><span class="o">.</span><span class="n">load_all</span><span class="p">(</span><span class="nb">open</span><span class="p">(</span><span class="n">transcript_filename</span><span class="p">)):</span>
+      <span class="bp">cls</span><span class="o">.</span><span class="n">_create_test</span><span class="p">(</span><span class="n">spec</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">_run_log_test</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">spec</span><span class="p">):</span>
+    <span class="k">if</span> <span class="s1">&#39;error&#39;</span> <span class="ow">in</span> <span class="n">spec</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">assertRaisesRegexp</span><span class="p">(</span>
+          <span class="ne">AssertionError</span><span class="p">,</span> <span class="n">spec</span><span class="p">[</span><span class="s1">&#39;error&#39;</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">_run_log</span><span class="p">,</span> <span class="n">spec</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_run_log</span><span class="p">(</span><span class="n">spec</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">_run_log</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">spec</span><span class="p">):</span>
+
+    <span class="k">def</span> <span class="nf">parse_int_list</span><span class="p">(</span><span class="n">s</span><span class="p">):</span>
+      <span class="sd">&quot;&quot;&quot;Parses strings like &#39;[1, 2, 3]&#39;.&quot;&quot;&quot;</span>
+      <span class="n">s</span> <span class="o">=</span> <span class="n">s</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+      <span class="k">assert</span> <span class="n">s</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;[&#39;</span> <span class="ow">and</span> <span class="n">s</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;]&#39;</span><span class="p">,</span> <span class="n">s</span>
+      <span class="k">if</span> <span class="ow">not</span> <span class="n">s</span><span class="p">[</span><span class="mi">1</span><span class="p">:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">():</span>
+        <span class="k">return</span> <span class="p">[]</span>
+      <span class="k">else</span><span class="p">:</span>
+        <span class="k">return</span> <span class="p">[</span><span class="nb">int</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">s</span><span class="p">[</span><span class="mi">1</span><span class="p">:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;,&#39;</span><span class="p">)]</span>
+
+    <span class="k">def</span> <span class="nf">split_args</span><span class="p">(</span><span class="n">s</span><span class="p">):</span>
+      <span class="sd">&quot;&quot;&quot;Splits &#39;a, b, [c, d]&#39; into [&#39;a&#39;, &#39;b&#39;, &#39;[c, d]&#39;].&quot;&quot;&quot;</span>
+      <span class="n">args</span> <span class="o">=</span> <span class="p">[]</span>
+      <span class="n">start</span> <span class="o">=</span> <span class="mi">0</span>
+      <span class="n">depth</span> <span class="o">=</span> <span class="mi">0</span>
+      <span class="k">for</span> <span class="n">ix</span> <span class="ow">in</span> <span class="n">xrange</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">s</span><span class="p">)):</span>
+        <span class="n">c</span> <span class="o">=</span> <span class="n">s</span><span class="p">[</span><span class="n">ix</span><span class="p">]</span>
+        <span class="k">if</span> <span class="n">c</span> <span class="ow">in</span> <span class="s1">&#39;({[&#39;</span><span class="p">:</span>
+          <span class="n">depth</span> <span class="o">+=</span> <span class="mi">1</span>
+        <span class="k">elif</span> <span class="n">c</span> <span class="ow">in</span> <span class="s1">&#39;)}]&#39;</span><span class="p">:</span>
+          <span class="n">depth</span> <span class="o">-=</span> <span class="mi">1</span>
+        <span class="k">elif</span> <span class="n">c</span> <span class="o">==</span> <span class="s1">&#39;,&#39;</span> <span class="ow">and</span> <span class="n">depth</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+          <span class="n">args</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">s</span><span class="p">[</span><span class="n">start</span><span class="p">:</span><span class="n">ix</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">())</span>
+          <span class="n">start</span> <span class="o">=</span> <span class="n">ix</span> <span class="o">+</span> <span class="mi">1</span>
+      <span class="k">assert</span> <span class="n">depth</span> <span class="o">==</span> <span class="mi">0</span><span class="p">,</span> <span class="n">s</span>
+      <span class="n">args</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">s</span><span class="p">[</span><span class="n">start</span><span class="p">:]</span><span class="o">.</span><span class="n">strip</span><span class="p">())</span>
+      <span class="k">return</span> <span class="n">args</span>
+
+    <span class="k">def</span> <span class="nf">parse</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="n">names</span><span class="p">):</span>
+      <span class="sd">&quot;&quot;&quot;Parse (recursive) &#39;Foo(arg, kw=arg)&#39; for Foo in the names dict.&quot;&quot;&quot;</span>
+      <span class="n">s</span> <span class="o">=</span> <span class="n">s</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+      <span class="k">if</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">names</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">names</span><span class="p">[</span><span class="n">s</span><span class="p">]</span>
+      <span class="k">elif</span> <span class="n">s</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;[&#39;</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">parse_int_list</span><span class="p">(</span><span class="n">s</span><span class="p">)</span>
+      <span class="k">elif</span> <span class="s1">&#39;(&#39;</span> <span class="ow">in</span> <span class="n">s</span><span class="p">:</span>
+        <span class="k">assert</span> <span class="n">s</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;)&#39;</span><span class="p">,</span> <span class="n">s</span>
+        <span class="n">callee</span> <span class="o">=</span> <span class="n">parse</span><span class="p">(</span><span class="n">s</span><span class="p">[:</span><span class="n">s</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="s1">&#39;(&#39;</span><span class="p">)],</span> <span class="n">names</span><span class="p">)</span>
+        <span class="n">posargs</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">kwargs</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">arg</span> <span class="ow">in</span> <span class="n">split_args</span><span class="p">(</span><span class="n">s</span><span class="p">[</span><span class="n">s</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="s1">&#39;(&#39;</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span><span class="p">:</span><span class="o">-</span><span class="mi">1</span><span class="p">]):</span>
+          <span class="k">if</span> <span class="s1">&#39;=&#39;</span> <span class="ow">in</span> <span class="n">arg</span><span class="p">:</span>
+            <span class="n">kw</span><span class="p">,</span> <span class="n">value</span> <span class="o">=</span> <span class="n">arg</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;=&#39;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+            <span class="n">kwargs</span><span class="p">[</span><span class="n">kw</span><span class="p">]</span> <span class="o">=</span> <span class="n">parse</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">names</span><span class="p">)</span>
+          <span class="k">else</span><span class="p">:</span>
+            <span class="n">posargs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">parse</span><span class="p">(</span><span class="n">arg</span><span class="p">,</span> <span class="n">names</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">callee</span><span class="p">(</span><span class="o">*</span><span class="n">posargs</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+      <span class="k">else</span><span class="p">:</span>
+        <span class="k">try</span><span class="p">:</span>
+          <span class="k">return</span> <span class="nb">int</span><span class="p">(</span><span class="n">s</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
+          <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Unknown function: </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">s</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">parse_fn</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="n">names</span><span class="p">):</span>
+      <span class="sd">&quot;&quot;&quot;Like parse(), but implicitly calls no-arg constructors.&quot;&quot;&quot;</span>
+      <span class="n">fn</span> <span class="o">=</span> <span class="n">parse</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="n">names</span><span class="p">)</span>
+      <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">fn</span><span class="p">,</span> <span class="nb">type</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">fn</span><span class="p">()</span>
+      <span class="k">else</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">fn</span>
+
+    <span class="c1"># pylint: disable=wrong-import-order, wrong-import-position</span>
+    <span class="kn">from</span> <span class="nn">apache_beam.transforms</span> <span class="k">import</span> <span class="n">window</span> <span class="k">as</span> <span class="n">window_module</span>
+    <span class="c1"># pylint: enable=wrong-import-order, wrong-import-position</span>
+    <span class="n">window_fn_names</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">window_module</span><span class="o">.</span><span class="vm">__dict__</span><span class="p">)</span>
+    <span class="n">window_fn_names</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s1">&#39;CustomTimestampingFixedWindowsWindowFn&#39;</span><span class="p">:</span>
+                            <span class="n">CustomTimestampingFixedWindowsWindowFn</span><span class="p">})</span>
+    <span class="n">trigger_names</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;Default&#39;</span><span class="p">:</span> <span class="n">DefaultTrigger</span><span class="p">}</span>
+    <span class="n">trigger_names</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">trigger</span><span class="o">.</span><span class="vm">__dict__</span><span class="p">)</span>
+
+    <span class="n">window_fn</span> <span class="o">=</span> <span class="n">parse_fn</span><span class="p">(</span><span class="n">spec</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;window_fn&#39;</span><span class="p">,</span> <span class="s1">&#39;GlobalWindows&#39;</span><span class="p">),</span>
+                         <span class="n">window_fn_names</span><span class="p">)</span>
+    <span class="n">trigger_fn</span> <span class="o">=</span> <span class="n">parse_fn</span><span class="p">(</span><span class="n">spec</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;trigger_fn&#39;</span><span class="p">,</span> <span class="s1">&#39;Default&#39;</span><span class="p">),</span> <span class="n">trigger_names</span><span class="p">)</span>
+    <span class="n">accumulation_mode</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span>
+        <span class="n">AccumulationMode</span><span class="p">,</span> <span class="n">spec</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;accumulation_mode&#39;</span><span class="p">,</span> <span class="s1">&#39;ACCUMULATING&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">upper</span><span class="p">())</span>
+    <span class="n">output_time_fn</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span>
+        <span class="n">OutputTimeFn</span><span class="p">,</span> <span class="n">spec</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;output_time_fn&#39;</span><span class="p">,</span> <span class="s1">&#39;OUTPUT_AT_EOW&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">upper</span><span class="p">())</span>
+
+    <span class="n">driver</span> <span class="o">=</span> <span class="n">GeneralTriggerDriver</span><span class="p">(</span>
+        <span class="n">Windowing</span><span class="p">(</span><span class="n">window_fn</span><span class="p">,</span> <span class="n">trigger_fn</span><span class="p">,</span> <span class="n">accumulation_mode</span><span class="p">,</span> <span class="n">output_time_fn</span><span class="p">))</span>
+    <span class="n">state</span> <span class="o">=</span> <span class="n">InMemoryUnmergedState</span><span class="p">()</span>
+    <span class="n">output</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">watermark</span> <span class="o">=</span> <span class="n">MIN_TIMESTAMP</span>
+
+    <span class="k">def</span> <span class="nf">fire_timers</span><span class="p">():</span>
+      <span class="n">to_fire</span> <span class="o">=</span> <span class="n">state</span><span class="o">.</span><span class="n">get_and_clear_timers</span><span class="p">(</span><span class="n">watermark</span><span class="p">)</span>
+      <span class="k">while</span> <span class="n">to_fire</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">timer_window</span><span class="p">,</span> <span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">time_domain</span><span class="p">,</span> <span class="n">t_timestamp</span><span class="p">)</span> <span class="ow">in</span> <span class="n">to_fire</span><span class="p">:</span>
+          <span class="k">for</span> <span class="n">wvalue</span> <span class="ow">in</span> <span class="n">driver</span><span class="o">.</span><span class="n">process_timer</span><span class="p">(</span>
+              <span class="n">timer_window</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">time_domain</span><span class="p">,</span> <span class="n">t_timestamp</span><span class="p">,</span> <span class="n">state</span><span class="p">):</span>
+            <span class="n">window</span><span class="p">,</span> <span class="o">=</span> <span class="n">wvalue</span><span class="o">.</span><span class="n">windows</span>
+            <span class="n">output</span><span class="o">.</span><span class="n">append</span><span class="p">({</span><span class="s1">&#39;window&#39;</span><span class="p">:</span> <span class="p">[</span><span class="n">window</span><span class="o">.</span><span class="n">start</span><span class="p">,</span> <span class="n">window</span><span class="o">.</span><span class="n">end</span> <span class="o">-</span> <span class="mi">1</span><span class="p">],</span>
+                           <span class="s1">&#39;values&#39;</span><span class="p">:</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">wvalue</span><span class="o">.</span><span class="n">value</span><span class="p">),</span>
+                           <span class="s1">&#39;timestamp&#39;</span><span class="p">:</span> <span class="n">wvalue</span><span class="o">.</span><span class="n">timestamp</span><span class="p">})</span>
+        <span class="n">to_fire</span> <span class="o">=</span> <span class="n">state</span><span class="o">.</span><span class="n">get_and_clear_timers</span><span class="p">(</span><span class="n">watermark</span><span class="p">)</span>
+
+    <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">spec</span><span class="p">[</span><span class="s1">&#39;transcript&#39;</span><span class="p">]:</span>
+
+      <span class="n">action</span><span class="p">,</span> <span class="n">params</span> <span class="o">=</span> <span class="n">line</span><span class="o">.</span><span class="n">items</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span>
+
+      <span class="k">if</span> <span class="n">action</span> <span class="o">!=</span> <span class="s1">&#39;expect&#39;</span><span class="p">:</span>
+        <span class="c1"># Fail if we have output that was not expected in the transcript.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEquals</span><span class="p">(</span>
+            <span class="p">[],</span> <span class="n">output</span><span class="p">,</span> <span class="n">msg</span><span class="o">=</span><span class="s1">&#39;Unexpected output: </span><span class="si">%s</span><span class="s1"> before </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">output</span><span class="p">,</span> <span class="n">line</span><span class="p">))</span>
+
+      <span class="k">if</span> <span class="n">action</span> <span class="o">==</span> <span class="s1">&#39;input&#39;</span><span class="p">:</span>
+        <span class="n">bundle</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="n">WindowedValue</span><span class="p">(</span><span class="n">t</span><span class="p">,</span> <span class="n">t</span><span class="p">,</span> <span class="n">window_fn</span><span class="o">.</span><span class="n">assign</span><span class="p">(</span><span class="n">WindowFn</span><span class="o">.</span><span class="n">AssignContext</span><span class="p">(</span><span class="n">t</span><span class="p">,</span> <span class="n">t</span><span class="p">)))</span>
+            <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="n">params</span><span class="p">]</span>
+        <span class="n">output</span> <span class="o">=</span> <span class="p">[{</span><span class="s1">&#39;window&#39;</span><span class="p">:</span> <span class="p">[</span><span class="n">wvalue</span><span class="o">.</span><span class="n">windows</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">start</span><span class="p">,</span>
+                              <span class="n">wvalue</span><span class="o">.</span><span class="n">windows</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">end</span> <span class="o">-</span> <span class="mi">1</span><span class="p">],</span>
+                   <span class="s1">&#39;values&#39;</span><span class="p">:</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">wvalue</span><span class="o">.</span><span class="n">value</span><span class="p">),</span>
+                   <span class="s1">&#39;timestamp&#39;</span><span class="p">:</span> <span class="n">wvalue</span><span class="o">.</span><span class="n">timestamp</span><span class="p">}</span>
+                  <span class="k">for</span> <span class="n">wvalue</span>
+                  <span class="ow">in</span> <span class="n">driver</span><span class="o">.</span><span class="n">process_elements</span><span class="p">(</span><span class="n">state</span><span class="p">,</span> <span class="n">bundle</span><span class="p">,</span> <span class="n">watermark</span><span class="p">)]</span>
+        <span class="n">fire_timers</span><span class="p">()</span>
+
+      <span class="k">elif</span> <span class="n">action</span> <span class="o">==</span> <span class="s1">&#39;watermark&#39;</span><span class="p">:</span>
+        <span class="n">watermark</span> <span class="o">=</span> <span class="n">params</span>
+        <span class="n">fire_timers</span><span class="p">()</span>
+
+      <span class="k">elif</span> <span class="n">action</span> <span class="o">==</span> <span class="s1">&#39;expect&#39;</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">expected_output</span> <span class="ow">in</span> <span class="n">params</span><span class="p">:</span>
+          <span class="k">for</span> <span class="n">candidate</span> <span class="ow">in</span> <span class="n">output</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">all</span><span class="p">(</span><span class="n">candidate</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">==</span> <span class="n">expected_output</span><span class="p">[</span><span class="n">k</span><span class="p">]</span>
+                   <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">candidate</span> <span class="k">if</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">expected_output</span><span class="p">):</span>
+              <span class="n">output</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">candidate</span><span class="p">)</span>
+              <span class="k">break</span>
+          <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">fail</span><span class="p">(</span><span class="s1">&#39;Unmatched output </span><span class="si">%s</span><span class="s1"> in </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">expected_output</span><span class="p">,</span> <span class="n">output</span><span class="p">))</span>
+
+      <span class="k">elif</span> <span class="n">action</span> <span class="o">==</span> <span class="s1">&#39;state&#39;</span><span class="p">:</span>
+        <span class="c1"># TODO(robertwb): Implement once we support allowed lateness.</span>
+        <span class="k">pass</span>
+
+      <span class="k">else</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">fail</span><span class="p">(</span><span class="s1">&#39;Unknown action: &#39;</span> <span class="o">+</span> <span class="n">action</span><span class="p">)</span>
+
+    <span class="c1"># Fail if we have output that was not expected in the transcript.</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEquals</span><span class="p">([],</span> <span class="n">output</span><span class="p">,</span> <span class="n">msg</span><span class="o">=</span><span class="s1">&#39;Unexpected output: </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">output</span><span class="p">)</span></div>
+
+
+<span class="n">TRANSCRIPT_TEST_FILE</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="vm">__file__</span><span class="p">),</span>
+                                    <span class="s1">&#39;trigger_transcripts.yaml&#39;</span><span class="p">)</span>
+<span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">TRANSCRIPT_TEST_FILE</span><span class="p">):</span>
+  <span class="n">TranscriptTest</span><span class="o">.</span><span class="n">_create_tests</span><span class="p">(</span><span class="n">TRANSCRIPT_TEST_FILE</span><span class="p">)</span>
+
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s1">&#39;__main__&#39;</span><span class="p">:</span>
+  <span class="n">unittest</span><span class="o">.</span><span class="n">main</span><span class="p">()</span>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../index.html" >Module code</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright .
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.5.3.
+    </div>
+  </body>
+</html>

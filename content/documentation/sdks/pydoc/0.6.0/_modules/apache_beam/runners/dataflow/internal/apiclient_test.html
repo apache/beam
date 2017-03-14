@@ -1,0 +1,186 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>apache_beam.runners.dataflow.internal.apiclient_test &#8212; Apache Beam  documentation</title>
+    
+    <link rel="stylesheet" href="../../../../../_static/sphinxdoc.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../../../',
+        VERSION:     '',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../../../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../../../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../../search.html" /> 
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../../../index.html" accesskey="U">Module code</a> &#187;</li> 
+      </ul>
+    </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../../../../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for apache_beam.runners.dataflow.internal.apiclient_test</h1><div class="highlight"><pre>
+<span></span><span class="c1">#</span>
+<span class="c1"># Licensed to the Apache Software Foundation (ASF) under one or more</span>
+<span class="c1"># contributor license agreements.  See the NOTICE file distributed with</span>
+<span class="c1"># this work for additional information regarding copyright ownership.</span>
+<span class="c1"># The ASF licenses this file to You under the Apache License, Version 2.0</span>
+<span class="c1"># (the &quot;License&quot;); you may not use this file except in compliance with</span>
+<span class="c1"># the License.  You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1">#    http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.</span>
+<span class="c1"># See the License for the specific language governing permissions and</span>
+<span class="c1"># limitations under the License.</span>
+<span class="c1">#</span>
+<span class="sd">&quot;&quot;&quot;Unit tests for the apiclient module.&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">unittest</span>
+
+<span class="kn">from</span> <span class="nn">mock</span> <span class="k">import</span> <span class="n">Mock</span>
+
+<span class="kn">from</span> <span class="nn">apache_beam.metrics.cells</span> <span class="k">import</span> <span class="n">DistributionData</span>
+<span class="kn">from</span> <span class="nn">apache_beam.utils.pipeline_options</span> <span class="k">import</span> <span class="n">PipelineOptions</span>
+
+<span class="kn">from</span> <span class="nn">apache_beam.runners.dataflow.dataflow_runner</span> <span class="k">import</span> <span class="n">DataflowRunner</span>
+<span class="kn">from</span> <span class="nn">apache_beam.runners.dataflow.internal.clients</span> <span class="k">import</span> <span class="n">dataflow</span>
+
+<span class="c1"># Protect against environments where apitools library is not available.</span>
+<span class="c1"># pylint: disable=wrong-import-order, wrong-import-position</span>
+<span class="k">try</span><span class="p">:</span>
+  <span class="kn">from</span> <span class="nn">apache_beam.runners.dataflow.internal</span> <span class="k">import</span> <span class="n">apiclient</span>
+<span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
+  <span class="n">apiclient</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="c1"># pylint: enable=wrong-import-order, wrong-import-position</span>
+
+
+<span class="nd">@unittest</span><span class="o">.</span><span class="n">skipIf</span><span class="p">(</span><span class="n">apiclient</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">,</span> <span class="s1">&#39;GCP dependencies are not installed&#39;</span><span class="p">)</span>
+<div class="viewcode-block" id="UtilTest"><a class="viewcode-back" href="../../../../../apache_beam.runners.dataflow.internal.html#apache_beam.runners.dataflow.internal.apiclient_test.UtilTest">[docs]</a><span class="k">class</span> <span class="nc">UtilTest</span><span class="p">(</span><span class="n">unittest</span><span class="o">.</span><span class="n">TestCase</span><span class="p">):</span>
+
+  <span class="nd">@unittest</span><span class="o">.</span><span class="n">skip</span><span class="p">(</span><span class="s2">&quot;Enable once BEAM-1080 is fixed.&quot;</span><span class="p">)</span>
+<div class="viewcode-block" id="UtilTest.test_create_application_client"><a class="viewcode-back" href="../../../../../apache_beam.runners.dataflow.internal.html#apache_beam.runners.dataflow.internal.apiclient_test.UtilTest.test_create_application_client">[docs]</a>  <span class="k">def</span> <span class="nf">test_create_application_client</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">pipeline_options</span> <span class="o">=</span> <span class="n">PipelineOptions</span><span class="p">()</span>
+    <span class="n">apiclient</span><span class="o">.</span><span class="n">DataflowApplicationClient</span><span class="p">(</span>
+        <span class="n">pipeline_options</span><span class="p">,</span>
+        <span class="n">DataflowRunner</span><span class="o">.</span><span class="n">BATCH_ENVIRONMENT_MAJOR_VERSION</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="UtilTest.test_default_job_name"><a class="viewcode-back" href="../../../../../apache_beam.runners.dataflow.internal.html#apache_beam.runners.dataflow.internal.apiclient_test.UtilTest.test_default_job_name">[docs]</a>  <span class="k">def</span> <span class="nf">test_default_job_name</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">job_name</span> <span class="o">=</span> <span class="n">apiclient</span><span class="o">.</span><span class="n">Job</span><span class="o">.</span><span class="n">default_job_name</span><span class="p">(</span><span class="kc">None</span><span class="p">)</span>
+    <span class="n">regexp</span> <span class="o">=</span> <span class="s1">&#39;beamapp-.*-[0-9]</span><span class="si">{10}</span><span class="s1">-[0-9]</span><span class="si">{6}</span><span class="s1">&#39;</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertRegexpMatches</span><span class="p">(</span><span class="n">job_name</span><span class="p">,</span> <span class="n">regexp</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="UtilTest.test_split_int"><a class="viewcode-back" href="../../../../../apache_beam.runners.dataflow.internal.html#apache_beam.runners.dataflow.internal.apiclient_test.UtilTest.test_split_int">[docs]</a>  <span class="k">def</span> <span class="nf">test_split_int</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">number</span> <span class="o">=</span> <span class="mi">12345</span>
+    <span class="n">split_number</span> <span class="o">=</span> <span class="n">apiclient</span><span class="o">.</span><span class="n">to_split_int</span><span class="p">(</span><span class="n">number</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">((</span><span class="n">split_number</span><span class="o">.</span><span class="n">lowBits</span><span class="p">,</span> <span class="n">split_number</span><span class="o">.</span><span class="n">highBits</span><span class="p">),</span>
+                     <span class="p">(</span><span class="n">number</span><span class="p">,</span> <span class="mi">0</span><span class="p">))</span>
+    <span class="n">shift_number</span> <span class="o">=</span> <span class="n">number</span> <span class="o">&lt;&lt;</span> <span class="mi">32</span>
+    <span class="n">split_number</span> <span class="o">=</span> <span class="n">apiclient</span><span class="o">.</span><span class="n">to_split_int</span><span class="p">(</span><span class="n">shift_number</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">((</span><span class="n">split_number</span><span class="o">.</span><span class="n">lowBits</span><span class="p">,</span> <span class="n">split_number</span><span class="o">.</span><span class="n">highBits</span><span class="p">),</span>
+                     <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">number</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="UtilTest.test_translate_distribution"><a class="viewcode-back" href="../../../../../apache_beam.runners.dataflow.internal.html#apache_beam.runners.dataflow.internal.apiclient_test.UtilTest.test_translate_distribution">[docs]</a>  <span class="k">def</span> <span class="nf">test_translate_distribution</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">metric_update</span> <span class="o">=</span> <span class="n">dataflow</span><span class="o">.</span><span class="n">CounterUpdate</span><span class="p">()</span>
+    <span class="n">distribution_update</span> <span class="o">=</span> <span class="n">DistributionData</span><span class="p">(</span><span class="mi">16</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">15</span><span class="p">)</span>
+    <span class="n">apiclient</span><span class="o">.</span><span class="n">translate_distribution</span><span class="p">(</span><span class="n">distribution_update</span><span class="p">,</span> <span class="n">metric_update</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">metric_update</span><span class="o">.</span><span class="n">distribution</span><span class="o">.</span><span class="n">min</span><span class="o">.</span><span class="n">lowBits</span><span class="p">,</span>
+                     <span class="n">distribution_update</span><span class="o">.</span><span class="n">min</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">metric_update</span><span class="o">.</span><span class="n">distribution</span><span class="o">.</span><span class="n">max</span><span class="o">.</span><span class="n">lowBits</span><span class="p">,</span>
+                     <span class="n">distribution_update</span><span class="o">.</span><span class="n">max</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">metric_update</span><span class="o">.</span><span class="n">distribution</span><span class="o">.</span><span class="n">sum</span><span class="o">.</span><span class="n">lowBits</span><span class="p">,</span>
+                     <span class="n">distribution_update</span><span class="o">.</span><span class="n">sum</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">metric_update</span><span class="o">.</span><span class="n">distribution</span><span class="o">.</span><span class="n">count</span><span class="o">.</span><span class="n">lowBits</span><span class="p">,</span>
+                     <span class="n">distribution_update</span><span class="o">.</span><span class="n">count</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="UtilTest.test_translate_means"><a class="viewcode-back" href="../../../../../apache_beam.runners.dataflow.internal.html#apache_beam.runners.dataflow.internal.apiclient_test.UtilTest.test_translate_means">[docs]</a>  <span class="k">def</span> <span class="nf">test_translate_means</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">metric_update</span> <span class="o">=</span> <span class="n">dataflow</span><span class="o">.</span><span class="n">CounterUpdate</span><span class="p">()</span>
+    <span class="n">accumulator</span> <span class="o">=</span> <span class="n">Mock</span><span class="p">()</span>
+    <span class="n">accumulator</span><span class="o">.</span><span class="n">sum</span> <span class="o">=</span> <span class="mi">16</span>
+    <span class="n">accumulator</span><span class="o">.</span><span class="n">count</span> <span class="o">=</span> <span class="mi">2</span>
+    <span class="n">apiclient</span><span class="o">.</span><span class="n">MetricUpdateTranslators</span><span class="o">.</span><span class="n">translate_scalar_mean_int</span><span class="p">(</span><span class="n">accumulator</span><span class="p">,</span>
+                                                                <span class="n">metric_update</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">metric_update</span><span class="o">.</span><span class="n">integerMean</span><span class="o">.</span><span class="n">sum</span><span class="o">.</span><span class="n">lowBits</span><span class="p">,</span> <span class="n">accumulator</span><span class="o">.</span><span class="n">sum</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">metric_update</span><span class="o">.</span><span class="n">integerMean</span><span class="o">.</span><span class="n">count</span><span class="o">.</span><span class="n">lowBits</span><span class="p">,</span> <span class="n">accumulator</span><span class="o">.</span><span class="n">count</span><span class="p">)</span>
+
+    <span class="n">accumulator</span><span class="o">.</span><span class="n">sum</span> <span class="o">=</span> <span class="mf">16.0</span>
+    <span class="n">accumulator</span><span class="o">.</span><span class="n">count</span> <span class="o">=</span> <span class="mi">2</span>
+    <span class="n">apiclient</span><span class="o">.</span><span class="n">MetricUpdateTranslators</span><span class="o">.</span><span class="n">translate_scalar_mean_float</span><span class="p">(</span><span class="n">accumulator</span><span class="p">,</span>
+                                                                  <span class="n">metric_update</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">metric_update</span><span class="o">.</span><span class="n">floatingPointMean</span><span class="o">.</span><span class="n">sum</span><span class="p">,</span> <span class="n">accumulator</span><span class="o">.</span><span class="n">sum</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span>
+        <span class="n">metric_update</span><span class="o">.</span><span class="n">floatingPointMean</span><span class="o">.</span><span class="n">count</span><span class="o">.</span><span class="n">lowBits</span><span class="p">,</span> <span class="n">accumulator</span><span class="o">.</span><span class="n">count</span><span class="p">)</span></div></div>
+
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s1">&#39;__main__&#39;</span><span class="p">:</span>
+  <span class="n">unittest</span><span class="o">.</span><span class="n">main</span><span class="p">()</span>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../../../index.html" >Module code</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright .
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.5.3.
+    </div>
+  </body>
+</html>

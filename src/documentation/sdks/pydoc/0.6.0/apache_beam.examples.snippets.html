@@ -1,0 +1,810 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>apache_beam.examples.snippets package &#8212; Apache Beam  documentation</title>
+    
+    <link rel="stylesheet" href="_static/sphinxdoc.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="apache_beam.internal package" href="apache_beam.internal.html" />
+    <link rel="prev" title="apache_beam.examples.cookbook package" href="apache_beam.examples.cookbook.html" /> 
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="apache_beam.internal.html" title="apache_beam.internal package"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="apache_beam.examples.cookbook.html" title="apache_beam.examples.cookbook package"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="apache_beam.html" >apache_beam package</a> &#187;</li>
+          <li class="nav-item nav-item-2"><a href="apache_beam.examples.html" accesskey="U">apache_beam.examples package</a> &#187;</li> 
+      </ul>
+    </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">apache_beam.examples.snippets package</a><ul>
+<li><a class="reference internal" href="#submodules">Submodules</a></li>
+<li><a class="reference internal" href="#module-apache_beam.examples.snippets.snippets">apache_beam.examples.snippets.snippets module</a></li>
+<li><a class="reference internal" href="#module-apache_beam.examples.snippets.snippets_test">apache_beam.examples.snippets.snippets_test module</a></li>
+<li><a class="reference internal" href="#module-apache_beam.examples.snippets">Module contents</a></li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="apache_beam.examples.cookbook.html"
+                        title="previous chapter">apache_beam.examples.cookbook package</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="apache_beam.internal.html"
+                        title="next chapter">apache_beam.internal package</a></p>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="_sources/apache_beam.examples.snippets.rst.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="apache-beam-examples-snippets-package">
+<h1>apache_beam.examples.snippets package<a class="headerlink" href="#apache-beam-examples-snippets-package" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="submodules">
+<h2>Submodules<a class="headerlink" href="#submodules" title="Permalink to this headline">¶</a></h2>
+</div>
+<div class="section" id="module-apache_beam.examples.snippets.snippets">
+<span id="apache-beam-examples-snippets-snippets-module"></span><h2>apache_beam.examples.snippets.snippets module<a class="headerlink" href="#module-apache_beam.examples.snippets.snippets" title="Permalink to this headline">¶</a></h2>
+<p>Code snippets used in webdocs.</p>
+<p>The examples here are written specifically to read well with the accompanying
+web docs. Do not rewrite them until you make sure the webdocs still read well
+and the rewritten code supports the concept being described. For example, there
+are snippets that could be shorter but they are written like this to make a
+specific point in the docs.</p>
+<p>The code snippets are all organized as self contained functions. Parts of the
+function body delimited by [START tag] and [END tag] will be included
+automatically in the web docs. The naming convention for the tags is to have as
+prefix the PATH_TO_HTML where they are included followed by a descriptive
+string. The tags can contain only letters, digits and _.</p>
+<dl class="class">
+<dt id="apache_beam.examples.snippets.snippets.Count">
+<em class="property">class </em><code class="descclassname">apache_beam.examples.snippets.snippets.</code><code class="descname">Count</code><span class="sig-paren">(</span><em>label=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/snippets/snippets.html#Count"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.snippets.snippets.Count" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="apache_beam.transforms.html#apache_beam.transforms.ptransform.PTransform" title="apache_beam.transforms.ptransform.PTransform"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.transforms.ptransform.PTransform</span></code></a></p>
+<dl class="method">
+<dt id="apache_beam.examples.snippets.snippets.Count.expand">
+<code class="descname">expand</code><span class="sig-paren">(</span><em>pcoll</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/snippets/snippets.html#Count.expand"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.snippets.snippets.Count.expand" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.examples.snippets.snippets.Keys">
+<em class="property">class </em><code class="descclassname">apache_beam.examples.snippets.snippets.</code><code class="descname">Keys</code><span class="sig-paren">(</span><em>label=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/snippets/snippets.html#Keys"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.snippets.snippets.Keys" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="apache_beam.transforms.html#apache_beam.transforms.ptransform.PTransform" title="apache_beam.transforms.ptransform.PTransform"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.transforms.ptransform.PTransform</span></code></a></p>
+<dl class="method">
+<dt id="apache_beam.examples.snippets.snippets.Keys.expand">
+<code class="descname">expand</code><span class="sig-paren">(</span><em>pcoll</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/snippets/snippets.html#Keys.expand"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.snippets.snippets.Keys.expand" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.examples.snippets.snippets.SnippetUtils">
+<em class="property">class </em><code class="descclassname">apache_beam.examples.snippets.snippets.</code><code class="descname">SnippetUtils</code><a class="reference internal" href="_modules/apache_beam/examples/snippets/snippets.html#SnippetUtils"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.snippets.snippets.SnippetUtils" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">object</span></code></p>
+<dl class="class">
+<dt id="apache_beam.examples.snippets.snippets.SnippetUtils.PipelineVisitor">
+<em class="property">class </em><code class="descname">PipelineVisitor</code><a class="headerlink" href="#apache_beam.examples.snippets.snippets.SnippetUtils.PipelineVisitor" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">object</span></code></p>
+<p>Visitor pattern class used to traverse a DAG of transforms.</p>
+<p>This is an internal class used for bookkeeping by a Pipeline.</p>
+<dl class="method">
+<dt id="apache_beam.examples.snippets.snippets.SnippetUtils.PipelineVisitor.enter_composite_transform">
+<code class="descname">enter_composite_transform</code><span class="sig-paren">(</span><em>transform_node</em><span class="sig-paren">)</span><a class="headerlink" href="#apache_beam.examples.snippets.snippets.SnippetUtils.PipelineVisitor.enter_composite_transform" title="Permalink to this definition">¶</a></dt>
+<dd><p>Callback for entering traversal of a composite transform node.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.examples.snippets.snippets.SnippetUtils.PipelineVisitor.leave_composite_transform">
+<code class="descname">leave_composite_transform</code><span class="sig-paren">(</span><em>transform_node</em><span class="sig-paren">)</span><a class="headerlink" href="#apache_beam.examples.snippets.snippets.SnippetUtils.PipelineVisitor.leave_composite_transform" title="Permalink to this definition">¶</a></dt>
+<dd><p>Callback for leaving traversal of a composite transform node.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.examples.snippets.snippets.SnippetUtils.PipelineVisitor.visit_transform">
+<code class="descname">visit_transform</code><span class="sig-paren">(</span><em>transform_node</em><span class="sig-paren">)</span><a class="headerlink" href="#apache_beam.examples.snippets.snippets.SnippetUtils.PipelineVisitor.visit_transform" title="Permalink to this definition">¶</a></dt>
+<dd><p>Callback for visiting a transform node in the pipeline DAG.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.examples.snippets.snippets.SnippetUtils.PipelineVisitor.visit_value">
+<code class="descname">visit_value</code><span class="sig-paren">(</span><em>value</em>, <em>producer_node</em><span class="sig-paren">)</span><a class="headerlink" href="#apache_beam.examples.snippets.snippets.SnippetUtils.PipelineVisitor.visit_value" title="Permalink to this definition">¶</a></dt>
+<dd><p>Callback for visiting a PValue in the pipeline DAG.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>value</strong> &#8211; PValue visited (typically a PCollection instance).</li>
+<li><strong>producer_node</strong> &#8211; AppliedPTransform object whose transform produced the
+pvalue.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.examples.snippets.snippets.SnippetUtils.RenameFiles">
+<em class="property">class </em><code class="descclassname">SnippetUtils.</code><code class="descname">RenameFiles</code><span class="sig-paren">(</span><em>renames</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/snippets/snippets.html#SnippetUtils.RenameFiles"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.snippets.snippets.SnippetUtils.RenameFiles" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="apache_beam.html#apache_beam.pipeline.PipelineVisitor" title="apache_beam.pipeline.PipelineVisitor"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.pipeline.PipelineVisitor</span></code></a></p>
+<p>RenameFiles will rewire read/write paths for unit testing.</p>
+<p>RenameFiles will replace the GCS files specified in the read and
+write transforms to local files so the pipeline can be run as a
+unit test. This assumes that read and write transforms defined in snippets
+have already been replaced by transforms &#8216;DummyReadForTesting&#8217; and
+&#8216;DummyReadForTesting&#8217; (see snippets_test.py).</p>
+<p>This is as close as we can get to have code snippets that are
+executed and are also ready to presented in webdocs.</p>
+<dl class="method">
+<dt id="apache_beam.examples.snippets.snippets.SnippetUtils.RenameFiles.visit_transform">
+<code class="descname">visit_transform</code><span class="sig-paren">(</span><em>transform_node</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/snippets/snippets.html#SnippetUtils.RenameFiles.visit_transform"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.snippets.snippets.SnippetUtils.RenameFiles.visit_transform" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.examples.snippets.snippets.construct_pipeline">
+<code class="descclassname">apache_beam.examples.snippets.snippets.</code><code class="descname">construct_pipeline</code><span class="sig-paren">(</span><em>renames</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/snippets/snippets.html#construct_pipeline"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.snippets.snippets.construct_pipeline" title="Permalink to this definition">¶</a></dt>
+<dd><p>A reverse words snippet as an example for constructing a pipeline.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.examples.snippets.snippets.examples_wordcount_debugging">
+<code class="descclassname">apache_beam.examples.snippets.snippets.</code><code class="descname">examples_wordcount_debugging</code><span class="sig-paren">(</span><em>renames</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/snippets/snippets.html#examples_wordcount_debugging"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.snippets.snippets.examples_wordcount_debugging" title="Permalink to this definition">¶</a></dt>
+<dd><p>DebuggingWordCount example snippets.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.examples.snippets.snippets.examples_wordcount_minimal">
+<code class="descclassname">apache_beam.examples.snippets.snippets.</code><code class="descname">examples_wordcount_minimal</code><span class="sig-paren">(</span><em>renames</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/snippets/snippets.html#examples_wordcount_minimal"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.snippets.snippets.examples_wordcount_minimal" title="Permalink to this definition">¶</a></dt>
+<dd><p>MinimalWordCount example snippets.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.examples.snippets.snippets.examples_wordcount_wordcount">
+<code class="descclassname">apache_beam.examples.snippets.snippets.</code><code class="descname">examples_wordcount_wordcount</code><span class="sig-paren">(</span><em>renames</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/snippets/snippets.html#examples_wordcount_wordcount"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.snippets.snippets.examples_wordcount_wordcount" title="Permalink to this definition">¶</a></dt>
+<dd><p>WordCount example snippets.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.examples.snippets.snippets.model_bigqueryio">
+<code class="descclassname">apache_beam.examples.snippets.snippets.</code><code class="descname">model_bigqueryio</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/snippets/snippets.html#model_bigqueryio"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.snippets.snippets.model_bigqueryio" title="Permalink to this definition">¶</a></dt>
+<dd><p>Using a Read and Write transform to read/write to BigQuery.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.examples.snippets.snippets.model_co_group_by_key_tuple">
+<code class="descclassname">apache_beam.examples.snippets.snippets.</code><code class="descname">model_co_group_by_key_tuple</code><span class="sig-paren">(</span><em>email_list</em>, <em>phone_list</em>, <em>output_path</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/snippets/snippets.html#model_co_group_by_key_tuple"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.snippets.snippets.model_co_group_by_key_tuple" title="Permalink to this definition">¶</a></dt>
+<dd><p>Applying a CoGroupByKey Transform to a tuple.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.examples.snippets.snippets.model_composite_transform_example">
+<code class="descclassname">apache_beam.examples.snippets.snippets.</code><code class="descname">model_composite_transform_example</code><span class="sig-paren">(</span><em>contents</em>, <em>output_path</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/snippets/snippets.html#model_composite_transform_example"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.snippets.snippets.model_composite_transform_example" title="Permalink to this definition">¶</a></dt>
+<dd><p>Example of a composite transform.</p>
+<p>To declare a composite transform, define a subclass of PTransform.</p>
+<p>To override the apply method, define a method &#8220;apply&#8221; that
+takes a PCollection as its only parameter and returns a PCollection.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.examples.snippets.snippets.model_custom_sink">
+<code class="descclassname">apache_beam.examples.snippets.snippets.</code><code class="descname">model_custom_sink</code><span class="sig-paren">(</span><em>simplekv</em>, <em>KVs</em>, <em>final_table_name_no_ptransform</em>, <em>final_table_name_with_ptransform</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/snippets/snippets.html#model_custom_sink"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.snippets.snippets.model_custom_sink" title="Permalink to this definition">¶</a></dt>
+<dd><p>Demonstrates creating a new custom sink and using it in a pipeline.</p>
+<p>Defines a new sink <code class="docutils literal"><span class="pre">SimpleKVSink</span></code> that demonstrates writing to a simple
+key-value based storage system which has following API.</p>
+<blockquote>
+<div><dl class="docutils">
+<dt>simplekv.connect(url) -</dt>
+<dd>connects to the storage system and returns an access token which can be
+used to perform further operations</dd>
+<dt>simplekv.open_table(access_token, table_name) -</dt>
+<dd>creates a table named &#8216;table_name&#8217;. Returns a table object.</dd>
+<dt>simplekv.write_to_table(access_token, table, key, value) -</dt>
+<dd>writes a key-value pair to the given table.</dd>
+<dt>simplekv.rename_table(access_token, old_name, new_name) -</dt>
+<dd>renames the table named &#8216;old_name&#8217; to &#8216;new_name&#8217;.</dd>
+</dl>
+</div></blockquote>
+<p>Uses the new sink in an example pipeline.</p>
+<p>Additionally demonstrates how a sink should be implemented using a
+<code class="docutils literal"><span class="pre">PTransform</span></code>. This is the recommended way to develop sinks that are to be
+distributed to a large number of end users.</p>
+<p>This method runs two pipelines.</p>
+<ol class="arabic simple">
+<li>A pipeline that uses <code class="docutils literal"><span class="pre">SimpleKVSink</span></code> directly using the <code class="docutils literal"><span class="pre">df.Write</span></code>
+transform.</li>
+<li>A pipeline that uses a custom <code class="docutils literal"><span class="pre">PTransform</span></code> that wraps
+<code class="docutils literal"><span class="pre">SimpleKVSink</span></code>.</li>
+</ol>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>simplekv</strong> &#8211; an object that mocks the key-value storage.</li>
+<li><strong>KVs</strong> &#8211; the set of key-value pairs to be written in the example pipeline.</li>
+<li><strong>final_table_name_no_ptransform</strong> &#8211; the prefix of final set of tables to be
+created by the example pipeline that uses
+<code class="docutils literal"><span class="pre">SimpleKVSink</span></code> directly.</li>
+<li><strong>final_table_name_with_ptransform</strong> &#8211; the prefix of final set of tables to be
+created by the example pipeline that uses
+a <code class="docutils literal"><span class="pre">PTransform</span></code> that wraps
+<code class="docutils literal"><span class="pre">SimpleKVSink</span></code>.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.examples.snippets.snippets.model_custom_source">
+<code class="descclassname">apache_beam.examples.snippets.snippets.</code><code class="descname">model_custom_source</code><span class="sig-paren">(</span><em>count</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/snippets/snippets.html#model_custom_source"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.snippets.snippets.model_custom_source" title="Permalink to this definition">¶</a></dt>
+<dd><p>Demonstrates creating a new custom source and using it in a pipeline.</p>
+<p>Defines a new source <code class="docutils literal"><span class="pre">CountingSource</span></code> that produces integers starting from 0
+up to a given size.</p>
+<p>Uses the new source in an example pipeline.</p>
+<p>Additionally demonstrates how a source should be implemented using a
+<code class="docutils literal"><span class="pre">PTransform</span></code>. This is the recommended way to develop sources that are to
+distributed to a large number of end users.</p>
+<p>This method runs two pipelines.</p>
+<ol class="arabic simple">
+<li>A pipeline that uses <code class="docutils literal"><span class="pre">CountingSource</span></code> directly using the <code class="docutils literal"><span class="pre">df.Read</span></code>
+transform.</li>
+<li>A pipeline that uses a custom <code class="docutils literal"><span class="pre">PTransform</span></code> that wraps
+<code class="docutils literal"><span class="pre">CountingSource</span></code>.</li>
+</ol>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>count</strong> &#8211; the size of the counting source to be used in the pipeline
+demonstrated in this method.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.examples.snippets.snippets.model_datastoreio">
+<code class="descclassname">apache_beam.examples.snippets.snippets.</code><code class="descname">model_datastoreio</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/snippets/snippets.html#model_datastoreio"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.snippets.snippets.model_datastoreio" title="Permalink to this definition">¶</a></dt>
+<dd><p>Using a Read and Write transform to read/write to Cloud Datastore.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.examples.snippets.snippets.model_group_by_key">
+<code class="descclassname">apache_beam.examples.snippets.snippets.</code><code class="descname">model_group_by_key</code><span class="sig-paren">(</span><em>contents</em>, <em>output_path</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/snippets/snippets.html#model_group_by_key"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.snippets.snippets.model_group_by_key" title="Permalink to this definition">¶</a></dt>
+<dd><p>Applying a GroupByKey Transform.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.examples.snippets.snippets.model_join_using_side_inputs">
+<code class="descclassname">apache_beam.examples.snippets.snippets.</code><code class="descname">model_join_using_side_inputs</code><span class="sig-paren">(</span><em>name_list</em>, <em>email_list</em>, <em>phone_list</em>, <em>output_path</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/snippets/snippets.html#model_join_using_side_inputs"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.snippets.snippets.model_join_using_side_inputs" title="Permalink to this definition">¶</a></dt>
+<dd><p>Joining PCollections using side inputs.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.examples.snippets.snippets.model_multiple_pcollections_flatten">
+<code class="descclassname">apache_beam.examples.snippets.snippets.</code><code class="descname">model_multiple_pcollections_flatten</code><span class="sig-paren">(</span><em>contents</em>, <em>output_path</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/snippets/snippets.html#model_multiple_pcollections_flatten"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.snippets.snippets.model_multiple_pcollections_flatten" title="Permalink to this definition">¶</a></dt>
+<dd><p>Merging a PCollection with Flatten.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.examples.snippets.snippets.model_multiple_pcollections_partition">
+<code class="descclassname">apache_beam.examples.snippets.snippets.</code><code class="descname">model_multiple_pcollections_partition</code><span class="sig-paren">(</span><em>contents</em>, <em>output_path</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/snippets/snippets.html#model_multiple_pcollections_partition"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.snippets.snippets.model_multiple_pcollections_partition" title="Permalink to this definition">¶</a></dt>
+<dd><p>Splitting a PCollection with Partition.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.examples.snippets.snippets.model_pcollection">
+<code class="descclassname">apache_beam.examples.snippets.snippets.</code><code class="descname">model_pcollection</code><span class="sig-paren">(</span><em>argv</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/snippets/snippets.html#model_pcollection"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.snippets.snippets.model_pcollection" title="Permalink to this definition">¶</a></dt>
+<dd><p>Creating a PCollection from data in local memory.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.examples.snippets.snippets.model_pipelines">
+<code class="descclassname">apache_beam.examples.snippets.snippets.</code><code class="descname">model_pipelines</code><span class="sig-paren">(</span><em>argv</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/snippets/snippets.html#model_pipelines"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.snippets.snippets.model_pipelines" title="Permalink to this definition">¶</a></dt>
+<dd><p>A wordcount snippet as a simple pipeline example.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.examples.snippets.snippets.model_textio">
+<code class="descclassname">apache_beam.examples.snippets.snippets.</code><code class="descname">model_textio</code><span class="sig-paren">(</span><em>renames</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/snippets/snippets.html#model_textio"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.snippets.snippets.model_textio" title="Permalink to this definition">¶</a></dt>
+<dd><p>Using a Read and Write transform to read/write text files.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.examples.snippets.snippets.model_textio_compressed">
+<code class="descclassname">apache_beam.examples.snippets.snippets.</code><code class="descname">model_textio_compressed</code><span class="sig-paren">(</span><em>renames</em>, <em>expected</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/snippets/snippets.html#model_textio_compressed"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.snippets.snippets.model_textio_compressed" title="Permalink to this definition">¶</a></dt>
+<dd><p>Using a Read Transform to read compressed text files.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.examples.snippets.snippets.pipeline_logging">
+<code class="descclassname">apache_beam.examples.snippets.snippets.</code><code class="descname">pipeline_logging</code><span class="sig-paren">(</span><em>lines</em>, <em>output</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/snippets/snippets.html#pipeline_logging"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.snippets.snippets.pipeline_logging" title="Permalink to this definition">¶</a></dt>
+<dd><p>Logging Pipeline Messages.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.examples.snippets.snippets.pipeline_monitoring">
+<code class="descclassname">apache_beam.examples.snippets.snippets.</code><code class="descname">pipeline_monitoring</code><span class="sig-paren">(</span><em>renames</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/snippets/snippets.html#pipeline_monitoring"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.snippets.snippets.pipeline_monitoring" title="Permalink to this definition">¶</a></dt>
+<dd><p>Using monitoring interface snippets.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.examples.snippets.snippets.pipeline_options_command_line">
+<code class="descclassname">apache_beam.examples.snippets.snippets.</code><code class="descname">pipeline_options_command_line</code><span class="sig-paren">(</span><em>argv</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/snippets/snippets.html#pipeline_options_command_line"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.snippets.snippets.pipeline_options_command_line" title="Permalink to this definition">¶</a></dt>
+<dd><p>Creating a Pipeline by passing a list of arguments.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.examples.snippets.snippets.pipeline_options_local">
+<code class="descclassname">apache_beam.examples.snippets.snippets.</code><code class="descname">pipeline_options_local</code><span class="sig-paren">(</span><em>argv</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/snippets/snippets.html#pipeline_options_local"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.snippets.snippets.pipeline_options_local" title="Permalink to this definition">¶</a></dt>
+<dd><p>Creating a Pipeline using a PipelineOptions object for local execution.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.examples.snippets.snippets.pipeline_options_remote">
+<code class="descclassname">apache_beam.examples.snippets.snippets.</code><code class="descname">pipeline_options_remote</code><span class="sig-paren">(</span><em>argv</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/snippets/snippets.html#pipeline_options_remote"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.snippets.snippets.pipeline_options_remote" title="Permalink to this definition">¶</a></dt>
+<dd><p>Creating a Pipeline using a PipelineOptions object for remote execution.</p>
+</dd></dl>
+
+</div>
+<div class="section" id="module-apache_beam.examples.snippets.snippets_test">
+<span id="apache-beam-examples-snippets-snippets-test-module"></span><h2>apache_beam.examples.snippets.snippets_test module<a class="headerlink" href="#module-apache_beam.examples.snippets.snippets_test" title="Permalink to this headline">¶</a></h2>
+<p>Tests for all code snippets used in public docs.</p>
+<dl class="class">
+<dt id="apache_beam.examples.snippets.snippets_test.CombineTest">
+<em class="property">class </em><code class="descclassname">apache_beam.examples.snippets.snippets_test.</code><code class="descname">CombineTest</code><span class="sig-paren">(</span><em>methodName='runTest'</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/snippets/snippets_test.html#CombineTest"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.snippets.snippets_test.CombineTest" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">unittest.case.TestCase</span></code></p>
+<p>Tests for model/combine.</p>
+<dl class="method">
+<dt id="apache_beam.examples.snippets.snippets_test.CombineTest.test_bounded_sum">
+<code class="descname">test_bounded_sum</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/snippets/snippets_test.html#CombineTest.test_bounded_sum"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.snippets.snippets_test.CombineTest.test_bounded_sum" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.examples.snippets.snippets_test.CombineTest.test_combine_concat">
+<code class="descname">test_combine_concat</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/snippets/snippets_test.html#CombineTest.test_combine_concat"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.snippets.snippets_test.CombineTest.test_combine_concat" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.examples.snippets.snippets_test.CombineTest.test_combine_per_key">
+<code class="descname">test_combine_per_key</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/snippets/snippets_test.html#CombineTest.test_combine_per_key"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.snippets.snippets_test.CombineTest.test_combine_per_key" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.examples.snippets.snippets_test.CombineTest.test_combine_reduce">
+<code class="descname">test_combine_reduce</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/snippets/snippets_test.html#CombineTest.test_combine_reduce"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.snippets.snippets_test.CombineTest.test_combine_reduce" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.examples.snippets.snippets_test.CombineTest.test_combine_values">
+<code class="descname">test_combine_values</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/snippets/snippets_test.html#CombineTest.test_combine_values"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.snippets.snippets_test.CombineTest.test_combine_values" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.examples.snippets.snippets_test.CombineTest.test_count">
+<code class="descname">test_count</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/snippets/snippets_test.html#CombineTest.test_count"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.snippets.snippets_test.CombineTest.test_count" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.examples.snippets.snippets_test.CombineTest.test_custom_average">
+<code class="descname">test_custom_average</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/snippets/snippets_test.html#CombineTest.test_custom_average"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.snippets.snippets_test.CombineTest.test_custom_average" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.examples.snippets.snippets_test.CombineTest.test_global_sum">
+<code class="descname">test_global_sum</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/snippets/snippets_test.html#CombineTest.test_global_sum"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.snippets.snippets_test.CombineTest.test_global_sum" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.examples.snippets.snippets_test.CombineTest.test_keys">
+<code class="descname">test_keys</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/snippets/snippets_test.html#CombineTest.test_keys"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.snippets.snippets_test.CombineTest.test_keys" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.examples.snippets.snippets_test.CombineTest.test_setting_fixed_windows">
+<code class="descname">test_setting_fixed_windows</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/snippets/snippets_test.html#CombineTest.test_setting_fixed_windows"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.snippets.snippets_test.CombineTest.test_setting_fixed_windows" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.examples.snippets.snippets_test.CombineTest.test_setting_global_window">
+<code class="descname">test_setting_global_window</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/snippets/snippets_test.html#CombineTest.test_setting_global_window"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.snippets.snippets_test.CombineTest.test_setting_global_window" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.examples.snippets.snippets_test.CombineTest.test_setting_session_windows">
+<code class="descname">test_setting_session_windows</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/snippets/snippets_test.html#CombineTest.test_setting_session_windows"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.snippets.snippets_test.CombineTest.test_setting_session_windows" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.examples.snippets.snippets_test.CombineTest.test_setting_sliding_windows">
+<code class="descname">test_setting_sliding_windows</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/snippets/snippets_test.html#CombineTest.test_setting_sliding_windows"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.snippets.snippets_test.CombineTest.test_setting_sliding_windows" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.examples.snippets.snippets_test.CombineTest.test_setting_timestamp">
+<code class="descname">test_setting_timestamp</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/snippets/snippets_test.html#CombineTest.test_setting_timestamp"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.snippets.snippets_test.CombineTest.test_setting_timestamp" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.examples.snippets.snippets_test.ParDoTest">
+<em class="property">class </em><code class="descclassname">apache_beam.examples.snippets.snippets_test.</code><code class="descname">ParDoTest</code><span class="sig-paren">(</span><em>methodName='runTest'</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/snippets/snippets_test.html#ParDoTest"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.snippets.snippets_test.ParDoTest" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">unittest.case.TestCase</span></code></p>
+<p>Tests for model/par-do.</p>
+<dl class="method">
+<dt id="apache_beam.examples.snippets.snippets_test.ParDoTest.test_pardo">
+<code class="descname">test_pardo</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/snippets/snippets_test.html#ParDoTest.test_pardo"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.snippets.snippets_test.ParDoTest.test_pardo" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.examples.snippets.snippets_test.ParDoTest.test_pardo_side_input">
+<code class="descname">test_pardo_side_input</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/snippets/snippets_test.html#ParDoTest.test_pardo_side_input"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.snippets.snippets_test.ParDoTest.test_pardo_side_input" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.examples.snippets.snippets_test.ParDoTest.test_pardo_side_input_dofn">
+<code class="descname">test_pardo_side_input_dofn</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/snippets/snippets_test.html#ParDoTest.test_pardo_side_input_dofn"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.snippets.snippets_test.ParDoTest.test_pardo_side_input_dofn" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.examples.snippets.snippets_test.ParDoTest.test_pardo_using_flatmap">
+<code class="descname">test_pardo_using_flatmap</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/snippets/snippets_test.html#ParDoTest.test_pardo_using_flatmap"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.snippets.snippets_test.ParDoTest.test_pardo_using_flatmap" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.examples.snippets.snippets_test.ParDoTest.test_pardo_using_flatmap_yield">
+<code class="descname">test_pardo_using_flatmap_yield</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/snippets/snippets_test.html#ParDoTest.test_pardo_using_flatmap_yield"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.snippets.snippets_test.ParDoTest.test_pardo_using_flatmap_yield" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.examples.snippets.snippets_test.ParDoTest.test_pardo_using_map">
+<code class="descname">test_pardo_using_map</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/snippets/snippets_test.html#ParDoTest.test_pardo_using_map"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.snippets.snippets_test.ParDoTest.test_pardo_using_map" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.examples.snippets.snippets_test.ParDoTest.test_pardo_with_label">
+<code class="descname">test_pardo_with_label</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/snippets/snippets_test.html#ParDoTest.test_pardo_with_label"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.snippets.snippets_test.ParDoTest.test_pardo_with_label" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.examples.snippets.snippets_test.ParDoTest.test_pardo_with_side_outputs">
+<code class="descname">test_pardo_with_side_outputs</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/snippets/snippets_test.html#ParDoTest.test_pardo_with_side_outputs"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.snippets.snippets_test.ParDoTest.test_pardo_with_side_outputs" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.examples.snippets.snippets_test.ParDoTest.test_pardo_with_undeclared_side_outputs">
+<code class="descname">test_pardo_with_undeclared_side_outputs</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/snippets/snippets_test.html#ParDoTest.test_pardo_with_undeclared_side_outputs"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.snippets.snippets_test.ParDoTest.test_pardo_with_undeclared_side_outputs" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.examples.snippets.snippets_test.ParDoTest.test_pardo_yield">
+<code class="descname">test_pardo_yield</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/snippets/snippets_test.html#ParDoTest.test_pardo_yield"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.snippets.snippets_test.ParDoTest.test_pardo_yield" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.examples.snippets.snippets_test.SnippetsTest">
+<em class="property">class </em><code class="descclassname">apache_beam.examples.snippets.snippets_test.</code><code class="descname">SnippetsTest</code><span class="sig-paren">(</span><em>methodName='runTest'</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/snippets/snippets_test.html#SnippetsTest"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.snippets.snippets_test.SnippetsTest" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">unittest.case.TestCase</span></code></p>
+<dl class="class">
+<dt id="apache_beam.examples.snippets.snippets_test.SnippetsTest.DummyReadTransform">
+<em class="property">class </em><code class="descname">DummyReadTransform</code><span class="sig-paren">(</span><em>file_to_read=None</em>, <em>compression_type=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/snippets/snippets_test.html#SnippetsTest.DummyReadTransform"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.snippets.snippets_test.SnippetsTest.DummyReadTransform" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="apache_beam.transforms.html#apache_beam.transforms.ptransform.PTransform" title="apache_beam.transforms.ptransform.PTransform"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.transforms.ptransform.PTransform</span></code></a></p>
+<p>A transform that will replace iobase.ReadFromText.</p>
+<p>To be used for testing.</p>
+<dl class="class">
+<dt id="apache_beam.examples.snippets.snippets_test.SnippetsTest.DummyReadTransform.ReadDoFn">
+<em class="property">class </em><code class="descname">ReadDoFn</code><span class="sig-paren">(</span><em>file_to_read</em>, <em>compression_type</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/snippets/snippets_test.html#SnippetsTest.DummyReadTransform.ReadDoFn"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.snippets.snippets_test.SnippetsTest.DummyReadTransform.ReadDoFn" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="apache_beam.transforms.html#apache_beam.transforms.core.DoFn" title="apache_beam.transforms.core.DoFn"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.transforms.core.DoFn</span></code></a></p>
+<dl class="method">
+<dt id="apache_beam.examples.snippets.snippets_test.SnippetsTest.DummyReadTransform.ReadDoFn.finish_bundle">
+<code class="descname">finish_bundle</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/snippets/snippets_test.html#SnippetsTest.DummyReadTransform.ReadDoFn.finish_bundle"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.snippets.snippets_test.SnippetsTest.DummyReadTransform.ReadDoFn.finish_bundle" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.examples.snippets.snippets_test.SnippetsTest.DummyReadTransform.ReadDoFn.process">
+<code class="descname">process</code><span class="sig-paren">(</span><em>element</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/snippets/snippets_test.html#SnippetsTest.DummyReadTransform.ReadDoFn.process"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.snippets.snippets_test.SnippetsTest.DummyReadTransform.ReadDoFn.process" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.examples.snippets.snippets_test.SnippetsTest.DummyReadTransform.expand">
+<code class="descclassname">SnippetsTest.DummyReadTransform.</code><code class="descname">expand</code><span class="sig-paren">(</span><em>pcoll</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/snippets/snippets_test.html#SnippetsTest.DummyReadTransform.expand"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.snippets.snippets_test.SnippetsTest.DummyReadTransform.expand" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.examples.snippets.snippets_test.SnippetsTest.DummyWriteTransform">
+<em class="property">class </em><code class="descclassname">SnippetsTest.</code><code class="descname">DummyWriteTransform</code><span class="sig-paren">(</span><em>file_to_write=None</em>, <em>file_name_suffix=''</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/snippets/snippets_test.html#SnippetsTest.DummyWriteTransform"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.snippets.snippets_test.SnippetsTest.DummyWriteTransform" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="apache_beam.transforms.html#apache_beam.transforms.ptransform.PTransform" title="apache_beam.transforms.ptransform.PTransform"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.transforms.ptransform.PTransform</span></code></a></p>
+<p>A transform that will replace iobase.WriteToText.</p>
+<p>To be used for testing.</p>
+<dl class="class">
+<dt id="apache_beam.examples.snippets.snippets_test.SnippetsTest.DummyWriteTransform.WriteDoFn">
+<em class="property">class </em><code class="descname">WriteDoFn</code><span class="sig-paren">(</span><em>file_to_write</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/snippets/snippets_test.html#SnippetsTest.DummyWriteTransform.WriteDoFn"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.snippets.snippets_test.SnippetsTest.DummyWriteTransform.WriteDoFn" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="apache_beam.transforms.html#apache_beam.transforms.core.DoFn" title="apache_beam.transforms.core.DoFn"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.transforms.core.DoFn</span></code></a></p>
+<dl class="method">
+<dt id="apache_beam.examples.snippets.snippets_test.SnippetsTest.DummyWriteTransform.WriteDoFn.finish_bundle">
+<code class="descname">finish_bundle</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/snippets/snippets_test.html#SnippetsTest.DummyWriteTransform.WriteDoFn.finish_bundle"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.snippets.snippets_test.SnippetsTest.DummyWriteTransform.WriteDoFn.finish_bundle" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.examples.snippets.snippets_test.SnippetsTest.DummyWriteTransform.WriteDoFn.process">
+<code class="descname">process</code><span class="sig-paren">(</span><em>element</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/snippets/snippets_test.html#SnippetsTest.DummyWriteTransform.WriteDoFn.process"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.snippets.snippets_test.SnippetsTest.DummyWriteTransform.WriteDoFn.process" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.examples.snippets.snippets_test.SnippetsTest.DummyWriteTransform.WriteDoFn.start_bundle">
+<code class="descname">start_bundle</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/snippets/snippets_test.html#SnippetsTest.DummyWriteTransform.WriteDoFn.start_bundle"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.snippets.snippets_test.SnippetsTest.DummyWriteTransform.WriteDoFn.start_bundle" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.examples.snippets.snippets_test.SnippetsTest.DummyWriteTransform.expand">
+<code class="descclassname">SnippetsTest.DummyWriteTransform.</code><code class="descname">expand</code><span class="sig-paren">(</span><em>pcoll</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/snippets/snippets_test.html#SnippetsTest.DummyWriteTransform.expand"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.snippets.snippets_test.SnippetsTest.DummyWriteTransform.expand" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.examples.snippets.snippets_test.SnippetsTest.create_temp_file">
+<code class="descclassname">SnippetsTest.</code><code class="descname">create_temp_file</code><span class="sig-paren">(</span><em>contents=''</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/snippets/snippets_test.html#SnippetsTest.create_temp_file"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.snippets.snippets_test.SnippetsTest.create_temp_file" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.examples.snippets.snippets_test.SnippetsTest.get_output">
+<code class="descclassname">SnippetsTest.</code><code class="descname">get_output</code><span class="sig-paren">(</span><em>path</em>, <em>sorted_output=True</em>, <em>suffix=''</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/snippets/snippets_test.html#SnippetsTest.get_output"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.snippets.snippets_test.SnippetsTest.get_output" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.examples.snippets.snippets_test.SnippetsTest.setUp">
+<code class="descclassname">SnippetsTest.</code><code class="descname">setUp</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/snippets/snippets_test.html#SnippetsTest.setUp"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.snippets.snippets_test.SnippetsTest.setUp" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.examples.snippets.snippets_test.SnippetsTest.tearDown">
+<code class="descclassname">SnippetsTest.</code><code class="descname">tearDown</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/snippets/snippets_test.html#SnippetsTest.tearDown"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.snippets.snippets_test.SnippetsTest.tearDown" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.examples.snippets.snippets_test.SnippetsTest.test_construct_pipeline">
+<code class="descclassname">SnippetsTest.</code><code class="descname">test_construct_pipeline</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/snippets/snippets_test.html#SnippetsTest.test_construct_pipeline"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.snippets.snippets_test.SnippetsTest.test_construct_pipeline" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.examples.snippets.snippets_test.SnippetsTest.test_examples_wordcount">
+<code class="descclassname">SnippetsTest.</code><code class="descname">test_examples_wordcount</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/snippets/snippets_test.html#SnippetsTest.test_examples_wordcount"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.snippets.snippets_test.SnippetsTest.test_examples_wordcount" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.examples.snippets.snippets_test.SnippetsTest.test_examples_wordcount_debugging">
+<code class="descclassname">SnippetsTest.</code><code class="descname">test_examples_wordcount_debugging</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/snippets/snippets_test.html#SnippetsTest.test_examples_wordcount_debugging"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.snippets.snippets_test.SnippetsTest.test_examples_wordcount_debugging" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.examples.snippets.snippets_test.SnippetsTest.test_model_bigqueryio">
+<code class="descclassname">SnippetsTest.</code><code class="descname">test_model_bigqueryio</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/snippets/snippets_test.html#SnippetsTest.test_model_bigqueryio"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.snippets.snippets_test.SnippetsTest.test_model_bigqueryio" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.examples.snippets.snippets_test.SnippetsTest.test_model_co_group_by_key_tuple">
+<code class="descclassname">SnippetsTest.</code><code class="descname">test_model_co_group_by_key_tuple</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/snippets/snippets_test.html#SnippetsTest.test_model_co_group_by_key_tuple"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.snippets.snippets_test.SnippetsTest.test_model_co_group_by_key_tuple" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.examples.snippets.snippets_test.SnippetsTest.test_model_composite_transform_example">
+<code class="descclassname">SnippetsTest.</code><code class="descname">test_model_composite_transform_example</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/snippets/snippets_test.html#SnippetsTest.test_model_composite_transform_example"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.snippets.snippets_test.SnippetsTest.test_model_composite_transform_example" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.examples.snippets.snippets_test.SnippetsTest.test_model_custom_sink">
+<code class="descclassname">SnippetsTest.</code><code class="descname">test_model_custom_sink</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/snippets/snippets_test.html#SnippetsTest.test_model_custom_sink"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.snippets.snippets_test.SnippetsTest.test_model_custom_sink" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.examples.snippets.snippets_test.SnippetsTest.test_model_custom_source">
+<code class="descclassname">SnippetsTest.</code><code class="descname">test_model_custom_source</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/snippets/snippets_test.html#SnippetsTest.test_model_custom_source"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.snippets.snippets_test.SnippetsTest.test_model_custom_source" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.examples.snippets.snippets_test.SnippetsTest.test_model_datastoreio">
+<code class="descclassname">SnippetsTest.</code><code class="descname">test_model_datastoreio</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/snippets/snippets_test.html#SnippetsTest.test_model_datastoreio"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.snippets.snippets_test.SnippetsTest.test_model_datastoreio" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.examples.snippets.snippets_test.SnippetsTest.test_model_group_by_key">
+<code class="descclassname">SnippetsTest.</code><code class="descname">test_model_group_by_key</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/snippets/snippets_test.html#SnippetsTest.test_model_group_by_key"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.snippets.snippets_test.SnippetsTest.test_model_group_by_key" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.examples.snippets.snippets_test.SnippetsTest.test_model_join_using_side_inputs">
+<code class="descclassname">SnippetsTest.</code><code class="descname">test_model_join_using_side_inputs</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/snippets/snippets_test.html#SnippetsTest.test_model_join_using_side_inputs"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.snippets.snippets_test.SnippetsTest.test_model_join_using_side_inputs" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.examples.snippets.snippets_test.SnippetsTest.test_model_multiple_pcollections_flatten">
+<code class="descclassname">SnippetsTest.</code><code class="descname">test_model_multiple_pcollections_flatten</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/snippets/snippets_test.html#SnippetsTest.test_model_multiple_pcollections_flatten"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.snippets.snippets_test.SnippetsTest.test_model_multiple_pcollections_flatten" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.examples.snippets.snippets_test.SnippetsTest.test_model_multiple_pcollections_partition">
+<code class="descclassname">SnippetsTest.</code><code class="descname">test_model_multiple_pcollections_partition</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/snippets/snippets_test.html#SnippetsTest.test_model_multiple_pcollections_partition"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.snippets.snippets_test.SnippetsTest.test_model_multiple_pcollections_partition" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.examples.snippets.snippets_test.SnippetsTest.test_model_pcollection">
+<code class="descclassname">SnippetsTest.</code><code class="descname">test_model_pcollection</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/snippets/snippets_test.html#SnippetsTest.test_model_pcollection"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.snippets.snippets_test.SnippetsTest.test_model_pcollection" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.examples.snippets.snippets_test.SnippetsTest.test_model_pipelines">
+<code class="descclassname">SnippetsTest.</code><code class="descname">test_model_pipelines</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/snippets/snippets_test.html#SnippetsTest.test_model_pipelines"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.snippets.snippets_test.SnippetsTest.test_model_pipelines" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.examples.snippets.snippets_test.SnippetsTest.test_model_textio">
+<code class="descclassname">SnippetsTest.</code><code class="descname">test_model_textio</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/snippets/snippets_test.html#SnippetsTest.test_model_textio"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.snippets.snippets_test.SnippetsTest.test_model_textio" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.examples.snippets.snippets_test.SnippetsTest.test_model_textio_compressed">
+<code class="descclassname">SnippetsTest.</code><code class="descname">test_model_textio_compressed</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/snippets/snippets_test.html#SnippetsTest.test_model_textio_compressed"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.snippets.snippets_test.SnippetsTest.test_model_textio_compressed" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.examples.snippets.snippets_test.SnippetsTest.test_pipeline_logging">
+<code class="descclassname">SnippetsTest.</code><code class="descname">test_pipeline_logging</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/snippets/snippets_test.html#SnippetsTest.test_pipeline_logging"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.snippets.snippets_test.SnippetsTest.test_pipeline_logging" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.examples.snippets.snippets_test.SnippetsTest.test_pipeline_options_command_line">
+<code class="descclassname">SnippetsTest.</code><code class="descname">test_pipeline_options_command_line</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/snippets/snippets_test.html#SnippetsTest.test_pipeline_options_command_line"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.snippets.snippets_test.SnippetsTest.test_pipeline_options_command_line" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.examples.snippets.snippets_test.SnippetsTest.test_pipeline_options_local">
+<code class="descclassname">SnippetsTest.</code><code class="descname">test_pipeline_options_local</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/snippets/snippets_test.html#SnippetsTest.test_pipeline_options_local"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.snippets.snippets_test.SnippetsTest.test_pipeline_options_local" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.examples.snippets.snippets_test.SnippetsTest.test_pipeline_options_remote">
+<code class="descclassname">SnippetsTest.</code><code class="descname">test_pipeline_options_remote</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/snippets/snippets_test.html#SnippetsTest.test_pipeline_options_remote"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.snippets.snippets_test.SnippetsTest.test_pipeline_options_remote" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.examples.snippets.snippets_test.TypeHintsTest">
+<em class="property">class </em><code class="descclassname">apache_beam.examples.snippets.snippets_test.</code><code class="descname">TypeHintsTest</code><span class="sig-paren">(</span><em>methodName='runTest'</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/snippets/snippets_test.html#TypeHintsTest"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.snippets.snippets_test.TypeHintsTest" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">unittest.case.TestCase</span></code></p>
+<dl class="method">
+<dt id="apache_beam.examples.snippets.snippets_test.TypeHintsTest.test_bad_types">
+<code class="descname">test_bad_types</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/snippets/snippets_test.html#TypeHintsTest.test_bad_types"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.snippets.snippets_test.TypeHintsTest.test_bad_types" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.examples.snippets.snippets_test.TypeHintsTest.test_deterministic_key">
+<code class="descname">test_deterministic_key</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/snippets/snippets_test.html#TypeHintsTest.test_deterministic_key"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.snippets.snippets_test.TypeHintsTest.test_deterministic_key" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.examples.snippets.snippets_test.TypeHintsTest.test_runtime_checks_off">
+<code class="descname">test_runtime_checks_off</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/snippets/snippets_test.html#TypeHintsTest.test_runtime_checks_off"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.snippets.snippets_test.TypeHintsTest.test_runtime_checks_off" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.examples.snippets.snippets_test.TypeHintsTest.test_runtime_checks_on">
+<code class="descname">test_runtime_checks_on</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/snippets/snippets_test.html#TypeHintsTest.test_runtime_checks_on"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.snippets.snippets_test.TypeHintsTest.test_runtime_checks_on" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="module-apache_beam.examples.snippets">
+<span id="module-contents"></span><h2>Module contents<a class="headerlink" href="#module-apache_beam.examples.snippets" title="Permalink to this headline">¶</a></h2>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="apache_beam.internal.html" title="apache_beam.internal package"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="apache_beam.examples.cookbook.html" title="apache_beam.examples.cookbook package"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="apache_beam.html" >apache_beam package</a> &#187;</li>
+          <li class="nav-item nav-item-2"><a href="apache_beam.examples.html" >apache_beam.examples package</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright .
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.5.3.
+    </div>
+  </body>
+</html>

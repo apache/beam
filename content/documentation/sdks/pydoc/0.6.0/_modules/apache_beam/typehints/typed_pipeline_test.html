@@ -1,0 +1,341 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>apache_beam.typehints.typed_pipeline_test &#8212; Apache Beam  documentation</title>
+    
+    <link rel="stylesheet" href="../../../_static/sphinxdoc.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../',
+        VERSION:     '',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../index.html" accesskey="U">Module code</a> &#187;</li> 
+      </ul>
+    </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for apache_beam.typehints.typed_pipeline_test</h1><div class="highlight"><pre>
+<span></span><span class="c1">#</span>
+<span class="c1"># Licensed to the Apache Software Foundation (ASF) under one or more</span>
+<span class="c1"># contributor license agreements.  See the NOTICE file distributed with</span>
+<span class="c1"># this work for additional information regarding copyright ownership.</span>
+<span class="c1"># The ASF licenses this file to You under the Apache License, Version 2.0</span>
+<span class="c1"># (the &quot;License&quot;); you may not use this file except in compliance with</span>
+<span class="c1"># the License.  You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1">#    http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.</span>
+<span class="c1"># See the License for the specific language governing permissions and</span>
+<span class="c1"># limitations under the License.</span>
+<span class="c1">#</span>
+
+<span class="sd">&quot;&quot;&quot;Unit tests for the type-hint objects and decorators.&quot;&quot;&quot;</span>
+<span class="kn">import</span> <span class="nn">inspect</span>
+<span class="kn">import</span> <span class="nn">unittest</span>
+
+
+<span class="kn">import</span> <span class="nn">apache_beam</span> <span class="k">as</span> <span class="nn">beam</span>
+<span class="kn">from</span> <span class="nn">apache_beam</span> <span class="k">import</span> <span class="n">pvalue</span>
+<span class="kn">from</span> <span class="nn">apache_beam</span> <span class="k">import</span> <span class="n">typehints</span>
+<span class="kn">from</span> <span class="nn">apache_beam.test_pipeline</span> <span class="k">import</span> <span class="n">TestPipeline</span>
+<span class="kn">from</span> <span class="nn">apache_beam.transforms.util</span> <span class="k">import</span> <span class="n">assert_that</span><span class="p">,</span> <span class="n">equal_to</span>
+<span class="kn">from</span> <span class="nn">apache_beam.typehints</span> <span class="k">import</span> <span class="n">WithTypeHints</span>
+<span class="kn">from</span> <span class="nn">apache_beam.utils.pipeline_options</span> <span class="k">import</span> <span class="n">OptionsContext</span>
+
+<span class="c1"># These test often construct a pipeline as value | PTransform to test side</span>
+<span class="c1"># effects (e.g. errors).</span>
+<span class="c1"># pylint: disable=expression-not-assigned</span>
+
+
+<div class="viewcode-block" id="MainInputTest"><a class="viewcode-back" href="../../../apache_beam.typehints.html#apache_beam.typehints.typed_pipeline_test.MainInputTest">[docs]</a><span class="k">class</span> <span class="nc">MainInputTest</span><span class="p">(</span><span class="n">unittest</span><span class="o">.</span><span class="n">TestCase</span><span class="p">):</span>
+
+<div class="viewcode-block" id="MainInputTest.test_bad_main_input"><a class="viewcode-back" href="../../../apache_beam.typehints.html#apache_beam.typehints.typed_pipeline_test.MainInputTest.test_bad_main_input">[docs]</a>  <span class="k">def</span> <span class="nf">test_bad_main_input</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="nd">@typehints</span><span class="o">.</span><span class="n">with_input_types</span><span class="p">(</span><span class="nb">str</span><span class="p">,</span> <span class="nb">int</span><span class="p">)</span>
+    <span class="k">def</span> <span class="nf">repeat</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="n">times</span><span class="p">):</span>
+      <span class="k">return</span> <span class="n">s</span> <span class="o">*</span> <span class="n">times</span>
+    <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="n">typehints</span><span class="o">.</span><span class="n">TypeCheckError</span><span class="p">):</span>
+      <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">]</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="n">repeat</span><span class="p">,</span> <span class="mi">3</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="MainInputTest.test_non_function"><a class="viewcode-back" href="../../../apache_beam.typehints.html#apache_beam.typehints.typed_pipeline_test.MainInputTest.test_non_function">[docs]</a>  <span class="k">def</span> <span class="nf">test_non_function</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;a&#39;</span><span class="p">,</span> <span class="s1">&#39;bb&#39;</span><span class="p">,</span> <span class="s1">&#39;c&#39;</span><span class="p">]</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="nb">str</span><span class="o">.</span><span class="n">upper</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">([</span><span class="s1">&#39;A&#39;</span><span class="p">,</span> <span class="s1">&#39;BB&#39;</span><span class="p">,</span> <span class="s1">&#39;C&#39;</span><span class="p">],</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">result</span><span class="p">))</span>
+
+    <span class="n">result</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;xa&#39;</span><span class="p">,</span> <span class="s1">&#39;bbx&#39;</span><span class="p">,</span> <span class="s1">&#39;xcx&#39;</span><span class="p">]</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="nb">str</span><span class="o">.</span><span class="n">strip</span><span class="p">,</span> <span class="s1">&#39;x&#39;</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">([</span><span class="s1">&#39;a&#39;</span><span class="p">,</span> <span class="s1">&#39;bb&#39;</span><span class="p">,</span> <span class="s1">&#39;c&#39;</span><span class="p">],</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">result</span><span class="p">))</span>
+
+    <span class="n">result</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;1&#39;</span><span class="p">,</span> <span class="s1">&#39;10&#39;</span><span class="p">,</span> <span class="s1">&#39;100&#39;</span><span class="p">]</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="nb">int</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">([</span><span class="mi">1</span><span class="p">,</span> <span class="mi">10</span><span class="p">,</span> <span class="mi">100</span><span class="p">],</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">result</span><span class="p">))</span>
+
+    <span class="n">result</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;1&#39;</span><span class="p">,</span> <span class="s1">&#39;10&#39;</span><span class="p">,</span> <span class="s1">&#39;100&#39;</span><span class="p">]</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="mi">16</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">([</span><span class="mi">1</span><span class="p">,</span> <span class="mi">16</span><span class="p">,</span> <span class="mi">256</span><span class="p">],</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">result</span><span class="p">))</span>
+
+    <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="n">typehints</span><span class="o">.</span><span class="n">TypeCheckError</span><span class="p">):</span>
+      <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">]</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="nb">str</span><span class="o">.</span><span class="n">upper</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="MainInputTest.test_loose_bounds"><a class="viewcode-back" href="../../../apache_beam.typehints.html#apache_beam.typehints.typed_pipeline_test.MainInputTest.test_loose_bounds">[docs]</a>  <span class="k">def</span> <span class="nf">test_loose_bounds</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="nd">@typehints</span><span class="o">.</span><span class="n">with_input_types</span><span class="p">(</span><span class="n">typehints</span><span class="o">.</span><span class="n">Union</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">float</span><span class="p">,</span> <span class="n">long</span><span class="p">])</span>
+    <span class="nd">@typehints</span><span class="o">.</span><span class="n">with_output_types</span><span class="p">(</span><span class="n">basestring</span><span class="p">)</span>
+    <span class="k">def</span> <span class="nf">format_number</span><span class="p">(</span><span class="n">x</span><span class="p">):</span>
+      <span class="k">return</span> <span class="s1">&#39;</span><span class="si">%g</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">x</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">]</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="n">format_number</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">([</span><span class="s1">&#39;1&#39;</span><span class="p">,</span> <span class="s1">&#39;2&#39;</span><span class="p">,</span> <span class="s1">&#39;3&#39;</span><span class="p">],</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">result</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="MainInputTest.test_typed_dofn_class"><a class="viewcode-back" href="../../../apache_beam.typehints.html#apache_beam.typehints.typed_pipeline_test.MainInputTest.test_typed_dofn_class">[docs]</a>  <span class="k">def</span> <span class="nf">test_typed_dofn_class</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="nd">@typehints</span><span class="o">.</span><span class="n">with_input_types</span><span class="p">(</span><span class="nb">int</span><span class="p">)</span>
+    <span class="nd">@typehints</span><span class="o">.</span><span class="n">with_output_types</span><span class="p">(</span><span class="nb">str</span><span class="p">)</span>
+    <span class="k">class</span> <span class="nc">MyDoFn</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">DoFn</span><span class="p">):</span>
+      <span class="k">def</span> <span class="nf">process</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">element</span><span class="p">):</span>
+        <span class="k">return</span> <span class="p">[</span><span class="nb">str</span><span class="p">(</span><span class="n">element</span><span class="p">)]</span>
+
+    <span class="n">result</span> <span class="o">=</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">]</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">ParDo</span><span class="p">(</span><span class="n">MyDoFn</span><span class="p">())</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">([</span><span class="s1">&#39;1&#39;</span><span class="p">,</span> <span class="s1">&#39;2&#39;</span><span class="p">,</span> <span class="s1">&#39;3&#39;</span><span class="p">],</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">result</span><span class="p">))</span>
+
+    <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="n">typehints</span><span class="o">.</span><span class="n">TypeCheckError</span><span class="p">):</span>
+      <span class="p">[</span><span class="s1">&#39;a&#39;</span><span class="p">,</span> <span class="s1">&#39;b&#39;</span><span class="p">,</span> <span class="s1">&#39;c&#39;</span><span class="p">]</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">ParDo</span><span class="p">(</span><span class="n">MyDoFn</span><span class="p">())</span>
+
+    <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="n">typehints</span><span class="o">.</span><span class="n">TypeCheckError</span><span class="p">):</span>
+      <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">]</span> <span class="o">|</span> <span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">ParDo</span><span class="p">(</span><span class="n">MyDoFn</span><span class="p">())</span> <span class="o">|</span> <span class="s1">&#39;again&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">ParDo</span><span class="p">(</span><span class="n">MyDoFn</span><span class="p">()))</span></div>
+
+<div class="viewcode-block" id="MainInputTest.test_typed_dofn_instance"><a class="viewcode-back" href="../../../apache_beam.typehints.html#apache_beam.typehints.typed_pipeline_test.MainInputTest.test_typed_dofn_instance">[docs]</a>  <span class="k">def</span> <span class="nf">test_typed_dofn_instance</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">class</span> <span class="nc">MyDoFn</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">DoFn</span><span class="p">):</span>
+      <span class="k">def</span> <span class="nf">process</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">element</span><span class="p">):</span>
+        <span class="k">return</span> <span class="p">[</span><span class="nb">str</span><span class="p">(</span><span class="n">element</span><span class="p">)]</span>
+    <span class="n">my_do_fn</span> <span class="o">=</span> <span class="n">MyDoFn</span><span class="p">()</span><span class="o">.</span><span class="n">with_input_types</span><span class="p">(</span><span class="nb">int</span><span class="p">)</span><span class="o">.</span><span class="n">with_output_types</span><span class="p">(</span><span class="nb">str</span><span class="p">)</span>
+
+    <span class="n">result</span> <span class="o">=</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">]</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">ParDo</span><span class="p">(</span><span class="n">my_do_fn</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">([</span><span class="s1">&#39;1&#39;</span><span class="p">,</span> <span class="s1">&#39;2&#39;</span><span class="p">,</span> <span class="s1">&#39;3&#39;</span><span class="p">],</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">result</span><span class="p">))</span>
+
+    <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="n">typehints</span><span class="o">.</span><span class="n">TypeCheckError</span><span class="p">):</span>
+      <span class="p">[</span><span class="s1">&#39;a&#39;</span><span class="p">,</span> <span class="s1">&#39;b&#39;</span><span class="p">,</span> <span class="s1">&#39;c&#39;</span><span class="p">]</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">ParDo</span><span class="p">(</span><span class="n">my_do_fn</span><span class="p">)</span>
+
+    <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="n">typehints</span><span class="o">.</span><span class="n">TypeCheckError</span><span class="p">):</span>
+      <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">]</span> <span class="o">|</span> <span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">ParDo</span><span class="p">(</span><span class="n">my_do_fn</span><span class="p">)</span> <span class="o">|</span> <span class="s1">&#39;again&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">ParDo</span><span class="p">(</span><span class="n">my_do_fn</span><span class="p">))</span></div></div>
+
+
+<div class="viewcode-block" id="SideInputTest"><a class="viewcode-back" href="../../../apache_beam.typehints.html#apache_beam.typehints.typed_pipeline_test.SideInputTest">[docs]</a><span class="k">class</span> <span class="nc">SideInputTest</span><span class="p">(</span><span class="n">unittest</span><span class="o">.</span><span class="n">TestCase</span><span class="p">):</span>
+
+  <span class="k">def</span> <span class="nf">_run_repeat_test</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">repeat</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_run_repeat_test_good</span><span class="p">(</span><span class="n">repeat</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_run_repeat_test_bad</span><span class="p">(</span><span class="n">repeat</span><span class="p">)</span>
+
+  <span class="nd">@OptionsContext</span><span class="p">(</span><span class="n">pipeline_type_check</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+  <span class="k">def</span> <span class="nf">_run_repeat_test_good</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">repeat</span><span class="p">):</span>
+    <span class="c1"># As a positional argument.</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;a&#39;</span><span class="p">,</span> <span class="s1">&#39;bb&#39;</span><span class="p">,</span> <span class="s1">&#39;c&#39;</span><span class="p">]</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="n">repeat</span><span class="p">,</span> <span class="mi">3</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">([</span><span class="s1">&#39;aaa&#39;</span><span class="p">,</span> <span class="s1">&#39;bbbbbb&#39;</span><span class="p">,</span> <span class="s1">&#39;ccc&#39;</span><span class="p">],</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">result</span><span class="p">))</span>
+
+    <span class="c1"># As a keyword argument.</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;a&#39;</span><span class="p">,</span> <span class="s1">&#39;bb&#39;</span><span class="p">,</span> <span class="s1">&#39;c&#39;</span><span class="p">]</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="n">repeat</span><span class="p">,</span> <span class="n">times</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">([</span><span class="s1">&#39;aaa&#39;</span><span class="p">,</span> <span class="s1">&#39;bbbbbb&#39;</span><span class="p">,</span> <span class="s1">&#39;ccc&#39;</span><span class="p">],</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">result</span><span class="p">))</span>
+
+  <span class="k">def</span> <span class="nf">_run_repeat_test_bad</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">repeat</span><span class="p">):</span>
+    <span class="c1"># Various mismatches.</span>
+    <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="n">typehints</span><span class="o">.</span><span class="n">TypeCheckError</span><span class="p">):</span>
+      <span class="p">[</span><span class="s1">&#39;a&#39;</span><span class="p">,</span> <span class="s1">&#39;bb&#39;</span><span class="p">,</span> <span class="s1">&#39;c&#39;</span><span class="p">]</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="n">repeat</span><span class="p">,</span> <span class="s1">&#39;z&#39;</span><span class="p">)</span>
+    <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="n">typehints</span><span class="o">.</span><span class="n">TypeCheckError</span><span class="p">):</span>
+      <span class="p">[</span><span class="s1">&#39;a&#39;</span><span class="p">,</span> <span class="s1">&#39;bb&#39;</span><span class="p">,</span> <span class="s1">&#39;c&#39;</span><span class="p">]</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="n">repeat</span><span class="p">,</span> <span class="n">times</span><span class="o">=</span><span class="s1">&#39;z&#39;</span><span class="p">)</span>
+    <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="n">typehints</span><span class="o">.</span><span class="n">TypeCheckError</span><span class="p">):</span>
+      <span class="p">[</span><span class="s1">&#39;a&#39;</span><span class="p">,</span> <span class="s1">&#39;bb&#39;</span><span class="p">,</span> <span class="s1">&#39;c&#39;</span><span class="p">]</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="n">repeat</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">inspect</span><span class="o">.</span><span class="n">getargspec</span><span class="p">(</span><span class="n">repeat</span><span class="p">)</span><span class="o">.</span><span class="n">defaults</span><span class="p">:</span>
+      <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="n">typehints</span><span class="o">.</span><span class="n">TypeCheckError</span><span class="p">):</span>
+        <span class="p">[</span><span class="s1">&#39;a&#39;</span><span class="p">,</span> <span class="s1">&#39;bb&#39;</span><span class="p">,</span> <span class="s1">&#39;c&#39;</span><span class="p">]</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="n">repeat</span><span class="p">)</span>
+
+<div class="viewcode-block" id="SideInputTest.test_basic_side_input_hint"><a class="viewcode-back" href="../../../apache_beam.typehints.html#apache_beam.typehints.typed_pipeline_test.SideInputTest.test_basic_side_input_hint">[docs]</a>  <span class="k">def</span> <span class="nf">test_basic_side_input_hint</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="nd">@typehints</span><span class="o">.</span><span class="n">with_input_types</span><span class="p">(</span><span class="nb">str</span><span class="p">,</span> <span class="nb">int</span><span class="p">)</span>
+    <span class="k">def</span> <span class="nf">repeat</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="n">times</span><span class="p">):</span>
+      <span class="k">return</span> <span class="n">s</span> <span class="o">*</span> <span class="n">times</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_run_repeat_test</span><span class="p">(</span><span class="n">repeat</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="SideInputTest.test_keyword_side_input_hint"><a class="viewcode-back" href="../../../apache_beam.typehints.html#apache_beam.typehints.typed_pipeline_test.SideInputTest.test_keyword_side_input_hint">[docs]</a>  <span class="k">def</span> <span class="nf">test_keyword_side_input_hint</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="nd">@typehints</span><span class="o">.</span><span class="n">with_input_types</span><span class="p">(</span><span class="nb">str</span><span class="p">,</span> <span class="n">times</span><span class="o">=</span><span class="nb">int</span><span class="p">)</span>
+    <span class="k">def</span> <span class="nf">repeat</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="n">times</span><span class="p">):</span>
+      <span class="k">return</span> <span class="n">s</span> <span class="o">*</span> <span class="n">times</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_run_repeat_test</span><span class="p">(</span><span class="n">repeat</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="SideInputTest.test_default_typed_hint"><a class="viewcode-back" href="../../../apache_beam.typehints.html#apache_beam.typehints.typed_pipeline_test.SideInputTest.test_default_typed_hint">[docs]</a>  <span class="k">def</span> <span class="nf">test_default_typed_hint</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="nd">@typehints</span><span class="o">.</span><span class="n">with_input_types</span><span class="p">(</span><span class="nb">str</span><span class="p">,</span> <span class="nb">int</span><span class="p">)</span>
+    <span class="k">def</span> <span class="nf">repeat</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="n">times</span><span class="o">=</span><span class="mi">3</span><span class="p">):</span>
+      <span class="k">return</span> <span class="n">s</span> <span class="o">*</span> <span class="n">times</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_run_repeat_test</span><span class="p">(</span><span class="n">repeat</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="SideInputTest.test_default_untyped_hint"><a class="viewcode-back" href="../../../apache_beam.typehints.html#apache_beam.typehints.typed_pipeline_test.SideInputTest.test_default_untyped_hint">[docs]</a>  <span class="k">def</span> <span class="nf">test_default_untyped_hint</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="nd">@typehints</span><span class="o">.</span><span class="n">with_input_types</span><span class="p">(</span><span class="nb">str</span><span class="p">)</span>
+    <span class="k">def</span> <span class="nf">repeat</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="n">times</span><span class="o">=</span><span class="mi">3</span><span class="p">):</span>
+      <span class="k">return</span> <span class="n">s</span> <span class="o">*</span> <span class="n">times</span>
+    <span class="c1"># No type checking on dfault arg.</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_run_repeat_test_good</span><span class="p">(</span><span class="n">repeat</span><span class="p">)</span></div>
+
+  <span class="nd">@OptionsContext</span><span class="p">(</span><span class="n">pipeline_type_check</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+  <span class="k">def</span> <span class="nf">test_varargs_side_input_hint</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="nd">@typehints</span><span class="o">.</span><span class="n">with_input_types</span><span class="p">(</span><span class="nb">str</span><span class="p">,</span> <span class="nb">int</span><span class="p">)</span>
+    <span class="k">def</span> <span class="nf">repeat</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="o">*</span><span class="n">times</span><span class="p">):</span>
+      <span class="k">return</span> <span class="n">s</span> <span class="o">*</span> <span class="n">times</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+
+    <span class="n">result</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;a&#39;</span><span class="p">,</span> <span class="s1">&#39;bb&#39;</span><span class="p">,</span> <span class="s1">&#39;c&#39;</span><span class="p">]</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="n">repeat</span><span class="p">,</span> <span class="mi">3</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">([</span><span class="s1">&#39;aaa&#39;</span><span class="p">,</span> <span class="s1">&#39;bbbbbb&#39;</span><span class="p">,</span> <span class="s1">&#39;ccc&#39;</span><span class="p">],</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">result</span><span class="p">))</span>
+
+  <span class="c1"># TODO(robertwb): Support partially defined varargs.</span>
+  <span class="c1"># with self.assertRaises(typehints.TypeCheckError):</span>
+  <span class="c1">#   [&#39;a&#39;, &#39;bb&#39;, &#39;c&#39;] | beam.Map(repeat, &#39;z&#39;)</span>
+
+<div class="viewcode-block" id="SideInputTest.test_deferred_side_inputs"><a class="viewcode-back" href="../../../apache_beam.typehints.html#apache_beam.typehints.typed_pipeline_test.SideInputTest.test_deferred_side_inputs">[docs]</a>  <span class="k">def</span> <span class="nf">test_deferred_side_inputs</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="nd">@typehints</span><span class="o">.</span><span class="n">with_input_types</span><span class="p">(</span><span class="nb">str</span><span class="p">,</span> <span class="nb">int</span><span class="p">)</span>
+    <span class="k">def</span> <span class="nf">repeat</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="n">times</span><span class="p">):</span>
+      <span class="k">return</span> <span class="n">s</span> <span class="o">*</span> <span class="n">times</span>
+    <span class="n">p</span> <span class="o">=</span> <span class="n">TestPipeline</span><span class="p">()</span>
+    <span class="n">main_input</span> <span class="o">=</span> <span class="n">p</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">([</span><span class="s1">&#39;a&#39;</span><span class="p">,</span> <span class="s1">&#39;bb&#39;</span><span class="p">,</span> <span class="s1">&#39;c&#39;</span><span class="p">])</span>
+    <span class="n">side_input</span> <span class="o">=</span> <span class="n">p</span> <span class="o">|</span> <span class="s1">&#39;side&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">([</span><span class="mi">3</span><span class="p">])</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="n">main_input</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="n">repeat</span><span class="p">,</span> <span class="n">pvalue</span><span class="o">.</span><span class="n">AsSingleton</span><span class="p">(</span><span class="n">side_input</span><span class="p">))</span>
+    <span class="n">assert_that</span><span class="p">(</span><span class="n">result</span><span class="p">,</span> <span class="n">equal_to</span><span class="p">([</span><span class="s1">&#39;aaa&#39;</span><span class="p">,</span> <span class="s1">&#39;bbbbbb&#39;</span><span class="p">,</span> <span class="s1">&#39;ccc&#39;</span><span class="p">]))</span>
+    <span class="n">p</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
+
+    <span class="n">bad_side_input</span> <span class="o">=</span> <span class="n">p</span> <span class="o">|</span> <span class="s1">&#39;bad_side&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">([</span><span class="s1">&#39;z&#39;</span><span class="p">])</span>
+    <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="n">typehints</span><span class="o">.</span><span class="n">TypeCheckError</span><span class="p">):</span>
+      <span class="n">main_input</span> <span class="o">|</span> <span class="s1">&#39;bis&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="n">repeat</span><span class="p">,</span> <span class="n">pvalue</span><span class="o">.</span><span class="n">AsSingleton</span><span class="p">(</span><span class="n">bad_side_input</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="SideInputTest.test_deferred_side_input_iterable"><a class="viewcode-back" href="../../../apache_beam.typehints.html#apache_beam.typehints.typed_pipeline_test.SideInputTest.test_deferred_side_input_iterable">[docs]</a>  <span class="k">def</span> <span class="nf">test_deferred_side_input_iterable</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="nd">@typehints</span><span class="o">.</span><span class="n">with_input_types</span><span class="p">(</span><span class="nb">str</span><span class="p">,</span> <span class="n">typehints</span><span class="o">.</span><span class="n">Iterable</span><span class="p">[</span><span class="nb">str</span><span class="p">])</span>
+    <span class="k">def</span> <span class="nf">concat</span><span class="p">(</span><span class="n">glue</span><span class="p">,</span> <span class="n">items</span><span class="p">):</span>
+      <span class="k">return</span> <span class="n">glue</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="nb">sorted</span><span class="p">(</span><span class="n">items</span><span class="p">))</span>
+    <span class="n">p</span> <span class="o">=</span> <span class="n">TestPipeline</span><span class="p">()</span>
+    <span class="n">main_input</span> <span class="o">=</span> <span class="n">p</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">([</span><span class="s1">&#39;a&#39;</span><span class="p">,</span> <span class="s1">&#39;bb&#39;</span><span class="p">,</span> <span class="s1">&#39;c&#39;</span><span class="p">])</span>
+    <span class="n">side_input</span> <span class="o">=</span> <span class="n">p</span> <span class="o">|</span> <span class="s1">&#39;side&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">([</span><span class="s1">&#39;x&#39;</span><span class="p">,</span> <span class="s1">&#39;y&#39;</span><span class="p">,</span> <span class="s1">&#39;z&#39;</span><span class="p">])</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="n">main_input</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="n">concat</span><span class="p">,</span> <span class="n">pvalue</span><span class="o">.</span><span class="n">AsIter</span><span class="p">(</span><span class="n">side_input</span><span class="p">))</span>
+    <span class="n">assert_that</span><span class="p">(</span><span class="n">result</span><span class="p">,</span> <span class="n">equal_to</span><span class="p">([</span><span class="s1">&#39;xayaz&#39;</span><span class="p">,</span> <span class="s1">&#39;xbbybbz&#39;</span><span class="p">,</span> <span class="s1">&#39;xcycz&#39;</span><span class="p">]))</span>
+    <span class="n">p</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
+
+    <span class="n">bad_side_input</span> <span class="o">=</span> <span class="n">p</span> <span class="o">|</span> <span class="s1">&#39;bad_side&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">([</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">])</span>
+    <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="n">typehints</span><span class="o">.</span><span class="n">TypeCheckError</span><span class="p">):</span>
+      <span class="n">main_input</span> <span class="o">|</span> <span class="s1">&#39;fail&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="n">concat</span><span class="p">,</span> <span class="n">pvalue</span><span class="o">.</span><span class="n">AsIter</span><span class="p">(</span><span class="n">bad_side_input</span><span class="p">))</span></div></div>
+
+
+<div class="viewcode-block" id="CustomTransformTest"><a class="viewcode-back" href="../../../apache_beam.typehints.html#apache_beam.typehints.typed_pipeline_test.CustomTransformTest">[docs]</a><span class="k">class</span> <span class="nc">CustomTransformTest</span><span class="p">(</span><span class="n">unittest</span><span class="o">.</span><span class="n">TestCase</span><span class="p">):</span>
+
+<div class="viewcode-block" id="CustomTransformTest.CustomTransform"><a class="viewcode-back" href="../../../apache_beam.typehints.html#apache_beam.typehints.typed_pipeline_test.CustomTransformTest.CustomTransform">[docs]</a>  <span class="k">class</span> <span class="nc">CustomTransform</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">PTransform</span><span class="p">):</span>
+
+    <span class="k">def</span> <span class="nf">_extract_input_pvalues</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pvalueish</span><span class="p">):</span>
+      <span class="k">return</span> <span class="n">pvalueish</span><span class="p">,</span> <span class="p">(</span><span class="n">pvalueish</span><span class="p">[</span><span class="s1">&#39;in0&#39;</span><span class="p">],</span> <span class="n">pvalueish</span><span class="p">[</span><span class="s1">&#39;in1&#39;</span><span class="p">])</span>
+
+<div class="viewcode-block" id="CustomTransformTest.CustomTransform.expand"><a class="viewcode-back" href="../../../apache_beam.typehints.html#apache_beam.typehints.typed_pipeline_test.CustomTransformTest.CustomTransform.expand">[docs]</a>    <span class="k">def</span> <span class="nf">expand</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pvalueish</span><span class="p">):</span>
+      <span class="k">return</span> <span class="p">{</span><span class="s1">&#39;out0&#39;</span><span class="p">:</span> <span class="n">pvalueish</span><span class="p">[</span><span class="s1">&#39;in0&#39;</span><span class="p">],</span> <span class="s1">&#39;out1&#39;</span><span class="p">:</span> <span class="n">pvalueish</span><span class="p">[</span><span class="s1">&#39;in1&#39;</span><span class="p">]}</span></div>
+
+    <span class="c1"># TODO(robertwb): (typecheck) Make these the default?</span>
+<div class="viewcode-block" id="CustomTransformTest.CustomTransform.with_input_types"><a class="viewcode-back" href="../../../apache_beam.typehints.html#apache_beam.typehints.typed_pipeline_test.CustomTransformTest.CustomTransform.with_input_types">[docs]</a>    <span class="k">def</span> <span class="nf">with_input_types</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+      <span class="k">return</span> <span class="n">WithTypeHints</span><span class="o">.</span><span class="n">with_input_types</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="CustomTransformTest.CustomTransform.with_output_types"><a class="viewcode-back" href="../../../apache_beam.typehints.html#apache_beam.typehints.typed_pipeline_test.CustomTransformTest.CustomTransform.with_output_types">[docs]</a>    <span class="k">def</span> <span class="nf">with_output_types</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+      <span class="k">return</span> <span class="n">WithTypeHints</span><span class="o">.</span><span class="n">with_output_types</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div></div>
+
+  <span class="n">test_input</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;in0&#39;</span><span class="p">:</span> <span class="p">[</span><span class="s1">&#39;a&#39;</span><span class="p">,</span> <span class="s1">&#39;b&#39;</span><span class="p">,</span> <span class="s1">&#39;c&#39;</span><span class="p">],</span> <span class="s1">&#39;in1&#39;</span><span class="p">:</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">]}</span>
+
+<div class="viewcode-block" id="CustomTransformTest.check_output"><a class="viewcode-back" href="../../../apache_beam.typehints.html#apache_beam.typehints.typed_pipeline_test.CustomTransformTest.check_output">[docs]</a>  <span class="k">def</span> <span class="nf">check_output</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">result</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">([</span><span class="s1">&#39;a&#39;</span><span class="p">,</span> <span class="s1">&#39;b&#39;</span><span class="p">,</span> <span class="s1">&#39;c&#39;</span><span class="p">],</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">result</span><span class="p">[</span><span class="s1">&#39;out0&#39;</span><span class="p">]))</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">([</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">],</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">result</span><span class="p">[</span><span class="s1">&#39;out1&#39;</span><span class="p">]))</span></div>
+
+<div class="viewcode-block" id="CustomTransformTest.test_custom_transform"><a class="viewcode-back" href="../../../apache_beam.typehints.html#apache_beam.typehints.typed_pipeline_test.CustomTransformTest.test_custom_transform">[docs]</a>  <span class="k">def</span> <span class="nf">test_custom_transform</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">check_output</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">test_input</span> <span class="o">|</span> <span class="bp">self</span><span class="o">.</span><span class="n">CustomTransform</span><span class="p">())</span></div>
+
+<div class="viewcode-block" id="CustomTransformTest.test_keyword_type_hints"><a class="viewcode-back" href="../../../apache_beam.typehints.html#apache_beam.typehints.typed_pipeline_test.CustomTransformTest.test_keyword_type_hints">[docs]</a>  <span class="k">def</span> <span class="nf">test_keyword_type_hints</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">check_output</span><span class="p">(</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">test_input</span> <span class="o">|</span> <span class="bp">self</span><span class="o">.</span><span class="n">CustomTransform</span><span class="p">()</span><span class="o">.</span><span class="n">with_input_types</span><span class="p">(</span>
+            <span class="n">in0</span><span class="o">=</span><span class="nb">str</span><span class="p">,</span> <span class="n">in1</span><span class="o">=</span><span class="nb">int</span><span class="p">))</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">check_output</span><span class="p">(</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">test_input</span> <span class="o">|</span> <span class="bp">self</span><span class="o">.</span><span class="n">CustomTransform</span><span class="p">()</span><span class="o">.</span><span class="n">with_input_types</span><span class="p">(</span><span class="n">in0</span><span class="o">=</span><span class="nb">str</span><span class="p">))</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">check_output</span><span class="p">(</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">test_input</span> <span class="o">|</span> <span class="bp">self</span><span class="o">.</span><span class="n">CustomTransform</span><span class="p">()</span><span class="o">.</span><span class="n">with_output_types</span><span class="p">(</span>
+            <span class="n">out0</span><span class="o">=</span><span class="nb">str</span><span class="p">,</span> <span class="n">out1</span><span class="o">=</span><span class="nb">int</span><span class="p">))</span>
+    <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="n">typehints</span><span class="o">.</span><span class="n">TypeCheckError</span><span class="p">):</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">test_input</span> <span class="o">|</span> <span class="bp">self</span><span class="o">.</span><span class="n">CustomTransform</span><span class="p">()</span><span class="o">.</span><span class="n">with_input_types</span><span class="p">(</span><span class="n">in0</span><span class="o">=</span><span class="nb">int</span><span class="p">)</span>
+    <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="n">typehints</span><span class="o">.</span><span class="n">TypeCheckError</span><span class="p">):</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">test_input</span> <span class="o">|</span> <span class="bp">self</span><span class="o">.</span><span class="n">CustomTransform</span><span class="p">()</span><span class="o">.</span><span class="n">with_output_types</span><span class="p">(</span><span class="n">out0</span><span class="o">=</span><span class="nb">int</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="CustomTransformTest.test_flat_type_hint"><a class="viewcode-back" href="../../../apache_beam.typehints.html#apache_beam.typehints.typed_pipeline_test.CustomTransformTest.test_flat_type_hint">[docs]</a>  <span class="k">def</span> <span class="nf">test_flat_type_hint</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="c1"># Type hint is applied to both.</span>
+    <span class="p">({</span><span class="s1">&#39;in0&#39;</span><span class="p">:</span> <span class="p">[</span><span class="s1">&#39;a&#39;</span><span class="p">,</span> <span class="s1">&#39;b&#39;</span><span class="p">,</span> <span class="s1">&#39;c&#39;</span><span class="p">],</span> <span class="s1">&#39;in1&#39;</span><span class="p">:</span> <span class="p">[</span><span class="s1">&#39;x&#39;</span><span class="p">,</span> <span class="s1">&#39;y&#39;</span><span class="p">,</span> <span class="s1">&#39;z&#39;</span><span class="p">]}</span>
+     <span class="o">|</span> <span class="bp">self</span><span class="o">.</span><span class="n">CustomTransform</span><span class="p">()</span><span class="o">.</span><span class="n">with_input_types</span><span class="p">(</span><span class="nb">str</span><span class="p">))</span>
+    <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="n">typehints</span><span class="o">.</span><span class="n">TypeCheckError</span><span class="p">):</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">test_input</span> <span class="o">|</span> <span class="bp">self</span><span class="o">.</span><span class="n">CustomTransform</span><span class="p">()</span><span class="o">.</span><span class="n">with_input_types</span><span class="p">(</span><span class="nb">str</span><span class="p">)</span>
+    <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="n">typehints</span><span class="o">.</span><span class="n">TypeCheckError</span><span class="p">):</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">test_input</span> <span class="o">|</span> <span class="bp">self</span><span class="o">.</span><span class="n">CustomTransform</span><span class="p">()</span><span class="o">.</span><span class="n">with_input_types</span><span class="p">(</span><span class="nb">int</span><span class="p">)</span>
+    <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="n">typehints</span><span class="o">.</span><span class="n">TypeCheckError</span><span class="p">):</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">test_input</span> <span class="o">|</span> <span class="bp">self</span><span class="o">.</span><span class="n">CustomTransform</span><span class="p">()</span><span class="o">.</span><span class="n">with_output_types</span><span class="p">(</span><span class="nb">int</span><span class="p">)</span></div></div>
+
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s1">&#39;__main__&#39;</span><span class="p">:</span>
+  <span class="n">unittest</span><span class="o">.</span><span class="n">main</span><span class="p">()</span>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../index.html" >Module code</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright .
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.5.3.
+    </div>
+  </body>
+</html>

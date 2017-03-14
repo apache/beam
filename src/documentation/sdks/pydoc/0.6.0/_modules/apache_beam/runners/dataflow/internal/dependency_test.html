@@ -1,0 +1,515 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>apache_beam.runners.dataflow.internal.dependency_test &#8212; Apache Beam  documentation</title>
+    
+    <link rel="stylesheet" href="../../../../../_static/sphinxdoc.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../../../',
+        VERSION:     '',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../../../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../../../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../../search.html" /> 
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../../../index.html" accesskey="U">Module code</a> &#187;</li> 
+      </ul>
+    </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../../../../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for apache_beam.runners.dataflow.internal.dependency_test</h1><div class="highlight"><pre>
+<span></span><span class="c1">#</span>
+<span class="c1"># Licensed to the Apache Software Foundation (ASF) under one or more</span>
+<span class="c1"># contributor license agreements.  See the NOTICE file distributed with</span>
+<span class="c1"># this work for additional information regarding copyright ownership.</span>
+<span class="c1"># The ASF licenses this file to You under the Apache License, Version 2.0</span>
+<span class="c1"># (the &quot;License&quot;); you may not use this file except in compliance with</span>
+<span class="c1"># the License.  You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1">#    http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.</span>
+<span class="c1"># See the License for the specific language governing permissions and</span>
+<span class="c1"># limitations under the License.</span>
+<span class="c1">#</span>
+
+<span class="sd">&quot;&quot;&quot;Unit tests for the setup module.&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">shutil</span>
+<span class="kn">import</span> <span class="nn">tempfile</span>
+<span class="kn">import</span> <span class="nn">unittest</span>
+
+<span class="kn">from</span> <span class="nn">apache_beam</span> <span class="k">import</span> <span class="n">utils</span>
+<span class="kn">from</span> <span class="nn">apache_beam.runners.dataflow.internal</span> <span class="k">import</span> <span class="n">dependency</span>
+<span class="kn">from</span> <span class="nn">apache_beam.runners.dataflow.internal</span> <span class="k">import</span> <span class="n">names</span>
+<span class="kn">from</span> <span class="nn">apache_beam.utils.pipeline_options</span> <span class="k">import</span> <span class="n">GoogleCloudOptions</span>
+<span class="kn">from</span> <span class="nn">apache_beam.utils.pipeline_options</span> <span class="k">import</span> <span class="n">PipelineOptions</span>
+<span class="kn">from</span> <span class="nn">apache_beam.utils.pipeline_options</span> <span class="k">import</span> <span class="n">SetupOptions</span>
+
+
+<div class="viewcode-block" id="SetupTest"><a class="viewcode-back" href="../../../../../apache_beam.runners.dataflow.internal.html#apache_beam.runners.dataflow.internal.dependency_test.SetupTest">[docs]</a><span class="k">class</span> <span class="nc">SetupTest</span><span class="p">(</span><span class="n">unittest</span><span class="o">.</span><span class="n">TestCase</span><span class="p">):</span>
+
+<div class="viewcode-block" id="SetupTest.update_options"><a class="viewcode-back" href="../../../../../apache_beam.runners.dataflow.internal.html#apache_beam.runners.dataflow.internal.dependency_test.SetupTest.update_options">[docs]</a>  <span class="k">def</span> <span class="nf">update_options</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">options</span><span class="p">):</span>
+    <span class="n">setup_options</span> <span class="o">=</span> <span class="n">options</span><span class="o">.</span><span class="n">view_as</span><span class="p">(</span><span class="n">SetupOptions</span><span class="p">)</span>
+    <span class="n">setup_options</span><span class="o">.</span><span class="n">sdk_location</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span>
+    <span class="n">google_cloud_options</span> <span class="o">=</span> <span class="n">options</span><span class="o">.</span><span class="n">view_as</span><span class="p">(</span><span class="n">GoogleCloudOptions</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">google_cloud_options</span><span class="o">.</span><span class="n">temp_location</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+      <span class="n">google_cloud_options</span><span class="o">.</span><span class="n">temp_location</span> <span class="o">=</span> <span class="n">google_cloud_options</span><span class="o">.</span><span class="n">staging_location</span></div>
+
+<div class="viewcode-block" id="SetupTest.create_temp_file"><a class="viewcode-back" href="../../../../../apache_beam.runners.dataflow.internal.html#apache_beam.runners.dataflow.internal.dependency_test.SetupTest.create_temp_file">[docs]</a>  <span class="k">def</span> <span class="nf">create_temp_file</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">,</span> <span class="n">contents</span><span class="p">):</span>
+    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="s1">&#39;w&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+      <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">contents</span><span class="p">)</span>
+      <span class="k">return</span> <span class="n">f</span><span class="o">.</span><span class="n">name</span></div>
+
+<div class="viewcode-block" id="SetupTest.populate_requirements_cache"><a class="viewcode-back" href="../../../../../apache_beam.runners.dataflow.internal.html#apache_beam.runners.dataflow.internal.dependency_test.SetupTest.populate_requirements_cache">[docs]</a>  <span class="k">def</span> <span class="nf">populate_requirements_cache</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">requirements_file</span><span class="p">,</span> <span class="n">cache_dir</span><span class="p">):</span>
+    <span class="n">_</span> <span class="o">=</span> <span class="n">requirements_file</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">create_temp_file</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">cache_dir</span><span class="p">,</span> <span class="s1">&#39;abc.txt&#39;</span><span class="p">),</span> <span class="s1">&#39;nothing&#39;</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">create_temp_file</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">cache_dir</span><span class="p">,</span> <span class="s1">&#39;def.txt&#39;</span><span class="p">),</span> <span class="s1">&#39;nothing&#39;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="SetupTest.test_no_staging_location"><a class="viewcode-back" href="../../../../../apache_beam.runners.dataflow.internal.html#apache_beam.runners.dataflow.internal.dependency_test.SetupTest.test_no_staging_location">[docs]</a>  <span class="k">def</span> <span class="nf">test_no_staging_location</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">RuntimeError</span><span class="p">)</span> <span class="k">as</span> <span class="n">cm</span><span class="p">:</span>
+      <span class="n">dependency</span><span class="o">.</span><span class="n">stage_job_resources</span><span class="p">(</span><span class="n">PipelineOptions</span><span class="p">())</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="s1">&#39;The --staging_location option must be specified.&#39;</span><span class="p">,</span>
+                     <span class="n">cm</span><span class="o">.</span><span class="n">exception</span><span class="o">.</span><span class="n">message</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="SetupTest.test_no_temp_location"><a class="viewcode-back" href="../../../../../apache_beam.runners.dataflow.internal.html#apache_beam.runners.dataflow.internal.dependency_test.SetupTest.test_no_temp_location">[docs]</a>  <span class="k">def</span> <span class="nf">test_no_temp_location</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">staging_dir</span> <span class="o">=</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">mkdtemp</span><span class="p">()</span>
+    <span class="n">options</span> <span class="o">=</span> <span class="n">PipelineOptions</span><span class="p">()</span>
+    <span class="n">google_cloud_options</span> <span class="o">=</span> <span class="n">options</span><span class="o">.</span><span class="n">view_as</span><span class="p">(</span><span class="n">GoogleCloudOptions</span><span class="p">)</span>
+    <span class="n">google_cloud_options</span><span class="o">.</span><span class="n">staging_location</span> <span class="o">=</span> <span class="n">staging_dir</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">update_options</span><span class="p">(</span><span class="n">options</span><span class="p">)</span>
+    <span class="n">google_cloud_options</span><span class="o">.</span><span class="n">temp_location</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">RuntimeError</span><span class="p">)</span> <span class="k">as</span> <span class="n">cm</span><span class="p">:</span>
+      <span class="n">dependency</span><span class="o">.</span><span class="n">stage_job_resources</span><span class="p">(</span><span class="n">options</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="s1">&#39;The --temp_location option must be specified.&#39;</span><span class="p">,</span>
+                     <span class="n">cm</span><span class="o">.</span><span class="n">exception</span><span class="o">.</span><span class="n">message</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="SetupTest.test_no_main_session"><a class="viewcode-back" href="../../../../../apache_beam.runners.dataflow.internal.html#apache_beam.runners.dataflow.internal.dependency_test.SetupTest.test_no_main_session">[docs]</a>  <span class="k">def</span> <span class="nf">test_no_main_session</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">staging_dir</span> <span class="o">=</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">mkdtemp</span><span class="p">()</span>
+    <span class="n">options</span> <span class="o">=</span> <span class="n">PipelineOptions</span><span class="p">()</span>
+
+    <span class="n">options</span><span class="o">.</span><span class="n">view_as</span><span class="p">(</span><span class="n">GoogleCloudOptions</span><span class="p">)</span><span class="o">.</span><span class="n">staging_location</span> <span class="o">=</span> <span class="n">staging_dir</span>
+    <span class="n">options</span><span class="o">.</span><span class="n">view_as</span><span class="p">(</span><span class="n">SetupOptions</span><span class="p">)</span><span class="o">.</span><span class="n">save_main_session</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">update_options</span><span class="p">(</span><span class="n">options</span><span class="p">)</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span>
+        <span class="p">[],</span>
+        <span class="n">dependency</span><span class="o">.</span><span class="n">stage_job_resources</span><span class="p">(</span><span class="n">options</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="SetupTest.test_with_main_session"><a class="viewcode-back" href="../../../../../apache_beam.runners.dataflow.internal.html#apache_beam.runners.dataflow.internal.dependency_test.SetupTest.test_with_main_session">[docs]</a>  <span class="k">def</span> <span class="nf">test_with_main_session</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">staging_dir</span> <span class="o">=</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">mkdtemp</span><span class="p">()</span>
+    <span class="n">options</span> <span class="o">=</span> <span class="n">PipelineOptions</span><span class="p">()</span>
+
+    <span class="n">options</span><span class="o">.</span><span class="n">view_as</span><span class="p">(</span><span class="n">GoogleCloudOptions</span><span class="p">)</span><span class="o">.</span><span class="n">staging_location</span> <span class="o">=</span> <span class="n">staging_dir</span>
+    <span class="n">options</span><span class="o">.</span><span class="n">view_as</span><span class="p">(</span><span class="n">SetupOptions</span><span class="p">)</span><span class="o">.</span><span class="n">save_main_session</span> <span class="o">=</span> <span class="kc">True</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">update_options</span><span class="p">(</span><span class="n">options</span><span class="p">)</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span>
+        <span class="p">[</span><span class="n">names</span><span class="o">.</span><span class="n">PICKLED_MAIN_SESSION_FILE</span><span class="p">],</span>
+        <span class="n">dependency</span><span class="o">.</span><span class="n">stage_job_resources</span><span class="p">(</span><span class="n">options</span><span class="p">))</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isfile</span><span class="p">(</span>
+            <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">staging_dir</span><span class="p">,</span> <span class="n">names</span><span class="o">.</span><span class="n">PICKLED_MAIN_SESSION_FILE</span><span class="p">)))</span></div>
+
+<div class="viewcode-block" id="SetupTest.test_default_resources"><a class="viewcode-back" href="../../../../../apache_beam.runners.dataflow.internal.html#apache_beam.runners.dataflow.internal.dependency_test.SetupTest.test_default_resources">[docs]</a>  <span class="k">def</span> <span class="nf">test_default_resources</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">staging_dir</span> <span class="o">=</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">mkdtemp</span><span class="p">()</span>
+    <span class="n">options</span> <span class="o">=</span> <span class="n">PipelineOptions</span><span class="p">()</span>
+    <span class="n">options</span><span class="o">.</span><span class="n">view_as</span><span class="p">(</span><span class="n">GoogleCloudOptions</span><span class="p">)</span><span class="o">.</span><span class="n">staging_location</span> <span class="o">=</span> <span class="n">staging_dir</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">update_options</span><span class="p">(</span><span class="n">options</span><span class="p">)</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span>
+        <span class="p">[],</span>
+        <span class="n">dependency</span><span class="o">.</span><span class="n">stage_job_resources</span><span class="p">(</span><span class="n">options</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="SetupTest.test_with_requirements_file"><a class="viewcode-back" href="../../../../../apache_beam.runners.dataflow.internal.html#apache_beam.runners.dataflow.internal.dependency_test.SetupTest.test_with_requirements_file">[docs]</a>  <span class="k">def</span> <span class="nf">test_with_requirements_file</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">try</span><span class="p">:</span>
+      <span class="n">staging_dir</span> <span class="o">=</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">mkdtemp</span><span class="p">()</span>
+      <span class="n">requirements_cache_dir</span> <span class="o">=</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">mkdtemp</span><span class="p">()</span>
+      <span class="n">source_dir</span> <span class="o">=</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">mkdtemp</span><span class="p">()</span>
+
+      <span class="n">options</span> <span class="o">=</span> <span class="n">PipelineOptions</span><span class="p">()</span>
+      <span class="n">options</span><span class="o">.</span><span class="n">view_as</span><span class="p">(</span><span class="n">GoogleCloudOptions</span><span class="p">)</span><span class="o">.</span><span class="n">staging_location</span> <span class="o">=</span> <span class="n">staging_dir</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">update_options</span><span class="p">(</span><span class="n">options</span><span class="p">)</span>
+      <span class="n">options</span><span class="o">.</span><span class="n">view_as</span><span class="p">(</span><span class="n">SetupOptions</span><span class="p">)</span><span class="o">.</span><span class="n">requirements_cache</span> <span class="o">=</span> <span class="n">requirements_cache_dir</span>
+      <span class="n">options</span><span class="o">.</span><span class="n">view_as</span><span class="p">(</span><span class="n">SetupOptions</span><span class="p">)</span><span class="o">.</span><span class="n">requirements_file</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
+          <span class="n">source_dir</span><span class="p">,</span> <span class="n">dependency</span><span class="o">.</span><span class="n">REQUIREMENTS_FILE</span><span class="p">)</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">create_temp_file</span><span class="p">(</span>
+          <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">source_dir</span><span class="p">,</span> <span class="n">dependency</span><span class="o">.</span><span class="n">REQUIREMENTS_FILE</span><span class="p">),</span> <span class="s1">&#39;nothing&#39;</span><span class="p">)</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span>
+          <span class="nb">sorted</span><span class="p">([</span><span class="n">dependency</span><span class="o">.</span><span class="n">REQUIREMENTS_FILE</span><span class="p">,</span>
+                  <span class="s1">&#39;abc.txt&#39;</span><span class="p">,</span> <span class="s1">&#39;def.txt&#39;</span><span class="p">]),</span>
+          <span class="nb">sorted</span><span class="p">(</span><span class="n">dependency</span><span class="o">.</span><span class="n">stage_job_resources</span><span class="p">(</span>
+              <span class="n">options</span><span class="p">,</span>
+              <span class="n">populate_requirements_cache</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">populate_requirements_cache</span><span class="p">)))</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span>
+          <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isfile</span><span class="p">(</span>
+              <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">staging_dir</span><span class="p">,</span> <span class="n">dependency</span><span class="o">.</span><span class="n">REQUIREMENTS_FILE</span><span class="p">)))</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isfile</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">staging_dir</span><span class="p">,</span> <span class="s1">&#39;abc.txt&#39;</span><span class="p">)))</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isfile</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">staging_dir</span><span class="p">,</span> <span class="s1">&#39;def.txt&#39;</span><span class="p">)))</span>
+    <span class="k">finally</span><span class="p">:</span>
+      <span class="n">shutil</span><span class="o">.</span><span class="n">rmtree</span><span class="p">(</span><span class="n">staging_dir</span><span class="p">)</span>
+      <span class="n">shutil</span><span class="o">.</span><span class="n">rmtree</span><span class="p">(</span><span class="n">requirements_cache_dir</span><span class="p">)</span>
+      <span class="n">shutil</span><span class="o">.</span><span class="n">rmtree</span><span class="p">(</span><span class="n">source_dir</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="SetupTest.test_requirements_file_not_present"><a class="viewcode-back" href="../../../../../apache_beam.runners.dataflow.internal.html#apache_beam.runners.dataflow.internal.dependency_test.SetupTest.test_requirements_file_not_present">[docs]</a>  <span class="k">def</span> <span class="nf">test_requirements_file_not_present</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">staging_dir</span> <span class="o">=</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">mkdtemp</span><span class="p">()</span>
+    <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">RuntimeError</span><span class="p">)</span> <span class="k">as</span> <span class="n">cm</span><span class="p">:</span>
+      <span class="n">options</span> <span class="o">=</span> <span class="n">PipelineOptions</span><span class="p">()</span>
+      <span class="n">options</span><span class="o">.</span><span class="n">view_as</span><span class="p">(</span><span class="n">GoogleCloudOptions</span><span class="p">)</span><span class="o">.</span><span class="n">staging_location</span> <span class="o">=</span> <span class="n">staging_dir</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">update_options</span><span class="p">(</span><span class="n">options</span><span class="p">)</span>
+      <span class="n">options</span><span class="o">.</span><span class="n">view_as</span><span class="p">(</span><span class="n">SetupOptions</span><span class="p">)</span><span class="o">.</span><span class="n">requirements_file</span> <span class="o">=</span> <span class="s1">&#39;nosuchfile&#39;</span>
+      <span class="n">dependency</span><span class="o">.</span><span class="n">stage_job_resources</span><span class="p">(</span>
+          <span class="n">options</span><span class="p">,</span> <span class="n">populate_requirements_cache</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">populate_requirements_cache</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span>
+        <span class="n">cm</span><span class="o">.</span><span class="n">exception</span><span class="o">.</span><span class="n">message</span><span class="p">,</span>
+        <span class="s1">&#39;The file </span><span class="si">%s</span><span class="s1"> cannot be found. It was specified in the &#39;</span>
+        <span class="s1">&#39;--requirements_file command line option.&#39;</span> <span class="o">%</span> <span class="s1">&#39;nosuchfile&#39;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="SetupTest.test_with_requirements_file_and_cache"><a class="viewcode-back" href="../../../../../apache_beam.runners.dataflow.internal.html#apache_beam.runners.dataflow.internal.dependency_test.SetupTest.test_with_requirements_file_and_cache">[docs]</a>  <span class="k">def</span> <span class="nf">test_with_requirements_file_and_cache</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">staging_dir</span> <span class="o">=</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">mkdtemp</span><span class="p">()</span>
+    <span class="n">source_dir</span> <span class="o">=</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">mkdtemp</span><span class="p">()</span>
+
+    <span class="n">options</span> <span class="o">=</span> <span class="n">PipelineOptions</span><span class="p">()</span>
+    <span class="n">options</span><span class="o">.</span><span class="n">view_as</span><span class="p">(</span><span class="n">GoogleCloudOptions</span><span class="p">)</span><span class="o">.</span><span class="n">staging_location</span> <span class="o">=</span> <span class="n">staging_dir</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">update_options</span><span class="p">(</span><span class="n">options</span><span class="p">)</span>
+    <span class="n">options</span><span class="o">.</span><span class="n">view_as</span><span class="p">(</span><span class="n">SetupOptions</span><span class="p">)</span><span class="o">.</span><span class="n">requirements_file</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
+        <span class="n">source_dir</span><span class="p">,</span> <span class="n">dependency</span><span class="o">.</span><span class="n">REQUIREMENTS_FILE</span><span class="p">)</span>
+    <span class="n">options</span><span class="o">.</span><span class="n">view_as</span><span class="p">(</span><span class="n">SetupOptions</span><span class="p">)</span><span class="o">.</span><span class="n">requirements_cache</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
+        <span class="n">tempfile</span><span class="o">.</span><span class="n">gettempdir</span><span class="p">(),</span> <span class="s1">&#39;alternative-cache-dir&#39;</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">create_temp_file</span><span class="p">(</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">source_dir</span><span class="p">,</span> <span class="n">dependency</span><span class="o">.</span><span class="n">REQUIREMENTS_FILE</span><span class="p">),</span> <span class="s1">&#39;nothing&#39;</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span>
+        <span class="nb">sorted</span><span class="p">([</span><span class="n">dependency</span><span class="o">.</span><span class="n">REQUIREMENTS_FILE</span><span class="p">,</span>
+                <span class="s1">&#39;abc.txt&#39;</span><span class="p">,</span> <span class="s1">&#39;def.txt&#39;</span><span class="p">]),</span>
+        <span class="nb">sorted</span><span class="p">(</span><span class="n">dependency</span><span class="o">.</span><span class="n">stage_job_resources</span><span class="p">(</span>
+            <span class="n">options</span><span class="p">,</span>
+            <span class="n">populate_requirements_cache</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">populate_requirements_cache</span><span class="p">)))</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isfile</span><span class="p">(</span>
+            <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">staging_dir</span><span class="p">,</span> <span class="n">dependency</span><span class="o">.</span><span class="n">REQUIREMENTS_FILE</span><span class="p">)))</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isfile</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">staging_dir</span><span class="p">,</span> <span class="s1">&#39;abc.txt&#39;</span><span class="p">)))</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isfile</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">staging_dir</span><span class="p">,</span> <span class="s1">&#39;def.txt&#39;</span><span class="p">)))</span></div>
+
+<div class="viewcode-block" id="SetupTest.test_with_setup_file"><a class="viewcode-back" href="../../../../../apache_beam.runners.dataflow.internal.html#apache_beam.runners.dataflow.internal.dependency_test.SetupTest.test_with_setup_file">[docs]</a>  <span class="k">def</span> <span class="nf">test_with_setup_file</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">staging_dir</span> <span class="o">=</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">mkdtemp</span><span class="p">()</span>
+    <span class="n">source_dir</span> <span class="o">=</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">mkdtemp</span><span class="p">()</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">create_temp_file</span><span class="p">(</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">source_dir</span><span class="p">,</span> <span class="s1">&#39;setup.py&#39;</span><span class="p">),</span> <span class="s1">&#39;notused&#39;</span><span class="p">)</span>
+
+    <span class="n">options</span> <span class="o">=</span> <span class="n">PipelineOptions</span><span class="p">()</span>
+    <span class="n">options</span><span class="o">.</span><span class="n">view_as</span><span class="p">(</span><span class="n">GoogleCloudOptions</span><span class="p">)</span><span class="o">.</span><span class="n">staging_location</span> <span class="o">=</span> <span class="n">staging_dir</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">update_options</span><span class="p">(</span><span class="n">options</span><span class="p">)</span>
+    <span class="n">options</span><span class="o">.</span><span class="n">view_as</span><span class="p">(</span><span class="n">SetupOptions</span><span class="p">)</span><span class="o">.</span><span class="n">setup_file</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
+        <span class="n">source_dir</span><span class="p">,</span> <span class="s1">&#39;setup.py&#39;</span><span class="p">)</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span>
+        <span class="p">[</span><span class="n">dependency</span><span class="o">.</span><span class="n">WORKFLOW_TARBALL_FILE</span><span class="p">],</span>
+        <span class="n">dependency</span><span class="o">.</span><span class="n">stage_job_resources</span><span class="p">(</span>
+            <span class="n">options</span><span class="p">,</span>
+            <span class="c1"># We replace the build setup command because a realistic one would</span>
+            <span class="c1"># require the setuptools package to be installed. Note that we can&#39;t</span>
+            <span class="c1"># use &quot;touch&quot; here to create the expected output tarball file, since</span>
+            <span class="c1"># touch is not available on Windows, so we invoke python to produce</span>
+            <span class="c1"># equivalent behavior.</span>
+            <span class="n">build_setup_args</span><span class="o">=</span><span class="p">[</span>
+                <span class="s1">&#39;python&#39;</span><span class="p">,</span> <span class="s1">&#39;-c&#39;</span><span class="p">,</span> <span class="s1">&#39;open(__import__(&quot;sys&quot;).argv[1], &quot;a&quot;)&#39;</span><span class="p">,</span>
+                <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">source_dir</span><span class="p">,</span> <span class="n">dependency</span><span class="o">.</span><span class="n">WORKFLOW_TARBALL_FILE</span><span class="p">)],</span>
+            <span class="n">temp_dir</span><span class="o">=</span><span class="n">source_dir</span><span class="p">))</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isfile</span><span class="p">(</span>
+            <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">staging_dir</span><span class="p">,</span> <span class="n">dependency</span><span class="o">.</span><span class="n">WORKFLOW_TARBALL_FILE</span><span class="p">)))</span></div>
+
+<div class="viewcode-block" id="SetupTest.test_setup_file_not_present"><a class="viewcode-back" href="../../../../../apache_beam.runners.dataflow.internal.html#apache_beam.runners.dataflow.internal.dependency_test.SetupTest.test_setup_file_not_present">[docs]</a>  <span class="k">def</span> <span class="nf">test_setup_file_not_present</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">staging_dir</span> <span class="o">=</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">mkdtemp</span><span class="p">()</span>
+
+    <span class="n">options</span> <span class="o">=</span> <span class="n">PipelineOptions</span><span class="p">()</span>
+    <span class="n">options</span><span class="o">.</span><span class="n">view_as</span><span class="p">(</span><span class="n">GoogleCloudOptions</span><span class="p">)</span><span class="o">.</span><span class="n">staging_location</span> <span class="o">=</span> <span class="n">staging_dir</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">update_options</span><span class="p">(</span><span class="n">options</span><span class="p">)</span>
+    <span class="n">options</span><span class="o">.</span><span class="n">view_as</span><span class="p">(</span><span class="n">SetupOptions</span><span class="p">)</span><span class="o">.</span><span class="n">setup_file</span> <span class="o">=</span> <span class="s1">&#39;nosuchfile&#39;</span>
+
+    <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">RuntimeError</span><span class="p">)</span> <span class="k">as</span> <span class="n">cm</span><span class="p">:</span>
+      <span class="n">dependency</span><span class="o">.</span><span class="n">stage_job_resources</span><span class="p">(</span><span class="n">options</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span>
+        <span class="n">cm</span><span class="o">.</span><span class="n">exception</span><span class="o">.</span><span class="n">message</span><span class="p">,</span>
+        <span class="s1">&#39;The file </span><span class="si">%s</span><span class="s1"> cannot be found. It was specified in the &#39;</span>
+        <span class="s1">&#39;--setup_file command line option.&#39;</span> <span class="o">%</span> <span class="s1">&#39;nosuchfile&#39;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="SetupTest.test_setup_file_not_named_setup_dot_py"><a class="viewcode-back" href="../../../../../apache_beam.runners.dataflow.internal.html#apache_beam.runners.dataflow.internal.dependency_test.SetupTest.test_setup_file_not_named_setup_dot_py">[docs]</a>  <span class="k">def</span> <span class="nf">test_setup_file_not_named_setup_dot_py</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">staging_dir</span> <span class="o">=</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">mkdtemp</span><span class="p">()</span>
+    <span class="n">source_dir</span> <span class="o">=</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">mkdtemp</span><span class="p">()</span>
+
+    <span class="n">options</span> <span class="o">=</span> <span class="n">PipelineOptions</span><span class="p">()</span>
+    <span class="n">options</span><span class="o">.</span><span class="n">view_as</span><span class="p">(</span><span class="n">GoogleCloudOptions</span><span class="p">)</span><span class="o">.</span><span class="n">staging_location</span> <span class="o">=</span> <span class="n">staging_dir</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">update_options</span><span class="p">(</span><span class="n">options</span><span class="p">)</span>
+    <span class="n">options</span><span class="o">.</span><span class="n">view_as</span><span class="p">(</span><span class="n">SetupOptions</span><span class="p">)</span><span class="o">.</span><span class="n">setup_file</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">source_dir</span><span class="p">,</span> <span class="s1">&#39;xyz-setup.py&#39;</span><span class="p">))</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">create_temp_file</span><span class="p">(</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">source_dir</span><span class="p">,</span> <span class="s1">&#39;xyz-setup.py&#39;</span><span class="p">),</span> <span class="s1">&#39;notused&#39;</span><span class="p">)</span>
+    <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">RuntimeError</span><span class="p">)</span> <span class="k">as</span> <span class="n">cm</span><span class="p">:</span>
+      <span class="n">dependency</span><span class="o">.</span><span class="n">stage_job_resources</span><span class="p">(</span><span class="n">options</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span>
+        <span class="n">cm</span><span class="o">.</span><span class="n">exception</span><span class="o">.</span><span class="n">message</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span>
+            <span class="s1">&#39;The --setup_file option expects the full path to a file named &#39;</span>
+            <span class="s1">&#39;setup.py instead of &#39;</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="SetupTest.override_file_copy"><a class="viewcode-back" href="../../../../../apache_beam.runners.dataflow.internal.html#apache_beam.runners.dataflow.internal.dependency_test.SetupTest.override_file_copy">[docs]</a>  <span class="k">def</span> <span class="nf">override_file_copy</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">expected_from_path</span><span class="p">,</span> <span class="n">expected_to_dir</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">file_copy</span><span class="p">(</span><span class="n">from_path</span><span class="p">,</span> <span class="n">to_path</span><span class="p">):</span>
+      <span class="k">if</span> <span class="ow">not</span> <span class="n">from_path</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="n">names</span><span class="o">.</span><span class="n">PICKLED_MAIN_SESSION_FILE</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">expected_from_path</span><span class="p">,</span> <span class="n">from_path</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">utils</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">expected_to_dir</span><span class="p">,</span>
+                                         <span class="n">names</span><span class="o">.</span><span class="n">DATAFLOW_SDK_TARBALL_FILE</span><span class="p">),</span>
+                         <span class="n">to_path</span><span class="p">)</span>
+      <span class="k">if</span> <span class="n">from_path</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;gs://&#39;</span><span class="p">)</span> <span class="ow">or</span> <span class="n">to_path</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;gs://&#39;</span><span class="p">):</span>
+        <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Faking file_copy(</span><span class="si">%s</span><span class="s1">, </span><span class="si">%s</span><span class="s1">)&#39;</span><span class="p">,</span> <span class="n">from_path</span><span class="p">,</span> <span class="n">to_path</span><span class="p">)</span>
+      <span class="k">else</span><span class="p">:</span>
+        <span class="n">shutil</span><span class="o">.</span><span class="n">copyfile</span><span class="p">(</span><span class="n">from_path</span><span class="p">,</span> <span class="n">to_path</span><span class="p">)</span>
+    <span class="n">dependency</span><span class="o">.</span><span class="n">_dependency_file_copy</span> <span class="o">=</span> <span class="n">file_copy</span></div>
+
+<div class="viewcode-block" id="SetupTest.override_file_download"><a class="viewcode-back" href="../../../../../apache_beam.runners.dataflow.internal.html#apache_beam.runners.dataflow.internal.dependency_test.SetupTest.override_file_download">[docs]</a>  <span class="k">def</span> <span class="nf">override_file_download</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">expected_from_url</span><span class="p">,</span> <span class="n">expected_to_folder</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">file_download</span><span class="p">(</span><span class="n">from_url</span><span class="p">,</span> <span class="n">_</span><span class="p">):</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">expected_from_url</span><span class="p">,</span> <span class="n">from_url</span><span class="p">)</span>
+      <span class="n">tarball_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">expected_to_folder</span><span class="p">,</span> <span class="s1">&#39;sdk-tarball&#39;</span><span class="p">)</span>
+      <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">tarball_path</span><span class="p">,</span> <span class="s1">&#39;w&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+        <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;Some contents.&#39;</span><span class="p">)</span>
+      <span class="k">return</span> <span class="n">tarball_path</span>
+    <span class="n">dependency</span><span class="o">.</span><span class="n">_dependency_file_download</span> <span class="o">=</span> <span class="n">file_download</span>
+    <span class="k">return</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">expected_to_folder</span><span class="p">,</span> <span class="s1">&#39;sdk-tarball&#39;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="SetupTest.override_pypi_download"><a class="viewcode-back" href="../../../../../apache_beam.runners.dataflow.internal.html#apache_beam.runners.dataflow.internal.dependency_test.SetupTest.override_pypi_download">[docs]</a>  <span class="k">def</span> <span class="nf">override_pypi_download</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">expected_from_url</span><span class="p">,</span> <span class="n">expected_to_folder</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">pypi_download</span><span class="p">(</span><span class="n">_</span><span class="p">):</span>
+      <span class="n">tarball_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">expected_to_folder</span><span class="p">,</span> <span class="s1">&#39;sdk-tarball&#39;</span><span class="p">)</span>
+      <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">tarball_path</span><span class="p">,</span> <span class="s1">&#39;w&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+        <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;Some contents.&#39;</span><span class="p">)</span>
+      <span class="k">return</span> <span class="n">tarball_path</span>
+    <span class="n">dependency</span><span class="o">.</span><span class="n">_download_pypi_sdk_package</span> <span class="o">=</span> <span class="n">pypi_download</span>
+    <span class="k">return</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">expected_to_folder</span><span class="p">,</span> <span class="s1">&#39;sdk-tarball&#39;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="SetupTest.test_sdk_location_default"><a class="viewcode-back" href="../../../../../apache_beam.runners.dataflow.internal.html#apache_beam.runners.dataflow.internal.dependency_test.SetupTest.test_sdk_location_default">[docs]</a>  <span class="k">def</span> <span class="nf">test_sdk_location_default</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">staging_dir</span> <span class="o">=</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">mkdtemp</span><span class="p">()</span>
+    <span class="n">expected_from_url</span> <span class="o">=</span> <span class="s1">&#39;pypi&#39;</span>
+    <span class="n">expected_from_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">override_pypi_download</span><span class="p">(</span>
+        <span class="n">expected_from_url</span><span class="p">,</span> <span class="n">staging_dir</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">override_file_copy</span><span class="p">(</span><span class="n">expected_from_path</span><span class="p">,</span> <span class="n">staging_dir</span><span class="p">)</span>
+
+    <span class="n">options</span> <span class="o">=</span> <span class="n">PipelineOptions</span><span class="p">()</span>
+    <span class="n">options</span><span class="o">.</span><span class="n">view_as</span><span class="p">(</span><span class="n">GoogleCloudOptions</span><span class="p">)</span><span class="o">.</span><span class="n">staging_location</span> <span class="o">=</span> <span class="n">staging_dir</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">update_options</span><span class="p">(</span><span class="n">options</span><span class="p">)</span>
+    <span class="n">options</span><span class="o">.</span><span class="n">view_as</span><span class="p">(</span><span class="n">SetupOptions</span><span class="p">)</span><span class="o">.</span><span class="n">sdk_location</span> <span class="o">=</span> <span class="s1">&#39;default&#39;</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span>
+        <span class="p">[</span><span class="n">names</span><span class="o">.</span><span class="n">DATAFLOW_SDK_TARBALL_FILE</span><span class="p">],</span>
+        <span class="n">dependency</span><span class="o">.</span><span class="n">stage_job_resources</span><span class="p">(</span>
+            <span class="n">options</span><span class="p">,</span>
+            <span class="n">file_copy</span><span class="o">=</span><span class="n">dependency</span><span class="o">.</span><span class="n">_dependency_file_copy</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="SetupTest.test_sdk_location_local"><a class="viewcode-back" href="../../../../../apache_beam.runners.dataflow.internal.html#apache_beam.runners.dataflow.internal.dependency_test.SetupTest.test_sdk_location_local">[docs]</a>  <span class="k">def</span> <span class="nf">test_sdk_location_local</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">staging_dir</span> <span class="o">=</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">mkdtemp</span><span class="p">()</span>
+    <span class="n">sdk_location</span> <span class="o">=</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">mkdtemp</span><span class="p">()</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">create_temp_file</span><span class="p">(</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
+            <span class="n">sdk_location</span><span class="p">,</span>
+            <span class="n">names</span><span class="o">.</span><span class="n">DATAFLOW_SDK_TARBALL_FILE</span><span class="p">),</span>
+        <span class="s1">&#39;contents&#39;</span><span class="p">)</span>
+
+    <span class="n">options</span> <span class="o">=</span> <span class="n">PipelineOptions</span><span class="p">()</span>
+    <span class="n">options</span><span class="o">.</span><span class="n">view_as</span><span class="p">(</span><span class="n">GoogleCloudOptions</span><span class="p">)</span><span class="o">.</span><span class="n">staging_location</span> <span class="o">=</span> <span class="n">staging_dir</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">update_options</span><span class="p">(</span><span class="n">options</span><span class="p">)</span>
+    <span class="n">options</span><span class="o">.</span><span class="n">view_as</span><span class="p">(</span><span class="n">SetupOptions</span><span class="p">)</span><span class="o">.</span><span class="n">sdk_location</span> <span class="o">=</span> <span class="n">sdk_location</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span>
+        <span class="p">[</span><span class="n">names</span><span class="o">.</span><span class="n">DATAFLOW_SDK_TARBALL_FILE</span><span class="p">],</span>
+        <span class="n">dependency</span><span class="o">.</span><span class="n">stage_job_resources</span><span class="p">(</span><span class="n">options</span><span class="p">))</span>
+    <span class="n">tarball_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
+        <span class="n">staging_dir</span><span class="p">,</span> <span class="n">names</span><span class="o">.</span><span class="n">DATAFLOW_SDK_TARBALL_FILE</span><span class="p">)</span>
+    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">tarball_path</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">read</span><span class="p">(),</span> <span class="s1">&#39;contents&#39;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="SetupTest.test_sdk_location_local_not_present"><a class="viewcode-back" href="../../../../../apache_beam.runners.dataflow.internal.html#apache_beam.runners.dataflow.internal.dependency_test.SetupTest.test_sdk_location_local_not_present">[docs]</a>  <span class="k">def</span> <span class="nf">test_sdk_location_local_not_present</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">staging_dir</span> <span class="o">=</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">mkdtemp</span><span class="p">()</span>
+    <span class="n">sdk_location</span> <span class="o">=</span> <span class="s1">&#39;nosuchdir&#39;</span>
+    <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">RuntimeError</span><span class="p">)</span> <span class="k">as</span> <span class="n">cm</span><span class="p">:</span>
+      <span class="n">options</span> <span class="o">=</span> <span class="n">PipelineOptions</span><span class="p">()</span>
+      <span class="n">options</span><span class="o">.</span><span class="n">view_as</span><span class="p">(</span><span class="n">GoogleCloudOptions</span><span class="p">)</span><span class="o">.</span><span class="n">staging_location</span> <span class="o">=</span> <span class="n">staging_dir</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">update_options</span><span class="p">(</span><span class="n">options</span><span class="p">)</span>
+      <span class="n">options</span><span class="o">.</span><span class="n">view_as</span><span class="p">(</span><span class="n">SetupOptions</span><span class="p">)</span><span class="o">.</span><span class="n">sdk_location</span> <span class="o">=</span> <span class="n">sdk_location</span>
+
+      <span class="n">dependency</span><span class="o">.</span><span class="n">stage_job_resources</span><span class="p">(</span><span class="n">options</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span>
+        <span class="s1">&#39;The file &quot;</span><span class="si">%s</span><span class="s1">&quot; cannot be found. Its &#39;</span>
+        <span class="s1">&#39;location was specified by the --sdk_location command-line option.&#39;</span> <span class="o">%</span>
+        <span class="n">sdk_location</span><span class="p">,</span>
+        <span class="n">cm</span><span class="o">.</span><span class="n">exception</span><span class="o">.</span><span class="n">message</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="SetupTest.test_sdk_location_gcs"><a class="viewcode-back" href="../../../../../apache_beam.runners.dataflow.internal.html#apache_beam.runners.dataflow.internal.dependency_test.SetupTest.test_sdk_location_gcs">[docs]</a>  <span class="k">def</span> <span class="nf">test_sdk_location_gcs</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">staging_dir</span> <span class="o">=</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">mkdtemp</span><span class="p">()</span>
+    <span class="n">sdk_location</span> <span class="o">=</span> <span class="s1">&#39;gs://my-gcs-bucket/tarball.tar.gz&#39;</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">override_file_copy</span><span class="p">(</span><span class="n">sdk_location</span><span class="p">,</span> <span class="n">staging_dir</span><span class="p">)</span>
+
+    <span class="n">options</span> <span class="o">=</span> <span class="n">PipelineOptions</span><span class="p">()</span>
+    <span class="n">options</span><span class="o">.</span><span class="n">view_as</span><span class="p">(</span><span class="n">GoogleCloudOptions</span><span class="p">)</span><span class="o">.</span><span class="n">staging_location</span> <span class="o">=</span> <span class="n">staging_dir</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">update_options</span><span class="p">(</span><span class="n">options</span><span class="p">)</span>
+    <span class="n">options</span><span class="o">.</span><span class="n">view_as</span><span class="p">(</span><span class="n">SetupOptions</span><span class="p">)</span><span class="o">.</span><span class="n">sdk_location</span> <span class="o">=</span> <span class="n">sdk_location</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span>
+        <span class="p">[</span><span class="n">names</span><span class="o">.</span><span class="n">DATAFLOW_SDK_TARBALL_FILE</span><span class="p">],</span>
+        <span class="n">dependency</span><span class="o">.</span><span class="n">stage_job_resources</span><span class="p">(</span><span class="n">options</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="SetupTest.test_with_extra_packages"><a class="viewcode-back" href="../../../../../apache_beam.runners.dataflow.internal.html#apache_beam.runners.dataflow.internal.dependency_test.SetupTest.test_with_extra_packages">[docs]</a>  <span class="k">def</span> <span class="nf">test_with_extra_packages</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">staging_dir</span> <span class="o">=</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">mkdtemp</span><span class="p">()</span>
+    <span class="n">source_dir</span> <span class="o">=</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">mkdtemp</span><span class="p">()</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">create_temp_file</span><span class="p">(</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">source_dir</span><span class="p">,</span> <span class="s1">&#39;abc.tar.gz&#39;</span><span class="p">),</span> <span class="s1">&#39;nothing&#39;</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">create_temp_file</span><span class="p">(</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">source_dir</span><span class="p">,</span> <span class="s1">&#39;xyz.tar.gz&#39;</span><span class="p">),</span> <span class="s1">&#39;nothing&#39;</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">create_temp_file</span><span class="p">(</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">source_dir</span><span class="p">,</span> <span class="s1">&#39;xyz2.tar&#39;</span><span class="p">),</span> <span class="s1">&#39;nothing&#39;</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">create_temp_file</span><span class="p">(</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">source_dir</span><span class="p">,</span> <span class="s1">&#39;whl.whl&#39;</span><span class="p">),</span> <span class="s1">&#39;nothing&#39;</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">create_temp_file</span><span class="p">(</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">source_dir</span><span class="p">,</span> <span class="n">dependency</span><span class="o">.</span><span class="n">EXTRA_PACKAGES_FILE</span><span class="p">),</span> <span class="s1">&#39;nothing&#39;</span><span class="p">)</span>
+
+    <span class="n">options</span> <span class="o">=</span> <span class="n">PipelineOptions</span><span class="p">()</span>
+    <span class="n">options</span><span class="o">.</span><span class="n">view_as</span><span class="p">(</span><span class="n">GoogleCloudOptions</span><span class="p">)</span><span class="o">.</span><span class="n">staging_location</span> <span class="o">=</span> <span class="n">staging_dir</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">update_options</span><span class="p">(</span><span class="n">options</span><span class="p">)</span>
+    <span class="n">options</span><span class="o">.</span><span class="n">view_as</span><span class="p">(</span><span class="n">SetupOptions</span><span class="p">)</span><span class="o">.</span><span class="n">extra_packages</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">source_dir</span><span class="p">,</span> <span class="s1">&#39;abc.tar.gz&#39;</span><span class="p">),</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">source_dir</span><span class="p">,</span> <span class="s1">&#39;xyz.tar.gz&#39;</span><span class="p">),</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">source_dir</span><span class="p">,</span> <span class="s1">&#39;xyz2.tar&#39;</span><span class="p">),</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">source_dir</span><span class="p">,</span> <span class="s1">&#39;whl.whl&#39;</span><span class="p">),</span>
+        <span class="s1">&#39;gs://my-gcs-bucket/gcs.tar.gz&#39;</span><span class="p">]</span>
+
+    <span class="n">gcs_copied_files</span> <span class="o">=</span> <span class="p">[]</span>
+
+    <span class="k">def</span> <span class="nf">file_copy</span><span class="p">(</span><span class="n">from_path</span><span class="p">,</span> <span class="n">to_path</span><span class="p">):</span>
+      <span class="k">if</span> <span class="n">from_path</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;gs://&#39;</span><span class="p">):</span>
+        <span class="n">gcs_copied_files</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">from_path</span><span class="p">)</span>
+        <span class="n">_</span><span class="p">,</span> <span class="n">from_name</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">from_path</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">create_temp_file</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">to_path</span><span class="p">,</span> <span class="n">from_name</span><span class="p">),</span> <span class="s1">&#39;nothing&#39;</span><span class="p">)</span>
+        <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Fake copied GCS file: </span><span class="si">%s</span><span class="s1"> to </span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">from_path</span><span class="p">,</span> <span class="n">to_path</span><span class="p">)</span>
+      <span class="k">elif</span> <span class="n">to_path</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;gs://&#39;</span><span class="p">):</span>
+        <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Faking file_copy(</span><span class="si">%s</span><span class="s1">, </span><span class="si">%s</span><span class="s1">)&#39;</span><span class="p">,</span> <span class="n">from_path</span><span class="p">,</span> <span class="n">to_path</span><span class="p">)</span>
+      <span class="k">else</span><span class="p">:</span>
+        <span class="n">shutil</span><span class="o">.</span><span class="n">copyfile</span><span class="p">(</span><span class="n">from_path</span><span class="p">,</span> <span class="n">to_path</span><span class="p">)</span>
+
+    <span class="n">dependency</span><span class="o">.</span><span class="n">_dependency_file_copy</span> <span class="o">=</span> <span class="n">file_copy</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span>
+        <span class="p">[</span><span class="s1">&#39;abc.tar.gz&#39;</span><span class="p">,</span> <span class="s1">&#39;xyz.tar.gz&#39;</span><span class="p">,</span> <span class="s1">&#39;xyz2.tar&#39;</span><span class="p">,</span> <span class="s1">&#39;whl.whl&#39;</span><span class="p">,</span> <span class="s1">&#39;gcs.tar.gz&#39;</span><span class="p">,</span>
+         <span class="n">dependency</span><span class="o">.</span><span class="n">EXTRA_PACKAGES_FILE</span><span class="p">],</span>
+        <span class="n">dependency</span><span class="o">.</span><span class="n">stage_job_resources</span><span class="p">(</span><span class="n">options</span><span class="p">))</span>
+    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">staging_dir</span><span class="p">,</span> <span class="n">dependency</span><span class="o">.</span><span class="n">EXTRA_PACKAGES_FILE</span><span class="p">))</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">([</span><span class="s1">&#39;abc.tar.gz</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">,</span> <span class="s1">&#39;xyz.tar.gz</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">,</span> <span class="s1">&#39;xyz2.tar</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">,</span>
+                        <span class="s1">&#39;whl.whl</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">,</span> <span class="s1">&#39;gcs.tar.gz</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">],</span> <span class="n">f</span><span class="o">.</span><span class="n">readlines</span><span class="p">())</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">([</span><span class="s1">&#39;gs://my-gcs-bucket/gcs.tar.gz&#39;</span><span class="p">],</span> <span class="n">gcs_copied_files</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="SetupTest.test_with_extra_packages_missing_files"><a class="viewcode-back" href="../../../../../apache_beam.runners.dataflow.internal.html#apache_beam.runners.dataflow.internal.dependency_test.SetupTest.test_with_extra_packages_missing_files">[docs]</a>  <span class="k">def</span> <span class="nf">test_with_extra_packages_missing_files</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">staging_dir</span> <span class="o">=</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">mkdtemp</span><span class="p">()</span>
+    <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">RuntimeError</span><span class="p">)</span> <span class="k">as</span> <span class="n">cm</span><span class="p">:</span>
+
+      <span class="n">options</span> <span class="o">=</span> <span class="n">PipelineOptions</span><span class="p">()</span>
+      <span class="n">options</span><span class="o">.</span><span class="n">view_as</span><span class="p">(</span><span class="n">GoogleCloudOptions</span><span class="p">)</span><span class="o">.</span><span class="n">staging_location</span> <span class="o">=</span> <span class="n">staging_dir</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">update_options</span><span class="p">(</span><span class="n">options</span><span class="p">)</span>
+      <span class="n">options</span><span class="o">.</span><span class="n">view_as</span><span class="p">(</span><span class="n">SetupOptions</span><span class="p">)</span><span class="o">.</span><span class="n">extra_packages</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;nosuchfile.tar.gz&#39;</span><span class="p">]</span>
+
+      <span class="n">dependency</span><span class="o">.</span><span class="n">stage_job_resources</span><span class="p">(</span><span class="n">options</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span>
+        <span class="n">cm</span><span class="o">.</span><span class="n">exception</span><span class="o">.</span><span class="n">message</span><span class="p">,</span>
+        <span class="s1">&#39;The file </span><span class="si">%s</span><span class="s1"> cannot be found. It was specified in the &#39;</span>
+        <span class="s1">&#39;--extra_packages command line option.&#39;</span> <span class="o">%</span> <span class="s1">&#39;nosuchfile.tar.gz&#39;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="SetupTest.test_with_extra_packages_invalid_file_name"><a class="viewcode-back" href="../../../../../apache_beam.runners.dataflow.internal.html#apache_beam.runners.dataflow.internal.dependency_test.SetupTest.test_with_extra_packages_invalid_file_name">[docs]</a>  <span class="k">def</span> <span class="nf">test_with_extra_packages_invalid_file_name</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">staging_dir</span> <span class="o">=</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">mkdtemp</span><span class="p">()</span>
+    <span class="n">source_dir</span> <span class="o">=</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">mkdtemp</span><span class="p">()</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">create_temp_file</span><span class="p">(</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">source_dir</span><span class="p">,</span> <span class="s1">&#39;abc.tgz&#39;</span><span class="p">),</span> <span class="s1">&#39;nothing&#39;</span><span class="p">)</span>
+    <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">RuntimeError</span><span class="p">)</span> <span class="k">as</span> <span class="n">cm</span><span class="p">:</span>
+      <span class="n">options</span> <span class="o">=</span> <span class="n">PipelineOptions</span><span class="p">()</span>
+      <span class="n">options</span><span class="o">.</span><span class="n">view_as</span><span class="p">(</span><span class="n">GoogleCloudOptions</span><span class="p">)</span><span class="o">.</span><span class="n">staging_location</span> <span class="o">=</span> <span class="n">staging_dir</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">update_options</span><span class="p">(</span><span class="n">options</span><span class="p">)</span>
+      <span class="n">options</span><span class="o">.</span><span class="n">view_as</span><span class="p">(</span><span class="n">SetupOptions</span><span class="p">)</span><span class="o">.</span><span class="n">extra_packages</span> <span class="o">=</span> <span class="p">[</span>
+          <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">source_dir</span><span class="p">,</span> <span class="s1">&#39;abc.tgz&#39;</span><span class="p">)]</span>
+      <span class="n">dependency</span><span class="o">.</span><span class="n">stage_job_resources</span><span class="p">(</span><span class="n">options</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span>
+        <span class="n">cm</span><span class="o">.</span><span class="n">exception</span><span class="o">.</span><span class="n">message</span><span class="p">,</span>
+        <span class="s1">&#39;The --extra_package option expects a full path ending with &quot;.tar&quot; or &#39;</span>
+        <span class="s1">&#39;&quot;.tar.gz&quot; instead of </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">source_dir</span><span class="p">,</span> <span class="s1">&#39;abc.tgz&#39;</span><span class="p">))</span></div></div>
+
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s1">&#39;__main__&#39;</span><span class="p">:</span>
+  <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">()</span><span class="o">.</span><span class="n">setLevel</span><span class="p">(</span><span class="n">logging</span><span class="o">.</span><span class="n">INFO</span><span class="p">)</span>
+  <span class="n">unittest</span><span class="o">.</span><span class="n">main</span><span class="p">()</span>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../../../index.html" >Module code</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright .
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.5.3.
+    </div>
+  </body>
+</html>

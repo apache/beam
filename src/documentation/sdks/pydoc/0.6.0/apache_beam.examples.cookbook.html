@@ -1,0 +1,985 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>apache_beam.examples.cookbook package &#8212; Apache Beam  documentation</title>
+    
+    <link rel="stylesheet" href="_static/sphinxdoc.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="apache_beam.examples.snippets package" href="apache_beam.examples.snippets.html" />
+    <link rel="prev" title="apache_beam.examples.complete.juliaset.juliaset package" href="apache_beam.examples.complete.juliaset.juliaset.html" /> 
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="apache_beam.examples.snippets.html" title="apache_beam.examples.snippets package"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="apache_beam.examples.complete.juliaset.juliaset.html" title="apache_beam.examples.complete.juliaset.juliaset package"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="apache_beam.html" >apache_beam package</a> &#187;</li>
+          <li class="nav-item nav-item-2"><a href="apache_beam.examples.html" accesskey="U">apache_beam.examples package</a> &#187;</li> 
+      </ul>
+    </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">apache_beam.examples.cookbook package</a><ul>
+<li><a class="reference internal" href="#submodules">Submodules</a></li>
+<li><a class="reference internal" href="#module-apache_beam.examples.cookbook.bigquery_schema">apache_beam.examples.cookbook.bigquery_schema module</a></li>
+<li><a class="reference internal" href="#module-apache_beam.examples.cookbook.bigquery_side_input">apache_beam.examples.cookbook.bigquery_side_input module</a></li>
+<li><a class="reference internal" href="#module-apache_beam.examples.cookbook.bigquery_side_input_test">apache_beam.examples.cookbook.bigquery_side_input_test module</a></li>
+<li><a class="reference internal" href="#module-apache_beam.examples.cookbook.bigquery_tornadoes">apache_beam.examples.cookbook.bigquery_tornadoes module</a></li>
+<li><a class="reference internal" href="#module-apache_beam.examples.cookbook.bigquery_tornadoes_it_test">apache_beam.examples.cookbook.bigquery_tornadoes_it_test module</a></li>
+<li><a class="reference internal" href="#module-apache_beam.examples.cookbook.bigquery_tornadoes_test">apache_beam.examples.cookbook.bigquery_tornadoes_test module</a></li>
+<li><a class="reference internal" href="#module-apache_beam.examples.cookbook.bigshuffle">apache_beam.examples.cookbook.bigshuffle module</a></li>
+<li><a class="reference internal" href="#module-apache_beam.examples.cookbook.bigshuffle_test">apache_beam.examples.cookbook.bigshuffle_test module</a></li>
+<li><a class="reference internal" href="#module-apache_beam.examples.cookbook.coders">apache_beam.examples.cookbook.coders module</a></li>
+<li><a class="reference internal" href="#module-apache_beam.examples.cookbook.coders_test">apache_beam.examples.cookbook.coders_test module</a></li>
+<li><a class="reference internal" href="#module-apache_beam.examples.cookbook.combiners_test">apache_beam.examples.cookbook.combiners_test module</a></li>
+<li><a class="reference internal" href="#module-apache_beam.examples.cookbook.custom_ptransform">apache_beam.examples.cookbook.custom_ptransform module</a></li>
+<li><a class="reference internal" href="#module-apache_beam.examples.cookbook.custom_ptransform_test">apache_beam.examples.cookbook.custom_ptransform_test module</a></li>
+<li><a class="reference internal" href="#module-apache_beam.examples.cookbook.datastore_wordcount">apache_beam.examples.cookbook.datastore_wordcount module</a></li>
+<li><a class="reference internal" href="#module-apache_beam.examples.cookbook.filters">apache_beam.examples.cookbook.filters module</a></li>
+<li><a class="reference internal" href="#module-apache_beam.examples.cookbook.filters_test">apache_beam.examples.cookbook.filters_test module</a></li>
+<li><a class="reference internal" href="#module-apache_beam.examples.cookbook.group_with_coder">apache_beam.examples.cookbook.group_with_coder module</a></li>
+<li><a class="reference internal" href="#module-apache_beam.examples.cookbook.group_with_coder_test">apache_beam.examples.cookbook.group_with_coder_test module</a></li>
+<li><a class="reference internal" href="#module-apache_beam.examples.cookbook.mergecontacts">apache_beam.examples.cookbook.mergecontacts module</a></li>
+<li><a class="reference internal" href="#module-apache_beam.examples.cookbook.mergecontacts_test">apache_beam.examples.cookbook.mergecontacts_test module</a></li>
+<li><a class="reference internal" href="#module-apache_beam.examples.cookbook.multiple_output_pardo">apache_beam.examples.cookbook.multiple_output_pardo module</a></li>
+<li><a class="reference internal" href="#module-apache_beam.examples.cookbook.multiple_output_pardo_test">apache_beam.examples.cookbook.multiple_output_pardo_test module</a></li>
+<li><a class="reference internal" href="#module-apache_beam.examples.cookbook">Module contents</a></li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="apache_beam.examples.complete.juliaset.juliaset.html"
+                        title="previous chapter">apache_beam.examples.complete.juliaset.juliaset package</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="apache_beam.examples.snippets.html"
+                        title="next chapter">apache_beam.examples.snippets package</a></p>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="_sources/apache_beam.examples.cookbook.rst.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="apache-beam-examples-cookbook-package">
+<h1>apache_beam.examples.cookbook package<a class="headerlink" href="#apache-beam-examples-cookbook-package" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="submodules">
+<h2>Submodules<a class="headerlink" href="#submodules" title="Permalink to this headline">¶</a></h2>
+</div>
+<div class="section" id="module-apache_beam.examples.cookbook.bigquery_schema">
+<span id="apache-beam-examples-cookbook-bigquery-schema-module"></span><h2>apache_beam.examples.cookbook.bigquery_schema module<a class="headerlink" href="#module-apache_beam.examples.cookbook.bigquery_schema" title="Permalink to this headline">¶</a></h2>
+<p>A workflow that writes to a BigQuery table with nested and repeated fields.</p>
+<p>Demonstrates how to build a bigquery.TableSchema object with nested and repeated
+fields. Also, shows how to generate data to be written to a BigQuery table with
+nested and repeated fields.</p>
+<dl class="function">
+<dt id="apache_beam.examples.cookbook.bigquery_schema.run">
+<code class="descclassname">apache_beam.examples.cookbook.bigquery_schema.</code><code class="descname">run</code><span class="sig-paren">(</span><em>argv=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/cookbook/bigquery_schema.html#run"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.cookbook.bigquery_schema.run" title="Permalink to this definition">¶</a></dt>
+<dd><p>Run the workflow.</p>
+</dd></dl>
+
+</div>
+<div class="section" id="module-apache_beam.examples.cookbook.bigquery_side_input">
+<span id="apache-beam-examples-cookbook-bigquery-side-input-module"></span><h2>apache_beam.examples.cookbook.bigquery_side_input module<a class="headerlink" href="#module-apache_beam.examples.cookbook.bigquery_side_input" title="Permalink to this headline">¶</a></h2>
+<p>A Dataflow job that uses BigQuery sources as a side inputs.</p>
+<p>Illustrates how to insert side-inputs into transforms in three different forms,
+as a singleton, as a iterator, and as a list.</p>
+<p>This workflow generate a set of tuples of the form (groupId, corpus, word) where
+groupId is a generated identifier for the group and corpus and word are randomly
+selected from corresponding rows in BQ dataset &#8216;publicdata:samples.shakespeare&#8217;.
+Users should specify the number of groups to form and optionally a corpus and/or
+a word that should be ignored when forming groups.</p>
+<dl class="function">
+<dt id="apache_beam.examples.cookbook.bigquery_side_input.create_groups">
+<code class="descclassname">apache_beam.examples.cookbook.bigquery_side_input.</code><code class="descname">create_groups</code><span class="sig-paren">(</span><em>group_ids</em>, <em>corpus</em>, <em>word</em>, <em>ignore_corpus</em>, <em>ignore_word</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/cookbook/bigquery_side_input.html#create_groups"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.cookbook.bigquery_side_input.create_groups" title="Permalink to this definition">¶</a></dt>
+<dd><p>Generate groups given the input PCollections.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.examples.cookbook.bigquery_side_input.run">
+<code class="descclassname">apache_beam.examples.cookbook.bigquery_side_input.</code><code class="descname">run</code><span class="sig-paren">(</span><em>argv=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/cookbook/bigquery_side_input.html#run"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.cookbook.bigquery_side_input.run" title="Permalink to this definition">¶</a></dt>
+<dd><p>Run the workflow.</p>
+</dd></dl>
+
+</div>
+<div class="section" id="module-apache_beam.examples.cookbook.bigquery_side_input_test">
+<span id="apache-beam-examples-cookbook-bigquery-side-input-test-module"></span><h2>apache_beam.examples.cookbook.bigquery_side_input_test module<a class="headerlink" href="#module-apache_beam.examples.cookbook.bigquery_side_input_test" title="Permalink to this headline">¶</a></h2>
+<p>Test for the BigQuery side input example.</p>
+<dl class="class">
+<dt id="apache_beam.examples.cookbook.bigquery_side_input_test.BigQuerySideInputTest">
+<em class="property">class </em><code class="descclassname">apache_beam.examples.cookbook.bigquery_side_input_test.</code><code class="descname">BigQuerySideInputTest</code><span class="sig-paren">(</span><em>methodName='runTest'</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/cookbook/bigquery_side_input_test.html#BigQuerySideInputTest"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.cookbook.bigquery_side_input_test.BigQuerySideInputTest" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">unittest.case.TestCase</span></code></p>
+<dl class="method">
+<dt id="apache_beam.examples.cookbook.bigquery_side_input_test.BigQuerySideInputTest.test_create_groups">
+<code class="descname">test_create_groups</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/cookbook/bigquery_side_input_test.html#BigQuerySideInputTest.test_create_groups"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.cookbook.bigquery_side_input_test.BigQuerySideInputTest.test_create_groups" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="module-apache_beam.examples.cookbook.bigquery_tornadoes">
+<span id="apache-beam-examples-cookbook-bigquery-tornadoes-module"></span><h2>apache_beam.examples.cookbook.bigquery_tornadoes module<a class="headerlink" href="#module-apache_beam.examples.cookbook.bigquery_tornadoes" title="Permalink to this headline">¶</a></h2>
+<p>A workflow using BigQuery sources and sinks.</p>
+<p>The workflow will read from a table that has the &#8216;month&#8217; and &#8216;tornado&#8217; fields as
+part of the table schema (other additional fields are ignored). The &#8216;month&#8217;
+field is a number represented as a string (e.g., &#8216;23&#8217;) and the &#8216;tornado&#8217; field
+is a boolean field.</p>
+<p>The workflow will compute the number of tornadoes in each month and output
+the results to a table (created if needed) with the following schema:</p>
+<ul class="simple">
+<li>month: number</li>
+<li>tornado_count: number</li>
+</ul>
+<p>This example uses the default behavior for BigQuery source and sinks that
+represents table rows as plain Python dictionaries.</p>
+<dl class="function">
+<dt id="apache_beam.examples.cookbook.bigquery_tornadoes.count_tornadoes">
+<code class="descclassname">apache_beam.examples.cookbook.bigquery_tornadoes.</code><code class="descname">count_tornadoes</code><span class="sig-paren">(</span><em>input_data</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/cookbook/bigquery_tornadoes.html#count_tornadoes"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.cookbook.bigquery_tornadoes.count_tornadoes" title="Permalink to this definition">¶</a></dt>
+<dd><p>Workflow computing the number of tornadoes for each month that had one.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>input_data</strong> &#8211; a PCollection of dictionaries representing table rows. Each
+dictionary will have a &#8216;month&#8217; and a &#8216;tornado&#8217; key as described in the
+module comment.</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">A PCollection of dictionaries containing &#8216;month&#8217; and &#8216;tornado_count&#8217; keys.
+Months without tornadoes are skipped.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.examples.cookbook.bigquery_tornadoes.run">
+<code class="descclassname">apache_beam.examples.cookbook.bigquery_tornadoes.</code><code class="descname">run</code><span class="sig-paren">(</span><em>argv=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/cookbook/bigquery_tornadoes.html#run"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.cookbook.bigquery_tornadoes.run" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</div>
+<div class="section" id="module-apache_beam.examples.cookbook.bigquery_tornadoes_it_test">
+<span id="apache-beam-examples-cookbook-bigquery-tornadoes-it-test-module"></span><h2>apache_beam.examples.cookbook.bigquery_tornadoes_it_test module<a class="headerlink" href="#module-apache_beam.examples.cookbook.bigquery_tornadoes_it_test" title="Permalink to this headline">¶</a></h2>
+<p>End-to-end test for Bigquery tornadoes example.</p>
+<dl class="class">
+<dt id="apache_beam.examples.cookbook.bigquery_tornadoes_it_test.BigqueryTornadoesIT">
+<em class="property">class </em><code class="descclassname">apache_beam.examples.cookbook.bigquery_tornadoes_it_test.</code><code class="descname">BigqueryTornadoesIT</code><span class="sig-paren">(</span><em>methodName='runTest'</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/cookbook/bigquery_tornadoes_it_test.html#BigqueryTornadoesIT"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.cookbook.bigquery_tornadoes_it_test.BigqueryTornadoesIT" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">unittest.case.TestCase</span></code></p>
+<dl class="attribute">
+<dt id="apache_beam.examples.cookbook.bigquery_tornadoes_it_test.BigqueryTornadoesIT.DEFAULT_CHECKSUM">
+<code class="descname">DEFAULT_CHECKSUM</code><em class="property"> = '83789a7c1bca7959dcf23d3bc37e9204e594330f'</em><a class="headerlink" href="#apache_beam.examples.cookbook.bigquery_tornadoes_it_test.BigqueryTornadoesIT.DEFAULT_CHECKSUM" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.examples.cookbook.bigquery_tornadoes_it_test.BigqueryTornadoesIT.test_bigquery_tornadoes_it">
+<code class="descname">test_bigquery_tornadoes_it</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/cookbook/bigquery_tornadoes_it_test.html#BigqueryTornadoesIT.test_bigquery_tornadoes_it"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.cookbook.bigquery_tornadoes_it_test.BigqueryTornadoesIT.test_bigquery_tornadoes_it" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="module-apache_beam.examples.cookbook.bigquery_tornadoes_test">
+<span id="apache-beam-examples-cookbook-bigquery-tornadoes-test-module"></span><h2>apache_beam.examples.cookbook.bigquery_tornadoes_test module<a class="headerlink" href="#module-apache_beam.examples.cookbook.bigquery_tornadoes_test" title="Permalink to this headline">¶</a></h2>
+<p>Test for the BigQuery tornadoes example.</p>
+<dl class="class">
+<dt id="apache_beam.examples.cookbook.bigquery_tornadoes_test.BigQueryTornadoesTest">
+<em class="property">class </em><code class="descclassname">apache_beam.examples.cookbook.bigquery_tornadoes_test.</code><code class="descname">BigQueryTornadoesTest</code><span class="sig-paren">(</span><em>methodName='runTest'</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/cookbook/bigquery_tornadoes_test.html#BigQueryTornadoesTest"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.cookbook.bigquery_tornadoes_test.BigQueryTornadoesTest" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">unittest.case.TestCase</span></code></p>
+<dl class="method">
+<dt id="apache_beam.examples.cookbook.bigquery_tornadoes_test.BigQueryTornadoesTest.test_basics">
+<code class="descname">test_basics</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/cookbook/bigquery_tornadoes_test.html#BigQueryTornadoesTest.test_basics"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.cookbook.bigquery_tornadoes_test.BigQueryTornadoesTest.test_basics" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="module-apache_beam.examples.cookbook.bigshuffle">
+<span id="apache-beam-examples-cookbook-bigshuffle-module"></span><h2>apache_beam.examples.cookbook.bigshuffle module<a class="headerlink" href="#module-apache_beam.examples.cookbook.bigshuffle" title="Permalink to this headline">¶</a></h2>
+<p>A BigShuffle workflow.</p>
+<dl class="function">
+<dt id="apache_beam.examples.cookbook.bigshuffle.crc32line">
+<code class="descclassname">apache_beam.examples.cookbook.bigshuffle.</code><code class="descname">crc32line</code><span class="sig-paren">(</span><em>line</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/cookbook/bigshuffle.html#crc32line"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.cookbook.bigshuffle.crc32line" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.examples.cookbook.bigshuffle.run">
+<code class="descclassname">apache_beam.examples.cookbook.bigshuffle.</code><code class="descname">run</code><span class="sig-paren">(</span><em>argv=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/cookbook/bigshuffle.html#run"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.cookbook.bigshuffle.run" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</div>
+<div class="section" id="module-apache_beam.examples.cookbook.bigshuffle_test">
+<span id="apache-beam-examples-cookbook-bigshuffle-test-module"></span><h2>apache_beam.examples.cookbook.bigshuffle_test module<a class="headerlink" href="#module-apache_beam.examples.cookbook.bigshuffle_test" title="Permalink to this headline">¶</a></h2>
+<p>Test for the bigshuffle example.</p>
+<dl class="class">
+<dt id="apache_beam.examples.cookbook.bigshuffle_test.BigShuffleTest">
+<em class="property">class </em><code class="descclassname">apache_beam.examples.cookbook.bigshuffle_test.</code><code class="descname">BigShuffleTest</code><span class="sig-paren">(</span><em>methodName='runTest'</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/cookbook/bigshuffle_test.html#BigShuffleTest"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.cookbook.bigshuffle_test.BigShuffleTest" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">unittest.case.TestCase</span></code></p>
+<dl class="attribute">
+<dt id="apache_beam.examples.cookbook.bigshuffle_test.BigShuffleTest.SAMPLE_TEXT">
+<code class="descname">SAMPLE_TEXT</code><em class="property"> = 'a b c a b a\naa bb cc aa bb aa'</em><a class="headerlink" href="#apache_beam.examples.cookbook.bigshuffle_test.BigShuffleTest.SAMPLE_TEXT" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.examples.cookbook.bigshuffle_test.BigShuffleTest.create_temp_file">
+<code class="descname">create_temp_file</code><span class="sig-paren">(</span><em>contents</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/cookbook/bigshuffle_test.html#BigShuffleTest.create_temp_file"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.cookbook.bigshuffle_test.BigShuffleTest.create_temp_file" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.examples.cookbook.bigshuffle_test.BigShuffleTest.test_basics">
+<code class="descname">test_basics</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/cookbook/bigshuffle_test.html#BigShuffleTest.test_basics"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.cookbook.bigshuffle_test.BigShuffleTest.test_basics" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="module-apache_beam.examples.cookbook.coders">
+<span id="apache-beam-examples-cookbook-coders-module"></span><h2>apache_beam.examples.cookbook.coders module<a class="headerlink" href="#module-apache_beam.examples.cookbook.coders" title="Permalink to this headline">¶</a></h2>
+<p>A workflow using custom JSON-based coders for text sources and sinks.</p>
+<p>The input file contains a JSON string on each line describing a match
+record using the following schema:</p>
+<blockquote>
+<div>{&#8216;guest&#8217;: [TEAM_NAME, GOALS], &#8216;host&#8217;: [TEAM_NAME, GOALS]}</div></blockquote>
+<p>The output file will contain the computed points for each team with one team
+per line in the following format:</p>
+<blockquote>
+<div>[TEAM_NAME, POINTS]</div></blockquote>
+<dl class="class">
+<dt id="apache_beam.examples.cookbook.coders.JsonCoder">
+<em class="property">class </em><code class="descclassname">apache_beam.examples.cookbook.coders.</code><code class="descname">JsonCoder</code><a class="reference internal" href="_modules/apache_beam/examples/cookbook/coders.html#JsonCoder"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.cookbook.coders.JsonCoder" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">object</span></code></p>
+<p>A JSON coder interpreting each line as a JSON string.</p>
+<dl class="method">
+<dt id="apache_beam.examples.cookbook.coders.JsonCoder.decode">
+<code class="descname">decode</code><span class="sig-paren">(</span><em>x</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/cookbook/coders.html#JsonCoder.decode"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.cookbook.coders.JsonCoder.decode" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.examples.cookbook.coders.JsonCoder.encode">
+<code class="descname">encode</code><span class="sig-paren">(</span><em>x</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/cookbook/coders.html#JsonCoder.encode"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.cookbook.coders.JsonCoder.encode" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.examples.cookbook.coders.compute_points">
+<code class="descclassname">apache_beam.examples.cookbook.coders.</code><code class="descname">compute_points</code><span class="sig-paren">(</span><em>record</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/cookbook/coders.html#compute_points"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.cookbook.coders.compute_points" title="Permalink to this definition">¶</a></dt>
+<dd><p>Compute points based on the record containing the match result.</p>
+<p>The function assigns 3 points for a win, 1 point for a draw, and 0 points for
+a loss (see <a class="reference external" href="http://en.wikipedia.org/wiki/Three_points_for_a_win">http://en.wikipedia.org/wiki/Three_points_for_a_win</a>).</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.examples.cookbook.coders.run">
+<code class="descclassname">apache_beam.examples.cookbook.coders.</code><code class="descname">run</code><span class="sig-paren">(</span><em>argv=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/cookbook/coders.html#run"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.cookbook.coders.run" title="Permalink to this definition">¶</a></dt>
+<dd><p>Runs the workflow computing total points from a collection of matches.</p>
+</dd></dl>
+
+</div>
+<div class="section" id="module-apache_beam.examples.cookbook.coders_test">
+<span id="apache-beam-examples-cookbook-coders-test-module"></span><h2>apache_beam.examples.cookbook.coders_test module<a class="headerlink" href="#module-apache_beam.examples.cookbook.coders_test" title="Permalink to this headline">¶</a></h2>
+<p>Test for the coders example.</p>
+<dl class="class">
+<dt id="apache_beam.examples.cookbook.coders_test.CodersTest">
+<em class="property">class </em><code class="descclassname">apache_beam.examples.cookbook.coders_test.</code><code class="descname">CodersTest</code><span class="sig-paren">(</span><em>methodName='runTest'</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/cookbook/coders_test.html#CodersTest"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.cookbook.coders_test.CodersTest" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">unittest.case.TestCase</span></code></p>
+<dl class="attribute">
+<dt id="apache_beam.examples.cookbook.coders_test.CodersTest.SAMPLE_RECORDS">
+<code class="descname">SAMPLE_RECORDS</code><em class="property"> = [{'guest': ['Italy', 0], 'host': ['Germany', 1]}, {'guest': ['Brasil', 3], 'host': ['Germany', 1]}, {'guest': ['Italy', 0], 'host': ['Brasil', 1]}]</em><a class="headerlink" href="#apache_beam.examples.cookbook.coders_test.CodersTest.SAMPLE_RECORDS" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.examples.cookbook.coders_test.CodersTest.test_compute_points">
+<code class="descname">test_compute_points</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/cookbook/coders_test.html#CodersTest.test_compute_points"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.cookbook.coders_test.CodersTest.test_compute_points" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="module-apache_beam.examples.cookbook.combiners_test">
+<span id="apache-beam-examples-cookbook-combiners-test-module"></span><h2>apache_beam.examples.cookbook.combiners_test module<a class="headerlink" href="#module-apache_beam.examples.cookbook.combiners_test" title="Permalink to this headline">¶</a></h2>
+<p>Simple tests to showcase combiners.</p>
+<p>The tests are meant to be &#8220;copy/paste&#8221; code snippets for the topic they address
+(combiners in this case). Most examples use neither sources nor sinks.
+The input data is generated simply with a Create transform and the output is
+checked directly on the last PCollection produced.</p>
+<dl class="class">
+<dt id="apache_beam.examples.cookbook.combiners_test.CombinersTest">
+<em class="property">class </em><code class="descclassname">apache_beam.examples.cookbook.combiners_test.</code><code class="descname">CombinersTest</code><span class="sig-paren">(</span><em>methodName='runTest'</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/cookbook/combiners_test.html#CombinersTest"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.cookbook.combiners_test.CombinersTest" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">unittest.case.TestCase</span></code></p>
+<p>Tests showcasing Dataflow combiners.</p>
+<dl class="attribute">
+<dt id="apache_beam.examples.cookbook.combiners_test.CombinersTest.SAMPLE_DATA">
+<code class="descname">SAMPLE_DATA</code><em class="property"> = [('a', 1), ('b', 10), ('a', 2), ('a', 3), ('b', 20), ('c', 100)]</em><a class="headerlink" href="#apache_beam.examples.cookbook.combiners_test.CombinersTest.SAMPLE_DATA" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.examples.cookbook.combiners_test.CombinersTest.test_combine_per_key_with_callable">
+<code class="descname">test_combine_per_key_with_callable</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/cookbook/combiners_test.html#CombinersTest.test_combine_per_key_with_callable"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.cookbook.combiners_test.CombinersTest.test_combine_per_key_with_callable" title="Permalink to this definition">¶</a></dt>
+<dd><p>CombinePerKey using a standard callable reducing iterables.</p>
+<p>A common case for Dataflow combiners is to sum (or max or min) over the
+values of each key. Such standard functions can be used directly as combiner
+functions. In fact, any function &#8220;reducing&#8221; an iterable to a single value
+can be used.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.examples.cookbook.combiners_test.CombinersTest.test_combine_per_key_with_custom_callable">
+<code class="descname">test_combine_per_key_with_custom_callable</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/cookbook/combiners_test.html#CombinersTest.test_combine_per_key_with_custom_callable"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.cookbook.combiners_test.CombinersTest.test_combine_per_key_with_custom_callable" title="Permalink to this definition">¶</a></dt>
+<dd><p>CombinePerKey using a custom function reducing iterables.</p>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="module-apache_beam.examples.cookbook.custom_ptransform">
+<span id="apache-beam-examples-cookbook-custom-ptransform-module"></span><h2>apache_beam.examples.cookbook.custom_ptransform module<a class="headerlink" href="#module-apache_beam.examples.cookbook.custom_ptransform" title="Permalink to this headline">¶</a></h2>
+<p>Various implementations of a Count custom PTransform.</p>
+<p>These example show the different ways you can write custom PTransforms.</p>
+<dl class="class">
+<dt id="apache_beam.examples.cookbook.custom_ptransform.Count1">
+<em class="property">class </em><code class="descclassname">apache_beam.examples.cookbook.custom_ptransform.</code><code class="descname">Count1</code><span class="sig-paren">(</span><em>label=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/cookbook/custom_ptransform.html#Count1"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.cookbook.custom_ptransform.Count1" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="apache_beam.transforms.html#apache_beam.transforms.ptransform.PTransform" title="apache_beam.transforms.ptransform.PTransform"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.transforms.ptransform.PTransform</span></code></a></p>
+<p>Count as a subclass of PTransform, with an apply method.</p>
+<dl class="method">
+<dt id="apache_beam.examples.cookbook.custom_ptransform.Count1.expand">
+<code class="descname">expand</code><span class="sig-paren">(</span><em>pcoll</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/cookbook/custom_ptransform.html#Count1.expand"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.cookbook.custom_ptransform.Count1.expand" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.examples.cookbook.custom_ptransform.get_args">
+<code class="descclassname">apache_beam.examples.cookbook.custom_ptransform.</code><code class="descname">get_args</code><span class="sig-paren">(</span><em>argv</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/cookbook/custom_ptransform.html#get_args"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.cookbook.custom_ptransform.get_args" title="Permalink to this definition">¶</a></dt>
+<dd><p>Determines user specified arguments from the given list of arguments.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>argv</strong> &#8211; all arguments.</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">A pair of argument lists containing known and remaining arguments.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.examples.cookbook.custom_ptransform.run">
+<code class="descclassname">apache_beam.examples.cookbook.custom_ptransform.</code><code class="descname">run</code><span class="sig-paren">(</span><em>argv=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/cookbook/custom_ptransform.html#run"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.cookbook.custom_ptransform.run" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.examples.cookbook.custom_ptransform.run_count1">
+<code class="descclassname">apache_beam.examples.cookbook.custom_ptransform.</code><code class="descname">run_count1</code><span class="sig-paren">(</span><em>known_args</em>, <em>options</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/cookbook/custom_ptransform.html#run_count1"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.cookbook.custom_ptransform.run_count1" title="Permalink to this definition">¶</a></dt>
+<dd><p>Runs the first example pipeline.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.examples.cookbook.custom_ptransform.run_count2">
+<code class="descclassname">apache_beam.examples.cookbook.custom_ptransform.</code><code class="descname">run_count2</code><span class="sig-paren">(</span><em>known_args</em>, <em>options</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/cookbook/custom_ptransform.html#run_count2"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.cookbook.custom_ptransform.run_count2" title="Permalink to this definition">¶</a></dt>
+<dd><p>Runs the second example pipeline.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.examples.cookbook.custom_ptransform.run_count3">
+<code class="descclassname">apache_beam.examples.cookbook.custom_ptransform.</code><code class="descname">run_count3</code><span class="sig-paren">(</span><em>known_args</em>, <em>options</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/cookbook/custom_ptransform.html#run_count3"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.cookbook.custom_ptransform.run_count3" title="Permalink to this definition">¶</a></dt>
+<dd><p>Runs the third example pipeline.</p>
+</dd></dl>
+
+</div>
+<div class="section" id="module-apache_beam.examples.cookbook.custom_ptransform_test">
+<span id="apache-beam-examples-cookbook-custom-ptransform-test-module"></span><h2>apache_beam.examples.cookbook.custom_ptransform_test module<a class="headerlink" href="#module-apache_beam.examples.cookbook.custom_ptransform_test" title="Permalink to this headline">¶</a></h2>
+<p>Tests for the various custom Count implementation examples.</p>
+<dl class="class">
+<dt id="apache_beam.examples.cookbook.custom_ptransform_test.CustomCountTest">
+<em class="property">class </em><code class="descclassname">apache_beam.examples.cookbook.custom_ptransform_test.</code><code class="descname">CustomCountTest</code><span class="sig-paren">(</span><em>methodName='runTest'</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/cookbook/custom_ptransform_test.html#CustomCountTest"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.cookbook.custom_ptransform_test.CustomCountTest" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">unittest.case.TestCase</span></code></p>
+<dl class="method">
+<dt id="apache_beam.examples.cookbook.custom_ptransform_test.CustomCountTest.run_pipeline">
+<code class="descname">run_pipeline</code><span class="sig-paren">(</span><em>count_implementation</em>, <em>factor=1</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/cookbook/custom_ptransform_test.html#CustomCountTest.run_pipeline"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.cookbook.custom_ptransform_test.CustomCountTest.run_pipeline" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.examples.cookbook.custom_ptransform_test.CustomCountTest.test_count1">
+<code class="descname">test_count1</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/cookbook/custom_ptransform_test.html#CustomCountTest.test_count1"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.cookbook.custom_ptransform_test.CustomCountTest.test_count1" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.examples.cookbook.custom_ptransform_test.CustomCountTest.test_count2">
+<code class="descname">test_count2</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/cookbook/custom_ptransform_test.html#CustomCountTest.test_count2"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.cookbook.custom_ptransform_test.CustomCountTest.test_count2" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.examples.cookbook.custom_ptransform_test.CustomCountTest.test_count3">
+<code class="descname">test_count3</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/cookbook/custom_ptransform_test.html#CustomCountTest.test_count3"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.cookbook.custom_ptransform_test.CustomCountTest.test_count3" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="module-apache_beam.examples.cookbook.datastore_wordcount">
+<span id="apache-beam-examples-cookbook-datastore-wordcount-module"></span><h2>apache_beam.examples.cookbook.datastore_wordcount module<a class="headerlink" href="#module-apache_beam.examples.cookbook.datastore_wordcount" title="Permalink to this headline">¶</a></h2>
+<p>A word-counting workflow that uses Google Cloud Datastore.</p>
+<p>This example shows how to use <code class="docutils literal"><span class="pre">datastoreio</span></code> to read from and write to
+Google Cloud Datastore. Note that running this example may incur charge for
+Cloud Datastore operations.</p>
+<p>See <a class="reference external" href="https://developers.google.com/datastore/">https://developers.google.com/datastore/</a> for more details on Google Cloud
+Datastore.
+See <a class="reference external" href="https://beam.apache.org/get-started/quickstart">https://beam.apache.org/get-started/quickstart</a> on
+how to run a Beam pipeline.</p>
+<p>Read-only Mode: In this mode, this example reads Cloud Datastore entities using
+the <code class="docutils literal"><span class="pre">datastoreio.ReadFromDatastore</span></code> transform, extracts the words,
+counts them and write the output to a set of files.</p>
+<p>The following options must be provided to run this pipeline in read-only mode:
+``
+&#8211;project YOUR_PROJECT_ID
+&#8211;kind YOUR_DATASTORE_KIND
+&#8211;output [YOUR_LOCAL_FILE <em>or</em> gs://YOUR_OUTPUT_PATH]
+&#8211;read_only
+``</p>
+<p>Read-write Mode: In this mode, this example reads words from an input file,
+converts them to Cloud Datastore <code class="docutils literal"><span class="pre">Entity</span></code> objects and writes them to
+Cloud Datastore using the <code class="docutils literal"><span class="pre">datastoreio.Write</span></code> transform. The second pipeline
+will then read these Cloud Datastore entities using the
+<code class="docutils literal"><span class="pre">datastoreio.ReadFromDatastore</span></code> transform, extract the words, count them and
+write the output to a set of files.</p>
+<p>The following options must be provided to run this pipeline in read-write mode:
+``
+&#8211;project YOUR_PROJECT_ID
+&#8211;kind YOUR_DATASTORE_KIND
+&#8211;output [YOUR_LOCAL_FILE <em>or</em> gs://YOUR_OUTPUT_PATH]
+``</p>
+<p>Note: We are using the Cloud Datastore protobuf objects directly because
+that is the interface that the <code class="docutils literal"><span class="pre">datastoreio</span></code> exposes.
+See the following links on more information about these protobuf messages.
+<a class="reference external" href="https://cloud.google.com/datastore/docs/reference/rpc/google.datastore.v1">https://cloud.google.com/datastore/docs/reference/rpc/google.datastore.v1</a> and
+<a class="reference external" href="https://github.com/googleapis/googleapis/tree/master/google/datastore/v1">https://github.com/googleapis/googleapis/tree/master/google/datastore/v1</a></p>
+<dl class="class">
+<dt id="apache_beam.examples.cookbook.datastore_wordcount.EntityWrapper">
+<em class="property">class </em><code class="descclassname">apache_beam.examples.cookbook.datastore_wordcount.</code><code class="descname">EntityWrapper</code><span class="sig-paren">(</span><em>namespace</em>, <em>kind</em>, <em>ancestor</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/cookbook/datastore_wordcount.html#EntityWrapper"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.cookbook.datastore_wordcount.EntityWrapper" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">object</span></code></p>
+<p>Create a Cloud Datastore entity from the given string.</p>
+<dl class="method">
+<dt id="apache_beam.examples.cookbook.datastore_wordcount.EntityWrapper.make_entity">
+<code class="descname">make_entity</code><span class="sig-paren">(</span><em>content</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/cookbook/datastore_wordcount.html#EntityWrapper.make_entity"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.cookbook.datastore_wordcount.EntityWrapper.make_entity" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.examples.cookbook.datastore_wordcount.WordExtractingDoFn">
+<em class="property">class </em><code class="descclassname">apache_beam.examples.cookbook.datastore_wordcount.</code><code class="descname">WordExtractingDoFn</code><span class="sig-paren">(</span><em>*unused_args</em>, <em>**unused_kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/cookbook/datastore_wordcount.html#WordExtractingDoFn"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.cookbook.datastore_wordcount.WordExtractingDoFn" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="apache_beam.transforms.html#apache_beam.transforms.core.DoFn" title="apache_beam.transforms.core.DoFn"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.transforms.core.DoFn</span></code></a></p>
+<p>Parse each line of input text into words.</p>
+<dl class="method">
+<dt id="apache_beam.examples.cookbook.datastore_wordcount.WordExtractingDoFn.process">
+<code class="descname">process</code><span class="sig-paren">(</span><em>element</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/cookbook/datastore_wordcount.html#WordExtractingDoFn.process"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.cookbook.datastore_wordcount.WordExtractingDoFn.process" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns an iterator over words in contents of Cloud Datastore entity.
+The element is a line of text.  If the line is blank, note that, too.
+:param element: the input element to be processed</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body">The processed element.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.examples.cookbook.datastore_wordcount.make_ancestor_query">
+<code class="descclassname">apache_beam.examples.cookbook.datastore_wordcount.</code><code class="descname">make_ancestor_query</code><span class="sig-paren">(</span><em>kind</em>, <em>namespace</em>, <em>ancestor</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/cookbook/datastore_wordcount.html#make_ancestor_query"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.cookbook.datastore_wordcount.make_ancestor_query" title="Permalink to this definition">¶</a></dt>
+<dd><p>Creates a Cloud Datastore ancestor query.</p>
+<p>The returned query will fetch all the entities that have the parent key name
+set to the given <cite>ancestor</cite>.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.examples.cookbook.datastore_wordcount.read_from_datastore">
+<code class="descclassname">apache_beam.examples.cookbook.datastore_wordcount.</code><code class="descname">read_from_datastore</code><span class="sig-paren">(</span><em>project</em>, <em>user_options</em>, <em>pipeline_options</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/cookbook/datastore_wordcount.html#read_from_datastore"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.cookbook.datastore_wordcount.read_from_datastore" title="Permalink to this definition">¶</a></dt>
+<dd><p>Creates a pipeline that reads entities from Cloud Datastore.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.examples.cookbook.datastore_wordcount.run">
+<code class="descclassname">apache_beam.examples.cookbook.datastore_wordcount.</code><code class="descname">run</code><span class="sig-paren">(</span><em>argv=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/cookbook/datastore_wordcount.html#run"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.cookbook.datastore_wordcount.run" title="Permalink to this definition">¶</a></dt>
+<dd><p>Main entry point; defines and runs the wordcount pipeline.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.examples.cookbook.datastore_wordcount.write_to_datastore">
+<code class="descclassname">apache_beam.examples.cookbook.datastore_wordcount.</code><code class="descname">write_to_datastore</code><span class="sig-paren">(</span><em>project</em>, <em>user_options</em>, <em>pipeline_options</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/cookbook/datastore_wordcount.html#write_to_datastore"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.cookbook.datastore_wordcount.write_to_datastore" title="Permalink to this definition">¶</a></dt>
+<dd><p>Creates a pipeline that writes entities to Cloud Datastore.</p>
+</dd></dl>
+
+</div>
+<div class="section" id="module-apache_beam.examples.cookbook.filters">
+<span id="apache-beam-examples-cookbook-filters-module"></span><h2>apache_beam.examples.cookbook.filters module<a class="headerlink" href="#module-apache_beam.examples.cookbook.filters" title="Permalink to this headline">¶</a></h2>
+<p>An example workflow that demonstrates filters and other features.</p>
+<ul class="simple">
+<li>Reading and writing data from BigQuery.</li>
+<li>Manipulating BigQuery rows (as Python dicts) in memory.</li>
+<li>Global aggregates.</li>
+<li>Filtering PCollections using both user-specified parameters
+as well as global aggregates computed during pipeline execution.</li>
+</ul>
+<dl class="function">
+<dt id="apache_beam.examples.cookbook.filters.filter_cold_days">
+<code class="descclassname">apache_beam.examples.cookbook.filters.</code><code class="descname">filter_cold_days</code><span class="sig-paren">(</span><em>input_data</em>, <em>month_filter</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/cookbook/filters.html#filter_cold_days"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.cookbook.filters.filter_cold_days" title="Permalink to this definition">¶</a></dt>
+<dd><p>Workflow computing rows in a specific month with low temperatures.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>input_data</strong> &#8211; a PCollection of dictionaries representing table rows. Each
+dictionary must have the keys [&#8216;year&#8217;, &#8216;month&#8217;, &#8216;day&#8217;, and &#8216;mean_temp&#8217;].</li>
+<li><strong>month_filter</strong> &#8211; an int representing the month for which colder-than-average
+days should be returned.</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last"><dl class="docutils">
+<dt>A PCollection of dictionaries with the same keys described above. Each</dt>
+<dd><p class="first last">row represents a day in the specified month where temperatures were
+colder than the global mean temperature in the entire dataset.</p>
+</dd>
+</dl>
+</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.examples.cookbook.filters.run">
+<code class="descclassname">apache_beam.examples.cookbook.filters.</code><code class="descname">run</code><span class="sig-paren">(</span><em>argv=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/cookbook/filters.html#run"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.cookbook.filters.run" title="Permalink to this definition">¶</a></dt>
+<dd><p>Constructs and runs the example filtering pipeline.</p>
+</dd></dl>
+
+</div>
+<div class="section" id="module-apache_beam.examples.cookbook.filters_test">
+<span id="apache-beam-examples-cookbook-filters-test-module"></span><h2>apache_beam.examples.cookbook.filters_test module<a class="headerlink" href="#module-apache_beam.examples.cookbook.filters_test" title="Permalink to this headline">¶</a></h2>
+<p>Test for the filters example.</p>
+<dl class="class">
+<dt id="apache_beam.examples.cookbook.filters_test.FiltersTest">
+<em class="property">class </em><code class="descclassname">apache_beam.examples.cookbook.filters_test.</code><code class="descname">FiltersTest</code><span class="sig-paren">(</span><em>methodName='runTest'</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/cookbook/filters_test.html#FiltersTest"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.cookbook.filters_test.FiltersTest" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">unittest.case.TestCase</span></code></p>
+<dl class="attribute">
+<dt id="apache_beam.examples.cookbook.filters_test.FiltersTest.input_data">
+<code class="descname">input_data</code><em class="property"> = [{'removed': 'a', 'day': 1, 'month': 1, 'mean_temp': 3, 'year': 2010}, {'removed': 'a', 'day': 2, 'month': 1, 'mean_temp': 3, 'year': 2012}, {'removed': 'a', 'day': 3, 'month': 1, 'mean_temp': 5, 'year': 2011}, {'removed': 'a', 'day': 1, 'month': 2, 'mean_temp': 3, 'year': 2013}, {'removed': 'a', 'day': 3, 'month': 3, 'mean_temp': 5, 'year': 2011}]</em><a class="headerlink" href="#apache_beam.examples.cookbook.filters_test.FiltersTest.input_data" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.examples.cookbook.filters_test.FiltersTest.test_basic">
+<code class="descname">test_basic</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/cookbook/filters_test.html#FiltersTest.test_basic"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.cookbook.filters_test.FiltersTest.test_basic" title="Permalink to this definition">¶</a></dt>
+<dd><p>Test that the correct result is returned for a simple dataset.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.examples.cookbook.filters_test.FiltersTest.test_basic_empty">
+<code class="descname">test_basic_empty</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/cookbook/filters_test.html#FiltersTest.test_basic_empty"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.cookbook.filters_test.FiltersTest.test_basic_empty" title="Permalink to this definition">¶</a></dt>
+<dd><p>Test that the correct empty result is returned for a simple dataset.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.examples.cookbook.filters_test.FiltersTest.test_basic_empty_missing">
+<code class="descname">test_basic_empty_missing</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/cookbook/filters_test.html#FiltersTest.test_basic_empty_missing"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.cookbook.filters_test.FiltersTest.test_basic_empty_missing" title="Permalink to this definition">¶</a></dt>
+<dd><p>Test that the correct empty result is returned for a missing month.</p>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="module-apache_beam.examples.cookbook.group_with_coder">
+<span id="apache-beam-examples-cookbook-group-with-coder-module"></span><h2>apache_beam.examples.cookbook.group_with_coder module<a class="headerlink" href="#module-apache_beam.examples.cookbook.group_with_coder" title="Permalink to this headline">¶</a></h2>
+<p>An example of using custom classes and coder for grouping operations.</p>
+<p>This workflow demonstrates registration and usage of a custom coder for a user-
+defined class. A deterministic custom coder is needed to use a class as a key in
+a combine or group operation.</p>
+<p>This example assumes an input file with, on each line, a comma-separated name
+and score.</p>
+<dl class="class">
+<dt id="apache_beam.examples.cookbook.group_with_coder.Player">
+<em class="property">class </em><code class="descclassname">apache_beam.examples.cookbook.group_with_coder.</code><code class="descname">Player</code><span class="sig-paren">(</span><em>name</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/cookbook/group_with_coder.html#Player"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.cookbook.group_with_coder.Player" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">object</span></code></p>
+<p>A custom class used as a key in combine/group transforms.</p>
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.examples.cookbook.group_with_coder.PlayerCoder">
+<em class="property">class </em><code class="descclassname">apache_beam.examples.cookbook.group_with_coder.</code><code class="descname">PlayerCoder</code><a class="reference internal" href="_modules/apache_beam/examples/cookbook/group_with_coder.html#PlayerCoder"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.cookbook.group_with_coder.PlayerCoder" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="apache_beam.coders.html#apache_beam.coders.coders.Coder" title="apache_beam.coders.coders.Coder"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.coders.coders.Coder</span></code></a></p>
+<p>A custom coder for the Player class.</p>
+<dl class="method">
+<dt id="apache_beam.examples.cookbook.group_with_coder.PlayerCoder.decode">
+<code class="descname">decode</code><span class="sig-paren">(</span><em>s</em><span class="sig-paren">)</span><a class="headerlink" href="#apache_beam.examples.cookbook.group_with_coder.PlayerCoder.decode" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.examples.cookbook.group_with_coder.PlayerCoder.encode">
+<code class="descname">encode</code><span class="sig-paren">(</span><em>o</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/cookbook/group_with_coder.html#PlayerCoder.encode"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.cookbook.group_with_coder.PlayerCoder.encode" title="Permalink to this definition">¶</a></dt>
+<dd><p>Encode to bytes with a trace that coder was used.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.examples.cookbook.group_with_coder.PlayerCoder.is_deterministic">
+<code class="descname">is_deterministic</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/cookbook/group_with_coder.html#PlayerCoder.is_deterministic"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.cookbook.group_with_coder.PlayerCoder.is_deterministic" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.examples.cookbook.group_with_coder.get_players">
+<code class="descclassname">apache_beam.examples.cookbook.group_with_coder.</code><code class="descname">get_players</code><span class="sig-paren">(</span><em>descriptor</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/cookbook/group_with_coder.html#get_players"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.cookbook.group_with_coder.get_players" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.examples.cookbook.group_with_coder.run">
+<code class="descclassname">apache_beam.examples.cookbook.group_with_coder.</code><code class="descname">run</code><span class="sig-paren">(</span><em>argv=['-v', '-a', '-E', '-q', 'target/docs/source', 'target/docs/_build', '-c', 'target/docs/source', '-w', 'target/docs/sphinx-build.warnings.log']</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/cookbook/group_with_coder.html#run"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.cookbook.group_with_coder.run" title="Permalink to this definition">¶</a></dt>
+<dd><p>Runs the workflow computing total points from a collection of matches.</p>
+</dd></dl>
+
+</div>
+<div class="section" id="module-apache_beam.examples.cookbook.group_with_coder_test">
+<span id="apache-beam-examples-cookbook-group-with-coder-test-module"></span><h2>apache_beam.examples.cookbook.group_with_coder_test module<a class="headerlink" href="#module-apache_beam.examples.cookbook.group_with_coder_test" title="Permalink to this headline">¶</a></h2>
+<p>Test for the custom coders example.</p>
+<dl class="class">
+<dt id="apache_beam.examples.cookbook.group_with_coder_test.GroupWithCoderTest">
+<em class="property">class </em><code class="descclassname">apache_beam.examples.cookbook.group_with_coder_test.</code><code class="descname">GroupWithCoderTest</code><span class="sig-paren">(</span><em>methodName='runTest'</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/cookbook/group_with_coder_test.html#GroupWithCoderTest"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.cookbook.group_with_coder_test.GroupWithCoderTest" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">unittest.case.TestCase</span></code></p>
+<dl class="attribute">
+<dt id="apache_beam.examples.cookbook.group_with_coder_test.GroupWithCoderTest.SAMPLE_RECORDS">
+<code class="descname">SAMPLE_RECORDS</code><em class="property"> = ['joe,10', 'fred,3', 'mary,7', 'joe,20', 'fred,6', 'ann,5', 'joe,30', 'ann,10', 'mary,1']</em><a class="headerlink" href="#apache_beam.examples.cookbook.group_with_coder_test.GroupWithCoderTest.SAMPLE_RECORDS" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.examples.cookbook.group_with_coder_test.GroupWithCoderTest.create_temp_file">
+<code class="descname">create_temp_file</code><span class="sig-paren">(</span><em>records</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/cookbook/group_with_coder_test.html#GroupWithCoderTest.create_temp_file"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.cookbook.group_with_coder_test.GroupWithCoderTest.create_temp_file" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.examples.cookbook.group_with_coder_test.GroupWithCoderTest.test_basics_with_type_check">
+<code class="descname">test_basics_with_type_check</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/cookbook/group_with_coder_test.html#GroupWithCoderTest.test_basics_with_type_check"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.cookbook.group_with_coder_test.GroupWithCoderTest.test_basics_with_type_check" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.examples.cookbook.group_with_coder_test.GroupWithCoderTest.test_basics_without_type_check">
+<code class="descname">test_basics_without_type_check</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/cookbook/group_with_coder_test.html#GroupWithCoderTest.test_basics_without_type_check"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.cookbook.group_with_coder_test.GroupWithCoderTest.test_basics_without_type_check" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="module-apache_beam.examples.cookbook.mergecontacts">
+<span id="apache-beam-examples-cookbook-mergecontacts-module"></span><h2>apache_beam.examples.cookbook.mergecontacts module<a class="headerlink" href="#module-apache_beam.examples.cookbook.mergecontacts" title="Permalink to this headline">¶</a></h2>
+<p>Merge phone, email, and mailing address information.</p>
+<p>A Dataflow pipeline that merges phone, email, and address information associated
+with the same names. Each input &#8220;database&#8221; is a tab-delimited text file pairing
+names with one phone number/email address/mailing address; multiple entries
+associated with the same name are allowed. Outputs are a tab-delimited text file
+with the merged information and another file containing some simple statistics.
+See mergecontacts_test.py for example inputs and outputs.</p>
+<dl class="docutils">
+<dt>A demonstration of:</dt>
+<dd>CoGroupByKey
+Non-linear pipelines (i.e., pipelines with branches)</dd>
+</dl>
+<dl class="function">
+<dt id="apache_beam.examples.cookbook.mergecontacts.run">
+<code class="descclassname">apache_beam.examples.cookbook.mergecontacts.</code><code class="descname">run</code><span class="sig-paren">(</span><em>argv=None</em>, <em>assert_results=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/cookbook/mergecontacts.html#run"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.cookbook.mergecontacts.run" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</div>
+<div class="section" id="module-apache_beam.examples.cookbook.mergecontacts_test">
+<span id="apache-beam-examples-cookbook-mergecontacts-test-module"></span><h2>apache_beam.examples.cookbook.mergecontacts_test module<a class="headerlink" href="#module-apache_beam.examples.cookbook.mergecontacts_test" title="Permalink to this headline">¶</a></h2>
+<p>Test for the mergecontacts example.</p>
+<dl class="class">
+<dt id="apache_beam.examples.cookbook.mergecontacts_test.MergeContactsTest">
+<em class="property">class </em><code class="descclassname">apache_beam.examples.cookbook.mergecontacts_test.</code><code class="descname">MergeContactsTest</code><span class="sig-paren">(</span><em>methodName='runTest'</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/cookbook/mergecontacts_test.html#MergeContactsTest"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.cookbook.mergecontacts_test.MergeContactsTest" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">unittest.case.TestCase</span></code></p>
+<dl class="attribute">
+<dt id="apache_beam.examples.cookbook.mergecontacts_test.MergeContactsTest.CONTACTS_EMAIL">
+<code class="descname">CONTACTS_EMAIL</code><em class="property"> = 'Nathan Nomad\tnathan&#64;example.com\nNicky Nomad\tnicky&#64;example.com\nNoreen Nomad\tnoreen&#64;example.com\nNoreen Nomad\tnomad&#64;example.com\nRobert B\trobert&#64;example.com\nSilviu C\tsilviu&#64;example.com\nTom S\ttom&#64;example.com\nWally Writer\twally&#64;example.com\n'</em><a class="headerlink" href="#apache_beam.examples.cookbook.mergecontacts_test.MergeContactsTest.CONTACTS_EMAIL" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.examples.cookbook.mergecontacts_test.MergeContactsTest.CONTACTS_PHONE">
+<code class="descname">CONTACTS_PHONE</code><em class="property"> = 'Larry Luddite\t724-228-3529\nLisa Luddite\t304-277-3504\nNathan Nomad\t412-466-8968\nNicky Nomad\t724-379-5815\nNoreen Nomad\t412-472-0145\nRobert B\t814-865-8799\nSilviu C\t724-537-0671\nTom S\t570-368-3420\nTom S\t814-793-9655\n'</em><a class="headerlink" href="#apache_beam.examples.cookbook.mergecontacts_test.MergeContactsTest.CONTACTS_PHONE" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.examples.cookbook.mergecontacts_test.MergeContactsTest.CONTACTS_SNAILMAIL">
+<code class="descname">CONTACTS_SNAILMAIL</code><em class="property"> = 'Larry Luddite\t1949 Westcott St, Detroit, MI 48222\nLisa Luddite\t1949 Westcott St, Detroit, MI 48222\nRobert B\t601 N 34th St, Seattle, WA 98103\nSilviu C\t1600 Amphitheatre Pkwy, Mountain View, CA 94043\nTom S\t6425 Penn Ave Ste 700, Pittsburgh, PA 15206\nWally Writer\t101 Ridge Rd, Chalkyitsik, AK 99788\n'</em><a class="headerlink" href="#apache_beam.examples.cookbook.mergecontacts_test.MergeContactsTest.CONTACTS_SNAILMAIL" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.examples.cookbook.mergecontacts_test.MergeContactsTest.EXPECTED_STATS">
+<code class="descname">EXPECTED_STATS</code><em class="property"> = '2 luddites\n1 writers\n3 nomads\n'</em><a class="headerlink" href="#apache_beam.examples.cookbook.mergecontacts_test.MergeContactsTest.EXPECTED_STATS" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.examples.cookbook.mergecontacts_test.MergeContactsTest.EXPECTED_TSV">
+<code class="descname">EXPECTED_TSV</code><em class="property"> = '&quot;Larry Luddite&quot;\t&quot;&quot;\t&quot;724-228-3529&quot;\t&quot;1949 Westcott St, Detroit, MI 48222&quot;\n&quot;Lisa Luddite&quot;\t&quot;&quot;\t&quot;304-277-3504&quot;\t&quot;1949 Westcott St, Detroit, MI 48222&quot;\n&quot;Nathan Nomad&quot;\t&quot;nathan&#64;example.com&quot;\t&quot;412-466-8968&quot;\t&quot;&quot;\n&quot;Nicky Nomad&quot;\t&quot;nicky&#64;example.com&quot;\t&quot;724-379-5815&quot;\t&quot;&quot;\n&quot;Noreen Nomad&quot;\t&quot;nomad&#64;example.com,noreen&#64;example.com&quot;\t&quot;412-472-0145&quot;\t&quot;&quot;\n&quot;Robert B&quot;\t&quot;robert&#64;example.com&quot;\t&quot;814-865-8799&quot;\t&quot;601 N 34th St, Seattle, WA 98103&quot;\n&quot;Silviu C&quot;\t&quot;silviu&#64;example.com&quot;\t&quot;724-537-0671&quot;\t&quot;1600 Amphitheatre Pkwy, Mountain View, CA 94043&quot;\n&quot;Tom S&quot;\t&quot;tom&#64;example.com&quot;\t&quot;570-368-3420,814-793-9655&quot;\t&quot;6425 Penn Ave Ste 700, Pittsburgh, PA 15206&quot;\n&quot;Wally Writer&quot;\t&quot;wally&#64;example.com&quot;\t&quot;&quot;\t&quot;101 Ridge Rd, Chalkyitsik, AK 99788&quot;\n'</em><a class="headerlink" href="#apache_beam.examples.cookbook.mergecontacts_test.MergeContactsTest.EXPECTED_TSV" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.examples.cookbook.mergecontacts_test.MergeContactsTest.create_temp_file">
+<code class="descname">create_temp_file</code><span class="sig-paren">(</span><em>contents</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/cookbook/mergecontacts_test.html#MergeContactsTest.create_temp_file"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.cookbook.mergecontacts_test.MergeContactsTest.create_temp_file" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.examples.cookbook.mergecontacts_test.MergeContactsTest.normalize_tsv_results">
+<code class="descname">normalize_tsv_results</code><span class="sig-paren">(</span><em>tsv_data</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/cookbook/mergecontacts_test.html#MergeContactsTest.normalize_tsv_results"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.cookbook.mergecontacts_test.MergeContactsTest.normalize_tsv_results" title="Permalink to this definition">¶</a></dt>
+<dd><p>Sort .tsv file data so we can compare it with expected output.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.examples.cookbook.mergecontacts_test.MergeContactsTest.test_mergecontacts">
+<code class="descname">test_mergecontacts</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/cookbook/mergecontacts_test.html#MergeContactsTest.test_mergecontacts"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.cookbook.mergecontacts_test.MergeContactsTest.test_mergecontacts" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="module-apache_beam.examples.cookbook.multiple_output_pardo">
+<span id="apache-beam-examples-cookbook-multiple-output-pardo-module"></span><h2>apache_beam.examples.cookbook.multiple_output_pardo module<a class="headerlink" href="#module-apache_beam.examples.cookbook.multiple_output_pardo" title="Permalink to this headline">¶</a></h2>
+<p>A workflow demonstrating a DoFn with multiple outputs.</p>
+<p>DoFns may produce a main output and additional side outputs. These side outputs
+are marked with a tag at output time and later the same tag will be used to get
+the corresponding result (a PCollection) for that side output.</p>
+<p>This is a slightly modified version of the basic wordcount example. In this
+example words are divided into 2 buckets as shorts words (3 characters in length
+or less) and words (all other words). There will be 3 output files::</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="p">[</span><span class="n">OUTPUT</span><span class="p">]</span><span class="o">-</span><span class="n">chars</span>        <span class="p">:</span>   <span class="n">Character</span> <span class="n">count</span> <span class="k">for</span> <span class="n">the</span> <span class="nb">input</span><span class="o">.</span>
+<span class="p">[</span><span class="n">OUTPUT</span><span class="p">]</span><span class="o">-</span><span class="n">short</span><span class="o">-</span><span class="n">words</span>  <span class="p">:</span>   <span class="n">Word</span> <span class="n">count</span> <span class="k">for</span> <span class="n">short</span> <span class="n">words</span> <span class="n">only</span><span class="o">.</span>
+<span class="p">[</span><span class="n">OUTPUT</span><span class="p">]</span><span class="o">-</span><span class="n">words</span>        <span class="p">:</span>   <span class="n">Word</span> <span class="n">count</span> <span class="k">for</span> <span class="nb">all</span> <span class="n">other</span> <span class="n">words</span><span class="o">.</span>
+</pre></div>
+</div>
+<p>To execute this pipeline locally, specify a local output file or output prefix
+on GCS::</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="o">--</span><span class="n">output</span> <span class="p">[</span><span class="n">YOUR_LOCAL_FILE</span> <span class="o">|</span> <span class="n">gs</span><span class="p">:</span><span class="o">//</span><span class="n">YOUR_OUTPUT_PREFIX</span><span class="p">]</span>
+</pre></div>
+</div>
+<p>To execute this pipeline using the Google Cloud Dataflow service, specify
+pipeline configuration::</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="o">--</span><span class="n">project</span> <span class="n">YOUR_PROJECT_ID</span>
+<span class="o">--</span><span class="n">staging_location</span> <span class="n">gs</span><span class="p">:</span><span class="o">//</span><span class="n">YOUR_STAGING_DIRECTORY</span>
+<span class="o">--</span><span class="n">temp_location</span> <span class="n">gs</span><span class="p">:</span><span class="o">//</span><span class="n">YOUR_TEMP_DIRECTORY</span>
+<span class="o">--</span><span class="n">job_name</span> <span class="n">YOUR_JOB_NAME</span>
+<span class="o">--</span><span class="n">runner</span> <span class="n">DataflowRunner</span>
+</pre></div>
+</div>
+<p>and an output prefix on GCS::</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="o">--</span><span class="n">output</span> <span class="n">gs</span><span class="p">:</span><span class="o">//</span><span class="n">YOUR_OUTPUT_PREFIX</span>
+</pre></div>
+</div>
+<dl class="class">
+<dt id="apache_beam.examples.cookbook.multiple_output_pardo.CountWords">
+<em class="property">class </em><code class="descclassname">apache_beam.examples.cookbook.multiple_output_pardo.</code><code class="descname">CountWords</code><span class="sig-paren">(</span><em>label=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/cookbook/multiple_output_pardo.html#CountWords"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.cookbook.multiple_output_pardo.CountWords" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="apache_beam.transforms.html#apache_beam.transforms.ptransform.PTransform" title="apache_beam.transforms.ptransform.PTransform"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.transforms.ptransform.PTransform</span></code></a></p>
+<p>A transform to count the occurrences of each word.</p>
+<p>A PTransform that converts a PCollection containing words into a PCollection
+of &#8220;word: count&#8221; strings.</p>
+<dl class="method">
+<dt id="apache_beam.examples.cookbook.multiple_output_pardo.CountWords.expand">
+<code class="descname">expand</code><span class="sig-paren">(</span><em>pcoll</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/cookbook/multiple_output_pardo.html#CountWords.expand"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.cookbook.multiple_output_pardo.CountWords.expand" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.examples.cookbook.multiple_output_pardo.SplitLinesToWordsFn">
+<em class="property">class </em><code class="descclassname">apache_beam.examples.cookbook.multiple_output_pardo.</code><code class="descname">SplitLinesToWordsFn</code><span class="sig-paren">(</span><em>*unused_args</em>, <em>**unused_kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/cookbook/multiple_output_pardo.html#SplitLinesToWordsFn"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.cookbook.multiple_output_pardo.SplitLinesToWordsFn" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="apache_beam.transforms.html#apache_beam.transforms.core.DoFn" title="apache_beam.transforms.core.DoFn"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.transforms.core.DoFn</span></code></a></p>
+<p>A transform to split a line of text into individual words.</p>
+<dl class="docutils">
+<dt>This transform will have 3 outputs:</dt>
+<dd><ul class="first last simple">
+<li>main output: all words that are longer than 3 characters.</li>
+<li>short words side output: all other words.</li>
+<li>character count side output: Number of characters in each processed line.</li>
+</ul>
+</dd>
+</dl>
+<dl class="attribute">
+<dt id="apache_beam.examples.cookbook.multiple_output_pardo.SplitLinesToWordsFn.SIDE_OUTPUT_TAG_CHARACTER_COUNT">
+<code class="descname">SIDE_OUTPUT_TAG_CHARACTER_COUNT</code><em class="property"> = 'tag_character_count'</em><a class="headerlink" href="#apache_beam.examples.cookbook.multiple_output_pardo.SplitLinesToWordsFn.SIDE_OUTPUT_TAG_CHARACTER_COUNT" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.examples.cookbook.multiple_output_pardo.SplitLinesToWordsFn.SIDE_OUTPUT_TAG_SHORT_WORDS">
+<code class="descname">SIDE_OUTPUT_TAG_SHORT_WORDS</code><em class="property"> = 'tag_short_words'</em><a class="headerlink" href="#apache_beam.examples.cookbook.multiple_output_pardo.SplitLinesToWordsFn.SIDE_OUTPUT_TAG_SHORT_WORDS" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.examples.cookbook.multiple_output_pardo.SplitLinesToWordsFn.process">
+<code class="descname">process</code><span class="sig-paren">(</span><em>element</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/cookbook/multiple_output_pardo.html#SplitLinesToWordsFn.process"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.cookbook.multiple_output_pardo.SplitLinesToWordsFn.process" title="Permalink to this definition">¶</a></dt>
+<dd><p>Receives a single element (a line) and produces words and side outputs.</p>
+<dl class="docutils">
+<dt>Important things to note here:</dt>
+<dd><ul class="first last simple">
+<li>For a single element you may produce multiple main outputs:
+words of a single line.</li>
+<li>For that same input you may produce multiple side outputs, along with
+multiple main outputs.</li>
+<li>Side outputs may have different types (count) or may share the same type
+(words) as with the main output.</li>
+</ul>
+</dd>
+</dl>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>element</strong> &#8211; processing element.</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Yields:</th><td class="field-body">words as main output, short words as side output, line character count as
+side output.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.examples.cookbook.multiple_output_pardo.run">
+<code class="descclassname">apache_beam.examples.cookbook.multiple_output_pardo.</code><code class="descname">run</code><span class="sig-paren">(</span><em>argv=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/cookbook/multiple_output_pardo.html#run"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.cookbook.multiple_output_pardo.run" title="Permalink to this definition">¶</a></dt>
+<dd><p>Runs the workflow counting the long words and short words separately.</p>
+</dd></dl>
+
+</div>
+<div class="section" id="module-apache_beam.examples.cookbook.multiple_output_pardo_test">
+<span id="apache-beam-examples-cookbook-multiple-output-pardo-test-module"></span><h2>apache_beam.examples.cookbook.multiple_output_pardo_test module<a class="headerlink" href="#module-apache_beam.examples.cookbook.multiple_output_pardo_test" title="Permalink to this headline">¶</a></h2>
+<p>Test for the multiple_output_pardo example.</p>
+<dl class="class">
+<dt id="apache_beam.examples.cookbook.multiple_output_pardo_test.MultipleOutputParDo">
+<em class="property">class </em><code class="descclassname">apache_beam.examples.cookbook.multiple_output_pardo_test.</code><code class="descname">MultipleOutputParDo</code><span class="sig-paren">(</span><em>methodName='runTest'</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/cookbook/multiple_output_pardo_test.html#MultipleOutputParDo"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.cookbook.multiple_output_pardo_test.MultipleOutputParDo" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">unittest.case.TestCase</span></code></p>
+<dl class="attribute">
+<dt id="apache_beam.examples.cookbook.multiple_output_pardo_test.MultipleOutputParDo.EXPECTED_SHORT_WORDS">
+<code class="descname">EXPECTED_SHORT_WORDS</code><em class="property"> = [('A', 2), ('new', 2), ('of', 1)]</em><a class="headerlink" href="#apache_beam.examples.cookbook.multiple_output_pardo_test.MultipleOutputParDo.EXPECTED_SHORT_WORDS" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.examples.cookbook.multiple_output_pardo_test.MultipleOutputParDo.EXPECTED_WORDS">
+<code class="descname">EXPECTED_WORDS</code><em class="property"> = [('whole', 1), ('world', 1), ('fantastic', 1), ('point', 1), ('view', 1)]</em><a class="headerlink" href="#apache_beam.examples.cookbook.multiple_output_pardo_test.MultipleOutputParDo.EXPECTED_WORDS" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.examples.cookbook.multiple_output_pardo_test.MultipleOutputParDo.SAMPLE_TEXT">
+<code class="descname">SAMPLE_TEXT</code><em class="property"> = 'A whole new world\nA new fantastic point of view'</em><a class="headerlink" href="#apache_beam.examples.cookbook.multiple_output_pardo_test.MultipleOutputParDo.SAMPLE_TEXT" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.examples.cookbook.multiple_output_pardo_test.MultipleOutputParDo.create_temp_file">
+<code class="descname">create_temp_file</code><span class="sig-paren">(</span><em>contents</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/cookbook/multiple_output_pardo_test.html#MultipleOutputParDo.create_temp_file"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.cookbook.multiple_output_pardo_test.MultipleOutputParDo.create_temp_file" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.examples.cookbook.multiple_output_pardo_test.MultipleOutputParDo.get_wordcount_results">
+<code class="descname">get_wordcount_results</code><span class="sig-paren">(</span><em>temp_path</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/cookbook/multiple_output_pardo_test.html#MultipleOutputParDo.get_wordcount_results"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.cookbook.multiple_output_pardo_test.MultipleOutputParDo.get_wordcount_results" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.examples.cookbook.multiple_output_pardo_test.MultipleOutputParDo.test_multiple_output_pardo">
+<code class="descname">test_multiple_output_pardo</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/examples/cookbook/multiple_output_pardo_test.html#MultipleOutputParDo.test_multiple_output_pardo"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.examples.cookbook.multiple_output_pardo_test.MultipleOutputParDo.test_multiple_output_pardo" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="module-apache_beam.examples.cookbook">
+<span id="module-contents"></span><h2>Module contents<a class="headerlink" href="#module-apache_beam.examples.cookbook" title="Permalink to this headline">¶</a></h2>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="apache_beam.examples.snippets.html" title="apache_beam.examples.snippets package"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="apache_beam.examples.complete.juliaset.juliaset.html" title="apache_beam.examples.complete.juliaset.juliaset package"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="apache_beam.html" >apache_beam package</a> &#187;</li>
+          <li class="nav-item nav-item-2"><a href="apache_beam.examples.html" >apache_beam.examples package</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright .
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.5.3.
+    </div>
+  </body>
+</html>

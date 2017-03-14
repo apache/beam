@@ -1,0 +1,30 @@
+apache_beam.io.gcp.tests package
+================================
+
+Submodules
+----------
+
+apache_beam.io.gcp.tests.bigquery_matcher module
+------------------------------------------------
+
+.. automodule:: apache_beam.io.gcp.tests.bigquery_matcher
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+apache_beam.io.gcp.tests.bigquery_matcher_test module
+-----------------------------------------------------
+
+.. automodule:: apache_beam.io.gcp.tests.bigquery_matcher_test
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+
+Module contents
+---------------
+
+.. automodule:: apache_beam.io.gcp.tests
+    :members:
+    :undoc-members:
+    :show-inheritance:

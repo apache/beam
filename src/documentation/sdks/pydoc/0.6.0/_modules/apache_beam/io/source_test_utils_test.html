@@ -1,0 +1,212 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>apache_beam.io.source_test_utils_test &#8212; Apache Beam  documentation</title>
+    
+    <link rel="stylesheet" href="../../../_static/sphinxdoc.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../',
+        VERSION:     '',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../index.html" accesskey="U">Module code</a> &#187;</li> 
+      </ul>
+    </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for apache_beam.io.source_test_utils_test</h1><div class="highlight"><pre>
+<span></span><span class="c1">#</span>
+<span class="c1"># Licensed to the Apache Software Foundation (ASF) under one or more</span>
+<span class="c1"># contributor license agreements.  See the NOTICE file distributed with</span>
+<span class="c1"># this work for additional information regarding copyright ownership.</span>
+<span class="c1"># The ASF licenses this file to You under the Apache License, Version 2.0</span>
+<span class="c1"># (the &quot;License&quot;); you may not use this file except in compliance with</span>
+<span class="c1"># the License.  You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1">#    http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.</span>
+<span class="c1"># See the License for the specific language governing permissions and</span>
+<span class="c1"># limitations under the License.</span>
+<span class="c1">#</span>
+
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">import</span> <span class="nn">tempfile</span>
+<span class="kn">import</span> <span class="nn">unittest</span>
+
+<span class="kn">from</span> <span class="nn">apache_beam.io.filebasedsource_test</span> <span class="k">import</span> <span class="n">LineSource</span>
+<span class="kn">import</span> <span class="nn">apache_beam.io.source_test_utils</span> <span class="k">as</span> <span class="nn">source_test_utils</span>
+
+
+<div class="viewcode-block" id="SourceTestUtilsTest"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.source_test_utils_test.SourceTestUtilsTest">[docs]</a><span class="k">class</span> <span class="nc">SourceTestUtilsTest</span><span class="p">(</span><span class="n">unittest</span><span class="o">.</span><span class="n">TestCase</span><span class="p">):</span>
+
+  <span class="k">def</span> <span class="nf">_create_file_with_data</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">lines</span><span class="p">):</span>
+    <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">lines</span><span class="p">,</span> <span class="nb">list</span><span class="p">)</span>
+    <span class="k">with</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">NamedTemporaryFile</span><span class="p">(</span><span class="n">delete</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+      <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">lines</span><span class="p">:</span>
+        <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">line</span> <span class="o">+</span> <span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span>
+
+      <span class="k">return</span> <span class="n">f</span><span class="o">.</span><span class="n">name</span>
+
+  <span class="k">def</span> <span class="nf">_create_data</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">num_lines</span><span class="p">):</span>
+    <span class="k">return</span> <span class="p">[</span><span class="s1">&#39;line &#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">i</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">num_lines</span><span class="p">)]</span>
+
+  <span class="k">def</span> <span class="nf">_create_source</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">):</span>
+    <span class="n">source</span> <span class="o">=</span> <span class="n">LineSource</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_create_file_with_data</span><span class="p">(</span><span class="n">data</span><span class="p">))</span>
+    <span class="c1"># By performing initial splitting, we can get a source for a single file.</span>
+    <span class="c1"># This source, that uses OffsetRangeTracker, is better for testing purposes,</span>
+    <span class="c1"># than using the original source for a file-pattern.</span>
+    <span class="k">for</span> <span class="n">bundle</span> <span class="ow">in</span> <span class="n">source</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="nb">float</span><span class="p">(</span><span class="s1">&#39;inf&#39;</span><span class="p">)):</span>
+      <span class="k">return</span> <span class="n">bundle</span><span class="o">.</span><span class="n">source</span>
+
+<div class="viewcode-block" id="SourceTestUtilsTest.test_read_from_source"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.source_test_utils_test.SourceTestUtilsTest.test_read_from_source">[docs]</a>  <span class="k">def</span> <span class="nf">test_read_from_source</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_create_data</span><span class="p">(</span><span class="mi">100</span><span class="p">)</span>
+    <span class="n">source</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_create_source</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertItemsEqual</span><span class="p">(</span>
+        <span class="n">data</span><span class="p">,</span> <span class="n">source_test_utils</span><span class="o">.</span><span class="n">readFromSource</span><span class="p">(</span><span class="n">source</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="SourceTestUtilsTest.test_source_equals_reference_source"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.source_test_utils_test.SourceTestUtilsTest.test_source_equals_reference_source">[docs]</a>  <span class="k">def</span> <span class="nf">test_source_equals_reference_source</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_create_data</span><span class="p">(</span><span class="mi">100</span><span class="p">)</span>
+    <span class="n">reference_source</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_create_source</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+    <span class="n">sources_info</span> <span class="o">=</span> <span class="p">[(</span><span class="n">split</span><span class="o">.</span><span class="n">source</span><span class="p">,</span> <span class="n">split</span><span class="o">.</span><span class="n">start_position</span><span class="p">,</span> <span class="n">split</span><span class="o">.</span><span class="n">stop_position</span><span class="p">)</span>
+                    <span class="k">for</span> <span class="n">split</span> <span class="ow">in</span> <span class="n">reference_source</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">desired_bundle_size</span><span class="o">=</span><span class="mi">50</span><span class="p">)]</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">sources_info</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">2</span><span class="p">:</span>
+      <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Test is too trivial since splitting only generated </span><span class="si">%d</span><span class="s1">&#39;</span>
+                       <span class="s1">&#39;bundles. Please adjust the test so that at least &#39;</span>
+                       <span class="s1">&#39;two splits get generated.&#39;</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">sources_info</span><span class="p">))</span>
+
+    <span class="n">source_test_utils</span><span class="o">.</span><span class="n">assertSourcesEqualReferenceSource</span><span class="p">(</span>
+        <span class="p">(</span><span class="n">reference_source</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">),</span> <span class="n">sources_info</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="SourceTestUtilsTest.test_split_at_fraction_successful"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.source_test_utils_test.SourceTestUtilsTest.test_split_at_fraction_successful">[docs]</a>  <span class="k">def</span> <span class="nf">test_split_at_fraction_successful</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_create_data</span><span class="p">(</span><span class="mi">100</span><span class="p">)</span>
+    <span class="n">source</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_create_source</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+    <span class="n">result1</span> <span class="o">=</span> <span class="n">source_test_utils</span><span class="o">.</span><span class="n">assertSplitAtFractionBehavior</span><span class="p">(</span>
+        <span class="n">source</span><span class="p">,</span> <span class="mi">10</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">,</span>
+        <span class="n">source_test_utils</span><span class="o">.</span><span class="n">ExpectedSplitOutcome</span><span class="o">.</span><span class="n">MUST_SUCCEED_AND_BE_CONSISTENT</span><span class="p">)</span>
+    <span class="n">result2</span> <span class="o">=</span> <span class="n">source_test_utils</span><span class="o">.</span><span class="n">assertSplitAtFractionBehavior</span><span class="p">(</span>
+        <span class="n">source</span><span class="p">,</span> <span class="mi">20</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">,</span>
+        <span class="n">source_test_utils</span><span class="o">.</span><span class="n">ExpectedSplitOutcome</span><span class="o">.</span><span class="n">MUST_SUCCEED_AND_BE_CONSISTENT</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEquals</span><span class="p">(</span><span class="n">result1</span><span class="p">,</span> <span class="n">result2</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEquals</span><span class="p">(</span><span class="mi">100</span><span class="p">,</span> <span class="n">result1</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="n">result1</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+
+    <span class="n">result3</span> <span class="o">=</span> <span class="n">source_test_utils</span><span class="o">.</span><span class="n">assertSplitAtFractionBehavior</span><span class="p">(</span>
+        <span class="n">source</span><span class="p">,</span> <span class="mi">30</span><span class="p">,</span> <span class="mf">0.8</span><span class="p">,</span>
+        <span class="n">source_test_utils</span><span class="o">.</span><span class="n">ExpectedSplitOutcome</span><span class="o">.</span><span class="n">MUST_SUCCEED_AND_BE_CONSISTENT</span><span class="p">)</span>
+    <span class="n">result4</span> <span class="o">=</span> <span class="n">source_test_utils</span><span class="o">.</span><span class="n">assertSplitAtFractionBehavior</span><span class="p">(</span>
+        <span class="n">source</span><span class="p">,</span> <span class="mi">50</span><span class="p">,</span> <span class="mf">0.8</span><span class="p">,</span>
+        <span class="n">source_test_utils</span><span class="o">.</span><span class="n">ExpectedSplitOutcome</span><span class="o">.</span><span class="n">MUST_SUCCEED_AND_BE_CONSISTENT</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEquals</span><span class="p">(</span><span class="n">result3</span><span class="p">,</span> <span class="n">result4</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEquals</span><span class="p">(</span><span class="mi">100</span><span class="p">,</span> <span class="n">result3</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="n">result4</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="n">result1</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">&lt;</span> <span class="n">result3</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="n">result1</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">&gt;</span> <span class="n">result3</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span></div>
+
+<div class="viewcode-block" id="SourceTestUtilsTest.test_split_at_fraction_fails"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.source_test_utils_test.SourceTestUtilsTest.test_split_at_fraction_fails">[docs]</a>  <span class="k">def</span> <span class="nf">test_split_at_fraction_fails</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_create_data</span><span class="p">(</span><span class="mi">100</span><span class="p">)</span>
+    <span class="n">source</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_create_source</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+
+    <span class="n">result</span> <span class="o">=</span> <span class="n">source_test_utils</span><span class="o">.</span><span class="n">assertSplitAtFractionBehavior</span><span class="p">(</span>
+        <span class="n">source</span><span class="p">,</span> <span class="mi">90</span><span class="p">,</span> <span class="mf">0.1</span><span class="p">,</span> <span class="n">source_test_utils</span><span class="o">.</span><span class="n">ExpectedSplitOutcome</span><span class="o">.</span><span class="n">MUST_FAIL</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEquals</span><span class="p">(</span><span class="n">result</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="mi">100</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEquals</span><span class="p">(</span><span class="n">result</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+
+    <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">ValueError</span><span class="p">):</span>
+      <span class="n">source_test_utils</span><span class="o">.</span><span class="n">assertSplitAtFractionBehavior</span><span class="p">(</span>
+          <span class="n">source</span><span class="p">,</span> <span class="mi">10</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">,</span> <span class="n">source_test_utils</span><span class="o">.</span><span class="n">ExpectedSplitOutcome</span><span class="o">.</span><span class="n">MUST_FAIL</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="SourceTestUtilsTest.test_split_at_fraction_binary"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.source_test_utils_test.SourceTestUtilsTest.test_split_at_fraction_binary">[docs]</a>  <span class="k">def</span> <span class="nf">test_split_at_fraction_binary</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_create_data</span><span class="p">(</span><span class="mi">100</span><span class="p">)</span>
+    <span class="n">source</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_create_source</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+
+    <span class="n">stats</span> <span class="o">=</span> <span class="n">source_test_utils</span><span class="o">.</span><span class="n">SplitFractionStatistics</span><span class="p">([],</span> <span class="p">[])</span>
+    <span class="n">source_test_utils</span><span class="o">.</span><span class="n">assertSplitAtFractionBinary</span><span class="p">(</span>
+        <span class="n">source</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="mi">10</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="mf">0.8</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="n">stats</span><span class="p">)</span>
+
+    <span class="c1"># These lists should not be empty now.</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="n">stats</span><span class="o">.</span><span class="n">successful_fractions</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="n">stats</span><span class="o">.</span><span class="n">non_trivial_fractions</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="SourceTestUtilsTest.test_split_at_fraction_exhaustive"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.source_test_utils_test.SourceTestUtilsTest.test_split_at_fraction_exhaustive">[docs]</a>  <span class="k">def</span> <span class="nf">test_split_at_fraction_exhaustive</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_create_data</span><span class="p">(</span><span class="mi">10</span><span class="p">)</span>
+    <span class="n">source</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_create_source</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+    <span class="n">source_test_utils</span><span class="o">.</span><span class="n">assertSplitAtFractionExhaustive</span><span class="p">(</span><span class="n">source</span><span class="p">)</span></div></div>
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s1">&#39;__main__&#39;</span><span class="p">:</span>
+  <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">()</span><span class="o">.</span><span class="n">setLevel</span><span class="p">(</span><span class="n">logging</span><span class="o">.</span><span class="n">INFO</span><span class="p">)</span>
+  <span class="n">unittest</span><span class="o">.</span><span class="n">main</span><span class="p">()</span>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../index.html" >Module code</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright .
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.5.3.
+    </div>
+  </body>
+</html>

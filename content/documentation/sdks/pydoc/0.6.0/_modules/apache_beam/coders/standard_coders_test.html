@@ -1,0 +1,246 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>apache_beam.coders.standard_coders_test &#8212; Apache Beam  documentation</title>
+    
+    <link rel="stylesheet" href="../../../_static/sphinxdoc.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../',
+        VERSION:     '',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../index.html" accesskey="U">Module code</a> &#187;</li> 
+      </ul>
+    </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for apache_beam.coders.standard_coders_test</h1><div class="highlight"><pre>
+<span></span><span class="c1">#</span>
+<span class="c1"># Licensed to the Apache Software Foundation (ASF) under one or more</span>
+<span class="c1"># contributor license agreements.  See the NOTICE file distributed with</span>
+<span class="c1"># this work for additional information regarding copyright ownership.</span>
+<span class="c1"># The ASF licenses this file to You under the Apache License, Version 2.0</span>
+<span class="c1"># (the &quot;License&quot;); you may not use this file except in compliance with</span>
+<span class="c1"># the License.  You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1">#    http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.</span>
+<span class="c1"># See the License for the specific language governing permissions and</span>
+<span class="c1"># limitations under the License.</span>
+<span class="c1">#</span>
+
+<span class="sd">&quot;&quot;&quot;Unit tests for coders that must be consistent across all Beam SDKs.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">json</span>
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">import</span> <span class="nn">os.path</span>
+<span class="kn">import</span> <span class="nn">sys</span>
+<span class="kn">import</span> <span class="nn">unittest</span>
+
+<span class="kn">import</span> <span class="nn">yaml</span>
+
+<span class="kn">from</span> <span class="nn">apache_beam</span> <span class="k">import</span> <span class="n">coders</span>
+<span class="kn">from</span> <span class="nn">apache_beam.coders</span> <span class="k">import</span> <span class="n">coder_impl</span>
+<span class="kn">from</span> <span class="nn">apache_beam.utils</span> <span class="k">import</span> <span class="n">windowed_value</span>
+<span class="kn">from</span> <span class="nn">apache_beam.utils.timestamp</span> <span class="k">import</span> <span class="n">Timestamp</span>
+<span class="kn">from</span> <span class="nn">apache_beam.transforms.window</span> <span class="k">import</span> <span class="n">IntervalWindow</span>
+<span class="kn">from</span> <span class="nn">apache_beam.transforms</span> <span class="k">import</span> <span class="n">window</span>
+
+<span class="n">STANDARD_CODERS_YAML</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
+    <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="vm">__file__</span><span class="p">),</span> <span class="s1">&#39;..&#39;</span><span class="p">,</span> <span class="s1">&#39;tests&#39;</span><span class="p">,</span> <span class="s1">&#39;data&#39;</span><span class="p">,</span> <span class="s1">&#39;standard_coders.yaml&#39;</span><span class="p">)</span>
+
+
+<span class="k">def</span> <span class="nf">_load_test_cases</span><span class="p">(</span><span class="n">test_yaml</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Load test data from yaml file and return an iterable of test cases.</span>
+
+<span class="sd">  See ``standard_coders.yaml`` for more details.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+  <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">test_yaml</span><span class="p">):</span>
+    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Could not find the test spec: </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">test_yaml</span><span class="p">)</span>
+  <span class="k">for</span> <span class="n">ix</span><span class="p">,</span> <span class="n">spec</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">yaml</span><span class="o">.</span><span class="n">load_all</span><span class="p">(</span><span class="nb">open</span><span class="p">(</span><span class="n">test_yaml</span><span class="p">))):</span>
+    <span class="n">spec</span><span class="p">[</span><span class="s1">&#39;index&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">ix</span>
+    <span class="n">name</span> <span class="o">=</span> <span class="n">spec</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;name&#39;</span><span class="p">,</span> <span class="n">spec</span><span class="p">[</span><span class="s1">&#39;coder&#39;</span><span class="p">][</span><span class="s1">&#39;urn&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;:&#39;</span><span class="p">)[</span><span class="o">-</span><span class="mi">2</span><span class="p">])</span>
+    <span class="k">yield</span> <span class="p">[</span><span class="n">name</span><span class="p">,</span> <span class="n">spec</span><span class="p">]</span>
+
+
+<div class="viewcode-block" id="StandardCodersTest"><a class="viewcode-back" href="../../../apache_beam.coders.html#apache_beam.coders.standard_coders_test.StandardCodersTest">[docs]</a><span class="k">class</span> <span class="nc">StandardCodersTest</span><span class="p">(</span><span class="n">unittest</span><span class="o">.</span><span class="n">TestCase</span><span class="p">):</span>
+
+  <span class="n">_urn_to_coder_class</span> <span class="o">=</span> <span class="p">{</span>
+      <span class="s1">&#39;urn:beam:coders:bytes:0.1&#39;</span><span class="p">:</span> <span class="n">coders</span><span class="o">.</span><span class="n">BytesCoder</span><span class="p">,</span>
+      <span class="s1">&#39;urn:beam:coders:varint:0.1&#39;</span><span class="p">:</span> <span class="n">coders</span><span class="o">.</span><span class="n">VarIntCoder</span><span class="p">,</span>
+      <span class="s1">&#39;urn:beam:coders:kv:0.1&#39;</span><span class="p">:</span> <span class="k">lambda</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span><span class="p">:</span> <span class="n">coders</span><span class="o">.</span><span class="n">TupleCoder</span><span class="p">((</span><span class="n">k</span><span class="p">,</span> <span class="n">v</span><span class="p">)),</span>
+      <span class="s1">&#39;urn:beam:coders:interval_window:0.1&#39;</span><span class="p">:</span> <span class="n">coders</span><span class="o">.</span><span class="n">IntervalWindowCoder</span><span class="p">,</span>
+      <span class="s1">&#39;urn:beam:coders:stream:0.1&#39;</span><span class="p">:</span> <span class="k">lambda</span> <span class="n">t</span><span class="p">:</span> <span class="n">coders</span><span class="o">.</span><span class="n">IterableCoder</span><span class="p">(</span><span class="n">t</span><span class="p">),</span>
+      <span class="s1">&#39;urn:beam:coders:global_window:0.1&#39;</span><span class="p">:</span> <span class="n">coders</span><span class="o">.</span><span class="n">GlobalWindowCoder</span><span class="p">,</span>
+      <span class="s1">&#39;urn:beam:coders:windowed_value:0.1&#39;</span><span class="p">:</span>
+          <span class="k">lambda</span> <span class="n">v</span><span class="p">,</span> <span class="n">w</span><span class="p">:</span> <span class="n">coders</span><span class="o">.</span><span class="n">WindowedValueCoder</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="n">w</span><span class="p">)</span>
+  <span class="p">}</span>
+
+  <span class="n">_urn_to_json_value_parser</span> <span class="o">=</span> <span class="p">{</span>
+      <span class="s1">&#39;urn:beam:coders:bytes:0.1&#39;</span><span class="p">:</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="p">,</span>
+      <span class="s1">&#39;urn:beam:coders:varint:0.1&#39;</span><span class="p">:</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="p">,</span>
+      <span class="s1">&#39;urn:beam:coders:kv:0.1&#39;</span><span class="p">:</span>
+          <span class="k">lambda</span> <span class="n">x</span><span class="p">,</span> <span class="n">key_parser</span><span class="p">,</span> <span class="n">value_parser</span><span class="p">:</span> <span class="p">(</span><span class="n">key_parser</span><span class="p">(</span><span class="n">x</span><span class="p">[</span><span class="s1">&#39;key&#39;</span><span class="p">]),</span>
+                                               <span class="n">value_parser</span><span class="p">(</span><span class="n">x</span><span class="p">[</span><span class="s1">&#39;value&#39;</span><span class="p">])),</span>
+      <span class="s1">&#39;urn:beam:coders:interval_window:0.1&#39;</span><span class="p">:</span>
+          <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">IntervalWindow</span><span class="p">(</span>
+              <span class="n">start</span><span class="o">=</span><span class="n">Timestamp</span><span class="p">(</span><span class="n">micros</span><span class="o">=</span><span class="p">(</span><span class="n">x</span><span class="p">[</span><span class="s1">&#39;end&#39;</span><span class="p">]</span> <span class="o">-</span> <span class="n">x</span><span class="p">[</span><span class="s1">&#39;span&#39;</span><span class="p">])</span> <span class="o">*</span> <span class="mi">1000</span><span class="p">),</span>
+              <span class="n">end</span><span class="o">=</span><span class="n">Timestamp</span><span class="p">(</span><span class="n">micros</span><span class="o">=</span><span class="n">x</span><span class="p">[</span><span class="s1">&#39;end&#39;</span><span class="p">]</span> <span class="o">*</span> <span class="mi">1000</span><span class="p">)),</span>
+      <span class="s1">&#39;urn:beam:coders:stream:0.1&#39;</span><span class="p">:</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">,</span> <span class="n">parser</span><span class="p">:</span> <span class="nb">map</span><span class="p">(</span><span class="n">parser</span><span class="p">,</span> <span class="n">x</span><span class="p">),</span>
+      <span class="s1">&#39;urn:beam:coders:global_window:0.1&#39;</span><span class="p">:</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">window</span><span class="o">.</span><span class="n">GlobalWindow</span><span class="p">(),</span>
+      <span class="s1">&#39;urn:beam:coders:windowed_value:0.1&#39;</span><span class="p">:</span>
+          <span class="k">lambda</span> <span class="n">x</span><span class="p">,</span> <span class="n">value_parser</span><span class="p">,</span> <span class="n">window_parser</span><span class="p">:</span> <span class="n">windowed_value</span><span class="o">.</span><span class="n">create</span><span class="p">(</span>
+              <span class="n">value_parser</span><span class="p">(</span><span class="n">x</span><span class="p">[</span><span class="s1">&#39;value&#39;</span><span class="p">]),</span> <span class="n">x</span><span class="p">[</span><span class="s1">&#39;timestamp&#39;</span><span class="p">]</span> <span class="o">*</span> <span class="mi">1000</span><span class="p">,</span>
+              <span class="nb">tuple</span><span class="p">([</span><span class="n">window_parser</span><span class="p">(</span><span class="n">w</span><span class="p">)</span> <span class="k">for</span> <span class="n">w</span> <span class="ow">in</span> <span class="n">x</span><span class="p">[</span><span class="s1">&#39;windows&#39;</span><span class="p">]]))</span>
+  <span class="p">}</span>
+
+<div class="viewcode-block" id="StandardCodersTest.test_standard_coders"><a class="viewcode-back" href="../../../apache_beam.coders.html#apache_beam.coders.standard_coders_test.StandardCodersTest.test_standard_coders">[docs]</a>  <span class="k">def</span> <span class="nf">test_standard_coders</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">spec</span> <span class="ow">in</span> <span class="n">_load_test_cases</span><span class="p">(</span><span class="n">STANDARD_CODERS_YAML</span><span class="p">):</span>
+      <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Executing </span><span class="si">%s</span><span class="s1"> test.&#39;</span><span class="p">,</span> <span class="n">name</span><span class="p">)</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_run_standard_coder</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">spec</span><span class="p">)</span></div>
+
+  <span class="k">def</span> <span class="nf">_run_standard_coder</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">spec</span><span class="p">):</span>
+    <span class="n">coder</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parse_coder</span><span class="p">(</span><span class="n">spec</span><span class="p">[</span><span class="s1">&#39;coder&#39;</span><span class="p">])</span>
+    <span class="n">parse_value</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">json_value_parser</span><span class="p">(</span><span class="n">spec</span><span class="p">[</span><span class="s1">&#39;coder&#39;</span><span class="p">])</span>
+    <span class="n">nested_list</span> <span class="o">=</span> <span class="p">[</span><span class="n">spec</span><span class="p">[</span><span class="s1">&#39;nested&#39;</span><span class="p">]]</span> <span class="k">if</span> <span class="s1">&#39;nested&#39;</span> <span class="ow">in</span> <span class="n">spec</span> <span class="k">else</span> <span class="p">[</span><span class="kc">True</span><span class="p">,</span> <span class="kc">False</span><span class="p">]</span>
+    <span class="k">for</span> <span class="n">nested</span> <span class="ow">in</span> <span class="n">nested_list</span><span class="p">:</span>
+      <span class="k">for</span> <span class="n">expected_encoded</span><span class="p">,</span> <span class="n">json_value</span> <span class="ow">in</span> <span class="n">spec</span><span class="p">[</span><span class="s1">&#39;examples&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+        <span class="n">value</span> <span class="o">=</span> <span class="n">parse_value</span><span class="p">(</span><span class="n">json_value</span><span class="p">)</span>
+        <span class="n">expected_encoded</span> <span class="o">=</span> <span class="n">expected_encoded</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s1">&#39;latin1&#39;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">spec</span><span class="p">[</span><span class="s1">&#39;coder&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;non_deterministic&#39;</span><span class="p">,</span> <span class="kc">False</span><span class="p">):</span>
+          <span class="n">actual_encoded</span> <span class="o">=</span> <span class="n">encode_nested</span><span class="p">(</span><span class="n">coder</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">nested</span><span class="p">)</span>
+          <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">fix</span> <span class="ow">and</span> <span class="n">actual_encoded</span> <span class="o">!=</span> <span class="n">expected_encoded</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">to_fix</span><span class="p">[</span><span class="n">spec</span><span class="p">[</span><span class="s1">&#39;index&#39;</span><span class="p">],</span> <span class="n">expected_encoded</span><span class="p">]</span> <span class="o">=</span> <span class="n">actual_encoded</span>
+          <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">expected_encoded</span><span class="p">,</span> <span class="n">actual_encoded</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">decode_nested</span><span class="p">(</span><span class="n">coder</span><span class="p">,</span> <span class="n">expected_encoded</span><span class="p">,</span> <span class="n">nested</span><span class="p">),</span>
+                             <span class="n">value</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+          <span class="c1"># Only verify decoding for a non-deterministic coder</span>
+          <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">decode_nested</span><span class="p">(</span><span class="n">coder</span><span class="p">,</span> <span class="n">expected_encoded</span><span class="p">,</span> <span class="n">nested</span><span class="p">),</span>
+                           <span class="n">value</span><span class="p">)</span>
+
+<div class="viewcode-block" id="StandardCodersTest.parse_coder"><a class="viewcode-back" href="../../../apache_beam.coders.html#apache_beam.coders.standard_coders_test.StandardCodersTest.parse_coder">[docs]</a>  <span class="k">def</span> <span class="nf">parse_coder</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">spec</span><span class="p">):</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_urn_to_coder_class</span><span class="p">[</span><span class="n">spec</span><span class="p">[</span><span class="s1">&#39;urn&#39;</span><span class="p">]](</span>
+        <span class="o">*</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">parse_coder</span><span class="p">(</span><span class="n">c</span><span class="p">)</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">spec</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;components&#39;</span><span class="p">,</span> <span class="p">())])</span></div>
+
+<div class="viewcode-block" id="StandardCodersTest.json_value_parser"><a class="viewcode-back" href="../../../apache_beam.coders.html#apache_beam.coders.standard_coders_test.StandardCodersTest.json_value_parser">[docs]</a>  <span class="k">def</span> <span class="nf">json_value_parser</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">coder_spec</span><span class="p">):</span>
+    <span class="n">component_parsers</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">json_value_parser</span><span class="p">(</span><span class="n">c</span><span class="p">)</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">coder_spec</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;components&#39;</span><span class="p">,</span> <span class="p">())]</span>
+    <span class="k">return</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_urn_to_json_value_parser</span><span class="p">[</span><span class="n">coder_spec</span><span class="p">[</span><span class="s1">&#39;urn&#39;</span><span class="p">]](</span>
+        <span class="n">x</span><span class="p">,</span> <span class="o">*</span><span class="n">component_parsers</span><span class="p">)</span></div>
+
+  <span class="c1"># Used when --fix is passed.</span>
+
+  <span class="n">fix</span> <span class="o">=</span> <span class="kc">False</span>
+  <span class="n">to_fix</span> <span class="o">=</span> <span class="p">{}</span>
+
+  <span class="nd">@classmethod</span>
+<div class="viewcode-block" id="StandardCodersTest.tearDownClass"><a class="viewcode-back" href="../../../apache_beam.coders.html#apache_beam.coders.standard_coders_test.StandardCodersTest.tearDownClass">[docs]</a>  <span class="k">def</span> <span class="nf">tearDownClass</span><span class="p">(</span><span class="bp">cls</span><span class="p">):</span>
+    <span class="k">if</span> <span class="bp">cls</span><span class="o">.</span><span class="n">fix</span> <span class="ow">and</span> <span class="bp">cls</span><span class="o">.</span><span class="n">to_fix</span><span class="p">:</span>
+      <span class="nb">print</span> <span class="s2">&quot;FIXING&quot;</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="bp">cls</span><span class="o">.</span><span class="n">to_fix</span><span class="p">),</span> <span class="s2">&quot;TESTS&quot;</span>
+      <span class="n">doc_sep</span> <span class="o">=</span> <span class="s1">&#39;</span><span class="se">\n</span><span class="s1">---</span><span class="se">\n</span><span class="s1">&#39;</span>
+      <span class="n">docs</span> <span class="o">=</span> <span class="nb">open</span><span class="p">(</span><span class="n">STANDARD_CODERS_YAML</span><span class="p">)</span><span class="o">.</span><span class="n">read</span><span class="p">()</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">doc_sep</span><span class="p">)</span>
+
+      <span class="k">def</span> <span class="nf">quote</span><span class="p">(</span><span class="n">s</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">s</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s1">&#39;latin1&#39;</span><span class="p">))</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;\u0000&#39;</span><span class="p">,</span> <span class="sa">r</span><span class="s1">&#39;\0&#39;</span><span class="p">)</span>
+      <span class="k">for</span> <span class="p">(</span><span class="n">doc_ix</span><span class="p">,</span> <span class="n">expected_encoded</span><span class="p">),</span> <span class="n">actual_encoded</span> <span class="ow">in</span> <span class="bp">cls</span><span class="o">.</span><span class="n">to_fix</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+        <span class="nb">print</span> <span class="n">quote</span><span class="p">(</span><span class="n">expected_encoded</span><span class="p">),</span> <span class="s2">&quot;-&gt;&quot;</span><span class="p">,</span> <span class="n">quote</span><span class="p">(</span><span class="n">actual_encoded</span><span class="p">)</span>
+        <span class="n">docs</span><span class="p">[</span><span class="n">doc_ix</span><span class="p">]</span> <span class="o">=</span> <span class="n">docs</span><span class="p">[</span><span class="n">doc_ix</span><span class="p">]</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span>
+            <span class="n">quote</span><span class="p">(</span><span class="n">expected_encoded</span><span class="p">)</span> <span class="o">+</span> <span class="s1">&#39;:&#39;</span><span class="p">,</span> <span class="n">quote</span><span class="p">(</span><span class="n">actual_encoded</span><span class="p">)</span> <span class="o">+</span> <span class="s1">&#39;:&#39;</span><span class="p">)</span>
+      <span class="nb">open</span><span class="p">(</span><span class="n">STANDARD_CODERS_YAML</span><span class="p">,</span> <span class="s1">&#39;w&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">doc_sep</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">docs</span><span class="p">))</span></div></div>
+
+
+<div class="viewcode-block" id="encode_nested"><a class="viewcode-back" href="../../../apache_beam.coders.html#apache_beam.coders.standard_coders_test.encode_nested">[docs]</a><span class="k">def</span> <span class="nf">encode_nested</span><span class="p">(</span><span class="n">coder</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">nested</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+  <span class="n">out</span> <span class="o">=</span> <span class="n">coder_impl</span><span class="o">.</span><span class="n">create_OutputStream</span><span class="p">()</span>
+  <span class="n">coder</span><span class="o">.</span><span class="n">get_impl</span><span class="p">()</span><span class="o">.</span><span class="n">encode_to_stream</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">out</span><span class="p">,</span> <span class="n">nested</span><span class="p">)</span>
+  <span class="k">return</span> <span class="n">out</span><span class="o">.</span><span class="n">get</span><span class="p">()</span></div>
+
+
+<div class="viewcode-block" id="decode_nested"><a class="viewcode-back" href="../../../apache_beam.coders.html#apache_beam.coders.standard_coders_test.decode_nested">[docs]</a><span class="k">def</span> <span class="nf">decode_nested</span><span class="p">(</span><span class="n">coder</span><span class="p">,</span> <span class="n">encoded</span><span class="p">,</span> <span class="n">nested</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+  <span class="k">return</span> <span class="n">coder</span><span class="o">.</span><span class="n">get_impl</span><span class="p">()</span><span class="o">.</span><span class="n">decode_from_stream</span><span class="p">(</span>
+      <span class="n">coder_impl</span><span class="o">.</span><span class="n">create_InputStream</span><span class="p">(</span><span class="n">encoded</span><span class="p">),</span> <span class="n">nested</span><span class="p">)</span></div>
+
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s1">&#39;__main__&#39;</span><span class="p">:</span>
+  <span class="k">if</span> <span class="s1">&#39;--fix&#39;</span> <span class="ow">in</span> <span class="n">sys</span><span class="o">.</span><span class="n">argv</span><span class="p">:</span>
+    <span class="n">StandardCodersTest</span><span class="o">.</span><span class="n">fix</span> <span class="o">=</span> <span class="kc">True</span>
+    <span class="n">sys</span><span class="o">.</span><span class="n">argv</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="s1">&#39;--fix&#39;</span><span class="p">)</span>
+  <span class="n">unittest</span><span class="o">.</span><span class="n">main</span><span class="p">()</span>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../index.html" >Module code</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright .
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.5.3.
+    </div>
+  </body>
+</html>

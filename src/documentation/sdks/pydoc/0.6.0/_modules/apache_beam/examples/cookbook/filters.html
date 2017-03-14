@@ -1,0 +1,197 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>apache_beam.examples.cookbook.filters &#8212; Apache Beam  documentation</title>
+    
+    <link rel="stylesheet" href="../../../../_static/sphinxdoc.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../../',
+        VERSION:     '',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" /> 
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../../index.html" accesskey="U">Module code</a> &#187;</li> 
+      </ul>
+    </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../../../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for apache_beam.examples.cookbook.filters</h1><div class="highlight"><pre>
+<span></span><span class="c1">#</span>
+<span class="c1"># Licensed to the Apache Software Foundation (ASF) under one or more</span>
+<span class="c1"># contributor license agreements.  See the NOTICE file distributed with</span>
+<span class="c1"># this work for additional information regarding copyright ownership.</span>
+<span class="c1"># The ASF licenses this file to You under the Apache License, Version 2.0</span>
+<span class="c1"># (the &quot;License&quot;); you may not use this file except in compliance with</span>
+<span class="c1"># the License.  You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1">#    http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.</span>
+<span class="c1"># See the License for the specific language governing permissions and</span>
+<span class="c1"># limitations under the License.</span>
+<span class="c1">#</span>
+
+<span class="sd">&quot;&quot;&quot;An example workflow that demonstrates filters and other features.</span>
+
+<span class="sd">  - Reading and writing data from BigQuery.</span>
+<span class="sd">  - Manipulating BigQuery rows (as Python dicts) in memory.</span>
+<span class="sd">  - Global aggregates.</span>
+<span class="sd">  - Filtering PCollections using both user-specified parameters</span>
+<span class="sd">    as well as global aggregates computed during pipeline execution.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="k">import</span> <span class="n">absolute_import</span>
+
+<span class="kn">import</span> <span class="nn">argparse</span>
+<span class="kn">import</span> <span class="nn">logging</span>
+
+<span class="kn">import</span> <span class="nn">apache_beam</span> <span class="k">as</span> <span class="nn">beam</span>
+<span class="kn">from</span> <span class="nn">apache_beam.pvalue</span> <span class="k">import</span> <span class="n">AsSingleton</span>
+
+
+<div class="viewcode-block" id="filter_cold_days"><a class="viewcode-back" href="../../../../apache_beam.examples.cookbook.html#apache_beam.examples.cookbook.filters.filter_cold_days">[docs]</a><span class="k">def</span> <span class="nf">filter_cold_days</span><span class="p">(</span><span class="n">input_data</span><span class="p">,</span> <span class="n">month_filter</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Workflow computing rows in a specific month with low temperatures.</span>
+
+<span class="sd">  Args:</span>
+<span class="sd">    input_data: a PCollection of dictionaries representing table rows. Each</span>
+<span class="sd">      dictionary must have the keys [&#39;year&#39;, &#39;month&#39;, &#39;day&#39;, and &#39;mean_temp&#39;].</span>
+<span class="sd">    month_filter: an int representing the month for which colder-than-average</span>
+<span class="sd">      days should be returned.</span>
+
+<span class="sd">  Returns:</span>
+<span class="sd">    A PCollection of dictionaries with the same keys described above. Each</span>
+<span class="sd">      row represents a day in the specified month where temperatures were</span>
+<span class="sd">      colder than the global mean temperature in the entire dataset.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+
+  <span class="c1"># Project to only the desired fields from a complete input row.</span>
+  <span class="c1"># E.g., SELECT f1, f2, f3, ... FROM InputTable.</span>
+  <span class="n">projection_fields</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;year&#39;</span><span class="p">,</span> <span class="s1">&#39;month&#39;</span><span class="p">,</span> <span class="s1">&#39;day&#39;</span><span class="p">,</span> <span class="s1">&#39;mean_temp&#39;</span><span class="p">]</span>
+  <span class="n">fields_of_interest</span> <span class="o">=</span> <span class="p">(</span>
+      <span class="n">input_data</span>
+      <span class="o">|</span> <span class="s1">&#39;Projected&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span>
+          <span class="k">lambda</span> <span class="n">row</span><span class="p">:</span> <span class="p">{</span><span class="n">f</span><span class="p">:</span> <span class="n">row</span><span class="p">[</span><span class="n">f</span><span class="p">]</span> <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">projection_fields</span><span class="p">}))</span>
+
+  <span class="c1"># Compute the global mean temperature.</span>
+  <span class="n">global_mean</span> <span class="o">=</span> <span class="n">AsSingleton</span><span class="p">(</span>
+      <span class="n">fields_of_interest</span>
+      <span class="o">|</span> <span class="s1">&#39;ExtractMean&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">row</span><span class="p">:</span> <span class="n">row</span><span class="p">[</span><span class="s1">&#39;mean_temp&#39;</span><span class="p">])</span>
+      <span class="o">|</span> <span class="s1">&#39;GlobalMean&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">combiners</span><span class="o">.</span><span class="n">Mean</span><span class="o">.</span><span class="n">Globally</span><span class="p">())</span>
+
+  <span class="c1"># Filter to the rows representing days in the month of interest</span>
+  <span class="c1"># in which the mean daily temperature is below the global mean.</span>
+  <span class="k">return</span> <span class="p">(</span>
+      <span class="n">fields_of_interest</span>
+      <span class="o">|</span> <span class="s1">&#39;DesiredMonth&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Filter</span><span class="p">(</span><span class="k">lambda</span> <span class="n">row</span><span class="p">:</span> <span class="n">row</span><span class="p">[</span><span class="s1">&#39;month&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="n">month_filter</span><span class="p">)</span>
+      <span class="o">|</span> <span class="s1">&#39;BelowMean&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Filter</span><span class="p">(</span>
+          <span class="k">lambda</span> <span class="n">row</span><span class="p">,</span> <span class="n">mean</span><span class="p">:</span> <span class="n">row</span><span class="p">[</span><span class="s1">&#39;mean_temp&#39;</span><span class="p">]</span> <span class="o">&lt;</span> <span class="n">mean</span><span class="p">,</span> <span class="n">global_mean</span><span class="p">))</span></div>
+
+
+<div class="viewcode-block" id="run"><a class="viewcode-back" href="../../../../apache_beam.examples.cookbook.html#apache_beam.examples.cookbook.filters.run">[docs]</a><span class="k">def</span> <span class="nf">run</span><span class="p">(</span><span class="n">argv</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Constructs and runs the example filtering pipeline.&quot;&quot;&quot;</span>
+
+  <span class="n">parser</span> <span class="o">=</span> <span class="n">argparse</span><span class="o">.</span><span class="n">ArgumentParser</span><span class="p">()</span>
+  <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;--input&#39;</span><span class="p">,</span>
+                      <span class="n">help</span><span class="o">=</span><span class="s1">&#39;BigQuery table to read from.&#39;</span><span class="p">,</span>
+                      <span class="n">default</span><span class="o">=</span><span class="s1">&#39;clouddataflow-readonly:samples.weather_stations&#39;</span><span class="p">)</span>
+  <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;--output&#39;</span><span class="p">,</span>
+                      <span class="n">required</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                      <span class="n">help</span><span class="o">=</span><span class="s1">&#39;BigQuery table to write to.&#39;</span><span class="p">)</span>
+  <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;--month_filter&#39;</span><span class="p">,</span>
+                      <span class="n">default</span><span class="o">=</span><span class="mi">7</span><span class="p">,</span>
+                      <span class="n">help</span><span class="o">=</span><span class="s1">&#39;Numeric value of month to filter on.&#39;</span><span class="p">)</span>
+  <span class="n">known_args</span><span class="p">,</span> <span class="n">pipeline_args</span> <span class="o">=</span> <span class="n">parser</span><span class="o">.</span><span class="n">parse_known_args</span><span class="p">(</span><span class="n">argv</span><span class="p">)</span>
+
+  <span class="n">p</span> <span class="o">=</span> <span class="n">beam</span><span class="o">.</span><span class="n">Pipeline</span><span class="p">(</span><span class="n">argv</span><span class="o">=</span><span class="n">pipeline_args</span><span class="p">)</span>
+
+  <span class="n">input_data</span> <span class="o">=</span> <span class="n">p</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Read</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">BigQuerySource</span><span class="p">(</span><span class="n">known_args</span><span class="o">.</span><span class="n">input</span><span class="p">))</span>
+
+  <span class="c1"># pylint: disable=expression-not-assigned</span>
+  <span class="p">(</span><span class="n">filter_cold_days</span><span class="p">(</span><span class="n">input_data</span><span class="p">,</span> <span class="n">known_args</span><span class="o">.</span><span class="n">month_filter</span><span class="p">)</span>
+   <span class="o">|</span> <span class="s1">&#39;SaveToBQ&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">Write</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">BigQuerySink</span><span class="p">(</span>
+       <span class="n">known_args</span><span class="o">.</span><span class="n">output</span><span class="p">,</span>
+       <span class="n">schema</span><span class="o">=</span><span class="s1">&#39;year:INTEGER,month:INTEGER,day:INTEGER,mean_temp:FLOAT&#39;</span><span class="p">,</span>
+       <span class="n">create_disposition</span><span class="o">=</span><span class="n">beam</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">BigQueryDisposition</span><span class="o">.</span><span class="n">CREATE_IF_NEEDED</span><span class="p">,</span>
+       <span class="n">write_disposition</span><span class="o">=</span><span class="n">beam</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">BigQueryDisposition</span><span class="o">.</span><span class="n">WRITE_TRUNCATE</span><span class="p">)))</span>
+
+  <span class="c1"># Actually run the pipeline (all operations above are deferred).</span>
+  <span class="n">p</span><span class="o">.</span><span class="n">run</span><span class="p">()</span></div>
+
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s1">&#39;__main__&#39;</span><span class="p">:</span>
+  <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">()</span><span class="o">.</span><span class="n">setLevel</span><span class="p">(</span><span class="n">logging</span><span class="o">.</span><span class="n">INFO</span><span class="p">)</span>
+  <span class="n">run</span><span class="p">()</span>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../../index.html" >Module code</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright .
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.5.3.
+    </div>
+  </body>
+</html>

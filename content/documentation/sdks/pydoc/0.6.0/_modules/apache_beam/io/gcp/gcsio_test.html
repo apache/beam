@@ -1,0 +1,886 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>apache_beam.io.gcp.gcsio_test &#8212; Apache Beam  documentation</title>
+    
+    <link rel="stylesheet" href="../../../../_static/sphinxdoc.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../../',
+        VERSION:     '',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" /> 
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../../index.html" accesskey="U">Module code</a> &#187;</li> 
+      </ul>
+    </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../../../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for apache_beam.io.gcp.gcsio_test</h1><div class="highlight"><pre>
+<span></span><span class="c1">#</span>
+<span class="c1"># Licensed to the Apache Software Foundation (ASF) under one or more</span>
+<span class="c1"># contributor license agreements.  See the NOTICE file distributed with</span>
+<span class="c1"># this work for additional information regarding copyright ownership.</span>
+<span class="c1"># The ASF licenses this file to You under the Apache License, Version 2.0</span>
+<span class="c1"># (the &quot;License&quot;); you may not use this file except in compliance with</span>
+<span class="c1"># the License.  You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1">#    http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.</span>
+<span class="c1"># See the License for the specific language governing permissions and</span>
+<span class="c1"># limitations under the License.</span>
+<span class="c1">#</span>
+<span class="sd">&quot;&quot;&quot;Tests for Google Cloud Storage client.&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">errno</span>
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">import</span> <span class="nn">multiprocessing</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">random</span>
+<span class="kn">import</span> <span class="nn">threading</span>
+<span class="kn">import</span> <span class="nn">time</span>
+<span class="kn">import</span> <span class="nn">unittest</span>
+
+<span class="kn">import</span> <span class="nn">httplib2</span>
+<span class="kn">import</span> <span class="nn">mock</span>
+
+<span class="kn">from</span> <span class="nn">apache_beam.io</span> <span class="k">import</span> <span class="n">gcsio</span>
+<span class="kn">from</span> <span class="nn">apache_beam.io.gcp.internal.clients</span> <span class="k">import</span> <span class="n">storage</span>
+
+<span class="c1"># Protect against environments where apitools library is not available.</span>
+<span class="c1"># pylint: disable=wrong-import-order, wrong-import-position</span>
+<span class="k">try</span><span class="p">:</span>
+  <span class="kn">from</span> <span class="nn">apitools.base.py.exceptions</span> <span class="k">import</span> <span class="n">HttpError</span>
+<span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
+  <span class="n">HttpError</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="c1"># pylint: enable=wrong-import-order, wrong-import-position</span>
+
+
+<div class="viewcode-block" id="FakeGcsClient"><a class="viewcode-back" href="../../../../apache_beam.io.gcp.html#apache_beam.io.gcp.gcsio_test.FakeGcsClient">[docs]</a><span class="k">class</span> <span class="nc">FakeGcsClient</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+  <span class="c1"># Fake storage client.  Usage in gcsio.py is client.objects.Get(...) and</span>
+  <span class="c1"># client.objects.Insert(...).</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">objects</span> <span class="o">=</span> <span class="n">FakeGcsObjects</span><span class="p">()</span>
+    <span class="c1"># Referenced in GcsIO.batch_copy() and GcsIO.batch_delete().</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_http</span> <span class="o">=</span> <span class="nb">object</span><span class="p">()</span></div>
+
+
+<div class="viewcode-block" id="FakeFile"><a class="viewcode-back" href="../../../../apache_beam.io.gcp.html#apache_beam.io.gcp.gcsio_test.FakeFile">[docs]</a><span class="k">class</span> <span class="nc">FakeFile</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">bucket</span><span class="p">,</span> <span class="n">obj</span><span class="p">,</span> <span class="n">contents</span><span class="p">,</span> <span class="n">generation</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">bucket</span> <span class="o">=</span> <span class="n">bucket</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">object</span> <span class="o">=</span> <span class="n">obj</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">contents</span> <span class="o">=</span> <span class="n">contents</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">generation</span> <span class="o">=</span> <span class="n">generation</span>
+
+<div class="viewcode-block" id="FakeFile.get_metadata"><a class="viewcode-back" href="../../../../apache_beam.io.gcp.html#apache_beam.io.gcp.gcsio_test.FakeFile.get_metadata">[docs]</a>  <span class="k">def</span> <span class="nf">get_metadata</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">storage</span><span class="o">.</span><span class="n">Object</span><span class="p">(</span>
+        <span class="n">bucket</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">bucket</span><span class="p">,</span>
+        <span class="n">name</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">object</span><span class="p">,</span>
+        <span class="n">generation</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">generation</span><span class="p">,</span>
+        <span class="n">size</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">contents</span><span class="p">))</span></div></div>
+
+
+<div class="viewcode-block" id="FakeGcsObjects"><a class="viewcode-back" href="../../../../apache_beam.io.gcp.html#apache_beam.io.gcp.gcsio_test.FakeGcsObjects">[docs]</a><span class="k">class</span> <span class="nc">FakeGcsObjects</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">files</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="c1"># Store the last generation used for a given object name.  Note that this</span>
+    <span class="c1"># has to persist even past the deletion of the object.</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">last_generation</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">list_page_tokens</span> <span class="o">=</span> <span class="p">{}</span>
+
+<div class="viewcode-block" id="FakeGcsObjects.add_file"><a class="viewcode-back" href="../../../../apache_beam.io.gcp.html#apache_beam.io.gcp.gcsio_test.FakeGcsObjects.add_file">[docs]</a>  <span class="k">def</span> <span class="nf">add_file</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">f</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">files</span><span class="p">[(</span><span class="n">f</span><span class="o">.</span><span class="n">bucket</span><span class="p">,</span> <span class="n">f</span><span class="o">.</span><span class="n">object</span><span class="p">)]</span> <span class="o">=</span> <span class="n">f</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">last_generation</span><span class="p">[(</span><span class="n">f</span><span class="o">.</span><span class="n">bucket</span><span class="p">,</span> <span class="n">f</span><span class="o">.</span><span class="n">object</span><span class="p">)]</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">generation</span></div>
+
+<div class="viewcode-block" id="FakeGcsObjects.get_file"><a class="viewcode-back" href="../../../../apache_beam.io.gcp.html#apache_beam.io.gcp.gcsio_test.FakeGcsObjects.get_file">[docs]</a>  <span class="k">def</span> <span class="nf">get_file</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">bucket</span><span class="p">,</span> <span class="n">obj</span><span class="p">):</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">files</span><span class="o">.</span><span class="n">get</span><span class="p">((</span><span class="n">bucket</span><span class="p">,</span> <span class="n">obj</span><span class="p">),</span> <span class="kc">None</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="FakeGcsObjects.delete_file"><a class="viewcode-back" href="../../../../apache_beam.io.gcp.html#apache_beam.io.gcp.gcsio_test.FakeGcsObjects.delete_file">[docs]</a>  <span class="k">def</span> <span class="nf">delete_file</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">bucket</span><span class="p">,</span> <span class="n">obj</span><span class="p">):</span>
+    <span class="k">del</span> <span class="bp">self</span><span class="o">.</span><span class="n">files</span><span class="p">[(</span><span class="n">bucket</span><span class="p">,</span> <span class="n">obj</span><span class="p">)]</span></div>
+
+<div class="viewcode-block" id="FakeGcsObjects.get_last_generation"><a class="viewcode-back" href="../../../../apache_beam.io.gcp.html#apache_beam.io.gcp.gcsio_test.FakeGcsObjects.get_last_generation">[docs]</a>  <span class="k">def</span> <span class="nf">get_last_generation</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">bucket</span><span class="p">,</span> <span class="n">obj</span><span class="p">):</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">last_generation</span><span class="o">.</span><span class="n">get</span><span class="p">((</span><span class="n">bucket</span><span class="p">,</span> <span class="n">obj</span><span class="p">),</span> <span class="mi">0</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="FakeGcsObjects.Get"><a class="viewcode-back" href="../../../../apache_beam.io.gcp.html#apache_beam.io.gcp.gcsio_test.FakeGcsObjects.Get">[docs]</a>  <span class="k">def</span> <span class="nf">Get</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">get_request</span><span class="p">,</span> <span class="n">download</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>  <span class="c1"># pylint: disable=invalid-name</span>
+    <span class="n">f</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_file</span><span class="p">(</span><span class="n">get_request</span><span class="o">.</span><span class="n">bucket</span><span class="p">,</span> <span class="n">get_request</span><span class="o">.</span><span class="n">object</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">f</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+      <span class="c1"># Failing with a HTTP 404 if file does not exist.</span>
+      <span class="k">raise</span> <span class="n">HttpError</span><span class="p">({</span><span class="s1">&#39;status&#39;</span><span class="p">:</span> <span class="mi">404</span><span class="p">},</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">download</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+      <span class="k">return</span> <span class="n">f</span><span class="o">.</span><span class="n">get_metadata</span><span class="p">()</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="n">stream</span> <span class="o">=</span> <span class="n">download</span><span class="o">.</span><span class="n">stream</span>
+
+      <span class="k">def</span> <span class="nf">get_range_callback</span><span class="p">(</span><span class="n">start</span><span class="p">,</span> <span class="n">end</span><span class="p">):</span>
+        <span class="k">assert</span> <span class="n">start</span> <span class="o">&gt;=</span> <span class="mi">0</span> <span class="ow">and</span> <span class="n">end</span> <span class="o">&gt;=</span> <span class="n">start</span> <span class="ow">and</span> <span class="n">end</span> <span class="o">&lt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">contents</span><span class="p">)</span>
+        <span class="n">stream</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">contents</span><span class="p">[</span><span class="n">start</span><span class="p">:</span><span class="n">end</span> <span class="o">+</span> <span class="mi">1</span><span class="p">])</span>
+
+      <span class="n">download</span><span class="o">.</span><span class="n">GetRange</span> <span class="o">=</span> <span class="n">get_range_callback</span></div>
+
+<div class="viewcode-block" id="FakeGcsObjects.Insert"><a class="viewcode-back" href="../../../../apache_beam.io.gcp.html#apache_beam.io.gcp.gcsio_test.FakeGcsObjects.Insert">[docs]</a>  <span class="k">def</span> <span class="nf">Insert</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">insert_request</span><span class="p">,</span> <span class="n">upload</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>  <span class="c1"># pylint: disable=invalid-name</span>
+    <span class="k">assert</span> <span class="n">upload</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+    <span class="n">generation</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_last_generation</span><span class="p">(</span><span class="n">insert_request</span><span class="o">.</span><span class="n">bucket</span><span class="p">,</span>
+                                          <span class="n">insert_request</span><span class="o">.</span><span class="n">name</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span>
+    <span class="n">f</span> <span class="o">=</span> <span class="n">FakeFile</span><span class="p">(</span><span class="n">insert_request</span><span class="o">.</span><span class="n">bucket</span><span class="p">,</span> <span class="n">insert_request</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">,</span> <span class="n">generation</span><span class="p">)</span>
+
+    <span class="c1"># Stream data into file.</span>
+    <span class="n">stream</span> <span class="o">=</span> <span class="n">upload</span><span class="o">.</span><span class="n">stream</span>
+    <span class="n">data_list</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+      <span class="n">data</span> <span class="o">=</span> <span class="n">stream</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="mi">1024</span> <span class="o">*</span> <span class="mi">1024</span><span class="p">)</span>
+      <span class="k">if</span> <span class="ow">not</span> <span class="n">data</span><span class="p">:</span>
+        <span class="k">break</span>
+      <span class="n">data_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+    <span class="n">f</span><span class="o">.</span><span class="n">contents</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">data_list</span><span class="p">)</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">add_file</span><span class="p">(</span><span class="n">f</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="FakeGcsObjects.Copy"><a class="viewcode-back" href="../../../../apache_beam.io.gcp.html#apache_beam.io.gcp.gcsio_test.FakeGcsObjects.Copy">[docs]</a>  <span class="k">def</span> <span class="nf">Copy</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">copy_request</span><span class="p">):</span>  <span class="c1"># pylint: disable=invalid-name</span>
+    <span class="n">src_file</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_file</span><span class="p">(</span><span class="n">copy_request</span><span class="o">.</span><span class="n">sourceBucket</span><span class="p">,</span>
+                             <span class="n">copy_request</span><span class="o">.</span><span class="n">sourceObject</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">src_file</span><span class="p">:</span>
+      <span class="k">raise</span> <span class="n">HttpError</span><span class="p">(</span>
+          <span class="n">httplib2</span><span class="o">.</span><span class="n">Response</span><span class="p">({</span><span class="s1">&#39;status&#39;</span><span class="p">:</span> <span class="s1">&#39;404&#39;</span><span class="p">}),</span> <span class="s1">&#39;404 Not Found&#39;</span><span class="p">,</span>
+          <span class="s1">&#39;https://fake/url&#39;</span><span class="p">)</span>
+    <span class="n">generation</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_last_generation</span><span class="p">(</span><span class="n">copy_request</span><span class="o">.</span><span class="n">destinationBucket</span><span class="p">,</span>
+                                          <span class="n">copy_request</span><span class="o">.</span><span class="n">destinationObject</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span>
+    <span class="n">dest_file</span> <span class="o">=</span> <span class="n">FakeFile</span><span class="p">(</span><span class="n">copy_request</span><span class="o">.</span><span class="n">destinationBucket</span><span class="p">,</span>
+                         <span class="n">copy_request</span><span class="o">.</span><span class="n">destinationObject</span><span class="p">,</span> <span class="n">src_file</span><span class="o">.</span><span class="n">contents</span><span class="p">,</span>
+                         <span class="n">generation</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">add_file</span><span class="p">(</span><span class="n">dest_file</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="FakeGcsObjects.Delete"><a class="viewcode-back" href="../../../../apache_beam.io.gcp.html#apache_beam.io.gcp.gcsio_test.FakeGcsObjects.Delete">[docs]</a>  <span class="k">def</span> <span class="nf">Delete</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">delete_request</span><span class="p">):</span>  <span class="c1"># pylint: disable=invalid-name</span>
+    <span class="c1"># Here, we emulate the behavior of the GCS service in raising a 404 error</span>
+    <span class="c1"># if this object already exists.</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_file</span><span class="p">(</span><span class="n">delete_request</span><span class="o">.</span><span class="n">bucket</span><span class="p">,</span> <span class="n">delete_request</span><span class="o">.</span><span class="n">object</span><span class="p">):</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">delete_file</span><span class="p">(</span><span class="n">delete_request</span><span class="o">.</span><span class="n">bucket</span><span class="p">,</span> <span class="n">delete_request</span><span class="o">.</span><span class="n">object</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="k">raise</span> <span class="n">HttpError</span><span class="p">(</span>
+          <span class="n">httplib2</span><span class="o">.</span><span class="n">Response</span><span class="p">({</span><span class="s1">&#39;status&#39;</span><span class="p">:</span> <span class="s1">&#39;404&#39;</span><span class="p">}),</span> <span class="s1">&#39;404 Not Found&#39;</span><span class="p">,</span>
+          <span class="s1">&#39;https://fake/url&#39;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="FakeGcsObjects.List"><a class="viewcode-back" href="../../../../apache_beam.io.gcp.html#apache_beam.io.gcp.gcsio_test.FakeGcsObjects.List">[docs]</a>  <span class="k">def</span> <span class="nf">List</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">list_request</span><span class="p">):</span>  <span class="c1"># pylint: disable=invalid-name</span>
+    <span class="n">bucket</span> <span class="o">=</span> <span class="n">list_request</span><span class="o">.</span><span class="n">bucket</span>
+    <span class="n">prefix</span> <span class="o">=</span> <span class="n">list_request</span><span class="o">.</span><span class="n">prefix</span> <span class="ow">or</span> <span class="s1">&#39;&#39;</span>
+    <span class="n">matching_files</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">file_bucket</span><span class="p">,</span> <span class="n">file_name</span> <span class="ow">in</span> <span class="nb">sorted</span><span class="p">(</span><span class="nb">iter</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">files</span><span class="p">)):</span>
+      <span class="k">if</span> <span class="n">bucket</span> <span class="o">==</span> <span class="n">file_bucket</span> <span class="ow">and</span> <span class="n">file_name</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="n">prefix</span><span class="p">):</span>
+        <span class="n">file_object</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">files</span><span class="p">[(</span><span class="n">file_bucket</span><span class="p">,</span> <span class="n">file_name</span><span class="p">)]</span><span class="o">.</span><span class="n">get_metadata</span><span class="p">()</span>
+        <span class="n">matching_files</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">file_object</span><span class="p">)</span>
+
+    <span class="c1"># Handle pagination.</span>
+    <span class="n">items_per_page</span> <span class="o">=</span> <span class="mi">5</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">list_request</span><span class="o">.</span><span class="n">pageToken</span><span class="p">:</span>
+      <span class="n">range_start</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="k">if</span> <span class="n">list_request</span><span class="o">.</span><span class="n">pageToken</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">list_page_tokens</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Invalid page token.&#39;</span><span class="p">)</span>
+      <span class="n">range_start</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">list_page_tokens</span><span class="p">[</span><span class="n">list_request</span><span class="o">.</span><span class="n">pageToken</span><span class="p">]</span>
+      <span class="k">del</span> <span class="bp">self</span><span class="o">.</span><span class="n">list_page_tokens</span><span class="p">[</span><span class="n">list_request</span><span class="o">.</span><span class="n">pageToken</span><span class="p">]</span>
+
+    <span class="n">result</span> <span class="o">=</span> <span class="n">storage</span><span class="o">.</span><span class="n">Objects</span><span class="p">(</span>
+        <span class="n">items</span><span class="o">=</span><span class="n">matching_files</span><span class="p">[</span><span class="n">range_start</span><span class="p">:</span><span class="n">range_start</span> <span class="o">+</span> <span class="n">items_per_page</span><span class="p">])</span>
+    <span class="k">if</span> <span class="n">range_start</span> <span class="o">+</span> <span class="n">items_per_page</span> <span class="o">&lt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">matching_files</span><span class="p">):</span>
+      <span class="n">next_range_start</span> <span class="o">=</span> <span class="n">range_start</span> <span class="o">+</span> <span class="n">items_per_page</span>
+      <span class="n">next_page_token</span> <span class="o">=</span> <span class="s1">&#39;_page_token_</span><span class="si">%s</span><span class="s1">_</span><span class="si">%s</span><span class="s1">_</span><span class="si">%d</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">bucket</span><span class="p">,</span> <span class="n">prefix</span><span class="p">,</span>
+                                                  <span class="n">next_range_start</span><span class="p">)</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">list_page_tokens</span><span class="p">[</span><span class="n">next_page_token</span><span class="p">]</span> <span class="o">=</span> <span class="n">next_range_start</span>
+      <span class="n">result</span><span class="o">.</span><span class="n">nextPageToken</span> <span class="o">=</span> <span class="n">next_page_token</span>
+    <span class="k">return</span> <span class="n">result</span></div></div>
+
+
+<div class="viewcode-block" id="FakeApiCall"><a class="viewcode-back" href="../../../../apache_beam.io.gcp.html#apache_beam.io.gcp.gcsio_test.FakeApiCall">[docs]</a><span class="k">class</span> <span class="nc">FakeApiCall</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">exception</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">exception</span> <span class="o">=</span> <span class="n">exception</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">is_error</span> <span class="o">=</span> <span class="n">exception</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span></div>
+
+
+<div class="viewcode-block" id="FakeBatchApiRequest"><a class="viewcode-back" href="../../../../apache_beam.io.gcp.html#apache_beam.io.gcp.gcsio_test.FakeBatchApiRequest">[docs]</a><span class="k">class</span> <span class="nc">FakeBatchApiRequest</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">unused_kwargs</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">operations</span> <span class="o">=</span> <span class="p">[]</span>
+
+<div class="viewcode-block" id="FakeBatchApiRequest.Add"><a class="viewcode-back" href="../../../../apache_beam.io.gcp.html#apache_beam.io.gcp.gcsio_test.FakeBatchApiRequest.Add">[docs]</a>  <span class="k">def</span> <span class="nf">Add</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">service</span><span class="p">,</span> <span class="n">method</span><span class="p">,</span> <span class="n">request</span><span class="p">):</span>  <span class="c1"># pylint: disable=invalid-name</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">operations</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">service</span><span class="p">,</span> <span class="n">method</span><span class="p">,</span> <span class="n">request</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="FakeBatchApiRequest.Execute"><a class="viewcode-back" href="../../../../apache_beam.io.gcp.html#apache_beam.io.gcp.gcsio_test.FakeBatchApiRequest.Execute">[docs]</a>  <span class="k">def</span> <span class="nf">Execute</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">unused_http</span><span class="p">,</span> <span class="o">**</span><span class="n">unused_kwargs</span><span class="p">):</span>  <span class="c1"># pylint: disable=invalid-name</span>
+    <span class="n">api_calls</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">service</span><span class="p">,</span> <span class="n">method</span><span class="p">,</span> <span class="n">request</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">operations</span><span class="p">:</span>
+      <span class="n">exception</span> <span class="o">=</span> <span class="kc">None</span>
+      <span class="k">try</span><span class="p">:</span>
+        <span class="nb">getattr</span><span class="p">(</span><span class="n">service</span><span class="p">,</span> <span class="n">method</span><span class="p">)(</span><span class="n">request</span><span class="p">)</span>
+      <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>  <span class="c1"># pylint: disable=broad-except</span>
+        <span class="n">exception</span> <span class="o">=</span> <span class="n">e</span>
+      <span class="n">api_calls</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">FakeApiCall</span><span class="p">(</span><span class="n">exception</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">api_calls</span></div></div>
+
+
+<span class="nd">@unittest</span><span class="o">.</span><span class="n">skipIf</span><span class="p">(</span><span class="n">HttpError</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">,</span> <span class="s1">&#39;GCP dependencies are not installed&#39;</span><span class="p">)</span>
+<div class="viewcode-block" id="TestGCSPathParser"><a class="viewcode-back" href="../../../../apache_beam.io.gcp.html#apache_beam.io.gcp.gcsio_test.TestGCSPathParser">[docs]</a><span class="k">class</span> <span class="nc">TestGCSPathParser</span><span class="p">(</span><span class="n">unittest</span><span class="o">.</span><span class="n">TestCase</span><span class="p">):</span>
+
+<div class="viewcode-block" id="TestGCSPathParser.test_gcs_path"><a class="viewcode-back" href="../../../../apache_beam.io.gcp.html#apache_beam.io.gcp.gcsio_test.TestGCSPathParser.test_gcs_path">[docs]</a>  <span class="k">def</span> <span class="nf">test_gcs_path</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span>
+        <span class="n">gcsio</span><span class="o">.</span><span class="n">parse_gcs_path</span><span class="p">(</span><span class="s1">&#39;gs://bucket/name&#39;</span><span class="p">),</span> <span class="p">(</span><span class="s1">&#39;bucket&#39;</span><span class="p">,</span> <span class="s1">&#39;name&#39;</span><span class="p">))</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span>
+        <span class="n">gcsio</span><span class="o">.</span><span class="n">parse_gcs_path</span><span class="p">(</span><span class="s1">&#39;gs://bucket/name/sub&#39;</span><span class="p">),</span> <span class="p">(</span><span class="s1">&#39;bucket&#39;</span><span class="p">,</span> <span class="s1">&#39;name/sub&#39;</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="TestGCSPathParser.test_bad_gcs_path"><a class="viewcode-back" href="../../../../apache_beam.io.gcp.html#apache_beam.io.gcp.gcsio_test.TestGCSPathParser.test_bad_gcs_path">[docs]</a>  <span class="k">def</span> <span class="nf">test_bad_gcs_path</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">ValueError</span><span class="p">,</span> <span class="n">gcsio</span><span class="o">.</span><span class="n">parse_gcs_path</span><span class="p">,</span> <span class="s1">&#39;gs://&#39;</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">ValueError</span><span class="p">,</span> <span class="n">gcsio</span><span class="o">.</span><span class="n">parse_gcs_path</span><span class="p">,</span> <span class="s1">&#39;gs://bucket&#39;</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">ValueError</span><span class="p">,</span> <span class="n">gcsio</span><span class="o">.</span><span class="n">parse_gcs_path</span><span class="p">,</span> <span class="s1">&#39;gs://bucket/&#39;</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">ValueError</span><span class="p">,</span> <span class="n">gcsio</span><span class="o">.</span><span class="n">parse_gcs_path</span><span class="p">,</span> <span class="s1">&#39;gs:///name&#39;</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">ValueError</span><span class="p">,</span> <span class="n">gcsio</span><span class="o">.</span><span class="n">parse_gcs_path</span><span class="p">,</span> <span class="s1">&#39;gs:///&#39;</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">ValueError</span><span class="p">,</span> <span class="n">gcsio</span><span class="o">.</span><span class="n">parse_gcs_path</span><span class="p">,</span> <span class="s1">&#39;gs:/blah/bucket/name&#39;</span><span class="p">)</span></div></div>
+
+
+<span class="nd">@unittest</span><span class="o">.</span><span class="n">skipIf</span><span class="p">(</span><span class="n">HttpError</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">,</span> <span class="s1">&#39;GCP dependencies are not installed&#39;</span><span class="p">)</span>
+<div class="viewcode-block" id="TestGCSIO"><a class="viewcode-back" href="../../../../apache_beam.io.gcp.html#apache_beam.io.gcp.gcsio_test.TestGCSIO">[docs]</a><span class="k">class</span> <span class="nc">TestGCSIO</span><span class="p">(</span><span class="n">unittest</span><span class="o">.</span><span class="n">TestCase</span><span class="p">):</span>
+
+  <span class="k">def</span> <span class="nf">_insert_random_file</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">client</span><span class="p">,</span> <span class="n">path</span><span class="p">,</span> <span class="n">size</span><span class="p">,</span> <span class="n">generation</span><span class="o">=</span><span class="mi">1</span><span class="p">):</span>
+    <span class="n">bucket</span><span class="p">,</span> <span class="n">name</span> <span class="o">=</span> <span class="n">gcsio</span><span class="o">.</span><span class="n">parse_gcs_path</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+    <span class="n">f</span> <span class="o">=</span> <span class="n">FakeFile</span><span class="p">(</span><span class="n">bucket</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">os</span><span class="o">.</span><span class="n">urandom</span><span class="p">(</span><span class="n">size</span><span class="p">),</span> <span class="n">generation</span><span class="p">)</span>
+    <span class="n">client</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">add_file</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">f</span>
+
+<div class="viewcode-block" id="TestGCSIO.setUp"><a class="viewcode-back" href="../../../../apache_beam.io.gcp.html#apache_beam.io.gcp.gcsio_test.TestGCSIO.setUp">[docs]</a>  <span class="k">def</span> <span class="nf">setUp</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">client</span> <span class="o">=</span> <span class="n">FakeGcsClient</span><span class="p">()</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">gcs</span> <span class="o">=</span> <span class="n">gcsio</span><span class="o">.</span><span class="n">GcsIO</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TestGCSIO.test_exists"><a class="viewcode-back" href="../../../../apache_beam.io.gcp.html#apache_beam.io.gcp.gcsio_test.TestGCSIO.test_exists">[docs]</a>  <span class="k">def</span> <span class="nf">test_exists</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">file_name</span> <span class="o">=</span> <span class="s1">&#39;gs://gcsio-test/dummy_file&#39;</span>
+    <span class="n">file_size</span> <span class="o">=</span> <span class="mi">1234</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_insert_random_file</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="p">,</span> <span class="n">file_name</span><span class="p">,</span> <span class="n">file_size</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertFalse</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">gcs</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">file_name</span> <span class="o">+</span> <span class="s1">&#39;xyz&#39;</span><span class="p">))</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">gcs</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">file_name</span><span class="p">))</span></div>
+
+  <span class="nd">@mock</span><span class="o">.</span><span class="n">patch</span><span class="o">.</span><span class="n">object</span><span class="p">(</span><span class="n">FakeGcsObjects</span><span class="p">,</span> <span class="s1">&#39;Get&#39;</span><span class="p">)</span>
+<div class="viewcode-block" id="TestGCSIO.test_exists_failure"><a class="viewcode-back" href="../../../../apache_beam.io.gcp.html#apache_beam.io.gcp.gcsio_test.TestGCSIO.test_exists_failure">[docs]</a>  <span class="k">def</span> <span class="nf">test_exists_failure</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">mock_get</span><span class="p">):</span>
+    <span class="c1"># Raising an error other than 404. Raising 404 is a valid failure for</span>
+    <span class="c1"># exists() call.</span>
+    <span class="n">mock_get</span><span class="o">.</span><span class="n">side_effect</span> <span class="o">=</span> <span class="n">HttpError</span><span class="p">({</span><span class="s1">&#39;status&#39;</span><span class="p">:</span> <span class="mi">400</span><span class="p">},</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+    <span class="n">file_name</span> <span class="o">=</span> <span class="s1">&#39;gs://gcsio-test/dummy_file&#39;</span>
+    <span class="n">file_size</span> <span class="o">=</span> <span class="mi">1234</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_insert_random_file</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="p">,</span> <span class="n">file_name</span><span class="p">,</span> <span class="n">file_size</span><span class="p">)</span>
+    <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="n">HttpError</span><span class="p">)</span> <span class="k">as</span> <span class="n">cm</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">gcs</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">file_name</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEquals</span><span class="p">(</span><span class="mi">400</span><span class="p">,</span> <span class="n">cm</span><span class="o">.</span><span class="n">exception</span><span class="o">.</span><span class="n">status_code</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TestGCSIO.test_size"><a class="viewcode-back" href="../../../../apache_beam.io.gcp.html#apache_beam.io.gcp.gcsio_test.TestGCSIO.test_size">[docs]</a>  <span class="k">def</span> <span class="nf">test_size</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">file_name</span> <span class="o">=</span> <span class="s1">&#39;gs://gcsio-test/dummy_file&#39;</span>
+    <span class="n">file_size</span> <span class="o">=</span> <span class="mi">1234</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">_insert_random_file</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="p">,</span> <span class="n">file_name</span><span class="p">,</span> <span class="n">file_size</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">gcs</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">file_name</span><span class="p">))</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="mi">1234</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">gcs</span><span class="o">.</span><span class="n">size</span><span class="p">(</span><span class="n">file_name</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="TestGCSIO.test_file_mode"><a class="viewcode-back" href="../../../../apache_beam.io.gcp.html#apache_beam.io.gcp.gcsio_test.TestGCSIO.test_file_mode">[docs]</a>  <span class="k">def</span> <span class="nf">test_file_mode</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">file_name</span> <span class="o">=</span> <span class="s1">&#39;gs://gcsio-test/dummy_mode_file&#39;</span>
+    <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">gcs</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">file_name</span><span class="p">,</span> <span class="s1">&#39;wb&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+      <span class="k">assert</span> <span class="n">f</span><span class="o">.</span><span class="n">mode</span> <span class="o">==</span> <span class="s1">&#39;wb&#39;</span>
+    <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">gcs</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">file_name</span><span class="p">,</span> <span class="s1">&#39;rb&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+      <span class="k">assert</span> <span class="n">f</span><span class="o">.</span><span class="n">mode</span> <span class="o">==</span> <span class="s1">&#39;rb&#39;</span></div>
+
+<div class="viewcode-block" id="TestGCSIO.test_bad_file_modes"><a class="viewcode-back" href="../../../../apache_beam.io.gcp.html#apache_beam.io.gcp.gcsio_test.TestGCSIO.test_bad_file_modes">[docs]</a>  <span class="k">def</span> <span class="nf">test_bad_file_modes</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">file_name</span> <span class="o">=</span> <span class="s1">&#39;gs://gcsio-test/dummy_mode_file&#39;</span>
+    <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">ValueError</span><span class="p">):</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">gcs</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">file_name</span><span class="p">,</span> <span class="s1">&#39;w+&#39;</span><span class="p">)</span>
+    <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">ValueError</span><span class="p">):</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">gcs</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">file_name</span><span class="p">,</span> <span class="s1">&#39;r+b&#39;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TestGCSIO.test_empty_batches"><a class="viewcode-back" href="../../../../apache_beam.io.gcp.html#apache_beam.io.gcp.gcsio_test.TestGCSIO.test_empty_batches">[docs]</a>  <span class="k">def</span> <span class="nf">test_empty_batches</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">([],</span> <span class="bp">self</span><span class="o">.</span><span class="n">gcs</span><span class="o">.</span><span class="n">copy_batch</span><span class="p">([]))</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">([],</span> <span class="bp">self</span><span class="o">.</span><span class="n">gcs</span><span class="o">.</span><span class="n">delete_batch</span><span class="p">([]))</span></div>
+
+<div class="viewcode-block" id="TestGCSIO.test_delete"><a class="viewcode-back" href="../../../../apache_beam.io.gcp.html#apache_beam.io.gcp.gcsio_test.TestGCSIO.test_delete">[docs]</a>  <span class="k">def</span> <span class="nf">test_delete</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">file_name</span> <span class="o">=</span> <span class="s1">&#39;gs://gcsio-test/delete_me&#39;</span>
+    <span class="n">file_size</span> <span class="o">=</span> <span class="mi">1024</span>
+
+    <span class="c1"># Test deletion of non-existent file.</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">gcs</span><span class="o">.</span><span class="n">delete</span><span class="p">(</span><span class="n">file_name</span><span class="p">)</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">_insert_random_file</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="p">,</span> <span class="n">file_name</span><span class="p">,</span> <span class="n">file_size</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span>
+        <span class="n">gcsio</span><span class="o">.</span><span class="n">parse_gcs_path</span><span class="p">(</span><span class="n">file_name</span><span class="p">)</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">files</span><span class="p">)</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">gcs</span><span class="o">.</span><span class="n">delete</span><span class="p">(</span><span class="n">file_name</span><span class="p">)</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertFalse</span><span class="p">(</span>
+        <span class="n">gcsio</span><span class="o">.</span><span class="n">parse_gcs_path</span><span class="p">(</span><span class="n">file_name</span><span class="p">)</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">files</span><span class="p">)</span></div>
+
+  <span class="nd">@mock</span><span class="o">.</span><span class="n">patch</span><span class="p">(</span><span class="s1">&#39;apache_beam.io.gcsio.BatchApiRequest&#39;</span><span class="p">)</span>
+<div class="viewcode-block" id="TestGCSIO.test_delete_batch"><a class="viewcode-back" href="../../../../apache_beam.io.gcp.html#apache_beam.io.gcp.gcsio_test.TestGCSIO.test_delete_batch">[docs]</a>  <span class="k">def</span> <span class="nf">test_delete_batch</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">unused_args</span><span class="p">):</span>
+    <span class="n">gcsio</span><span class="o">.</span><span class="n">BatchApiRequest</span> <span class="o">=</span> <span class="n">FakeBatchApiRequest</span>
+    <span class="n">file_name_pattern</span> <span class="o">=</span> <span class="s1">&#39;gs://gcsio-test/delete_me_</span><span class="si">%d</span><span class="s1">&#39;</span>
+    <span class="n">file_size</span> <span class="o">=</span> <span class="mi">1024</span>
+    <span class="n">num_files</span> <span class="o">=</span> <span class="mi">10</span>
+
+    <span class="c1"># Test deletion of non-existent files.</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">gcs</span><span class="o">.</span><span class="n">delete_batch</span><span class="p">(</span>
+        <span class="p">[</span><span class="n">file_name_pattern</span> <span class="o">%</span> <span class="n">i</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">num_files</span><span class="p">)])</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="n">result</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="p">(</span><span class="n">file_name</span><span class="p">,</span> <span class="n">exception</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">result</span><span class="p">):</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">file_name</span><span class="p">,</span> <span class="n">file_name_pattern</span> <span class="o">%</span> <span class="n">i</span><span class="p">)</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">exception</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">assertFalse</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">gcs</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">file_name_pattern</span> <span class="o">%</span> <span class="n">i</span><span class="p">))</span>
+
+    <span class="c1"># Insert some files.</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">num_files</span><span class="p">):</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_insert_random_file</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="p">,</span> <span class="n">file_name_pattern</span> <span class="o">%</span> <span class="n">i</span><span class="p">,</span> <span class="n">file_size</span><span class="p">)</span>
+
+    <span class="c1"># Check files inserted properly.</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">num_files</span><span class="p">):</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">gcs</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">file_name_pattern</span> <span class="o">%</span> <span class="n">i</span><span class="p">))</span>
+
+    <span class="c1"># Execute batch delete.</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">gcs</span><span class="o">.</span><span class="n">delete_batch</span><span class="p">([</span><span class="n">file_name_pattern</span> <span class="o">%</span> <span class="n">i</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">num_files</span><span class="p">)])</span>
+
+    <span class="c1"># Check files deleted properly.</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">num_files</span><span class="p">):</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">assertFalse</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">gcs</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">file_name_pattern</span> <span class="o">%</span> <span class="n">i</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="TestGCSIO.test_copy"><a class="viewcode-back" href="../../../../apache_beam.io.gcp.html#apache_beam.io.gcp.gcsio_test.TestGCSIO.test_copy">[docs]</a>  <span class="k">def</span> <span class="nf">test_copy</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">src_file_name</span> <span class="o">=</span> <span class="s1">&#39;gs://gcsio-test/source&#39;</span>
+    <span class="n">dest_file_name</span> <span class="o">=</span> <span class="s1">&#39;gs://gcsio-test/dest&#39;</span>
+    <span class="n">file_size</span> <span class="o">=</span> <span class="mi">1024</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_insert_random_file</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="p">,</span> <span class="n">src_file_name</span><span class="p">,</span> <span class="n">file_size</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span>
+        <span class="n">gcsio</span><span class="o">.</span><span class="n">parse_gcs_path</span><span class="p">(</span><span class="n">src_file_name</span><span class="p">)</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">files</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertFalse</span><span class="p">(</span>
+        <span class="n">gcsio</span><span class="o">.</span><span class="n">parse_gcs_path</span><span class="p">(</span><span class="n">dest_file_name</span><span class="p">)</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">files</span><span class="p">)</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">gcs</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">src_file_name</span><span class="p">,</span> <span class="n">dest_file_name</span><span class="p">)</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span>
+        <span class="n">gcsio</span><span class="o">.</span><span class="n">parse_gcs_path</span><span class="p">(</span><span class="n">src_file_name</span><span class="p">)</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">files</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span>
+        <span class="n">gcsio</span><span class="o">.</span><span class="n">parse_gcs_path</span><span class="p">(</span><span class="n">dest_file_name</span><span class="p">)</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">files</span><span class="p">)</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">IOError</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">gcs</span><span class="o">.</span><span class="n">copy</span><span class="p">,</span> <span class="s1">&#39;gs://gcsio-test/non-existent&#39;</span><span class="p">,</span>
+                      <span class="s1">&#39;gs://gcsio-test/non-existent-destination&#39;</span><span class="p">)</span></div>
+
+  <span class="nd">@mock</span><span class="o">.</span><span class="n">patch</span><span class="p">(</span><span class="s1">&#39;apache_beam.io.gcsio.BatchApiRequest&#39;</span><span class="p">)</span>
+<div class="viewcode-block" id="TestGCSIO.test_copy_batch"><a class="viewcode-back" href="../../../../apache_beam.io.gcp.html#apache_beam.io.gcp.gcsio_test.TestGCSIO.test_copy_batch">[docs]</a>  <span class="k">def</span> <span class="nf">test_copy_batch</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">unused_args</span><span class="p">):</span>
+    <span class="n">gcsio</span><span class="o">.</span><span class="n">BatchApiRequest</span> <span class="o">=</span> <span class="n">FakeBatchApiRequest</span>
+    <span class="n">from_name_pattern</span> <span class="o">=</span> <span class="s1">&#39;gs://gcsio-test/copy_me_</span><span class="si">%d</span><span class="s1">&#39;</span>
+    <span class="n">to_name_pattern</span> <span class="o">=</span> <span class="s1">&#39;gs://gcsio-test/destination_</span><span class="si">%d</span><span class="s1">&#39;</span>
+    <span class="n">file_size</span> <span class="o">=</span> <span class="mi">1024</span>
+    <span class="n">num_files</span> <span class="o">=</span> <span class="mi">10</span>
+
+    <span class="c1"># Test copy of non-existent files.</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">gcs</span><span class="o">.</span><span class="n">copy_batch</span><span class="p">(</span>
+        <span class="p">[(</span><span class="n">from_name_pattern</span> <span class="o">%</span> <span class="n">i</span><span class="p">,</span> <span class="n">to_name_pattern</span> <span class="o">%</span> <span class="n">i</span><span class="p">)</span>
+         <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">num_files</span><span class="p">)])</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="n">result</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="p">(</span><span class="n">src</span><span class="p">,</span> <span class="n">dest</span><span class="p">,</span> <span class="n">exception</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">result</span><span class="p">):</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">src</span><span class="p">,</span> <span class="n">from_name_pattern</span> <span class="o">%</span> <span class="n">i</span><span class="p">)</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">dest</span><span class="p">,</span> <span class="n">to_name_pattern</span> <span class="o">%</span> <span class="n">i</span><span class="p">)</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">exception</span><span class="p">,</span> <span class="ne">IOError</span><span class="p">))</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">exception</span><span class="o">.</span><span class="n">errno</span><span class="p">,</span> <span class="n">errno</span><span class="o">.</span><span class="n">ENOENT</span><span class="p">)</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">assertFalse</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">gcs</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">from_name_pattern</span> <span class="o">%</span> <span class="n">i</span><span class="p">))</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">assertFalse</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">gcs</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">to_name_pattern</span> <span class="o">%</span> <span class="n">i</span><span class="p">))</span>
+
+    <span class="c1"># Insert some files.</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">num_files</span><span class="p">):</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_insert_random_file</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="p">,</span> <span class="n">from_name_pattern</span> <span class="o">%</span> <span class="n">i</span><span class="p">,</span> <span class="n">file_size</span><span class="p">)</span>
+
+    <span class="c1"># Check files inserted properly.</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">num_files</span><span class="p">):</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">gcs</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">from_name_pattern</span> <span class="o">%</span> <span class="n">i</span><span class="p">))</span>
+
+    <span class="c1"># Execute batch copy.</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">gcs</span><span class="o">.</span><span class="n">copy_batch</span><span class="p">([(</span><span class="n">from_name_pattern</span> <span class="o">%</span> <span class="n">i</span><span class="p">,</span> <span class="n">to_name_pattern</span> <span class="o">%</span> <span class="n">i</span><span class="p">)</span>
+                         <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">num_files</span><span class="p">)])</span>
+
+    <span class="c1"># Check files copied properly.</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">num_files</span><span class="p">):</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">gcs</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">from_name_pattern</span> <span class="o">%</span> <span class="n">i</span><span class="p">))</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">gcs</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">to_name_pattern</span> <span class="o">%</span> <span class="n">i</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="TestGCSIO.test_copytree"><a class="viewcode-back" href="../../../../apache_beam.io.gcp.html#apache_beam.io.gcp.gcsio_test.TestGCSIO.test_copytree">[docs]</a>  <span class="k">def</span> <span class="nf">test_copytree</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">src_dir_name</span> <span class="o">=</span> <span class="s1">&#39;gs://gcsio-test/source/&#39;</span>
+    <span class="n">dest_dir_name</span> <span class="o">=</span> <span class="s1">&#39;gs://gcsio-test/dest/&#39;</span>
+    <span class="n">file_size</span> <span class="o">=</span> <span class="mi">1024</span>
+    <span class="n">paths</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;a&#39;</span><span class="p">,</span> <span class="s1">&#39;b/c&#39;</span><span class="p">,</span> <span class="s1">&#39;b/d&#39;</span><span class="p">]</span>
+    <span class="k">for</span> <span class="n">path</span> <span class="ow">in</span> <span class="n">paths</span><span class="p">:</span>
+      <span class="n">src_file_name</span> <span class="o">=</span> <span class="n">src_dir_name</span> <span class="o">+</span> <span class="n">path</span>
+      <span class="n">dest_file_name</span> <span class="o">=</span> <span class="n">dest_dir_name</span> <span class="o">+</span> <span class="n">path</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_insert_random_file</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="p">,</span> <span class="n">src_file_name</span><span class="p">,</span> <span class="n">file_size</span><span class="p">)</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span>
+          <span class="n">gcsio</span><span class="o">.</span><span class="n">parse_gcs_path</span><span class="p">(</span><span class="n">src_file_name</span><span class="p">)</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">files</span><span class="p">)</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">assertFalse</span><span class="p">(</span>
+          <span class="n">gcsio</span><span class="o">.</span><span class="n">parse_gcs_path</span><span class="p">(</span><span class="n">dest_file_name</span><span class="p">)</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">files</span><span class="p">)</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">gcs</span><span class="o">.</span><span class="n">copytree</span><span class="p">(</span><span class="n">src_dir_name</span><span class="p">,</span> <span class="n">dest_dir_name</span><span class="p">)</span>
+
+    <span class="k">for</span> <span class="n">path</span> <span class="ow">in</span> <span class="n">paths</span><span class="p">:</span>
+      <span class="n">src_file_name</span> <span class="o">=</span> <span class="n">src_dir_name</span> <span class="o">+</span> <span class="n">path</span>
+      <span class="n">dest_file_name</span> <span class="o">=</span> <span class="n">dest_dir_name</span> <span class="o">+</span> <span class="n">path</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span>
+          <span class="n">gcsio</span><span class="o">.</span><span class="n">parse_gcs_path</span><span class="p">(</span><span class="n">src_file_name</span><span class="p">)</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">files</span><span class="p">)</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span>
+          <span class="n">gcsio</span><span class="o">.</span><span class="n">parse_gcs_path</span><span class="p">(</span><span class="n">dest_file_name</span><span class="p">)</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">files</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TestGCSIO.test_rename"><a class="viewcode-back" href="../../../../apache_beam.io.gcp.html#apache_beam.io.gcp.gcsio_test.TestGCSIO.test_rename">[docs]</a>  <span class="k">def</span> <span class="nf">test_rename</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">src_file_name</span> <span class="o">=</span> <span class="s1">&#39;gs://gcsio-test/source&#39;</span>
+    <span class="n">dest_file_name</span> <span class="o">=</span> <span class="s1">&#39;gs://gcsio-test/dest&#39;</span>
+    <span class="n">file_size</span> <span class="o">=</span> <span class="mi">1024</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_insert_random_file</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="p">,</span> <span class="n">src_file_name</span><span class="p">,</span> <span class="n">file_size</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span>
+        <span class="n">gcsio</span><span class="o">.</span><span class="n">parse_gcs_path</span><span class="p">(</span><span class="n">src_file_name</span><span class="p">)</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">files</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertFalse</span><span class="p">(</span>
+        <span class="n">gcsio</span><span class="o">.</span><span class="n">parse_gcs_path</span><span class="p">(</span><span class="n">dest_file_name</span><span class="p">)</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">files</span><span class="p">)</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">gcs</span><span class="o">.</span><span class="n">rename</span><span class="p">(</span><span class="n">src_file_name</span><span class="p">,</span> <span class="n">dest_file_name</span><span class="p">)</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertFalse</span><span class="p">(</span>
+        <span class="n">gcsio</span><span class="o">.</span><span class="n">parse_gcs_path</span><span class="p">(</span><span class="n">src_file_name</span><span class="p">)</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">files</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span>
+        <span class="n">gcsio</span><span class="o">.</span><span class="n">parse_gcs_path</span><span class="p">(</span><span class="n">dest_file_name</span><span class="p">)</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">files</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TestGCSIO.test_full_file_read"><a class="viewcode-back" href="../../../../apache_beam.io.gcp.html#apache_beam.io.gcp.gcsio_test.TestGCSIO.test_full_file_read">[docs]</a>  <span class="k">def</span> <span class="nf">test_full_file_read</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">file_name</span> <span class="o">=</span> <span class="s1">&#39;gs://gcsio-test/full_file&#39;</span>
+    <span class="n">file_size</span> <span class="o">=</span> <span class="mi">5</span> <span class="o">*</span> <span class="mi">1024</span> <span class="o">*</span> <span class="mi">1024</span> <span class="o">+</span> <span class="mi">100</span>
+    <span class="n">random_file</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_insert_random_file</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="p">,</span> <span class="n">file_name</span><span class="p">,</span> <span class="n">file_size</span><span class="p">)</span>
+    <span class="n">f</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">gcs</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">file_name</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">mode</span><span class="p">,</span> <span class="s1">&#39;r&#39;</span><span class="p">)</span>
+    <span class="n">f</span><span class="o">.</span><span class="n">seek</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">os</span><span class="o">.</span><span class="n">SEEK_END</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">tell</span><span class="p">(),</span> <span class="n">file_size</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">read</span><span class="p">(),</span> <span class="s1">&#39;&#39;</span><span class="p">)</span>
+    <span class="n">f</span><span class="o">.</span><span class="n">seek</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">read</span><span class="p">(),</span> <span class="n">random_file</span><span class="o">.</span><span class="n">contents</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TestGCSIO.test_flaky_file_read"><a class="viewcode-back" href="../../../../apache_beam.io.gcp.html#apache_beam.io.gcp.gcsio_test.TestGCSIO.test_flaky_file_read">[docs]</a>  <span class="k">def</span> <span class="nf">test_flaky_file_read</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">file_name</span> <span class="o">=</span> <span class="s1">&#39;gs://gcsio-test/flaky_file&#39;</span>
+    <span class="n">file_size</span> <span class="o">=</span> <span class="mi">5</span> <span class="o">*</span> <span class="mi">1024</span> <span class="o">*</span> <span class="mi">1024</span> <span class="o">+</span> <span class="mi">100</span>
+    <span class="n">random_file</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_insert_random_file</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="p">,</span> <span class="n">file_name</span><span class="p">,</span> <span class="n">file_size</span><span class="p">)</span>
+    <span class="n">f</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">gcs</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">file_name</span><span class="p">)</span>
+    <span class="n">random</span><span class="o">.</span><span class="n">seed</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+    <span class="n">f</span><span class="o">.</span><span class="n">buffer_size</span> <span class="o">=</span> <span class="mi">1024</span> <span class="o">*</span> <span class="mi">1024</span>
+    <span class="n">f</span><span class="o">.</span><span class="n">segment_timeout</span> <span class="o">=</span> <span class="mf">0.01</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">mode</span><span class="p">,</span> <span class="s1">&#39;r&#39;</span><span class="p">)</span>
+    <span class="n">f</span><span class="o">.</span><span class="n">_real_get_segment</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">_get_segment</span>
+
+    <span class="k">def</span> <span class="nf">flaky_get_segment</span><span class="p">(</span><span class="n">start</span><span class="p">,</span> <span class="n">size</span><span class="p">):</span>
+      <span class="k">if</span> <span class="n">random</span><span class="o">.</span><span class="n">randint</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">3</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">600</span><span class="p">)</span>
+      <span class="k">return</span> <span class="n">f</span><span class="o">.</span><span class="n">_real_get_segment</span><span class="p">(</span><span class="n">start</span><span class="p">,</span> <span class="n">size</span><span class="p">)</span>
+
+    <span class="n">f</span><span class="o">.</span><span class="n">_get_segment</span> <span class="o">=</span> <span class="n">flaky_get_segment</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">read</span><span class="p">(),</span> <span class="n">random_file</span><span class="o">.</span><span class="n">contents</span><span class="p">)</span>
+
+    <span class="c1"># Test exception handling in file read.</span>
+    <span class="k">def</span> <span class="nf">failing_get_segment</span><span class="p">(</span><span class="n">unused_start</span><span class="p">,</span> <span class="n">unused_size</span><span class="p">):</span>
+      <span class="k">raise</span> <span class="ne">IOError</span><span class="p">(</span><span class="s1">&#39;Could not read.&#39;</span><span class="p">)</span>
+
+    <span class="n">f</span><span class="o">.</span><span class="n">_get_segment</span> <span class="o">=</span> <span class="n">failing_get_segment</span>
+    <span class="n">f</span><span class="o">.</span><span class="n">seek</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+    <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">IOError</span><span class="p">):</span>
+      <span class="n">f</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
+
+    <span class="c1"># Test retry limit in hanging file read.</span>
+    <span class="k">def</span> <span class="nf">hanging_get_segment</span><span class="p">(</span><span class="n">unused_start</span><span class="p">,</span> <span class="n">unused_size</span><span class="p">):</span>
+      <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">600</span><span class="p">)</span>
+
+    <span class="n">f</span><span class="o">.</span><span class="n">_get_segment</span> <span class="o">=</span> <span class="n">hanging_get_segment</span>
+    <span class="n">f</span><span class="o">.</span><span class="n">seek</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+    <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="n">gcsio</span><span class="o">.</span><span class="n">GcsIOError</span><span class="p">):</span>
+      <span class="n">f</span><span class="o">.</span><span class="n">read</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="TestGCSIO.test_file_random_seek"><a class="viewcode-back" href="../../../../apache_beam.io.gcp.html#apache_beam.io.gcp.gcsio_test.TestGCSIO.test_file_random_seek">[docs]</a>  <span class="k">def</span> <span class="nf">test_file_random_seek</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">file_name</span> <span class="o">=</span> <span class="s1">&#39;gs://gcsio-test/seek_file&#39;</span>
+    <span class="n">file_size</span> <span class="o">=</span> <span class="mi">5</span> <span class="o">*</span> <span class="mi">1024</span> <span class="o">*</span> <span class="mi">1024</span> <span class="o">-</span> <span class="mi">100</span>
+    <span class="n">random_file</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_insert_random_file</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="p">,</span> <span class="n">file_name</span><span class="p">,</span> <span class="n">file_size</span><span class="p">)</span>
+
+    <span class="n">f</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">gcs</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">file_name</span><span class="p">)</span>
+    <span class="n">random</span><span class="o">.</span><span class="n">seed</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">10</span><span class="p">):</span>
+      <span class="n">a</span> <span class="o">=</span> <span class="n">random</span><span class="o">.</span><span class="n">randint</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">file_size</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span>
+      <span class="n">b</span> <span class="o">=</span> <span class="n">random</span><span class="o">.</span><span class="n">randint</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">file_size</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span>
+      <span class="n">start</span><span class="p">,</span> <span class="n">end</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">),</span> <span class="nb">max</span><span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">)</span>
+      <span class="n">f</span><span class="o">.</span><span class="n">seek</span><span class="p">(</span><span class="n">start</span><span class="p">)</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">tell</span><span class="p">(),</span> <span class="n">start</span><span class="p">)</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span>
+          <span class="n">f</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="n">end</span> <span class="o">-</span> <span class="n">start</span> <span class="o">+</span> <span class="mi">1</span><span class="p">),</span> <span class="n">random_file</span><span class="o">.</span><span class="n">contents</span><span class="p">[</span><span class="n">start</span><span class="p">:</span><span class="n">end</span> <span class="o">+</span> <span class="mi">1</span><span class="p">])</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">tell</span><span class="p">(),</span> <span class="n">end</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TestGCSIO.test_file_iterator"><a class="viewcode-back" href="../../../../apache_beam.io.gcp.html#apache_beam.io.gcp.gcsio_test.TestGCSIO.test_file_iterator">[docs]</a>  <span class="k">def</span> <span class="nf">test_file_iterator</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">file_name</span> <span class="o">=</span> <span class="s1">&#39;gs://gcsio-test/iterating_file&#39;</span>
+    <span class="n">lines</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">line_count</span> <span class="o">=</span> <span class="mi">10</span>
+    <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">line_count</span><span class="p">):</span>
+      <span class="n">line_length</span> <span class="o">=</span> <span class="n">random</span><span class="o">.</span><span class="n">randint</span><span class="p">(</span><span class="mi">100</span><span class="p">,</span> <span class="mi">500</span><span class="p">)</span>
+      <span class="n">line</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">urandom</span><span class="p">(</span><span class="n">line_length</span><span class="p">)</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">,</span> <span class="s1">&#39; &#39;</span><span class="p">)</span> <span class="o">+</span> <span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span>
+      <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">line</span><span class="p">)</span>
+
+    <span class="n">contents</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">lines</span><span class="p">)</span>
+    <span class="n">bucket</span><span class="p">,</span> <span class="n">name</span> <span class="o">=</span> <span class="n">gcsio</span><span class="o">.</span><span class="n">parse_gcs_path</span><span class="p">(</span><span class="n">file_name</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">add_file</span><span class="p">(</span><span class="n">FakeFile</span><span class="p">(</span><span class="n">bucket</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">contents</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span>
+
+    <span class="n">f</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">gcs</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">file_name</span><span class="p">)</span>
+
+    <span class="n">read_lines</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">f</span><span class="p">:</span>
+      <span class="n">read_lines</span> <span class="o">+=</span> <span class="mi">1</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">read_lines</span><span class="p">,</span> <span class="n">line_count</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TestGCSIO.test_file_read_line"><a class="viewcode-back" href="../../../../apache_beam.io.gcp.html#apache_beam.io.gcp.gcsio_test.TestGCSIO.test_file_read_line">[docs]</a>  <span class="k">def</span> <span class="nf">test_file_read_line</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">file_name</span> <span class="o">=</span> <span class="s1">&#39;gs://gcsio-test/read_line_file&#39;</span>
+    <span class="n">lines</span> <span class="o">=</span> <span class="p">[]</span>
+
+    <span class="c1"># Set a small buffer size to exercise refilling the buffer.</span>
+    <span class="c1"># First line is carefully crafted so the newline falls as the last character</span>
+    <span class="c1"># of the buffer to exercise this code path.</span>
+    <span class="n">read_buffer_size</span> <span class="o">=</span> <span class="mi">1024</span>
+    <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s1">&#39;x&#39;</span> <span class="o">*</span> <span class="mi">1023</span> <span class="o">+</span> <span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span>
+
+    <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1000</span><span class="p">):</span>
+      <span class="n">line_length</span> <span class="o">=</span> <span class="n">random</span><span class="o">.</span><span class="n">randint</span><span class="p">(</span><span class="mi">100</span><span class="p">,</span> <span class="mi">500</span><span class="p">)</span>
+      <span class="n">line</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">urandom</span><span class="p">(</span><span class="n">line_length</span><span class="p">)</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">,</span> <span class="s1">&#39; &#39;</span><span class="p">)</span> <span class="o">+</span> <span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span>
+      <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">line</span><span class="p">)</span>
+    <span class="n">contents</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">lines</span><span class="p">)</span>
+
+    <span class="n">file_size</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">contents</span><span class="p">)</span>
+    <span class="n">bucket</span><span class="p">,</span> <span class="n">name</span> <span class="o">=</span> <span class="n">gcsio</span><span class="o">.</span><span class="n">parse_gcs_path</span><span class="p">(</span><span class="n">file_name</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">add_file</span><span class="p">(</span><span class="n">FakeFile</span><span class="p">(</span><span class="n">bucket</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">contents</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span>
+
+    <span class="n">f</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">gcs</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">file_name</span><span class="p">,</span> <span class="n">read_buffer_size</span><span class="o">=</span><span class="n">read_buffer_size</span><span class="p">)</span>
+
+    <span class="c1"># Test read of first two lines.</span>
+    <span class="n">f</span><span class="o">.</span><span class="n">seek</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">readline</span><span class="p">(),</span> <span class="n">lines</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">tell</span><span class="p">(),</span> <span class="nb">len</span><span class="p">(</span><span class="n">lines</span><span class="p">[</span><span class="mi">0</span><span class="p">]))</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">readline</span><span class="p">(),</span> <span class="n">lines</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+
+    <span class="c1"># Test read at line boundary.</span>
+    <span class="n">f</span><span class="o">.</span><span class="n">seek</span><span class="p">(</span><span class="n">file_size</span> <span class="o">-</span> <span class="nb">len</span><span class="p">(</span><span class="n">lines</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">readline</span><span class="p">(),</span> <span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span>
+
+    <span class="c1"># Test read at end of file.</span>
+    <span class="n">f</span><span class="o">.</span><span class="n">seek</span><span class="p">(</span><span class="n">file_size</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">readline</span><span class="p">(),</span> <span class="s1">&#39;&#39;</span><span class="p">)</span>
+
+    <span class="c1"># Test reads at random positions.</span>
+    <span class="n">random</span><span class="o">.</span><span class="n">seed</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">10</span><span class="p">):</span>
+      <span class="n">start</span> <span class="o">=</span> <span class="n">random</span><span class="o">.</span><span class="n">randint</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">file_size</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span>
+      <span class="n">line_index</span> <span class="o">=</span> <span class="mi">0</span>
+      <span class="c1"># Find line corresponding to start index.</span>
+      <span class="n">chars_left</span> <span class="o">=</span> <span class="n">start</span>
+      <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+        <span class="n">next_line_length</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">lines</span><span class="p">[</span><span class="n">line_index</span><span class="p">])</span>
+        <span class="k">if</span> <span class="n">chars_left</span> <span class="o">-</span> <span class="n">next_line_length</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
+          <span class="k">break</span>
+        <span class="n">chars_left</span> <span class="o">-=</span> <span class="n">next_line_length</span>
+        <span class="n">line_index</span> <span class="o">+=</span> <span class="mi">1</span>
+      <span class="n">f</span><span class="o">.</span><span class="n">seek</span><span class="p">(</span><span class="n">start</span><span class="p">)</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">readline</span><span class="p">(),</span> <span class="n">lines</span><span class="p">[</span><span class="n">line_index</span><span class="p">][</span><span class="n">chars_left</span><span class="p">:])</span></div>
+
+<div class="viewcode-block" id="TestGCSIO.test_file_write"><a class="viewcode-back" href="../../../../apache_beam.io.gcp.html#apache_beam.io.gcp.gcsio_test.TestGCSIO.test_file_write">[docs]</a>  <span class="k">def</span> <span class="nf">test_file_write</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">file_name</span> <span class="o">=</span> <span class="s1">&#39;gs://gcsio-test/write_file&#39;</span>
+    <span class="n">file_size</span> <span class="o">=</span> <span class="mi">5</span> <span class="o">*</span> <span class="mi">1024</span> <span class="o">*</span> <span class="mi">1024</span> <span class="o">+</span> <span class="mi">2000</span>
+    <span class="n">contents</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">urandom</span><span class="p">(</span><span class="n">file_size</span><span class="p">)</span>
+    <span class="n">f</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">gcs</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">file_name</span><span class="p">,</span> <span class="s1">&#39;w&#39;</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">mode</span><span class="p">,</span> <span class="s1">&#39;w&#39;</span><span class="p">)</span>
+    <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">contents</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="mi">1000</span><span class="p">])</span>
+    <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">contents</span><span class="p">[</span><span class="mi">1000</span><span class="p">:</span><span class="mi">1024</span> <span class="o">*</span> <span class="mi">1024</span><span class="p">])</span>
+    <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">contents</span><span class="p">[</span><span class="mi">1024</span> <span class="o">*</span> <span class="mi">1024</span><span class="p">:])</span>
+    <span class="n">f</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+    <span class="n">bucket</span><span class="p">,</span> <span class="n">name</span> <span class="o">=</span> <span class="n">gcsio</span><span class="o">.</span><span class="n">parse_gcs_path</span><span class="p">(</span><span class="n">file_name</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">get_file</span><span class="p">(</span><span class="n">bucket</span><span class="p">,</span> <span class="n">name</span><span class="p">)</span><span class="o">.</span><span class="n">contents</span><span class="p">,</span> <span class="n">contents</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TestGCSIO.test_file_close"><a class="viewcode-back" href="../../../../apache_beam.io.gcp.html#apache_beam.io.gcp.gcsio_test.TestGCSIO.test_file_close">[docs]</a>  <span class="k">def</span> <span class="nf">test_file_close</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">file_name</span> <span class="o">=</span> <span class="s1">&#39;gs://gcsio-test/close_file&#39;</span>
+    <span class="n">file_size</span> <span class="o">=</span> <span class="mi">5</span> <span class="o">*</span> <span class="mi">1024</span> <span class="o">*</span> <span class="mi">1024</span> <span class="o">+</span> <span class="mi">2000</span>
+    <span class="n">contents</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">urandom</span><span class="p">(</span><span class="n">file_size</span><span class="p">)</span>
+    <span class="n">f</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">gcs</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">file_name</span><span class="p">,</span> <span class="s1">&#39;w&#39;</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">mode</span><span class="p">,</span> <span class="s1">&#39;w&#39;</span><span class="p">)</span>
+    <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">contents</span><span class="p">)</span>
+    <span class="n">f</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+    <span class="n">f</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>  <span class="c1"># This should not crash.</span>
+    <span class="n">bucket</span><span class="p">,</span> <span class="n">name</span> <span class="o">=</span> <span class="n">gcsio</span><span class="o">.</span><span class="n">parse_gcs_path</span><span class="p">(</span><span class="n">file_name</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">get_file</span><span class="p">(</span><span class="n">bucket</span><span class="p">,</span> <span class="n">name</span><span class="p">)</span><span class="o">.</span><span class="n">contents</span><span class="p">,</span> <span class="n">contents</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TestGCSIO.test_file_flush"><a class="viewcode-back" href="../../../../apache_beam.io.gcp.html#apache_beam.io.gcp.gcsio_test.TestGCSIO.test_file_flush">[docs]</a>  <span class="k">def</span> <span class="nf">test_file_flush</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">file_name</span> <span class="o">=</span> <span class="s1">&#39;gs://gcsio-test/flush_file&#39;</span>
+    <span class="n">file_size</span> <span class="o">=</span> <span class="mi">5</span> <span class="o">*</span> <span class="mi">1024</span> <span class="o">*</span> <span class="mi">1024</span> <span class="o">+</span> <span class="mi">2000</span>
+    <span class="n">contents</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">urandom</span><span class="p">(</span><span class="n">file_size</span><span class="p">)</span>
+    <span class="n">bucket</span><span class="p">,</span> <span class="n">name</span> <span class="o">=</span> <span class="n">gcsio</span><span class="o">.</span><span class="n">parse_gcs_path</span><span class="p">(</span><span class="n">file_name</span><span class="p">)</span>
+    <span class="n">f</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">gcs</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">file_name</span><span class="p">,</span> <span class="s1">&#39;w&#39;</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">mode</span><span class="p">,</span> <span class="s1">&#39;w&#39;</span><span class="p">)</span>
+    <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">contents</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="mi">1000</span><span class="p">])</span>
+    <span class="n">f</span><span class="o">.</span><span class="n">flush</span><span class="p">()</span>
+    <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">contents</span><span class="p">[</span><span class="mi">1000</span><span class="p">:</span><span class="mi">1024</span> <span class="o">*</span> <span class="mi">1024</span><span class="p">])</span>
+    <span class="n">f</span><span class="o">.</span><span class="n">flush</span><span class="p">()</span>
+    <span class="n">f</span><span class="o">.</span><span class="n">flush</span><span class="p">()</span>  <span class="c1"># Should be a NOOP.</span>
+    <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">contents</span><span class="p">[</span><span class="mi">1024</span> <span class="o">*</span> <span class="mi">1024</span><span class="p">:])</span>
+    <span class="n">f</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>  <span class="c1"># This should already call the equivalent of flush() in its body.</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">get_file</span><span class="p">(</span><span class="n">bucket</span><span class="p">,</span> <span class="n">name</span><span class="p">)</span><span class="o">.</span><span class="n">contents</span><span class="p">,</span> <span class="n">contents</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TestGCSIO.test_context_manager"><a class="viewcode-back" href="../../../../apache_beam.io.gcp.html#apache_beam.io.gcp.gcsio_test.TestGCSIO.test_context_manager">[docs]</a>  <span class="k">def</span> <span class="nf">test_context_manager</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="c1"># Test writing with a context manager.</span>
+    <span class="n">file_name</span> <span class="o">=</span> <span class="s1">&#39;gs://gcsio-test/context_manager_file&#39;</span>
+    <span class="n">file_size</span> <span class="o">=</span> <span class="mi">1024</span>
+    <span class="n">contents</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">urandom</span><span class="p">(</span><span class="n">file_size</span><span class="p">)</span>
+    <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">gcs</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">file_name</span><span class="p">,</span> <span class="s1">&#39;w&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+      <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">contents</span><span class="p">)</span>
+    <span class="n">bucket</span><span class="p">,</span> <span class="n">name</span> <span class="o">=</span> <span class="n">gcsio</span><span class="o">.</span><span class="n">parse_gcs_path</span><span class="p">(</span><span class="n">file_name</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">objects</span><span class="o">.</span><span class="n">get_file</span><span class="p">(</span><span class="n">bucket</span><span class="p">,</span> <span class="n">name</span><span class="p">)</span><span class="o">.</span><span class="n">contents</span><span class="p">,</span> <span class="n">contents</span><span class="p">)</span>
+
+    <span class="c1"># Test reading with a context manager.</span>
+    <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">gcs</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">file_name</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">read</span><span class="p">(),</span> <span class="n">contents</span><span class="p">)</span>
+
+    <span class="c1"># Test that exceptions are not swallowed by the context manager.</span>
+    <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">ZeroDivisionError</span><span class="p">):</span>
+      <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">gcs</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">file_name</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+        <span class="n">f</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="mi">0</span> <span class="o">/</span> <span class="mi">0</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TestGCSIO.test_glob"><a class="viewcode-back" href="../../../../apache_beam.io.gcp.html#apache_beam.io.gcp.gcsio_test.TestGCSIO.test_glob">[docs]</a>  <span class="k">def</span> <span class="nf">test_glob</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">bucket_name</span> <span class="o">=</span> <span class="s1">&#39;gcsio-test&#39;</span>
+    <span class="n">object_names</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="s1">&#39;cow/cat/fish&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;cow/cat/blubber&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;cow/dog/blubber&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;apple/dog/blubber&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;apple/fish/blubber&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;apple/fish/blowfish&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;apple/fish/bambi&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;apple/fish/balloon&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;apple/fish/cat&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;apple/fish/cart&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;apple/fish/carl&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;apple/dish/bat&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;apple/dish/cat&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;apple/dish/carl&#39;</span><span class="p">,</span>
+    <span class="p">]</span>
+    <span class="k">for</span> <span class="n">object_name</span> <span class="ow">in</span> <span class="n">object_names</span><span class="p">:</span>
+      <span class="n">file_name</span> <span class="o">=</span> <span class="s1">&#39;gs://</span><span class="si">%s</span><span class="s1">/</span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">bucket_name</span><span class="p">,</span> <span class="n">object_name</span><span class="p">)</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_insert_random_file</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="p">,</span> <span class="n">file_name</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+    <span class="n">test_cases</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="p">(</span><span class="s1">&#39;gs://gcsio-test/*&#39;</span><span class="p">,</span> <span class="p">[</span>
+            <span class="s1">&#39;cow/cat/fish&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;cow/cat/blubber&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;cow/dog/blubber&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;apple/dog/blubber&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;apple/fish/blubber&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;apple/fish/blowfish&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;apple/fish/bambi&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;apple/fish/balloon&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;apple/fish/cat&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;apple/fish/cart&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;apple/fish/carl&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;apple/dish/bat&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;apple/dish/cat&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;apple/dish/carl&#39;</span><span class="p">,</span>
+        <span class="p">]),</span>
+        <span class="p">(</span><span class="s1">&#39;gs://gcsio-test/cow/*&#39;</span><span class="p">,</span> <span class="p">[</span>
+            <span class="s1">&#39;cow/cat/fish&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;cow/cat/blubber&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;cow/dog/blubber&#39;</span><span class="p">,</span>
+        <span class="p">]),</span>
+        <span class="p">(</span><span class="s1">&#39;gs://gcsio-test/cow/ca*&#39;</span><span class="p">,</span> <span class="p">[</span>
+            <span class="s1">&#39;cow/cat/fish&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;cow/cat/blubber&#39;</span><span class="p">,</span>
+        <span class="p">]),</span>
+        <span class="p">(</span><span class="s1">&#39;gs://gcsio-test/apple/[df]ish/ca*&#39;</span><span class="p">,</span> <span class="p">[</span>
+            <span class="s1">&#39;apple/fish/cat&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;apple/fish/cart&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;apple/fish/carl&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;apple/dish/cat&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;apple/dish/carl&#39;</span><span class="p">,</span>
+        <span class="p">]),</span>
+        <span class="p">(</span><span class="s1">&#39;gs://gcsio-test/apple/fish/car?&#39;</span><span class="p">,</span> <span class="p">[</span>
+            <span class="s1">&#39;apple/fish/cart&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;apple/fish/carl&#39;</span><span class="p">,</span>
+        <span class="p">]),</span>
+        <span class="p">(</span><span class="s1">&#39;gs://gcsio-test/apple/fish/b*&#39;</span><span class="p">,</span> <span class="p">[</span>
+            <span class="s1">&#39;apple/fish/blubber&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;apple/fish/blowfish&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;apple/fish/bambi&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;apple/fish/balloon&#39;</span><span class="p">,</span>
+        <span class="p">]),</span>
+        <span class="p">(</span><span class="s1">&#39;gs://gcsio-test/apple/dish/[cb]at&#39;</span><span class="p">,</span> <span class="p">[</span>
+            <span class="s1">&#39;apple/dish/bat&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;apple/dish/cat&#39;</span><span class="p">,</span>
+        <span class="p">]),</span>
+    <span class="p">]</span>
+    <span class="k">for</span> <span class="n">file_pattern</span><span class="p">,</span> <span class="n">expected_object_names</span> <span class="ow">in</span> <span class="n">test_cases</span><span class="p">:</span>
+      <span class="n">expected_file_names</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;gs://</span><span class="si">%s</span><span class="s1">/</span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">bucket_name</span><span class="p">,</span> <span class="n">o</span><span class="p">)</span>
+                             <span class="k">for</span> <span class="n">o</span> <span class="ow">in</span> <span class="n">expected_object_names</span><span class="p">]</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span>
+          <span class="nb">set</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">gcs</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="n">file_pattern</span><span class="p">)),</span> <span class="nb">set</span><span class="p">(</span><span class="n">expected_file_names</span><span class="p">))</span>
+
+    <span class="c1"># Check if limits are followed correctly</span>
+    <span class="n">limit</span> <span class="o">=</span> <span class="mi">3</span>
+    <span class="k">for</span> <span class="n">file_pattern</span><span class="p">,</span> <span class="n">expected_object_names</span> <span class="ow">in</span> <span class="n">test_cases</span><span class="p">:</span>
+      <span class="n">expected_num_items</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">expected_object_names</span><span class="p">),</span> <span class="n">limit</span><span class="p">)</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span>
+          <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">gcs</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="n">file_pattern</span><span class="p">,</span> <span class="n">limit</span><span class="p">)),</span> <span class="n">expected_num_items</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TestGCSIO.test_size_of_files_in_glob"><a class="viewcode-back" href="../../../../apache_beam.io.gcp.html#apache_beam.io.gcp.gcsio_test.TestGCSIO.test_size_of_files_in_glob">[docs]</a>  <span class="k">def</span> <span class="nf">test_size_of_files_in_glob</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">bucket_name</span> <span class="o">=</span> <span class="s1">&#39;gcsio-test&#39;</span>
+    <span class="n">object_names</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="p">(</span><span class="s1">&#39;cow/cat/fish&#39;</span><span class="p">,</span> <span class="mi">2</span><span class="p">),</span>
+        <span class="p">(</span><span class="s1">&#39;cow/cat/blubber&#39;</span><span class="p">,</span> <span class="mi">3</span><span class="p">),</span>
+        <span class="p">(</span><span class="s1">&#39;cow/dog/blubber&#39;</span><span class="p">,</span> <span class="mi">4</span><span class="p">),</span>
+        <span class="p">(</span><span class="s1">&#39;apple/dog/blubber&#39;</span><span class="p">,</span> <span class="mi">5</span><span class="p">),</span>
+        <span class="p">(</span><span class="s1">&#39;apple/fish/blubber&#39;</span><span class="p">,</span> <span class="mi">6</span><span class="p">),</span>
+        <span class="p">(</span><span class="s1">&#39;apple/fish/blowfish&#39;</span><span class="p">,</span> <span class="mi">7</span><span class="p">),</span>
+        <span class="p">(</span><span class="s1">&#39;apple/fish/bambi&#39;</span><span class="p">,</span> <span class="mi">8</span><span class="p">),</span>
+        <span class="p">(</span><span class="s1">&#39;apple/fish/balloon&#39;</span><span class="p">,</span> <span class="mi">9</span><span class="p">),</span>
+        <span class="p">(</span><span class="s1">&#39;apple/fish/cat&#39;</span><span class="p">,</span> <span class="mi">10</span><span class="p">),</span>
+        <span class="p">(</span><span class="s1">&#39;apple/fish/cart&#39;</span><span class="p">,</span> <span class="mi">11</span><span class="p">),</span>
+        <span class="p">(</span><span class="s1">&#39;apple/fish/carl&#39;</span><span class="p">,</span> <span class="mi">12</span><span class="p">),</span>
+        <span class="p">(</span><span class="s1">&#39;apple/dish/bat&#39;</span><span class="p">,</span> <span class="mi">13</span><span class="p">),</span>
+        <span class="p">(</span><span class="s1">&#39;apple/dish/cat&#39;</span><span class="p">,</span> <span class="mi">14</span><span class="p">),</span>
+        <span class="p">(</span><span class="s1">&#39;apple/dish/carl&#39;</span><span class="p">,</span> <span class="mi">15</span><span class="p">),</span>
+    <span class="p">]</span>
+    <span class="k">for</span> <span class="p">(</span><span class="n">object_name</span><span class="p">,</span> <span class="n">size</span><span class="p">)</span> <span class="ow">in</span> <span class="n">object_names</span><span class="p">:</span>
+      <span class="n">file_name</span> <span class="o">=</span> <span class="s1">&#39;gs://</span><span class="si">%s</span><span class="s1">/</span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">bucket_name</span><span class="p">,</span> <span class="n">object_name</span><span class="p">)</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_insert_random_file</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="p">,</span> <span class="n">file_name</span><span class="p">,</span> <span class="n">size</span><span class="p">)</span>
+    <span class="n">test_cases</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="p">(</span><span class="s1">&#39;gs://gcsio-test/cow/*&#39;</span><span class="p">,</span> <span class="p">[</span>
+            <span class="p">(</span><span class="s1">&#39;cow/cat/fish&#39;</span><span class="p">,</span> <span class="mi">2</span><span class="p">),</span>
+            <span class="p">(</span><span class="s1">&#39;cow/cat/blubber&#39;</span><span class="p">,</span> <span class="mi">3</span><span class="p">),</span>
+            <span class="p">(</span><span class="s1">&#39;cow/dog/blubber&#39;</span><span class="p">,</span> <span class="mi">4</span><span class="p">),</span>
+        <span class="p">]),</span>
+        <span class="p">(</span><span class="s1">&#39;gs://gcsio-test/apple/fish/car?&#39;</span><span class="p">,</span> <span class="p">[</span>
+            <span class="p">(</span><span class="s1">&#39;apple/fish/cart&#39;</span><span class="p">,</span> <span class="mi">11</span><span class="p">),</span>
+            <span class="p">(</span><span class="s1">&#39;apple/fish/carl&#39;</span><span class="p">,</span> <span class="mi">12</span><span class="p">),</span>
+        <span class="p">])</span>
+    <span class="p">]</span>
+    <span class="k">for</span> <span class="n">file_pattern</span><span class="p">,</span> <span class="n">expected_object_names</span> <span class="ow">in</span> <span class="n">test_cases</span><span class="p">:</span>
+      <span class="n">expected_file_sizes</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;gs://</span><span class="si">%s</span><span class="s1">/</span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">bucket_name</span><span class="p">,</span> <span class="n">o</span><span class="p">):</span> <span class="n">s</span>
+                             <span class="k">for</span> <span class="p">(</span><span class="n">o</span><span class="p">,</span> <span class="n">s</span><span class="p">)</span> <span class="ow">in</span> <span class="n">expected_object_names</span><span class="p">}</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span>
+          <span class="bp">self</span><span class="o">.</span><span class="n">gcs</span><span class="o">.</span><span class="n">size_of_files_in_glob</span><span class="p">(</span><span class="n">file_pattern</span><span class="p">),</span> <span class="n">expected_file_sizes</span><span class="p">)</span></div></div>
+
+
+<span class="nd">@unittest</span><span class="o">.</span><span class="n">skipIf</span><span class="p">(</span><span class="n">HttpError</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">,</span> <span class="s1">&#39;GCP dependencies are not installed&#39;</span><span class="p">)</span>
+<div class="viewcode-block" id="TestPipeStream"><a class="viewcode-back" href="../../../../apache_beam.io.gcp.html#apache_beam.io.gcp.gcsio_test.TestPipeStream">[docs]</a><span class="k">class</span> <span class="nc">TestPipeStream</span><span class="p">(</span><span class="n">unittest</span><span class="o">.</span><span class="n">TestCase</span><span class="p">):</span>
+
+  <span class="k">def</span> <span class="nf">_read_and_verify</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">stream</span><span class="p">,</span> <span class="n">expected</span><span class="p">,</span> <span class="n">buffer_size</span><span class="p">):</span>
+    <span class="n">data_list</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">bytes_read</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">seen_last_block</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+      <span class="n">data</span> <span class="o">=</span> <span class="n">stream</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="n">buffer_size</span><span class="p">)</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">assertLessEqual</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">data</span><span class="p">),</span> <span class="n">buffer_size</span><span class="p">)</span>
+      <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">data</span><span class="p">)</span> <span class="o">&lt;</span> <span class="n">buffer_size</span><span class="p">:</span>
+        <span class="c1"># Test the constraint that the pipe stream returns less than the buffer</span>
+        <span class="c1"># size only when at the end of the stream.</span>
+        <span class="k">if</span> <span class="n">data</span><span class="p">:</span>
+          <span class="bp">self</span><span class="o">.</span><span class="n">assertFalse</span><span class="p">(</span><span class="n">seen_last_block</span><span class="p">)</span>
+        <span class="n">seen_last_block</span> <span class="o">=</span> <span class="kc">True</span>
+      <span class="k">if</span> <span class="ow">not</span> <span class="n">data</span><span class="p">:</span>
+        <span class="k">break</span>
+      <span class="n">data_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+      <span class="n">bytes_read</span> <span class="o">+=</span> <span class="nb">len</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">stream</span><span class="o">.</span><span class="n">tell</span><span class="p">(),</span> <span class="n">bytes_read</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="s1">&#39;&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">data_list</span><span class="p">),</span> <span class="n">expected</span><span class="p">)</span>
+
+<div class="viewcode-block" id="TestPipeStream.test_pipe_stream"><a class="viewcode-back" href="../../../../apache_beam.io.gcp.html#apache_beam.io.gcp.gcsio_test.TestPipeStream.test_pipe_stream">[docs]</a>  <span class="k">def</span> <span class="nf">test_pipe_stream</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">block_sizes</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="mi">4</span><span class="o">**</span><span class="n">i</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">12</span><span class="p">))</span>
+    <span class="n">data_blocks</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">urandom</span><span class="p">(</span><span class="n">size</span><span class="p">)</span> <span class="k">for</span> <span class="n">size</span> <span class="ow">in</span> <span class="n">block_sizes</span><span class="p">)</span>
+    <span class="n">expected</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">data_blocks</span><span class="p">)</span>
+
+    <span class="n">buffer_sizes</span> <span class="o">=</span> <span class="p">[</span><span class="mi">100001</span><span class="p">,</span> <span class="mi">512</span> <span class="o">*</span> <span class="mi">1024</span><span class="p">,</span> <span class="mi">1024</span> <span class="o">*</span> <span class="mi">1024</span><span class="p">]</span>
+
+    <span class="k">for</span> <span class="n">buffer_size</span> <span class="ow">in</span> <span class="n">buffer_sizes</span><span class="p">:</span>
+      <span class="n">parent_conn</span><span class="p">,</span> <span class="n">child_conn</span> <span class="o">=</span> <span class="n">multiprocessing</span><span class="o">.</span><span class="n">Pipe</span><span class="p">()</span>
+      <span class="n">stream</span> <span class="o">=</span> <span class="n">gcsio</span><span class="o">.</span><span class="n">GcsBufferedWriter</span><span class="o">.</span><span class="n">PipeStream</span><span class="p">(</span><span class="n">child_conn</span><span class="p">)</span>
+      <span class="n">child_thread</span> <span class="o">=</span> <span class="n">threading</span><span class="o">.</span><span class="n">Thread</span><span class="p">(</span>
+          <span class="n">target</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_read_and_verify</span><span class="p">,</span> <span class="n">args</span><span class="o">=</span><span class="p">(</span><span class="n">stream</span><span class="p">,</span> <span class="n">expected</span><span class="p">,</span> <span class="n">buffer_size</span><span class="p">))</span>
+      <span class="n">child_thread</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
+      <span class="k">for</span> <span class="n">data</span> <span class="ow">in</span> <span class="n">data_blocks</span><span class="p">:</span>
+        <span class="n">parent_conn</span><span class="o">.</span><span class="n">send_bytes</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+      <span class="n">parent_conn</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+      <span class="n">child_thread</span><span class="o">.</span><span class="n">join</span><span class="p">()</span></div></div>
+
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s1">&#39;__main__&#39;</span><span class="p">:</span>
+  <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">()</span><span class="o">.</span><span class="n">setLevel</span><span class="p">(</span><span class="n">logging</span><span class="o">.</span><span class="n">INFO</span><span class="p">)</span>
+  <span class="n">unittest</span><span class="o">.</span><span class="n">main</span><span class="p">()</span>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../../index.html" >Module code</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright .
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.5.3.
+    </div>
+  </body>
+</html>

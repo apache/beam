@@ -1,0 +1,272 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>apache_beam.examples.complete.top_wikipedia_sessions &#8212; Apache Beam  documentation</title>
+    
+    <link rel="stylesheet" href="../../../../_static/sphinxdoc.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../../',
+        VERSION:     '',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" /> 
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../../index.html" accesskey="U">Module code</a> &#187;</li> 
+      </ul>
+    </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../../../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for apache_beam.examples.complete.top_wikipedia_sessions</h1><div class="highlight"><pre>
+<span></span><span class="c1">#</span>
+<span class="c1"># Licensed to the Apache Software Foundation (ASF) under one or more</span>
+<span class="c1"># contributor license agreements.  See the NOTICE file distributed with</span>
+<span class="c1"># this work for additional information regarding copyright ownership.</span>
+<span class="c1"># The ASF licenses this file to You under the Apache License, Version 2.0</span>
+<span class="c1"># (the &quot;License&quot;); you may not use this file except in compliance with</span>
+<span class="c1"># the License.  You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1">#    http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.</span>
+<span class="c1"># See the License for the specific language governing permissions and</span>
+<span class="c1"># limitations under the License.</span>
+<span class="c1">#</span>
+
+<span class="sd">&quot;&quot;&quot;An example that reads Wikipedia edit data and computes strings of edits.</span>
+
+<span class="sd">An example that reads Wikipedia edit data from Cloud Storage and computes the</span>
+<span class="sd">user with the longest string of edits separated by no more than an hour within</span>
+<span class="sd">each 30 day period.</span>
+
+<span class="sd">To execute this pipeline locally using the DirectRunner, specify an</span>
+<span class="sd">output prefix on GCS:::</span>
+
+<span class="sd">  --output gs://YOUR_OUTPUT_PREFIX</span>
+
+<span class="sd">To execute this pipeline using the Google Cloud Dataflow service, specify</span>
+<span class="sd">pipeline configuration in addition to the above:::</span>
+
+<span class="sd">  --job_name NAME_FOR_YOUR_JOB</span>
+<span class="sd">  --project YOUR_PROJECT_ID</span>
+<span class="sd">  --staging_location gs://YOUR_STAGING_DIRECTORY</span>
+<span class="sd">  --temp_location gs://YOUR_TEMPORARY_DIRECTORY</span>
+<span class="sd">  --runner DataflowRunner</span>
+
+<span class="sd">The default input is ``gs://dataflow-samples/wikipedia_edits/*.json`` and can</span>
+<span class="sd">be overridden with --input.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="k">import</span> <span class="n">absolute_import</span>
+
+<span class="kn">import</span> <span class="nn">argparse</span>
+<span class="kn">import</span> <span class="nn">json</span>
+<span class="kn">import</span> <span class="nn">logging</span>
+
+<span class="kn">import</span> <span class="nn">apache_beam</span> <span class="k">as</span> <span class="nn">beam</span>
+<span class="kn">from</span> <span class="nn">apache_beam</span> <span class="k">import</span> <span class="n">combiners</span>
+<span class="kn">from</span> <span class="nn">apache_beam.io</span> <span class="k">import</span> <span class="n">ReadFromText</span>
+<span class="kn">from</span> <span class="nn">apache_beam.io</span> <span class="k">import</span> <span class="n">WriteToText</span>
+<span class="kn">from</span> <span class="nn">apache_beam.transforms.window</span> <span class="k">import</span> <span class="n">FixedWindows</span>
+<span class="kn">from</span> <span class="nn">apache_beam.transforms.window</span> <span class="k">import</span> <span class="n">Sessions</span>
+<span class="kn">from</span> <span class="nn">apache_beam.transforms.window</span> <span class="k">import</span> <span class="n">TimestampedValue</span>
+<span class="kn">from</span> <span class="nn">apache_beam.utils.pipeline_options</span> <span class="k">import</span> <span class="n">PipelineOptions</span>
+<span class="kn">from</span> <span class="nn">apache_beam.utils.pipeline_options</span> <span class="k">import</span> <span class="n">SetupOptions</span>
+
+
+<span class="n">ONE_HOUR_IN_SECONDS</span> <span class="o">=</span> <span class="mi">3600</span>
+<span class="n">THIRTY_DAYS_IN_SECONDS</span> <span class="o">=</span> <span class="mi">30</span> <span class="o">*</span> <span class="mi">24</span> <span class="o">*</span> <span class="n">ONE_HOUR_IN_SECONDS</span>
+<span class="n">MAX_TIMESTAMP</span> <span class="o">=</span> <span class="mh">0x7fffffffffffffff</span>
+
+
+<div class="viewcode-block" id="ExtractUserAndTimestampDoFn"><a class="viewcode-back" href="../../../../apache_beam.examples.complete.html#apache_beam.examples.complete.top_wikipedia_sessions.ExtractUserAndTimestampDoFn">[docs]</a><span class="k">class</span> <span class="nc">ExtractUserAndTimestampDoFn</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">DoFn</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Extracts user and timestamp representing a Wikipedia edit.&quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="ExtractUserAndTimestampDoFn.process"><a class="viewcode-back" href="../../../../apache_beam.examples.complete.html#apache_beam.examples.complete.top_wikipedia_sessions.ExtractUserAndTimestampDoFn.process">[docs]</a>  <span class="k">def</span> <span class="nf">process</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">element</span><span class="p">):</span>
+    <span class="n">table_row</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">element</span><span class="p">)</span>
+    <span class="k">if</span> <span class="s1">&#39;contributor_username&#39;</span> <span class="ow">in</span> <span class="n">table_row</span><span class="p">:</span>
+      <span class="n">user_name</span> <span class="o">=</span> <span class="n">table_row</span><span class="p">[</span><span class="s1">&#39;contributor_username&#39;</span><span class="p">]</span>
+      <span class="n">timestamp</span> <span class="o">=</span> <span class="n">table_row</span><span class="p">[</span><span class="s1">&#39;timestamp&#39;</span><span class="p">]</span>
+      <span class="k">yield</span> <span class="n">TimestampedValue</span><span class="p">(</span><span class="n">user_name</span><span class="p">,</span> <span class="n">timestamp</span><span class="p">)</span></div></div>
+
+
+<div class="viewcode-block" id="ComputeSessions"><a class="viewcode-back" href="../../../../apache_beam.examples.complete.html#apache_beam.examples.complete.top_wikipedia_sessions.ComputeSessions">[docs]</a><span class="k">class</span> <span class="nc">ComputeSessions</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">PTransform</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Computes the number of edits in each user session.</span>
+
+<span class="sd">  A session is defined as a string of edits where each is separated from the</span>
+<span class="sd">  next by less than an hour.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="nb">super</span><span class="p">(</span><span class="n">ComputeSessions</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+
+<div class="viewcode-block" id="ComputeSessions.expand"><a class="viewcode-back" href="../../../../apache_beam.examples.complete.html#apache_beam.examples.complete.top_wikipedia_sessions.ComputeSessions.expand">[docs]</a>  <span class="k">def</span> <span class="nf">expand</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pcoll</span><span class="p">):</span>
+    <span class="k">return</span> <span class="p">(</span><span class="n">pcoll</span>
+            <span class="o">|</span> <span class="s1">&#39;ComputeSessionsWindow&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">WindowInto</span><span class="p">(</span>
+                <span class="n">Sessions</span><span class="p">(</span><span class="n">gap_size</span><span class="o">=</span><span class="n">ONE_HOUR_IN_SECONDS</span><span class="p">))</span>
+            <span class="o">|</span> <span class="n">combiners</span><span class="o">.</span><span class="n">Count</span><span class="o">.</span><span class="n">PerElement</span><span class="p">())</span></div></div>
+
+
+<div class="viewcode-block" id="TopPerMonth"><a class="viewcode-back" href="../../../../apache_beam.examples.complete.html#apache_beam.examples.complete.top_wikipedia_sessions.TopPerMonth">[docs]</a><span class="k">class</span> <span class="nc">TopPerMonth</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">PTransform</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Computes the longest session ending in each month.&quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="nb">super</span><span class="p">(</span><span class="n">TopPerMonth</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+
+<div class="viewcode-block" id="TopPerMonth.expand"><a class="viewcode-back" href="../../../../apache_beam.examples.complete.html#apache_beam.examples.complete.top_wikipedia_sessions.TopPerMonth.expand">[docs]</a>  <span class="k">def</span> <span class="nf">expand</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pcoll</span><span class="p">):</span>
+    <span class="k">return</span> <span class="p">(</span><span class="n">pcoll</span>
+            <span class="o">|</span> <span class="s1">&#39;TopPerMonthWindow&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">WindowInto</span><span class="p">(</span>
+                <span class="n">FixedWindows</span><span class="p">(</span><span class="n">size</span><span class="o">=</span><span class="n">THIRTY_DAYS_IN_SECONDS</span><span class="p">))</span>
+            <span class="o">|</span> <span class="s1">&#39;Top&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">combiners</span><span class="o">.</span><span class="n">core</span><span class="o">.</span><span class="n">CombineGlobally</span><span class="p">(</span>
+                <span class="n">combiners</span><span class="o">.</span><span class="n">TopCombineFn</span><span class="p">(</span>
+                    <span class="mi">10</span><span class="p">,</span> <span class="k">lambda</span> <span class="n">first</span><span class="p">,</span> <span class="n">second</span><span class="p">:</span> <span class="n">first</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">&lt;</span> <span class="n">second</span><span class="p">[</span><span class="mi">1</span><span class="p">]))</span>
+            <span class="o">.</span><span class="n">without_defaults</span><span class="p">())</span></div></div>
+
+
+<div class="viewcode-block" id="SessionsToStringsDoFn"><a class="viewcode-back" href="../../../../apache_beam.examples.complete.html#apache_beam.examples.complete.top_wikipedia_sessions.SessionsToStringsDoFn">[docs]</a><span class="k">class</span> <span class="nc">SessionsToStringsDoFn</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">DoFn</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Adds the session information to be part of the key.&quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="SessionsToStringsDoFn.process"><a class="viewcode-back" href="../../../../apache_beam.examples.complete.html#apache_beam.examples.complete.top_wikipedia_sessions.SessionsToStringsDoFn.process">[docs]</a>  <span class="k">def</span> <span class="nf">process</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">element</span><span class="p">,</span> <span class="n">window</span><span class="o">=</span><span class="n">beam</span><span class="o">.</span><span class="n">DoFn</span><span class="o">.</span><span class="n">WindowParam</span><span class="p">):</span>
+    <span class="k">yield</span> <span class="p">(</span><span class="n">element</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="s1">&#39; : &#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">window</span><span class="p">),</span> <span class="n">element</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span></div></div>
+
+
+<div class="viewcode-block" id="FormatOutputDoFn"><a class="viewcode-back" href="../../../../apache_beam.examples.complete.html#apache_beam.examples.complete.top_wikipedia_sessions.FormatOutputDoFn">[docs]</a><span class="k">class</span> <span class="nc">FormatOutputDoFn</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">DoFn</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Formats a string containing the user, count, and session.&quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="FormatOutputDoFn.process"><a class="viewcode-back" href="../../../../apache_beam.examples.complete.html#apache_beam.examples.complete.top_wikipedia_sessions.FormatOutputDoFn.process">[docs]</a>  <span class="k">def</span> <span class="nf">process</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">element</span><span class="p">,</span> <span class="n">window</span><span class="o">=</span><span class="n">beam</span><span class="o">.</span><span class="n">DoFn</span><span class="o">.</span><span class="n">WindowParam</span><span class="p">):</span>
+    <span class="k">for</span> <span class="n">kv</span> <span class="ow">in</span> <span class="n">element</span><span class="p">:</span>
+      <span class="n">session</span> <span class="o">=</span> <span class="n">kv</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+      <span class="n">count</span> <span class="o">=</span> <span class="n">kv</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+      <span class="k">yield</span> <span class="n">session</span> <span class="o">+</span> <span class="s1">&#39; : &#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">count</span><span class="p">)</span> <span class="o">+</span> <span class="s1">&#39; : &#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">window</span><span class="p">)</span></div></div>
+
+
+<div class="viewcode-block" id="ComputeTopSessions"><a class="viewcode-back" href="../../../../apache_beam.examples.complete.html#apache_beam.examples.complete.top_wikipedia_sessions.ComputeTopSessions">[docs]</a><span class="k">class</span> <span class="nc">ComputeTopSessions</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">PTransform</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Computes the top user sessions for each month.&quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sampling_threshold</span><span class="p">):</span>
+    <span class="nb">super</span><span class="p">(</span><span class="n">ComputeTopSessions</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">sampling_threshold</span> <span class="o">=</span> <span class="n">sampling_threshold</span>
+
+<div class="viewcode-block" id="ComputeTopSessions.expand"><a class="viewcode-back" href="../../../../apache_beam.examples.complete.html#apache_beam.examples.complete.top_wikipedia_sessions.ComputeTopSessions.expand">[docs]</a>  <span class="k">def</span> <span class="nf">expand</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pcoll</span><span class="p">):</span>
+    <span class="k">return</span> <span class="p">(</span><span class="n">pcoll</span>
+            <span class="o">|</span> <span class="s1">&#39;ExtractUserAndTimestamp&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">ParDo</span><span class="p">(</span>
+                <span class="n">ExtractUserAndTimestampDoFn</span><span class="p">())</span>
+            <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Filter</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="p">(</span><span class="nb">abs</span><span class="p">(</span><span class="nb">hash</span><span class="p">(</span><span class="n">x</span><span class="p">))</span> <span class="o">&lt;=</span>
+                                     <span class="n">MAX_TIMESTAMP</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">sampling_threshold</span><span class="p">))</span>
+            <span class="o">|</span> <span class="n">ComputeSessions</span><span class="p">()</span>
+            <span class="o">|</span> <span class="s1">&#39;SessionsToStrings&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">ParDo</span><span class="p">(</span><span class="n">SessionsToStringsDoFn</span><span class="p">())</span>
+            <span class="o">|</span> <span class="n">TopPerMonth</span><span class="p">()</span>
+            <span class="o">|</span> <span class="s1">&#39;FormatOutput&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">ParDo</span><span class="p">(</span><span class="n">FormatOutputDoFn</span><span class="p">()))</span></div></div>
+
+
+<div class="viewcode-block" id="run"><a class="viewcode-back" href="../../../../apache_beam.examples.complete.html#apache_beam.examples.complete.top_wikipedia_sessions.run">[docs]</a><span class="k">def</span> <span class="nf">run</span><span class="p">(</span><span class="n">argv</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Runs the Wikipedia top edits pipeline.</span>
+
+<span class="sd">  Args:</span>
+<span class="sd">    argv: Pipeline options as a list of arguments.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+
+  <span class="n">parser</span> <span class="o">=</span> <span class="n">argparse</span><span class="o">.</span><span class="n">ArgumentParser</span><span class="p">()</span>
+  <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
+      <span class="s1">&#39;--input&#39;</span><span class="p">,</span>
+      <span class="n">dest</span><span class="o">=</span><span class="s1">&#39;input&#39;</span><span class="p">,</span>
+      <span class="n">default</span><span class="o">=</span><span class="s1">&#39;gs://dataflow-samples/wikipedia_edits/*.json&#39;</span><span class="p">,</span>
+      <span class="n">help</span><span class="o">=</span><span class="s1">&#39;Input specified as a GCS path containing a BigQuery table exported &#39;</span>
+      <span class="s1">&#39;as json.&#39;</span><span class="p">)</span>
+  <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;--output&#39;</span><span class="p">,</span>
+                      <span class="n">required</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                      <span class="n">help</span><span class="o">=</span><span class="s1">&#39;Output file to write results to.&#39;</span><span class="p">)</span>
+  <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;--sampling_threshold&#39;</span><span class="p">,</span>
+                      <span class="nb">type</span><span class="o">=</span><span class="nb">float</span><span class="p">,</span>
+                      <span class="n">default</span><span class="o">=</span><span class="mf">0.1</span><span class="p">,</span>
+                      <span class="n">help</span><span class="o">=</span><span class="s1">&#39;Fraction of entries used for session tracking&#39;</span><span class="p">)</span>
+  <span class="n">known_args</span><span class="p">,</span> <span class="n">pipeline_args</span> <span class="o">=</span> <span class="n">parser</span><span class="o">.</span><span class="n">parse_known_args</span><span class="p">(</span><span class="n">argv</span><span class="p">)</span>
+  <span class="c1"># We use the save_main_session option because one or more DoFn&#39;s in this</span>
+  <span class="c1"># workflow rely on global context (e.g., a module imported at module level).</span>
+  <span class="n">pipeline_options</span> <span class="o">=</span> <span class="n">PipelineOptions</span><span class="p">(</span><span class="n">pipeline_args</span><span class="p">)</span>
+  <span class="n">pipeline_options</span><span class="o">.</span><span class="n">view_as</span><span class="p">(</span><span class="n">SetupOptions</span><span class="p">)</span><span class="o">.</span><span class="n">save_main_session</span> <span class="o">=</span> <span class="kc">True</span>
+  <span class="n">p</span> <span class="o">=</span> <span class="n">beam</span><span class="o">.</span><span class="n">Pipeline</span><span class="p">(</span><span class="n">options</span><span class="o">=</span><span class="n">pipeline_options</span><span class="p">)</span>
+
+  <span class="p">(</span><span class="n">p</span>  <span class="c1"># pylint: disable=expression-not-assigned</span>
+   <span class="o">|</span> <span class="n">ReadFromText</span><span class="p">(</span><span class="n">known_args</span><span class="o">.</span><span class="n">input</span><span class="p">)</span>
+   <span class="o">|</span> <span class="n">ComputeTopSessions</span><span class="p">(</span><span class="n">known_args</span><span class="o">.</span><span class="n">sampling_threshold</span><span class="p">)</span>
+   <span class="o">|</span> <span class="n">WriteToText</span><span class="p">(</span><span class="n">known_args</span><span class="o">.</span><span class="n">output</span><span class="p">))</span>
+
+  <span class="n">p</span><span class="o">.</span><span class="n">run</span><span class="p">()</span></div>
+
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s1">&#39;__main__&#39;</span><span class="p">:</span>
+  <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">()</span><span class="o">.</span><span class="n">setLevel</span><span class="p">(</span><span class="n">logging</span><span class="o">.</span><span class="n">INFO</span><span class="p">)</span>
+  <span class="n">run</span><span class="p">()</span>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../../index.html" >Module code</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright .
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.5.3.
+    </div>
+  </body>
+</html>

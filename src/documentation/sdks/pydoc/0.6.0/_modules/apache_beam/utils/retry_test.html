@@ -1,0 +1,311 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>apache_beam.utils.retry_test &#8212; Apache Beam  documentation</title>
+    
+    <link rel="stylesheet" href="../../../_static/sphinxdoc.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../',
+        VERSION:     '',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../index.html" accesskey="U">Module code</a> &#187;</li> 
+      </ul>
+    </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for apache_beam.utils.retry_test</h1><div class="highlight"><pre>
+<span></span><span class="c1">#</span>
+<span class="c1"># Licensed to the Apache Software Foundation (ASF) under one or more</span>
+<span class="c1"># contributor license agreements.  See the NOTICE file distributed with</span>
+<span class="c1"># this work for additional information regarding copyright ownership.</span>
+<span class="c1"># The ASF licenses this file to You under the Apache License, Version 2.0</span>
+<span class="c1"># (the &quot;License&quot;); you may not use this file except in compliance with</span>
+<span class="c1"># the License.  You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1">#    http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.</span>
+<span class="c1"># See the License for the specific language governing permissions and</span>
+<span class="c1"># limitations under the License.</span>
+<span class="c1">#</span>
+
+<span class="sd">&quot;&quot;&quot;Unit tests for the retry module.&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">unittest</span>
+
+<span class="c1"># Protect against environments where apitools library is not available.</span>
+<span class="c1"># pylint: disable=wrong-import-order, wrong-import-position</span>
+<span class="c1"># TODO(sourabhbajaj): Remove the GCP specific error code to a submodule</span>
+<span class="k">try</span><span class="p">:</span>
+  <span class="kn">from</span> <span class="nn">apitools.base.py.exceptions</span> <span class="k">import</span> <span class="n">HttpError</span>
+<span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
+  <span class="n">HttpError</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="c1"># pylint: enable=wrong-import-order, wrong-import-position</span>
+
+
+<span class="kn">from</span> <span class="nn">apache_beam.utils</span> <span class="k">import</span> <span class="n">retry</span>
+
+
+<div class="viewcode-block" id="FakeClock"><a class="viewcode-back" href="../../../apache_beam.utils.html#apache_beam.utils.retry_test.FakeClock">[docs]</a><span class="k">class</span> <span class="nc">FakeClock</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;A fake clock object implementing sleep() and recording calls.&quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">calls</span> <span class="o">=</span> <span class="p">[]</span>
+
+<div class="viewcode-block" id="FakeClock.sleep"><a class="viewcode-back" href="../../../apache_beam.utils.html#apache_beam.utils.retry_test.FakeClock.sleep">[docs]</a>  <span class="k">def</span> <span class="nf">sleep</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">calls</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">value</span><span class="p">)</span></div></div>
+
+
+<div class="viewcode-block" id="FakeLogger"><a class="viewcode-back" href="../../../apache_beam.utils.html#apache_beam.utils.retry_test.FakeLogger">[docs]</a><span class="k">class</span> <span class="nc">FakeLogger</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;A fake logger object implementing log() and recording calls.&quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">calls</span> <span class="o">=</span> <span class="p">[]</span>
+
+<div class="viewcode-block" id="FakeLogger.log"><a class="viewcode-back" href="../../../apache_beam.utils.html#apache_beam.utils.retry_test.FakeLogger.log">[docs]</a>  <span class="k">def</span> <span class="nf">log</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">message</span><span class="p">,</span> <span class="n">interval</span><span class="p">,</span> <span class="n">func_name</span><span class="p">,</span> <span class="n">exn_name</span><span class="p">,</span> <span class="n">exn_traceback</span><span class="p">):</span>
+    <span class="n">_</span> <span class="o">=</span> <span class="n">interval</span><span class="p">,</span> <span class="n">exn_traceback</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">calls</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">message</span><span class="p">,</span> <span class="n">func_name</span><span class="p">,</span> <span class="n">exn_name</span><span class="p">))</span></div></div>
+
+
+<span class="nd">@retry</span><span class="o">.</span><span class="n">with_exponential_backoff</span><span class="p">(</span><span class="n">clock</span><span class="o">=</span><span class="n">FakeClock</span><span class="p">())</span>
+<span class="k">def</span> <span class="nf">test_function</span><span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">):</span>
+  <span class="n">_</span> <span class="o">=</span> <span class="n">a</span><span class="p">,</span> <span class="n">b</span>
+  <span class="k">raise</span> <span class="ne">NotImplementedError</span>
+
+
+<span class="nd">@retry</span><span class="o">.</span><span class="n">with_exponential_backoff</span><span class="p">(</span><span class="n">initial_delay_secs</span><span class="o">=</span><span class="mf">0.1</span><span class="p">,</span> <span class="n">num_retries</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">test_function_with_real_clock</span><span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">):</span>
+  <span class="n">_</span> <span class="o">=</span> <span class="n">a</span><span class="p">,</span> <span class="n">b</span>
+  <span class="k">raise</span> <span class="ne">NotImplementedError</span>
+
+
+<span class="nd">@retry</span><span class="o">.</span><span class="n">no_retries</span>
+<span class="k">def</span> <span class="nf">test_no_retry_function</span><span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">):</span>
+  <span class="n">_</span> <span class="o">=</span> <span class="n">a</span><span class="p">,</span> <span class="n">b</span>
+  <span class="k">raise</span> <span class="ne">NotImplementedError</span>
+
+
+<div class="viewcode-block" id="RetryTest"><a class="viewcode-back" href="../../../apache_beam.utils.html#apache_beam.utils.retry_test.RetryTest">[docs]</a><span class="k">class</span> <span class="nc">RetryTest</span><span class="p">(</span><span class="n">unittest</span><span class="o">.</span><span class="n">TestCase</span><span class="p">):</span>
+
+<div class="viewcode-block" id="RetryTest.setUp"><a class="viewcode-back" href="../../../apache_beam.utils.html#apache_beam.utils.retry_test.RetryTest.setUp">[docs]</a>  <span class="k">def</span> <span class="nf">setUp</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">clock</span> <span class="o">=</span> <span class="n">FakeClock</span><span class="p">()</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">logger</span> <span class="o">=</span> <span class="n">FakeLogger</span><span class="p">()</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">calls</span> <span class="o">=</span> <span class="mi">0</span></div>
+
+<div class="viewcode-block" id="RetryTest.permanent_failure"><a class="viewcode-back" href="../../../apache_beam.utils.html#apache_beam.utils.retry_test.RetryTest.permanent_failure">[docs]</a>  <span class="k">def</span> <span class="nf">permanent_failure</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">):</span>
+    <span class="k">raise</span> <span class="ne">NotImplementedError</span></div>
+
+<div class="viewcode-block" id="RetryTest.transient_failure"><a class="viewcode-back" href="../../../apache_beam.utils.html#apache_beam.utils.retry_test.RetryTest.transient_failure">[docs]</a>  <span class="k">def</span> <span class="nf">transient_failure</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">calls</span> <span class="o">+=</span> <span class="mi">1</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">calls</span> <span class="o">&gt;</span> <span class="mi">4</span><span class="p">:</span>
+      <span class="k">return</span> <span class="n">a</span> <span class="o">+</span> <span class="n">b</span>
+    <span class="k">raise</span> <span class="ne">NotImplementedError</span></div>
+
+<div class="viewcode-block" id="RetryTest.http_error"><a class="viewcode-back" href="../../../apache_beam.utils.html#apache_beam.utils.retry_test.RetryTest.http_error">[docs]</a>  <span class="k">def</span> <span class="nf">http_error</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">code</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">HttpError</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+      <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;This is not a valid test as GCP is not enabled&quot;</span><span class="p">)</span>
+    <span class="k">raise</span> <span class="n">HttpError</span><span class="p">({</span><span class="s1">&#39;status&#39;</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">code</span><span class="p">)},</span> <span class="s1">&#39;&#39;</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="RetryTest.test_with_explicit_decorator"><a class="viewcode-back" href="../../../apache_beam.utils.html#apache_beam.utils.retry_test.RetryTest.test_with_explicit_decorator">[docs]</a>  <span class="k">def</span> <span class="nf">test_with_explicit_decorator</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="c1"># We pass one argument as positional argument and one as keyword argument</span>
+    <span class="c1"># so that we cover both code paths for argument handling.</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">NotImplementedError</span><span class="p">,</span> <span class="n">test_function</span><span class="p">,</span> <span class="mi">10</span><span class="p">,</span> <span class="n">b</span><span class="o">=</span><span class="mi">20</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="RetryTest.test_with_no_retry_decorator"><a class="viewcode-back" href="../../../apache_beam.utils.html#apache_beam.utils.retry_test.RetryTest.test_with_no_retry_decorator">[docs]</a>  <span class="k">def</span> <span class="nf">test_with_no_retry_decorator</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">NotImplementedError</span><span class="p">,</span> <span class="n">test_no_retry_function</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="RetryTest.test_with_real_clock"><a class="viewcode-back" href="../../../apache_beam.utils.html#apache_beam.utils.retry_test.RetryTest.test_with_real_clock">[docs]</a>  <span class="k">def</span> <span class="nf">test_with_real_clock</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">NotImplementedError</span><span class="p">,</span>
+                      <span class="n">test_function_with_real_clock</span><span class="p">,</span> <span class="mi">10</span><span class="p">,</span> <span class="n">b</span><span class="o">=</span><span class="mi">20</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="RetryTest.test_with_default_number_of_retries"><a class="viewcode-back" href="../../../apache_beam.utils.html#apache_beam.utils.retry_test.RetryTest.test_with_default_number_of_retries">[docs]</a>  <span class="k">def</span> <span class="nf">test_with_default_number_of_retries</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">NotImplementedError</span><span class="p">,</span>
+                      <span class="n">retry</span><span class="o">.</span><span class="n">with_exponential_backoff</span><span class="p">(</span><span class="n">clock</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">clock</span><span class="p">)(</span>
+                          <span class="bp">self</span><span class="o">.</span><span class="n">permanent_failure</span><span class="p">),</span>
+                      <span class="mi">10</span><span class="p">,</span> <span class="n">b</span><span class="o">=</span><span class="mi">20</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">clock</span><span class="o">.</span><span class="n">calls</span><span class="p">),</span> <span class="mi">7</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="RetryTest.test_with_explicit_number_of_retries"><a class="viewcode-back" href="../../../apache_beam.utils.html#apache_beam.utils.retry_test.RetryTest.test_with_explicit_number_of_retries">[docs]</a>  <span class="k">def</span> <span class="nf">test_with_explicit_number_of_retries</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">NotImplementedError</span><span class="p">,</span>
+                      <span class="n">retry</span><span class="o">.</span><span class="n">with_exponential_backoff</span><span class="p">(</span>
+                          <span class="n">clock</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">clock</span><span class="p">,</span> <span class="n">num_retries</span><span class="o">=</span><span class="mi">10</span><span class="p">)(</span>
+                              <span class="bp">self</span><span class="o">.</span><span class="n">permanent_failure</span><span class="p">),</span>
+                      <span class="mi">10</span><span class="p">,</span> <span class="n">b</span><span class="o">=</span><span class="mi">20</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">clock</span><span class="o">.</span><span class="n">calls</span><span class="p">),</span> <span class="mi">10</span><span class="p">)</span></div>
+
+  <span class="nd">@unittest</span><span class="o">.</span><span class="n">skipIf</span><span class="p">(</span><span class="n">HttpError</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">,</span> <span class="s1">&#39;google-apitools is not installed&#39;</span><span class="p">)</span>
+<div class="viewcode-block" id="RetryTest.test_with_http_error_that_should_not_be_retried"><a class="viewcode-back" href="../../../apache_beam.utils.html#apache_beam.utils.retry_test.RetryTest.test_with_http_error_that_should_not_be_retried">[docs]</a>  <span class="k">def</span> <span class="nf">test_with_http_error_that_should_not_be_retried</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="n">HttpError</span><span class="p">,</span>
+                      <span class="n">retry</span><span class="o">.</span><span class="n">with_exponential_backoff</span><span class="p">(</span>
+                          <span class="n">clock</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">clock</span><span class="p">,</span> <span class="n">num_retries</span><span class="o">=</span><span class="mi">10</span><span class="p">)(</span>
+                              <span class="bp">self</span><span class="o">.</span><span class="n">http_error</span><span class="p">),</span>
+                      <span class="mi">404</span><span class="p">)</span>
+    <span class="c1"># Make sure just one call was made.</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">clock</span><span class="o">.</span><span class="n">calls</span><span class="p">),</span> <span class="mi">0</span><span class="p">)</span></div>
+
+  <span class="nd">@unittest</span><span class="o">.</span><span class="n">skipIf</span><span class="p">(</span><span class="n">HttpError</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">,</span> <span class="s1">&#39;google-apitools is not installed&#39;</span><span class="p">)</span>
+<div class="viewcode-block" id="RetryTest.test_with_http_error_that_should_be_retried"><a class="viewcode-back" href="../../../apache_beam.utils.html#apache_beam.utils.retry_test.RetryTest.test_with_http_error_that_should_be_retried">[docs]</a>  <span class="k">def</span> <span class="nf">test_with_http_error_that_should_be_retried</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="n">HttpError</span><span class="p">,</span>
+                      <span class="n">retry</span><span class="o">.</span><span class="n">with_exponential_backoff</span><span class="p">(</span>
+                          <span class="n">clock</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">clock</span><span class="p">,</span> <span class="n">num_retries</span><span class="o">=</span><span class="mi">10</span><span class="p">)(</span>
+                              <span class="bp">self</span><span class="o">.</span><span class="n">http_error</span><span class="p">),</span>
+                      <span class="mi">500</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">clock</span><span class="o">.</span><span class="n">calls</span><span class="p">),</span> <span class="mi">10</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="RetryTest.test_with_explicit_initial_delay"><a class="viewcode-back" href="../../../apache_beam.utils.html#apache_beam.utils.retry_test.RetryTest.test_with_explicit_initial_delay">[docs]</a>  <span class="k">def</span> <span class="nf">test_with_explicit_initial_delay</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">NotImplementedError</span><span class="p">,</span>
+                      <span class="n">retry</span><span class="o">.</span><span class="n">with_exponential_backoff</span><span class="p">(</span>
+                          <span class="n">initial_delay_secs</span><span class="o">=</span><span class="mf">10.0</span><span class="p">,</span> <span class="n">clock</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">clock</span><span class="p">,</span>
+                          <span class="n">fuzz</span><span class="o">=</span><span class="kc">False</span><span class="p">)(</span>
+                              <span class="bp">self</span><span class="o">.</span><span class="n">permanent_failure</span><span class="p">),</span>
+                      <span class="mi">10</span><span class="p">,</span> <span class="n">b</span><span class="o">=</span><span class="mi">20</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">clock</span><span class="o">.</span><span class="n">calls</span><span class="p">),</span> <span class="mi">7</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">clock</span><span class="o">.</span><span class="n">calls</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="mf">10.0</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="RetryTest.test_log_calls_for_permanent_failure"><a class="viewcode-back" href="../../../apache_beam.utils.html#apache_beam.utils.retry_test.RetryTest.test_log_calls_for_permanent_failure">[docs]</a>  <span class="k">def</span> <span class="nf">test_log_calls_for_permanent_failure</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">NotImplementedError</span><span class="p">,</span>
+                      <span class="n">retry</span><span class="o">.</span><span class="n">with_exponential_backoff</span><span class="p">(</span>
+                          <span class="n">clock</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">clock</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">log</span><span class="p">)(</span>
+                              <span class="bp">self</span><span class="o">.</span><span class="n">permanent_failure</span><span class="p">),</span>
+                      <span class="mi">10</span><span class="p">,</span> <span class="n">b</span><span class="o">=</span><span class="mi">20</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">calls</span><span class="p">),</span> <span class="mi">7</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">message</span><span class="p">,</span> <span class="n">func_name</span><span class="p">,</span> <span class="n">exn_name</span>  <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">calls</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="n">message</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;Retry with exponential backoff:&#39;</span><span class="p">))</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">exn_name</span><span class="p">,</span> <span class="s1">&#39;NotImplementedError</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">func_name</span><span class="p">,</span> <span class="s1">&#39;permanent_failure&#39;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="RetryTest.test_log_calls_for_transient_failure"><a class="viewcode-back" href="../../../apache_beam.utils.html#apache_beam.utils.retry_test.RetryTest.test_log_calls_for_transient_failure">[docs]</a>  <span class="k">def</span> <span class="nf">test_log_calls_for_transient_failure</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="n">retry</span><span class="o">.</span><span class="n">with_exponential_backoff</span><span class="p">(</span>
+        <span class="n">clock</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">clock</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">log</span><span class="p">,</span> <span class="n">fuzz</span><span class="o">=</span><span class="kc">False</span><span class="p">)(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">transient_failure</span><span class="p">)(</span><span class="mi">10</span><span class="p">,</span> <span class="n">b</span><span class="o">=</span><span class="mi">20</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">result</span><span class="p">,</span> <span class="mi">30</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">clock</span><span class="o">.</span><span class="n">calls</span><span class="p">),</span> <span class="mi">4</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">clock</span><span class="o">.</span><span class="n">calls</span><span class="p">,</span>
+                     <span class="p">[</span><span class="mf">5.0</span> <span class="o">*</span> <span class="mi">1</span><span class="p">,</span> <span class="mf">5.0</span> <span class="o">*</span> <span class="mi">2</span><span class="p">,</span> <span class="mf">5.0</span> <span class="o">*</span> <span class="mi">4</span><span class="p">,</span> <span class="mf">5.0</span> <span class="o">*</span> <span class="mi">8</span><span class="p">,])</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">calls</span><span class="p">),</span> <span class="mi">4</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">message</span><span class="p">,</span> <span class="n">func_name</span><span class="p">,</span> <span class="n">exn_name</span>  <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">calls</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="n">message</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;Retry with exponential backoff:&#39;</span><span class="p">))</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">exn_name</span><span class="p">,</span> <span class="s1">&#39;NotImplementedError</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">func_name</span><span class="p">,</span> <span class="s1">&#39;transient_failure&#39;</span><span class="p">)</span></div></div>
+
+
+<div class="viewcode-block" id="DummyClass"><a class="viewcode-back" href="../../../apache_beam.utils.html#apache_beam.utils.retry_test.DummyClass">[docs]</a><span class="k">class</span> <span class="nc">DummyClass</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">results</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">index</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">results</span> <span class="o">=</span> <span class="n">results</span>
+
+  <span class="nd">@retry</span><span class="o">.</span><span class="n">with_exponential_backoff</span><span class="p">(</span><span class="n">num_retries</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">initial_delay_secs</span><span class="o">=</span><span class="mf">0.1</span><span class="p">)</span>
+  <span class="k">def</span> <span class="nf">func</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">index</span> <span class="o">+=</span> <span class="mi">1</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">index</span> <span class="o">&gt;</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">results</span><span class="p">)</span> <span class="ow">or</span> \
+        <span class="bp">self</span><span class="o">.</span><span class="n">results</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">index</span> <span class="o">-</span> <span class="mi">1</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;Error&quot;</span><span class="p">:</span>
+      <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Error&quot;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">results</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">index</span> <span class="o">-</span> <span class="mi">1</span><span class="p">]</span></div>
+
+
+<div class="viewcode-block" id="RetryStateTest"><a class="viewcode-back" href="../../../apache_beam.utils.html#apache_beam.utils.retry_test.RetryStateTest">[docs]</a><span class="k">class</span> <span class="nc">RetryStateTest</span><span class="p">(</span><span class="n">unittest</span><span class="o">.</span><span class="n">TestCase</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;The test_two_failures and test_single_failure would fail if we have</span>
+<span class="sd">  any shared state for the retry decorator. This test tries to prevent a bug we</span>
+<span class="sd">  found where the state in the decorator was shared across objects and retries</span>
+<span class="sd">  were not available correctly.</span>
+
+<span class="sd">  The test_call_two_objects would test this inside the same test.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+<div class="viewcode-block" id="RetryStateTest.test_two_failures"><a class="viewcode-back" href="../../../apache_beam.utils.html#apache_beam.utils.retry_test.RetryStateTest.test_two_failures">[docs]</a>  <span class="k">def</span> <span class="nf">test_two_failures</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">dummy</span> <span class="o">=</span> <span class="n">DummyClass</span><span class="p">([</span><span class="s2">&quot;Error&quot;</span><span class="p">,</span> <span class="s2">&quot;Error&quot;</span><span class="p">,</span> <span class="s2">&quot;Success&quot;</span><span class="p">])</span>
+    <span class="n">dummy</span><span class="o">.</span><span class="n">func</span><span class="p">()</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="n">dummy</span><span class="o">.</span><span class="n">index</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="RetryStateTest.test_single_failure"><a class="viewcode-back" href="../../../apache_beam.utils.html#apache_beam.utils.retry_test.RetryStateTest.test_single_failure">[docs]</a>  <span class="k">def</span> <span class="nf">test_single_failure</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">dummy</span> <span class="o">=</span> <span class="n">DummyClass</span><span class="p">([</span><span class="s2">&quot;Error&quot;</span><span class="p">,</span> <span class="s2">&quot;Success&quot;</span><span class="p">])</span>
+    <span class="n">dummy</span><span class="o">.</span><span class="n">func</span><span class="p">()</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="n">dummy</span><span class="o">.</span><span class="n">index</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="RetryStateTest.test_call_two_objects"><a class="viewcode-back" href="../../../apache_beam.utils.html#apache_beam.utils.retry_test.RetryStateTest.test_call_two_objects">[docs]</a>  <span class="k">def</span> <span class="nf">test_call_two_objects</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">dummy</span> <span class="o">=</span> <span class="n">DummyClass</span><span class="p">([</span><span class="s2">&quot;Error&quot;</span><span class="p">,</span> <span class="s2">&quot;Error&quot;</span><span class="p">,</span> <span class="s2">&quot;Success&quot;</span><span class="p">])</span>
+    <span class="n">dummy</span><span class="o">.</span><span class="n">func</span><span class="p">()</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="n">dummy</span><span class="o">.</span><span class="n">index</span><span class="p">)</span>
+
+    <span class="n">dummy2</span> <span class="o">=</span> <span class="n">DummyClass</span><span class="p">([</span><span class="s2">&quot;Error&quot;</span><span class="p">,</span> <span class="s2">&quot;Success&quot;</span><span class="p">])</span>
+    <span class="n">dummy2</span><span class="o">.</span><span class="n">func</span><span class="p">()</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="n">dummy2</span><span class="o">.</span><span class="n">index</span><span class="p">)</span></div></div>
+
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s1">&#39;__main__&#39;</span><span class="p">:</span>
+  <span class="n">unittest</span><span class="o">.</span><span class="n">main</span><span class="p">()</span>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../index.html" >Module code</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright .
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.5.3.
+    </div>
+  </body>
+</html>

@@ -1,0 +1,534 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>apache_beam.pipeline_test &#8212; Apache Beam  documentation</title>
+    
+    <link rel="stylesheet" href="../../_static/sphinxdoc.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../',
+        VERSION:     '',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../index.html" accesskey="U">Module code</a> &#187;</li> 
+      </ul>
+    </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for apache_beam.pipeline_test</h1><div class="highlight"><pre>
+<span></span><span class="c1">#</span>
+<span class="c1"># Licensed to the Apache Software Foundation (ASF) under one or more</span>
+<span class="c1"># contributor license agreements.  See the NOTICE file distributed with</span>
+<span class="c1"># this work for additional information regarding copyright ownership.</span>
+<span class="c1"># The ASF licenses this file to You under the Apache License, Version 2.0</span>
+<span class="c1"># (the &quot;License&quot;); you may not use this file except in compliance with</span>
+<span class="c1"># the License.  You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1">#    http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.</span>
+<span class="c1"># See the License for the specific language governing permissions and</span>
+<span class="c1"># limitations under the License.</span>
+<span class="c1">#</span>
+
+<span class="sd">&quot;&quot;&quot;Unit tests for the Pipeline class.&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">import</span> <span class="nn">platform</span>
+<span class="kn">import</span> <span class="nn">unittest</span>
+
+<span class="c1"># TODO(BEAM-1555): Test is failing on the service, with FakeSource.</span>
+<span class="c1"># from nose.plugins.attrib import attr</span>
+
+<span class="kn">from</span> <span class="nn">apache_beam.metrics</span> <span class="k">import</span> <span class="n">Metrics</span>
+<span class="kn">from</span> <span class="nn">apache_beam.pipeline</span> <span class="k">import</span> <span class="n">Pipeline</span>
+<span class="kn">from</span> <span class="nn">apache_beam.pipeline</span> <span class="k">import</span> <span class="n">PipelineOptions</span>
+<span class="kn">from</span> <span class="nn">apache_beam.pipeline</span> <span class="k">import</span> <span class="n">PipelineVisitor</span>
+<span class="kn">from</span> <span class="nn">apache_beam.pvalue</span> <span class="k">import</span> <span class="n">AsSingleton</span>
+<span class="kn">from</span> <span class="nn">apache_beam.runners.dataflow.native_io.iobase</span> <span class="k">import</span> <span class="n">NativeSource</span>
+<span class="kn">from</span> <span class="nn">apache_beam.test_pipeline</span> <span class="k">import</span> <span class="n">TestPipeline</span>
+<span class="kn">from</span> <span class="nn">apache_beam.transforms</span> <span class="k">import</span> <span class="n">CombineGlobally</span>
+<span class="kn">from</span> <span class="nn">apache_beam.transforms</span> <span class="k">import</span> <span class="n">Create</span>
+<span class="kn">from</span> <span class="nn">apache_beam.transforms</span> <span class="k">import</span> <span class="n">FlatMap</span>
+<span class="kn">from</span> <span class="nn">apache_beam.transforms</span> <span class="k">import</span> <span class="n">Map</span>
+<span class="kn">from</span> <span class="nn">apache_beam.transforms</span> <span class="k">import</span> <span class="n">DoFn</span>
+<span class="kn">from</span> <span class="nn">apache_beam.transforms</span> <span class="k">import</span> <span class="n">ParDo</span>
+<span class="kn">from</span> <span class="nn">apache_beam.transforms</span> <span class="k">import</span> <span class="n">PTransform</span>
+<span class="kn">from</span> <span class="nn">apache_beam.transforms</span> <span class="k">import</span> <span class="n">Read</span>
+<span class="kn">from</span> <span class="nn">apache_beam.transforms</span> <span class="k">import</span> <span class="n">WindowInto</span>
+<span class="kn">from</span> <span class="nn">apache_beam.transforms.util</span> <span class="k">import</span> <span class="n">assert_that</span>
+<span class="kn">from</span> <span class="nn">apache_beam.transforms.util</span> <span class="k">import</span> <span class="n">equal_to</span>
+<span class="kn">from</span> <span class="nn">apache_beam.transforms.window</span> <span class="k">import</span> <span class="n">SlidingWindows</span>
+<span class="kn">from</span> <span class="nn">apache_beam.transforms.window</span> <span class="k">import</span> <span class="n">TimestampedValue</span>
+<span class="kn">from</span> <span class="nn">apache_beam.utils.timestamp</span> <span class="k">import</span> <span class="n">MIN_TIMESTAMP</span>
+
+
+<div class="viewcode-block" id="FakeSource"><a class="viewcode-back" href="../../apache_beam.html#apache_beam.pipeline_test.FakeSource">[docs]</a><span class="k">class</span> <span class="nc">FakeSource</span><span class="p">(</span><span class="n">NativeSource</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Fake source returning a fixed list of values.&quot;&quot;&quot;</span>
+
+  <span class="k">class</span> <span class="nc">_Reader</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">vals</span><span class="p">):</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_vals</span> <span class="o">=</span> <span class="n">vals</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_output_counter</span> <span class="o">=</span> <span class="n">Metrics</span><span class="o">.</span><span class="n">counter</span><span class="p">(</span><span class="s1">&#39;main&#39;</span><span class="p">,</span> <span class="s1">&#39;outputs&#39;</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__enter__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+      <span class="k">return</span> <span class="bp">self</span>
+
+    <span class="k">def</span> <span class="nf">__exit__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">exception_type</span><span class="p">,</span> <span class="n">exception_value</span><span class="p">,</span> <span class="n">traceback</span><span class="p">):</span>
+      <span class="k">pass</span>
+
+    <span class="k">def</span> <span class="nf">__iter__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+      <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_vals</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_output_counter</span><span class="o">.</span><span class="n">inc</span><span class="p">()</span>
+        <span class="k">yield</span> <span class="n">v</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">vals</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_vals</span> <span class="o">=</span> <span class="n">vals</span>
+
+<div class="viewcode-block" id="FakeSource.reader"><a class="viewcode-back" href="../../apache_beam.html#apache_beam.pipeline_test.FakeSource.reader">[docs]</a>  <span class="k">def</span> <span class="nf">reader</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">FakeSource</span><span class="o">.</span><span class="n">_Reader</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_vals</span><span class="p">)</span></div></div>
+
+
+<div class="viewcode-block" id="PipelineTest"><a class="viewcode-back" href="../../apache_beam.html#apache_beam.pipeline_test.PipelineTest">[docs]</a><span class="k">class</span> <span class="nc">PipelineTest</span><span class="p">(</span><span class="n">unittest</span><span class="o">.</span><span class="n">TestCase</span><span class="p">):</span>
+
+  <span class="nd">@staticmethod</span>
+<div class="viewcode-block" id="PipelineTest.custom_callable"><a class="viewcode-back" href="../../apache_beam.html#apache_beam.pipeline_test.PipelineTest.custom_callable">[docs]</a>  <span class="k">def</span> <span class="nf">custom_callable</span><span class="p">(</span><span class="n">pcoll</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">pcoll</span> <span class="o">|</span> <span class="s1">&#39;+1&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">FlatMap</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="p">[</span><span class="n">x</span> <span class="o">+</span> <span class="mi">1</span><span class="p">])</span></div>
+
+  <span class="c1"># Some of these tests designate a runner by name, others supply a runner.</span>
+  <span class="c1"># This variation is just to verify that both means of runner specification</span>
+  <span class="c1"># work and is not related to other aspects of the tests.</span>
+
+<div class="viewcode-block" id="PipelineTest.CustomTransform"><a class="viewcode-back" href="../../apache_beam.html#apache_beam.pipeline_test.PipelineTest.CustomTransform">[docs]</a>  <span class="k">class</span> <span class="nc">CustomTransform</span><span class="p">(</span><span class="n">PTransform</span><span class="p">):</span>
+
+<div class="viewcode-block" id="PipelineTest.CustomTransform.expand"><a class="viewcode-back" href="../../apache_beam.html#apache_beam.pipeline_test.PipelineTest.CustomTransform.expand">[docs]</a>    <span class="k">def</span> <span class="nf">expand</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pcoll</span><span class="p">):</span>
+      <span class="k">return</span> <span class="n">pcoll</span> <span class="o">|</span> <span class="s1">&#39;+1&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">FlatMap</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="p">[</span><span class="n">x</span> <span class="o">+</span> <span class="mi">1</span><span class="p">])</span></div></div>
+
+<div class="viewcode-block" id="PipelineTest.Visitor"><a class="viewcode-back" href="../../apache_beam.html#apache_beam.pipeline_test.PipelineTest.Visitor">[docs]</a>  <span class="k">class</span> <span class="nc">Visitor</span><span class="p">(</span><span class="n">PipelineVisitor</span><span class="p">):</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">visited</span><span class="p">):</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">visited</span> <span class="o">=</span> <span class="n">visited</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">enter_composite</span> <span class="o">=</span> <span class="p">[]</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">leave_composite</span> <span class="o">=</span> <span class="p">[]</span>
+
+<div class="viewcode-block" id="PipelineTest.Visitor.visit_value"><a class="viewcode-back" href="../../apache_beam.html#apache_beam.pipeline_test.PipelineTest.Visitor.visit_value">[docs]</a>    <span class="k">def</span> <span class="nf">visit_value</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">_</span><span class="p">):</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">visited</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">value</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="PipelineTest.Visitor.enter_composite_transform"><a class="viewcode-back" href="../../apache_beam.html#apache_beam.pipeline_test.PipelineTest.Visitor.enter_composite_transform">[docs]</a>    <span class="k">def</span> <span class="nf">enter_composite_transform</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">transform_node</span><span class="p">):</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">enter_composite</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">transform_node</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="PipelineTest.Visitor.leave_composite_transform"><a class="viewcode-back" href="../../apache_beam.html#apache_beam.pipeline_test.PipelineTest.Visitor.leave_composite_transform">[docs]</a>    <span class="k">def</span> <span class="nf">leave_composite_transform</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">transform_node</span><span class="p">):</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">leave_composite</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">transform_node</span><span class="p">)</span></div></div>
+
+<div class="viewcode-block" id="PipelineTest.test_create"><a class="viewcode-back" href="../../apache_beam.html#apache_beam.pipeline_test.PipelineTest.test_create">[docs]</a>  <span class="k">def</span> <span class="nf">test_create</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">pipeline</span> <span class="o">=</span> <span class="n">TestPipeline</span><span class="p">()</span>
+    <span class="n">pcoll</span> <span class="o">=</span> <span class="n">pipeline</span> <span class="o">|</span> <span class="s1">&#39;label1&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">Create</span><span class="p">([</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">])</span>
+    <span class="n">assert_that</span><span class="p">(</span><span class="n">pcoll</span><span class="p">,</span> <span class="n">equal_to</span><span class="p">([</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">]))</span>
+
+    <span class="c1"># Test if initial value is an iterator object.</span>
+    <span class="n">pcoll2</span> <span class="o">=</span> <span class="n">pipeline</span> <span class="o">|</span> <span class="s1">&#39;label2&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">Create</span><span class="p">(</span><span class="nb">iter</span><span class="p">((</span><span class="mi">4</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="mi">6</span><span class="p">)))</span>
+    <span class="n">pcoll3</span> <span class="o">=</span> <span class="n">pcoll2</span> <span class="o">|</span> <span class="s1">&#39;do&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">FlatMap</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="p">[</span><span class="n">x</span> <span class="o">+</span> <span class="mi">10</span><span class="p">])</span>
+    <span class="n">assert_that</span><span class="p">(</span><span class="n">pcoll3</span><span class="p">,</span> <span class="n">equal_to</span><span class="p">([</span><span class="mi">14</span><span class="p">,</span> <span class="mi">15</span><span class="p">,</span> <span class="mi">16</span><span class="p">]),</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;pcoll3&#39;</span><span class="p">)</span>
+    <span class="n">pipeline</span><span class="o">.</span><span class="n">run</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="PipelineTest.test_flatmap_builtin"><a class="viewcode-back" href="../../apache_beam.html#apache_beam.pipeline_test.PipelineTest.test_flatmap_builtin">[docs]</a>  <span class="k">def</span> <span class="nf">test_flatmap_builtin</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">pipeline</span> <span class="o">=</span> <span class="n">TestPipeline</span><span class="p">()</span>
+    <span class="n">pcoll</span> <span class="o">=</span> <span class="n">pipeline</span> <span class="o">|</span> <span class="s1">&#39;label1&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">Create</span><span class="p">([</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">])</span>
+    <span class="n">assert_that</span><span class="p">(</span><span class="n">pcoll</span><span class="p">,</span> <span class="n">equal_to</span><span class="p">([</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">]))</span>
+
+    <span class="n">pcoll2</span> <span class="o">=</span> <span class="n">pcoll</span> <span class="o">|</span> <span class="s1">&#39;do&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">FlatMap</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="p">[</span><span class="n">x</span> <span class="o">+</span> <span class="mi">10</span><span class="p">])</span>
+    <span class="n">assert_that</span><span class="p">(</span><span class="n">pcoll2</span><span class="p">,</span> <span class="n">equal_to</span><span class="p">([</span><span class="mi">11</span><span class="p">,</span> <span class="mi">12</span><span class="p">,</span> <span class="mi">13</span><span class="p">]),</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;pcoll2&#39;</span><span class="p">)</span>
+
+    <span class="n">pcoll3</span> <span class="o">=</span> <span class="n">pcoll2</span> <span class="o">|</span> <span class="s1">&#39;m1&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">Map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="p">[</span><span class="n">x</span><span class="p">,</span> <span class="mi">12</span><span class="p">])</span>
+    <span class="n">assert_that</span><span class="p">(</span><span class="n">pcoll3</span><span class="p">,</span>
+                <span class="n">equal_to</span><span class="p">([[</span><span class="mi">11</span><span class="p">,</span> <span class="mi">12</span><span class="p">],</span> <span class="p">[</span><span class="mi">12</span><span class="p">,</span> <span class="mi">12</span><span class="p">],</span> <span class="p">[</span><span class="mi">13</span><span class="p">,</span> <span class="mi">12</span><span class="p">]]),</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;pcoll3&#39;</span><span class="p">)</span>
+
+    <span class="n">pcoll4</span> <span class="o">=</span> <span class="n">pcoll3</span> <span class="o">|</span> <span class="s1">&#39;do2&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">FlatMap</span><span class="p">(</span><span class="nb">set</span><span class="p">)</span>
+    <span class="n">assert_that</span><span class="p">(</span><span class="n">pcoll4</span><span class="p">,</span> <span class="n">equal_to</span><span class="p">([</span><span class="mi">11</span><span class="p">,</span> <span class="mi">12</span><span class="p">,</span> <span class="mi">12</span><span class="p">,</span> <span class="mi">12</span><span class="p">,</span> <span class="mi">13</span><span class="p">]),</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;pcoll4&#39;</span><span class="p">)</span>
+    <span class="n">pipeline</span><span class="o">.</span><span class="n">run</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="PipelineTest.test_create_singleton_pcollection"><a class="viewcode-back" href="../../apache_beam.html#apache_beam.pipeline_test.PipelineTest.test_create_singleton_pcollection">[docs]</a>  <span class="k">def</span> <span class="nf">test_create_singleton_pcollection</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">pipeline</span> <span class="o">=</span> <span class="n">TestPipeline</span><span class="p">()</span>
+    <span class="n">pcoll</span> <span class="o">=</span> <span class="n">pipeline</span> <span class="o">|</span> <span class="s1">&#39;label&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">Create</span><span class="p">([[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">]])</span>
+    <span class="n">assert_that</span><span class="p">(</span><span class="n">pcoll</span><span class="p">,</span> <span class="n">equal_to</span><span class="p">([[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">]]))</span>
+    <span class="n">pipeline</span><span class="o">.</span><span class="n">run</span><span class="p">()</span></div>
+
+  <span class="c1"># TODO(BEAM-1555): Test is failing on the service, with FakeSource.</span>
+  <span class="c1"># @attr(&#39;ValidatesRunner&#39;)</span>
+<div class="viewcode-block" id="PipelineTest.test_metrics_in_source"><a class="viewcode-back" href="../../apache_beam.html#apache_beam.pipeline_test.PipelineTest.test_metrics_in_source">[docs]</a>  <span class="k">def</span> <span class="nf">test_metrics_in_source</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">pipeline</span> <span class="o">=</span> <span class="n">TestPipeline</span><span class="p">()</span>
+    <span class="n">pcoll</span> <span class="o">=</span> <span class="n">pipeline</span> <span class="o">|</span> <span class="n">Read</span><span class="p">(</span><span class="n">FakeSource</span><span class="p">([</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="mi">6</span><span class="p">]))</span>
+    <span class="n">assert_that</span><span class="p">(</span><span class="n">pcoll</span><span class="p">,</span> <span class="n">equal_to</span><span class="p">([</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="mi">6</span><span class="p">]))</span>
+    <span class="n">res</span> <span class="o">=</span> <span class="n">pipeline</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
+    <span class="n">metric_results</span> <span class="o">=</span> <span class="n">res</span><span class="o">.</span><span class="n">metrics</span><span class="p">()</span><span class="o">.</span><span class="n">query</span><span class="p">()</span>
+    <span class="n">outputs_counter</span> <span class="o">=</span> <span class="n">metric_results</span><span class="p">[</span><span class="s1">&#39;counters&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">outputs_counter</span><span class="o">.</span><span class="n">key</span><span class="o">.</span><span class="n">step</span><span class="p">,</span> <span class="s1">&#39;Read&#39;</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">outputs_counter</span><span class="o">.</span><span class="n">key</span><span class="o">.</span><span class="n">metric</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="s1">&#39;outputs&#39;</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">outputs_counter</span><span class="o">.</span><span class="n">committed</span><span class="p">,</span> <span class="mi">6</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="PipelineTest.test_read"><a class="viewcode-back" href="../../apache_beam.html#apache_beam.pipeline_test.PipelineTest.test_read">[docs]</a>  <span class="k">def</span> <span class="nf">test_read</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">pipeline</span> <span class="o">=</span> <span class="n">TestPipeline</span><span class="p">()</span>
+    <span class="n">pcoll</span> <span class="o">=</span> <span class="n">pipeline</span> <span class="o">|</span> <span class="s1">&#39;read&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">Read</span><span class="p">(</span><span class="n">FakeSource</span><span class="p">([</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">]))</span>
+    <span class="n">assert_that</span><span class="p">(</span><span class="n">pcoll</span><span class="p">,</span> <span class="n">equal_to</span><span class="p">([</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">]))</span>
+    <span class="n">pipeline</span><span class="o">.</span><span class="n">run</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="PipelineTest.test_visit_entire_graph"><a class="viewcode-back" href="../../apache_beam.html#apache_beam.pipeline_test.PipelineTest.test_visit_entire_graph">[docs]</a>  <span class="k">def</span> <span class="nf">test_visit_entire_graph</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">pipeline</span> <span class="o">=</span> <span class="n">Pipeline</span><span class="p">()</span>
+    <span class="n">pcoll1</span> <span class="o">=</span> <span class="n">pipeline</span> <span class="o">|</span> <span class="s1">&#39;pcoll&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">Create</span><span class="p">([</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">])</span>
+    <span class="n">pcoll2</span> <span class="o">=</span> <span class="n">pcoll1</span> <span class="o">|</span> <span class="s1">&#39;do1&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">FlatMap</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="p">[</span><span class="n">x</span> <span class="o">+</span> <span class="mi">1</span><span class="p">])</span>
+    <span class="n">pcoll3</span> <span class="o">=</span> <span class="n">pcoll2</span> <span class="o">|</span> <span class="s1">&#39;do2&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">FlatMap</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="p">[</span><span class="n">x</span> <span class="o">+</span> <span class="mi">1</span><span class="p">])</span>
+    <span class="n">pcoll4</span> <span class="o">=</span> <span class="n">pcoll2</span> <span class="o">|</span> <span class="s1">&#39;do3&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">FlatMap</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="p">[</span><span class="n">x</span> <span class="o">+</span> <span class="mi">1</span><span class="p">])</span>
+    <span class="n">transform</span> <span class="o">=</span> <span class="n">PipelineTest</span><span class="o">.</span><span class="n">CustomTransform</span><span class="p">()</span>
+    <span class="n">pcoll5</span> <span class="o">=</span> <span class="n">pcoll4</span> <span class="o">|</span> <span class="n">transform</span>
+
+    <span class="n">visitor</span> <span class="o">=</span> <span class="n">PipelineTest</span><span class="o">.</span><span class="n">Visitor</span><span class="p">(</span><span class="n">visited</span><span class="o">=</span><span class="p">[])</span>
+    <span class="n">pipeline</span><span class="o">.</span><span class="n">visit</span><span class="p">(</span><span class="n">visitor</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="nb">set</span><span class="p">([</span><span class="n">pcoll1</span><span class="p">,</span> <span class="n">pcoll2</span><span class="p">,</span> <span class="n">pcoll3</span><span class="p">,</span> <span class="n">pcoll4</span><span class="p">,</span> <span class="n">pcoll5</span><span class="p">]),</span>
+                     <span class="nb">set</span><span class="p">(</span><span class="n">visitor</span><span class="o">.</span><span class="n">visited</span><span class="p">))</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">visitor</span><span class="o">.</span><span class="n">enter_composite</span><span class="p">),</span>
+                     <span class="nb">set</span><span class="p">(</span><span class="n">visitor</span><span class="o">.</span><span class="n">leave_composite</span><span class="p">))</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">visitor</span><span class="o">.</span><span class="n">enter_composite</span><span class="p">))</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">visitor</span><span class="o">.</span><span class="n">enter_composite</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">transform</span><span class="p">,</span> <span class="n">transform</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">visitor</span><span class="o">.</span><span class="n">leave_composite</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">transform</span><span class="p">,</span> <span class="n">transform</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="PipelineTest.test_apply_custom_transform"><a class="viewcode-back" href="../../apache_beam.html#apache_beam.pipeline_test.PipelineTest.test_apply_custom_transform">[docs]</a>  <span class="k">def</span> <span class="nf">test_apply_custom_transform</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">pipeline</span> <span class="o">=</span> <span class="n">TestPipeline</span><span class="p">()</span>
+    <span class="n">pcoll</span> <span class="o">=</span> <span class="n">pipeline</span> <span class="o">|</span> <span class="s1">&#39;pcoll&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">Create</span><span class="p">([</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">])</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="n">pcoll</span> <span class="o">|</span> <span class="n">PipelineTest</span><span class="o">.</span><span class="n">CustomTransform</span><span class="p">()</span>
+    <span class="n">assert_that</span><span class="p">(</span><span class="n">result</span><span class="p">,</span> <span class="n">equal_to</span><span class="p">([</span><span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="p">]))</span>
+    <span class="n">pipeline</span><span class="o">.</span><span class="n">run</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="PipelineTest.test_reuse_custom_transform_instance"><a class="viewcode-back" href="../../apache_beam.html#apache_beam.pipeline_test.PipelineTest.test_reuse_custom_transform_instance">[docs]</a>  <span class="k">def</span> <span class="nf">test_reuse_custom_transform_instance</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">pipeline</span> <span class="o">=</span> <span class="n">Pipeline</span><span class="p">()</span>
+    <span class="n">pcoll1</span> <span class="o">=</span> <span class="n">pipeline</span> <span class="o">|</span> <span class="s1">&#39;pcoll1&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">Create</span><span class="p">([</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">])</span>
+    <span class="n">pcoll2</span> <span class="o">=</span> <span class="n">pipeline</span> <span class="o">|</span> <span class="s1">&#39;pcoll2&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">Create</span><span class="p">([</span><span class="mi">4</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="mi">6</span><span class="p">])</span>
+    <span class="n">transform</span> <span class="o">=</span> <span class="n">PipelineTest</span><span class="o">.</span><span class="n">CustomTransform</span><span class="p">()</span>
+    <span class="n">pcoll1</span> <span class="o">|</span> <span class="n">transform</span>
+    <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">RuntimeError</span><span class="p">)</span> <span class="k">as</span> <span class="n">cm</span><span class="p">:</span>
+      <span class="n">pipeline</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span><span class="n">transform</span><span class="p">,</span> <span class="n">pcoll2</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span>
+        <span class="n">cm</span><span class="o">.</span><span class="n">exception</span><span class="o">.</span><span class="n">message</span><span class="p">,</span>
+        <span class="s1">&#39;Transform &quot;CustomTransform&quot; does not have a stable unique label. &#39;</span>
+        <span class="s1">&#39;This will prevent updating of pipelines. &#39;</span>
+        <span class="s1">&#39;To apply a transform with a specified label write &#39;</span>
+        <span class="s1">&#39;pvalue | &quot;label&quot; &gt;&gt; transform&#39;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="PipelineTest.test_reuse_cloned_custom_transform_instance"><a class="viewcode-back" href="../../apache_beam.html#apache_beam.pipeline_test.PipelineTest.test_reuse_cloned_custom_transform_instance">[docs]</a>  <span class="k">def</span> <span class="nf">test_reuse_cloned_custom_transform_instance</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">pipeline</span> <span class="o">=</span> <span class="n">TestPipeline</span><span class="p">()</span>
+    <span class="n">pcoll1</span> <span class="o">=</span> <span class="n">pipeline</span> <span class="o">|</span> <span class="s1">&#39;pc1&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">Create</span><span class="p">([</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">])</span>
+    <span class="n">pcoll2</span> <span class="o">=</span> <span class="n">pipeline</span> <span class="o">|</span> <span class="s1">&#39;pc2&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">Create</span><span class="p">([</span><span class="mi">4</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="mi">6</span><span class="p">])</span>
+    <span class="n">transform</span> <span class="o">=</span> <span class="n">PipelineTest</span><span class="o">.</span><span class="n">CustomTransform</span><span class="p">()</span>
+    <span class="n">result1</span> <span class="o">=</span> <span class="n">pcoll1</span> <span class="o">|</span> <span class="n">transform</span>
+    <span class="n">result2</span> <span class="o">=</span> <span class="n">pcoll2</span> <span class="o">|</span> <span class="s1">&#39;new_label&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">transform</span>
+    <span class="n">assert_that</span><span class="p">(</span><span class="n">result1</span><span class="p">,</span> <span class="n">equal_to</span><span class="p">([</span><span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="p">]),</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;r1&#39;</span><span class="p">)</span>
+    <span class="n">assert_that</span><span class="p">(</span><span class="n">result2</span><span class="p">,</span> <span class="n">equal_to</span><span class="p">([</span><span class="mi">5</span><span class="p">,</span> <span class="mi">6</span><span class="p">,</span> <span class="mi">7</span><span class="p">]),</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;r2&#39;</span><span class="p">)</span>
+    <span class="n">pipeline</span><span class="o">.</span><span class="n">run</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="PipelineTest.test_transform_no_super_init"><a class="viewcode-back" href="../../apache_beam.html#apache_beam.pipeline_test.PipelineTest.test_transform_no_super_init">[docs]</a>  <span class="k">def</span> <span class="nf">test_transform_no_super_init</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">class</span> <span class="nc">AddSuffix</span><span class="p">(</span><span class="n">PTransform</span><span class="p">):</span>
+
+      <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">suffix</span><span class="p">):</span>
+        <span class="c1"># No call to super(...).__init__</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">suffix</span> <span class="o">=</span> <span class="n">suffix</span>
+
+      <span class="k">def</span> <span class="nf">expand</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pcoll</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">pcoll</span> <span class="o">|</span> <span class="n">Map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">suffix</span><span class="p">)</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span>
+        <span class="p">[</span><span class="s1">&#39;a-x&#39;</span><span class="p">,</span> <span class="s1">&#39;b-x&#39;</span><span class="p">,</span> <span class="s1">&#39;c-x&#39;</span><span class="p">],</span>
+        <span class="nb">sorted</span><span class="p">([</span><span class="s1">&#39;a&#39;</span><span class="p">,</span> <span class="s1">&#39;b&#39;</span><span class="p">,</span> <span class="s1">&#39;c&#39;</span><span class="p">]</span> <span class="o">|</span> <span class="s1">&#39;AddSuffix&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">AddSuffix</span><span class="p">(</span><span class="s1">&#39;-x&#39;</span><span class="p">)))</span></div>
+
+<div class="viewcode-block" id="PipelineTest.test_memory_usage"><a class="viewcode-back" href="../../apache_beam.html#apache_beam.pipeline_test.PipelineTest.test_memory_usage">[docs]</a>  <span class="k">def</span> <span class="nf">test_memory_usage</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">try</span><span class="p">:</span>
+      <span class="kn">import</span> <span class="nn">resource</span>
+    <span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
+      <span class="c1"># Skip the test if resource module is not available (e.g. non-Unix os).</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">skipTest</span><span class="p">(</span><span class="s1">&#39;resource module not available.&#39;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">platform</span><span class="o">.</span><span class="n">mac_ver</span><span class="p">()[</span><span class="mi">0</span><span class="p">]:</span>
+      <span class="c1"># Skip the test on macos, depending on version it returns ru_maxrss in</span>
+      <span class="c1"># different units.</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">skipTest</span><span class="p">(</span><span class="s1">&#39;ru_maxrss is not in standard units.&#39;</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">get_memory_usage_in_bytes</span><span class="p">():</span>
+      <span class="k">return</span> <span class="n">resource</span><span class="o">.</span><span class="n">getrusage</span><span class="p">(</span><span class="n">resource</span><span class="o">.</span><span class="n">RUSAGE_SELF</span><span class="p">)</span><span class="o">.</span><span class="n">ru_maxrss</span> <span class="o">*</span> <span class="p">(</span><span class="mi">2</span> <span class="o">**</span> <span class="mi">10</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">check_memory</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">memory_threshold</span><span class="p">):</span>
+      <span class="n">memory_usage</span> <span class="o">=</span> <span class="n">get_memory_usage_in_bytes</span><span class="p">()</span>
+      <span class="k">if</span> <span class="n">memory_usage</span> <span class="o">&gt;</span> <span class="n">memory_threshold</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
+            <span class="s1">&#39;High memory usage: </span><span class="si">%d</span><span class="s1"> &gt; </span><span class="si">%d</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">memory_usage</span><span class="p">,</span> <span class="n">memory_threshold</span><span class="p">))</span>
+      <span class="k">return</span> <span class="n">value</span>
+
+    <span class="n">len_elements</span> <span class="o">=</span> <span class="mi">1000000</span>
+    <span class="n">num_elements</span> <span class="o">=</span> <span class="mi">10</span>
+    <span class="n">num_maps</span> <span class="o">=</span> <span class="mi">100</span>
+
+    <span class="n">pipeline</span> <span class="o">=</span> <span class="n">TestPipeline</span><span class="p">()</span>
+
+    <span class="c1"># Consumed memory should not be proportional to the number of maps.</span>
+    <span class="n">memory_threshold</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="n">get_memory_usage_in_bytes</span><span class="p">()</span> <span class="o">+</span> <span class="p">(</span><span class="mi">3</span> <span class="o">*</span> <span class="n">len_elements</span> <span class="o">*</span> <span class="n">num_elements</span><span class="p">))</span>
+
+    <span class="c1"># Plus small additional slack for memory fluctuations during the test.</span>
+    <span class="n">memory_threshold</span> <span class="o">+=</span> <span class="mi">10</span> <span class="o">*</span> <span class="p">(</span><span class="mi">2</span> <span class="o">**</span> <span class="mi">20</span><span class="p">)</span>
+
+    <span class="n">biglist</span> <span class="o">=</span> <span class="n">pipeline</span> <span class="o">|</span> <span class="s1">&#39;oom:create&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">Create</span><span class="p">(</span>
+        <span class="p">[</span><span class="s1">&#39;x&#39;</span> <span class="o">*</span> <span class="n">len_elements</span><span class="p">]</span> <span class="o">*</span> <span class="n">num_elements</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">num_maps</span><span class="p">):</span>
+      <span class="n">biglist</span> <span class="o">=</span> <span class="n">biglist</span> <span class="o">|</span> <span class="p">(</span><span class="s1">&#39;oom:addone-</span><span class="si">%d</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">i</span><span class="p">)</span> <span class="o">&gt;&gt;</span> <span class="n">Map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span> <span class="o">+</span> <span class="s1">&#39;y&#39;</span><span class="p">)</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="n">biglist</span> <span class="o">|</span> <span class="s1">&#39;oom:check&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">Map</span><span class="p">(</span><span class="n">check_memory</span><span class="p">,</span> <span class="n">memory_threshold</span><span class="p">)</span>
+    <span class="n">assert_that</span><span class="p">(</span><span class="n">result</span><span class="p">,</span> <span class="n">equal_to</span><span class="p">(</span>
+        <span class="p">[</span><span class="s1">&#39;x&#39;</span> <span class="o">*</span> <span class="n">len_elements</span> <span class="o">+</span> <span class="s1">&#39;y&#39;</span> <span class="o">*</span> <span class="n">num_maps</span><span class="p">]</span> <span class="o">*</span> <span class="n">num_elements</span><span class="p">))</span>
+
+    <span class="n">pipeline</span><span class="o">.</span><span class="n">run</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="PipelineTest.test_aggregator_empty_input"><a class="viewcode-back" href="../../apache_beam.html#apache_beam.pipeline_test.PipelineTest.test_aggregator_empty_input">[docs]</a>  <span class="k">def</span> <span class="nf">test_aggregator_empty_input</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">actual</span> <span class="o">=</span> <span class="p">[]</span> <span class="o">|</span> <span class="n">CombineGlobally</span><span class="p">(</span><span class="nb">max</span><span class="p">)</span><span class="o">.</span><span class="n">without_defaults</span><span class="p">()</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">actual</span><span class="p">,</span> <span class="p">[])</span></div>
+
+<div class="viewcode-block" id="PipelineTest.test_pipeline_as_context"><a class="viewcode-back" href="../../apache_beam.html#apache_beam.pipeline_test.PipelineTest.test_pipeline_as_context">[docs]</a>  <span class="k">def</span> <span class="nf">test_pipeline_as_context</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">raise_exception</span><span class="p">(</span><span class="n">exn</span><span class="p">):</span>
+      <span class="k">raise</span> <span class="n">exn</span>
+    <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">ValueError</span><span class="p">):</span>
+      <span class="k">with</span> <span class="n">Pipeline</span><span class="p">()</span> <span class="k">as</span> <span class="n">p</span><span class="p">:</span>
+        <span class="c1"># pylint: disable=expression-not-assigned</span>
+        <span class="n">p</span> <span class="o">|</span> <span class="n">Create</span><span class="p">([</span><span class="ne">ValueError</span><span class="p">])</span> <span class="o">|</span> <span class="n">Map</span><span class="p">(</span><span class="n">raise_exception</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="PipelineTest.test_eager_pipeline"><a class="viewcode-back" href="../../apache_beam.html#apache_beam.pipeline_test.PipelineTest.test_eager_pipeline">[docs]</a>  <span class="k">def</span> <span class="nf">test_eager_pipeline</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">p</span> <span class="o">=</span> <span class="n">Pipeline</span><span class="p">(</span><span class="s1">&#39;EagerRunner&#39;</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">([</span><span class="mi">1</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">9</span><span class="p">],</span> <span class="n">p</span> <span class="o">|</span> <span class="n">Create</span><span class="p">([</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">])</span> <span class="o">|</span> <span class="n">Map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="o">*</span><span class="n">x</span><span class="p">))</span></div></div>
+
+
+<div class="viewcode-block" id="DoFnTest"><a class="viewcode-back" href="../../apache_beam.html#apache_beam.pipeline_test.DoFnTest">[docs]</a><span class="k">class</span> <span class="nc">DoFnTest</span><span class="p">(</span><span class="n">unittest</span><span class="o">.</span><span class="n">TestCase</span><span class="p">):</span>
+
+<div class="viewcode-block" id="DoFnTest.test_element"><a class="viewcode-back" href="../../apache_beam.html#apache_beam.pipeline_test.DoFnTest.test_element">[docs]</a>  <span class="k">def</span> <span class="nf">test_element</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">class</span> <span class="nc">TestDoFn</span><span class="p">(</span><span class="n">DoFn</span><span class="p">):</span>
+      <span class="k">def</span> <span class="nf">process</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">element</span><span class="p">):</span>
+        <span class="k">yield</span> <span class="n">element</span> <span class="o">+</span> <span class="mi">10</span>
+
+    <span class="n">pipeline</span> <span class="o">=</span> <span class="n">TestPipeline</span><span class="p">()</span>
+    <span class="n">pcoll</span> <span class="o">=</span> <span class="n">pipeline</span> <span class="o">|</span> <span class="s1">&#39;Create&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">Create</span><span class="p">([</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">])</span> <span class="o">|</span> <span class="s1">&#39;Do&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">ParDo</span><span class="p">(</span><span class="n">TestDoFn</span><span class="p">())</span>
+    <span class="n">assert_that</span><span class="p">(</span><span class="n">pcoll</span><span class="p">,</span> <span class="n">equal_to</span><span class="p">([</span><span class="mi">11</span><span class="p">,</span> <span class="mi">12</span><span class="p">]))</span>
+    <span class="n">pipeline</span><span class="o">.</span><span class="n">run</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="DoFnTest.test_context_param"><a class="viewcode-back" href="../../apache_beam.html#apache_beam.pipeline_test.DoFnTest.test_context_param">[docs]</a>  <span class="k">def</span> <span class="nf">test_context_param</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">class</span> <span class="nc">TestDoFn</span><span class="p">(</span><span class="n">DoFn</span><span class="p">):</span>
+      <span class="k">def</span> <span class="nf">process</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">element</span><span class="p">,</span> <span class="n">context</span><span class="o">=</span><span class="n">DoFn</span><span class="o">.</span><span class="n">ContextParam</span><span class="p">):</span>
+        <span class="k">yield</span> <span class="n">context</span><span class="o">.</span><span class="n">element</span> <span class="o">+</span> <span class="mi">10</span>
+
+    <span class="n">pipeline</span> <span class="o">=</span> <span class="n">TestPipeline</span><span class="p">()</span>
+    <span class="n">pcoll</span> <span class="o">=</span> <span class="n">pipeline</span> <span class="o">|</span> <span class="s1">&#39;Create&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">Create</span><span class="p">([</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">])</span><span class="o">|</span> <span class="s1">&#39;Do&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">ParDo</span><span class="p">(</span><span class="n">TestDoFn</span><span class="p">())</span>
+    <span class="n">assert_that</span><span class="p">(</span><span class="n">pcoll</span><span class="p">,</span> <span class="n">equal_to</span><span class="p">([</span><span class="mi">11</span><span class="p">,</span> <span class="mi">12</span><span class="p">]))</span>
+    <span class="n">pipeline</span><span class="o">.</span><span class="n">run</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="DoFnTest.test_side_input_no_tag"><a class="viewcode-back" href="../../apache_beam.html#apache_beam.pipeline_test.DoFnTest.test_side_input_no_tag">[docs]</a>  <span class="k">def</span> <span class="nf">test_side_input_no_tag</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">class</span> <span class="nc">TestDoFn</span><span class="p">(</span><span class="n">DoFn</span><span class="p">):</span>
+      <span class="k">def</span> <span class="nf">process</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">element</span><span class="p">,</span> <span class="n">prefix</span><span class="p">,</span> <span class="n">suffix</span><span class="p">):</span>
+        <span class="k">return</span> <span class="p">[</span><span class="s1">&#39;</span><span class="si">%s</span><span class="s1">-</span><span class="si">%s</span><span class="s1">-</span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">prefix</span><span class="p">,</span> <span class="n">element</span><span class="p">,</span> <span class="n">suffix</span><span class="p">)]</span>
+
+    <span class="n">pipeline</span> <span class="o">=</span> <span class="n">TestPipeline</span><span class="p">()</span>
+    <span class="n">words_list</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;aa&#39;</span><span class="p">,</span> <span class="s1">&#39;bb&#39;</span><span class="p">,</span> <span class="s1">&#39;cc&#39;</span><span class="p">]</span>
+    <span class="n">words</span> <span class="o">=</span> <span class="n">pipeline</span> <span class="o">|</span> <span class="s1">&#39;SomeWords&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">Create</span><span class="p">(</span><span class="n">words_list</span><span class="p">)</span>
+    <span class="n">prefix</span> <span class="o">=</span> <span class="s1">&#39;zyx&#39;</span>
+    <span class="n">suffix</span> <span class="o">=</span> <span class="n">pipeline</span> <span class="o">|</span> <span class="s1">&#39;SomeString&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">Create</span><span class="p">([</span><span class="s1">&#39;xyz&#39;</span><span class="p">])</span>  <span class="c1"># side in</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="n">words</span> <span class="o">|</span> <span class="s1">&#39;DecorateWordsDoFnNoTag&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">ParDo</span><span class="p">(</span>
+        <span class="n">TestDoFn</span><span class="p">(),</span> <span class="n">prefix</span><span class="p">,</span> <span class="n">suffix</span><span class="o">=</span><span class="n">AsSingleton</span><span class="p">(</span><span class="n">suffix</span><span class="p">))</span>
+    <span class="n">assert_that</span><span class="p">(</span><span class="n">result</span><span class="p">,</span> <span class="n">equal_to</span><span class="p">([</span><span class="s1">&#39;zyx-</span><span class="si">%s</span><span class="s1">-xyz&#39;</span> <span class="o">%</span> <span class="n">x</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">words_list</span><span class="p">]))</span>
+    <span class="n">pipeline</span><span class="o">.</span><span class="n">run</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="DoFnTest.test_side_input_tagged"><a class="viewcode-back" href="../../apache_beam.html#apache_beam.pipeline_test.DoFnTest.test_side_input_tagged">[docs]</a>  <span class="k">def</span> <span class="nf">test_side_input_tagged</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">class</span> <span class="nc">TestDoFn</span><span class="p">(</span><span class="n">DoFn</span><span class="p">):</span>
+      <span class="k">def</span> <span class="nf">process</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">element</span><span class="p">,</span> <span class="n">prefix</span><span class="p">,</span> <span class="n">suffix</span><span class="o">=</span><span class="n">DoFn</span><span class="o">.</span><span class="n">SideInputParam</span><span class="p">):</span>
+        <span class="k">return</span> <span class="p">[</span><span class="s1">&#39;</span><span class="si">%s</span><span class="s1">-</span><span class="si">%s</span><span class="s1">-</span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">prefix</span><span class="p">,</span> <span class="n">element</span><span class="p">,</span> <span class="n">suffix</span><span class="p">)]</span>
+
+    <span class="n">pipeline</span> <span class="o">=</span> <span class="n">TestPipeline</span><span class="p">()</span>
+    <span class="n">words_list</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;aa&#39;</span><span class="p">,</span> <span class="s1">&#39;bb&#39;</span><span class="p">,</span> <span class="s1">&#39;cc&#39;</span><span class="p">]</span>
+    <span class="n">words</span> <span class="o">=</span> <span class="n">pipeline</span> <span class="o">|</span> <span class="s1">&#39;SomeWords&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">Create</span><span class="p">(</span><span class="n">words_list</span><span class="p">)</span>
+    <span class="n">prefix</span> <span class="o">=</span> <span class="s1">&#39;zyx&#39;</span>
+    <span class="n">suffix</span> <span class="o">=</span> <span class="n">pipeline</span> <span class="o">|</span> <span class="s1">&#39;SomeString&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">Create</span><span class="p">([</span><span class="s1">&#39;xyz&#39;</span><span class="p">])</span>  <span class="c1"># side in</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="n">words</span> <span class="o">|</span> <span class="s1">&#39;DecorateWordsDoFnNoTag&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">ParDo</span><span class="p">(</span>
+        <span class="n">TestDoFn</span><span class="p">(),</span> <span class="n">prefix</span><span class="p">,</span> <span class="n">suffix</span><span class="o">=</span><span class="n">AsSingleton</span><span class="p">(</span><span class="n">suffix</span><span class="p">))</span>
+    <span class="n">assert_that</span><span class="p">(</span><span class="n">result</span><span class="p">,</span> <span class="n">equal_to</span><span class="p">([</span><span class="s1">&#39;zyx-</span><span class="si">%s</span><span class="s1">-xyz&#39;</span> <span class="o">%</span> <span class="n">x</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">words_list</span><span class="p">]))</span>
+    <span class="n">pipeline</span><span class="o">.</span><span class="n">run</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="DoFnTest.test_window_param"><a class="viewcode-back" href="../../apache_beam.html#apache_beam.pipeline_test.DoFnTest.test_window_param">[docs]</a>  <span class="k">def</span> <span class="nf">test_window_param</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">class</span> <span class="nc">TestDoFn</span><span class="p">(</span><span class="n">DoFn</span><span class="p">):</span>
+      <span class="k">def</span> <span class="nf">process</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">element</span><span class="p">,</span> <span class="n">window</span><span class="o">=</span><span class="n">DoFn</span><span class="o">.</span><span class="n">WindowParam</span><span class="p">):</span>
+        <span class="k">yield</span> <span class="p">(</span><span class="n">element</span><span class="p">,</span> <span class="p">(</span><span class="nb">float</span><span class="p">(</span><span class="n">window</span><span class="o">.</span><span class="n">start</span><span class="p">),</span> <span class="nb">float</span><span class="p">(</span><span class="n">window</span><span class="o">.</span><span class="n">end</span><span class="p">)))</span>
+
+    <span class="n">pipeline</span> <span class="o">=</span> <span class="n">TestPipeline</span><span class="p">()</span>
+    <span class="n">pcoll</span> <span class="o">=</span> <span class="p">(</span><span class="n">pipeline</span>
+             <span class="o">|</span> <span class="n">Create</span><span class="p">([</span><span class="mi">1</span><span class="p">,</span> <span class="mi">7</span><span class="p">])</span>
+             <span class="o">|</span> <span class="n">Map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">TimestampedValue</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">x</span><span class="p">))</span>
+             <span class="o">|</span> <span class="n">WindowInto</span><span class="p">(</span><span class="n">windowfn</span><span class="o">=</span><span class="n">SlidingWindows</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span> <span class="mi">5</span><span class="p">))</span>
+             <span class="o">|</span> <span class="n">ParDo</span><span class="p">(</span><span class="n">TestDoFn</span><span class="p">()))</span>
+    <span class="n">assert_that</span><span class="p">(</span><span class="n">pcoll</span><span class="p">,</span> <span class="n">equal_to</span><span class="p">([(</span><span class="mi">1</span><span class="p">,</span> <span class="p">(</span><span class="o">-</span><span class="mi">5</span><span class="p">,</span> <span class="mi">5</span><span class="p">)),</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">10</span><span class="p">)),</span>
+                                 <span class="p">(</span><span class="mi">7</span><span class="p">,</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">10</span><span class="p">)),</span> <span class="p">(</span><span class="mi">7</span><span class="p">,</span> <span class="p">(</span><span class="mi">5</span><span class="p">,</span> <span class="mi">15</span><span class="p">))]))</span>
+    <span class="n">pcoll2</span> <span class="o">=</span> <span class="n">pcoll</span> <span class="o">|</span> <span class="s1">&#39;Again&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">ParDo</span><span class="p">(</span><span class="n">TestDoFn</span><span class="p">())</span>
+    <span class="n">assert_that</span><span class="p">(</span>
+        <span class="n">pcoll2</span><span class="p">,</span>
+        <span class="n">equal_to</span><span class="p">([</span>
+            <span class="p">((</span><span class="mi">1</span><span class="p">,</span> <span class="p">(</span><span class="o">-</span><span class="mi">5</span><span class="p">,</span> <span class="mi">5</span><span class="p">)),</span> <span class="p">(</span><span class="o">-</span><span class="mi">5</span><span class="p">,</span> <span class="mi">5</span><span class="p">)),</span> <span class="p">((</span><span class="mi">1</span><span class="p">,</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">10</span><span class="p">)),</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">10</span><span class="p">)),</span>
+            <span class="p">((</span><span class="mi">7</span><span class="p">,</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">10</span><span class="p">)),</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">10</span><span class="p">)),</span> <span class="p">((</span><span class="mi">7</span><span class="p">,</span> <span class="p">(</span><span class="mi">5</span><span class="p">,</span> <span class="mi">15</span><span class="p">)),</span> <span class="p">(</span><span class="mi">5</span><span class="p">,</span> <span class="mi">15</span><span class="p">))]),</span>
+        <span class="n">label</span><span class="o">=</span><span class="s1">&#39;doubled windows&#39;</span><span class="p">)</span>
+    <span class="n">pipeline</span><span class="o">.</span><span class="n">run</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="DoFnTest.test_timestamp_param"><a class="viewcode-back" href="../../apache_beam.html#apache_beam.pipeline_test.DoFnTest.test_timestamp_param">[docs]</a>  <span class="k">def</span> <span class="nf">test_timestamp_param</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">class</span> <span class="nc">TestDoFn</span><span class="p">(</span><span class="n">DoFn</span><span class="p">):</span>
+      <span class="k">def</span> <span class="nf">process</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">element</span><span class="p">,</span> <span class="n">timestamp</span><span class="o">=</span><span class="n">DoFn</span><span class="o">.</span><span class="n">TimestampParam</span><span class="p">):</span>
+        <span class="k">yield</span> <span class="n">timestamp</span>
+
+    <span class="n">pipeline</span> <span class="o">=</span> <span class="n">TestPipeline</span><span class="p">()</span>
+    <span class="n">pcoll</span> <span class="o">=</span> <span class="n">pipeline</span> <span class="o">|</span> <span class="s1">&#39;Create&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">Create</span><span class="p">([</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">])</span> <span class="o">|</span> <span class="s1">&#39;Do&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">ParDo</span><span class="p">(</span><span class="n">TestDoFn</span><span class="p">())</span>
+    <span class="n">assert_that</span><span class="p">(</span><span class="n">pcoll</span><span class="p">,</span> <span class="n">equal_to</span><span class="p">([</span><span class="n">MIN_TIMESTAMP</span><span class="p">,</span> <span class="n">MIN_TIMESTAMP</span><span class="p">]))</span>
+    <span class="n">pipeline</span><span class="o">.</span><span class="n">run</span><span class="p">()</span></div></div>
+
+
+<div class="viewcode-block" id="Bacon"><a class="viewcode-back" href="../../apache_beam.html#apache_beam.pipeline_test.Bacon">[docs]</a><span class="k">class</span> <span class="nc">Bacon</span><span class="p">(</span><span class="n">PipelineOptions</span><span class="p">):</span>
+
+  <span class="nd">@classmethod</span>
+  <span class="k">def</span> <span class="nf">_add_argparse_args</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">parser</span><span class="p">):</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;--slices&#39;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">int</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="Eggs"><a class="viewcode-back" href="../../apache_beam.html#apache_beam.pipeline_test.Eggs">[docs]</a><span class="k">class</span> <span class="nc">Eggs</span><span class="p">(</span><span class="n">PipelineOptions</span><span class="p">):</span>
+
+  <span class="nd">@classmethod</span>
+  <span class="k">def</span> <span class="nf">_add_argparse_args</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">parser</span><span class="p">):</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;--style&#39;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="s1">&#39;scrambled&#39;</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="Breakfast"><a class="viewcode-back" href="../../apache_beam.html#apache_beam.pipeline_test.Breakfast">[docs]</a><span class="k">class</span> <span class="nc">Breakfast</span><span class="p">(</span><span class="n">Bacon</span><span class="p">,</span> <span class="n">Eggs</span><span class="p">):</span>
+  <span class="k">pass</span></div>
+
+
+<div class="viewcode-block" id="PipelineOptionsTest"><a class="viewcode-back" href="../../apache_beam.html#apache_beam.pipeline_test.PipelineOptionsTest">[docs]</a><span class="k">class</span> <span class="nc">PipelineOptionsTest</span><span class="p">(</span><span class="n">unittest</span><span class="o">.</span><span class="n">TestCase</span><span class="p">):</span>
+
+<div class="viewcode-block" id="PipelineOptionsTest.test_flag_parsing"><a class="viewcode-back" href="../../apache_beam.html#apache_beam.pipeline_test.PipelineOptionsTest.test_flag_parsing">[docs]</a>  <span class="k">def</span> <span class="nf">test_flag_parsing</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">options</span> <span class="o">=</span> <span class="n">Breakfast</span><span class="p">([</span><span class="s1">&#39;--slices=3&#39;</span><span class="p">,</span> <span class="s1">&#39;--style=sunny side up&#39;</span><span class="p">,</span> <span class="s1">&#39;--ignored&#39;</span><span class="p">])</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEquals</span><span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="n">options</span><span class="o">.</span><span class="n">slices</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEquals</span><span class="p">(</span><span class="s1">&#39;sunny side up&#39;</span><span class="p">,</span> <span class="n">options</span><span class="o">.</span><span class="n">style</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="PipelineOptionsTest.test_keyword_parsing"><a class="viewcode-back" href="../../apache_beam.html#apache_beam.pipeline_test.PipelineOptionsTest.test_keyword_parsing">[docs]</a>  <span class="k">def</span> <span class="nf">test_keyword_parsing</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">options</span> <span class="o">=</span> <span class="n">Breakfast</span><span class="p">(</span>
+        <span class="p">[</span><span class="s1">&#39;--slices=3&#39;</span><span class="p">,</span> <span class="s1">&#39;--style=sunny side up&#39;</span><span class="p">,</span> <span class="s1">&#39;--ignored&#39;</span><span class="p">],</span>
+        <span class="n">slices</span><span class="o">=</span><span class="mi">10</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEquals</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span> <span class="n">options</span><span class="o">.</span><span class="n">slices</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEquals</span><span class="p">(</span><span class="s1">&#39;sunny side up&#39;</span><span class="p">,</span> <span class="n">options</span><span class="o">.</span><span class="n">style</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="PipelineOptionsTest.test_attribute_setting"><a class="viewcode-back" href="../../apache_beam.html#apache_beam.pipeline_test.PipelineOptionsTest.test_attribute_setting">[docs]</a>  <span class="k">def</span> <span class="nf">test_attribute_setting</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">options</span> <span class="o">=</span> <span class="n">Breakfast</span><span class="p">(</span><span class="n">slices</span><span class="o">=</span><span class="mi">10</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEquals</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span> <span class="n">options</span><span class="o">.</span><span class="n">slices</span><span class="p">)</span>
+    <span class="n">options</span><span class="o">.</span><span class="n">slices</span> <span class="o">=</span> <span class="mi">20</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEquals</span><span class="p">(</span><span class="mi">20</span><span class="p">,</span> <span class="n">options</span><span class="o">.</span><span class="n">slices</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="PipelineOptionsTest.test_view_as"><a class="viewcode-back" href="../../apache_beam.html#apache_beam.pipeline_test.PipelineOptionsTest.test_view_as">[docs]</a>  <span class="k">def</span> <span class="nf">test_view_as</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">generic_options</span> <span class="o">=</span> <span class="n">PipelineOptions</span><span class="p">([</span><span class="s1">&#39;--slices=3&#39;</span><span class="p">])</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEquals</span><span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="n">generic_options</span><span class="o">.</span><span class="n">view_as</span><span class="p">(</span><span class="n">Bacon</span><span class="p">)</span><span class="o">.</span><span class="n">slices</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEquals</span><span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="n">generic_options</span><span class="o">.</span><span class="n">view_as</span><span class="p">(</span><span class="n">Breakfast</span><span class="p">)</span><span class="o">.</span><span class="n">slices</span><span class="p">)</span>
+
+    <span class="n">generic_options</span><span class="o">.</span><span class="n">view_as</span><span class="p">(</span><span class="n">Breakfast</span><span class="p">)</span><span class="o">.</span><span class="n">slices</span> <span class="o">=</span> <span class="mi">10</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEquals</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span> <span class="n">generic_options</span><span class="o">.</span><span class="n">view_as</span><span class="p">(</span><span class="n">Bacon</span><span class="p">)</span><span class="o">.</span><span class="n">slices</span><span class="p">)</span>
+
+    <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">AttributeError</span><span class="p">):</span>
+      <span class="n">generic_options</span><span class="o">.</span><span class="n">slices</span>  <span class="c1"># pylint: disable=pointless-statement</span>
+
+    <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">AttributeError</span><span class="p">):</span>
+      <span class="n">generic_options</span><span class="o">.</span><span class="n">view_as</span><span class="p">(</span><span class="n">Eggs</span><span class="p">)</span><span class="o">.</span><span class="n">slices</span>  <span class="c1"># pylint: disable=expression-not-assigned</span></div>
+
+<div class="viewcode-block" id="PipelineOptionsTest.test_defaults"><a class="viewcode-back" href="../../apache_beam.html#apache_beam.pipeline_test.PipelineOptionsTest.test_defaults">[docs]</a>  <span class="k">def</span> <span class="nf">test_defaults</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">options</span> <span class="o">=</span> <span class="n">Breakfast</span><span class="p">([</span><span class="s1">&#39;--slices=3&#39;</span><span class="p">])</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEquals</span><span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="n">options</span><span class="o">.</span><span class="n">slices</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEquals</span><span class="p">(</span><span class="s1">&#39;scrambled&#39;</span><span class="p">,</span> <span class="n">options</span><span class="o">.</span><span class="n">style</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="PipelineOptionsTest.test_dir"><a class="viewcode-back" href="../../apache_beam.html#apache_beam.pipeline_test.PipelineOptionsTest.test_dir">[docs]</a>  <span class="k">def</span> <span class="nf">test_dir</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">options</span> <span class="o">=</span> <span class="n">Breakfast</span><span class="p">()</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEquals</span><span class="p">(</span>
+        <span class="nb">set</span><span class="p">([</span><span class="s1">&#39;from_dictionary&#39;</span><span class="p">,</span> <span class="s1">&#39;get_all_options&#39;</span><span class="p">,</span> <span class="s1">&#39;slices&#39;</span><span class="p">,</span> <span class="s1">&#39;style&#39;</span><span class="p">,</span>
+             <span class="s1">&#39;view_as&#39;</span><span class="p">,</span> <span class="s1">&#39;display_data&#39;</span><span class="p">]),</span>
+        <span class="nb">set</span><span class="p">([</span><span class="n">attr</span> <span class="k">for</span> <span class="n">attr</span> <span class="ow">in</span> <span class="nb">dir</span><span class="p">(</span><span class="n">options</span><span class="p">)</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">attr</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;_&#39;</span><span class="p">)]))</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEquals</span><span class="p">(</span>
+        <span class="nb">set</span><span class="p">([</span><span class="s1">&#39;from_dictionary&#39;</span><span class="p">,</span> <span class="s1">&#39;get_all_options&#39;</span><span class="p">,</span> <span class="s1">&#39;style&#39;</span><span class="p">,</span> <span class="s1">&#39;view_as&#39;</span><span class="p">,</span>
+             <span class="s1">&#39;display_data&#39;</span><span class="p">]),</span>
+        <span class="nb">set</span><span class="p">([</span><span class="n">attr</span> <span class="k">for</span> <span class="n">attr</span> <span class="ow">in</span> <span class="nb">dir</span><span class="p">(</span><span class="n">options</span><span class="o">.</span><span class="n">view_as</span><span class="p">(</span><span class="n">Eggs</span><span class="p">))</span>
+             <span class="k">if</span> <span class="ow">not</span> <span class="n">attr</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;_&#39;</span><span class="p">)]))</span></div></div>
+
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s1">&#39;__main__&#39;</span><span class="p">:</span>
+  <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">()</span><span class="o">.</span><span class="n">setLevel</span><span class="p">(</span><span class="n">logging</span><span class="o">.</span><span class="n">DEBUG</span><span class="p">)</span>
+  <span class="n">unittest</span><span class="o">.</span><span class="n">main</span><span class="p">()</span>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../index.html" >Module code</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright .
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.5.3.
+    </div>
+  </body>
+</html>

@@ -1,0 +1,215 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>apache_beam.examples.cookbook.mergecontacts_test &#8212; Apache Beam  documentation</title>
+    
+    <link rel="stylesheet" href="../../../../_static/sphinxdoc.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../../',
+        VERSION:     '',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" /> 
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../../index.html" accesskey="U">Module code</a> &#187;</li> 
+      </ul>
+    </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../../../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for apache_beam.examples.cookbook.mergecontacts_test</h1><div class="highlight"><pre>
+<span></span><span class="c1">#</span>
+<span class="c1"># Licensed to the Apache Software Foundation (ASF) under one or more</span>
+<span class="c1"># contributor license agreements.  See the NOTICE file distributed with</span>
+<span class="c1"># this work for additional information regarding copyright ownership.</span>
+<span class="c1"># The ASF licenses this file to You under the Apache License, Version 2.0</span>
+<span class="c1"># (the &quot;License&quot;); you may not use this file except in compliance with</span>
+<span class="c1"># the License.  You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1">#    http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.</span>
+<span class="c1"># See the License for the specific language governing permissions and</span>
+<span class="c1"># limitations under the License.</span>
+<span class="c1">#</span>
+
+<span class="sd">&quot;&quot;&quot;Test for the mergecontacts example.&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">import</span> <span class="nn">tempfile</span>
+<span class="kn">import</span> <span class="nn">unittest</span>
+
+<span class="kn">from</span> <span class="nn">apache_beam.examples.cookbook</span> <span class="k">import</span> <span class="n">mergecontacts</span>
+
+
+<div class="viewcode-block" id="MergeContactsTest"><a class="viewcode-back" href="../../../../apache_beam.examples.cookbook.html#apache_beam.examples.cookbook.mergecontacts_test.MergeContactsTest">[docs]</a><span class="k">class</span> <span class="nc">MergeContactsTest</span><span class="p">(</span><span class="n">unittest</span><span class="o">.</span><span class="n">TestCase</span><span class="p">):</span>
+
+  <span class="n">CONTACTS_EMAIL</span> <span class="o">=</span> <span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="s1">&#39;Nathan Nomad</span><span class="se">\t</span><span class="s1">nathan@example.com&#39;</span><span class="p">,</span>
+                              <span class="s1">&#39;Nicky Nomad</span><span class="se">\t</span><span class="s1">nicky@example.com&#39;</span><span class="p">,</span>
+                              <span class="s1">&#39;Noreen Nomad</span><span class="se">\t</span><span class="s1">noreen@example.com&#39;</span><span class="p">,</span>
+                              <span class="s1">&#39;Noreen Nomad</span><span class="se">\t</span><span class="s1">nomad@example.com&#39;</span><span class="p">,</span>
+                              <span class="s1">&#39;Robert B</span><span class="se">\t</span><span class="s1">robert@example.com&#39;</span><span class="p">,</span>
+                              <span class="s1">&#39;Silviu C</span><span class="se">\t</span><span class="s1">silviu@example.com&#39;</span><span class="p">,</span>
+                              <span class="s1">&#39;Tom S</span><span class="se">\t</span><span class="s1">tom@example.com&#39;</span><span class="p">,</span>
+                              <span class="s1">&#39;Wally Writer</span><span class="se">\t</span><span class="s1">wally@example.com&#39;</span><span class="p">,</span>
+                              <span class="s1">&#39;&#39;</span><span class="p">])</span>
+
+  <span class="n">CONTACTS_PHONE</span> <span class="o">=</span> <span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="s1">&#39;Larry Luddite</span><span class="se">\t</span><span class="s1">724-228-3529&#39;</span><span class="p">,</span>
+                              <span class="s1">&#39;Lisa Luddite</span><span class="se">\t</span><span class="s1">304-277-3504&#39;</span><span class="p">,</span>
+                              <span class="s1">&#39;Nathan Nomad</span><span class="se">\t</span><span class="s1">412-466-8968&#39;</span><span class="p">,</span>
+                              <span class="s1">&#39;Nicky Nomad</span><span class="se">\t</span><span class="s1">724-379-5815&#39;</span><span class="p">,</span>
+                              <span class="s1">&#39;Noreen Nomad</span><span class="se">\t</span><span class="s1">412-472-0145&#39;</span><span class="p">,</span>
+                              <span class="s1">&#39;Robert B</span><span class="se">\t</span><span class="s1">814-865-8799&#39;</span><span class="p">,</span>
+                              <span class="s1">&#39;Silviu C</span><span class="se">\t</span><span class="s1">724-537-0671&#39;</span><span class="p">,</span>
+                              <span class="s1">&#39;Tom S</span><span class="se">\t</span><span class="s1">570-368-3420&#39;</span><span class="p">,</span>
+                              <span class="s1">&#39;Tom S</span><span class="se">\t</span><span class="s1">814-793-9655&#39;</span><span class="p">,</span>
+                              <span class="s1">&#39;&#39;</span><span class="p">])</span>
+
+  <span class="n">CONTACTS_SNAILMAIL</span> <span class="o">=</span> <span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
+      <span class="p">[</span><span class="s1">&#39;Larry Luddite</span><span class="se">\t</span><span class="s1">1949 Westcott St, Detroit, MI 48222&#39;</span><span class="p">,</span>
+       <span class="s1">&#39;Lisa Luddite</span><span class="se">\t</span><span class="s1">1949 Westcott St, Detroit, MI 48222&#39;</span><span class="p">,</span>
+       <span class="s1">&#39;Robert B</span><span class="se">\t</span><span class="s1">601 N 34th St, Seattle, WA 98103&#39;</span><span class="p">,</span>
+       <span class="s1">&#39;Silviu C</span><span class="se">\t</span><span class="s1">1600 Amphitheatre Pkwy, Mountain View, CA 94043&#39;</span><span class="p">,</span>
+       <span class="s1">&#39;Tom S</span><span class="se">\t</span><span class="s1">6425 Penn Ave Ste 700, Pittsburgh, PA 15206&#39;</span><span class="p">,</span>
+       <span class="s1">&#39;Wally Writer</span><span class="se">\t</span><span class="s1">101 Ridge Rd, Chalkyitsik, AK 99788&#39;</span><span class="p">,</span>
+       <span class="s1">&#39;&#39;</span><span class="p">])</span>
+
+  <span class="n">EXPECTED_TSV</span> <span class="o">=</span> <span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
+      <span class="p">[</span><span class="s1">&#39;</span><span class="se">\t</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="s1">&#39;&quot;Larry Luddite&quot;&#39;</span><span class="p">,</span> <span class="s1">&#39;&quot;&quot;&#39;</span><span class="p">,</span> <span class="s1">&#39;&quot;724-228-3529&quot;&#39;</span><span class="p">,</span>
+                  <span class="s1">&#39;&quot;1949 Westcott St, Detroit, MI 48222&quot;&#39;</span><span class="p">]),</span>
+       <span class="s1">&#39;</span><span class="se">\t</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="s1">&#39;&quot;Lisa Luddite&quot;&#39;</span><span class="p">,</span> <span class="s1">&#39;&quot;&quot;&#39;</span><span class="p">,</span> <span class="s1">&#39;&quot;304-277-3504&quot;&#39;</span><span class="p">,</span>
+                  <span class="s1">&#39;&quot;1949 Westcott St, Detroit, MI 48222&quot;&#39;</span><span class="p">]),</span>
+       <span class="s1">&#39;</span><span class="se">\t</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="s1">&#39;&quot;Nathan Nomad&quot;&#39;</span><span class="p">,</span> <span class="s1">&#39;&quot;nathan@example.com&quot;&#39;</span><span class="p">,</span> <span class="s1">&#39;&quot;412-466-8968&quot;&#39;</span><span class="p">,</span>
+                  <span class="s1">&#39;&quot;&quot;&#39;</span><span class="p">]),</span>
+       <span class="s1">&#39;</span><span class="se">\t</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="s1">&#39;&quot;Nicky Nomad&quot;&#39;</span><span class="p">,</span> <span class="s1">&#39;&quot;nicky@example.com&quot;&#39;</span><span class="p">,</span> <span class="s1">&#39;&quot;724-379-5815&quot;&#39;</span><span class="p">,</span>
+                  <span class="s1">&#39;&quot;&quot;&#39;</span><span class="p">]),</span>
+       <span class="s1">&#39;</span><span class="se">\t</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="s1">&#39;&quot;Noreen Nomad&quot;&#39;</span><span class="p">,</span> <span class="s1">&#39;&quot;nomad@example.com,noreen@example.com&quot;&#39;</span><span class="p">,</span>
+                  <span class="s1">&#39;&quot;412-472-0145&quot;&#39;</span><span class="p">,</span> <span class="s1">&#39;&quot;&quot;&#39;</span><span class="p">]),</span>
+       <span class="s1">&#39;</span><span class="se">\t</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="s1">&#39;&quot;Robert B&quot;&#39;</span><span class="p">,</span> <span class="s1">&#39;&quot;robert@example.com&quot;&#39;</span><span class="p">,</span> <span class="s1">&#39;&quot;814-865-8799&quot;&#39;</span><span class="p">,</span>
+                  <span class="s1">&#39;&quot;601 N 34th St, Seattle, WA 98103&quot;&#39;</span><span class="p">]),</span>
+       <span class="s1">&#39;</span><span class="se">\t</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="s1">&#39;&quot;Silviu C&quot;&#39;</span><span class="p">,</span> <span class="s1">&#39;&quot;silviu@example.com&quot;&#39;</span><span class="p">,</span> <span class="s1">&#39;&quot;724-537-0671&quot;&#39;</span><span class="p">,</span>
+                  <span class="s1">&#39;&quot;1600 Amphitheatre Pkwy, Mountain View, CA 94043&quot;&#39;</span><span class="p">]),</span>
+       <span class="s1">&#39;</span><span class="se">\t</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="s1">&#39;&quot;Tom S&quot;&#39;</span><span class="p">,</span> <span class="s1">&#39;&quot;tom@example.com&quot;&#39;</span><span class="p">,</span> <span class="s1">&#39;&quot;570-368-3420,814-793-9655&quot;&#39;</span><span class="p">,</span>
+                  <span class="s1">&#39;&quot;6425 Penn Ave Ste 700, Pittsburgh, PA 15206&quot;&#39;</span><span class="p">]),</span>
+       <span class="s1">&#39;</span><span class="se">\t</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="s1">&#39;&quot;Wally Writer&quot;&#39;</span><span class="p">,</span> <span class="s1">&#39;&quot;wally@example.com&quot;&#39;</span><span class="p">,</span> <span class="s1">&#39;&quot;&quot;&#39;</span><span class="p">,</span>
+                  <span class="s1">&#39;&quot;101 Ridge Rd, Chalkyitsik, AK 99788&quot;&#39;</span><span class="p">]),</span>
+       <span class="s1">&#39;&#39;</span><span class="p">])</span>
+
+  <span class="n">EXPECTED_STATS</span> <span class="o">=</span> <span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="s1">&#39;2 luddites&#39;</span><span class="p">,</span>
+                              <span class="s1">&#39;1 writers&#39;</span><span class="p">,</span>
+                              <span class="s1">&#39;3 nomads&#39;</span><span class="p">,</span>
+                              <span class="s1">&#39;&#39;</span><span class="p">])</span>
+
+<div class="viewcode-block" id="MergeContactsTest.create_temp_file"><a class="viewcode-back" href="../../../../apache_beam.examples.cookbook.html#apache_beam.examples.cookbook.mergecontacts_test.MergeContactsTest.create_temp_file">[docs]</a>  <span class="k">def</span> <span class="nf">create_temp_file</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">contents</span><span class="p">):</span>
+    <span class="k">with</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">NamedTemporaryFile</span><span class="p">(</span><span class="n">delete</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+      <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">contents</span><span class="p">)</span>
+      <span class="k">return</span> <span class="n">f</span><span class="o">.</span><span class="n">name</span></div>
+
+<div class="viewcode-block" id="MergeContactsTest.normalize_tsv_results"><a class="viewcode-back" href="../../../../apache_beam.examples.cookbook.html#apache_beam.examples.cookbook.mergecontacts_test.MergeContactsTest.normalize_tsv_results">[docs]</a>  <span class="k">def</span> <span class="nf">normalize_tsv_results</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tsv_data</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Sort .tsv file data so we can compare it with expected output.&quot;&quot;&quot;</span>
+    <span class="n">lines_in</span> <span class="o">=</span> <span class="n">tsv_data</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span>
+    <span class="n">lines_out</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">lines_in</span><span class="p">:</span>
+      <span class="n">name</span><span class="p">,</span> <span class="n">email</span><span class="p">,</span> <span class="n">phone</span><span class="p">,</span> <span class="n">snailmail</span> <span class="o">=</span> <span class="n">line</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\t</span><span class="s1">&#39;</span><span class="p">)</span>
+      <span class="n">lines_out</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\t</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
+          <span class="p">[</span><span class="n">name</span><span class="p">,</span>
+           <span class="s1">&#39;&quot;</span><span class="si">%s</span><span class="s1">&quot;&#39;</span> <span class="o">%</span> <span class="s1">&#39;,&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="nb">sorted</span><span class="p">(</span><span class="n">email</span><span class="o">.</span><span class="n">strip</span><span class="p">(</span><span class="s1">&#39;&quot;&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;,&#39;</span><span class="p">))),</span>
+           <span class="s1">&#39;&quot;</span><span class="si">%s</span><span class="s1">&quot;&#39;</span> <span class="o">%</span> <span class="s1">&#39;,&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="nb">sorted</span><span class="p">(</span><span class="n">phone</span><span class="o">.</span><span class="n">strip</span><span class="p">(</span><span class="s1">&#39;&quot;&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;,&#39;</span><span class="p">))),</span>
+           <span class="n">snailmail</span><span class="p">]))</span>
+    <span class="k">return</span> <span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="nb">sorted</span><span class="p">(</span><span class="n">lines_out</span><span class="p">))</span> <span class="o">+</span> <span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span></div>
+
+<div class="viewcode-block" id="MergeContactsTest.test_mergecontacts"><a class="viewcode-back" href="../../../../apache_beam.examples.cookbook.html#apache_beam.examples.cookbook.mergecontacts_test.MergeContactsTest.test_mergecontacts">[docs]</a>  <span class="k">def</span> <span class="nf">test_mergecontacts</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">path_email</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">create_temp_file</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">CONTACTS_EMAIL</span><span class="p">)</span>
+    <span class="n">path_phone</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">create_temp_file</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">CONTACTS_PHONE</span><span class="p">)</span>
+    <span class="n">path_snailmail</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">create_temp_file</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">CONTACTS_SNAILMAIL</span><span class="p">)</span>
+
+    <span class="n">result_prefix</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">create_temp_file</span><span class="p">(</span><span class="s1">&#39;&#39;</span><span class="p">)</span>
+
+    <span class="n">result</span> <span class="o">=</span> <span class="n">mergecontacts</span><span class="o">.</span><span class="n">run</span><span class="p">([</span>
+        <span class="s1">&#39;--input_email=</span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">path_email</span><span class="p">,</span>
+        <span class="s1">&#39;--input_phone=</span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">path_phone</span><span class="p">,</span>
+        <span class="s1">&#39;--input_snailmail=</span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">path_snailmail</span><span class="p">,</span>
+        <span class="s1">&#39;--output_tsv=</span><span class="si">%s</span><span class="s1">.tsv&#39;</span> <span class="o">%</span> <span class="n">result_prefix</span><span class="p">,</span>
+        <span class="s1">&#39;--output_stats=</span><span class="si">%s</span><span class="s1">.stats&#39;</span> <span class="o">%</span> <span class="n">result_prefix</span><span class="p">],</span> <span class="n">assert_results</span><span class="o">=</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">3</span><span class="p">))</span>
+    <span class="n">result</span><span class="o">.</span><span class="n">wait_until_finish</span><span class="p">()</span>
+
+    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="s1">&#39;</span><span class="si">%s</span><span class="s1">.tsv-00000-of-00001&#39;</span> <span class="o">%</span> <span class="n">result_prefix</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+      <span class="n">contents</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">EXPECTED_TSV</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">normalize_tsv_results</span><span class="p">(</span><span class="n">contents</span><span class="p">))</span></div></div>
+
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s1">&#39;__main__&#39;</span><span class="p">:</span>
+  <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">()</span><span class="o">.</span><span class="n">setLevel</span><span class="p">(</span><span class="n">logging</span><span class="o">.</span><span class="n">INFO</span><span class="p">)</span>
+  <span class="n">unittest</span><span class="o">.</span><span class="n">main</span><span class="p">()</span>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../../index.html" >Module code</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright .
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.5.3.
+    </div>
+  </body>
+</html>
