@@ -28,14 +28,16 @@ import org.joda.time.Instant;
 @AutoValue
 public abstract class GaugeData implements Serializable {
 
-  public static final GaugeData EMPTY = create(-1L);
-
   public abstract long value();
 
   public abstract Instant timestamp();
 
   public static GaugeData create(long value) {
     return new AutoValue_GaugeData(value, Instant.now());
+  }
+
+  public static GaugeData empty() {
+    return EmptyGaugeData.INSTANCE;
   }
 
   public GaugeData combine(GaugeData other) {
@@ -47,6 +49,33 @@ public abstract class GaugeData implements Serializable {
   }
 
   public GaugeResult extractResult() {
-    return GaugeResult.create(value());
+    return GaugeResult.create(value(), timestamp());
+  }
+
+  /**
+   * Empty {@link GaugeData}, representing no values reported.
+   */
+  public static class EmptyGaugeData extends GaugeData {
+
+    private static final EmptyGaugeData INSTANCE = new EmptyGaugeData();
+    private static final Instant EPOCH = new Instant(0);
+
+    private EmptyGaugeData() {
+    }
+
+    @Override
+    public long value() {
+      return -1L;
+    }
+
+    @Override
+    public Instant timestamp() {
+      return EPOCH;
+    }
+
+    @Override
+    public GaugeResult extractResult() {
+      return GaugeResult.empty();
+    }
   }
 }

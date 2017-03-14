@@ -31,7 +31,7 @@ public class GaugeCellTest {
   public void testDeltaAndCumulative() {
     cell.set(5);
     cell.set(7);
-    assertThat(cell.getCumulative(), equalTo(GaugeData.create(7)));
+    assertThat(cell.getCumulative().value(), equalTo(GaugeData.create(7).value()));
     assertThat("getCumulative is idempotent",
         cell.getCumulative().value(), equalTo(7L));
 

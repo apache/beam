@@ -199,12 +199,12 @@ class DirectMetrics extends MetricResults {
       new MetricAggregation<GaugeData, GaugeResult>() {
         @Override
         public GaugeData zero() {
-          return GaugeData.EMPTY;
+          return GaugeData.empty();
         }
 
         @Override
         public GaugeData combine(Iterable<GaugeData> updates) {
-          GaugeData result = GaugeData.EMPTY;
+          GaugeData result = GaugeData.empty();
           for (GaugeData update : updates) {
             result = result.combine(update);
           }

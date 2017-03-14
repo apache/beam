@@ -39,6 +39,7 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.hamcrest.CoreMatchers;
+import org.joda.time.Instant;
 import org.junit.After;
 import org.junit.Rule;
 import org.junit.Test;
@@ -138,6 +139,9 @@ public class MetricsTest implements Serializable {
     assertThat(metrics.distributions(), hasItem(
         committedMetricsResult(NAMESPACE, "input", "MyStep2",
             DistributionResult.create(52L, 6L, 5L, 13L))));
+    assertThat(metrics.gauges(), hasItem(
+        committedMetricsResult(NAMESPACE, "my-gauge", "MyStep2",
+            GaugeResult.create(12L, Instant.now()))));
 
     assertThat(metrics.distributions(), hasItem(
         distributionCommittedMinMax(NAMESPACE, "bundle", "MyStep1", 10L, 40L)));
@@ -167,7 +171,7 @@ public class MetricsTest implements Serializable {
             DistributionResult.create(52L, 6L, 5L, 13L))));
     assertThat(metrics.gauges(), hasItem(
         attemptedMetricsResult(NAMESPACE, "my-gauge", "MyStep2",
-            GaugeResult.create(12L))));
+            GaugeResult.create(12L, Instant.now()))));
 
     assertThat(metrics.distributions(), hasItem(
         distributionAttemptedMinMax(NAMESPACE, "bundle", "MyStep1", 10L, 40L)));

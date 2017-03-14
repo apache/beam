@@ -37,6 +37,7 @@ import org.apache.beam.sdk.metrics.MetricQueryResults;
 import org.apache.beam.sdk.metrics.MetricUpdates;
 import org.apache.beam.sdk.metrics.MetricUpdates.MetricUpdate;
 import org.apache.beam.sdk.metrics.MetricsFilter;
+import org.joda.time.Instant;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -105,10 +106,10 @@ public class DirectMetricsTest {
     assertThat(results.distributions(), contains(
         committedMetricsResult("ns1", "name1", "step1", DistributionResult.create(12, 3, 3, 5))));
     assertThat(results.gauges(), contains(
-        attemptedMetricsResult("ns2", "name2", "step1", GaugeResult.ZERO)
+        attemptedMetricsResult("ns2", "name2", "step1", GaugeResult.empty())
     ));
     assertThat(results.gauges(), contains(
-        committedMetricsResult("ns2", "name2", "step1", GaugeResult.create(27L))
+        committedMetricsResult("ns2", "name2", "step1", GaugeResult.create(27L, Instant.now()))
     ));
   }
 

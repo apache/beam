@@ -92,7 +92,7 @@ public class MetricMatchers {
         return Objects.equals(namespace, item.name().namespace())
             && Objects.equals(name, item.name().name())
             && item.step().contains(step)
-            && Objects.equals(attempted, item.attempted());
+            && metricResultsEqual(attempted, item.attempted());
       }
 
       @Override
@@ -135,7 +135,7 @@ public class MetricMatchers {
         return Objects.equals(namespace, item.name().namespace())
             && Objects.equals(name, item.name().name())
             && item.step().contains(step)
-            && Objects.equals(committed, item.committed());
+            && metricResultsEqual(committed, item.committed());
       }
 
       @Override
@@ -163,6 +163,14 @@ public class MetricMatchers {
         mismatchDescription.appendText("}");
       }
     };
+  }
+
+  private static <T> boolean metricResultsEqual(T result1, T result2) {
+    if (result1 instanceof GaugeResult) {
+      return (((GaugeResult) result1).value()) == (((GaugeResult) result2).value());
+    } else {
+      return result1.equals(result2);
+    }
   }
 
   static Matcher<MetricResult<DistributionResult>> distributionAttemptedMinMax(

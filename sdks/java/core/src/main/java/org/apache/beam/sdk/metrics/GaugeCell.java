@@ -32,7 +32,7 @@ import org.apache.beam.sdk.annotations.Experimental;
 public class GaugeCell implements MetricCell<Gauge, GaugeData>, Gauge {
 
   private final DirtyState dirty = new DirtyState();
-  private final AtomicReference<GaugeData> gaugeValue = new AtomicReference<>(GaugeData.EMPTY);
+  private final AtomicReference<GaugeData> gaugeValue = new AtomicReference<>(GaugeData.empty());
 
   @Override
   public void set(long value) {

@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.metrics;
 
 import com.google.auto.value.AutoValue;
+import org.joda.time.Instant;
 
 /**
  * The result of a {@link Gauge} metric.
@@ -26,9 +27,35 @@ import com.google.auto.value.AutoValue;
 public abstract class GaugeResult {
   public abstract long value();
 
-  public static final GaugeResult ZERO = create(-1L);
+  public abstract Instant timestamp();
 
-  public static GaugeResult create(long value) {
-    return new AutoValue_GaugeResult(value);
+  public static GaugeResult create(long value, Instant timestamp) {
+    return new AutoValue_GaugeResult(value, timestamp);
+  }
+
+  public static GaugeResult empty() {
+    return EmptyGaugeResult.INSTANCE;
+  }
+
+  /**
+   * Empty {@link GaugeResult}, representing no values reported.
+   */
+  public static class EmptyGaugeResult extends GaugeResult {
+
+    private static final EmptyGaugeResult INSTANCE = new EmptyGaugeResult();
+    private static final Instant EPOCH = new Instant(0);
+
+    private EmptyGaugeResult() {
+    }
+
+    @Override
+    public long value() {
+      return -1L;
+    }
+
+    @Override
+    public Instant timestamp() {
+      return EPOCH;
+    }
   }
 }
