@@ -67,13 +67,11 @@ class ReadFromAvro(PTransform):
       {u'name': u'Alyssa', u'favorite_number': 256, u'favorite_color': None}).
 
     Args:
-      label: label of the PTransform.
       file_pattern: the set of files to be read.
       min_bundle_size: the minimum size in bytes, to be considered when
                        splitting the input into bundles.
       validate: flag to verify that the files exist during the pipeline
                 creation time.
-      **kwargs: Additional keyword arguments to be passed to the base class.
     """
     super(ReadFromAvro, self).__init__()
     self._source = _AvroSource(file_pattern, min_bundle_size, validate=validate)
@@ -129,6 +127,11 @@ class _AvroUtils(object):
 
     Args:
       f: Avro file to read.
+      codec: The codec to use for block-level decompression.
+        Supported codecs: 'null', 'deflate', 'snappy'
+      schema: Avro Schema definition represented as JSON string.
+      expected_sync_marker: Avro synchronization marker. If the block's sync
+        marker does not match with this parameter then ValueError is thrown.
     Returns:
       A single _AvroBlock.
 
@@ -302,8 +305,6 @@ class WriteToAvro(beam.transforms.PTransform):
       codec: The codec to use for block-level compression. Any string supported
         by the Avro specification is accepted (for example 'null').
       file_name_suffix: Suffix for the files written.
-      append_trailing_newlines: indicate whether this sink should write an
-        additional newline char after writing each element.
       num_shards: The number of files (shards) used for output. If not set, the
         service will decide on the optimal number of shards.
         Constraining the number of shards is likely to reduce
