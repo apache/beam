@@ -19,6 +19,7 @@
 
 import logging
 import tempfile
+import time
 import unittest
 
 from hamcrest import assert_that as hc_assert_that
@@ -91,7 +92,8 @@ class PipelineVerifiersTest(unittest.TestCase):
       f.write(content)
       return f.name
 
-  def test_file_checksum_matcher_success(self):
+  @patch('time.sleep', return_value=None)
+  def test_file_checksum_matcher_success(self, _):
     for case in self.test_cases:
       temp_dir = tempfile.mkdtemp()
       for _ in range(case['num_files']):
@@ -100,8 +102,9 @@ class PipelineVerifiersTest(unittest.TestCase):
                                               case['expected_checksum'])
       hc_assert_that(self._mock_result, matcher)
 
+  @patch('time.sleep', return_value=None)
   @patch.object(LocalFileSystem, 'match')
-  def test_file_checksum_matcher_read_failed(self, mock_match):
+  def test_file_checksum_matcher_read_failed(self, mock_match, _):
     mock_match.side_effect = IOError('No file found.')
     matcher = verifiers.FileChecksumMatcher('dummy/path', Mock())
     with self.assertRaises(IOError):
@@ -109,9 +112,10 @@ class PipelineVerifiersTest(unittest.TestCase):
     self.assertTrue(mock_match.called)
     self.assertEqual(verifiers.MAX_RETRIES + 1, mock_match.call_count)
 
+  @patch('time.sleep', return_value=None)
   @patch.object(GCSFileSystem, 'match')
   @unittest.skipIf(HttpError is None, 'google-apitools is not installed')
-  def test_file_checksum_matcher_service_error(self, mock_match):
+  def test_file_checksum_matcher_service_error(self, mock_match, _):
     mock_match.side_effect = HttpError(
         response={'status': '404'}, url='', content='Not Found',
     )
