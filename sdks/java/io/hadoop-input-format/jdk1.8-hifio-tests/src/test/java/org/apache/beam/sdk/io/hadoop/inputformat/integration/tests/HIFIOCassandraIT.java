@@ -42,14 +42,25 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 /**
- * Runs integration test to validate HadoopInputFromatIO for a Cassandra instance. You need to pass
- * Cassandra server IP and port in beamTestPipelineOptions.
+ * A test of {@link org.apache.beam.sdk.io.hadoop.inputformat.HadoopInputFormatIO} on an
+ * independent Cassandra instance.
  *
- * <p>You can run just this test by doing the following: mvn test-compile compile
- * failsafe:integration-test -D beamTestPipelineOptions='[ "--serverIp=1.2.3.4",
- * "--serverPort=CASSANDRA_PORT", "--userName=CASSANDRA_USERNAME", "--password=CASSANDRA_PASSWORD"]'
- * -Dit.test=HIFIOCassandraIT -DskipITs=false Setting username and password is optional, set these
- * only if security is configured on Cassandra server.
+ * <p>This test requires a running instance of Cassandra, and the test dataset must exist in
+ * the database.
+ *
+ * <p>You can run this test by doing the following:
+ * <pre>
+ *  mvn -e -Pio-it verify -pl sdks/java/io/hadoop-input-format/jdk1.8-hifio-tests/HIFIOCassandraIT
+ *  -DintegrationTestPipelineOptions='[
+ *  "--serverIp=1.2.3.4",
+ *  "--serverPort=port",
+ *  "--userName=user",
+ *  "--password=mypass" ]'
+ * </pre>
+ *
+ * <p>If you want to run this with a runner besides directrunner, there are profiles for dataflow
+ * and spark in the jdbc pom. You'll want to activate those in addition to the normal test runner
+ * invocation pipeline options.
  */
 
 @RunWith(JUnit4.class)
