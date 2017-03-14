@@ -33,8 +33,8 @@
   <name>Apache Beam :: SDKs :: Python</name>
 
   <properties>
-    <python.interpreter.bin>python2</python.interpreter.bin>
-    <python.pip.bin>pip2</python.pip.bin>
+    <!-- python.interpreter.bin & python.pip.bin
+         is set dynamically by findSupportedPython.groovy -->
     <python.build.base>${project.build.directory}/build</python.build.base>
     <python.user.base>${project.build.directory}/python</python.user.base>
   </properties>
@@ -55,6 +55,33 @@
       </plugins>
     </pluginManagement>
     <plugins>
+      <plugin>
+        <groupId>org.codehaus.gmaven</groupId>
+        <artifactId>groovy-maven-plugin</artifactId>
+        <version>2.0</version>
+        <executions>
+          <execution>
+            <id>find-supported-python-for-clean</id>
+            <phase>pre-clean</phase>
+            <goals>
+              <goal>execute</goal>
+            </goals>
+            <configuration>
+              <source>${project.basedir}/findSupportedPython.groovy</source>
+            </configuration>
+          </execution>
+          <execution>
+            <id>find-supported-python-for-compile</id>
+            <phase>initialize</phase>
+            <goals>
+              <goal>execute</goal>
+            </goals>
+            <configuration>
+              <source>${project.basedir}/findSupportedPython.groovy</source>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
       <plugin>
         <groupId>org.codehaus.mojo</groupId>
         <artifactId>exec-maven-plugin</artifactId>
