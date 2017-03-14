@@ -382,6 +382,28 @@ public class DatastoreV1Test {
   }
 
   /**
+   * Test building a DeleteEntity using builder methods.
+   */
+  @Test
+  public void testBuildDeleteKey() throws Exception {
+    DeleteKey deleteKey =
+        DatastoreIO.v1().deleteKey().withProjectId(PROJECT_ID).withLocalhost(LOCALHOST);
+    assertEquals(PROJECT_ID, deleteKey.getProjectId());
+    assertEquals(LOCALHOST, deleteKey.getLocalhost());
+  }
+
+  /**
+   * {@link #testBuildDeleteKey} but constructed in a different order.
+   */
+  @Test
+  public void testBuildDeleteKeyAlt() throws Exception {
+    DeleteKey deleteKey =
+        DatastoreIO.v1().deleteKey().withLocalhost(LOCALHOST).withProjectId(PROJECT_ID);
+    assertEquals(PROJECT_ID, deleteKey.getProjectId());
+    assertEquals(LOCALHOST, deleteKey.getLocalhost());
+  }
+
+  /**
    * Test building a Write using builder methods.
    */
   @Test
@@ -399,6 +421,28 @@ public class DatastoreV1Test {
     Write write = DatastoreIO.v1().write().withLocalhost(LOCALHOST).withProjectId(PROJECT_ID);
     assertEquals(PROJECT_ID, write.getProjectId());
     assertEquals(LOCALHOST, write.getLocalhost());
+  }
+
+  /**
+   * Test building a DeleteEntity using builder methods.
+   */
+  @Test
+  public void testBuildDeleteEntity() throws Exception {
+    DeleteEntity deleteEntity =
+        DatastoreIO.v1().deleteEntity().withProjectId(PROJECT_ID).withLocalhost(LOCALHOST);
+    assertEquals(PROJECT_ID, deleteEntity.getProjectId());
+    assertEquals(LOCALHOST, deleteEntity.getLocalhost());
+  }
+
+  /**
+   * {@link #testBuildDeleteEntity} but constructed in a different order.
+   */
+  @Test
+  public void testBuildDeleteEntityAlt() throws Exception {
+    DeleteEntity deleteEntity =
+        DatastoreIO.v1().deleteEntity().withLocalhost(LOCALHOST).withProjectId(PROJECT_ID);
+    assertEquals(PROJECT_ID, deleteEntity.getProjectId());
+    assertEquals(LOCALHOST, deleteEntity.getLocalhost());
   }
 
   /**

@@ -739,7 +739,7 @@ public class DatastoreV1 {
      */
     public DeleteEntity withProjectId(String projectId) {
       checkNotNull(projectId, "projectId");
-      return new DeleteEntity(projectId, null);
+      return new DeleteEntity(projectId, getLocalhost());
     }
 
     /**
@@ -748,7 +748,7 @@ public class DatastoreV1 {
      */
     public DeleteEntity withLocalhost(String localhost) {
       checkNotNull(localhost, "localhost");
-      return new DeleteEntity(null, localhost);
+      return new DeleteEntity(getProjectId(), localhost);
     }
   }
 
@@ -773,7 +773,7 @@ public class DatastoreV1 {
      */
     public DeleteKey withProjectId(String projectId) {
       checkNotNull(projectId, "projectId");
-      return new DeleteKey(projectId, null);
+      return new DeleteKey(projectId, getLocalhost());
     }
 
     /**
@@ -782,7 +782,7 @@ public class DatastoreV1 {
      */
     public DeleteKey withLocalhost(String localhost) {
       checkNotNull(localhost, "localhost");
-      return new DeleteKey(null, localhost);
+      return new DeleteKey(getProjectId(), localhost);
     }
   }
 
