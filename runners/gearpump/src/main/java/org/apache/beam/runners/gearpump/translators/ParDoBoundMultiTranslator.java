@@ -18,16 +18,10 @@
 
 package org.apache.beam.runners.gearpump.translators;
 
-
-import com.google.common.base.Predicate;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
-
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
-
-import javax.annotation.Nullable;
 
 import org.apache.beam.runners.gearpump.translators.functions.DoFnFunction;
 import org.apache.beam.runners.gearpump.translators.utils.TranslatorUtils;
@@ -36,6 +30,7 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.sdk.values.TaggedPValue;
 import org.apache.beam.sdk.values.TupleTag;
 
 import org.apache.gearpump.streaming.dsl.api.functions.FilterFunction;
@@ -54,21 +49,21 @@ public class ParDoBoundMultiTranslator<InputT, OutputT> implements
 
   @Override
   public void translate(ParDo.BoundMulti<InputT, OutputT> transform, TranslationContext context) {
-    PCollection<InputT> inputT = (PCollection<InputT>) context.getInput(transform);
+    PCollection<InputT> inputT = (PCollection<InputT>) context.getInput();
     JavaStream<WindowedValue<InputT>> inputStream = context.getInputStream(inputT);
     Collection<PCollectionView<?>> sideInputs = transform.getSideInputs();
     Map<String, PCollectionView<?>> tagsToSideInputs =
         TranslatorUtils.getTagsToSideInputs(sideInputs);
 
-    Map<TupleTag<?>, PCollection<?>> outputs = context.getOutput(transform).getAll();
+    List<TaggedPValue> outputs = context.getOutputs();
     final TupleTag<OutputT> mainOutput = transform.getMainOutputTag();
-    List<TupleTag<?>> sideOutputs = Lists.newLinkedList(Sets.filter(outputs.keySet(),
-        new Predicate<TupleTag<?>>() {
-          @Override
-          public boolean apply(@Nullable TupleTag<?> tupleTag) {
-            return tupleTag != null && !tupleTag.getId().equals(mainOutput.getId());
-          }
-        }));
+    List<TupleTag<?>> sideOutputs = new ArrayList<>(outputs.size() - 1);
+    for (TaggedPValue output: outputs) {
+      TupleTag<?> tag = output.getTag();
+      if (tag != null && !tag.getId().equals(mainOutput.getId())) {
+        sideOutputs.add(tag);
+      }
+    }
 
     JavaStream<TranslatorUtils.RawUnionValue> unionStream = TranslatorUtils.withSideInputStream(
         context, inputStream, tagsToSideInputs);
@@ -83,10 +78,9 @@ public class ParDoBoundMultiTranslator<InputT, OutputT> implements
                 tagsToSideInputs,
                 mainOutput,
                 sideOutputs), transform.getName());
-    for (Map.Entry<TupleTag<?>, PCollection<?>> output: outputs.entrySet()) {
-      output.getValue().getCoder();
+    for (TaggedPValue output: outputs) {
       JavaStream<WindowedValue<OutputT>> taggedStream = outputStream
-          .filter(new FilterByOutputTag(output.getKey().getId()),
+          .filter(new FilterByOutputTag(output.getTag().getId()),
               "filter_by_output_tag")
           .map(new TranslatorUtils.FromRawUnionValue<OutputT>(), "from_RawUnionValue");
       context.setOutputStream(output.getValue(), taggedStream);

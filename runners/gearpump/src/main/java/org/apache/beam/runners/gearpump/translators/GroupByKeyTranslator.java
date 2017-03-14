@@ -61,7 +61,7 @@ public class GroupByKeyTranslator<K, V> implements TransformTranslator<GroupByKe
 
   @Override
   public void translate(GroupByKey<K, V> transform, TranslationContext context) {
-    PCollection<KV<K, V>> input = context.getInput(transform);
+    PCollection<KV<K, V>> input = (PCollection<KV<K, V>>) context.getInput();
     Coder<K> inputKeyCoder = ((KvCoder<K, V>) input.getCoder()).getKeyCoder();
     JavaStream<WindowedValue<KV<K, V>>> inputStream =
         context.getInputStream(input);
@@ -80,7 +80,7 @@ public class GroupByKeyTranslator<K, V> implements TransformTranslator<GroupByKe
         .fold(new Merge<>(windowFn, outputTimeFn), "merge")
         .map(new Values<K, V>(), "values");
 
-    context.setOutputStream(context.getOutput(transform), outputStream);
+    context.setOutputStream(context.getOutput(), outputStream);
   }
 
   private static class GearpumpWindowFn<T, W extends BoundedWindow>

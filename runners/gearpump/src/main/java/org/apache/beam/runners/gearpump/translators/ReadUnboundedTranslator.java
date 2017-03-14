@@ -33,6 +33,8 @@ import org.apache.gearpump.streaming.source.DataSource;
 
 public class ReadUnboundedTranslator<T> implements TransformTranslator<Read.Unbounded<T>> {
 
+  private static final long serialVersionUID = 3529494817859948619L;
+
   @Override
   public void translate(Read.Unbounded<T> transform, TranslationContext context) {
     UnboundedSource<T, ?> unboundedSource = transform.getSource();
@@ -40,7 +42,7 @@ public class ReadUnboundedTranslator<T> implements TransformTranslator<Read.Unbo
         unboundedSource, context.getPipelineOptions());
     JavaStream<WindowedValue<T>> sourceStream = context.getSourceStream(unboundedSourceWrapper);
 
-    context.setOutputStream(context.getOutput(transform), sourceStream);
+    context.setOutputStream(context.getOutput(), sourceStream);
   }
 
 }

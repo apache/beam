@@ -30,6 +30,7 @@ import org.apache.beam.sdk.options.PipelineOptions;
 public class UnboundedSourceWrapper<OutputT, CheckpointMarkT extends UnboundedSource.CheckpointMark>
     extends GearpumpSource<OutputT> {
 
+  private static final long serialVersionUID = -2453956849834747150L;
   private final UnboundedSource<OutputT, CheckpointMarkT> source;
 
   public UnboundedSourceWrapper(UnboundedSource<OutputT, CheckpointMarkT> source,

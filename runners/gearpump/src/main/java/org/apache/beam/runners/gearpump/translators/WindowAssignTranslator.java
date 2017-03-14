@@ -39,22 +39,22 @@ import org.joda.time.Instant;
  * {@link Window.Bound} is translated to Gearpump flatMap function.
  */
 @SuppressWarnings("unchecked")
-public class WindowBoundTranslator<T> implements  TransformTranslator<Window.Bound<T>> {
+public class WindowAssignTranslator<T> implements  TransformTranslator<Window.Assign<T>> {
 
   private static final long serialVersionUID = -964887482120489061L;
 
   @Override
-  public void translate(Window.Bound<T> transform, TranslationContext context) {
-    PCollection<T> input = context.getInput(transform);
+  public void translate(Window.Assign<T> transform, TranslationContext context) {
+    PCollection<T> input = (PCollection<T>) context.getInput();
+    PCollection<T> output = (PCollection<T>) context.getOutput();
     JavaStream<WindowedValue<T>> inputStream = context.getInputStream(input);
-    WindowingStrategy<?, ?> outputStrategy =
-        transform.getOutputStrategyInternal(input.getWindowingStrategy());
+    WindowingStrategy<?, ?> outputStrategy = output.getWindowingStrategy();
     WindowFn<T, BoundedWindow> windowFn = (WindowFn<T, BoundedWindow>) outputStrategy.getWindowFn();
     JavaStream<WindowedValue<T>> outputStream =
         inputStream
             .flatMap(new AssignWindows(windowFn), "assign_windows");
 
-    context.setOutputStream(context.getOutput(transform), outputStream);
+    context.setOutputStream(output, outputStream);
   }
 
   private static class AssignWindows<T> extends

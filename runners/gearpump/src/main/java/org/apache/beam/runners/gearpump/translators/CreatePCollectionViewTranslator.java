@@ -32,12 +32,14 @@ import org.apache.gearpump.streaming.dsl.javaapi.JavaStream;
 public class CreatePCollectionViewTranslator<ElemT, ViewT> implements
     TransformTranslator<View.CreatePCollectionView<ElemT, ViewT>> {
 
+  private static final long serialVersionUID = -2394386873317515748L;
+
   @Override
   public void translate(View.CreatePCollectionView<ElemT, ViewT> transform,
                         TranslationContext context) {
     JavaStream<WindowedValue<List<ElemT>>> inputStream =
-        context.getInputStream(context.getInput(transform));
-    PCollectionView<ViewT> view = transform.getView();
+        context.getInputStream(context.getInput());
+    PCollectionView<ViewT> view = (PCollectionView<ViewT>) context.getOutput();
     context.setOutputStream(view, inputStream);
   }
 }

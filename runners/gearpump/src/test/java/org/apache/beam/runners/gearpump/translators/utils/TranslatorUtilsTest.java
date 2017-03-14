@@ -34,7 +34,6 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.gearpump.streaming.dsl.window.impl.Window;
 import org.junit.Test;
 
-
 /**
  * Tests for {@link TranslatorUtils}.
  */

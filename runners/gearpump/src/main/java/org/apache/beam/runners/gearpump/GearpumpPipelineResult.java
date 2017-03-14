@@ -43,6 +43,7 @@ public class GearpumpPipelineResult implements PipelineResult {
 
   private final ClientContext client;
   private final RunningApplication app;
+  private boolean finished = false;
 
   public GearpumpPipelineResult(ClientContext client, RunningApplication app) {
     this.client = client;
@@ -51,13 +52,22 @@ public class GearpumpPipelineResult implements PipelineResult {
 
   @Override
   public State getState() {
-    return getGearpumpState();
+    if (!finished) {
+      return getGearpumpState();
+    } else {
+      return State.DONE;
+    }
   }
 
   @Override
   public State cancel() throws IOException {
-    app.shutDown();
-    return State.CANCELLED;
+    if (!finished) {
+      app.shutDown();
+      finished = true;
+      return State.CANCELLED;
+    } else {
+      return State.DONE;
+    }
   }
 
   @Override
@@ -67,7 +77,10 @@ public class GearpumpPipelineResult implements PipelineResult {
 
   @Override
   public State waitUntilFinish() {
-    app.waitUntilFinish();
+    if (!finished) {
+      app.waitUntilFinish();
+      finished = true;
+    }
     return State.DONE;
   }
 

@@ -29,25 +29,24 @@ import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.values.PCollection;
 
+import org.apache.beam.sdk.values.TaggedPValue;
 import org.apache.gearpump.streaming.dsl.api.functions.MapFunction;
 import org.apache.gearpump.streaming.dsl.javaapi.JavaStream;
 
-
-
 /**
  * Flatten.FlattenPCollectionList is translated to Gearpump merge function.
- * Note only two-way merge is working now
  */
-public class FlattenPCollectionTranslator<T> implements
-    TransformTranslator<Flatten.FlattenPCollectionList<T>> {
+public class FlattenPCollectionsTranslator<T> implements
+    TransformTranslator<Flatten.PCollections<T>> {
 
   private static final long serialVersionUID = -5552148802472944759L;
 
   @Override
-  public void translate(Flatten.FlattenPCollectionList<T> transform, TranslationContext context) {
+  public void translate(Flatten.PCollections<T> transform, TranslationContext context) {
     JavaStream<T> merged = null;
     Set<PCollection<T>> unique = new HashSet<>();
-    for (PCollection<T> collection : context.getInput(transform).getAll()) {
+    for (TaggedPValue input: context.getInputs()) {
+      PCollection<T> collection = (PCollection<T>) input.getValue();
       unique.add(collection);
       JavaStream<T> inputStream = context.getInputStream(collection);
       if (null == merged) {
@@ -69,7 +68,7 @@ public class FlattenPCollectionTranslator<T> implements
               StringUtf8Coder.of()), context.getPipelineOptions());
       merged = context.getSourceStream(unboundedSourceWrapper);
     }
-    context.setOutputStream(context.getOutput(transform), merged);
+    context.setOutputStream(context.getOutput(), merged);
   }
 
   private static class DummyFunction<T> extends MapFunction<T, T> {

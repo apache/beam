@@ -20,25 +20,27 @@ package org.apache.beam.runners.gearpump.translators;
 
 import java.util.List;
 
-import org.apache.beam.runners.gearpump.GearpumpRunner;
+import org.apache.beam.runners.gearpump.GearpumpPipelineTranslator;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.gearpump.streaming.dsl.javaapi.JavaStream;
-
 
 /**
  * CreateGearpumpPCollectionView bridges input stream to down stream
  * transforms.
  */
 public class CreateGearpumpPCollectionViewTranslator<ElemT, ViewT> implements
-    TransformTranslator<GearpumpRunner.CreateGearpumpPCollectionView<ElemT, ViewT>> {
+    TransformTranslator<GearpumpPipelineTranslator.CreateGearpumpPCollectionView<ElemT, ViewT>> {
+
+  private static final long serialVersionUID = -3955521308055056034L;
 
   @Override
-  public void translate(GearpumpRunner.CreateGearpumpPCollectionView<ElemT, ViewT> transform,
+  public void translate(
+      GearpumpPipelineTranslator.CreateGearpumpPCollectionView<ElemT, ViewT> transform,
       TranslationContext context) {
     JavaStream<WindowedValue<List<ElemT>>> inputStream =
-        context.getInputStream(context.getInput(transform));
-    PCollectionView<ViewT> view = transform.getView();
+        context.getInputStream(context.getInput());
+    PCollectionView<ViewT> view = (PCollectionView<ViewT>) context.getOutput();
     context.setOutputStream(view, inputStream);
   }
 }
