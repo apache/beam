@@ -576,7 +576,10 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     }
 
     private void checkTimestamp(Instant timestamp) {
-      if (timestamp.isBefore(windowedValue.getTimestamp().minus(fn.getAllowedTimestampSkew()))) {
+      // The documentation of getAllowedTimestampSkew explicitly permits Long.MAX_VALUE to be used
+      // for infinite skew. Defend against underflow in that case for timestamps before the epoch
+      if (fn.getAllowedTimestampSkew().getMillis() != Long.MAX_VALUE
+          && timestamp.isBefore(windowedValue.getTimestamp().minus(fn.getAllowedTimestampSkew()))) {
         throw new IllegalArgumentException(
             String.format(
                 "Cannot output with timestamp %s. Output timestamps must be no earlier than the "

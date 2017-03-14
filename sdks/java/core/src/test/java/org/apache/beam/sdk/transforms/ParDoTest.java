@@ -29,6 +29,7 @@ import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.anyOf;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.not;
 import static org.hamcrest.collection.IsIterableContainingInAnyOrder.containsInAnyOrder;
 import static org.hamcrest.collection.IsIterableContainingInOrder.contains;
@@ -249,15 +250,15 @@ public class ParDoTest implements Serializable {
     }
   }
 
-  static class TestOutputTimestampDoFn extends DoFn<Integer, Integer> {
+  static class TestOutputTimestampDoFn<T extends Number> extends DoFn<T, T> {
     @ProcessElement
     public void processElement(ProcessContext c) {
-      Integer value = c.element();
+      T value = c.element();
       c.outputWithTimestamp(value, new Instant(value.longValue()));
     }
   }
 
-  static class TestShiftTimestampDoFn extends DoFn<Integer, Integer> {
+  static class TestShiftTimestampDoFn<T extends Number> extends DoFn<T, T> {
     private Duration allowedTimestampSkew;
     private Duration durationToShift;
 
@@ -275,12 +276,12 @@ public class ParDoTest implements Serializable {
     public void processElement(ProcessContext c) {
       Instant timestamp = c.timestamp();
       checkNotNull(timestamp);
-      Integer value = c.element();
+      T value = c.element();
       c.outputWithTimestamp(value, timestamp.plus(durationToShift));
     }
   }
 
-  static class TestFormatTimestampDoFn extends DoFn<Integer, String> {
+  static class TestFormatTimestampDoFn<T extends Number> extends DoFn<T, String> {
     @ProcessElement
     public void processElement(ProcessContext c) {
       checkNotNull(c.timestamp());
@@ -1237,9 +1238,9 @@ public class ParDoTest implements Serializable {
 
     PCollection<String> output =
         input
-        .apply(ParDo.of(new TestOutputTimestampDoFn()))
-        .apply(ParDo.of(new TestShiftTimestampDoFn(Duration.ZERO, Duration.ZERO)))
-        .apply(ParDo.of(new TestFormatTimestampDoFn()));
+        .apply(ParDo.of(new TestOutputTimestampDoFn<Integer>()))
+        .apply(ParDo.of(new TestShiftTimestampDoFn<Integer>(Duration.ZERO, Duration.ZERO)))
+        .apply(ParDo.of(new TestFormatTimestampDoFn<Integer>()));
 
     PAssert.that(output).containsInAnyOrder(
                    "processing: 3, timestamp: 3",
@@ -1269,8 +1270,8 @@ public class ParDoTest implements Serializable {
                     sideOutputTag, c.element(), new Instant(c.element().longValue()));
               }
             })).get(sideOutputTag)
-        .apply(ParDo.of(new TestShiftTimestampDoFn(Duration.ZERO, Duration.ZERO)))
-        .apply(ParDo.of(new TestFormatTimestampDoFn()));
+        .apply(ParDo.of(new TestShiftTimestampDoFn<Integer>(Duration.ZERO, Duration.ZERO)))
+        .apply(ParDo.of(new TestFormatTimestampDoFn<Integer>()));
 
     PAssert.that(output).containsInAnyOrder(
                    "processing: 3, timestamp: 3",
@@ -1289,10 +1290,10 @@ public class ParDoTest implements Serializable {
 
     PCollection<String> output =
         input
-        .apply(ParDo.of(new TestOutputTimestampDoFn()))
-        .apply(ParDo.of(new TestShiftTimestampDoFn(Duration.millis(1000),
+        .apply(ParDo.of(new TestOutputTimestampDoFn<Integer>()))
+        .apply(ParDo.of(new TestShiftTimestampDoFn<Integer>(Duration.millis(1000),
                                                    Duration.millis(-1000))))
-        .apply(ParDo.of(new TestFormatTimestampDoFn()));
+        .apply(ParDo.of(new TestFormatTimestampDoFn<Integer>()));
 
     PAssert.that(output).containsInAnyOrder(
                    "processing: 3, timestamp: -997",
@@ -1306,11 +1307,15 @@ public class ParDoTest implements Serializable {
   @Category(NeedsRunner.class)
   public void testParDoShiftTimestampInvalid() {
 
-    pipeline.apply(Create.of(Arrays.asList(3, 42, 6)))
-        .apply(ParDo.of(new TestOutputTimestampDoFn()))
-        .apply(ParDo.of(new TestShiftTimestampDoFn(Duration.millis(1000), // allowed skew = 1 second
-                                                   Duration.millis(-1001))))
-        .apply(ParDo.of(new TestFormatTimestampDoFn()));
+    pipeline
+        .apply(Create.of(Arrays.asList(3, 42, 6)))
+        .apply(ParDo.of(new TestOutputTimestampDoFn<Integer>()))
+        .apply(
+            ParDo.of(
+                new TestShiftTimestampDoFn<Integer>(
+                    Duration.millis(1000), // allowed skew = 1 second
+                    Duration.millis(-1001))))
+        .apply(ParDo.of(new TestFormatTimestampDoFn<Integer>()));
 
     thrown.expect(RuntimeException.class);
     thrown.expectMessage("Cannot output with timestamp");
@@ -1325,16 +1330,68 @@ public class ParDoTest implements Serializable {
   public void testParDoShiftTimestampInvalidZeroAllowed() {
 
     pipeline.apply(Create.of(Arrays.asList(3, 42, 6)))
-        .apply(ParDo.of(new TestOutputTimestampDoFn()))
-        .apply(ParDo.of(new TestShiftTimestampDoFn(Duration.ZERO,
+        .apply(ParDo.of(new TestOutputTimestampDoFn<Integer>()))
+        .apply(ParDo.of(new TestShiftTimestampDoFn<Integer>(Duration.ZERO,
                                                    Duration.millis(-1001))))
-        .apply(ParDo.of(new TestFormatTimestampDoFn()));
+        .apply(ParDo.of(new TestFormatTimestampDoFn<Integer>()));
 
     thrown.expect(RuntimeException.class);
     thrown.expectMessage("Cannot output with timestamp");
     thrown.expectMessage(
         "Output timestamps must be no earlier than the timestamp of the current input");
     thrown.expectMessage("minus the allowed skew (0 milliseconds).");
+    pipeline.run();
+  }
+
+  @Test
+  @Category(RunnableOnService.class)
+  public void testParDoShiftTimestampUnlimited() {
+    PCollection<Long> outputs =
+        pipeline
+            .apply(
+                Create.of(
+                    Arrays.asList(
+                        0L,
+                        BoundedWindow.TIMESTAMP_MIN_VALUE.getMillis(),
+                        GlobalWindow.INSTANCE.maxTimestamp().getMillis())))
+            .apply("AssignTimestampToValue", ParDo.of(new TestOutputTimestampDoFn<Long>()))
+            .apply("ReassignToMinimumTimestamp",
+                ParDo.of(
+                    new DoFn<Long, Long>() {
+                      @ProcessElement
+                      public void reassignTimestamps(ProcessContext context) {
+                        // Shift the latest element as far backwards in time as the model permits
+                        context.outputWithTimestamp(
+                            context.element(), BoundedWindow.TIMESTAMP_MIN_VALUE);
+                      }
+
+                      @Override
+                      public Duration getAllowedTimestampSkew() {
+                        return Duration.millis(Long.MAX_VALUE);
+                      }
+                    }));
+
+    PAssert.that(outputs)
+        .satisfies(
+            new SerializableFunction<Iterable<Long>, Void>() {
+              @Override
+              public Void apply(Iterable<Long> input) {
+                // This element is not shifted backwards in time. It must be present in the output.
+                assertThat(input, hasItem(BoundedWindow.TIMESTAMP_MIN_VALUE.getMillis()));
+                for (Long elem : input) {
+                  // Sanity check the outputs. 0L and the end of the global window are shifted
+                  // backwards in time and theoretically could be dropped.
+                  assertThat(
+                      elem,
+                      anyOf(
+                          equalTo(BoundedWindow.TIMESTAMP_MIN_VALUE.getMillis()),
+                          equalTo(GlobalWindow.INSTANCE.maxTimestamp().getMillis()),
+                          equalTo(0L)));
+                }
+                return null;
+              }
+            });
+
     pipeline.run();
   }
 
