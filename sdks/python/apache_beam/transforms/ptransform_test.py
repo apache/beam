@@ -45,7 +45,7 @@ from apache_beam.utils.pipeline_options import TypeOptions
 
 
 class PTransformTest(unittest.TestCase):
-  # Enable ValidatesRunner tests running in parallel
+  # Enable nose tests running in parallel
   _multiprocess_can_split_ = True
 
   def assertStartswith(self, msg, prefix):
