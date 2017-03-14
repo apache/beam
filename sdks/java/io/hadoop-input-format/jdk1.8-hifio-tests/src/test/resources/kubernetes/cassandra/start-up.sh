@@ -17,6 +17,6 @@
 #!/bin/sh
 
 # Create Cassandra services and Replication controller.
-kubectl create -f cassandra-peer-service.yml
-kubectl create -f cassandra_service.yml
-kubectl create -f cassandra_controller.yml
+kubectl create -f cassandra-peer-service.yaml
+kubectl create -f cassandra-service.yaml
+kubectl create -f cassandra-controller.yaml

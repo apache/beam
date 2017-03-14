@@ -24,8 +24,6 @@ cassandra_svc="kubectl get svc cassandra"
 echo
 
 # After starting the service, it takes couple of minutes to generate the external IP for the service. Hence, wait for sometime.
-#sleep 2m
-
 # Identify external IP of the pod
 external_ip="$(kubectl get svc cassandra -o jsonpath='{.status.loadBalancer.ingress[0].ip}')"
 while [ -z "$external_ip" ]

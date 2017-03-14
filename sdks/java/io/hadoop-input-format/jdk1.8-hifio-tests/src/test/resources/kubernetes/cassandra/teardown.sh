@@ -17,6 +17,6 @@
 #
 
 # Delete Cassandra services and Replication controller.
-kubectl delete -f cassandra_service.yml
-kubectl delete -f cassandra-peer-service.yml
+kubectl delete -f cassandra-service.yaml
+kubectl delete -f cassandra-peer-service.yaml
 kubectl delete rc cassandra
