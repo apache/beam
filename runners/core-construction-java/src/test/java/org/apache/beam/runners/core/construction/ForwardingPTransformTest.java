@@ -15,14 +15,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.direct;
+package org.apache.beam.runners.core.construction;
 
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertThat;
 import static org.mockito.Matchers.any;
-import static org.mockito.Mockito.doThrow;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -35,6 +32,7 @@ import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.mockito.Mock;
+import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 
 /**
@@ -63,10 +61,10 @@ public class ForwardingPTransformTest {
   @Test
   public void applyDelegates() {
     @SuppressWarnings("unchecked")
-    PCollection<Integer> collection = mock(PCollection.class);
+    PCollection<Integer> collection = Mockito.mock(PCollection.class);
     @SuppressWarnings("unchecked")
-    PCollection<String> output = mock(PCollection.class);
-    when(delegate.expand(collection)).thenReturn(output);
+    PCollection<String> output = Mockito.mock(PCollection.class);
+    Mockito.when(delegate.expand(collection)).thenReturn(output);
     PCollection<String> result = forwarding.expand(collection);
     assertThat(result, equalTo(output));
   }
@@ -74,15 +72,15 @@ public class ForwardingPTransformTest {
   @Test
   public void getNameDelegates() {
     String name = "My_forwardingptransform-name;for!thisTest";
-    when(delegate.getName()).thenReturn(name);
+    Mockito.when(delegate.getName()).thenReturn(name);
     assertThat(forwarding.getName(), equalTo(name));
   }
 
   @Test
   public void validateDelegates() {
     @SuppressWarnings("unchecked")
-    PCollection<Integer> input = mock(PCollection.class);
-    doThrow(RuntimeException.class).when(delegate).validate(input);
+    PCollection<Integer> input = Mockito.mock(PCollection.class);
+    Mockito.doThrow(RuntimeException.class).when(delegate).validate(input);
 
     thrown.expect(RuntimeException.class);
     forwarding.validate(input);
@@ -91,20 +89,21 @@ public class ForwardingPTransformTest {
   @Test
   public void getDefaultOutputCoderDelegates() throws Exception {
     @SuppressWarnings("unchecked")
-    PCollection<Integer> input = mock(PCollection.class);
+    PCollection<Integer> input = Mockito.mock(PCollection.class);
     @SuppressWarnings("unchecked")
-    PCollection<String> output = mock(PCollection.class);
+    PCollection<String> output = Mockito.mock(PCollection.class);
     @SuppressWarnings("unchecked")
-    Coder<String> outputCoder = mock(Coder.class);
+    Coder<String> outputCoder = Mockito.mock(Coder.class);
 
-    when(delegate.getDefaultOutputCoder(input, output)).thenReturn(outputCoder);
+    Mockito.when(delegate.getDefaultOutputCoder(input, output)).thenReturn(outputCoder);
     assertThat(forwarding.getDefaultOutputCoder(input, output), equalTo(outputCoder));
   }
 
   @Test
   public void populateDisplayDataDelegates() {
-    doThrow(RuntimeException.class)
-        .when(delegate).populateDisplayData(any(DisplayData.Builder.class));
+    Mockito.doThrow(RuntimeException.class)
+        .when(delegate)
+        .populateDisplayData(any(DisplayData.Builder.class));
 
     thrown.expect(RuntimeException.class);
     DisplayData.from(forwarding);
