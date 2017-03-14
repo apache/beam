@@ -58,10 +58,6 @@ and overrides the enforcer rules to allow 1.8 only behavior without making all o
                 <requireJavaVersion>
                   <version>[1.8,)</version>
                 </requireJavaVersion>
-                <requireMavenVersion>
-                  <!-- Keep aligned with preqrequisite section below. -->
-                  <version>[3.2,)</version>
-                </requireMavenVersion>
               </rules>
             </configuration>
           </execution>
