@@ -43,6 +43,7 @@ import org.apache.beam.sdk.transforms.display.HasDisplayData;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
+import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.util.TimeDomain;
 import org.apache.beam.sdk.util.Timer;
 import org.apache.beam.sdk.util.TimerSpec;
@@ -317,14 +318,20 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
   }
 
   /**
-   * Returns the allowed timestamp skew duration, which is the maximum
-   * duration that timestamps can be shifted backward in
-   * {@link DoFn.Context#outputWithTimestamp}.
+   * Returns the allowed timestamp skew duration, which is the maximum duration that timestamps can
+   * be shifted backward in {@link DoFn.Context#outputWithTimestamp}.
    *
-   * <p>The default value is {@code Duration.ZERO}, in which case
-   * timestamps can only be shifted forward to future.  For infinite
-   * skew, return {@code Duration.millis(Long.MAX_VALUE)}.
+   * <p>The default value is {@code Duration.ZERO}, in which case timestamps can only be shifted
+   * forward to future. For infinite skew, return {@code Duration.millis(Long.MAX_VALUE)}.
+   *
+   * @deprecated This method permits a {@link DoFn} to emit elements behind the watermark. These
+   *     elements are considered late, and if behind the
+   *     {@link Window#withAllowedLateness(Duration) allowed lateness} of a downstream
+   *     {@link PCollection} may be silently dropped. See
+   *     https://issues.apache.org/jira/browse/BEAM-644 for details on a replacement.
+   *
    */
+  @Deprecated
   public Duration getAllowedTimestampSkew() {
     return Duration.ZERO;
   }
