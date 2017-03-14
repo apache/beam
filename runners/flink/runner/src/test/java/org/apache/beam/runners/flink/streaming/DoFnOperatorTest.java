@@ -30,6 +30,7 @@ import com.google.common.collect.ImmutableMap;
 import java.util.Collections;
 import java.util.HashMap;
 import javax.annotation.Nullable;
+import org.apache.beam.runners.core.StatefulDoFnRunner;
 import org.apache.beam.runners.flink.FlinkPipelineOptions;
 import org.apache.beam.runners.flink.translation.types.CoderTypeInformation;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.DoFnOperator;
@@ -276,7 +277,7 @@ public class DoFnOperatorTest {
   public void testStateGCForStatefulFn() throws Exception {
 
     WindowingStrategy<Object, IntervalWindow> windowingStrategy =
-        WindowingStrategy.of(FixedWindows.of(new Duration(10)));
+        WindowingStrategy.of(FixedWindows.of(new Duration(10))).withAllowedLateness(Duration.ZERO);
 
     final String timerId = "boo";
     final String stateId = "dazzle";
@@ -378,7 +379,11 @@ public class DoFnOperatorTest {
 
     // this should trigger both the window.maxTimestamp() timer and the GC timer
     // this tests that the GC timer fires after the user timer
-    testHarness.processWatermark(15);
+    testHarness.processWatermark(
+        window1.maxTimestamp()
+            .plus(windowingStrategy.getAllowedLateness())
+            .plus(StatefulDoFnRunner.TimeInternalsCleanupTimer.GC_DELAY_MS)
+            .getMillis());
 
     assertThat(
         this.<KV<String, Integer>>stripStreamRecordFromWindowedValue(testHarness.getOutput()),
