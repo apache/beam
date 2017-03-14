@@ -706,7 +706,7 @@ public class DatastoreV1 {
      */
     public Write withProjectId(String projectId) {
       checkNotNull(projectId, "projectId");
-      return new Write(projectId, null);
+      return new Write(projectId, getLocalhost());
     }
 
     /**
@@ -715,7 +715,7 @@ public class DatastoreV1 {
      */
     public Write withLocalhost(String localhost) {
       checkNotNull(localhost, "localhost");
-      return new Write(null, localhost);
+      return new Write(getProjectId(), localhost);
     }
   }
 
