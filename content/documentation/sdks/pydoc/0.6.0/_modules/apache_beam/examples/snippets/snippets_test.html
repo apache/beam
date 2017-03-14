@@ -1,0 +1,994 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>apache_beam.examples.snippets.snippets_test &#8212; Apache Beam  documentation</title>
+    
+    <link rel="stylesheet" href="../../../../_static/sphinxdoc.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../../',
+        VERSION:     '',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" /> 
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../../index.html" accesskey="U">Module code</a> &#187;</li> 
+      </ul>
+    </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../../../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for apache_beam.examples.snippets.snippets_test</h1><div class="highlight"><pre>
+<span></span><span class="c1">#</span>
+<span class="c1"># Licensed to the Apache Software Foundation (ASF) under one or more</span>
+<span class="c1"># contributor license agreements.  See the NOTICE file distributed with</span>
+<span class="c1"># this work for additional information regarding copyright ownership.</span>
+<span class="c1"># The ASF licenses this file to You under the Apache License, Version 2.0</span>
+<span class="c1"># (the &quot;License&quot;); you may not use this file except in compliance with</span>
+<span class="c1"># the License.  You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1">#    http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.</span>
+<span class="c1"># See the License for the specific language governing permissions and</span>
+<span class="c1"># limitations under the License.</span>
+<span class="c1">#</span>
+
+<span class="sd">&quot;&quot;&quot;Tests for all code snippets used in public docs.&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">glob</span>
+<span class="kn">import</span> <span class="nn">gzip</span>
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">tempfile</span>
+<span class="kn">import</span> <span class="nn">unittest</span>
+<span class="kn">import</span> <span class="nn">uuid</span>
+
+<span class="kn">import</span> <span class="nn">apache_beam</span> <span class="k">as</span> <span class="nn">beam</span>
+<span class="kn">from</span> <span class="nn">apache_beam</span> <span class="k">import</span> <span class="n">coders</span>
+<span class="kn">from</span> <span class="nn">apache_beam</span> <span class="k">import</span> <span class="n">pvalue</span>
+<span class="kn">from</span> <span class="nn">apache_beam</span> <span class="k">import</span> <span class="n">typehints</span>
+<span class="kn">from</span> <span class="nn">apache_beam.transforms.util</span> <span class="k">import</span> <span class="n">assert_that</span>
+<span class="kn">from</span> <span class="nn">apache_beam.transforms.util</span> <span class="k">import</span> <span class="n">equal_to</span>
+<span class="kn">from</span> <span class="nn">apache_beam.utils.pipeline_options</span> <span class="k">import</span> <span class="n">TypeOptions</span>
+<span class="kn">from</span> <span class="nn">apache_beam.examples.snippets</span> <span class="k">import</span> <span class="n">snippets</span>
+
+<span class="c1"># pylint: disable=expression-not-assigned</span>
+<span class="kn">from</span> <span class="nn">apache_beam.test_pipeline</span> <span class="k">import</span> <span class="n">TestPipeline</span>
+
+<span class="c1"># Protect against environments where apitools library is not available.</span>
+<span class="c1"># pylint: disable=wrong-import-order, wrong-import-position</span>
+<span class="k">try</span><span class="p">:</span>
+  <span class="kn">from</span> <span class="nn">apitools.base.py</span> <span class="k">import</span> <span class="n">base_api</span>
+<span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
+  <span class="n">base_api</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="c1"># pylint: enable=wrong-import-order, wrong-import-position</span>
+
+<span class="c1"># Protect against environments where datastore library is not available.</span>
+<span class="c1"># pylint: disable=wrong-import-order, wrong-import-position</span>
+<span class="k">try</span><span class="p">:</span>
+  <span class="kn">from</span> <span class="nn">google.cloud.proto.datastore.v1</span> <span class="k">import</span> <span class="n">datastore_pb2</span>
+<span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
+  <span class="n">datastore_pb2</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="c1"># pylint: enable=wrong-import-order, wrong-import-position</span>
+
+
+<div class="viewcode-block" id="ParDoTest"><a class="viewcode-back" href="../../../../apache_beam.examples.snippets.html#apache_beam.examples.snippets.snippets_test.ParDoTest">[docs]</a><span class="k">class</span> <span class="nc">ParDoTest</span><span class="p">(</span><span class="n">unittest</span><span class="o">.</span><span class="n">TestCase</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Tests for model/par-do.&quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="ParDoTest.test_pardo"><a class="viewcode-back" href="../../../../apache_beam.examples.snippets.html#apache_beam.examples.snippets.snippets_test.ParDoTest.test_pardo">[docs]</a>  <span class="k">def</span> <span class="nf">test_pardo</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="c1"># Note: &quot;words&quot; and &quot;ComputeWordLengthFn&quot; are referenced by name in</span>
+    <span class="c1"># the text of the doc.</span>
+
+    <span class="n">words</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;aa&#39;</span><span class="p">,</span> <span class="s1">&#39;bbb&#39;</span><span class="p">,</span> <span class="s1">&#39;c&#39;</span><span class="p">]</span>
+
+    <span class="c1"># [START model_pardo_pardo]</span>
+    <span class="k">class</span> <span class="nc">ComputeWordLengthFn</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">DoFn</span><span class="p">):</span>
+      <span class="k">def</span> <span class="nf">process</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">element</span><span class="p">):</span>
+        <span class="k">return</span> <span class="p">[</span><span class="nb">len</span><span class="p">(</span><span class="n">element</span><span class="p">)]</span>
+    <span class="c1"># [END model_pardo_pardo]</span>
+
+    <span class="c1"># [START model_pardo_apply]</span>
+    <span class="c1"># Apply a ParDo to the PCollection &quot;words&quot; to compute lengths for each word.</span>
+    <span class="n">word_lengths</span> <span class="o">=</span> <span class="n">words</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">ParDo</span><span class="p">(</span><span class="n">ComputeWordLengthFn</span><span class="p">())</span>
+    <span class="c1"># [END model_pardo_apply]</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">({</span><span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">1</span><span class="p">},</span> <span class="nb">set</span><span class="p">(</span><span class="n">word_lengths</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="ParDoTest.test_pardo_yield"><a class="viewcode-back" href="../../../../apache_beam.examples.snippets.html#apache_beam.examples.snippets.snippets_test.ParDoTest.test_pardo_yield">[docs]</a>  <span class="k">def</span> <span class="nf">test_pardo_yield</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">words</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;aa&#39;</span><span class="p">,</span> <span class="s1">&#39;bbb&#39;</span><span class="p">,</span> <span class="s1">&#39;c&#39;</span><span class="p">]</span>
+
+    <span class="c1"># [START model_pardo_yield]</span>
+    <span class="k">class</span> <span class="nc">ComputeWordLengthFn</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">DoFn</span><span class="p">):</span>
+      <span class="k">def</span> <span class="nf">process</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">element</span><span class="p">):</span>
+        <span class="k">yield</span> <span class="nb">len</span><span class="p">(</span><span class="n">element</span><span class="p">)</span>
+    <span class="c1"># [END model_pardo_yield]</span>
+
+    <span class="n">word_lengths</span> <span class="o">=</span> <span class="n">words</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">ParDo</span><span class="p">(</span><span class="n">ComputeWordLengthFn</span><span class="p">())</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">({</span><span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">1</span><span class="p">},</span> <span class="nb">set</span><span class="p">(</span><span class="n">word_lengths</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="ParDoTest.test_pardo_using_map"><a class="viewcode-back" href="../../../../apache_beam.examples.snippets.html#apache_beam.examples.snippets.snippets_test.ParDoTest.test_pardo_using_map">[docs]</a>  <span class="k">def</span> <span class="nf">test_pardo_using_map</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">words</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;aa&#39;</span><span class="p">,</span> <span class="s1">&#39;bbb&#39;</span><span class="p">,</span> <span class="s1">&#39;c&#39;</span><span class="p">]</span>
+    <span class="c1"># [START model_pardo_using_map]</span>
+    <span class="n">word_lengths</span> <span class="o">=</span> <span class="n">words</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="nb">len</span><span class="p">)</span>
+    <span class="c1"># [END model_pardo_using_map]</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">({</span><span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">1</span><span class="p">},</span> <span class="nb">set</span><span class="p">(</span><span class="n">word_lengths</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="ParDoTest.test_pardo_using_flatmap"><a class="viewcode-back" href="../../../../apache_beam.examples.snippets.html#apache_beam.examples.snippets.snippets_test.ParDoTest.test_pardo_using_flatmap">[docs]</a>  <span class="k">def</span> <span class="nf">test_pardo_using_flatmap</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">words</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;aa&#39;</span><span class="p">,</span> <span class="s1">&#39;bbb&#39;</span><span class="p">,</span> <span class="s1">&#39;c&#39;</span><span class="p">]</span>
+    <span class="c1"># [START model_pardo_using_flatmap]</span>
+    <span class="n">word_lengths</span> <span class="o">=</span> <span class="n">words</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">FlatMap</span><span class="p">(</span><span class="k">lambda</span> <span class="n">word</span><span class="p">:</span> <span class="p">[</span><span class="nb">len</span><span class="p">(</span><span class="n">word</span><span class="p">)])</span>
+    <span class="c1"># [END model_pardo_using_flatmap]</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">({</span><span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">1</span><span class="p">},</span> <span class="nb">set</span><span class="p">(</span><span class="n">word_lengths</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="ParDoTest.test_pardo_using_flatmap_yield"><a class="viewcode-back" href="../../../../apache_beam.examples.snippets.html#apache_beam.examples.snippets.snippets_test.ParDoTest.test_pardo_using_flatmap_yield">[docs]</a>  <span class="k">def</span> <span class="nf">test_pardo_using_flatmap_yield</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">words</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;aA&#39;</span><span class="p">,</span> <span class="s1">&#39;bbb&#39;</span><span class="p">,</span> <span class="s1">&#39;C&#39;</span><span class="p">]</span>
+
+    <span class="c1"># [START model_pardo_using_flatmap_yield]</span>
+    <span class="k">def</span> <span class="nf">capitals</span><span class="p">(</span><span class="n">word</span><span class="p">):</span>
+      <span class="k">for</span> <span class="n">letter</span> <span class="ow">in</span> <span class="n">word</span><span class="p">:</span>
+        <span class="k">if</span> <span class="s1">&#39;A&#39;</span> <span class="o">&lt;=</span> <span class="n">letter</span> <span class="o">&lt;=</span> <span class="s1">&#39;Z&#39;</span><span class="p">:</span>
+          <span class="k">yield</span> <span class="n">letter</span>
+    <span class="n">all_capitals</span> <span class="o">=</span> <span class="n">words</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">FlatMap</span><span class="p">(</span><span class="n">capitals</span><span class="p">)</span>
+    <span class="c1"># [END model_pardo_using_flatmap_yield]</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">({</span><span class="s1">&#39;A&#39;</span><span class="p">,</span> <span class="s1">&#39;C&#39;</span><span class="p">},</span> <span class="nb">set</span><span class="p">(</span><span class="n">all_capitals</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="ParDoTest.test_pardo_with_label"><a class="viewcode-back" href="../../../../apache_beam.examples.snippets.html#apache_beam.examples.snippets.snippets_test.ParDoTest.test_pardo_with_label">[docs]</a>  <span class="k">def</span> <span class="nf">test_pardo_with_label</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="c1"># pylint: disable=line-too-long</span>
+    <span class="n">words</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;aa&#39;</span><span class="p">,</span> <span class="s1">&#39;bbc&#39;</span><span class="p">,</span> <span class="s1">&#39;defg&#39;</span><span class="p">]</span>
+    <span class="c1"># [START model_pardo_with_label]</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="n">words</span> <span class="o">|</span> <span class="s1">&#39;CountUniqueLetters&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span>
+        <span class="k">lambda</span> <span class="n">word</span><span class="p">:</span> <span class="nb">len</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">word</span><span class="p">)))</span>
+    <span class="c1"># [END model_pardo_with_label]</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">({</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">4</span><span class="p">},</span> <span class="nb">set</span><span class="p">(</span><span class="n">result</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="ParDoTest.test_pardo_side_input"><a class="viewcode-back" href="../../../../apache_beam.examples.snippets.html#apache_beam.examples.snippets.snippets_test.ParDoTest.test_pardo_side_input">[docs]</a>  <span class="k">def</span> <span class="nf">test_pardo_side_input</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">p</span> <span class="o">=</span> <span class="n">TestPipeline</span><span class="p">()</span>
+    <span class="n">words</span> <span class="o">=</span> <span class="n">p</span> <span class="o">|</span> <span class="s1">&#39;start&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">([</span><span class="s1">&#39;a&#39;</span><span class="p">,</span> <span class="s1">&#39;bb&#39;</span><span class="p">,</span> <span class="s1">&#39;ccc&#39;</span><span class="p">,</span> <span class="s1">&#39;dddd&#39;</span><span class="p">])</span>
+
+    <span class="c1"># [START model_pardo_side_input]</span>
+    <span class="c1"># Callable takes additional arguments.</span>
+    <span class="k">def</span> <span class="nf">filter_using_length</span><span class="p">(</span><span class="n">word</span><span class="p">,</span> <span class="n">lower_bound</span><span class="p">,</span> <span class="n">upper_bound</span><span class="o">=</span><span class="nb">float</span><span class="p">(</span><span class="s1">&#39;inf&#39;</span><span class="p">)):</span>
+      <span class="k">if</span> <span class="n">lower_bound</span> <span class="o">&lt;=</span> <span class="nb">len</span><span class="p">(</span><span class="n">word</span><span class="p">)</span> <span class="o">&lt;=</span> <span class="n">upper_bound</span><span class="p">:</span>
+        <span class="k">yield</span> <span class="n">word</span>
+
+    <span class="c1"># Construct a deferred side input.</span>
+    <span class="n">avg_word_len</span> <span class="o">=</span> <span class="p">(</span><span class="n">words</span>
+                    <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="nb">len</span><span class="p">)</span>
+                    <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">CombineGlobally</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">combiners</span><span class="o">.</span><span class="n">MeanCombineFn</span><span class="p">()))</span>
+
+    <span class="c1"># Call with explicit side inputs.</span>
+    <span class="n">small_words</span> <span class="o">=</span> <span class="n">words</span> <span class="o">|</span> <span class="s1">&#39;small&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">FlatMap</span><span class="p">(</span><span class="n">filter_using_length</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">3</span><span class="p">)</span>
+
+    <span class="c1"># A single deferred side input.</span>
+    <span class="n">larger_than_average</span> <span class="o">=</span> <span class="p">(</span><span class="n">words</span> <span class="o">|</span> <span class="s1">&#39;large&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">FlatMap</span><span class="p">(</span>
+        <span class="n">filter_using_length</span><span class="p">,</span>
+        <span class="n">lower_bound</span><span class="o">=</span><span class="n">pvalue</span><span class="o">.</span><span class="n">AsSingleton</span><span class="p">(</span><span class="n">avg_word_len</span><span class="p">)))</span>
+
+    <span class="c1"># Mix and match.</span>
+    <span class="n">small_but_nontrivial</span> <span class="o">=</span> <span class="n">words</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">FlatMap</span><span class="p">(</span><span class="n">filter_using_length</span><span class="p">,</span>
+                                                <span class="n">lower_bound</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
+                                                <span class="n">upper_bound</span><span class="o">=</span><span class="n">pvalue</span><span class="o">.</span><span class="n">AsSingleton</span><span class="p">(</span>
+                                                    <span class="n">avg_word_len</span><span class="p">))</span>
+    <span class="c1"># [END model_pardo_side_input]</span>
+
+    <span class="n">beam</span><span class="o">.</span><span class="n">assert_that</span><span class="p">(</span><span class="n">small_words</span><span class="p">,</span> <span class="n">beam</span><span class="o">.</span><span class="n">equal_to</span><span class="p">([</span><span class="s1">&#39;a&#39;</span><span class="p">,</span> <span class="s1">&#39;bb&#39;</span><span class="p">,</span> <span class="s1">&#39;ccc&#39;</span><span class="p">]))</span>
+    <span class="n">beam</span><span class="o">.</span><span class="n">assert_that</span><span class="p">(</span><span class="n">larger_than_average</span><span class="p">,</span> <span class="n">beam</span><span class="o">.</span><span class="n">equal_to</span><span class="p">([</span><span class="s1">&#39;ccc&#39;</span><span class="p">,</span> <span class="s1">&#39;dddd&#39;</span><span class="p">]),</span>
+                     <span class="n">label</span><span class="o">=</span><span class="s1">&#39;larger_than_average&#39;</span><span class="p">)</span>
+    <span class="n">beam</span><span class="o">.</span><span class="n">assert_that</span><span class="p">(</span><span class="n">small_but_nontrivial</span><span class="p">,</span> <span class="n">beam</span><span class="o">.</span><span class="n">equal_to</span><span class="p">([</span><span class="s1">&#39;bb&#39;</span><span class="p">]),</span>
+                     <span class="n">label</span><span class="o">=</span><span class="s1">&#39;small_but_not_trivial&#39;</span><span class="p">)</span>
+    <span class="n">p</span><span class="o">.</span><span class="n">run</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="ParDoTest.test_pardo_side_input_dofn"><a class="viewcode-back" href="../../../../apache_beam.examples.snippets.html#apache_beam.examples.snippets.snippets_test.ParDoTest.test_pardo_side_input_dofn">[docs]</a>  <span class="k">def</span> <span class="nf">test_pardo_side_input_dofn</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">words</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;a&#39;</span><span class="p">,</span> <span class="s1">&#39;bb&#39;</span><span class="p">,</span> <span class="s1">&#39;ccc&#39;</span><span class="p">,</span> <span class="s1">&#39;dddd&#39;</span><span class="p">]</span>
+
+    <span class="c1"># [START model_pardo_side_input_dofn]</span>
+    <span class="k">class</span> <span class="nc">FilterUsingLength</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">DoFn</span><span class="p">):</span>
+      <span class="k">def</span> <span class="nf">process</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">element</span><span class="p">,</span> <span class="n">lower_bound</span><span class="p">,</span> <span class="n">upper_bound</span><span class="o">=</span><span class="nb">float</span><span class="p">(</span><span class="s1">&#39;inf&#39;</span><span class="p">)):</span>
+        <span class="k">if</span> <span class="n">lower_bound</span> <span class="o">&lt;=</span> <span class="nb">len</span><span class="p">(</span><span class="n">element</span><span class="p">)</span> <span class="o">&lt;=</span> <span class="n">upper_bound</span><span class="p">:</span>
+          <span class="k">yield</span> <span class="n">element</span>
+
+    <span class="n">small_words</span> <span class="o">=</span> <span class="n">words</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">ParDo</span><span class="p">(</span><span class="n">FilterUsingLength</span><span class="p">(),</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">3</span><span class="p">)</span>
+    <span class="c1"># [END model_pardo_side_input_dofn]</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">({</span><span class="s1">&#39;a&#39;</span><span class="p">,</span> <span class="s1">&#39;bb&#39;</span><span class="p">,</span> <span class="s1">&#39;ccc&#39;</span><span class="p">},</span> <span class="nb">set</span><span class="p">(</span><span class="n">small_words</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="ParDoTest.test_pardo_with_side_outputs"><a class="viewcode-back" href="../../../../apache_beam.examples.snippets.html#apache_beam.examples.snippets.snippets_test.ParDoTest.test_pardo_with_side_outputs">[docs]</a>  <span class="k">def</span> <span class="nf">test_pardo_with_side_outputs</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="c1"># [START model_pardo_emitting_values_on_side_outputs]</span>
+    <span class="k">class</span> <span class="nc">ProcessWords</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">DoFn</span><span class="p">):</span>
+
+      <span class="k">def</span> <span class="nf">process</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">element</span><span class="p">,</span> <span class="n">cutoff_length</span><span class="p">,</span> <span class="n">marker</span><span class="p">):</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">element</span><span class="p">)</span> <span class="o">&lt;=</span> <span class="n">cutoff_length</span><span class="p">:</span>
+          <span class="c1"># Emit this short word to the main output.</span>
+          <span class="k">yield</span> <span class="n">element</span>
+        <span class="k">else</span><span class="p">:</span>
+          <span class="c1"># Emit this word&#39;s long length to a side output.</span>
+          <span class="k">yield</span> <span class="n">pvalue</span><span class="o">.</span><span class="n">SideOutputValue</span><span class="p">(</span>
+              <span class="s1">&#39;above_cutoff_lengths&#39;</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">element</span><span class="p">))</span>
+        <span class="k">if</span> <span class="n">element</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="n">marker</span><span class="p">):</span>
+          <span class="c1"># Emit this word to a different side output.</span>
+          <span class="k">yield</span> <span class="n">pvalue</span><span class="o">.</span><span class="n">SideOutputValue</span><span class="p">(</span><span class="s1">&#39;marked strings&#39;</span><span class="p">,</span> <span class="n">element</span><span class="p">)</span>
+    <span class="c1"># [END model_pardo_emitting_values_on_side_outputs]</span>
+
+    <span class="n">words</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;a&#39;</span><span class="p">,</span> <span class="s1">&#39;an&#39;</span><span class="p">,</span> <span class="s1">&#39;the&#39;</span><span class="p">,</span> <span class="s1">&#39;music&#39;</span><span class="p">,</span> <span class="s1">&#39;xyz&#39;</span><span class="p">]</span>
+
+    <span class="c1"># [START model_pardo_with_side_outputs]</span>
+    <span class="n">results</span> <span class="o">=</span> <span class="p">(</span><span class="n">words</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">ParDo</span><span class="p">(</span><span class="n">ProcessWords</span><span class="p">(),</span> <span class="n">cutoff_length</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">marker</span><span class="o">=</span><span class="s1">&#39;x&#39;</span><span class="p">)</span>
+               <span class="o">.</span><span class="n">with_outputs</span><span class="p">(</span><span class="s1">&#39;above_cutoff_lengths&#39;</span><span class="p">,</span> <span class="s1">&#39;marked strings&#39;</span><span class="p">,</span>
+                             <span class="n">main</span><span class="o">=</span><span class="s1">&#39;below_cutoff_strings&#39;</span><span class="p">))</span>
+    <span class="n">below</span> <span class="o">=</span> <span class="n">results</span><span class="o">.</span><span class="n">below_cutoff_strings</span>
+    <span class="n">above</span> <span class="o">=</span> <span class="n">results</span><span class="o">.</span><span class="n">above_cutoff_lengths</span>
+    <span class="n">marked</span> <span class="o">=</span> <span class="n">results</span><span class="p">[</span><span class="s1">&#39;marked strings&#39;</span><span class="p">]</span>  <span class="c1"># indexing works as well</span>
+    <span class="c1"># [END model_pardo_with_side_outputs]</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">({</span><span class="s1">&#39;a&#39;</span><span class="p">,</span> <span class="s1">&#39;an&#39;</span><span class="p">},</span> <span class="nb">set</span><span class="p">(</span><span class="n">below</span><span class="p">))</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">({</span><span class="mi">3</span><span class="p">,</span> <span class="mi">5</span><span class="p">},</span> <span class="nb">set</span><span class="p">(</span><span class="n">above</span><span class="p">))</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">({</span><span class="s1">&#39;xyz&#39;</span><span class="p">},</span> <span class="nb">set</span><span class="p">(</span><span class="n">marked</span><span class="p">))</span>
+
+    <span class="c1"># [START model_pardo_with_side_outputs_iter]</span>
+    <span class="n">below</span><span class="p">,</span> <span class="n">above</span><span class="p">,</span> <span class="n">marked</span> <span class="o">=</span> <span class="p">(</span><span class="n">words</span>
+                            <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">ParDo</span><span class="p">(</span>
+                                <span class="n">ProcessWords</span><span class="p">(),</span> <span class="n">cutoff_length</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">marker</span><span class="o">=</span><span class="s1">&#39;x&#39;</span><span class="p">)</span>
+                            <span class="o">.</span><span class="n">with_outputs</span><span class="p">(</span><span class="s1">&#39;above_cutoff_lengths&#39;</span><span class="p">,</span>
+                                          <span class="s1">&#39;marked strings&#39;</span><span class="p">,</span>
+                                          <span class="n">main</span><span class="o">=</span><span class="s1">&#39;below_cutoff_strings&#39;</span><span class="p">))</span>
+    <span class="c1"># [END model_pardo_with_side_outputs_iter]</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">({</span><span class="s1">&#39;a&#39;</span><span class="p">,</span> <span class="s1">&#39;an&#39;</span><span class="p">},</span> <span class="nb">set</span><span class="p">(</span><span class="n">below</span><span class="p">))</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">({</span><span class="mi">3</span><span class="p">,</span> <span class="mi">5</span><span class="p">},</span> <span class="nb">set</span><span class="p">(</span><span class="n">above</span><span class="p">))</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">({</span><span class="s1">&#39;xyz&#39;</span><span class="p">},</span> <span class="nb">set</span><span class="p">(</span><span class="n">marked</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="ParDoTest.test_pardo_with_undeclared_side_outputs"><a class="viewcode-back" href="../../../../apache_beam.examples.snippets.html#apache_beam.examples.snippets.snippets_test.ParDoTest.test_pardo_with_undeclared_side_outputs">[docs]</a>  <span class="k">def</span> <span class="nf">test_pardo_with_undeclared_side_outputs</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">numbers</span> <span class="o">=</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="mi">10</span><span class="p">,</span> <span class="mi">20</span><span class="p">]</span>
+
+    <span class="c1"># [START model_pardo_with_side_outputs_undeclared]</span>
+    <span class="k">def</span> <span class="nf">even_odd</span><span class="p">(</span><span class="n">x</span><span class="p">):</span>
+      <span class="k">yield</span> <span class="n">pvalue</span><span class="o">.</span><span class="n">SideOutputValue</span><span class="p">(</span><span class="s1">&#39;odd&#39;</span> <span class="k">if</span> <span class="n">x</span> <span class="o">%</span> <span class="mi">2</span> <span class="k">else</span> <span class="s1">&#39;even&#39;</span><span class="p">,</span> <span class="n">x</span><span class="p">)</span>
+      <span class="k">if</span> <span class="n">x</span> <span class="o">%</span> <span class="mi">10</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="k">yield</span> <span class="n">x</span>
+
+    <span class="n">results</span> <span class="o">=</span> <span class="n">numbers</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">FlatMap</span><span class="p">(</span><span class="n">even_odd</span><span class="p">)</span><span class="o">.</span><span class="n">with_outputs</span><span class="p">()</span>
+
+    <span class="n">evens</span> <span class="o">=</span> <span class="n">results</span><span class="o">.</span><span class="n">even</span>
+    <span class="n">odds</span> <span class="o">=</span> <span class="n">results</span><span class="o">.</span><span class="n">odd</span>
+    <span class="n">tens</span> <span class="o">=</span> <span class="n">results</span><span class="p">[</span><span class="kc">None</span><span class="p">]</span>  <span class="c1"># the undeclared main output</span>
+    <span class="c1"># [END model_pardo_with_side_outputs_undeclared]</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">({</span><span class="mi">2</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">10</span><span class="p">,</span> <span class="mi">20</span><span class="p">},</span> <span class="nb">set</span><span class="p">(</span><span class="n">evens</span><span class="p">))</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">({</span><span class="mi">1</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">5</span><span class="p">},</span> <span class="nb">set</span><span class="p">(</span><span class="n">odds</span><span class="p">))</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">({</span><span class="mi">10</span><span class="p">,</span> <span class="mi">20</span><span class="p">},</span> <span class="nb">set</span><span class="p">(</span><span class="n">tens</span><span class="p">))</span></div></div>
+
+
+<div class="viewcode-block" id="TypeHintsTest"><a class="viewcode-back" href="../../../../apache_beam.examples.snippets.html#apache_beam.examples.snippets.snippets_test.TypeHintsTest">[docs]</a><span class="k">class</span> <span class="nc">TypeHintsTest</span><span class="p">(</span><span class="n">unittest</span><span class="o">.</span><span class="n">TestCase</span><span class="p">):</span>
+
+<div class="viewcode-block" id="TypeHintsTest.test_bad_types"><a class="viewcode-back" href="../../../../apache_beam.examples.snippets.html#apache_beam.examples.snippets.snippets_test.TypeHintsTest.test_bad_types">[docs]</a>  <span class="k">def</span> <span class="nf">test_bad_types</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">p</span> <span class="o">=</span> <span class="n">TestPipeline</span><span class="p">()</span>
+    <span class="n">evens</span> <span class="o">=</span> <span class="kc">None</span>  <span class="c1"># pylint: disable=unused-variable</span>
+
+    <span class="c1"># [START type_hints_missing_define_numbers]</span>
+    <span class="n">numbers</span> <span class="o">=</span> <span class="n">p</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">([</span><span class="s1">&#39;1&#39;</span><span class="p">,</span> <span class="s1">&#39;2&#39;</span><span class="p">,</span> <span class="s1">&#39;3&#39;</span><span class="p">])</span>
+    <span class="c1"># [END type_hints_missing_define_numbers]</span>
+
+    <span class="c1"># Consider the following code.</span>
+    <span class="c1"># pylint: disable=expression-not-assigned</span>
+    <span class="c1"># pylint: disable=unused-variable</span>
+    <span class="c1"># [START type_hints_missing_apply]</span>
+    <span class="n">evens</span> <span class="o">=</span> <span class="n">numbers</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Filter</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span> <span class="o">%</span> <span class="mi">2</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span>
+    <span class="c1"># [END type_hints_missing_apply]</span>
+
+    <span class="c1"># Now suppose numbers was defined as [snippet above].</span>
+    <span class="c1"># When running this pipeline, you&#39;d get a runtime error,</span>
+    <span class="c1"># possibly on a remote machine, possibly very late.</span>
+
+    <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">TypeError</span><span class="p">):</span>
+      <span class="n">p</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
+
+    <span class="c1"># To catch this early, we can assert what types we expect.</span>
+    <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="n">typehints</span><span class="o">.</span><span class="n">TypeCheckError</span><span class="p">):</span>
+      <span class="c1"># [START type_hints_takes]</span>
+      <span class="n">p</span><span class="o">.</span><span class="n">options</span><span class="o">.</span><span class="n">view_as</span><span class="p">(</span><span class="n">TypeOptions</span><span class="p">)</span><span class="o">.</span><span class="n">pipeline_type_check</span> <span class="o">=</span> <span class="kc">True</span>
+      <span class="n">evens</span> <span class="o">=</span> <span class="n">numbers</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Filter</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span> <span class="o">%</span> <span class="mi">2</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">with_input_types</span><span class="p">(</span><span class="nb">int</span><span class="p">)</span>
+      <span class="c1"># [END type_hints_takes]</span>
+
+    <span class="c1"># Type hints can be declared on DoFns and callables as well, rather</span>
+    <span class="c1"># than where they&#39;re used, to be more self contained.</span>
+    <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="n">typehints</span><span class="o">.</span><span class="n">TypeCheckError</span><span class="p">):</span>
+      <span class="c1"># [START type_hints_do_fn]</span>
+      <span class="nd">@beam</span><span class="o">.</span><span class="n">typehints</span><span class="o">.</span><span class="n">with_input_types</span><span class="p">(</span><span class="nb">int</span><span class="p">)</span>
+      <span class="k">class</span> <span class="nc">FilterEvensDoFn</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">DoFn</span><span class="p">):</span>
+        <span class="k">def</span> <span class="nf">process</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">element</span><span class="p">):</span>
+          <span class="k">if</span> <span class="n">element</span> <span class="o">%</span> <span class="mi">2</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">yield</span> <span class="n">element</span>
+      <span class="n">evens</span> <span class="o">=</span> <span class="n">numbers</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">ParDo</span><span class="p">(</span><span class="n">FilterEvensDoFn</span><span class="p">())</span>
+      <span class="c1"># [END type_hints_do_fn]</span>
+
+    <span class="n">words</span> <span class="o">=</span> <span class="n">p</span> <span class="o">|</span> <span class="s1">&#39;words&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">([</span><span class="s1">&#39;a&#39;</span><span class="p">,</span> <span class="s1">&#39;bb&#39;</span><span class="p">,</span> <span class="s1">&#39;c&#39;</span><span class="p">])</span>
+    <span class="c1"># One can assert outputs and apply them to transforms as well.</span>
+    <span class="c1"># Helps document the contract and checks it at pipeline construction time.</span>
+    <span class="c1"># [START type_hints_transform]</span>
+    <span class="n">T</span> <span class="o">=</span> <span class="n">beam</span><span class="o">.</span><span class="n">typehints</span><span class="o">.</span><span class="n">TypeVariable</span><span class="p">(</span><span class="s1">&#39;T&#39;</span><span class="p">)</span>
+
+    <span class="nd">@beam</span><span class="o">.</span><span class="n">typehints</span><span class="o">.</span><span class="n">with_input_types</span><span class="p">(</span><span class="n">T</span><span class="p">)</span>
+    <span class="nd">@beam</span><span class="o">.</span><span class="n">typehints</span><span class="o">.</span><span class="n">with_output_types</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">typehints</span><span class="o">.</span><span class="n">Tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="n">T</span><span class="p">])</span>
+    <span class="k">class</span> <span class="nc">MyTransform</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">PTransform</span><span class="p">):</span>
+      <span class="k">def</span> <span class="nf">expand</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pcoll</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">pcoll</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">x</span><span class="p">),</span> <span class="n">x</span><span class="p">))</span>
+
+    <span class="n">words_with_lens</span> <span class="o">=</span> <span class="n">words</span> <span class="o">|</span> <span class="n">MyTransform</span><span class="p">()</span>
+    <span class="c1"># [END type_hints_transform]</span>
+
+    <span class="c1"># pylint: disable=expression-not-assigned</span>
+    <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="n">typehints</span><span class="o">.</span><span class="n">TypeCheckError</span><span class="p">):</span>
+      <span class="n">words_with_lens</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="p">)</span><span class="o">.</span><span class="n">with_input_types</span><span class="p">(</span>
+          <span class="n">beam</span><span class="o">.</span><span class="n">typehints</span><span class="o">.</span><span class="n">Tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">])</span></div>
+
+<div class="viewcode-block" id="TypeHintsTest.test_runtime_checks_off"><a class="viewcode-back" href="../../../../apache_beam.examples.snippets.html#apache_beam.examples.snippets.snippets_test.TypeHintsTest.test_runtime_checks_off">[docs]</a>  <span class="k">def</span> <span class="nf">test_runtime_checks_off</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="c1"># pylint: disable=expression-not-assigned</span>
+    <span class="n">p</span> <span class="o">=</span> <span class="n">TestPipeline</span><span class="p">()</span>
+    <span class="c1"># [START type_hints_runtime_off]</span>
+    <span class="n">p</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">([</span><span class="s1">&#39;a&#39;</span><span class="p">])</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="mi">3</span><span class="p">)</span><span class="o">.</span><span class="n">with_output_types</span><span class="p">(</span><span class="nb">str</span><span class="p">)</span>
+    <span class="n">p</span><span class="o">.</span><span class="n">run</span><span class="p">()</span></div>
+    <span class="c1"># [END type_hints_runtime_off]</span>
+
+<div class="viewcode-block" id="TypeHintsTest.test_runtime_checks_on"><a class="viewcode-back" href="../../../../apache_beam.examples.snippets.html#apache_beam.examples.snippets.snippets_test.TypeHintsTest.test_runtime_checks_on">[docs]</a>  <span class="k">def</span> <span class="nf">test_runtime_checks_on</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="c1"># pylint: disable=expression-not-assigned</span>
+    <span class="n">p</span> <span class="o">=</span> <span class="n">TestPipeline</span><span class="p">()</span>
+    <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="n">typehints</span><span class="o">.</span><span class="n">TypeCheckError</span><span class="p">):</span>
+      <span class="c1"># [START type_hints_runtime_on]</span>
+      <span class="n">p</span><span class="o">.</span><span class="n">options</span><span class="o">.</span><span class="n">view_as</span><span class="p">(</span><span class="n">TypeOptions</span><span class="p">)</span><span class="o">.</span><span class="n">runtime_type_check</span> <span class="o">=</span> <span class="kc">True</span>
+      <span class="n">p</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">([</span><span class="s1">&#39;a&#39;</span><span class="p">])</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="mi">3</span><span class="p">)</span><span class="o">.</span><span class="n">with_output_types</span><span class="p">(</span><span class="nb">str</span><span class="p">)</span>
+      <span class="n">p</span><span class="o">.</span><span class="n">run</span><span class="p">()</span></div>
+      <span class="c1"># [END type_hints_runtime_on]</span>
+
+<div class="viewcode-block" id="TypeHintsTest.test_deterministic_key"><a class="viewcode-back" href="../../../../apache_beam.examples.snippets.html#apache_beam.examples.snippets.snippets_test.TypeHintsTest.test_deterministic_key">[docs]</a>  <span class="k">def</span> <span class="nf">test_deterministic_key</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">p</span> <span class="o">=</span> <span class="n">TestPipeline</span><span class="p">()</span>
+    <span class="n">lines</span> <span class="o">=</span> <span class="p">(</span><span class="n">p</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">(</span>
+        <span class="p">[</span><span class="s1">&#39;banana,fruit,3&#39;</span><span class="p">,</span> <span class="s1">&#39;kiwi,fruit,2&#39;</span><span class="p">,</span> <span class="s1">&#39;kiwi,fruit,2&#39;</span><span class="p">,</span> <span class="s1">&#39;zucchini,veg,3&#39;</span><span class="p">]))</span>
+
+    <span class="c1"># [START type_hints_deterministic_key]</span>
+    <span class="k">class</span> <span class="nc">Player</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+      <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">team</span><span class="p">,</span> <span class="n">name</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">team</span> <span class="o">=</span> <span class="n">team</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">name</span>
+
+    <span class="k">class</span> <span class="nc">PlayerCoder</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">coders</span><span class="o">.</span><span class="n">Coder</span><span class="p">):</span>
+      <span class="k">def</span> <span class="nf">encode</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">player</span><span class="p">):</span>
+        <span class="k">return</span> <span class="s1">&#39;</span><span class="si">%s</span><span class="s1">:</span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">player</span><span class="o">.</span><span class="n">team</span><span class="p">,</span> <span class="n">player</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+
+      <span class="k">def</span> <span class="nf">decode</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">s</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">Player</span><span class="p">(</span><span class="o">*</span><span class="n">s</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;:&#39;</span><span class="p">))</span>
+
+      <span class="k">def</span> <span class="nf">is_deterministic</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="kc">True</span>
+
+    <span class="n">beam</span><span class="o">.</span><span class="n">coders</span><span class="o">.</span><span class="n">registry</span><span class="o">.</span><span class="n">register_coder</span><span class="p">(</span><span class="n">Player</span><span class="p">,</span> <span class="n">PlayerCoder</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">parse_player_and_score</span><span class="p">(</span><span class="n">csv</span><span class="p">):</span>
+      <span class="n">name</span><span class="p">,</span> <span class="n">team</span><span class="p">,</span> <span class="n">score</span> <span class="o">=</span> <span class="n">csv</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;,&#39;</span><span class="p">)</span>
+      <span class="k">return</span> <span class="n">Player</span><span class="p">(</span><span class="n">team</span><span class="p">,</span> <span class="n">name</span><span class="p">),</span> <span class="nb">int</span><span class="p">(</span><span class="n">score</span><span class="p">)</span>
+
+    <span class="n">totals</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="n">lines</span>
+        <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="n">parse_player_and_score</span><span class="p">)</span>
+        <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">CombinePerKey</span><span class="p">(</span><span class="nb">sum</span><span class="p">)</span><span class="o">.</span><span class="n">with_input_types</span><span class="p">(</span>
+            <span class="n">beam</span><span class="o">.</span><span class="n">typehints</span><span class="o">.</span><span class="n">Tuple</span><span class="p">[</span><span class="n">Player</span><span class="p">,</span> <span class="nb">int</span><span class="p">]))</span>
+    <span class="c1"># [END type_hints_deterministic_key]</span>
+
+    <span class="n">assert_that</span><span class="p">(</span>
+        <span class="n">totals</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">lambda</span> <span class="p">(</span><span class="n">k</span><span class="p">,</span> <span class="n">v</span><span class="p">):</span> <span class="p">(</span><span class="n">k</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">v</span><span class="p">)),</span>
+        <span class="n">equal_to</span><span class="p">([(</span><span class="s1">&#39;banana&#39;</span><span class="p">,</span> <span class="mi">3</span><span class="p">),</span> <span class="p">(</span><span class="s1">&#39;kiwi&#39;</span><span class="p">,</span> <span class="mi">4</span><span class="p">),</span> <span class="p">(</span><span class="s1">&#39;zucchini&#39;</span><span class="p">,</span> <span class="mi">3</span><span class="p">)]))</span>
+
+    <span class="n">p</span><span class="o">.</span><span class="n">run</span><span class="p">()</span></div></div>
+
+
+<div class="viewcode-block" id="SnippetsTest"><a class="viewcode-back" href="../../../../apache_beam.examples.snippets.html#apache_beam.examples.snippets.snippets_test.SnippetsTest">[docs]</a><span class="k">class</span> <span class="nc">SnippetsTest</span><span class="p">(</span><span class="n">unittest</span><span class="o">.</span><span class="n">TestCase</span><span class="p">):</span>
+  <span class="c1"># Replacing text read/write transforms with dummy transforms for testing.</span>
+<div class="viewcode-block" id="SnippetsTest.DummyReadTransform"><a class="viewcode-back" href="../../../../apache_beam.examples.snippets.html#apache_beam.examples.snippets.snippets_test.SnippetsTest.DummyReadTransform">[docs]</a>  <span class="k">class</span> <span class="nc">DummyReadTransform</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">PTransform</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;A transform that will replace iobase.ReadFromText.</span>
+
+<span class="sd">    To be used for testing.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">file_to_read</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">compression_type</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">file_to_read</span> <span class="o">=</span> <span class="n">file_to_read</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">compression_type</span> <span class="o">=</span> <span class="n">compression_type</span>
+
+<div class="viewcode-block" id="SnippetsTest.DummyReadTransform.ReadDoFn"><a class="viewcode-back" href="../../../../apache_beam.examples.snippets.html#apache_beam.examples.snippets.snippets_test.SnippetsTest.DummyReadTransform.ReadDoFn">[docs]</a>    <span class="k">class</span> <span class="nc">ReadDoFn</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">DoFn</span><span class="p">):</span>
+
+      <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">file_to_read</span><span class="p">,</span> <span class="n">compression_type</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">file_to_read</span> <span class="o">=</span> <span class="n">file_to_read</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">compression_type</span> <span class="o">=</span> <span class="n">compression_type</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">coder</span> <span class="o">=</span> <span class="n">coders</span><span class="o">.</span><span class="n">StrUtf8Coder</span><span class="p">()</span>
+
+<div class="viewcode-block" id="SnippetsTest.DummyReadTransform.ReadDoFn.process"><a class="viewcode-back" href="../../../../apache_beam.examples.snippets.html#apache_beam.examples.snippets.snippets_test.SnippetsTest.DummyReadTransform.ReadDoFn.process">[docs]</a>      <span class="k">def</span> <span class="nf">process</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">element</span><span class="p">):</span>
+        <span class="k">pass</span></div>
+
+<div class="viewcode-block" id="SnippetsTest.DummyReadTransform.ReadDoFn.finish_bundle"><a class="viewcode-back" href="../../../../apache_beam.examples.snippets.html#apache_beam.examples.snippets.snippets_test.SnippetsTest.DummyReadTransform.ReadDoFn.finish_bundle">[docs]</a>      <span class="k">def</span> <span class="nf">finish_bundle</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">assert</span> <span class="bp">self</span><span class="o">.</span><span class="n">file_to_read</span>
+        <span class="k">for</span> <span class="n">file_name</span> <span class="ow">in</span> <span class="n">glob</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">file_to_read</span><span class="p">):</span>
+          <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">compression_type</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">file_name</span><span class="p">)</span> <span class="k">as</span> <span class="n">file</span><span class="p">:</span>
+              <span class="k">for</span> <span class="n">record</span> <span class="ow">in</span> <span class="n">file</span><span class="p">:</span>
+                <span class="k">yield</span> <span class="bp">self</span><span class="o">.</span><span class="n">coder</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="n">record</span><span class="o">.</span><span class="n">rstrip</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">))</span>
+          <span class="k">else</span><span class="p">:</span>
+            <span class="k">with</span> <span class="n">gzip</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">file_name</span><span class="p">,</span> <span class="s1">&#39;r&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">file</span><span class="p">:</span>
+              <span class="k">for</span> <span class="n">record</span> <span class="ow">in</span> <span class="n">file</span><span class="p">:</span>
+                <span class="k">yield</span> <span class="bp">self</span><span class="o">.</span><span class="n">coder</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="n">record</span><span class="o">.</span><span class="n">rstrip</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">))</span></div></div>
+
+<div class="viewcode-block" id="SnippetsTest.DummyReadTransform.expand"><a class="viewcode-back" href="../../../../apache_beam.examples.snippets.html#apache_beam.examples.snippets.snippets_test.SnippetsTest.DummyReadTransform.expand">[docs]</a>    <span class="k">def</span> <span class="nf">expand</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pcoll</span><span class="p">):</span>
+      <span class="k">return</span> <span class="n">pcoll</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">([</span><span class="kc">None</span><span class="p">])</span> <span class="o">|</span> <span class="s1">&#39;DummyReadForTesting&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">ParDo</span><span class="p">(</span>
+          <span class="n">SnippetsTest</span><span class="o">.</span><span class="n">DummyReadTransform</span><span class="o">.</span><span class="n">ReadDoFn</span><span class="p">(</span>
+              <span class="bp">self</span><span class="o">.</span><span class="n">file_to_read</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">compression_type</span><span class="p">))</span></div></div>
+
+<div class="viewcode-block" id="SnippetsTest.DummyWriteTransform"><a class="viewcode-back" href="../../../../apache_beam.examples.snippets.html#apache_beam.examples.snippets.snippets_test.SnippetsTest.DummyWriteTransform">[docs]</a>  <span class="k">class</span> <span class="nc">DummyWriteTransform</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">PTransform</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;A transform that will replace iobase.WriteToText.</span>
+
+<span class="sd">    To be used for testing.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">file_to_write</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">file_name_suffix</span><span class="o">=</span><span class="s1">&#39;&#39;</span><span class="p">):</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">file_to_write</span> <span class="o">=</span> <span class="n">file_to_write</span>
+
+<div class="viewcode-block" id="SnippetsTest.DummyWriteTransform.WriteDoFn"><a class="viewcode-back" href="../../../../apache_beam.examples.snippets.html#apache_beam.examples.snippets.snippets_test.SnippetsTest.DummyWriteTransform.WriteDoFn">[docs]</a>    <span class="k">class</span> <span class="nc">WriteDoFn</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">DoFn</span><span class="p">):</span>
+      <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">file_to_write</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">file_to_write</span> <span class="o">=</span> <span class="n">file_to_write</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">file_obj</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">coder</span> <span class="o">=</span> <span class="n">coders</span><span class="o">.</span><span class="n">ToStringCoder</span><span class="p">()</span>
+
+<div class="viewcode-block" id="SnippetsTest.DummyWriteTransform.WriteDoFn.start_bundle"><a class="viewcode-back" href="../../../../apache_beam.examples.snippets.html#apache_beam.examples.snippets.snippets_test.SnippetsTest.DummyWriteTransform.WriteDoFn.start_bundle">[docs]</a>      <span class="k">def</span> <span class="nf">start_bundle</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">assert</span> <span class="bp">self</span><span class="o">.</span><span class="n">file_to_write</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">file_to_write</span> <span class="o">+=</span> <span class="nb">str</span><span class="p">(</span><span class="n">uuid</span><span class="o">.</span><span class="n">uuid4</span><span class="p">())</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">file_obj</span> <span class="o">=</span> <span class="nb">open</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">file_to_write</span><span class="p">,</span> <span class="s1">&#39;w&#39;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="SnippetsTest.DummyWriteTransform.WriteDoFn.process"><a class="viewcode-back" href="../../../../apache_beam.examples.snippets.html#apache_beam.examples.snippets.snippets_test.SnippetsTest.DummyWriteTransform.WriteDoFn.process">[docs]</a>      <span class="k">def</span> <span class="nf">process</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">element</span><span class="p">):</span>
+        <span class="k">assert</span> <span class="bp">self</span><span class="o">.</span><span class="n">file_obj</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">file_obj</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">coder</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="n">element</span><span class="p">)</span> <span class="o">+</span> <span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="SnippetsTest.DummyWriteTransform.WriteDoFn.finish_bundle"><a class="viewcode-back" href="../../../../apache_beam.examples.snippets.html#apache_beam.examples.snippets.snippets_test.SnippetsTest.DummyWriteTransform.WriteDoFn.finish_bundle">[docs]</a>      <span class="k">def</span> <span class="nf">finish_bundle</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">assert</span> <span class="bp">self</span><span class="o">.</span><span class="n">file_obj</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">file_obj</span><span class="o">.</span><span class="n">close</span><span class="p">()</span></div></div>
+
+<div class="viewcode-block" id="SnippetsTest.DummyWriteTransform.expand"><a class="viewcode-back" href="../../../../apache_beam.examples.snippets.html#apache_beam.examples.snippets.snippets_test.SnippetsTest.DummyWriteTransform.expand">[docs]</a>    <span class="k">def</span> <span class="nf">expand</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pcoll</span><span class="p">):</span>
+      <span class="k">return</span> <span class="n">pcoll</span> <span class="o">|</span> <span class="s1">&#39;DummyWriteForTesting&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">ParDo</span><span class="p">(</span>
+          <span class="n">SnippetsTest</span><span class="o">.</span><span class="n">DummyWriteTransform</span><span class="o">.</span><span class="n">WriteDoFn</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">file_to_write</span><span class="p">))</span></div></div>
+
+<div class="viewcode-block" id="SnippetsTest.setUp"><a class="viewcode-back" href="../../../../apache_beam.examples.snippets.html#apache_beam.examples.snippets.snippets_test.SnippetsTest.setUp">[docs]</a>  <span class="k">def</span> <span class="nf">setUp</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">old_read_from_text</span> <span class="o">=</span> <span class="n">beam</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">ReadFromText</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">old_write_to_text</span> <span class="o">=</span> <span class="n">beam</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">WriteToText</span>
+
+    <span class="c1"># Monkey patching to allow testing pipelines defined in snippets.py using</span>
+    <span class="c1"># real data.</span>
+    <span class="n">beam</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">ReadFromText</span> <span class="o">=</span> <span class="n">SnippetsTest</span><span class="o">.</span><span class="n">DummyReadTransform</span>
+    <span class="n">beam</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">WriteToText</span> <span class="o">=</span> <span class="n">SnippetsTest</span><span class="o">.</span><span class="n">DummyWriteTransform</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">temp_files</span> <span class="o">=</span> <span class="p">[]</span></div>
+
+<div class="viewcode-block" id="SnippetsTest.tearDown"><a class="viewcode-back" href="../../../../apache_beam.examples.snippets.html#apache_beam.examples.snippets.snippets_test.SnippetsTest.tearDown">[docs]</a>  <span class="k">def</span> <span class="nf">tearDown</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">beam</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">ReadFromText</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">old_read_from_text</span>
+    <span class="n">beam</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">WriteToText</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">old_write_to_text</span>
+    <span class="c1"># Cleanup all the temporary files created in the test</span>
+    <span class="nb">map</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">remove</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">temp_files</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="SnippetsTest.create_temp_file"><a class="viewcode-back" href="../../../../apache_beam.examples.snippets.html#apache_beam.examples.snippets.snippets_test.SnippetsTest.create_temp_file">[docs]</a>  <span class="k">def</span> <span class="nf">create_temp_file</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">contents</span><span class="o">=</span><span class="s1">&#39;&#39;</span><span class="p">):</span>
+    <span class="k">with</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">NamedTemporaryFile</span><span class="p">(</span><span class="n">delete</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+      <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">contents</span><span class="p">)</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">temp_files</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+      <span class="k">return</span> <span class="n">f</span><span class="o">.</span><span class="n">name</span></div>
+
+<div class="viewcode-block" id="SnippetsTest.get_output"><a class="viewcode-back" href="../../../../apache_beam.examples.snippets.html#apache_beam.examples.snippets.snippets_test.SnippetsTest.get_output">[docs]</a>  <span class="k">def</span> <span class="nf">get_output</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">,</span> <span class="n">sorted_output</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">suffix</span><span class="o">=</span><span class="s1">&#39;&#39;</span><span class="p">):</span>
+    <span class="n">all_lines</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">file_name</span> <span class="ow">in</span> <span class="n">glob</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="n">path</span> <span class="o">+</span> <span class="s1">&#39;*&#39;</span><span class="p">):</span>
+      <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">file_name</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+        <span class="n">lines</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">readlines</span><span class="p">()</span>
+        <span class="n">all_lines</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span><span class="n">s</span><span class="o">.</span><span class="n">rstrip</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">lines</span><span class="p">])</span>
+
+    <span class="k">if</span> <span class="n">sorted_output</span><span class="p">:</span>
+      <span class="k">return</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">s</span><span class="o">.</span><span class="n">rstrip</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">all_lines</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="k">return</span> <span class="n">all_lines</span></div>
+
+<div class="viewcode-block" id="SnippetsTest.test_model_pipelines"><a class="viewcode-back" href="../../../../apache_beam.examples.snippets.html#apache_beam.examples.snippets.snippets_test.SnippetsTest.test_model_pipelines">[docs]</a>  <span class="k">def</span> <span class="nf">test_model_pipelines</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">temp_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">create_temp_file</span><span class="p">(</span><span class="s1">&#39;aa bb cc</span><span class="se">\n</span><span class="s1"> bb cc</span><span class="se">\n</span><span class="s1"> cc&#39;</span><span class="p">)</span>
+    <span class="n">result_path</span> <span class="o">=</span> <span class="n">temp_path</span> <span class="o">+</span> <span class="s1">&#39;.result&#39;</span>
+    <span class="n">snippets</span><span class="o">.</span><span class="n">model_pipelines</span><span class="p">([</span>
+        <span class="s1">&#39;--input=</span><span class="si">%s</span><span class="s1">*&#39;</span> <span class="o">%</span> <span class="n">temp_path</span><span class="p">,</span>
+        <span class="s1">&#39;--output=</span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">result_path</span><span class="p">])</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">get_output</span><span class="p">(</span><span class="n">result_path</span><span class="p">),</span>
+        <span class="p">[</span><span class="nb">str</span><span class="p">(</span><span class="n">s</span><span class="p">)</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="p">[(</span><span class="sa">u</span><span class="s1">&#39;aa&#39;</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span> <span class="p">(</span><span class="sa">u</span><span class="s1">&#39;bb&#39;</span><span class="p">,</span> <span class="mi">2</span><span class="p">),</span> <span class="p">(</span><span class="sa">u</span><span class="s1">&#39;cc&#39;</span><span class="p">,</span> <span class="mi">3</span><span class="p">)]])</span></div>
+
+<div class="viewcode-block" id="SnippetsTest.test_model_pcollection"><a class="viewcode-back" href="../../../../apache_beam.examples.snippets.html#apache_beam.examples.snippets.snippets_test.SnippetsTest.test_model_pcollection">[docs]</a>  <span class="k">def</span> <span class="nf">test_model_pcollection</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">temp_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">create_temp_file</span><span class="p">()</span>
+    <span class="n">snippets</span><span class="o">.</span><span class="n">model_pcollection</span><span class="p">([</span><span class="s1">&#39;--output=</span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">temp_path</span><span class="p">])</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">get_output</span><span class="p">(</span><span class="n">temp_path</span><span class="p">,</span> <span class="n">sorted_output</span><span class="o">=</span><span class="kc">False</span><span class="p">),</span> <span class="p">[</span>
+        <span class="s1">&#39;To be, or not to be: that is the question: &#39;</span><span class="p">,</span>
+        <span class="s1">&#39;Whether </span><span class="se">\&#39;</span><span class="s1">tis nobler in the mind to suffer &#39;</span><span class="p">,</span>
+        <span class="s1">&#39;The slings and arrows of outrageous fortune, &#39;</span><span class="p">,</span>
+        <span class="s1">&#39;Or to take arms against a sea of troubles, &#39;</span><span class="p">])</span></div>
+
+<div class="viewcode-block" id="SnippetsTest.test_construct_pipeline"><a class="viewcode-back" href="../../../../apache_beam.examples.snippets.html#apache_beam.examples.snippets.snippets_test.SnippetsTest.test_construct_pipeline">[docs]</a>  <span class="k">def</span> <span class="nf">test_construct_pipeline</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">temp_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">create_temp_file</span><span class="p">(</span>
+        <span class="s1">&#39;abc def ghi</span><span class="se">\n</span><span class="s1"> jkl mno pqr</span><span class="se">\n</span><span class="s1"> stu vwx yz&#39;</span><span class="p">)</span>
+    <span class="n">result_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">create_temp_file</span><span class="p">()</span>
+    <span class="n">snippets</span><span class="o">.</span><span class="n">construct_pipeline</span><span class="p">({</span><span class="s1">&#39;read&#39;</span><span class="p">:</span> <span class="n">temp_path</span><span class="p">,</span> <span class="s1">&#39;write&#39;</span><span class="p">:</span> <span class="n">result_path</span><span class="p">})</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">get_output</span><span class="p">(</span><span class="n">result_path</span><span class="p">),</span>
+        <span class="p">[</span><span class="s1">&#39;cba&#39;</span><span class="p">,</span> <span class="s1">&#39;fed&#39;</span><span class="p">,</span> <span class="s1">&#39;ihg&#39;</span><span class="p">,</span> <span class="s1">&#39;lkj&#39;</span><span class="p">,</span> <span class="s1">&#39;onm&#39;</span><span class="p">,</span> <span class="s1">&#39;rqp&#39;</span><span class="p">,</span> <span class="s1">&#39;uts&#39;</span><span class="p">,</span> <span class="s1">&#39;xwv&#39;</span><span class="p">,</span> <span class="s1">&#39;zy&#39;</span><span class="p">])</span></div>
+
+<div class="viewcode-block" id="SnippetsTest.test_model_custom_source"><a class="viewcode-back" href="../../../../apache_beam.examples.snippets.html#apache_beam.examples.snippets.snippets_test.SnippetsTest.test_model_custom_source">[docs]</a>  <span class="k">def</span> <span class="nf">test_model_custom_source</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">snippets</span><span class="o">.</span><span class="n">model_custom_source</span><span class="p">(</span><span class="mi">100</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="SnippetsTest.test_model_custom_sink"><a class="viewcode-back" href="../../../../apache_beam.examples.snippets.html#apache_beam.examples.snippets.snippets_test.SnippetsTest.test_model_custom_sink">[docs]</a>  <span class="k">def</span> <span class="nf">test_model_custom_sink</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">tempdir_name</span> <span class="o">=</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">mkdtemp</span><span class="p">()</span>
+
+    <span class="k">class</span> <span class="nc">SimpleKV</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+
+      <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tmp_dir</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_dummy_token</span> <span class="o">=</span> <span class="s1">&#39;dummy_token&#39;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_tmp_dir</span> <span class="o">=</span> <span class="n">tmp_dir</span>
+
+      <span class="k">def</span> <span class="nf">connect</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">url</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_dummy_token</span>
+
+      <span class="k">def</span> <span class="nf">open_table</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">access_token</span><span class="p">,</span> <span class="n">table_name</span><span class="p">):</span>
+        <span class="k">assert</span> <span class="n">access_token</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">_dummy_token</span>
+        <span class="n">file_name</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_tmp_dir</span> <span class="o">+</span> <span class="n">os</span><span class="o">.</span><span class="n">sep</span> <span class="o">+</span> <span class="n">table_name</span>
+        <span class="k">assert</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">file_name</span><span class="p">)</span>
+        <span class="nb">open</span><span class="p">(</span><span class="n">file_name</span><span class="p">,</span> <span class="s1">&#39;wb&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">table_name</span>
+
+      <span class="k">def</span> <span class="nf">write_to_table</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">access_token</span><span class="p">,</span> <span class="n">table_name</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="k">assert</span> <span class="n">access_token</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">_dummy_token</span>
+        <span class="n">file_name</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_tmp_dir</span> <span class="o">+</span> <span class="n">os</span><span class="o">.</span><span class="n">sep</span> <span class="o">+</span> <span class="n">table_name</span>
+        <span class="k">assert</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">file_name</span><span class="p">)</span>
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">file_name</span><span class="p">,</span> <span class="s1">&#39;ab&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+          <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">key</span> <span class="o">+</span> <span class="s1">&#39;:&#39;</span> <span class="o">+</span> <span class="n">value</span> <span class="o">+</span> <span class="n">os</span><span class="o">.</span><span class="n">linesep</span><span class="p">)</span>
+
+      <span class="k">def</span> <span class="nf">rename_table</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">access_token</span><span class="p">,</span> <span class="n">old_name</span><span class="p">,</span> <span class="n">new_name</span><span class="p">):</span>
+        <span class="k">assert</span> <span class="n">access_token</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">_dummy_token</span>
+        <span class="n">old_file_name</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_tmp_dir</span> <span class="o">+</span> <span class="n">os</span><span class="o">.</span><span class="n">sep</span> <span class="o">+</span> <span class="n">old_name</span>
+        <span class="n">new_file_name</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_tmp_dir</span> <span class="o">+</span> <span class="n">os</span><span class="o">.</span><span class="n">sep</span> <span class="o">+</span> <span class="n">new_name</span>
+        <span class="k">assert</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isfile</span><span class="p">(</span><span class="n">old_file_name</span><span class="p">)</span>
+        <span class="k">assert</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">new_file_name</span><span class="p">)</span>
+
+        <span class="n">os</span><span class="o">.</span><span class="n">rename</span><span class="p">(</span><span class="n">old_file_name</span><span class="p">,</span> <span class="n">new_file_name</span><span class="p">)</span>
+
+    <span class="n">snippets</span><span class="o">.</span><span class="n">model_custom_sink</span><span class="p">(</span>
+        <span class="n">SimpleKV</span><span class="p">(</span><span class="n">tempdir_name</span><span class="p">),</span>
+        <span class="p">[(</span><span class="s1">&#39;key&#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">i</span><span class="p">),</span> <span class="s1">&#39;value&#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">i</span><span class="p">))</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">100</span><span class="p">)],</span>
+        <span class="s1">&#39;final_table_no_ptransform&#39;</span><span class="p">,</span> <span class="s1">&#39;final_table_with_ptransform&#39;</span><span class="p">)</span>
+
+    <span class="n">expected_output</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="s1">&#39;key&#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">i</span><span class="p">)</span> <span class="o">+</span> <span class="s1">&#39;:&#39;</span> <span class="o">+</span> <span class="s1">&#39;value&#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">i</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">100</span><span class="p">)]</span>
+
+    <span class="n">glob_pattern</span> <span class="o">=</span> <span class="n">tempdir_name</span> <span class="o">+</span> <span class="n">os</span><span class="o">.</span><span class="n">sep</span> <span class="o">+</span> <span class="s1">&#39;final_table_no_ptransform*&#39;</span>
+    <span class="n">output_files</span> <span class="o">=</span> <span class="n">glob</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="n">glob_pattern</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="n">output_files</span>
+
+    <span class="n">received_output</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">file_name</span> <span class="ow">in</span> <span class="n">output_files</span><span class="p">:</span>
+      <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">file_name</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">f</span><span class="p">:</span>
+          <span class="n">received_output</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">line</span><span class="o">.</span><span class="n">rstrip</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">linesep</span><span class="p">))</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertItemsEqual</span><span class="p">(</span><span class="n">expected_output</span><span class="p">,</span> <span class="n">received_output</span><span class="p">)</span>
+
+    <span class="n">glob_pattern</span> <span class="o">=</span> <span class="n">tempdir_name</span> <span class="o">+</span> <span class="n">os</span><span class="o">.</span><span class="n">sep</span> <span class="o">+</span> <span class="s1">&#39;final_table_with_ptransform*&#39;</span>
+    <span class="n">output_files</span> <span class="o">=</span> <span class="n">glob</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="n">glob_pattern</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="n">output_files</span>
+
+    <span class="n">received_output</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">file_name</span> <span class="ow">in</span> <span class="n">output_files</span><span class="p">:</span>
+      <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">file_name</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">f</span><span class="p">:</span>
+          <span class="n">received_output</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">line</span><span class="o">.</span><span class="n">rstrip</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">linesep</span><span class="p">))</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertItemsEqual</span><span class="p">(</span><span class="n">expected_output</span><span class="p">,</span> <span class="n">received_output</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="SnippetsTest.test_model_textio"><a class="viewcode-back" href="../../../../apache_beam.examples.snippets.html#apache_beam.examples.snippets.snippets_test.SnippetsTest.test_model_textio">[docs]</a>  <span class="k">def</span> <span class="nf">test_model_textio</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">temp_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">create_temp_file</span><span class="p">(</span><span class="s1">&#39;aa bb cc</span><span class="se">\n</span><span class="s1"> bb cc</span><span class="se">\n</span><span class="s1"> cc&#39;</span><span class="p">)</span>
+    <span class="n">result_path</span> <span class="o">=</span> <span class="n">temp_path</span> <span class="o">+</span> <span class="s1">&#39;.result&#39;</span>
+    <span class="n">snippets</span><span class="o">.</span><span class="n">model_textio</span><span class="p">({</span><span class="s1">&#39;read&#39;</span><span class="p">:</span> <span class="n">temp_path</span><span class="p">,</span> <span class="s1">&#39;write&#39;</span><span class="p">:</span> <span class="n">result_path</span><span class="p">})</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span>
+        <span class="p">[</span><span class="s1">&#39;aa&#39;</span><span class="p">,</span> <span class="s1">&#39;bb&#39;</span><span class="p">,</span> <span class="s1">&#39;bb&#39;</span><span class="p">,</span> <span class="s1">&#39;cc&#39;</span><span class="p">,</span> <span class="s1">&#39;cc&#39;</span><span class="p">,</span> <span class="s1">&#39;cc&#39;</span><span class="p">],</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">get_output</span><span class="p">(</span><span class="n">result_path</span><span class="p">,</span> <span class="n">suffix</span><span class="o">=</span><span class="s1">&#39;.csv&#39;</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="SnippetsTest.test_model_textio_compressed"><a class="viewcode-back" href="../../../../apache_beam.examples.snippets.html#apache_beam.examples.snippets.snippets_test.SnippetsTest.test_model_textio_compressed">[docs]</a>  <span class="k">def</span> <span class="nf">test_model_textio_compressed</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">temp_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">create_temp_file</span><span class="p">(</span><span class="s1">&#39;aa</span><span class="se">\n</span><span class="s1">bb</span><span class="se">\n</span><span class="s1">cc&#39;</span><span class="p">)</span>
+    <span class="n">gzip_file_name</span> <span class="o">=</span> <span class="n">temp_path</span> <span class="o">+</span> <span class="s1">&#39;.gz&#39;</span>
+    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">temp_path</span><span class="p">)</span> <span class="k">as</span> <span class="n">src</span><span class="p">,</span> <span class="n">gzip</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">gzip_file_name</span><span class="p">,</span> <span class="s1">&#39;wb&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">dst</span><span class="p">:</span>
+      <span class="n">dst</span><span class="o">.</span><span class="n">writelines</span><span class="p">(</span><span class="n">src</span><span class="p">)</span>
+      <span class="c1"># Add the temporary gzip file to be cleaned up as well.</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">temp_files</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">gzip_file_name</span><span class="p">)</span>
+    <span class="n">snippets</span><span class="o">.</span><span class="n">model_textio_compressed</span><span class="p">(</span>
+        <span class="p">{</span><span class="s1">&#39;read&#39;</span><span class="p">:</span> <span class="n">gzip_file_name</span><span class="p">},</span> <span class="p">[</span><span class="s1">&#39;aa&#39;</span><span class="p">,</span> <span class="s1">&#39;bb&#39;</span><span class="p">,</span> <span class="s1">&#39;cc&#39;</span><span class="p">])</span></div>
+
+  <span class="nd">@unittest</span><span class="o">.</span><span class="n">skipIf</span><span class="p">(</span><span class="n">datastore_pb2</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">,</span> <span class="s1">&#39;GCP dependencies are not installed&#39;</span><span class="p">)</span>
+<div class="viewcode-block" id="SnippetsTest.test_model_datastoreio"><a class="viewcode-back" href="../../../../apache_beam.examples.snippets.html#apache_beam.examples.snippets.snippets_test.SnippetsTest.test_model_datastoreio">[docs]</a>  <span class="k">def</span> <span class="nf">test_model_datastoreio</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="c1"># We cannot test datastoreio functionality in unit tests therefore we limit</span>
+    <span class="c1"># ourselves to making sure the pipeline containing Datastore read and write</span>
+    <span class="c1"># transforms can be built.</span>
+    <span class="c1"># TODO(vikasrk): Expore using Datastore Emulator.</span>
+    <span class="n">snippets</span><span class="o">.</span><span class="n">model_datastoreio</span><span class="p">()</span></div>
+
+  <span class="nd">@unittest</span><span class="o">.</span><span class="n">skipIf</span><span class="p">(</span><span class="n">base_api</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">,</span> <span class="s1">&#39;GCP dependencies are not installed&#39;</span><span class="p">)</span>
+<div class="viewcode-block" id="SnippetsTest.test_model_bigqueryio"><a class="viewcode-back" href="../../../../apache_beam.examples.snippets.html#apache_beam.examples.snippets.snippets_test.SnippetsTest.test_model_bigqueryio">[docs]</a>  <span class="k">def</span> <span class="nf">test_model_bigqueryio</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="c1"># We cannot test BigQueryIO functionality in unit tests therefore we limit</span>
+    <span class="c1"># ourselves to making sure the pipeline containing BigQuery sources and</span>
+    <span class="c1"># sinks can be built.</span>
+    <span class="n">snippets</span><span class="o">.</span><span class="n">model_bigqueryio</span><span class="p">()</span></div>
+
+  <span class="k">def</span> <span class="nf">_run_test_pipeline_for_options</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fn</span><span class="p">):</span>
+    <span class="n">temp_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">create_temp_file</span><span class="p">(</span><span class="s1">&#39;aa</span><span class="se">\n</span><span class="s1">bb</span><span class="se">\n</span><span class="s1">cc&#39;</span><span class="p">)</span>
+    <span class="n">result_path</span> <span class="o">=</span> <span class="n">temp_path</span> <span class="o">+</span> <span class="s1">&#39;.result&#39;</span>
+    <span class="n">fn</span><span class="p">([</span>
+        <span class="s1">&#39;--input=</span><span class="si">%s</span><span class="s1">*&#39;</span> <span class="o">%</span> <span class="n">temp_path</span><span class="p">,</span>
+        <span class="s1">&#39;--output=</span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">result_path</span><span class="p">])</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span>
+        <span class="p">[</span><span class="s1">&#39;aa&#39;</span><span class="p">,</span> <span class="s1">&#39;bb&#39;</span><span class="p">,</span> <span class="s1">&#39;cc&#39;</span><span class="p">],</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">get_output</span><span class="p">(</span><span class="n">result_path</span><span class="p">))</span>
+
+<div class="viewcode-block" id="SnippetsTest.test_pipeline_options_local"><a class="viewcode-back" href="../../../../apache_beam.examples.snippets.html#apache_beam.examples.snippets.snippets_test.SnippetsTest.test_pipeline_options_local">[docs]</a>  <span class="k">def</span> <span class="nf">test_pipeline_options_local</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_run_test_pipeline_for_options</span><span class="p">(</span><span class="n">snippets</span><span class="o">.</span><span class="n">pipeline_options_local</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="SnippetsTest.test_pipeline_options_remote"><a class="viewcode-back" href="../../../../apache_beam.examples.snippets.html#apache_beam.examples.snippets.snippets_test.SnippetsTest.test_pipeline_options_remote">[docs]</a>  <span class="k">def</span> <span class="nf">test_pipeline_options_remote</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_run_test_pipeline_for_options</span><span class="p">(</span><span class="n">snippets</span><span class="o">.</span><span class="n">pipeline_options_remote</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="SnippetsTest.test_pipeline_options_command_line"><a class="viewcode-back" href="../../../../apache_beam.examples.snippets.html#apache_beam.examples.snippets.snippets_test.SnippetsTest.test_pipeline_options_command_line">[docs]</a>  <span class="k">def</span> <span class="nf">test_pipeline_options_command_line</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_run_test_pipeline_for_options</span><span class="p">(</span><span class="n">snippets</span><span class="o">.</span><span class="n">pipeline_options_command_line</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="SnippetsTest.test_pipeline_logging"><a class="viewcode-back" href="../../../../apache_beam.examples.snippets.html#apache_beam.examples.snippets.snippets_test.SnippetsTest.test_pipeline_logging">[docs]</a>  <span class="k">def</span> <span class="nf">test_pipeline_logging</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">result_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">create_temp_file</span><span class="p">()</span>
+    <span class="n">lines</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;we found love right where we are&#39;</span><span class="p">,</span>
+             <span class="s1">&#39;we found love right from the start&#39;</span><span class="p">,</span>
+             <span class="s1">&#39;we found love in a hopeless place&#39;</span><span class="p">]</span>
+    <span class="n">snippets</span><span class="o">.</span><span class="n">pipeline_logging</span><span class="p">(</span><span class="n">lines</span><span class="p">,</span> <span class="n">result_path</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span>
+        <span class="nb">sorted</span><span class="p">(</span><span class="s1">&#39; &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">lines</span><span class="p">)</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39; &#39;</span><span class="p">)),</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">get_output</span><span class="p">(</span><span class="n">result_path</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="SnippetsTest.test_examples_wordcount"><a class="viewcode-back" href="../../../../apache_beam.examples.snippets.html#apache_beam.examples.snippets.snippets_test.SnippetsTest.test_examples_wordcount">[docs]</a>  <span class="k">def</span> <span class="nf">test_examples_wordcount</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">pipelines</span> <span class="o">=</span> <span class="p">[</span><span class="n">snippets</span><span class="o">.</span><span class="n">examples_wordcount_minimal</span><span class="p">,</span>
+                 <span class="n">snippets</span><span class="o">.</span><span class="n">examples_wordcount_wordcount</span><span class="p">,</span>
+                 <span class="n">snippets</span><span class="o">.</span><span class="n">pipeline_monitoring</span><span class="p">]</span>
+
+    <span class="k">for</span> <span class="n">pipeline</span> <span class="ow">in</span> <span class="n">pipelines</span><span class="p">:</span>
+      <span class="n">temp_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">create_temp_file</span><span class="p">(</span>
+          <span class="s1">&#39;abc def ghi</span><span class="se">\n</span><span class="s1"> abc jkl&#39;</span><span class="p">)</span>
+      <span class="n">result_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">create_temp_file</span><span class="p">()</span>
+      <span class="n">pipeline</span><span class="p">({</span><span class="s1">&#39;read&#39;</span><span class="p">:</span> <span class="n">temp_path</span><span class="p">,</span> <span class="s1">&#39;write&#39;</span><span class="p">:</span> <span class="n">result_path</span><span class="p">})</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span>
+          <span class="bp">self</span><span class="o">.</span><span class="n">get_output</span><span class="p">(</span><span class="n">result_path</span><span class="p">),</span>
+          <span class="p">[</span><span class="s1">&#39;abc: 2&#39;</span><span class="p">,</span> <span class="s1">&#39;def: 1&#39;</span><span class="p">,</span> <span class="s1">&#39;ghi: 1&#39;</span><span class="p">,</span> <span class="s1">&#39;jkl: 1&#39;</span><span class="p">])</span></div>
+
+<div class="viewcode-block" id="SnippetsTest.test_examples_wordcount_debugging"><a class="viewcode-back" href="../../../../apache_beam.examples.snippets.html#apache_beam.examples.snippets.snippets_test.SnippetsTest.test_examples_wordcount_debugging">[docs]</a>  <span class="k">def</span> <span class="nf">test_examples_wordcount_debugging</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">temp_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">create_temp_file</span><span class="p">(</span>
+        <span class="s1">&#39;Flourish Flourish Flourish stomach abc def&#39;</span><span class="p">)</span>
+    <span class="n">result_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">create_temp_file</span><span class="p">()</span>
+    <span class="n">snippets</span><span class="o">.</span><span class="n">examples_wordcount_debugging</span><span class="p">(</span>
+        <span class="p">{</span><span class="s1">&#39;read&#39;</span><span class="p">:</span> <span class="n">temp_path</span><span class="p">,</span> <span class="s1">&#39;write&#39;</span><span class="p">:</span> <span class="n">result_path</span><span class="p">})</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">get_output</span><span class="p">(</span><span class="n">result_path</span><span class="p">),</span>
+        <span class="p">[</span><span class="s1">&#39;Flourish: 3&#39;</span><span class="p">,</span> <span class="s1">&#39;stomach: 1&#39;</span><span class="p">])</span></div>
+
+<div class="viewcode-block" id="SnippetsTest.test_model_composite_transform_example"><a class="viewcode-back" href="../../../../apache_beam.examples.snippets.html#apache_beam.examples.snippets.snippets_test.SnippetsTest.test_model_composite_transform_example">[docs]</a>  <span class="k">def</span> <span class="nf">test_model_composite_transform_example</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">contents</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;aa bb cc&#39;</span><span class="p">,</span> <span class="s1">&#39;bb cc&#39;</span><span class="p">,</span> <span class="s1">&#39;cc&#39;</span><span class="p">]</span>
+    <span class="n">result_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">create_temp_file</span><span class="p">()</span>
+    <span class="n">snippets</span><span class="o">.</span><span class="n">model_composite_transform_example</span><span class="p">(</span><span class="n">contents</span><span class="p">,</span> <span class="n">result_path</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">([</span><span class="s1">&#39;aa: 1&#39;</span><span class="p">,</span> <span class="s1">&#39;bb: 2&#39;</span><span class="p">,</span> <span class="s1">&#39;cc: 3&#39;</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_output</span><span class="p">(</span><span class="n">result_path</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="SnippetsTest.test_model_multiple_pcollections_flatten"><a class="viewcode-back" href="../../../../apache_beam.examples.snippets.html#apache_beam.examples.snippets.snippets_test.SnippetsTest.test_model_multiple_pcollections_flatten">[docs]</a>  <span class="k">def</span> <span class="nf">test_model_multiple_pcollections_flatten</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">contents</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;a&#39;</span><span class="p">,</span> <span class="s1">&#39;b&#39;</span><span class="p">,</span> <span class="s1">&#39;c&#39;</span><span class="p">,</span> <span class="s1">&#39;d&#39;</span><span class="p">,</span> <span class="s1">&#39;e&#39;</span><span class="p">,</span> <span class="s1">&#39;f&#39;</span><span class="p">]</span>
+    <span class="n">result_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">create_temp_file</span><span class="p">()</span>
+    <span class="n">snippets</span><span class="o">.</span><span class="n">model_multiple_pcollections_flatten</span><span class="p">(</span><span class="n">contents</span><span class="p">,</span> <span class="n">result_path</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">contents</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_output</span><span class="p">(</span><span class="n">result_path</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="SnippetsTest.test_model_multiple_pcollections_partition"><a class="viewcode-back" href="../../../../apache_beam.examples.snippets.html#apache_beam.examples.snippets.snippets_test.SnippetsTest.test_model_multiple_pcollections_partition">[docs]</a>  <span class="k">def</span> <span class="nf">test_model_multiple_pcollections_partition</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">contents</span> <span class="o">=</span> <span class="p">[</span><span class="mi">17</span><span class="p">,</span> <span class="mi">42</span><span class="p">,</span> <span class="mi">64</span><span class="p">,</span> <span class="mi">32</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">99</span><span class="p">,</span> <span class="mi">53</span><span class="p">,</span> <span class="mi">89</span><span class="p">]</span>
+    <span class="n">result_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">create_temp_file</span><span class="p">()</span>
+    <span class="n">snippets</span><span class="o">.</span><span class="n">model_multiple_pcollections_partition</span><span class="p">(</span><span class="n">contents</span><span class="p">,</span> <span class="n">result_path</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">([</span><span class="s1">&#39;0&#39;</span><span class="p">,</span> <span class="s1">&#39;17&#39;</span><span class="p">,</span> <span class="s1">&#39;32&#39;</span><span class="p">,</span> <span class="s1">&#39;42&#39;</span><span class="p">,</span> <span class="s1">&#39;53&#39;</span><span class="p">,</span> <span class="s1">&#39;64&#39;</span><span class="p">,</span> <span class="s1">&#39;89&#39;</span><span class="p">,</span> <span class="s1">&#39;99&#39;</span><span class="p">],</span>
+                     <span class="bp">self</span><span class="o">.</span><span class="n">get_output</span><span class="p">(</span><span class="n">result_path</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="SnippetsTest.test_model_group_by_key"><a class="viewcode-back" href="../../../../apache_beam.examples.snippets.html#apache_beam.examples.snippets.snippets_test.SnippetsTest.test_model_group_by_key">[docs]</a>  <span class="k">def</span> <span class="nf">test_model_group_by_key</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">contents</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;a bb ccc bb bb a&#39;</span><span class="p">]</span>
+    <span class="n">result_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">create_temp_file</span><span class="p">()</span>
+    <span class="n">snippets</span><span class="o">.</span><span class="n">model_group_by_key</span><span class="p">(</span><span class="n">contents</span><span class="p">,</span> <span class="n">result_path</span><span class="p">)</span>
+    <span class="n">expected</span> <span class="o">=</span> <span class="p">[(</span><span class="s1">&#39;a&#39;</span><span class="p">,</span> <span class="mi">2</span><span class="p">),</span> <span class="p">(</span><span class="s1">&#39;bb&#39;</span><span class="p">,</span> <span class="mi">3</span><span class="p">),</span> <span class="p">(</span><span class="s1">&#39;ccc&#39;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)]</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">([</span><span class="nb">str</span><span class="p">(</span><span class="n">s</span><span class="p">)</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">expected</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_output</span><span class="p">(</span><span class="n">result_path</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="SnippetsTest.test_model_co_group_by_key_tuple"><a class="viewcode-back" href="../../../../apache_beam.examples.snippets.html#apache_beam.examples.snippets.snippets_test.SnippetsTest.test_model_co_group_by_key_tuple">[docs]</a>  <span class="k">def</span> <span class="nf">test_model_co_group_by_key_tuple</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">email_list</span> <span class="o">=</span> <span class="p">[[</span><span class="s1">&#39;a&#39;</span><span class="p">,</span> <span class="s1">&#39;a@example.com&#39;</span><span class="p">],</span> <span class="p">[</span><span class="s1">&#39;b&#39;</span><span class="p">,</span> <span class="s1">&#39;b@example.com&#39;</span><span class="p">]]</span>
+    <span class="n">phone_list</span> <span class="o">=</span> <span class="p">[[</span><span class="s1">&#39;a&#39;</span><span class="p">,</span> <span class="s1">&#39;x4312&#39;</span><span class="p">],</span> <span class="p">[</span><span class="s1">&#39;b&#39;</span><span class="p">,</span> <span class="s1">&#39;x8452&#39;</span><span class="p">]]</span>
+    <span class="n">result_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">create_temp_file</span><span class="p">()</span>
+    <span class="n">snippets</span><span class="o">.</span><span class="n">model_co_group_by_key_tuple</span><span class="p">(</span><span class="n">email_list</span><span class="p">,</span> <span class="n">phone_list</span><span class="p">,</span> <span class="n">result_path</span><span class="p">)</span>
+    <span class="n">expect</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;a; a@example.com; x4312&#39;</span><span class="p">,</span> <span class="s1">&#39;b; b@example.com; x8452&#39;</span><span class="p">]</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">expect</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_output</span><span class="p">(</span><span class="n">result_path</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="SnippetsTest.test_model_join_using_side_inputs"><a class="viewcode-back" href="../../../../apache_beam.examples.snippets.html#apache_beam.examples.snippets.snippets_test.SnippetsTest.test_model_join_using_side_inputs">[docs]</a>  <span class="k">def</span> <span class="nf">test_model_join_using_side_inputs</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">name_list</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;a&#39;</span><span class="p">,</span> <span class="s1">&#39;b&#39;</span><span class="p">]</span>
+    <span class="n">email_list</span> <span class="o">=</span> <span class="p">[[</span><span class="s1">&#39;a&#39;</span><span class="p">,</span> <span class="s1">&#39;a@example.com&#39;</span><span class="p">],</span> <span class="p">[</span><span class="s1">&#39;b&#39;</span><span class="p">,</span> <span class="s1">&#39;b@example.com&#39;</span><span class="p">]]</span>
+    <span class="n">phone_list</span> <span class="o">=</span> <span class="p">[[</span><span class="s1">&#39;a&#39;</span><span class="p">,</span> <span class="s1">&#39;x4312&#39;</span><span class="p">],</span> <span class="p">[</span><span class="s1">&#39;b&#39;</span><span class="p">,</span> <span class="s1">&#39;x8452&#39;</span><span class="p">]]</span>
+    <span class="n">result_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">create_temp_file</span><span class="p">()</span>
+    <span class="n">snippets</span><span class="o">.</span><span class="n">model_join_using_side_inputs</span><span class="p">(</span>
+        <span class="n">name_list</span><span class="p">,</span> <span class="n">email_list</span><span class="p">,</span> <span class="n">phone_list</span><span class="p">,</span> <span class="n">result_path</span><span class="p">)</span>
+    <span class="n">expect</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;a; a@example.com; x4312&#39;</span><span class="p">,</span> <span class="s1">&#39;b; b@example.com; x8452&#39;</span><span class="p">]</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">expect</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_output</span><span class="p">(</span><span class="n">result_path</span><span class="p">))</span></div></div>
+
+
+<div class="viewcode-block" id="CombineTest"><a class="viewcode-back" href="../../../../apache_beam.examples.snippets.html#apache_beam.examples.snippets.snippets_test.CombineTest">[docs]</a><span class="k">class</span> <span class="nc">CombineTest</span><span class="p">(</span><span class="n">unittest</span><span class="o">.</span><span class="n">TestCase</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Tests for model/combine.&quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="CombineTest.test_global_sum"><a class="viewcode-back" href="../../../../apache_beam.examples.snippets.html#apache_beam.examples.snippets.snippets_test.CombineTest.test_global_sum">[docs]</a>  <span class="k">def</span> <span class="nf">test_global_sum</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">pc</span> <span class="o">=</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">]</span>
+    <span class="c1"># [START global_sum]</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="n">pc</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">CombineGlobally</span><span class="p">(</span><span class="nb">sum</span><span class="p">)</span>
+    <span class="c1"># [END global_sum]</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">([</span><span class="mi">6</span><span class="p">],</span> <span class="n">result</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="CombineTest.test_combine_values"><a class="viewcode-back" href="../../../../apache_beam.examples.snippets.html#apache_beam.examples.snippets.snippets_test.CombineTest.test_combine_values">[docs]</a>  <span class="k">def</span> <span class="nf">test_combine_values</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">occurences</span> <span class="o">=</span> <span class="p">[(</span><span class="s1">&#39;cat&#39;</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span> <span class="p">(</span><span class="s1">&#39;cat&#39;</span><span class="p">,</span> <span class="mi">5</span><span class="p">),</span> <span class="p">(</span><span class="s1">&#39;cat&#39;</span><span class="p">,</span> <span class="mi">9</span><span class="p">),</span> <span class="p">(</span><span class="s1">&#39;dog&#39;</span><span class="p">,</span> <span class="mi">5</span><span class="p">),</span> <span class="p">(</span><span class="s1">&#39;dog&#39;</span><span class="p">,</span> <span class="mi">2</span><span class="p">)]</span>
+    <span class="c1"># [START combine_values]</span>
+    <span class="n">first_occurences</span> <span class="o">=</span> <span class="n">occurences</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">GroupByKey</span><span class="p">()</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">CombineValues</span><span class="p">(</span><span class="nb">min</span><span class="p">)</span>
+    <span class="c1"># [END combine_values]</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">({(</span><span class="s1">&#39;cat&#39;</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span> <span class="p">(</span><span class="s1">&#39;dog&#39;</span><span class="p">,</span> <span class="mi">2</span><span class="p">)},</span> <span class="nb">set</span><span class="p">(</span><span class="n">first_occurences</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="CombineTest.test_combine_per_key"><a class="viewcode-back" href="../../../../apache_beam.examples.snippets.html#apache_beam.examples.snippets.snippets_test.CombineTest.test_combine_per_key">[docs]</a>  <span class="k">def</span> <span class="nf">test_combine_per_key</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">player_accuracies</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="p">(</span><span class="s1">&#39;cat&#39;</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span> <span class="p">(</span><span class="s1">&#39;cat&#39;</span><span class="p">,</span> <span class="mi">5</span><span class="p">),</span> <span class="p">(</span><span class="s1">&#39;cat&#39;</span><span class="p">,</span> <span class="mi">9</span><span class="p">),</span> <span class="p">(</span><span class="s1">&#39;cat&#39;</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span>
+        <span class="p">(</span><span class="s1">&#39;dog&#39;</span><span class="p">,</span> <span class="mi">5</span><span class="p">),</span> <span class="p">(</span><span class="s1">&#39;dog&#39;</span><span class="p">,</span> <span class="mi">2</span><span class="p">)]</span>
+    <span class="c1"># [START combine_per_key]</span>
+    <span class="n">avg_accuracy_per_player</span> <span class="o">=</span> <span class="p">(</span><span class="n">player_accuracies</span>
+                               <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">CombinePerKey</span><span class="p">(</span>
+                                   <span class="n">beam</span><span class="o">.</span><span class="n">combiners</span><span class="o">.</span><span class="n">MeanCombineFn</span><span class="p">()))</span>
+    <span class="c1"># [END combine_per_key]</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">({(</span><span class="s1">&#39;cat&#39;</span><span class="p">,</span> <span class="mf">4.0</span><span class="p">),</span> <span class="p">(</span><span class="s1">&#39;dog&#39;</span><span class="p">,</span> <span class="mf">3.5</span><span class="p">)},</span> <span class="nb">set</span><span class="p">(</span><span class="n">avg_accuracy_per_player</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="CombineTest.test_combine_concat"><a class="viewcode-back" href="../../../../apache_beam.examples.snippets.html#apache_beam.examples.snippets.snippets_test.CombineTest.test_combine_concat">[docs]</a>  <span class="k">def</span> <span class="nf">test_combine_concat</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">pc</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;a&#39;</span><span class="p">,</span> <span class="s1">&#39;b&#39;</span><span class="p">]</span>
+
+    <span class="c1"># [START combine_concat]</span>
+    <span class="k">def</span> <span class="nf">concat</span><span class="p">(</span><span class="n">values</span><span class="p">,</span> <span class="n">separator</span><span class="o">=</span><span class="s1">&#39;, &#39;</span><span class="p">):</span>
+      <span class="k">return</span> <span class="n">separator</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">values</span><span class="p">)</span>
+    <span class="n">with_commas</span> <span class="o">=</span> <span class="n">pc</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">CombineGlobally</span><span class="p">(</span><span class="n">concat</span><span class="p">)</span>
+    <span class="n">with_dashes</span> <span class="o">=</span> <span class="n">pc</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">CombineGlobally</span><span class="p">(</span><span class="n">concat</span><span class="p">,</span> <span class="n">separator</span><span class="o">=</span><span class="s1">&#39;-&#39;</span><span class="p">)</span>
+    <span class="c1"># [END combine_concat]</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">with_commas</span><span class="p">))</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="n">with_commas</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="ow">in</span> <span class="p">{</span><span class="s1">&#39;a, b&#39;</span><span class="p">,</span> <span class="s1">&#39;b, a&#39;</span><span class="p">})</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">with_dashes</span><span class="p">))</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="n">with_dashes</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="ow">in</span> <span class="p">{</span><span class="s1">&#39;a-b&#39;</span><span class="p">,</span> <span class="s1">&#39;b-a&#39;</span><span class="p">})</span></div>
+
+<div class="viewcode-block" id="CombineTest.test_bounded_sum"><a class="viewcode-back" href="../../../../apache_beam.examples.snippets.html#apache_beam.examples.snippets.snippets_test.CombineTest.test_bounded_sum">[docs]</a>  <span class="k">def</span> <span class="nf">test_bounded_sum</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="c1"># [START combine_bounded_sum]</span>
+    <span class="n">pc</span> <span class="o">=</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">10</span><span class="p">,</span> <span class="mi">100</span><span class="p">,</span> <span class="mi">1000</span><span class="p">]</span>
+
+    <span class="k">def</span> <span class="nf">bounded_sum</span><span class="p">(</span><span class="n">values</span><span class="p">,</span> <span class="n">bound</span><span class="o">=</span><span class="mi">500</span><span class="p">):</span>
+      <span class="k">return</span> <span class="nb">min</span><span class="p">(</span><span class="nb">sum</span><span class="p">(</span><span class="n">values</span><span class="p">),</span> <span class="n">bound</span><span class="p">)</span>
+    <span class="n">small_sum</span> <span class="o">=</span> <span class="n">pc</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">CombineGlobally</span><span class="p">(</span><span class="n">bounded_sum</span><span class="p">)</span>              <span class="c1"># [500]</span>
+    <span class="n">large_sum</span> <span class="o">=</span> <span class="n">pc</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">CombineGlobally</span><span class="p">(</span><span class="n">bounded_sum</span><span class="p">,</span> <span class="n">bound</span><span class="o">=</span><span class="mi">5000</span><span class="p">)</span>  <span class="c1"># [1111]</span>
+    <span class="c1"># [END combine_bounded_sum]</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">([</span><span class="mi">500</span><span class="p">],</span> <span class="n">small_sum</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">([</span><span class="mi">1111</span><span class="p">],</span> <span class="n">large_sum</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="CombineTest.test_combine_reduce"><a class="viewcode-back" href="../../../../apache_beam.examples.snippets.html#apache_beam.examples.snippets.snippets_test.CombineTest.test_combine_reduce">[docs]</a>  <span class="k">def</span> <span class="nf">test_combine_reduce</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">factors</span> <span class="o">=</span> <span class="p">[</span><span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="mi">7</span><span class="p">]</span>
+    <span class="c1"># [START combine_reduce]</span>
+    <span class="kn">import</span> <span class="nn">functools</span>
+    <span class="kn">import</span> <span class="nn">operator</span>
+    <span class="n">product</span> <span class="o">=</span> <span class="n">factors</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">CombineGlobally</span><span class="p">(</span>
+        <span class="n">functools</span><span class="o">.</span><span class="n">partial</span><span class="p">(</span><span class="n">reduce</span><span class="p">,</span> <span class="n">operator</span><span class="o">.</span><span class="n">mul</span><span class="p">),</span> <span class="mi">1</span><span class="p">)</span>
+    <span class="c1"># [END combine_reduce]</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">([</span><span class="mi">210</span><span class="p">],</span> <span class="n">product</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="CombineTest.test_custom_average"><a class="viewcode-back" href="../../../../apache_beam.examples.snippets.html#apache_beam.examples.snippets.snippets_test.CombineTest.test_custom_average">[docs]</a>  <span class="k">def</span> <span class="nf">test_custom_average</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">pc</span> <span class="o">=</span> <span class="p">[</span><span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="mi">7</span><span class="p">]</span>
+
+    <span class="c1"># [START combine_custom_average]</span>
+    <span class="k">class</span> <span class="nc">AverageFn</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">CombineFn</span><span class="p">):</span>
+      <span class="k">def</span> <span class="nf">create_accumulator</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+
+      <span class="k">def</span> <span class="nf">add_input</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="p">(</span><span class="nb">sum</span><span class="p">,</span> <span class="n">count</span><span class="p">),</span> <span class="nb">input</span><span class="p">):</span>
+        <span class="k">return</span> <span class="nb">sum</span> <span class="o">+</span> <span class="nb">input</span><span class="p">,</span> <span class="n">count</span> <span class="o">+</span> <span class="mi">1</span>
+
+      <span class="k">def</span> <span class="nf">merge_accumulators</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">accumulators</span><span class="p">):</span>
+        <span class="n">sums</span><span class="p">,</span> <span class="n">counts</span> <span class="o">=</span> <span class="nb">zip</span><span class="p">(</span><span class="o">*</span><span class="n">accumulators</span><span class="p">)</span>
+        <span class="k">return</span> <span class="nb">sum</span><span class="p">(</span><span class="n">sums</span><span class="p">),</span> <span class="nb">sum</span><span class="p">(</span><span class="n">counts</span><span class="p">)</span>
+
+      <span class="k">def</span> <span class="nf">extract_output</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="p">(</span><span class="nb">sum</span><span class="p">,</span> <span class="n">count</span><span class="p">)):</span>
+        <span class="k">return</span> <span class="nb">sum</span> <span class="o">/</span> <span class="n">count</span> <span class="k">if</span> <span class="n">count</span> <span class="k">else</span> <span class="nb">float</span><span class="p">(</span><span class="s1">&#39;NaN&#39;</span><span class="p">)</span>
+    <span class="n">average</span> <span class="o">=</span> <span class="n">pc</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">CombineGlobally</span><span class="p">(</span><span class="n">AverageFn</span><span class="p">())</span>
+    <span class="c1"># [END combine_custom_average]</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">([</span><span class="mf">4.25</span><span class="p">],</span> <span class="n">average</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="CombineTest.test_keys"><a class="viewcode-back" href="../../../../apache_beam.examples.snippets.html#apache_beam.examples.snippets.snippets_test.CombineTest.test_keys">[docs]</a>  <span class="k">def</span> <span class="nf">test_keys</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">occurrences</span> <span class="o">=</span> <span class="p">[(</span><span class="s1">&#39;cat&#39;</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span> <span class="p">(</span><span class="s1">&#39;cat&#39;</span><span class="p">,</span> <span class="mi">5</span><span class="p">),</span> <span class="p">(</span><span class="s1">&#39;dog&#39;</span><span class="p">,</span> <span class="mi">5</span><span class="p">),</span> <span class="p">(</span><span class="s1">&#39;cat&#39;</span><span class="p">,</span> <span class="mi">9</span><span class="p">),</span> <span class="p">(</span><span class="s1">&#39;dog&#39;</span><span class="p">,</span> <span class="mi">2</span><span class="p">)]</span>
+    <span class="n">unique_keys</span> <span class="o">=</span> <span class="n">occurrences</span> <span class="o">|</span> <span class="n">snippets</span><span class="o">.</span><span class="n">Keys</span><span class="p">()</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">({</span><span class="s1">&#39;cat&#39;</span><span class="p">,</span> <span class="s1">&#39;dog&#39;</span><span class="p">},</span> <span class="nb">set</span><span class="p">(</span><span class="n">unique_keys</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="CombineTest.test_count"><a class="viewcode-back" href="../../../../apache_beam.examples.snippets.html#apache_beam.examples.snippets.snippets_test.CombineTest.test_count">[docs]</a>  <span class="k">def</span> <span class="nf">test_count</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">occurrences</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;cat&#39;</span><span class="p">,</span> <span class="s1">&#39;dog&#39;</span><span class="p">,</span> <span class="s1">&#39;cat&#39;</span><span class="p">,</span> <span class="s1">&#39;cat&#39;</span><span class="p">,</span> <span class="s1">&#39;dog&#39;</span><span class="p">]</span>
+    <span class="n">perkey_counts</span> <span class="o">=</span> <span class="n">occurrences</span> <span class="o">|</span> <span class="n">snippets</span><span class="o">.</span><span class="n">Count</span><span class="p">()</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">({(</span><span class="s1">&#39;cat&#39;</span><span class="p">,</span> <span class="mi">3</span><span class="p">),</span> <span class="p">(</span><span class="s1">&#39;dog&#39;</span><span class="p">,</span> <span class="mi">2</span><span class="p">)},</span> <span class="nb">set</span><span class="p">(</span><span class="n">perkey_counts</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="CombineTest.test_setting_fixed_windows"><a class="viewcode-back" href="../../../../apache_beam.examples.snippets.html#apache_beam.examples.snippets.snippets_test.CombineTest.test_setting_fixed_windows">[docs]</a>  <span class="k">def</span> <span class="nf">test_setting_fixed_windows</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">p</span> <span class="o">=</span> <span class="n">TestPipeline</span><span class="p">()</span>
+    <span class="n">unkeyed_items</span> <span class="o">=</span> <span class="n">p</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">([</span><span class="mi">22</span><span class="p">,</span> <span class="mi">33</span><span class="p">,</span> <span class="mi">55</span><span class="p">,</span> <span class="mi">100</span><span class="p">,</span> <span class="mi">115</span><span class="p">,</span> <span class="mi">120</span><span class="p">])</span>
+    <span class="n">items</span> <span class="o">=</span> <span class="p">(</span><span class="n">unkeyed_items</span>
+             <span class="o">|</span> <span class="s1">&#39;key&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span>
+                 <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">beam</span><span class="o">.</span><span class="n">window</span><span class="o">.</span><span class="n">TimestampedValue</span><span class="p">((</span><span class="s1">&#39;k&#39;</span><span class="p">,</span> <span class="n">x</span><span class="p">),</span> <span class="n">x</span><span class="p">)))</span>
+    <span class="c1"># [START setting_fixed_windows]</span>
+    <span class="kn">from</span> <span class="nn">apache_beam</span> <span class="k">import</span> <span class="n">window</span>
+    <span class="n">fixed_windowed_items</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="n">items</span> <span class="o">|</span> <span class="s1">&#39;window&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">WindowInto</span><span class="p">(</span><span class="n">window</span><span class="o">.</span><span class="n">FixedWindows</span><span class="p">(</span><span class="mi">60</span><span class="p">)))</span>
+    <span class="c1"># [END setting_fixed_windows]</span>
+    <span class="n">summed</span> <span class="o">=</span> <span class="p">(</span><span class="n">fixed_windowed_items</span>
+              <span class="o">|</span> <span class="s1">&#39;group&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">GroupByKey</span><span class="p">()</span>
+              <span class="o">|</span> <span class="s1">&#39;combine&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">CombineValues</span><span class="p">(</span><span class="nb">sum</span><span class="p">))</span>
+    <span class="n">unkeyed</span> <span class="o">=</span> <span class="n">summed</span> <span class="o">|</span> <span class="s1">&#39;unkey&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+    <span class="n">beam</span><span class="o">.</span><span class="n">assert_that</span><span class="p">(</span><span class="n">unkeyed</span><span class="p">,</span> <span class="n">beam</span><span class="o">.</span><span class="n">equal_to</span><span class="p">([</span><span class="mi">110</span><span class="p">,</span> <span class="mi">215</span><span class="p">,</span> <span class="mi">120</span><span class="p">]))</span>
+    <span class="n">p</span><span class="o">.</span><span class="n">run</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="CombineTest.test_setting_sliding_windows"><a class="viewcode-back" href="../../../../apache_beam.examples.snippets.html#apache_beam.examples.snippets.snippets_test.CombineTest.test_setting_sliding_windows">[docs]</a>  <span class="k">def</span> <span class="nf">test_setting_sliding_windows</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">p</span> <span class="o">=</span> <span class="n">TestPipeline</span><span class="p">()</span>
+    <span class="n">unkeyed_items</span> <span class="o">=</span> <span class="n">p</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">([</span><span class="mi">2</span><span class="p">,</span> <span class="mi">16</span><span class="p">,</span> <span class="mi">23</span><span class="p">])</span>
+    <span class="n">items</span> <span class="o">=</span> <span class="p">(</span><span class="n">unkeyed_items</span>
+             <span class="o">|</span> <span class="s1">&#39;key&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span>
+                 <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">beam</span><span class="o">.</span><span class="n">window</span><span class="o">.</span><span class="n">TimestampedValue</span><span class="p">((</span><span class="s1">&#39;k&#39;</span><span class="p">,</span> <span class="n">x</span><span class="p">),</span> <span class="n">x</span><span class="p">)))</span>
+    <span class="c1"># [START setting_sliding_windows]</span>
+    <span class="kn">from</span> <span class="nn">apache_beam</span> <span class="k">import</span> <span class="n">window</span>
+    <span class="n">sliding_windowed_items</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="n">items</span> <span class="o">|</span> <span class="s1">&#39;window&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">WindowInto</span><span class="p">(</span><span class="n">window</span><span class="o">.</span><span class="n">SlidingWindows</span><span class="p">(</span><span class="mi">30</span><span class="p">,</span> <span class="mi">5</span><span class="p">)))</span>
+    <span class="c1"># [END setting_sliding_windows]</span>
+    <span class="n">summed</span> <span class="o">=</span> <span class="p">(</span><span class="n">sliding_windowed_items</span>
+              <span class="o">|</span> <span class="s1">&#39;group&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">GroupByKey</span><span class="p">()</span>
+              <span class="o">|</span> <span class="s1">&#39;combine&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">CombineValues</span><span class="p">(</span><span class="nb">sum</span><span class="p">))</span>
+    <span class="n">unkeyed</span> <span class="o">=</span> <span class="n">summed</span> <span class="o">|</span> <span class="s1">&#39;unkey&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+    <span class="n">beam</span><span class="o">.</span><span class="n">assert_that</span><span class="p">(</span><span class="n">unkeyed</span><span class="p">,</span>
+                     <span class="n">beam</span><span class="o">.</span><span class="n">equal_to</span><span class="p">([</span><span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">18</span><span class="p">,</span> <span class="mi">23</span><span class="p">,</span> <span class="mi">39</span><span class="p">,</span> <span class="mi">39</span><span class="p">,</span> <span class="mi">39</span><span class="p">,</span> <span class="mi">41</span><span class="p">,</span> <span class="mi">41</span><span class="p">]))</span>
+    <span class="n">p</span><span class="o">.</span><span class="n">run</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="CombineTest.test_setting_session_windows"><a class="viewcode-back" href="../../../../apache_beam.examples.snippets.html#apache_beam.examples.snippets.snippets_test.CombineTest.test_setting_session_windows">[docs]</a>  <span class="k">def</span> <span class="nf">test_setting_session_windows</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">p</span> <span class="o">=</span> <span class="n">TestPipeline</span><span class="p">()</span>
+    <span class="n">unkeyed_items</span> <span class="o">=</span> <span class="n">p</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">([</span><span class="mi">2</span><span class="p">,</span> <span class="mi">11</span><span class="p">,</span> <span class="mi">16</span><span class="p">,</span> <span class="mi">27</span><span class="p">])</span>
+    <span class="n">items</span> <span class="o">=</span> <span class="p">(</span><span class="n">unkeyed_items</span>
+             <span class="o">|</span> <span class="s1">&#39;key&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span>
+                 <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">beam</span><span class="o">.</span><span class="n">window</span><span class="o">.</span><span class="n">TimestampedValue</span><span class="p">((</span><span class="s1">&#39;k&#39;</span><span class="p">,</span> <span class="n">x</span><span class="p">),</span> <span class="n">x</span><span class="p">)))</span>
+    <span class="c1"># [START setting_session_windows]</span>
+    <span class="kn">from</span> <span class="nn">apache_beam</span> <span class="k">import</span> <span class="n">window</span>
+    <span class="n">session_windowed_items</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="n">items</span> <span class="o">|</span> <span class="s1">&#39;window&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">WindowInto</span><span class="p">(</span><span class="n">window</span><span class="o">.</span><span class="n">Sessions</span><span class="p">(</span><span class="mi">10</span><span class="p">)))</span>
+    <span class="c1"># [END setting_session_windows]</span>
+    <span class="n">summed</span> <span class="o">=</span> <span class="p">(</span><span class="n">session_windowed_items</span>
+              <span class="o">|</span> <span class="s1">&#39;group&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">GroupByKey</span><span class="p">()</span>
+              <span class="o">|</span> <span class="s1">&#39;combine&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">CombineValues</span><span class="p">(</span><span class="nb">sum</span><span class="p">))</span>
+    <span class="n">unkeyed</span> <span class="o">=</span> <span class="n">summed</span> <span class="o">|</span> <span class="s1">&#39;unkey&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+    <span class="n">beam</span><span class="o">.</span><span class="n">assert_that</span><span class="p">(</span><span class="n">unkeyed</span><span class="p">,</span>
+                     <span class="n">beam</span><span class="o">.</span><span class="n">equal_to</span><span class="p">([</span><span class="mi">29</span><span class="p">,</span> <span class="mi">27</span><span class="p">]))</span>
+    <span class="n">p</span><span class="o">.</span><span class="n">run</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="CombineTest.test_setting_global_window"><a class="viewcode-back" href="../../../../apache_beam.examples.snippets.html#apache_beam.examples.snippets.snippets_test.CombineTest.test_setting_global_window">[docs]</a>  <span class="k">def</span> <span class="nf">test_setting_global_window</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">p</span> <span class="o">=</span> <span class="n">TestPipeline</span><span class="p">()</span>
+    <span class="n">unkeyed_items</span> <span class="o">=</span> <span class="n">p</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">([</span><span class="mi">2</span><span class="p">,</span> <span class="mi">11</span><span class="p">,</span> <span class="mi">16</span><span class="p">,</span> <span class="mi">27</span><span class="p">])</span>
+    <span class="n">items</span> <span class="o">=</span> <span class="p">(</span><span class="n">unkeyed_items</span>
+             <span class="o">|</span> <span class="s1">&#39;key&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span>
+                 <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">beam</span><span class="o">.</span><span class="n">window</span><span class="o">.</span><span class="n">TimestampedValue</span><span class="p">((</span><span class="s1">&#39;k&#39;</span><span class="p">,</span> <span class="n">x</span><span class="p">),</span> <span class="n">x</span><span class="p">)))</span>
+    <span class="c1"># [START setting_global_window]</span>
+    <span class="kn">from</span> <span class="nn">apache_beam</span> <span class="k">import</span> <span class="n">window</span>
+    <span class="n">session_windowed_items</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="n">items</span> <span class="o">|</span> <span class="s1">&#39;window&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">WindowInto</span><span class="p">(</span><span class="n">window</span><span class="o">.</span><span class="n">GlobalWindows</span><span class="p">()))</span>
+    <span class="c1"># [END setting_global_window]</span>
+    <span class="n">summed</span> <span class="o">=</span> <span class="p">(</span><span class="n">session_windowed_items</span>
+              <span class="o">|</span> <span class="s1">&#39;group&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">GroupByKey</span><span class="p">()</span>
+              <span class="o">|</span> <span class="s1">&#39;combine&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">CombineValues</span><span class="p">(</span><span class="nb">sum</span><span class="p">))</span>
+    <span class="n">unkeyed</span> <span class="o">=</span> <span class="n">summed</span> <span class="o">|</span> <span class="s1">&#39;unkey&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+    <span class="n">beam</span><span class="o">.</span><span class="n">assert_that</span><span class="p">(</span><span class="n">unkeyed</span><span class="p">,</span> <span class="n">beam</span><span class="o">.</span><span class="n">equal_to</span><span class="p">([</span><span class="mi">56</span><span class="p">]))</span>
+    <span class="n">p</span><span class="o">.</span><span class="n">run</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="CombineTest.test_setting_timestamp"><a class="viewcode-back" href="../../../../apache_beam.examples.snippets.html#apache_beam.examples.snippets.snippets_test.CombineTest.test_setting_timestamp">[docs]</a>  <span class="k">def</span> <span class="nf">test_setting_timestamp</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">p</span> <span class="o">=</span> <span class="n">TestPipeline</span><span class="p">()</span>
+    <span class="n">unkeyed_items</span> <span class="o">=</span> <span class="n">p</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">([</span><span class="mi">12</span><span class="p">,</span> <span class="mi">30</span><span class="p">,</span> <span class="mi">60</span><span class="p">,</span> <span class="mi">61</span><span class="p">,</span> <span class="mi">66</span><span class="p">])</span>
+    <span class="n">items</span> <span class="o">=</span> <span class="p">(</span><span class="n">unkeyed_items</span> <span class="o">|</span> <span class="s1">&#39;key&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="p">(</span><span class="s1">&#39;k&#39;</span><span class="p">,</span> <span class="n">x</span><span class="p">)))</span>
+
+    <span class="k">def</span> <span class="nf">extract_timestamp_from_log_entry</span><span class="p">(</span><span class="n">entry</span><span class="p">):</span>
+      <span class="k">return</span> <span class="n">entry</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+
+    <span class="c1"># [START setting_timestamp]</span>
+    <span class="k">class</span> <span class="nc">AddTimestampDoFn</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">DoFn</span><span class="p">):</span>
+
+      <span class="k">def</span> <span class="nf">process</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">element</span><span class="p">):</span>
+        <span class="c1"># Extract the numeric Unix seconds-since-epoch timestamp to be</span>
+        <span class="c1"># associated with the current log entry.</span>
+        <span class="n">unix_timestamp</span> <span class="o">=</span> <span class="n">extract_timestamp_from_log_entry</span><span class="p">(</span><span class="n">element</span><span class="p">)</span>
+        <span class="c1"># Wrap and emit the current entry and new timestamp in a</span>
+        <span class="c1"># TimestampedValue.</span>
+        <span class="k">yield</span> <span class="n">beam</span><span class="o">.</span><span class="n">TimestampedValue</span><span class="p">(</span><span class="n">element</span><span class="p">,</span> <span class="n">unix_timestamp</span><span class="p">)</span>
+
+    <span class="n">timestamped_items</span> <span class="o">=</span> <span class="n">items</span> <span class="o">|</span> <span class="s1">&#39;timestamp&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">ParDo</span><span class="p">(</span><span class="n">AddTimestampDoFn</span><span class="p">())</span>
+    <span class="c1"># [END setting_timestamp]</span>
+    <span class="n">fixed_windowed_items</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="n">timestamped_items</span> <span class="o">|</span> <span class="s1">&#39;window&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">WindowInto</span><span class="p">(</span>
+            <span class="n">beam</span><span class="o">.</span><span class="n">window</span><span class="o">.</span><span class="n">FixedWindows</span><span class="p">(</span><span class="mi">60</span><span class="p">)))</span>
+    <span class="n">summed</span> <span class="o">=</span> <span class="p">(</span><span class="n">fixed_windowed_items</span>
+              <span class="o">|</span> <span class="s1">&#39;group&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">GroupByKey</span><span class="p">()</span>
+              <span class="o">|</span> <span class="s1">&#39;combine&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">CombineValues</span><span class="p">(</span><span class="nb">sum</span><span class="p">))</span>
+    <span class="n">unkeyed</span> <span class="o">=</span> <span class="n">summed</span> <span class="o">|</span> <span class="s1">&#39;unkey&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+    <span class="n">beam</span><span class="o">.</span><span class="n">assert_that</span><span class="p">(</span><span class="n">unkeyed</span><span class="p">,</span> <span class="n">beam</span><span class="o">.</span><span class="n">equal_to</span><span class="p">([</span><span class="mi">42</span><span class="p">,</span> <span class="mi">187</span><span class="p">]))</span>
+    <span class="n">p</span><span class="o">.</span><span class="n">run</span><span class="p">()</span></div></div>
+
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s1">&#39;__main__&#39;</span><span class="p">:</span>
+  <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">()</span><span class="o">.</span><span class="n">setLevel</span><span class="p">(</span><span class="n">logging</span><span class="o">.</span><span class="n">INFO</span><span class="p">)</span>
+  <span class="n">unittest</span><span class="o">.</span><span class="n">main</span><span class="p">()</span>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../../index.html" >Module code</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright .
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.5.3.
+    </div>
+  </body>
+</html>

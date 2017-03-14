@@ -1,0 +1,253 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>apache_beam.examples.wordcount_debugging &#8212; Apache Beam  documentation</title>
+    
+    <link rel="stylesheet" href="../../../_static/sphinxdoc.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../',
+        VERSION:     '',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../index.html" accesskey="U">Module code</a> &#187;</li> 
+      </ul>
+    </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for apache_beam.examples.wordcount_debugging</h1><div class="highlight"><pre>
+<span></span><span class="c1">#</span>
+<span class="c1"># Licensed to the Apache Software Foundation (ASF) under one or more</span>
+<span class="c1"># contributor license agreements.  See the NOTICE file distributed with</span>
+<span class="c1"># this work for additional information regarding copyright ownership.</span>
+<span class="c1"># The ASF licenses this file to You under the Apache License, Version 2.0</span>
+<span class="c1"># (the &quot;License&quot;); you may not use this file except in compliance with</span>
+<span class="c1"># the License.  You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1">#    http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.</span>
+<span class="c1"># See the License for the specific language governing permissions and</span>
+<span class="c1"># limitations under the License.</span>
+<span class="c1">#</span>
+
+<span class="sd">&quot;&quot;&quot;An example that verifies the counts and includes best practices.</span>
+
+<span class="sd">On top of the basic concepts in the wordcount example, this workflow introduces</span>
+<span class="sd">logging to Cloud Logging, and using assertions in a Dataflow pipeline.</span>
+
+<span class="sd">To execute this pipeline locally, specify a local output file or output prefix</span>
+<span class="sd">on GCS::</span>
+
+<span class="sd">  --output [YOUR_LOCAL_FILE | gs://YOUR_OUTPUT_PREFIX]</span>
+
+<span class="sd">To execute this pipeline using the Google Cloud Dataflow service, specify</span>
+<span class="sd">pipeline configuration::</span>
+
+<span class="sd">  --project YOUR_PROJECT_ID</span>
+<span class="sd">  --staging_location gs://YOUR_STAGING_DIRECTORY</span>
+<span class="sd">  --temp_location gs://YOUR_TEMP_DIRECTORY</span>
+<span class="sd">  --job_name YOUR_JOB_NAME</span>
+<span class="sd">  --runner DataflowRunner</span>
+
+<span class="sd">and an output prefix on GCS::</span>
+
+<span class="sd">  --output gs://YOUR_OUTPUT_PREFIX</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="k">import</span> <span class="n">absolute_import</span>
+
+<span class="kn">import</span> <span class="nn">argparse</span>
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">import</span> <span class="nn">re</span>
+
+<span class="kn">import</span> <span class="nn">apache_beam</span> <span class="k">as</span> <span class="nn">beam</span>
+<span class="kn">from</span> <span class="nn">apache_beam.io</span> <span class="k">import</span> <span class="n">ReadFromText</span>
+<span class="kn">from</span> <span class="nn">apache_beam.io</span> <span class="k">import</span> <span class="n">WriteToText</span>
+<span class="kn">from</span> <span class="nn">apache_beam.metrics</span> <span class="k">import</span> <span class="n">Metrics</span>
+<span class="kn">from</span> <span class="nn">apache_beam.utils.pipeline_options</span> <span class="k">import</span> <span class="n">PipelineOptions</span>
+<span class="kn">from</span> <span class="nn">apache_beam.utils.pipeline_options</span> <span class="k">import</span> <span class="n">SetupOptions</span>
+
+
+<div class="viewcode-block" id="FilterTextFn"><a class="viewcode-back" href="../../../apache_beam.examples.html#apache_beam.examples.wordcount_debugging.FilterTextFn">[docs]</a><span class="k">class</span> <span class="nc">FilterTextFn</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">DoFn</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;A DoFn that filters for a specific key based on a regular expression.&quot;&quot;&quot;</span>
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pattern</span><span class="p">):</span>
+    <span class="nb">super</span><span class="p">(</span><span class="n">FilterTextFn</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">pattern</span> <span class="o">=</span> <span class="n">pattern</span>
+    <span class="c1"># A custom metric can track values in your pipeline as it runs. Those</span>
+    <span class="c1"># values will be available in the monitoring system of the runner used</span>
+    <span class="c1"># to run the pipeline. These metrics below track the number of</span>
+    <span class="c1"># matched and unmatched words.</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">matched_words</span> <span class="o">=</span> <span class="n">Metrics</span><span class="o">.</span><span class="n">counter</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="p">,</span> <span class="s1">&#39;matched_words&#39;</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">umatched_words</span> <span class="o">=</span> <span class="n">Metrics</span><span class="o">.</span><span class="n">counter</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="p">,</span> <span class="s1">&#39;umatched_words&#39;</span><span class="p">)</span>
+
+<div class="viewcode-block" id="FilterTextFn.process"><a class="viewcode-back" href="../../../apache_beam.examples.html#apache_beam.examples.wordcount_debugging.FilterTextFn.process">[docs]</a>  <span class="k">def</span> <span class="nf">process</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">element</span><span class="p">):</span>
+    <span class="n">word</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">element</span>
+    <span class="k">if</span> <span class="n">re</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">pattern</span><span class="p">,</span> <span class="n">word</span><span class="p">):</span>
+      <span class="c1"># Log at INFO level each element we match. When executing this pipeline</span>
+      <span class="c1"># using the Dataflow service, these log lines will appear in the Cloud</span>
+      <span class="c1"># Logging UI.</span>
+      <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Matched </span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">word</span><span class="p">)</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">matched_words</span><span class="o">.</span><span class="n">inc</span><span class="p">()</span>
+      <span class="k">yield</span> <span class="n">element</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="c1"># Log at the &quot;DEBUG&quot; level each element that is not matched. Different log</span>
+      <span class="c1"># levels can be used to control the verbosity of logging providing an</span>
+      <span class="c1"># effective mechanism to filter less important information.</span>
+      <span class="c1"># Note currently only &quot;INFO&quot; and higher level logs are emitted to the</span>
+      <span class="c1"># Cloud Logger. This log message will not be visible in the Cloud Logger.</span>
+      <span class="n">logging</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s1">&#39;Did not match </span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">word</span><span class="p">)</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">umatched_words</span><span class="o">.</span><span class="n">inc</span><span class="p">()</span></div></div>
+
+
+<div class="viewcode-block" id="CountWords"><a class="viewcode-back" href="../../../apache_beam.examples.html#apache_beam.examples.wordcount_debugging.CountWords">[docs]</a><span class="k">class</span> <span class="nc">CountWords</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">PTransform</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;A transform to count the occurrences of each word.</span>
+
+<span class="sd">  A PTransform that converts a PCollection containing lines of text into a</span>
+<span class="sd">  PCollection of (word, count) tuples.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="nb">super</span><span class="p">(</span><span class="n">CountWords</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+
+<div class="viewcode-block" id="CountWords.expand"><a class="viewcode-back" href="../../../apache_beam.examples.html#apache_beam.examples.wordcount_debugging.CountWords.expand">[docs]</a>  <span class="k">def</span> <span class="nf">expand</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pcoll</span><span class="p">):</span>
+    <span class="k">return</span> <span class="p">(</span><span class="n">pcoll</span>
+            <span class="o">|</span> <span class="s1">&#39;split&#39;</span> <span class="o">&gt;&gt;</span> <span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">FlatMap</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">re</span><span class="o">.</span><span class="n">findall</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;[A-Za-z</span><span class="se">\&#39;</span><span class="s1">]+&#39;</span><span class="p">,</span> <span class="n">x</span><span class="p">))</span>
+                          <span class="o">.</span><span class="n">with_output_types</span><span class="p">(</span><span class="n">unicode</span><span class="p">))</span>
+            <span class="o">|</span> <span class="s1">&#39;pair_with_one&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span>
+            <span class="o">|</span> <span class="s1">&#39;group&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">GroupByKey</span><span class="p">()</span>
+            <span class="o">|</span> <span class="s1">&#39;count&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">lambda</span> <span class="p">(</span><span class="n">word</span><span class="p">,</span> <span class="n">ones</span><span class="p">):</span> <span class="p">(</span><span class="n">word</span><span class="p">,</span> <span class="nb">sum</span><span class="p">(</span><span class="n">ones</span><span class="p">))))</span></div></div>
+
+
+<div class="viewcode-block" id="run"><a class="viewcode-back" href="../../../apache_beam.examples.html#apache_beam.examples.wordcount_debugging.run">[docs]</a><span class="k">def</span> <span class="nf">run</span><span class="p">(</span><span class="n">argv</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Runs the debugging wordcount pipeline.&quot;&quot;&quot;</span>
+
+  <span class="n">parser</span> <span class="o">=</span> <span class="n">argparse</span><span class="o">.</span><span class="n">ArgumentParser</span><span class="p">()</span>
+  <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;--input&#39;</span><span class="p">,</span>
+                      <span class="n">dest</span><span class="o">=</span><span class="s1">&#39;input&#39;</span><span class="p">,</span>
+                      <span class="n">default</span><span class="o">=</span><span class="s1">&#39;gs://dataflow-samples/shakespeare/kinglear.txt&#39;</span><span class="p">,</span>
+                      <span class="n">help</span><span class="o">=</span><span class="s1">&#39;Input file to process.&#39;</span><span class="p">)</span>
+  <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;--output&#39;</span><span class="p">,</span>
+                      <span class="n">dest</span><span class="o">=</span><span class="s1">&#39;output&#39;</span><span class="p">,</span>
+                      <span class="n">required</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                      <span class="n">help</span><span class="o">=</span><span class="s1">&#39;Output file to write results to.&#39;</span><span class="p">)</span>
+  <span class="n">known_args</span><span class="p">,</span> <span class="n">pipeline_args</span> <span class="o">=</span> <span class="n">parser</span><span class="o">.</span><span class="n">parse_known_args</span><span class="p">(</span><span class="n">argv</span><span class="p">)</span>
+  <span class="c1"># We use the save_main_session option because one or more DoFn&#39;s in this</span>
+  <span class="c1"># workflow rely on global context (e.g., a module imported at module level).</span>
+  <span class="n">pipeline_options</span> <span class="o">=</span> <span class="n">PipelineOptions</span><span class="p">(</span><span class="n">pipeline_args</span><span class="p">)</span>
+  <span class="n">pipeline_options</span><span class="o">.</span><span class="n">view_as</span><span class="p">(</span><span class="n">SetupOptions</span><span class="p">)</span><span class="o">.</span><span class="n">save_main_session</span> <span class="o">=</span> <span class="kc">True</span>
+  <span class="n">p</span> <span class="o">=</span> <span class="n">beam</span><span class="o">.</span><span class="n">Pipeline</span><span class="p">(</span><span class="n">options</span><span class="o">=</span><span class="n">pipeline_options</span><span class="p">)</span>
+
+  <span class="c1"># Read the text file[pattern] into a PCollection, count the occurrences of</span>
+  <span class="c1"># each word and filter by a list of words.</span>
+  <span class="n">filtered_words</span> <span class="o">=</span> <span class="p">(</span>
+      <span class="n">p</span> <span class="o">|</span> <span class="s1">&#39;read&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">ReadFromText</span><span class="p">(</span><span class="n">known_args</span><span class="o">.</span><span class="n">input</span><span class="p">)</span>
+      <span class="o">|</span> <span class="n">CountWords</span><span class="p">()</span>
+      <span class="o">|</span> <span class="s1">&#39;FilterText&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">ParDo</span><span class="p">(</span><span class="n">FilterTextFn</span><span class="p">(</span><span class="s1">&#39;Flourish|stomach&#39;</span><span class="p">)))</span>
+
+  <span class="c1"># assert_that is a convenient PTransform that checks a PCollection has an</span>
+  <span class="c1"># expected value. Asserts are best used in unit tests with small data sets but</span>
+  <span class="c1"># is demonstrated here as a teaching tool.</span>
+  <span class="c1">#</span>
+  <span class="c1"># Note assert_that does not provide any output and that successful completion</span>
+  <span class="c1"># of the Pipeline implies that the expectations were  met. Learn more at</span>
+  <span class="c1"># https://cloud.google.com/dataflow/pipelines/testing-your-pipeline on how to</span>
+  <span class="c1"># test your pipeline.</span>
+  <span class="n">beam</span><span class="o">.</span><span class="n">assert_that</span><span class="p">(</span>
+      <span class="n">filtered_words</span><span class="p">,</span> <span class="n">beam</span><span class="o">.</span><span class="n">equal_to</span><span class="p">([(</span><span class="s1">&#39;Flourish&#39;</span><span class="p">,</span> <span class="mi">3</span><span class="p">),</span> <span class="p">(</span><span class="s1">&#39;stomach&#39;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)]))</span>
+
+  <span class="c1"># Format the counts into a PCollection of strings and write the output using a</span>
+  <span class="c1"># &quot;Write&quot; transform that has side effects.</span>
+  <span class="c1"># pylint: disable=unused-variable</span>
+  <span class="n">output</span> <span class="o">=</span> <span class="p">(</span><span class="n">filtered_words</span>
+            <span class="o">|</span> <span class="s1">&#39;format&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">lambda</span> <span class="p">(</span><span class="n">word</span><span class="p">,</span> <span class="n">c</span><span class="p">):</span> <span class="s1">&#39;</span><span class="si">%s</span><span class="s1">: </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">word</span><span class="p">,</span> <span class="n">c</span><span class="p">))</span>
+            <span class="o">|</span> <span class="s1">&#39;write&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">WriteToText</span><span class="p">(</span><span class="n">known_args</span><span class="o">.</span><span class="n">output</span><span class="p">))</span>
+
+  <span class="c1"># Actually run the pipeline (all operations above are deferred).</span>
+  <span class="n">p</span><span class="o">.</span><span class="n">run</span><span class="p">()</span><span class="o">.</span><span class="n">wait_until_finish</span><span class="p">()</span></div>
+
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s1">&#39;__main__&#39;</span><span class="p">:</span>
+  <span class="c1"># Cloud Logging would contain only logging.INFO and higher level logs logged</span>
+  <span class="c1"># by the root logger. All log statements emitted by the root logger will be</span>
+  <span class="c1"># visible in the Cloud Logging UI. Learn more at</span>
+  <span class="c1"># https://cloud.google.com/logging about the Cloud Logging UI.</span>
+  <span class="c1">#</span>
+  <span class="c1"># You can set the default logging level to a different level when running</span>
+  <span class="c1"># locally.</span>
+  <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">()</span><span class="o">.</span><span class="n">setLevel</span><span class="p">(</span><span class="n">logging</span><span class="o">.</span><span class="n">INFO</span><span class="p">)</span>
+  <span class="n">run</span><span class="p">()</span>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../index.html" >Module code</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright .
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.5.3.
+    </div>
+  </body>
+</html>

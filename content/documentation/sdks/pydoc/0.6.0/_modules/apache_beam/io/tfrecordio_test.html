@@ -1,0 +1,479 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>apache_beam.io.tfrecordio_test &#8212; Apache Beam  documentation</title>
+    
+    <link rel="stylesheet" href="../../../_static/sphinxdoc.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../',
+        VERSION:     '',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../index.html" accesskey="U">Module code</a> &#187;</li> 
+      </ul>
+    </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for apache_beam.io.tfrecordio_test</h1><div class="highlight"><pre>
+<span></span><span class="c1">#</span>
+<span class="c1"># Licensed to the Apache Software Foundation (ASF) under one or more</span>
+<span class="c1"># contributor license agreements.  See the NOTICE file distributed with</span>
+<span class="c1"># this work for additional information regarding copyright ownership.</span>
+<span class="c1"># The ASF licenses this file to You under the Apache License, Version 2.0</span>
+<span class="c1"># (the &quot;License&quot;); you may not use this file except in compliance with</span>
+<span class="c1"># the License.  You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1">#    http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.</span>
+<span class="c1"># See the License for the specific language governing permissions and</span>
+<span class="c1"># limitations under the License.</span>
+<span class="c1">#</span>
+
+<span class="kn">import</span> <span class="nn">binascii</span>
+<span class="kn">import</span> <span class="nn">cStringIO</span>
+<span class="kn">import</span> <span class="nn">glob</span>
+<span class="kn">import</span> <span class="nn">gzip</span>
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">pickle</span>
+<span class="kn">import</span> <span class="nn">random</span>
+<span class="kn">import</span> <span class="nn">shutil</span>
+<span class="kn">import</span> <span class="nn">tempfile</span>
+<span class="kn">import</span> <span class="nn">unittest</span>
+
+<span class="kn">import</span> <span class="nn">apache_beam</span> <span class="k">as</span> <span class="nn">beam</span>
+<span class="kn">from</span> <span class="nn">apache_beam</span> <span class="k">import</span> <span class="n">coders</span>
+<span class="kn">from</span> <span class="nn">apache_beam.io</span> <span class="k">import</span> <span class="n">fileio</span>
+<span class="kn">from</span> <span class="nn">apache_beam.io.tfrecordio</span> <span class="k">import</span> <span class="n">_TFRecordSink</span>
+<span class="kn">from</span> <span class="nn">apache_beam.io.tfrecordio</span> <span class="k">import</span> <span class="n">_TFRecordSource</span>
+<span class="kn">from</span> <span class="nn">apache_beam.io.tfrecordio</span> <span class="k">import</span> <span class="n">_TFRecordUtil</span>
+<span class="kn">from</span> <span class="nn">apache_beam.io.tfrecordio</span> <span class="k">import</span> <span class="n">ReadFromTFRecord</span>
+<span class="kn">from</span> <span class="nn">apache_beam.io.tfrecordio</span> <span class="k">import</span> <span class="n">WriteToTFRecord</span>
+<span class="kn">from</span> <span class="nn">apache_beam.test_pipeline</span> <span class="k">import</span> <span class="n">TestPipeline</span>
+<span class="kn">import</span> <span class="nn">crcmod</span>
+
+
+<span class="k">try</span><span class="p">:</span>
+  <span class="kn">import</span> <span class="nn">tensorflow</span> <span class="k">as</span> <span class="nn">tf</span>  <span class="c1"># pylint: disable=import-error</span>
+<span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
+  <span class="n">tf</span> <span class="o">=</span> <span class="kc">None</span>  <span class="c1"># pylint: disable=invalid-name</span>
+  <span class="n">logging</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s1">&#39;Tensorflow is not installed, so skipping some tests.&#39;</span><span class="p">)</span>
+
+<span class="c1"># Created by running following code in python:</span>
+<span class="c1"># &gt;&gt;&gt; import tensorflow as tf</span>
+<span class="c1"># &gt;&gt;&gt; import base64</span>
+<span class="c1"># &gt;&gt;&gt; writer = tf.python_io.TFRecordWriter(&#39;/tmp/python_foo.tfrecord&#39;)</span>
+<span class="c1"># &gt;&gt;&gt; writer.write(&#39;foo&#39;)</span>
+<span class="c1"># &gt;&gt;&gt; writer.close()</span>
+<span class="c1"># &gt;&gt;&gt; with open(&#39;/tmp/python_foo.tfrecord&#39;, &#39;rb&#39;) as f:</span>
+<span class="c1"># ...   data =  base64.b64encode(f.read())</span>
+<span class="c1"># ...   print data</span>
+<span class="n">FOO_RECORD_BASE64</span> <span class="o">=</span> <span class="s1">&#39;AwAAAAAAAACwmUkOZm9vYYq+/g==&#39;</span>
+
+<span class="c1"># Same as above but containing two records [&#39;foo&#39;, &#39;bar&#39;]</span>
+<span class="n">FOO_BAR_RECORD_BASE64</span> <span class="o">=</span> <span class="s1">&#39;AwAAAAAAAACwmUkOZm9vYYq+/gMAAAAAAAAAsJlJDmJhckYA5cg=&#39;</span>
+
+
+<div class="viewcode-block" id="TestTFRecordUtil"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.tfrecordio_test.TestTFRecordUtil">[docs]</a><span class="k">class</span> <span class="nc">TestTFRecordUtil</span><span class="p">(</span><span class="n">unittest</span><span class="o">.</span><span class="n">TestCase</span><span class="p">):</span>
+
+<div class="viewcode-block" id="TestTFRecordUtil.setUp"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.tfrecordio_test.TestTFRecordUtil.setUp">[docs]</a>  <span class="k">def</span> <span class="nf">setUp</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">record</span> <span class="o">=</span> <span class="n">binascii</span><span class="o">.</span><span class="n">a2b_base64</span><span class="p">(</span><span class="n">FOO_RECORD_BASE64</span><span class="p">)</span></div>
+
+  <span class="k">def</span> <span class="nf">_as_file_handle</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">contents</span><span class="p">):</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="n">cStringIO</span><span class="o">.</span><span class="n">StringIO</span><span class="p">()</span>
+    <span class="n">result</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">contents</span><span class="p">)</span>
+    <span class="n">result</span><span class="o">.</span><span class="n">reset</span><span class="p">()</span>
+    <span class="k">return</span> <span class="n">result</span>
+
+  <span class="k">def</span> <span class="nf">_increment_value_at_index</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">index</span><span class="p">):</span>
+    <span class="n">l</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+    <span class="n">l</span><span class="p">[</span><span class="n">index</span><span class="p">]</span> <span class="o">=</span> <span class="nb">chr</span><span class="p">(</span><span class="nb">ord</span><span class="p">(</span><span class="n">l</span><span class="p">[</span><span class="n">index</span><span class="p">])</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
+    <span class="k">return</span> <span class="s1">&#39;&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">l</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">_test_error</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">record</span><span class="p">,</span> <span class="n">error_text</span><span class="p">):</span>
+    <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">ValueError</span><span class="p">)</span> <span class="k">as</span> <span class="n">context</span><span class="p">:</span>
+      <span class="n">_TFRecordUtil</span><span class="o">.</span><span class="n">read_record</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_as_file_handle</span><span class="p">(</span><span class="n">record</span><span class="p">))</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertIn</span><span class="p">(</span><span class="n">error_text</span><span class="p">,</span> <span class="n">context</span><span class="o">.</span><span class="n">exception</span><span class="o">.</span><span class="n">message</span><span class="p">)</span>
+
+<div class="viewcode-block" id="TestTFRecordUtil.test_masked_crc32c"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.tfrecordio_test.TestTFRecordUtil.test_masked_crc32c">[docs]</a>  <span class="k">def</span> <span class="nf">test_masked_crc32c</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="mh">0xfd7fffa</span><span class="p">,</span> <span class="n">_TFRecordUtil</span><span class="o">.</span><span class="n">_masked_crc32c</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\x00</span><span class="s1">&#39;</span> <span class="o">*</span> <span class="mi">32</span><span class="p">))</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="mh">0xf909b029</span><span class="p">,</span> <span class="n">_TFRecordUtil</span><span class="o">.</span><span class="n">_masked_crc32c</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\xff</span><span class="s1">&#39;</span> <span class="o">*</span> <span class="mi">32</span><span class="p">))</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="mh">0xfebe8a61</span><span class="p">,</span> <span class="n">_TFRecordUtil</span><span class="o">.</span><span class="n">_masked_crc32c</span><span class="p">(</span><span class="s1">&#39;foo&#39;</span><span class="p">))</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span>
+        <span class="mh">0xe4999b0</span><span class="p">,</span>
+        <span class="n">_TFRecordUtil</span><span class="o">.</span><span class="n">_masked_crc32c</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\x03\x00\x00\x00\x00\x00\x00\x00</span><span class="s1">&#39;</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="TestTFRecordUtil.test_masked_crc32c_crcmod"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.tfrecordio_test.TestTFRecordUtil.test_masked_crc32c_crcmod">[docs]</a>  <span class="k">def</span> <span class="nf">test_masked_crc32c_crcmod</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">crc32c_fn</span> <span class="o">=</span> <span class="n">crcmod</span><span class="o">.</span><span class="n">predefined</span><span class="o">.</span><span class="n">mkPredefinedCrcFun</span><span class="p">(</span><span class="s1">&#39;crc-32c&#39;</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span>
+        <span class="mh">0xfd7fffa</span><span class="p">,</span>
+        <span class="n">_TFRecordUtil</span><span class="o">.</span><span class="n">_masked_crc32c</span><span class="p">(</span>
+            <span class="s1">&#39;</span><span class="se">\x00</span><span class="s1">&#39;</span> <span class="o">*</span> <span class="mi">32</span><span class="p">,</span> <span class="n">crc32c_fn</span><span class="o">=</span><span class="n">crc32c_fn</span><span class="p">))</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span>
+        <span class="mh">0xf909b029</span><span class="p">,</span>
+        <span class="n">_TFRecordUtil</span><span class="o">.</span><span class="n">_masked_crc32c</span><span class="p">(</span>
+            <span class="s1">&#39;</span><span class="se">\xff</span><span class="s1">&#39;</span> <span class="o">*</span> <span class="mi">32</span><span class="p">,</span> <span class="n">crc32c_fn</span><span class="o">=</span><span class="n">crc32c_fn</span><span class="p">))</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span>
+        <span class="mh">0xfebe8a61</span><span class="p">,</span> <span class="n">_TFRecordUtil</span><span class="o">.</span><span class="n">_masked_crc32c</span><span class="p">(</span>
+            <span class="s1">&#39;foo&#39;</span><span class="p">,</span> <span class="n">crc32c_fn</span><span class="o">=</span><span class="n">crc32c_fn</span><span class="p">))</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span>
+        <span class="mh">0xe4999b0</span><span class="p">,</span>
+        <span class="n">_TFRecordUtil</span><span class="o">.</span><span class="n">_masked_crc32c</span><span class="p">(</span>
+            <span class="s1">&#39;</span><span class="se">\x03\x00\x00\x00\x00\x00\x00\x00</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">crc32c_fn</span><span class="o">=</span><span class="n">crc32c_fn</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="TestTFRecordUtil.test_write_record"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.tfrecordio_test.TestTFRecordUtil.test_write_record">[docs]</a>  <span class="k">def</span> <span class="nf">test_write_record</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">file_handle</span> <span class="o">=</span> <span class="n">cStringIO</span><span class="o">.</span><span class="n">StringIO</span><span class="p">()</span>
+    <span class="n">_TFRecordUtil</span><span class="o">.</span><span class="n">write_record</span><span class="p">(</span><span class="n">file_handle</span><span class="p">,</span> <span class="s1">&#39;foo&#39;</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">record</span><span class="p">,</span> <span class="n">file_handle</span><span class="o">.</span><span class="n">getvalue</span><span class="p">())</span></div>
+
+<div class="viewcode-block" id="TestTFRecordUtil.test_read_record"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.tfrecordio_test.TestTFRecordUtil.test_read_record">[docs]</a>  <span class="k">def</span> <span class="nf">test_read_record</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">actual</span> <span class="o">=</span> <span class="n">_TFRecordUtil</span><span class="o">.</span><span class="n">read_record</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_as_file_handle</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">record</span><span class="p">))</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="s1">&#39;foo&#39;</span><span class="p">,</span> <span class="n">actual</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TestTFRecordUtil.test_read_record_invalid_record"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.tfrecordio_test.TestTFRecordUtil.test_read_record_invalid_record">[docs]</a>  <span class="k">def</span> <span class="nf">test_read_record_invalid_record</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_test_error</span><span class="p">(</span><span class="s1">&#39;bar&#39;</span><span class="p">,</span> <span class="s1">&#39;Not a valid TFRecord. Fewer than 12 bytes&#39;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TestTFRecordUtil.test_read_record_invalid_length_mask"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.tfrecordio_test.TestTFRecordUtil.test_read_record_invalid_length_mask">[docs]</a>  <span class="k">def</span> <span class="nf">test_read_record_invalid_length_mask</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">record</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_increment_value_at_index</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">record</span><span class="p">,</span> <span class="mi">9</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_test_error</span><span class="p">(</span><span class="n">record</span><span class="p">,</span> <span class="s1">&#39;Mismatch of length mask&#39;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TestTFRecordUtil.test_read_record_invalid_data_mask"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.tfrecordio_test.TestTFRecordUtil.test_read_record_invalid_data_mask">[docs]</a>  <span class="k">def</span> <span class="nf">test_read_record_invalid_data_mask</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">record</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_increment_value_at_index</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">record</span><span class="p">,</span> <span class="mi">16</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_test_error</span><span class="p">(</span><span class="n">record</span><span class="p">,</span> <span class="s1">&#39;Mismatch of data mask&#39;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TestTFRecordUtil.test_compatibility_read_write"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.tfrecordio_test.TestTFRecordUtil.test_compatibility_read_write">[docs]</a>  <span class="k">def</span> <span class="nf">test_compatibility_read_write</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">for</span> <span class="n">record</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;&#39;</span><span class="p">,</span> <span class="s1">&#39;blah&#39;</span><span class="p">,</span> <span class="s1">&#39;another blah&#39;</span><span class="p">]:</span>
+      <span class="n">file_handle</span> <span class="o">=</span> <span class="n">cStringIO</span><span class="o">.</span><span class="n">StringIO</span><span class="p">()</span>
+      <span class="n">_TFRecordUtil</span><span class="o">.</span><span class="n">write_record</span><span class="p">(</span><span class="n">file_handle</span><span class="p">,</span> <span class="n">record</span><span class="p">)</span>
+      <span class="n">file_handle</span><span class="o">.</span><span class="n">reset</span><span class="p">()</span>
+      <span class="n">actual</span> <span class="o">=</span> <span class="n">_TFRecordUtil</span><span class="o">.</span><span class="n">read_record</span><span class="p">(</span><span class="n">file_handle</span><span class="p">)</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">record</span><span class="p">,</span> <span class="n">actual</span><span class="p">)</span></div></div>
+
+
+<span class="k">class</span> <span class="nc">_TestCaseWithTempDirCleanUp</span><span class="p">(</span><span class="n">unittest</span><span class="o">.</span><span class="n">TestCase</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Base class for TestCases that deals with TempDir clean-up.</span>
+
+<span class="sd">  Inherited test cases will call self._new_tempdir() to start a temporary dir</span>
+<span class="sd">  which will be deleted at the end of the tests (when tearDown() is called).</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">setUp</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_tempdirs</span> <span class="o">=</span> <span class="p">[]</span>
+
+  <span class="k">def</span> <span class="nf">tearDown</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">for</span> <span class="n">path</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_tempdirs</span><span class="p">:</span>
+      <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">path</span><span class="p">):</span>
+        <span class="n">shutil</span><span class="o">.</span><span class="n">rmtree</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_tempdirs</span> <span class="o">=</span> <span class="p">[]</span>
+
+  <span class="k">def</span> <span class="nf">_new_tempdir</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">mkdtemp</span><span class="p">()</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_tempdirs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">result</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">result</span>
+
+
+<div class="viewcode-block" id="TestTFRecordSink"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.tfrecordio_test.TestTFRecordSink">[docs]</a><span class="k">class</span> <span class="nc">TestTFRecordSink</span><span class="p">(</span><span class="n">_TestCaseWithTempDirCleanUp</span><span class="p">):</span>
+
+  <span class="k">def</span> <span class="nf">_write_lines</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sink</span><span class="p">,</span> <span class="n">path</span><span class="p">,</span> <span class="n">lines</span><span class="p">):</span>
+    <span class="n">f</span> <span class="o">=</span> <span class="n">sink</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">l</span> <span class="ow">in</span> <span class="n">lines</span><span class="p">:</span>
+      <span class="n">sink</span><span class="o">.</span><span class="n">write_record</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="n">l</span><span class="p">)</span>
+    <span class="n">sink</span><span class="o">.</span><span class="n">close</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
+
+<div class="viewcode-block" id="TestTFRecordSink.test_write_record_single"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.tfrecordio_test.TestTFRecordSink.test_write_record_single">[docs]</a>  <span class="k">def</span> <span class="nf">test_write_record_single</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_new_tempdir</span><span class="p">(),</span> <span class="s1">&#39;result&#39;</span><span class="p">)</span>
+    <span class="n">record</span> <span class="o">=</span> <span class="n">binascii</span><span class="o">.</span><span class="n">a2b_base64</span><span class="p">(</span><span class="n">FOO_RECORD_BASE64</span><span class="p">)</span>
+    <span class="n">sink</span> <span class="o">=</span> <span class="n">_TFRecordSink</span><span class="p">(</span>
+        <span class="n">path</span><span class="p">,</span>
+        <span class="n">coder</span><span class="o">=</span><span class="n">coders</span><span class="o">.</span><span class="n">BytesCoder</span><span class="p">(),</span>
+        <span class="n">file_name_suffix</span><span class="o">=</span><span class="s1">&#39;&#39;</span><span class="p">,</span>
+        <span class="n">num_shards</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+        <span class="n">shard_name_template</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">compression_type</span><span class="o">=</span><span class="n">fileio</span><span class="o">.</span><span class="n">CompressionTypes</span><span class="o">.</span><span class="n">UNCOMPRESSED</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_write_lines</span><span class="p">(</span><span class="n">sink</span><span class="p">,</span> <span class="n">path</span><span class="p">,</span> <span class="p">[</span><span class="s1">&#39;foo&#39;</span><span class="p">])</span>
+
+    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="s1">&#39;r&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">read</span><span class="p">(),</span> <span class="n">record</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TestTFRecordSink.test_write_record_multiple"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.tfrecordio_test.TestTFRecordSink.test_write_record_multiple">[docs]</a>  <span class="k">def</span> <span class="nf">test_write_record_multiple</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_new_tempdir</span><span class="p">(),</span> <span class="s1">&#39;result&#39;</span><span class="p">)</span>
+    <span class="n">record</span> <span class="o">=</span> <span class="n">binascii</span><span class="o">.</span><span class="n">a2b_base64</span><span class="p">(</span><span class="n">FOO_BAR_RECORD_BASE64</span><span class="p">)</span>
+    <span class="n">sink</span> <span class="o">=</span> <span class="n">_TFRecordSink</span><span class="p">(</span>
+        <span class="n">path</span><span class="p">,</span>
+        <span class="n">coder</span><span class="o">=</span><span class="n">coders</span><span class="o">.</span><span class="n">BytesCoder</span><span class="p">(),</span>
+        <span class="n">file_name_suffix</span><span class="o">=</span><span class="s1">&#39;&#39;</span><span class="p">,</span>
+        <span class="n">num_shards</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+        <span class="n">shard_name_template</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">compression_type</span><span class="o">=</span><span class="n">fileio</span><span class="o">.</span><span class="n">CompressionTypes</span><span class="o">.</span><span class="n">UNCOMPRESSED</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_write_lines</span><span class="p">(</span><span class="n">sink</span><span class="p">,</span> <span class="n">path</span><span class="p">,</span> <span class="p">[</span><span class="s1">&#39;foo&#39;</span><span class="p">,</span> <span class="s1">&#39;bar&#39;</span><span class="p">])</span>
+
+    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="s1">&#39;r&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">read</span><span class="p">(),</span> <span class="n">record</span><span class="p">)</span></div></div>
+
+
+<span class="nd">@unittest</span><span class="o">.</span><span class="n">skipIf</span><span class="p">(</span><span class="n">tf</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">,</span> <span class="s1">&#39;tensorflow not installed.&#39;</span><span class="p">)</span>
+<div class="viewcode-block" id="TestWriteToTFRecord"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.tfrecordio_test.TestWriteToTFRecord">[docs]</a><span class="k">class</span> <span class="nc">TestWriteToTFRecord</span><span class="p">(</span><span class="n">TestTFRecordSink</span><span class="p">):</span>
+
+<div class="viewcode-block" id="TestWriteToTFRecord.test_write_record_gzip"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.tfrecordio_test.TestWriteToTFRecord.test_write_record_gzip">[docs]</a>  <span class="k">def</span> <span class="nf">test_write_record_gzip</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">file_path_prefix</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_new_tempdir</span><span class="p">(),</span> <span class="s1">&#39;result&#39;</span><span class="p">)</span>
+    <span class="k">with</span> <span class="n">TestPipeline</span><span class="p">()</span> <span class="k">as</span> <span class="n">p</span><span class="p">:</span>
+      <span class="n">input_data</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;foo&#39;</span><span class="p">,</span> <span class="s1">&#39;bar&#39;</span><span class="p">]</span>
+      <span class="n">_</span> <span class="o">=</span> <span class="n">p</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">(</span><span class="n">input_data</span><span class="p">)</span> <span class="o">|</span> <span class="n">WriteToTFRecord</span><span class="p">(</span>
+          <span class="n">file_path_prefix</span><span class="p">,</span> <span class="n">compression_type</span><span class="o">=</span><span class="n">fileio</span><span class="o">.</span><span class="n">CompressionTypes</span><span class="o">.</span><span class="n">GZIP</span><span class="p">)</span>
+
+    <span class="n">actual</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">file_name</span> <span class="o">=</span> <span class="n">glob</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="n">file_path_prefix</span> <span class="o">+</span> <span class="s1">&#39;-*&#39;</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="n">tf</span><span class="o">.</span><span class="n">python_io</span><span class="o">.</span><span class="n">tf_record_iterator</span><span class="p">(</span>
+        <span class="n">file_name</span><span class="p">,</span> <span class="n">options</span><span class="o">=</span><span class="n">tf</span><span class="o">.</span><span class="n">python_io</span><span class="o">.</span><span class="n">TFRecordOptions</span><span class="p">(</span>
+            <span class="n">tf</span><span class="o">.</span><span class="n">python_io</span><span class="o">.</span><span class="n">TFRecordCompressionType</span><span class="o">.</span><span class="n">GZIP</span><span class="p">)):</span>
+      <span class="n">actual</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">r</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">actual</span><span class="p">,</span> <span class="n">input_data</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TestWriteToTFRecord.test_write_record_auto"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.tfrecordio_test.TestWriteToTFRecord.test_write_record_auto">[docs]</a>  <span class="k">def</span> <span class="nf">test_write_record_auto</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">file_path_prefix</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_new_tempdir</span><span class="p">(),</span> <span class="s1">&#39;result&#39;</span><span class="p">)</span>
+    <span class="k">with</span> <span class="n">TestPipeline</span><span class="p">()</span> <span class="k">as</span> <span class="n">p</span><span class="p">:</span>
+      <span class="n">input_data</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;foo&#39;</span><span class="p">,</span> <span class="s1">&#39;bar&#39;</span><span class="p">]</span>
+      <span class="n">_</span> <span class="o">=</span> <span class="n">p</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">(</span><span class="n">input_data</span><span class="p">)</span> <span class="o">|</span> <span class="n">WriteToTFRecord</span><span class="p">(</span>
+          <span class="n">file_path_prefix</span><span class="p">,</span> <span class="n">file_name_suffix</span><span class="o">=</span><span class="s1">&#39;.gz&#39;</span><span class="p">)</span>
+
+    <span class="n">actual</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">file_name</span> <span class="o">=</span> <span class="n">glob</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="n">file_path_prefix</span> <span class="o">+</span> <span class="s1">&#39;-*.gz&#39;</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="n">tf</span><span class="o">.</span><span class="n">python_io</span><span class="o">.</span><span class="n">tf_record_iterator</span><span class="p">(</span>
+        <span class="n">file_name</span><span class="p">,</span> <span class="n">options</span><span class="o">=</span><span class="n">tf</span><span class="o">.</span><span class="n">python_io</span><span class="o">.</span><span class="n">TFRecordOptions</span><span class="p">(</span>
+            <span class="n">tf</span><span class="o">.</span><span class="n">python_io</span><span class="o">.</span><span class="n">TFRecordCompressionType</span><span class="o">.</span><span class="n">GZIP</span><span class="p">)):</span>
+      <span class="n">actual</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">r</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">actual</span><span class="p">,</span> <span class="n">input_data</span><span class="p">)</span></div></div>
+
+
+<div class="viewcode-block" id="TestTFRecordSource"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.tfrecordio_test.TestTFRecordSource">[docs]</a><span class="k">class</span> <span class="nc">TestTFRecordSource</span><span class="p">(</span><span class="n">_TestCaseWithTempDirCleanUp</span><span class="p">):</span>
+
+  <span class="k">def</span> <span class="nf">_write_file</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">,</span> <span class="n">base64_records</span><span class="p">):</span>
+    <span class="n">record</span> <span class="o">=</span> <span class="n">binascii</span><span class="o">.</span><span class="n">a2b_base64</span><span class="p">(</span><span class="n">base64_records</span><span class="p">)</span>
+    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="s1">&#39;wb&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+      <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">record</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">_write_file_gzip</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">,</span> <span class="n">base64_records</span><span class="p">):</span>
+    <span class="n">record</span> <span class="o">=</span> <span class="n">binascii</span><span class="o">.</span><span class="n">a2b_base64</span><span class="p">(</span><span class="n">base64_records</span><span class="p">)</span>
+    <span class="k">with</span> <span class="n">gzip</span><span class="o">.</span><span class="n">GzipFile</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="s1">&#39;wb&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+      <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">record</span><span class="p">)</span>
+
+<div class="viewcode-block" id="TestTFRecordSource.test_process_single"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.tfrecordio_test.TestTFRecordSource.test_process_single">[docs]</a>  <span class="k">def</span> <span class="nf">test_process_single</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_new_tempdir</span><span class="p">(),</span> <span class="s1">&#39;result&#39;</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_write_file</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">FOO_RECORD_BASE64</span><span class="p">)</span>
+    <span class="k">with</span> <span class="n">TestPipeline</span><span class="p">()</span> <span class="k">as</span> <span class="n">p</span><span class="p">:</span>
+      <span class="n">result</span> <span class="o">=</span> <span class="p">(</span><span class="n">p</span>
+                <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Read</span><span class="p">(</span>
+                    <span class="n">_TFRecordSource</span><span class="p">(</span>
+                        <span class="n">path</span><span class="p">,</span>
+                        <span class="n">coder</span><span class="o">=</span><span class="n">coders</span><span class="o">.</span><span class="n">BytesCoder</span><span class="p">(),</span>
+                        <span class="n">compression_type</span><span class="o">=</span><span class="n">fileio</span><span class="o">.</span><span class="n">CompressionTypes</span><span class="o">.</span><span class="n">AUTO</span><span class="p">)))</span>
+      <span class="n">beam</span><span class="o">.</span><span class="n">assert_that</span><span class="p">(</span><span class="n">result</span><span class="p">,</span> <span class="n">beam</span><span class="o">.</span><span class="n">equal_to</span><span class="p">([</span><span class="s1">&#39;foo&#39;</span><span class="p">]))</span></div>
+
+<div class="viewcode-block" id="TestTFRecordSource.test_process_multiple"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.tfrecordio_test.TestTFRecordSource.test_process_multiple">[docs]</a>  <span class="k">def</span> <span class="nf">test_process_multiple</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_new_tempdir</span><span class="p">(),</span> <span class="s1">&#39;result&#39;</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_write_file</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">FOO_BAR_RECORD_BASE64</span><span class="p">)</span>
+    <span class="k">with</span> <span class="n">TestPipeline</span><span class="p">()</span> <span class="k">as</span> <span class="n">p</span><span class="p">:</span>
+      <span class="n">result</span> <span class="o">=</span> <span class="p">(</span><span class="n">p</span>
+                <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Read</span><span class="p">(</span>
+                    <span class="n">_TFRecordSource</span><span class="p">(</span>
+                        <span class="n">path</span><span class="p">,</span>
+                        <span class="n">coder</span><span class="o">=</span><span class="n">coders</span><span class="o">.</span><span class="n">BytesCoder</span><span class="p">(),</span>
+                        <span class="n">compression_type</span><span class="o">=</span><span class="n">fileio</span><span class="o">.</span><span class="n">CompressionTypes</span><span class="o">.</span><span class="n">AUTO</span><span class="p">)))</span>
+      <span class="n">beam</span><span class="o">.</span><span class="n">assert_that</span><span class="p">(</span><span class="n">result</span><span class="p">,</span> <span class="n">beam</span><span class="o">.</span><span class="n">equal_to</span><span class="p">([</span><span class="s1">&#39;foo&#39;</span><span class="p">,</span> <span class="s1">&#39;bar&#39;</span><span class="p">]))</span></div>
+
+<div class="viewcode-block" id="TestTFRecordSource.test_process_gzip"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.tfrecordio_test.TestTFRecordSource.test_process_gzip">[docs]</a>  <span class="k">def</span> <span class="nf">test_process_gzip</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_new_tempdir</span><span class="p">(),</span> <span class="s1">&#39;result&#39;</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_write_file_gzip</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">FOO_BAR_RECORD_BASE64</span><span class="p">)</span>
+    <span class="k">with</span> <span class="n">TestPipeline</span><span class="p">()</span> <span class="k">as</span> <span class="n">p</span><span class="p">:</span>
+      <span class="n">result</span> <span class="o">=</span> <span class="p">(</span><span class="n">p</span>
+                <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Read</span><span class="p">(</span>
+                    <span class="n">_TFRecordSource</span><span class="p">(</span>
+                        <span class="n">path</span><span class="p">,</span>
+                        <span class="n">coder</span><span class="o">=</span><span class="n">coders</span><span class="o">.</span><span class="n">BytesCoder</span><span class="p">(),</span>
+                        <span class="n">compression_type</span><span class="o">=</span><span class="n">fileio</span><span class="o">.</span><span class="n">CompressionTypes</span><span class="o">.</span><span class="n">GZIP</span><span class="p">)))</span>
+      <span class="n">beam</span><span class="o">.</span><span class="n">assert_that</span><span class="p">(</span><span class="n">result</span><span class="p">,</span> <span class="n">beam</span><span class="o">.</span><span class="n">equal_to</span><span class="p">([</span><span class="s1">&#39;foo&#39;</span><span class="p">,</span> <span class="s1">&#39;bar&#39;</span><span class="p">]))</span></div>
+
+<div class="viewcode-block" id="TestTFRecordSource.test_process_auto"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.tfrecordio_test.TestTFRecordSource.test_process_auto">[docs]</a>  <span class="k">def</span> <span class="nf">test_process_auto</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_new_tempdir</span><span class="p">(),</span> <span class="s1">&#39;result.gz&#39;</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_write_file_gzip</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">FOO_BAR_RECORD_BASE64</span><span class="p">)</span>
+    <span class="k">with</span> <span class="n">TestPipeline</span><span class="p">()</span> <span class="k">as</span> <span class="n">p</span><span class="p">:</span>
+      <span class="n">result</span> <span class="o">=</span> <span class="p">(</span><span class="n">p</span>
+                <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Read</span><span class="p">(</span>
+                    <span class="n">_TFRecordSource</span><span class="p">(</span>
+                        <span class="n">path</span><span class="p">,</span>
+                        <span class="n">coder</span><span class="o">=</span><span class="n">coders</span><span class="o">.</span><span class="n">BytesCoder</span><span class="p">(),</span>
+                        <span class="n">compression_type</span><span class="o">=</span><span class="n">fileio</span><span class="o">.</span><span class="n">CompressionTypes</span><span class="o">.</span><span class="n">AUTO</span><span class="p">)))</span>
+      <span class="n">beam</span><span class="o">.</span><span class="n">assert_that</span><span class="p">(</span><span class="n">result</span><span class="p">,</span> <span class="n">beam</span><span class="o">.</span><span class="n">equal_to</span><span class="p">([</span><span class="s1">&#39;foo&#39;</span><span class="p">,</span> <span class="s1">&#39;bar&#39;</span><span class="p">]))</span></div></div>
+
+
+<div class="viewcode-block" id="TestReadFromTFRecordSource"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.tfrecordio_test.TestReadFromTFRecordSource">[docs]</a><span class="k">class</span> <span class="nc">TestReadFromTFRecordSource</span><span class="p">(</span><span class="n">TestTFRecordSource</span><span class="p">):</span>
+
+<div class="viewcode-block" id="TestReadFromTFRecordSource.test_process_gzip"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.tfrecordio_test.TestReadFromTFRecordSource.test_process_gzip">[docs]</a>  <span class="k">def</span> <span class="nf">test_process_gzip</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_new_tempdir</span><span class="p">(),</span> <span class="s1">&#39;result&#39;</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_write_file_gzip</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">FOO_BAR_RECORD_BASE64</span><span class="p">)</span>
+    <span class="k">with</span> <span class="n">TestPipeline</span><span class="p">()</span> <span class="k">as</span> <span class="n">p</span><span class="p">:</span>
+      <span class="n">result</span> <span class="o">=</span> <span class="p">(</span><span class="n">p</span>
+                <span class="o">|</span> <span class="n">ReadFromTFRecord</span><span class="p">(</span>
+                    <span class="n">path</span><span class="p">,</span> <span class="n">compression_type</span><span class="o">=</span><span class="n">fileio</span><span class="o">.</span><span class="n">CompressionTypes</span><span class="o">.</span><span class="n">GZIP</span><span class="p">))</span>
+      <span class="n">beam</span><span class="o">.</span><span class="n">assert_that</span><span class="p">(</span><span class="n">result</span><span class="p">,</span> <span class="n">beam</span><span class="o">.</span><span class="n">equal_to</span><span class="p">([</span><span class="s1">&#39;foo&#39;</span><span class="p">,</span> <span class="s1">&#39;bar&#39;</span><span class="p">]))</span></div>
+
+<div class="viewcode-block" id="TestReadFromTFRecordSource.test_process_gzip_auto"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.tfrecordio_test.TestReadFromTFRecordSource.test_process_gzip_auto">[docs]</a>  <span class="k">def</span> <span class="nf">test_process_gzip_auto</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_new_tempdir</span><span class="p">(),</span> <span class="s1">&#39;result.gz&#39;</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_write_file_gzip</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">FOO_BAR_RECORD_BASE64</span><span class="p">)</span>
+    <span class="k">with</span> <span class="n">TestPipeline</span><span class="p">()</span> <span class="k">as</span> <span class="n">p</span><span class="p">:</span>
+      <span class="n">result</span> <span class="o">=</span> <span class="p">(</span><span class="n">p</span>
+                <span class="o">|</span> <span class="n">ReadFromTFRecord</span><span class="p">(</span>
+                    <span class="n">path</span><span class="p">,</span> <span class="n">compression_type</span><span class="o">=</span><span class="n">fileio</span><span class="o">.</span><span class="n">CompressionTypes</span><span class="o">.</span><span class="n">AUTO</span><span class="p">))</span>
+      <span class="n">beam</span><span class="o">.</span><span class="n">assert_that</span><span class="p">(</span><span class="n">result</span><span class="p">,</span> <span class="n">beam</span><span class="o">.</span><span class="n">equal_to</span><span class="p">([</span><span class="s1">&#39;foo&#39;</span><span class="p">,</span> <span class="s1">&#39;bar&#39;</span><span class="p">]))</span></div></div>
+
+
+<div class="viewcode-block" id="TestEnd2EndWriteAndRead"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.tfrecordio_test.TestEnd2EndWriteAndRead">[docs]</a><span class="k">class</span> <span class="nc">TestEnd2EndWriteAndRead</span><span class="p">(</span><span class="n">_TestCaseWithTempDirCleanUp</span><span class="p">):</span>
+
+<div class="viewcode-block" id="TestEnd2EndWriteAndRead.create_inputs"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.tfrecordio_test.TestEnd2EndWriteAndRead.create_inputs">[docs]</a>  <span class="k">def</span> <span class="nf">create_inputs</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">input_array</span> <span class="o">=</span> <span class="p">[[</span><span class="n">random</span><span class="o">.</span><span class="n">random</span><span class="p">()</span> <span class="o">-</span> <span class="mf">0.5</span> <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="n">xrange</span><span class="p">(</span><span class="mi">15</span><span class="p">)]</span>
+                   <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="n">xrange</span><span class="p">(</span><span class="mi">12</span><span class="p">)]</span>
+    <span class="n">memfile</span> <span class="o">=</span> <span class="n">cStringIO</span><span class="o">.</span><span class="n">StringIO</span><span class="p">()</span>
+    <span class="n">pickle</span><span class="o">.</span><span class="n">dump</span><span class="p">(</span><span class="n">input_array</span><span class="p">,</span> <span class="n">memfile</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">memfile</span><span class="o">.</span><span class="n">getvalue</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="TestEnd2EndWriteAndRead.test_end2end"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.tfrecordio_test.TestEnd2EndWriteAndRead.test_end2end">[docs]</a>  <span class="k">def</span> <span class="nf">test_end2end</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">file_path_prefix</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_new_tempdir</span><span class="p">(),</span> <span class="s1">&#39;result&#39;</span><span class="p">)</span>
+
+    <span class="c1"># Generate a TFRecord file.</span>
+    <span class="k">with</span> <span class="n">TestPipeline</span><span class="p">()</span> <span class="k">as</span> <span class="n">p</span><span class="p">:</span>
+      <span class="n">expected_data</span> <span class="o">=</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">create_inputs</span><span class="p">()</span> <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">10</span><span class="p">)]</span>
+      <span class="n">_</span> <span class="o">=</span> <span class="n">p</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">(</span><span class="n">expected_data</span><span class="p">)</span> <span class="o">|</span> <span class="n">WriteToTFRecord</span><span class="p">(</span><span class="n">file_path_prefix</span><span class="p">)</span>
+
+    <span class="c1"># Read the file back and compare.</span>
+    <span class="k">with</span> <span class="n">TestPipeline</span><span class="p">()</span> <span class="k">as</span> <span class="n">p</span><span class="p">:</span>
+      <span class="n">actual_data</span> <span class="o">=</span> <span class="n">p</span> <span class="o">|</span> <span class="n">ReadFromTFRecord</span><span class="p">(</span><span class="n">file_path_prefix</span> <span class="o">+</span> <span class="s1">&#39;-*&#39;</span><span class="p">)</span>
+      <span class="n">beam</span><span class="o">.</span><span class="n">assert_that</span><span class="p">(</span><span class="n">actual_data</span><span class="p">,</span> <span class="n">beam</span><span class="o">.</span><span class="n">equal_to</span><span class="p">(</span><span class="n">expected_data</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="TestEnd2EndWriteAndRead.test_end2end_auto_compression"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.tfrecordio_test.TestEnd2EndWriteAndRead.test_end2end_auto_compression">[docs]</a>  <span class="k">def</span> <span class="nf">test_end2end_auto_compression</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">file_path_prefix</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_new_tempdir</span><span class="p">(),</span> <span class="s1">&#39;result&#39;</span><span class="p">)</span>
+
+    <span class="c1"># Generate a TFRecord file.</span>
+    <span class="k">with</span> <span class="n">TestPipeline</span><span class="p">()</span> <span class="k">as</span> <span class="n">p</span><span class="p">:</span>
+      <span class="n">expected_data</span> <span class="o">=</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">create_inputs</span><span class="p">()</span> <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">10</span><span class="p">)]</span>
+      <span class="n">_</span> <span class="o">=</span> <span class="n">p</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">(</span><span class="n">expected_data</span><span class="p">)</span> <span class="o">|</span> <span class="n">WriteToTFRecord</span><span class="p">(</span>
+          <span class="n">file_path_prefix</span><span class="p">,</span> <span class="n">file_name_suffix</span><span class="o">=</span><span class="s1">&#39;.gz&#39;</span><span class="p">)</span>
+
+    <span class="c1"># Read the file back and compare.</span>
+    <span class="k">with</span> <span class="n">TestPipeline</span><span class="p">()</span> <span class="k">as</span> <span class="n">p</span><span class="p">:</span>
+      <span class="n">actual_data</span> <span class="o">=</span> <span class="n">p</span> <span class="o">|</span> <span class="n">ReadFromTFRecord</span><span class="p">(</span><span class="n">file_path_prefix</span> <span class="o">+</span> <span class="s1">&#39;-*&#39;</span><span class="p">)</span>
+      <span class="n">beam</span><span class="o">.</span><span class="n">assert_that</span><span class="p">(</span><span class="n">actual_data</span><span class="p">,</span> <span class="n">beam</span><span class="o">.</span><span class="n">equal_to</span><span class="p">(</span><span class="n">expected_data</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="TestEnd2EndWriteAndRead.test_end2end_auto_compression_unsharded"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.tfrecordio_test.TestEnd2EndWriteAndRead.test_end2end_auto_compression_unsharded">[docs]</a>  <span class="k">def</span> <span class="nf">test_end2end_auto_compression_unsharded</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">file_path_prefix</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_new_tempdir</span><span class="p">(),</span> <span class="s1">&#39;result&#39;</span><span class="p">)</span>
+
+    <span class="c1"># Generate a TFRecord file.</span>
+    <span class="k">with</span> <span class="n">TestPipeline</span><span class="p">()</span> <span class="k">as</span> <span class="n">p</span><span class="p">:</span>
+      <span class="n">expected_data</span> <span class="o">=</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">create_inputs</span><span class="p">()</span> <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">10</span><span class="p">)]</span>
+      <span class="n">_</span> <span class="o">=</span> <span class="n">p</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">(</span><span class="n">expected_data</span><span class="p">)</span> <span class="o">|</span> <span class="n">WriteToTFRecord</span><span class="p">(</span>
+          <span class="n">file_path_prefix</span> <span class="o">+</span> <span class="s1">&#39;.gz&#39;</span><span class="p">,</span> <span class="n">shard_name_template</span><span class="o">=</span><span class="s1">&#39;&#39;</span><span class="p">)</span>
+
+    <span class="c1"># Read the file back and compare.</span>
+    <span class="k">with</span> <span class="n">TestPipeline</span><span class="p">()</span> <span class="k">as</span> <span class="n">p</span><span class="p">:</span>
+      <span class="n">actual_data</span> <span class="o">=</span> <span class="n">p</span> <span class="o">|</span> <span class="n">ReadFromTFRecord</span><span class="p">(</span><span class="n">file_path_prefix</span> <span class="o">+</span> <span class="s1">&#39;.gz&#39;</span><span class="p">)</span>
+      <span class="n">beam</span><span class="o">.</span><span class="n">assert_that</span><span class="p">(</span><span class="n">actual_data</span><span class="p">,</span> <span class="n">beam</span><span class="o">.</span><span class="n">equal_to</span><span class="p">(</span><span class="n">expected_data</span><span class="p">))</span></div>
+
+  <span class="nd">@unittest</span><span class="o">.</span><span class="n">skipIf</span><span class="p">(</span><span class="n">tf</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">,</span> <span class="s1">&#39;tensorflow not installed.&#39;</span><span class="p">)</span>
+<div class="viewcode-block" id="TestEnd2EndWriteAndRead.test_end2end_example_proto"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.tfrecordio_test.TestEnd2EndWriteAndRead.test_end2end_example_proto">[docs]</a>  <span class="k">def</span> <span class="nf">test_end2end_example_proto</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">file_path_prefix</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_new_tempdir</span><span class="p">(),</span> <span class="s1">&#39;result&#39;</span><span class="p">)</span>
+
+    <span class="n">example</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">train</span><span class="o">.</span><span class="n">Example</span><span class="p">()</span>
+    <span class="n">example</span><span class="o">.</span><span class="n">features</span><span class="o">.</span><span class="n">feature</span><span class="p">[</span><span class="s1">&#39;int&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">int64_list</span><span class="o">.</span><span class="n">value</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="mi">3</span><span class="p">))</span>
+    <span class="n">example</span><span class="o">.</span><span class="n">features</span><span class="o">.</span><span class="n">feature</span><span class="p">[</span><span class="s1">&#39;bytes&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">bytes_list</span><span class="o">.</span><span class="n">value</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span>
+        <span class="p">[</span><span class="sa">b</span><span class="s1">&#39;foo&#39;</span><span class="p">,</span> <span class="sa">b</span><span class="s1">&#39;bar&#39;</span><span class="p">])</span>
+
+    <span class="k">with</span> <span class="n">TestPipeline</span><span class="p">()</span> <span class="k">as</span> <span class="n">p</span><span class="p">:</span>
+      <span class="n">_</span> <span class="o">=</span> <span class="n">p</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">([</span><span class="n">example</span><span class="p">])</span> <span class="o">|</span> <span class="n">WriteToTFRecord</span><span class="p">(</span>
+          <span class="n">file_path_prefix</span><span class="p">,</span> <span class="n">coder</span><span class="o">=</span><span class="n">beam</span><span class="o">.</span><span class="n">coders</span><span class="o">.</span><span class="n">ProtoCoder</span><span class="p">(</span><span class="n">example</span><span class="o">.</span><span class="vm">__class__</span><span class="p">))</span>
+
+    <span class="c1"># Read the file back and compare.</span>
+    <span class="k">with</span> <span class="n">TestPipeline</span><span class="p">()</span> <span class="k">as</span> <span class="n">p</span><span class="p">:</span>
+      <span class="n">actual_data</span> <span class="o">=</span> <span class="p">(</span><span class="n">p</span> <span class="o">|</span> <span class="n">ReadFromTFRecord</span><span class="p">(</span>
+          <span class="n">file_path_prefix</span> <span class="o">+</span> <span class="s1">&#39;-*&#39;</span><span class="p">,</span>
+          <span class="n">coder</span><span class="o">=</span><span class="n">beam</span><span class="o">.</span><span class="n">coders</span><span class="o">.</span><span class="n">ProtoCoder</span><span class="p">(</span><span class="n">example</span><span class="o">.</span><span class="vm">__class__</span><span class="p">)))</span>
+      <span class="n">beam</span><span class="o">.</span><span class="n">assert_that</span><span class="p">(</span><span class="n">actual_data</span><span class="p">,</span> <span class="n">beam</span><span class="o">.</span><span class="n">equal_to</span><span class="p">([</span><span class="n">example</span><span class="p">]))</span></div></div>
+
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s1">&#39;__main__&#39;</span><span class="p">:</span>
+  <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">()</span><span class="o">.</span><span class="n">setLevel</span><span class="p">(</span><span class="n">logging</span><span class="o">.</span><span class="n">INFO</span><span class="p">)</span>
+  <span class="n">unittest</span><span class="o">.</span><span class="n">main</span><span class="p">()</span>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../index.html" >Module code</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright .
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.5.3.
+    </div>
+  </body>
+</html>

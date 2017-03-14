@@ -1,0 +1,1393 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>apache_beam package &#8212; Apache Beam  documentation</title>
+    
+    <link rel="stylesheet" href="_static/sphinxdoc.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="apache_beam.coders package" href="apache_beam.coders.html" />
+    <link rel="prev" title="apache_beam" href="index.html" /> 
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="apache_beam.coders.html" title="apache_beam.coders package"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="index.html" title="apache_beam"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">Apache Beam  documentation</a> &#187;</li> 
+      </ul>
+    </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">apache_beam package</a><ul>
+<li><a class="reference internal" href="#subpackages">Subpackages</a></li>
+<li><a class="reference internal" href="#submodules">Submodules</a></li>
+<li><a class="reference internal" href="#module-apache_beam.error">apache_beam.error module</a></li>
+<li><a class="reference internal" href="#module-apache_beam.pipeline">apache_beam.pipeline module</a></li>
+<li><a class="reference internal" href="#module-apache_beam.pipeline_test">apache_beam.pipeline_test module</a></li>
+<li><a class="reference internal" href="#module-apache_beam.pvalue">apache_beam.pvalue module</a></li>
+<li><a class="reference internal" href="#module-apache_beam.pvalue_test">apache_beam.pvalue_test module</a></li>
+<li><a class="reference internal" href="#module-apache_beam.test_pipeline">apache_beam.test_pipeline module</a></li>
+<li><a class="reference internal" href="#module-apache_beam.test_pipeline_test">apache_beam.test_pipeline_test module</a></li>
+<li><a class="reference internal" href="#module-apache_beam.version">apache_beam.version module</a></li>
+<li><a class="reference internal" href="#module-apache_beam">Module contents</a><ul>
+<li><a class="reference internal" href="#status">Status</a></li>
+<li><a class="reference internal" href="#overview">Overview</a></li>
+<li><a class="reference internal" href="#typical-usage">Typical usage</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="index.html"
+                        title="previous chapter">apache_beam</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="apache_beam.coders.html"
+                        title="next chapter">apache_beam.coders package</a></p>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="_sources/apache_beam.rst.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="apache-beam-package">
+<h1>apache_beam package<a class="headerlink" href="#apache-beam-package" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="subpackages">
+<h2>Subpackages<a class="headerlink" href="#subpackages" title="Permalink to this headline">¶</a></h2>
+<div class="toctree-wrapper compound">
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.coders.html">apache_beam.coders package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.coders.html#submodules">Submodules</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.coders.html#module-apache_beam.coders.coder_impl">apache_beam.coders.coder_impl module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.coders.html#module-apache_beam.coders.coders">apache_beam.coders.coders module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.coders.html#module-apache_beam.coders.coders_test">apache_beam.coders.coders_test module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.coders.html#module-apache_beam.coders.coders_test_common">apache_beam.coders.coders_test_common module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.coders.html#module-apache_beam.coders.fast_coders_test">apache_beam.coders.fast_coders_test module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.coders.html#module-apache_beam.coders.observable">apache_beam.coders.observable module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.coders.html#module-apache_beam.coders.observable_test">apache_beam.coders.observable_test module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.coders.html#module-apache_beam.coders.proto2_coder_test_messages_pb2">apache_beam.coders.proto2_coder_test_messages_pb2 module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.coders.html#module-apache_beam.coders.slow_coders_test">apache_beam.coders.slow_coders_test module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.coders.html#module-apache_beam.coders.slow_stream">apache_beam.coders.slow_stream module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.coders.html#module-apache_beam.coders.standard_coders_test">apache_beam.coders.standard_coders_test module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.coders.html#apache-beam-coders-stream-module">apache_beam.coders.stream module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.coders.html#apache-beam-coders-stream-test-module">apache_beam.coders.stream_test module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.coders.html#module-apache_beam.coders.typecoders">apache_beam.coders.typecoders module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.coders.html#module-apache_beam.coders.typecoders_test">apache_beam.coders.typecoders_test module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.coders.html#module-apache_beam.coders">Module contents</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.examples.html">apache_beam.examples package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.examples.html#subpackages">Subpackages</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.examples.complete.html">apache_beam.examples.complete package</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.examples.complete.html#subpackages">Subpackages</a><ul>
+<li class="toctree-l5"><a class="reference internal" href="apache_beam.examples.complete.juliaset.html">apache_beam.examples.complete.juliaset package</a><ul>
+<li class="toctree-l6"><a class="reference internal" href="apache_beam.examples.complete.juliaset.html#subpackages">Subpackages</a><ul>
+<li class="toctree-l7"><a class="reference internal" href="apache_beam.examples.complete.juliaset.juliaset.html">apache_beam.examples.complete.juliaset.juliaset package</a><ul>
+<li class="toctree-l8"><a class="reference internal" href="apache_beam.examples.complete.juliaset.juliaset.html#submodules">Submodules</a></li>
+<li class="toctree-l8"><a class="reference internal" href="apache_beam.examples.complete.juliaset.juliaset.html#module-apache_beam.examples.complete.juliaset.juliaset.juliaset">apache_beam.examples.complete.juliaset.juliaset.juliaset module</a></li>
+<li class="toctree-l8"><a class="reference internal" href="apache_beam.examples.complete.juliaset.juliaset.html#module-apache_beam.examples.complete.juliaset.juliaset.juliaset_test">apache_beam.examples.complete.juliaset.juliaset.juliaset_test module</a></li>
+<li class="toctree-l8"><a class="reference internal" href="apache_beam.examples.complete.juliaset.juliaset.html#module-apache_beam.examples.complete.juliaset.juliaset">Module contents</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l6"><a class="reference internal" href="apache_beam.examples.complete.juliaset.html#submodules">Submodules</a></li>
+<li class="toctree-l6"><a class="reference internal" href="apache_beam.examples.complete.juliaset.html#module-apache_beam.examples.complete.juliaset.juliaset_main">apache_beam.examples.complete.juliaset.juliaset_main module</a></li>
+<li class="toctree-l6"><a class="reference internal" href="apache_beam.examples.complete.juliaset.html#module-apache_beam.examples.complete.juliaset">Module contents</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.examples.complete.html#submodules">Submodules</a></li>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.examples.complete.html#module-apache_beam.examples.complete.autocomplete">apache_beam.examples.complete.autocomplete module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.examples.complete.html#module-apache_beam.examples.complete.autocomplete_test">apache_beam.examples.complete.autocomplete_test module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.examples.complete.html#module-apache_beam.examples.complete.estimate_pi">apache_beam.examples.complete.estimate_pi module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.examples.complete.html#module-apache_beam.examples.complete.estimate_pi_test">apache_beam.examples.complete.estimate_pi_test module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.examples.complete.html#module-apache_beam.examples.complete.tfidf">apache_beam.examples.complete.tfidf module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.examples.complete.html#module-apache_beam.examples.complete.tfidf_test">apache_beam.examples.complete.tfidf_test module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.examples.complete.html#module-apache_beam.examples.complete.top_wikipedia_sessions">apache_beam.examples.complete.top_wikipedia_sessions module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.examples.complete.html#module-apache_beam.examples.complete.top_wikipedia_sessions_test">apache_beam.examples.complete.top_wikipedia_sessions_test module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.examples.complete.html#module-apache_beam.examples.complete">Module contents</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.examples.cookbook.html">apache_beam.examples.cookbook package</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.examples.cookbook.html#submodules">Submodules</a></li>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.examples.cookbook.html#module-apache_beam.examples.cookbook.bigquery_schema">apache_beam.examples.cookbook.bigquery_schema module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.examples.cookbook.html#module-apache_beam.examples.cookbook.bigquery_side_input">apache_beam.examples.cookbook.bigquery_side_input module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.examples.cookbook.html#module-apache_beam.examples.cookbook.bigquery_side_input_test">apache_beam.examples.cookbook.bigquery_side_input_test module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.examples.cookbook.html#module-apache_beam.examples.cookbook.bigquery_tornadoes">apache_beam.examples.cookbook.bigquery_tornadoes module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.examples.cookbook.html#module-apache_beam.examples.cookbook.bigquery_tornadoes_it_test">apache_beam.examples.cookbook.bigquery_tornadoes_it_test module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.examples.cookbook.html#module-apache_beam.examples.cookbook.bigquery_tornadoes_test">apache_beam.examples.cookbook.bigquery_tornadoes_test module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.examples.cookbook.html#module-apache_beam.examples.cookbook.bigshuffle">apache_beam.examples.cookbook.bigshuffle module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.examples.cookbook.html#module-apache_beam.examples.cookbook.bigshuffle_test">apache_beam.examples.cookbook.bigshuffle_test module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.examples.cookbook.html#module-apache_beam.examples.cookbook.coders">apache_beam.examples.cookbook.coders module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.examples.cookbook.html#module-apache_beam.examples.cookbook.coders_test">apache_beam.examples.cookbook.coders_test module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.examples.cookbook.html#module-apache_beam.examples.cookbook.combiners_test">apache_beam.examples.cookbook.combiners_test module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.examples.cookbook.html#module-apache_beam.examples.cookbook.custom_ptransform">apache_beam.examples.cookbook.custom_ptransform module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.examples.cookbook.html#module-apache_beam.examples.cookbook.custom_ptransform_test">apache_beam.examples.cookbook.custom_ptransform_test module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.examples.cookbook.html#module-apache_beam.examples.cookbook.datastore_wordcount">apache_beam.examples.cookbook.datastore_wordcount module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.examples.cookbook.html#module-apache_beam.examples.cookbook.filters">apache_beam.examples.cookbook.filters module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.examples.cookbook.html#module-apache_beam.examples.cookbook.filters_test">apache_beam.examples.cookbook.filters_test module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.examples.cookbook.html#module-apache_beam.examples.cookbook.group_with_coder">apache_beam.examples.cookbook.group_with_coder module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.examples.cookbook.html#module-apache_beam.examples.cookbook.group_with_coder_test">apache_beam.examples.cookbook.group_with_coder_test module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.examples.cookbook.html#module-apache_beam.examples.cookbook.mergecontacts">apache_beam.examples.cookbook.mergecontacts module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.examples.cookbook.html#module-apache_beam.examples.cookbook.mergecontacts_test">apache_beam.examples.cookbook.mergecontacts_test module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.examples.cookbook.html#module-apache_beam.examples.cookbook.multiple_output_pardo">apache_beam.examples.cookbook.multiple_output_pardo module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.examples.cookbook.html#module-apache_beam.examples.cookbook.multiple_output_pardo_test">apache_beam.examples.cookbook.multiple_output_pardo_test module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.examples.cookbook.html#module-apache_beam.examples.cookbook">Module contents</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.examples.snippets.html">apache_beam.examples.snippets package</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.examples.snippets.html#submodules">Submodules</a></li>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.examples.snippets.html#module-apache_beam.examples.snippets.snippets">apache_beam.examples.snippets.snippets module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.examples.snippets.html#module-apache_beam.examples.snippets.snippets_test">apache_beam.examples.snippets.snippets_test module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.examples.snippets.html#module-apache_beam.examples.snippets">Module contents</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.examples.html#submodules">Submodules</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.examples.html#module-apache_beam.examples.streaming_wordcap">apache_beam.examples.streaming_wordcap module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.examples.html#module-apache_beam.examples.streaming_wordcount">apache_beam.examples.streaming_wordcount module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.examples.html#module-apache_beam.examples.wordcount">apache_beam.examples.wordcount module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.examples.html#module-apache_beam.examples.wordcount_debugging">apache_beam.examples.wordcount_debugging module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.examples.html#module-apache_beam.examples.wordcount_debugging_test">apache_beam.examples.wordcount_debugging_test module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.examples.html#module-apache_beam.examples.wordcount_it_test">apache_beam.examples.wordcount_it_test module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.examples.html#module-apache_beam.examples.wordcount_minimal">apache_beam.examples.wordcount_minimal module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.examples.html#module-apache_beam.examples.wordcount_minimal_test">apache_beam.examples.wordcount_minimal_test module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.examples.html#module-apache_beam.examples.wordcount_test">apache_beam.examples.wordcount_test module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.examples.html#module-apache_beam.examples">Module contents</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.internal.html">apache_beam.internal package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.internal.html#subpackages">Subpackages</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.internal.gcp.html">apache_beam.internal.gcp package</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.internal.gcp.html#submodules">Submodules</a></li>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.internal.gcp.html#module-apache_beam.internal.gcp.auth">apache_beam.internal.gcp.auth module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.internal.gcp.html#module-apache_beam.internal.gcp.auth_test">apache_beam.internal.gcp.auth_test module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.internal.gcp.html#module-apache_beam.internal.gcp.json_value">apache_beam.internal.gcp.json_value module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.internal.gcp.html#module-apache_beam.internal.gcp.json_value_test">apache_beam.internal.gcp.json_value_test module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.internal.gcp.html#module-apache_beam.internal.gcp">Module contents</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.internal.html#submodules">Submodules</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.internal.html#module-apache_beam.internal.module_test">apache_beam.internal.module_test module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.internal.html#module-apache_beam.internal.pickler">apache_beam.internal.pickler module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.internal.html#module-apache_beam.internal.pickler_test">apache_beam.internal.pickler_test module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.internal.html#module-apache_beam.internal.util">apache_beam.internal.util module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.internal.html#module-apache_beam.internal.util_test">apache_beam.internal.util_test module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.internal.html#module-apache_beam.internal">Module contents</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.io.html">apache_beam.io package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.io.html#subpackages">Subpackages</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.io.gcp.html">apache_beam.io.gcp package</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.io.gcp.html#subpackages">Subpackages</a><ul>
+<li class="toctree-l5"><a class="reference internal" href="apache_beam.io.gcp.datastore.html">apache_beam.io.gcp.datastore package</a><ul>
+<li class="toctree-l6"><a class="reference internal" href="apache_beam.io.gcp.datastore.html#subpackages">Subpackages</a><ul>
+<li class="toctree-l7"><a class="reference internal" href="apache_beam.io.gcp.datastore.v1.html">apache_beam.io.gcp.datastore.v1 package</a><ul>
+<li class="toctree-l8"><a class="reference internal" href="apache_beam.io.gcp.datastore.v1.html#submodules">Submodules</a></li>
+<li class="toctree-l8"><a class="reference internal" href="apache_beam.io.gcp.datastore.v1.html#module-apache_beam.io.gcp.datastore.v1.datastoreio">apache_beam.io.gcp.datastore.v1.datastoreio module</a></li>
+<li class="toctree-l8"><a class="reference internal" href="apache_beam.io.gcp.datastore.v1.html#module-apache_beam.io.gcp.datastore.v1.datastoreio_test">apache_beam.io.gcp.datastore.v1.datastoreio_test module</a></li>
+<li class="toctree-l8"><a class="reference internal" href="apache_beam.io.gcp.datastore.v1.html#module-apache_beam.io.gcp.datastore.v1.fake_datastore">apache_beam.io.gcp.datastore.v1.fake_datastore module</a></li>
+<li class="toctree-l8"><a class="reference internal" href="apache_beam.io.gcp.datastore.v1.html#module-apache_beam.io.gcp.datastore.v1.helper">apache_beam.io.gcp.datastore.v1.helper module</a></li>
+<li class="toctree-l8"><a class="reference internal" href="apache_beam.io.gcp.datastore.v1.html#module-apache_beam.io.gcp.datastore.v1.helper_test">apache_beam.io.gcp.datastore.v1.helper_test module</a></li>
+<li class="toctree-l8"><a class="reference internal" href="apache_beam.io.gcp.datastore.v1.html#module-apache_beam.io.gcp.datastore.v1.query_splitter">apache_beam.io.gcp.datastore.v1.query_splitter module</a></li>
+<li class="toctree-l8"><a class="reference internal" href="apache_beam.io.gcp.datastore.v1.html#module-apache_beam.io.gcp.datastore.v1.query_splitter_test">apache_beam.io.gcp.datastore.v1.query_splitter_test module</a></li>
+<li class="toctree-l8"><a class="reference internal" href="apache_beam.io.gcp.datastore.v1.html#module-apache_beam.io.gcp.datastore.v1">Module contents</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l6"><a class="reference internal" href="apache_beam.io.gcp.datastore.html#module-apache_beam.io.gcp.datastore">Module contents</a></li>
+</ul>
+</li>
+<li class="toctree-l5"><a class="reference internal" href="apache_beam.io.gcp.internal.html">apache_beam.io.gcp.internal package</a><ul>
+<li class="toctree-l6"><a class="reference internal" href="apache_beam.io.gcp.internal.html#module-apache_beam.io.gcp.internal">Module contents</a></li>
+</ul>
+</li>
+<li class="toctree-l5"><a class="reference internal" href="apache_beam.io.gcp.tests.html">apache_beam.io.gcp.tests package</a><ul>
+<li class="toctree-l6"><a class="reference internal" href="apache_beam.io.gcp.tests.html#submodules">Submodules</a></li>
+<li class="toctree-l6"><a class="reference internal" href="apache_beam.io.gcp.tests.html#module-apache_beam.io.gcp.tests.bigquery_matcher">apache_beam.io.gcp.tests.bigquery_matcher module</a></li>
+<li class="toctree-l6"><a class="reference internal" href="apache_beam.io.gcp.tests.html#module-apache_beam.io.gcp.tests.bigquery_matcher_test">apache_beam.io.gcp.tests.bigquery_matcher_test module</a></li>
+<li class="toctree-l6"><a class="reference internal" href="apache_beam.io.gcp.tests.html#module-apache_beam.io.gcp.tests">Module contents</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.io.gcp.html#submodules">Submodules</a></li>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.io.gcp.html#module-apache_beam.io.gcp.bigquery">apache_beam.io.gcp.bigquery module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.io.gcp.html#module-apache_beam.io.gcp.bigquery_test">apache_beam.io.gcp.bigquery_test module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.io.gcp.html#module-apache_beam.io.gcp.gcsio">apache_beam.io.gcp.gcsio module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.io.gcp.html#module-apache_beam.io.gcp.gcsio_test">apache_beam.io.gcp.gcsio_test module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.io.gcp.html#module-apache_beam.io.gcp.pubsub">apache_beam.io.gcp.pubsub module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.io.gcp.html#module-apache_beam.io.gcp.pubsub_test">apache_beam.io.gcp.pubsub_test module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.io.gcp.html#module-apache_beam.io.gcp">Module contents</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.io.html#submodules">Submodules</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.io.html#module-apache_beam.io.avroio">apache_beam.io.avroio module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.io.html#module-apache_beam.io.avroio_test">apache_beam.io.avroio_test module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.io.html#module-apache_beam.io.concat_source">apache_beam.io.concat_source module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.io.html#module-apache_beam.io.concat_source_test">apache_beam.io.concat_source_test module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.io.html#module-apache_beam.io.filebasedsource">apache_beam.io.filebasedsource module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.io.html#module-apache_beam.io.filebasedsource_test">apache_beam.io.filebasedsource_test module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.io.html#module-apache_beam.io.fileio">apache_beam.io.fileio module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.io.html#module-apache_beam.io.fileio_test">apache_beam.io.fileio_test module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.io.html#module-apache_beam.io.iobase">apache_beam.io.iobase module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.io.html#module-apache_beam.io.range_trackers">apache_beam.io.range_trackers module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.io.html#module-apache_beam.io.range_trackers_test">apache_beam.io.range_trackers_test module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.io.html#module-apache_beam.io.source_test_utils">apache_beam.io.source_test_utils module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.io.html#module-apache_beam.io.source_test_utils_test">apache_beam.io.source_test_utils_test module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.io.html#module-apache_beam.io.sources_test">apache_beam.io.sources_test module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.io.html#module-apache_beam.io.textio">apache_beam.io.textio module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.io.html#module-apache_beam.io.textio_test">apache_beam.io.textio_test module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.io.html#module-apache_beam.io.tfrecordio">apache_beam.io.tfrecordio module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.io.html#module-apache_beam.io.tfrecordio_test">apache_beam.io.tfrecordio_test module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.io.html#module-apache_beam.io">Module contents</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.metrics.html">apache_beam.metrics package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.metrics.html#submodules">Submodules</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.metrics.html#module-apache_beam.metrics.cells">apache_beam.metrics.cells module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.metrics.html#module-apache_beam.metrics.cells_test">apache_beam.metrics.cells_test module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.metrics.html#module-apache_beam.metrics.execution">apache_beam.metrics.execution module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.metrics.html#module-apache_beam.metrics.execution_test">apache_beam.metrics.execution_test module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.metrics.html#module-apache_beam.metrics.metric">apache_beam.metrics.metric module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.metrics.html#module-apache_beam.metrics.metric_test">apache_beam.metrics.metric_test module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.metrics.html#module-apache_beam.metrics.metricbase">apache_beam.metrics.metricbase module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.metrics.html#module-apache_beam.metrics">Module contents</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.runners.html">apache_beam.runners package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.runners.html#subpackages">Subpackages</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.runners.dataflow.html">apache_beam.runners.dataflow package</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.runners.dataflow.html#subpackages">Subpackages</a><ul>
+<li class="toctree-l5"><a class="reference internal" href="apache_beam.runners.dataflow.internal.html">apache_beam.runners.dataflow.internal package</a><ul>
+<li class="toctree-l6"><a class="reference internal" href="apache_beam.runners.dataflow.internal.html#submodules">Submodules</a></li>
+<li class="toctree-l6"><a class="reference internal" href="apache_beam.runners.dataflow.internal.html#module-apache_beam.runners.dataflow.internal.apiclient">apache_beam.runners.dataflow.internal.apiclient module</a></li>
+<li class="toctree-l6"><a class="reference internal" href="apache_beam.runners.dataflow.internal.html#module-apache_beam.runners.dataflow.internal.apiclient_test">apache_beam.runners.dataflow.internal.apiclient_test module</a></li>
+<li class="toctree-l6"><a class="reference internal" href="apache_beam.runners.dataflow.internal.html#module-apache_beam.runners.dataflow.internal.dependency">apache_beam.runners.dataflow.internal.dependency module</a></li>
+<li class="toctree-l6"><a class="reference internal" href="apache_beam.runners.dataflow.internal.html#module-apache_beam.runners.dataflow.internal.dependency_test">apache_beam.runners.dataflow.internal.dependency_test module</a></li>
+<li class="toctree-l6"><a class="reference internal" href="apache_beam.runners.dataflow.internal.html#module-apache_beam.runners.dataflow.internal.names">apache_beam.runners.dataflow.internal.names module</a></li>
+<li class="toctree-l6"><a class="reference internal" href="apache_beam.runners.dataflow.internal.html#module-apache_beam.runners.dataflow.internal">Module contents</a></li>
+</ul>
+</li>
+<li class="toctree-l5"><a class="reference internal" href="apache_beam.runners.dataflow.native_io.html">apache_beam.runners.dataflow.native_io package</a><ul>
+<li class="toctree-l6"><a class="reference internal" href="apache_beam.runners.dataflow.native_io.html#submodules">Submodules</a></li>
+<li class="toctree-l6"><a class="reference internal" href="apache_beam.runners.dataflow.native_io.html#module-apache_beam.runners.dataflow.native_io.iobase">apache_beam.runners.dataflow.native_io.iobase module</a></li>
+<li class="toctree-l6"><a class="reference internal" href="apache_beam.runners.dataflow.native_io.html#module-apache_beam.runners.dataflow.native_io">Module contents</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.runners.dataflow.html#submodules">Submodules</a></li>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.runners.dataflow.html#module-apache_beam.runners.dataflow.dataflow_metrics">apache_beam.runners.dataflow.dataflow_metrics module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.runners.dataflow.html#module-apache_beam.runners.dataflow.dataflow_metrics_test">apache_beam.runners.dataflow.dataflow_metrics_test module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.runners.dataflow.html#module-apache_beam.runners.dataflow.dataflow_runner">apache_beam.runners.dataflow.dataflow_runner module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.runners.dataflow.html#module-apache_beam.runners.dataflow.dataflow_runner_test">apache_beam.runners.dataflow.dataflow_runner_test module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.runners.dataflow.html#module-apache_beam.runners.dataflow.template_runner_test">apache_beam.runners.dataflow.template_runner_test module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.runners.dataflow.html#module-apache_beam.runners.dataflow.test_dataflow_runner">apache_beam.runners.dataflow.test_dataflow_runner module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.runners.dataflow.html#module-apache_beam.runners.dataflow">Module contents</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.runners.direct.html">apache_beam.runners.direct package</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.runners.direct.html#submodules">Submodules</a></li>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.runners.direct.html#module-apache_beam.runners.direct.bundle_factory">apache_beam.runners.direct.bundle_factory module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.runners.direct.html#module-apache_beam.runners.direct.clock">apache_beam.runners.direct.clock module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.runners.direct.html#module-apache_beam.runners.direct.consumer_tracking_pipeline_visitor">apache_beam.runners.direct.consumer_tracking_pipeline_visitor module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.runners.direct.html#module-apache_beam.runners.direct.consumer_tracking_pipeline_visitor_test">apache_beam.runners.direct.consumer_tracking_pipeline_visitor_test module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.runners.direct.html#module-apache_beam.runners.direct.direct_metrics">apache_beam.runners.direct.direct_metrics module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.runners.direct.html#module-apache_beam.runners.direct.direct_metrics_test">apache_beam.runners.direct.direct_metrics_test module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.runners.direct.html#module-apache_beam.runners.direct.direct_runner">apache_beam.runners.direct.direct_runner module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.runners.direct.html#module-apache_beam.runners.direct.evaluation_context">apache_beam.runners.direct.evaluation_context module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.runners.direct.html#module-apache_beam.runners.direct.executor">apache_beam.runners.direct.executor module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.runners.direct.html#module-apache_beam.runners.direct.helper_transforms">apache_beam.runners.direct.helper_transforms module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.runners.direct.html#module-apache_beam.runners.direct.transform_evaluator">apache_beam.runners.direct.transform_evaluator module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.runners.direct.html#module-apache_beam.runners.direct.transform_result">apache_beam.runners.direct.transform_result module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.runners.direct.html#module-apache_beam.runners.direct.watermark_manager">apache_beam.runners.direct.watermark_manager module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.runners.direct.html#module-apache_beam.runners.direct">Module contents</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.runners.test.html">apache_beam.runners.test package</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.runners.test.html#module-apache_beam.runners.test">Module contents</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.runners.html#submodules">Submodules</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.runners.html#module-apache_beam.runners.common">apache_beam.runners.common module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.runners.html#module-apache_beam.runners.runner">apache_beam.runners.runner module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.runners.html#module-apache_beam.runners.runner_test">apache_beam.runners.runner_test module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.runners.html#module-apache_beam.runners">Module contents</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.tests.html">apache_beam.tests package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.tests.html#submodules">Submodules</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.tests.html#module-apache_beam.tests.pipeline_verifiers">apache_beam.tests.pipeline_verifiers module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.tests.html#module-apache_beam.tests.pipeline_verifiers_test">apache_beam.tests.pipeline_verifiers_test module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.tests.html#module-apache_beam.tests.test_utils">apache_beam.tests.test_utils module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.tests.html#module-apache_beam.tests">Module contents</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.transforms.html">apache_beam.transforms package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.transforms.html#submodules">Submodules</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.transforms.html#module-apache_beam.transforms.combiners">apache_beam.transforms.combiners module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.transforms.html#module-apache_beam.transforms.combiners_test">apache_beam.transforms.combiners_test module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.transforms.html#module-apache_beam.transforms.core">apache_beam.transforms.core module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.transforms.html#module-apache_beam.transforms.cy_combiners">apache_beam.transforms.cy_combiners module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.transforms.html#module-apache_beam.transforms.display">apache_beam.transforms.display module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.transforms.html#module-apache_beam.transforms.display_test">apache_beam.transforms.display_test module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.transforms.html#module-apache_beam.transforms.ptransform">apache_beam.transforms.ptransform module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.transforms.html#module-apache_beam.transforms.ptransform_test">apache_beam.transforms.ptransform_test module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.transforms.html#module-apache_beam.transforms.sideinputs">apache_beam.transforms.sideinputs module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.transforms.html#module-apache_beam.transforms.sideinputs_test">apache_beam.transforms.sideinputs_test module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.transforms.html#module-apache_beam.transforms.timeutil">apache_beam.transforms.timeutil module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.transforms.html#module-apache_beam.transforms.trigger">apache_beam.transforms.trigger module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.transforms.html#module-apache_beam.transforms.trigger_test">apache_beam.transforms.trigger_test module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.transforms.html#module-apache_beam.transforms.util">apache_beam.transforms.util module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.transforms.html#module-apache_beam.transforms.window">apache_beam.transforms.window module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.transforms.html#module-apache_beam.transforms.window_test">apache_beam.transforms.window_test module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.transforms.html#module-apache_beam.transforms.write_ptransform_test">apache_beam.transforms.write_ptransform_test module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.transforms.html#module-apache_beam.transforms">Module contents</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.typehints.html">apache_beam.typehints package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.typehints.html#submodules">Submodules</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.typehints.html#module-apache_beam.typehints.decorators">apache_beam.typehints.decorators module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.typehints.html#module-apache_beam.typehints.opcodes">apache_beam.typehints.opcodes module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.typehints.html#module-apache_beam.typehints.trivial_inference">apache_beam.typehints.trivial_inference module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.typehints.html#module-apache_beam.typehints.trivial_inference_test">apache_beam.typehints.trivial_inference_test module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.typehints.html#module-apache_beam.typehints.typecheck">apache_beam.typehints.typecheck module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.typehints.html#module-apache_beam.typehints.typed_pipeline_test">apache_beam.typehints.typed_pipeline_test module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.typehints.html#module-apache_beam.typehints.typehints">apache_beam.typehints.typehints module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.typehints.html#module-apache_beam.typehints.typehints_test">apache_beam.typehints.typehints_test module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.typehints.html#module-apache_beam.typehints">Module contents</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.utils.html">apache_beam.utils package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.utils.html#submodules">Submodules</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.utils.html#module-apache_beam.utils.annotations">apache_beam.utils.annotations module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.utils.html#module-apache_beam.utils.annotations_test">apache_beam.utils.annotations_test module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.utils.html#module-apache_beam.utils.counters">apache_beam.utils.counters module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.utils.html#module-apache_beam.utils.path">apache_beam.utils.path module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.utils.html#module-apache_beam.utils.path_test">apache_beam.utils.path_test module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.utils.html#module-apache_beam.utils.pipeline_options">apache_beam.utils.pipeline_options module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.utils.html#module-apache_beam.utils.pipeline_options_test">apache_beam.utils.pipeline_options_test module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.utils.html#module-apache_beam.utils.pipeline_options_validator">apache_beam.utils.pipeline_options_validator module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.utils.html#module-apache_beam.utils.pipeline_options_validator_test">apache_beam.utils.pipeline_options_validator_test module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.utils.html#module-apache_beam.utils.processes">apache_beam.utils.processes module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.utils.html#module-apache_beam.utils.processes_test">apache_beam.utils.processes_test module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.utils.html#module-apache_beam.utils.profiler">apache_beam.utils.profiler module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.utils.html#module-apache_beam.utils.retry">apache_beam.utils.retry module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.utils.html#module-apache_beam.utils.retry_test">apache_beam.utils.retry_test module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.utils.html#module-apache_beam.utils.timestamp">apache_beam.utils.timestamp module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.utils.html#module-apache_beam.utils.timestamp_test">apache_beam.utils.timestamp_test module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.utils.html#module-apache_beam.utils.windowed_value">apache_beam.utils.windowed_value module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.utils.html#module-apache_beam.utils.windowed_value_test">apache_beam.utils.windowed_value_test module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.utils.html#module-apache_beam.utils">Module contents</a></li>
+</ul>
+</li>
+</ul>
+</div>
+</div>
+<div class="section" id="submodules">
+<h2>Submodules<a class="headerlink" href="#submodules" title="Permalink to this headline">¶</a></h2>
+</div>
+<div class="section" id="module-apache_beam.error">
+<span id="apache-beam-error-module"></span><h2>apache_beam.error module<a class="headerlink" href="#module-apache_beam.error" title="Permalink to this headline">¶</a></h2>
+<p>Python Dataflow error classes.</p>
+<dl class="exception">
+<dt id="apache_beam.error.BeamError">
+<em class="property">exception </em><code class="descclassname">apache_beam.error.</code><code class="descname">BeamError</code><a class="reference internal" href="_modules/apache_beam/error.html#BeamError"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.error.BeamError" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">exceptions.Exception</span></code></p>
+<p>Base class for all Beam errors.</p>
+</dd></dl>
+
+<dl class="exception">
+<dt id="apache_beam.error.PValueError">
+<em class="property">exception </em><code class="descclassname">apache_beam.error.</code><code class="descname">PValueError</code><a class="reference internal" href="_modules/apache_beam/error.html#PValueError"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.error.PValueError" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#apache_beam.error.BeamError" title="apache_beam.error.BeamError"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.error.BeamError</span></code></a></p>
+<p>An error related to a PValue object (e.g. value is not computed).</p>
+</dd></dl>
+
+<dl class="exception">
+<dt id="apache_beam.error.PipelineError">
+<em class="property">exception </em><code class="descclassname">apache_beam.error.</code><code class="descname">PipelineError</code><a class="reference internal" href="_modules/apache_beam/error.html#PipelineError"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.error.PipelineError" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#apache_beam.error.BeamError" title="apache_beam.error.BeamError"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.error.BeamError</span></code></a></p>
+<p>An error in the pipeline object (e.g. a PValue not linked to it).</p>
+</dd></dl>
+
+<dl class="exception">
+<dt id="apache_beam.error.RunnerError">
+<em class="property">exception </em><code class="descclassname">apache_beam.error.</code><code class="descname">RunnerError</code><a class="reference internal" href="_modules/apache_beam/error.html#RunnerError"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.error.RunnerError" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#apache_beam.error.BeamError" title="apache_beam.error.BeamError"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.error.BeamError</span></code></a></p>
+<p>An error related to a Runner object (e.g. cannot find a runner to run).</p>
+</dd></dl>
+
+<dl class="exception">
+<dt id="apache_beam.error.SideInputError">
+<em class="property">exception </em><code class="descclassname">apache_beam.error.</code><code class="descname">SideInputError</code><a class="reference internal" href="_modules/apache_beam/error.html#SideInputError"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.error.SideInputError" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#apache_beam.error.BeamError" title="apache_beam.error.BeamError"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.error.BeamError</span></code></a></p>
+<p>An error related to a side input to a parallel Do operation.</p>
+</dd></dl>
+
+<dl class="exception">
+<dt id="apache_beam.error.TransformError">
+<em class="property">exception </em><code class="descclassname">apache_beam.error.</code><code class="descname">TransformError</code><a class="reference internal" href="_modules/apache_beam/error.html#TransformError"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.error.TransformError" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#apache_beam.error.BeamError" title="apache_beam.error.BeamError"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.error.BeamError</span></code></a></p>
+<p>An error related to a PTransform object.</p>
+</dd></dl>
+
+</div>
+<div class="section" id="module-apache_beam.pipeline">
+<span id="apache-beam-pipeline-module"></span><h2>apache_beam.pipeline module<a class="headerlink" href="#module-apache_beam.pipeline" title="Permalink to this headline">¶</a></h2>
+<p>Pipeline, the top-level Dataflow object.</p>
+<p>A pipeline holds a DAG of data transforms. Conceptually the nodes of the DAG
+are transforms (PTransform objects) and the edges are values (mostly PCollection
+objects). The transforms take as inputs one or more PValues and output one or
+more PValues.</p>
+<p>The pipeline offers functionality to traverse the graph.  The actual operation
+to be executed for each node visited is specified through a runner object.</p>
+<p>Typical usage:</p>
+<blockquote>
+<div><p># Create a pipeline object using a local runner for execution.
+p = beam.Pipeline(&#8216;DirectRunner&#8217;)</p>
+<p># Add to the pipeline a &#8220;Create&#8221; transform. When executed this
+# transform will produce a PCollection object with the specified values.
+pcoll = p | &#8216;create&#8217; &gt;&gt; beam.Create([1, 2, 3])</p>
+<p># Another transform could be applied to pcoll, e.g., writing to a text file.
+# For other transforms, refer to transforms/ directory.
+pcoll | &#8216;write&#8217; &gt;&gt; beam.io.WriteToText(&#8216;./output&#8217;)</p>
+<p># run() will execute the DAG stored in the pipeline.  The execution of the
+# nodes visited is done using the specified local runner.
+p.run()</p>
+</div></blockquote>
+<dl class="class">
+<dt id="apache_beam.pipeline.AppliedPTransform">
+<em class="property">class </em><code class="descclassname">apache_beam.pipeline.</code><code class="descname">AppliedPTransform</code><span class="sig-paren">(</span><em>parent</em>, <em>transform</em>, <em>full_label</em>, <em>inputs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/pipeline.html#AppliedPTransform"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.pipeline.AppliedPTransform" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">object</span></code></p>
+<p>A transform node representing an instance of applying a PTransform.</p>
+<p>This is an internal class used for bookkeeping by a Pipeline.</p>
+<dl class="method">
+<dt id="apache_beam.pipeline.AppliedPTransform.add_output">
+<code class="descname">add_output</code><span class="sig-paren">(</span><em>output</em>, <em>tag=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/pipeline.html#AppliedPTransform.add_output"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.pipeline.AppliedPTransform.add_output" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.pipeline.AppliedPTransform.add_part">
+<code class="descname">add_part</code><span class="sig-paren">(</span><em>part</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/pipeline.html#AppliedPTransform.add_part"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.pipeline.AppliedPTransform.add_part" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.pipeline.AppliedPTransform.is_composite">
+<code class="descname">is_composite</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/pipeline.html#AppliedPTransform.is_composite"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.pipeline.AppliedPTransform.is_composite" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns whether this is a composite transform.</p>
+<p>A composite transform has parts (inner transforms) or isn&#8217;t the
+producer for any of its outputs. (An example of a transform that
+is not a producer is one that returns its inputs instead.)</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.pipeline.AppliedPTransform.update_input_refcounts">
+<code class="descname">update_input_refcounts</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/pipeline.html#AppliedPTransform.update_input_refcounts"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.pipeline.AppliedPTransform.update_input_refcounts" title="Permalink to this definition">¶</a></dt>
+<dd><p>Increment refcounts for all transforms providing inputs.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.pipeline.AppliedPTransform.visit">
+<code class="descname">visit</code><span class="sig-paren">(</span><em>visitor</em>, <em>pipeline</em>, <em>visited</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/pipeline.html#AppliedPTransform.visit"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.pipeline.AppliedPTransform.visit" title="Permalink to this definition">¶</a></dt>
+<dd><p>Visits all nodes reachable from the current node.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.pipeline.Pipeline">
+<em class="property">class </em><code class="descclassname">apache_beam.pipeline.</code><code class="descname">Pipeline</code><span class="sig-paren">(</span><em>runner=None</em>, <em>options=None</em>, <em>argv=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/pipeline.html#Pipeline"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.pipeline.Pipeline" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">object</span></code></p>
+<p>A pipeline object that manages a DAG of PValues and their PTransforms.</p>
+<p>Conceptually the PValues are the DAG&#8217;s nodes and the PTransforms computing
+the PValues are the edges.</p>
+<p>All the transforms applied to the pipeline must have distinct full labels.
+If same transform instance needs to be applied then a clone should be created
+with a new label (e.g., transform.clone(&#8216;new label&#8217;)).</p>
+<dl class="method">
+<dt id="apache_beam.pipeline.Pipeline.apply">
+<code class="descname">apply</code><span class="sig-paren">(</span><em>transform</em>, <em>pvalueish=None</em>, <em>label=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/pipeline.html#Pipeline.apply"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.pipeline.Pipeline.apply" title="Permalink to this definition">¶</a></dt>
+<dd><p>Applies a custom transform using the pvalueish specified.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>transform</strong> &#8211; the PTranform to apply.</li>
+<li><strong>pvalueish</strong> &#8211; the input for the PTransform (typically a PCollection).</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Raises:</th><td class="field-body"><ul class="first last simple">
+<li><code class="xref py py-exc docutils literal"><span class="pre">TypeError</span></code> &#8211; if the transform object extracted from the argument list is
+not a PTransform.</li>
+<li><code class="xref py py-exc docutils literal"><span class="pre">RuntimeError</span></code> &#8211; if the transform object was already applied to this pipeline
+and needs to be cloned in order to apply again.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.pipeline.Pipeline.run">
+<code class="descname">run</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/pipeline.html#Pipeline.run"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.pipeline.Pipeline.run" title="Permalink to this definition">¶</a></dt>
+<dd><p>Runs the pipeline. Returns whatever our runner returns after running.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.pipeline.Pipeline.visit">
+<code class="descname">visit</code><span class="sig-paren">(</span><em>visitor</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/pipeline.html#Pipeline.visit"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.pipeline.Pipeline.visit" title="Permalink to this definition">¶</a></dt>
+<dd><p>Visits depth-first every node of a pipeline&#8217;s DAG.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>visitor</strong> &#8211; PipelineVisitor object whose callbacks will be called for each
+node visited. See PipelineVisitor comments.</p>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Raises:</th><td class="field-body"><ul class="first last simple">
+<li><code class="xref py py-exc docutils literal"><span class="pre">TypeError</span></code> &#8211; if node is specified and is not a PValue.</li>
+<li><code class="xref py py-exc docutils literal"><span class="pre">pipeline.PipelineError</span></code> &#8211; if node is specified and does not belong to this
+pipeline instance.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.pipeline.PipelineVisitor">
+<em class="property">class </em><code class="descclassname">apache_beam.pipeline.</code><code class="descname">PipelineVisitor</code><a class="reference internal" href="_modules/apache_beam/pipeline.html#PipelineVisitor"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.pipeline.PipelineVisitor" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">object</span></code></p>
+<p>Visitor pattern class used to traverse a DAG of transforms.</p>
+<p>This is an internal class used for bookkeeping by a Pipeline.</p>
+<dl class="method">
+<dt id="apache_beam.pipeline.PipelineVisitor.enter_composite_transform">
+<code class="descname">enter_composite_transform</code><span class="sig-paren">(</span><em>transform_node</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/pipeline.html#PipelineVisitor.enter_composite_transform"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.pipeline.PipelineVisitor.enter_composite_transform" title="Permalink to this definition">¶</a></dt>
+<dd><p>Callback for entering traversal of a composite transform node.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.pipeline.PipelineVisitor.leave_composite_transform">
+<code class="descname">leave_composite_transform</code><span class="sig-paren">(</span><em>transform_node</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/pipeline.html#PipelineVisitor.leave_composite_transform"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.pipeline.PipelineVisitor.leave_composite_transform" title="Permalink to this definition">¶</a></dt>
+<dd><p>Callback for leaving traversal of a composite transform node.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.pipeline.PipelineVisitor.visit_transform">
+<code class="descname">visit_transform</code><span class="sig-paren">(</span><em>transform_node</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/pipeline.html#PipelineVisitor.visit_transform"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.pipeline.PipelineVisitor.visit_transform" title="Permalink to this definition">¶</a></dt>
+<dd><p>Callback for visiting a transform node in the pipeline DAG.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.pipeline.PipelineVisitor.visit_value">
+<code class="descname">visit_value</code><span class="sig-paren">(</span><em>value</em>, <em>producer_node</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/pipeline.html#PipelineVisitor.visit_value"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.pipeline.PipelineVisitor.visit_value" title="Permalink to this definition">¶</a></dt>
+<dd><p>Callback for visiting a PValue in the pipeline DAG.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>value</strong> &#8211; PValue visited (typically a PCollection instance).</li>
+<li><strong>producer_node</strong> &#8211; AppliedPTransform object whose transform produced the
+pvalue.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="module-apache_beam.pipeline_test">
+<span id="apache-beam-pipeline-test-module"></span><h2>apache_beam.pipeline_test module<a class="headerlink" href="#module-apache_beam.pipeline_test" title="Permalink to this headline">¶</a></h2>
+<p>Unit tests for the Pipeline class.</p>
+<dl class="class">
+<dt id="apache_beam.pipeline_test.Bacon">
+<em class="property">class </em><code class="descclassname">apache_beam.pipeline_test.</code><code class="descname">Bacon</code><span class="sig-paren">(</span><em>flags=None</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/pipeline_test.html#Bacon"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.pipeline_test.Bacon" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="apache_beam.utils.html#apache_beam.utils.pipeline_options.PipelineOptions" title="apache_beam.utils.pipeline_options.PipelineOptions"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.utils.pipeline_options.PipelineOptions</span></code></a></p>
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.pipeline_test.Breakfast">
+<em class="property">class </em><code class="descclassname">apache_beam.pipeline_test.</code><code class="descname">Breakfast</code><span class="sig-paren">(</span><em>flags=None</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/pipeline_test.html#Breakfast"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.pipeline_test.Breakfast" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#apache_beam.pipeline_test.Bacon" title="apache_beam.pipeline_test.Bacon"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.pipeline_test.Bacon</span></code></a>, <a class="reference internal" href="#apache_beam.pipeline_test.Eggs" title="apache_beam.pipeline_test.Eggs"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.pipeline_test.Eggs</span></code></a></p>
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.pipeline_test.DoFnTest">
+<em class="property">class </em><code class="descclassname">apache_beam.pipeline_test.</code><code class="descname">DoFnTest</code><span class="sig-paren">(</span><em>methodName='runTest'</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/pipeline_test.html#DoFnTest"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.pipeline_test.DoFnTest" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">unittest.case.TestCase</span></code></p>
+<dl class="method">
+<dt id="apache_beam.pipeline_test.DoFnTest.test_context_param">
+<code class="descname">test_context_param</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/pipeline_test.html#DoFnTest.test_context_param"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.pipeline_test.DoFnTest.test_context_param" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.pipeline_test.DoFnTest.test_element">
+<code class="descname">test_element</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/pipeline_test.html#DoFnTest.test_element"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.pipeline_test.DoFnTest.test_element" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.pipeline_test.DoFnTest.test_side_input_no_tag">
+<code class="descname">test_side_input_no_tag</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/pipeline_test.html#DoFnTest.test_side_input_no_tag"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.pipeline_test.DoFnTest.test_side_input_no_tag" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.pipeline_test.DoFnTest.test_side_input_tagged">
+<code class="descname">test_side_input_tagged</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/pipeline_test.html#DoFnTest.test_side_input_tagged"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.pipeline_test.DoFnTest.test_side_input_tagged" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.pipeline_test.DoFnTest.test_timestamp_param">
+<code class="descname">test_timestamp_param</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/pipeline_test.html#DoFnTest.test_timestamp_param"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.pipeline_test.DoFnTest.test_timestamp_param" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.pipeline_test.DoFnTest.test_window_param">
+<code class="descname">test_window_param</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/pipeline_test.html#DoFnTest.test_window_param"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.pipeline_test.DoFnTest.test_window_param" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.pipeline_test.Eggs">
+<em class="property">class </em><code class="descclassname">apache_beam.pipeline_test.</code><code class="descname">Eggs</code><span class="sig-paren">(</span><em>flags=None</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/pipeline_test.html#Eggs"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.pipeline_test.Eggs" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="apache_beam.utils.html#apache_beam.utils.pipeline_options.PipelineOptions" title="apache_beam.utils.pipeline_options.PipelineOptions"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.utils.pipeline_options.PipelineOptions</span></code></a></p>
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.pipeline_test.FakeSource">
+<em class="property">class </em><code class="descclassname">apache_beam.pipeline_test.</code><code class="descname">FakeSource</code><span class="sig-paren">(</span><em>vals</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/pipeline_test.html#FakeSource"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.pipeline_test.FakeSource" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="apache_beam.runners.dataflow.native_io.html#apache_beam.runners.dataflow.native_io.iobase.NativeSource" title="apache_beam.runners.dataflow.native_io.iobase.NativeSource"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.runners.dataflow.native_io.iobase.NativeSource</span></code></a></p>
+<p>Fake source returning a fixed list of values.</p>
+<dl class="method">
+<dt id="apache_beam.pipeline_test.FakeSource.reader">
+<code class="descname">reader</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/pipeline_test.html#FakeSource.reader"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.pipeline_test.FakeSource.reader" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.pipeline_test.PipelineOptionsTest">
+<em class="property">class </em><code class="descclassname">apache_beam.pipeline_test.</code><code class="descname">PipelineOptionsTest</code><span class="sig-paren">(</span><em>methodName='runTest'</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/pipeline_test.html#PipelineOptionsTest"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.pipeline_test.PipelineOptionsTest" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">unittest.case.TestCase</span></code></p>
+<dl class="method">
+<dt id="apache_beam.pipeline_test.PipelineOptionsTest.test_attribute_setting">
+<code class="descname">test_attribute_setting</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/pipeline_test.html#PipelineOptionsTest.test_attribute_setting"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.pipeline_test.PipelineOptionsTest.test_attribute_setting" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.pipeline_test.PipelineOptionsTest.test_defaults">
+<code class="descname">test_defaults</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/pipeline_test.html#PipelineOptionsTest.test_defaults"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.pipeline_test.PipelineOptionsTest.test_defaults" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.pipeline_test.PipelineOptionsTest.test_dir">
+<code class="descname">test_dir</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/pipeline_test.html#PipelineOptionsTest.test_dir"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.pipeline_test.PipelineOptionsTest.test_dir" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.pipeline_test.PipelineOptionsTest.test_flag_parsing">
+<code class="descname">test_flag_parsing</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/pipeline_test.html#PipelineOptionsTest.test_flag_parsing"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.pipeline_test.PipelineOptionsTest.test_flag_parsing" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.pipeline_test.PipelineOptionsTest.test_keyword_parsing">
+<code class="descname">test_keyword_parsing</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/pipeline_test.html#PipelineOptionsTest.test_keyword_parsing"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.pipeline_test.PipelineOptionsTest.test_keyword_parsing" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.pipeline_test.PipelineOptionsTest.test_view_as">
+<code class="descname">test_view_as</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/pipeline_test.html#PipelineOptionsTest.test_view_as"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.pipeline_test.PipelineOptionsTest.test_view_as" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.pipeline_test.PipelineTest">
+<em class="property">class </em><code class="descclassname">apache_beam.pipeline_test.</code><code class="descname">PipelineTest</code><span class="sig-paren">(</span><em>methodName='runTest'</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/pipeline_test.html#PipelineTest"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.pipeline_test.PipelineTest" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">unittest.case.TestCase</span></code></p>
+<dl class="class">
+<dt id="apache_beam.pipeline_test.PipelineTest.CustomTransform">
+<em class="property">class </em><code class="descname">CustomTransform</code><span class="sig-paren">(</span><em>label=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/pipeline_test.html#PipelineTest.CustomTransform"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.pipeline_test.PipelineTest.CustomTransform" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="apache_beam.transforms.html#apache_beam.transforms.ptransform.PTransform" title="apache_beam.transforms.ptransform.PTransform"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.transforms.ptransform.PTransform</span></code></a></p>
+<dl class="method">
+<dt id="apache_beam.pipeline_test.PipelineTest.CustomTransform.expand">
+<code class="descname">expand</code><span class="sig-paren">(</span><em>pcoll</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/pipeline_test.html#PipelineTest.CustomTransform.expand"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.pipeline_test.PipelineTest.CustomTransform.expand" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.pipeline_test.PipelineTest.Visitor">
+<em class="property">class </em><code class="descclassname">PipelineTest.</code><code class="descname">Visitor</code><span class="sig-paren">(</span><em>visited</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/pipeline_test.html#PipelineTest.Visitor"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.pipeline_test.PipelineTest.Visitor" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#apache_beam.pipeline.PipelineVisitor" title="apache_beam.pipeline.PipelineVisitor"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.pipeline.PipelineVisitor</span></code></a></p>
+<dl class="method">
+<dt id="apache_beam.pipeline_test.PipelineTest.Visitor.enter_composite_transform">
+<code class="descname">enter_composite_transform</code><span class="sig-paren">(</span><em>transform_node</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/pipeline_test.html#PipelineTest.Visitor.enter_composite_transform"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.pipeline_test.PipelineTest.Visitor.enter_composite_transform" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.pipeline_test.PipelineTest.Visitor.leave_composite_transform">
+<code class="descname">leave_composite_transform</code><span class="sig-paren">(</span><em>transform_node</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/pipeline_test.html#PipelineTest.Visitor.leave_composite_transform"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.pipeline_test.PipelineTest.Visitor.leave_composite_transform" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.pipeline_test.PipelineTest.Visitor.visit_value">
+<code class="descname">visit_value</code><span class="sig-paren">(</span><em>value</em>, <em>_</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/pipeline_test.html#PipelineTest.Visitor.visit_value"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.pipeline_test.PipelineTest.Visitor.visit_value" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="staticmethod">
+<dt id="apache_beam.pipeline_test.PipelineTest.custom_callable">
+<em class="property">static </em><code class="descclassname">PipelineTest.</code><code class="descname">custom_callable</code><span class="sig-paren">(</span><em>pcoll</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/pipeline_test.html#PipelineTest.custom_callable"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.pipeline_test.PipelineTest.custom_callable" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.pipeline_test.PipelineTest.test_aggregator_empty_input">
+<code class="descclassname">PipelineTest.</code><code class="descname">test_aggregator_empty_input</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/pipeline_test.html#PipelineTest.test_aggregator_empty_input"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.pipeline_test.PipelineTest.test_aggregator_empty_input" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.pipeline_test.PipelineTest.test_apply_custom_transform">
+<code class="descclassname">PipelineTest.</code><code class="descname">test_apply_custom_transform</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/pipeline_test.html#PipelineTest.test_apply_custom_transform"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.pipeline_test.PipelineTest.test_apply_custom_transform" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.pipeline_test.PipelineTest.test_create">
+<code class="descclassname">PipelineTest.</code><code class="descname">test_create</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/pipeline_test.html#PipelineTest.test_create"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.pipeline_test.PipelineTest.test_create" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.pipeline_test.PipelineTest.test_create_singleton_pcollection">
+<code class="descclassname">PipelineTest.</code><code class="descname">test_create_singleton_pcollection</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/pipeline_test.html#PipelineTest.test_create_singleton_pcollection"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.pipeline_test.PipelineTest.test_create_singleton_pcollection" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.pipeline_test.PipelineTest.test_eager_pipeline">
+<code class="descclassname">PipelineTest.</code><code class="descname">test_eager_pipeline</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/pipeline_test.html#PipelineTest.test_eager_pipeline"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.pipeline_test.PipelineTest.test_eager_pipeline" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.pipeline_test.PipelineTest.test_flatmap_builtin">
+<code class="descclassname">PipelineTest.</code><code class="descname">test_flatmap_builtin</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/pipeline_test.html#PipelineTest.test_flatmap_builtin"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.pipeline_test.PipelineTest.test_flatmap_builtin" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.pipeline_test.PipelineTest.test_memory_usage">
+<code class="descclassname">PipelineTest.</code><code class="descname">test_memory_usage</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/pipeline_test.html#PipelineTest.test_memory_usage"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.pipeline_test.PipelineTest.test_memory_usage" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.pipeline_test.PipelineTest.test_metrics_in_source">
+<code class="descclassname">PipelineTest.</code><code class="descname">test_metrics_in_source</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/pipeline_test.html#PipelineTest.test_metrics_in_source"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.pipeline_test.PipelineTest.test_metrics_in_source" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.pipeline_test.PipelineTest.test_pipeline_as_context">
+<code class="descclassname">PipelineTest.</code><code class="descname">test_pipeline_as_context</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/pipeline_test.html#PipelineTest.test_pipeline_as_context"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.pipeline_test.PipelineTest.test_pipeline_as_context" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.pipeline_test.PipelineTest.test_read">
+<code class="descclassname">PipelineTest.</code><code class="descname">test_read</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/pipeline_test.html#PipelineTest.test_read"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.pipeline_test.PipelineTest.test_read" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.pipeline_test.PipelineTest.test_reuse_cloned_custom_transform_instance">
+<code class="descclassname">PipelineTest.</code><code class="descname">test_reuse_cloned_custom_transform_instance</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/pipeline_test.html#PipelineTest.test_reuse_cloned_custom_transform_instance"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.pipeline_test.PipelineTest.test_reuse_cloned_custom_transform_instance" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.pipeline_test.PipelineTest.test_reuse_custom_transform_instance">
+<code class="descclassname">PipelineTest.</code><code class="descname">test_reuse_custom_transform_instance</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/pipeline_test.html#PipelineTest.test_reuse_custom_transform_instance"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.pipeline_test.PipelineTest.test_reuse_custom_transform_instance" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.pipeline_test.PipelineTest.test_transform_no_super_init">
+<code class="descclassname">PipelineTest.</code><code class="descname">test_transform_no_super_init</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/pipeline_test.html#PipelineTest.test_transform_no_super_init"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.pipeline_test.PipelineTest.test_transform_no_super_init" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.pipeline_test.PipelineTest.test_visit_entire_graph">
+<code class="descclassname">PipelineTest.</code><code class="descname">test_visit_entire_graph</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/pipeline_test.html#PipelineTest.test_visit_entire_graph"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.pipeline_test.PipelineTest.test_visit_entire_graph" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="module-apache_beam.pvalue">
+<span id="apache-beam-pvalue-module"></span><h2>apache_beam.pvalue module<a class="headerlink" href="#module-apache_beam.pvalue" title="Permalink to this headline">¶</a></h2>
+<p>PValue, PCollection: one node of a dataflow graph.</p>
+<p>A node of a dataflow processing graph is a PValue. Currently, there is only
+one type: PCollection (a potentially very large set of arbitrary values).
+Once created, a PValue belongs to a pipeline and has an associated
+transform (of type PTransform), which describes how the value will be
+produced when the pipeline gets executed.</p>
+<dl class="function">
+<dt id="apache_beam.pvalue.AsDict">
+<code class="descclassname">apache_beam.pvalue.</code><code class="descname">AsDict</code><span class="sig-paren">(</span><em>pcoll</em>, <em>label=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/pvalue.html#AsDict"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.pvalue.AsDict" title="Permalink to this definition">¶</a></dt>
+<dd><p>Create a DictPCollectionView from the elements of input PCollection.</p>
+<p>The contents of the given PCollection whose elements are 2-tuples of key and
+value will be available as a dict-like object in PTransforms that use the
+returned PCollectionView as a side input.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>pcoll</strong> &#8211; Input pcollection containing 2-tuples of key and value.</li>
+<li><strong>label</strong> &#8211; Label to be specified if several AsDict&#8217;s for the same PCollection.</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">A dict PCollectionView containing the dict as above.</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.pvalue.AsIter">
+<code class="descclassname">apache_beam.pvalue.</code><code class="descname">AsIter</code><span class="sig-paren">(</span><em>pcoll</em>, <em>label=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/pvalue.html#AsIter"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.pvalue.AsIter" title="Permalink to this definition">¶</a></dt>
+<dd><p>Create an IterablePCollectionView from the elements of input PCollection.</p>
+<p>The contents of the given PCollection will be available as an iterable in
+PTransforms that use the returned PCollectionView as a side input.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>pcoll</strong> &#8211; Input pcollection.</li>
+<li><strong>label</strong> &#8211; Label to be specified if several AsIter&#8217;s for the same PCollection.</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">An iterable PCollectionView containing the elements as above.</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.pvalue.AsList">
+<code class="descclassname">apache_beam.pvalue.</code><code class="descname">AsList</code><span class="sig-paren">(</span><em>pcoll</em>, <em>label=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/pvalue.html#AsList"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.pvalue.AsList" title="Permalink to this definition">¶</a></dt>
+<dd><p>Create a ListPCollectionView from the elements of input PCollection.</p>
+<p>The contents of the given PCollection will be available as a list-like object
+in PTransforms that use the returned PCollectionView as a side input.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>pcoll</strong> &#8211; Input pcollection.</li>
+<li><strong>label</strong> &#8211; Label to be specified if several AsList&#8217;s for the same PCollection.</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">A list PCollectionView containing the elements as above.</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.pvalue.AsSingleton">
+<code class="descclassname">apache_beam.pvalue.</code><code class="descname">AsSingleton</code><span class="sig-paren">(</span><em>pcoll</em>, <em>default_value=&lt;object object&gt;</em>, <em>label=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/pvalue.html#AsSingleton"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.pvalue.AsSingleton" title="Permalink to this definition">¶</a></dt>
+<dd><p>Create a SingletonPCollectionView from the contents of input PCollection.</p>
+<p>The input PCollection should contain at most one element (per window) and the
+resulting PCollectionView can then be used as a side input to PTransforms. If
+the PCollectionView is empty (for a given window), the side input value will
+be the default_value, if specified; otherwise, it will be an EmptySideInput
+object.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>pcoll</strong> &#8211; Input pcollection.</li>
+<li><strong>default_value</strong> &#8211; Default value for the singleton view.</li>
+<li><strong>label</strong> &#8211; Label to be specified if several AsSingleton&#8217;s with different
+defaults for the same PCollection.</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">A singleton PCollectionView containing the element as above.</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.pvalue.DictPCollectionView">
+<em class="property">class </em><code class="descclassname">apache_beam.pvalue.</code><code class="descname">DictPCollectionView</code><span class="sig-paren">(</span><em>pipeline</em>, <em>window_mapping_fn</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/pvalue.html#DictPCollectionView"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.pvalue.DictPCollectionView" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#apache_beam.pvalue.PCollectionView" title="apache_beam.pvalue.PCollectionView"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.pvalue.PCollectionView</span></code></a></p>
+<p>A PCollectionView that can be treated as a dict.</p>
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.pvalue.DoOutputsTuple">
+<em class="property">class </em><code class="descclassname">apache_beam.pvalue.</code><code class="descname">DoOutputsTuple</code><span class="sig-paren">(</span><em>pipeline</em>, <em>transform</em>, <em>tags</em>, <em>main_tag</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/pvalue.html#DoOutputsTuple"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.pvalue.DoOutputsTuple" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">object</span></code></p>
+<p>An object grouping the multiple outputs of a ParDo or FlatMap transform.</p>
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.pvalue.EmptySideInput">
+<em class="property">class </em><code class="descclassname">apache_beam.pvalue.</code><code class="descname">EmptySideInput</code><a class="reference internal" href="_modules/apache_beam/pvalue.html#EmptySideInput"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.pvalue.EmptySideInput" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">object</span></code></p>
+<p>Value indicating when a singleton side input was empty.</p>
+<p>If a PCollection was furnished as a singleton side input to a PTransform, and
+that PCollection was empty, then this value is supplied to the DoFn in the
+place where a value from a non-empty PCollection would have gone. This alerts
+the DoFn that the side input PCollection was empty. Users may want to check
+whether side input values are EmptySideInput, but they will very likely never
+want to create new instances of this class themselves.</p>
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.pvalue.IterablePCollectionView">
+<em class="property">class </em><code class="descclassname">apache_beam.pvalue.</code><code class="descname">IterablePCollectionView</code><span class="sig-paren">(</span><em>pipeline</em>, <em>window_mapping_fn</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/pvalue.html#IterablePCollectionView"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.pvalue.IterablePCollectionView" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#apache_beam.pvalue.PCollectionView" title="apache_beam.pvalue.PCollectionView"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.pvalue.PCollectionView</span></code></a></p>
+<p>A PCollectionView that can be treated as an iterable.</p>
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.pvalue.ListPCollectionView">
+<em class="property">class </em><code class="descclassname">apache_beam.pvalue.</code><code class="descname">ListPCollectionView</code><span class="sig-paren">(</span><em>pipeline</em>, <em>window_mapping_fn</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/pvalue.html#ListPCollectionView"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.pvalue.ListPCollectionView" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#apache_beam.pvalue.PCollectionView" title="apache_beam.pvalue.PCollectionView"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.pvalue.PCollectionView</span></code></a></p>
+<p>A PCollectionView that can be treated as a list.</p>
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.pvalue.PBegin">
+<em class="property">class </em><code class="descclassname">apache_beam.pvalue.</code><code class="descname">PBegin</code><span class="sig-paren">(</span><em>pipeline</em>, <em>tag=None</em>, <em>element_type=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/pvalue.html#PBegin"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.pvalue.PBegin" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#apache_beam.pvalue.PValue" title="apache_beam.pvalue.PValue"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.pvalue.PValue</span></code></a></p>
+<p>A pipeline begin marker used as input to create/read transforms.</p>
+<p>The class is used internally to represent inputs to Create and Read
+transforms. This allows us to have transforms that uniformly take PValue(s)
+as inputs.</p>
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.pvalue.PCollection">
+<em class="property">class </em><code class="descclassname">apache_beam.pvalue.</code><code class="descname">PCollection</code><span class="sig-paren">(</span><em>pipeline</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/pvalue.html#PCollection"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.pvalue.PCollection" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#apache_beam.pvalue.PValue" title="apache_beam.pvalue.PValue"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.pvalue.PValue</span></code></a></p>
+<p>A multiple values (potentially huge) container.</p>
+<p>Dataflow users should not construct PCollection objects directly in their
+pipelines.</p>
+<dl class="attribute">
+<dt id="apache_beam.pvalue.PCollection.windowing">
+<code class="descname">windowing</code><a class="headerlink" href="#apache_beam.pvalue.PCollection.windowing" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.pvalue.PCollectionView">
+<em class="property">class </em><code class="descclassname">apache_beam.pvalue.</code><code class="descname">PCollectionView</code><span class="sig-paren">(</span><em>pipeline</em>, <em>window_mapping_fn</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/pvalue.html#PCollectionView"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.pvalue.PCollectionView" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#apache_beam.pvalue.PValue" title="apache_beam.pvalue.PValue"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.pvalue.PValue</span></code></a></p>
+<p>An immutable view of a PCollection that can be used as a side input.</p>
+<dl class="attribute">
+<dt id="apache_beam.pvalue.PCollectionView.windowing">
+<code class="descname">windowing</code><a class="headerlink" href="#apache_beam.pvalue.PCollectionView.windowing" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.pvalue.PDone">
+<em class="property">class </em><code class="descclassname">apache_beam.pvalue.</code><code class="descname">PDone</code><span class="sig-paren">(</span><em>pipeline</em>, <em>tag=None</em>, <em>element_type=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/pvalue.html#PDone"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.pvalue.PDone" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#apache_beam.pvalue.PValue" title="apache_beam.pvalue.PValue"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.pvalue.PValue</span></code></a></p>
+<p>PDone is the output of a transform that has a trivial result such as Write.</p>
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.pvalue.PValue">
+<em class="property">class </em><code class="descclassname">apache_beam.pvalue.</code><code class="descname">PValue</code><span class="sig-paren">(</span><em>pipeline</em>, <em>tag=None</em>, <em>element_type=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/pvalue.html#PValue"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.pvalue.PValue" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">object</span></code></p>
+<p>Base class for PCollection.</p>
+<p>Dataflow users should not construct PValue objects directly in their
+pipelines.</p>
+<dl class="docutils">
+<dt>A PValue has the following main characteristics:</dt>
+<dd><ol class="first last arabic simple">
+<li>Belongs to a pipeline. Added during object initialization.</li>
+<li>Has a transform that can compute the value if executed.</li>
+<li>Has a value which is meaningful if the transform was executed.</li>
+</ol>
+</dd>
+</dl>
+<dl class="method">
+<dt id="apache_beam.pvalue.PValue.apply">
+<code class="descname">apply</code><span class="sig-paren">(</span><em>*args</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/pvalue.html#PValue.apply"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.pvalue.PValue.apply" title="Permalink to this definition">¶</a></dt>
+<dd><p>Applies a transform or callable to a PValue.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>*args</strong> &#8211; positional arguments.</li>
+<li><strong>**kwargs</strong> &#8211; keyword arguments.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+<p>The method will insert the pvalue as the next argument following an
+optional first label and a transform/callable object. It will call the
+pipeline.apply() method with this modified argument list.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.pvalue.SideOutputValue">
+<em class="property">class </em><code class="descclassname">apache_beam.pvalue.</code><code class="descname">SideOutputValue</code><span class="sig-paren">(</span><em>tag</em>, <em>value</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/pvalue.html#SideOutputValue"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.pvalue.SideOutputValue" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">object</span></code></p>
+<p>An object representing a tagged value.</p>
+<p>ParDo, Map, and FlatMap transforms can emit values on multiple outputs which
+are distinguished by string tags. The DoFn will return plain values
+if it wants to emit on the main output and SideOutputValue objects
+if it wants to emit a value on a specific tagged output.</p>
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.pvalue.SingletonPCollectionView">
+<em class="property">class </em><code class="descclassname">apache_beam.pvalue.</code><code class="descname">SingletonPCollectionView</code><span class="sig-paren">(</span><em>pipeline</em>, <em>has_default</em>, <em>default_value</em>, <em>window_mapping_fn</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/pvalue.html#SingletonPCollectionView"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.pvalue.SingletonPCollectionView" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#apache_beam.pvalue.PCollectionView" title="apache_beam.pvalue.PCollectionView"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.pvalue.PCollectionView</span></code></a></p>
+<p>A PCollectionView that contains a single object.</p>
+</dd></dl>
+
+</div>
+<div class="section" id="module-apache_beam.pvalue_test">
+<span id="apache-beam-pvalue-test-module"></span><h2>apache_beam.pvalue_test module<a class="headerlink" href="#module-apache_beam.pvalue_test" title="Permalink to this headline">¶</a></h2>
+<p>Unit tests for the PValue and PCollection classes.</p>
+<dl class="class">
+<dt id="apache_beam.pvalue_test.FakePipeline">
+<em class="property">class </em><code class="descclassname">apache_beam.pvalue_test.</code><code class="descname">FakePipeline</code><span class="sig-paren">(</span><em>runner=None</em>, <em>options=None</em>, <em>argv=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/pvalue_test.html#FakePipeline"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.pvalue_test.FakePipeline" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#apache_beam.pipeline.Pipeline" title="apache_beam.pipeline.Pipeline"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.pipeline.Pipeline</span></code></a></p>
+<p>Fake pipeline object used to check if apply() receives correct args.</p>
+<dl class="method">
+<dt id="apache_beam.pvalue_test.FakePipeline.apply">
+<code class="descname">apply</code><span class="sig-paren">(</span><em>*args</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/pvalue_test.html#FakePipeline.apply"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.pvalue_test.FakePipeline.apply" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.pvalue_test.PValueTest">
+<em class="property">class </em><code class="descclassname">apache_beam.pvalue_test.</code><code class="descname">PValueTest</code><span class="sig-paren">(</span><em>methodName='runTest'</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/pvalue_test.html#PValueTest"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.pvalue_test.PValueTest" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">unittest.case.TestCase</span></code></p>
+<dl class="method">
+<dt id="apache_beam.pvalue_test.PValueTest.test_pcollectionview_not_recreated">
+<code class="descname">test_pcollectionview_not_recreated</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/pvalue_test.html#PValueTest.test_pcollectionview_not_recreated"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.pvalue_test.PValueTest.test_pcollectionview_not_recreated" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.pvalue_test.PValueTest.test_pvalue_expected_arguments">
+<code class="descname">test_pvalue_expected_arguments</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/pvalue_test.html#PValueTest.test_pvalue_expected_arguments"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.pvalue_test.PValueTest.test_pvalue_expected_arguments" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="module-apache_beam.test_pipeline">
+<span id="apache-beam-test-pipeline-module"></span><h2>apache_beam.test_pipeline module<a class="headerlink" href="#module-apache_beam.test_pipeline" title="Permalink to this headline">¶</a></h2>
+<p>Test Pipeline, a wrapper of Pipeline for test purpose</p>
+<dl class="class">
+<dt id="apache_beam.test_pipeline.TestPipeline">
+<em class="property">class </em><code class="descclassname">apache_beam.test_pipeline.</code><code class="descname">TestPipeline</code><span class="sig-paren">(</span><em>runner=None</em>, <em>options=None</em>, <em>argv=None</em>, <em>is_integration_test=False</em>, <em>blocking=True</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/test_pipeline.html#TestPipeline"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.test_pipeline.TestPipeline" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#apache_beam.pipeline.Pipeline" title="apache_beam.pipeline.Pipeline"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.pipeline.Pipeline</span></code></a></p>
+<p>TestPipeline class is used inside of Beam tests that can be configured to
+run against pipeline runner.</p>
+<p>It has a functionality to parse arguments from command line and build pipeline
+options for tests who runs against a pipeline runner and utilizes resources
+of the pipeline runner. Those test functions are recommended to be tagged by
+&#64;attr(&#8220;ValidatesRunner&#8221;) annotation.</p>
+<p>In order to configure the test with customized pipeline options from command
+line, system argument &#8216;test-pipeline-options&#8217; can be used to obtains a list
+of pipeline options. If no options specified, default value will be used.</p>
+<p>For example, use following command line to execute all ValidatesRunner tests:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">python</span> <span class="n">setup</span><span class="o">.</span><span class="n">py</span> <span class="n">nosetests</span> <span class="o">-</span><span class="n">a</span> <span class="n">ValidatesRunner</span>         <span class="o">--</span><span class="n">test</span><span class="o">-</span><span class="n">pipeline</span><span class="o">-</span><span class="n">options</span><span class="o">=</span><span class="s2">&quot;--runner=DirectRunner                                  --job_name=myJobName                                  --num_workers=1&quot;</span>
+</pre></div>
+</div>
+<p>For example, use assert_that for test validation:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">pipeline</span> <span class="o">=</span> <span class="n">TestPipeline</span><span class="p">()</span>
+<span class="n">pcoll</span> <span class="o">=</span> <span class="o">...</span>
+<span class="n">assert_that</span><span class="p">(</span><span class="n">pcoll</span><span class="p">,</span> <span class="n">equal_to</span><span class="p">(</span><span class="o">...</span><span class="p">))</span>
+<span class="n">pipeline</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
+</pre></div>
+</div>
+<dl class="method">
+<dt id="apache_beam.test_pipeline.TestPipeline.get_full_options_as_args">
+<code class="descname">get_full_options_as_args</code><span class="sig-paren">(</span><em>**extra_opts</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/test_pipeline.html#TestPipeline.get_full_options_as_args"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.test_pipeline.TestPipeline.get_full_options_as_args" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get full pipeline options as an argument list.</p>
+<p>Append extra pipeline options to existing option list if provided.
+Test verifier (if contains in extra options) should be pickled before
+appending, and will be unpickled later in the TestRunner.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.test_pipeline.TestPipeline.get_option">
+<code class="descname">get_option</code><span class="sig-paren">(</span><em>opt_name</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/test_pipeline.html#TestPipeline.get_option"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.test_pipeline.TestPipeline.get_option" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get a pipeline option value by name</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>opt_name</strong> &#8211; The name of the pipeline option.</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">None if option is not found in existing option list which is generated
+by parsing value of argument <cite>test-pipeline-options</cite>.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.test_pipeline.TestPipeline.run">
+<code class="descname">run</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/test_pipeline.html#TestPipeline.run"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.test_pipeline.TestPipeline.run" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="module-apache_beam.test_pipeline_test">
+<span id="apache-beam-test-pipeline-test-module"></span><h2>apache_beam.test_pipeline_test module<a class="headerlink" href="#module-apache_beam.test_pipeline_test" title="Permalink to this headline">¶</a></h2>
+<p>Unit test for the TestPipeline class</p>
+<dl class="class">
+<dt id="apache_beam.test_pipeline_test.SimpleMatcher">
+<em class="property">class </em><code class="descclassname">apache_beam.test_pipeline_test.</code><code class="descname">SimpleMatcher</code><a class="reference internal" href="_modules/apache_beam/test_pipeline_test.html#SimpleMatcher"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.test_pipeline_test.SimpleMatcher" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">hamcrest.core.base_matcher.BaseMatcher</span></code></p>
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.test_pipeline_test.TestPipelineTest">
+<em class="property">class </em><code class="descclassname">apache_beam.test_pipeline_test.</code><code class="descname">TestPipelineTest</code><span class="sig-paren">(</span><em>methodName='runTest'</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/test_pipeline_test.html#TestPipelineTest"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.test_pipeline_test.TestPipelineTest" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">unittest.case.TestCase</span></code></p>
+<dl class="attribute">
+<dt id="apache_beam.test_pipeline_test.TestPipelineTest.EXTRA_OPT_CASES">
+<code class="descname">EXTRA_OPT_CASES</code><em class="property"> = [{'expected': ['--name=Mark'], 'options': {'name': 'Mark'}}, {'expected': ['--student'], 'options': {'student': True}}, {'expected': [], 'options': {'student': False}}, {'expected': ['--name=Mark', '--student'], 'options': {'name': 'Mark', 'student': True}}]</em><a class="headerlink" href="#apache_beam.test_pipeline_test.TestPipelineTest.EXTRA_OPT_CASES" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.test_pipeline_test.TestPipelineTest.TEST_CASE">
+<code class="descname">TEST_CASE</code><em class="property"> = {'expected_list': ['--job=mockJob', '--male', '--age=1'], 'options': ['--test-pipeline-options', '--job=mockJob --male --age=1'], 'expected_dict': {'job': 'mockJob', 'male': True, 'age': 1}}</em><a class="headerlink" href="#apache_beam.test_pipeline_test.TestPipelineTest.TEST_CASE" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.test_pipeline_test.TestPipelineTest.TestParsingOptions">
+<em class="property">class </em><code class="descname">TestParsingOptions</code><span class="sig-paren">(</span><em>flags=None</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/test_pipeline_test.html#TestPipelineTest.TestParsingOptions"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.test_pipeline_test.TestPipelineTest.TestParsingOptions" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="apache_beam.utils.html#apache_beam.utils.pipeline_options.PipelineOptions" title="apache_beam.utils.pipeline_options.PipelineOptions"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.utils.pipeline_options.PipelineOptions</span></code></a></p>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.test_pipeline_test.TestPipelineTest.test_append_extra_options">
+<code class="descclassname">TestPipelineTest.</code><code class="descname">test_append_extra_options</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/test_pipeline_test.html#TestPipelineTest.test_append_extra_options"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.test_pipeline_test.TestPipelineTest.test_append_extra_options" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.test_pipeline_test.TestPipelineTest.test_append_verifier_in_extra_opt">
+<code class="descclassname">TestPipelineTest.</code><code class="descname">test_append_verifier_in_extra_opt</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/test_pipeline_test.html#TestPipelineTest.test_append_verifier_in_extra_opt"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.test_pipeline_test.TestPipelineTest.test_append_verifier_in_extra_opt" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.test_pipeline_test.TestPipelineTest.test_create_test_pipeline_options">
+<code class="descclassname">TestPipelineTest.</code><code class="descname">test_create_test_pipeline_options</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/test_pipeline_test.html#TestPipelineTest.test_create_test_pipeline_options"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.test_pipeline_test.TestPipelineTest.test_create_test_pipeline_options" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.test_pipeline_test.TestPipelineTest.test_empty_option_args_parsing">
+<code class="descclassname">TestPipelineTest.</code><code class="descname">test_empty_option_args_parsing</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/test_pipeline_test.html#TestPipelineTest.test_empty_option_args_parsing"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.test_pipeline_test.TestPipelineTest.test_empty_option_args_parsing" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.test_pipeline_test.TestPipelineTest.test_get_option">
+<code class="descclassname">TestPipelineTest.</code><code class="descname">test_get_option</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/test_pipeline_test.html#TestPipelineTest.test_get_option"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.test_pipeline_test.TestPipelineTest.test_get_option" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.test_pipeline_test.TestPipelineTest.test_option_args_parsing">
+<code class="descclassname">TestPipelineTest.</code><code class="descname">test_option_args_parsing</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/test_pipeline_test.html#TestPipelineTest.test_option_args_parsing"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.test_pipeline_test.TestPipelineTest.test_option_args_parsing" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.test_pipeline_test.TestPipelineTest.test_skip_IT">
+<code class="descclassname">TestPipelineTest.</code><code class="descname">test_skip_IT</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/test_pipeline_test.html#TestPipelineTest.test_skip_IT"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.test_pipeline_test.TestPipelineTest.test_skip_IT" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="module-apache_beam.version">
+<span id="apache-beam-version-module"></span><h2>apache_beam.version module<a class="headerlink" href="#module-apache_beam.version" title="Permalink to this headline">¶</a></h2>
+<p>Apache Beam SDK version information and utilities.</p>
+<dl class="function">
+<dt id="apache_beam.version.get_version_from_pom">
+<code class="descclassname">apache_beam.version.</code><code class="descname">get_version_from_pom</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/version.html#get_version_from_pom"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.version.get_version_from_pom" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.version.sync_version">
+<code class="descclassname">apache_beam.version.</code><code class="descname">sync_version</code><span class="sig-paren">(</span><em>version</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/version.html#sync_version"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.version.sync_version" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</div>
+<div class="section" id="module-apache_beam">
+<span id="module-contents"></span><h2>Module contents<a class="headerlink" href="#module-apache_beam" title="Permalink to this headline">¶</a></h2>
+<p>Apache Beam SDK for Python.</p>
+<p>Apache Beam &lt;<a class="reference external" href="http://cloud.google.com/dataflow/">http://cloud.google.com/dataflow/</a>&gt;
+provides a simple, powerful programming model for building both batch
+and streaming parallel data processing pipelines.</p>
+<p>The Apache Beam SDK for Python provides access to Apache Beam capabilities
+from the Python programming language.</p>
+<div class="section" id="status">
+<h3>Status<a class="headerlink" href="#status" title="Permalink to this headline">¶</a></h3>
+<p>The SDK is still early in its development, and significant changes
+should be expected before the first stable version.</p>
+</div>
+<div class="section" id="overview">
+<h3>Overview<a class="headerlink" href="#overview" title="Permalink to this headline">¶</a></h3>
+<p>The key concepts in this programming model are</p>
+<ul class="simple">
+<li>PCollection:  represents a collection of data, which could be
+bounded or unbounded in size.</li>
+<li>PTransform:  represents a computation that transforms input
+PCollections into output PCollections.</li>
+<li>Pipeline:  manages a directed acyclic graph of PTransforms and
+PCollections that is ready for execution.</li>
+<li>Runner:  specifies where and how the Pipeline should execute.</li>
+<li>Reading and Writing Data:  your pipeline can read from an external
+source and write to an external data sink.</li>
+</ul>
+</div>
+<div class="section" id="typical-usage">
+<h3>Typical usage<a class="headerlink" href="#typical-usage" title="Permalink to this headline">¶</a></h3>
+<p>At the top of your source file:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="k">as</span> <span class="nn">beam</span>
+</pre></div>
+</div>
+<p>After this import statement</p>
+<ul class="simple">
+<li>transform classes are available as beam.FlatMap, beam.GroupByKey, etc.</li>
+<li>Pipeline class is available as beam.Pipeline</li>
+<li>text read/write transforms are available as beam.io.ReadfromText,
+beam.io.WriteToText</li>
+</ul>
+<p class="rubric">Examples</p>
+<p>The examples subdirectory has some examples.</p>
+</div>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="apache_beam.coders.html" title="apache_beam.coders package"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="index.html" title="apache_beam"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">Apache Beam  documentation</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright .
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.5.3.
+    </div>
+  </body>
+</html>

@@ -1,0 +1,442 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>apache_beam.io.fileio_test &#8212; Apache Beam  documentation</title>
+    
+    <link rel="stylesheet" href="../../../_static/sphinxdoc.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../',
+        VERSION:     '',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../index.html" accesskey="U">Module code</a> &#187;</li> 
+      </ul>
+    </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for apache_beam.io.fileio_test</h1><div class="highlight"><pre>
+<span></span><span class="c1"># -*- coding: utf-8 -*-</span>
+<span class="c1">#</span>
+<span class="c1"># Licensed to the Apache Software Foundation (ASF) under one or more</span>
+<span class="c1"># contributor license agreements.  See the NOTICE file distributed with</span>
+<span class="c1"># this work for additional information regarding copyright ownership.</span>
+<span class="c1"># The ASF licenses this file to You under the Apache License, Version 2.0</span>
+<span class="c1"># (the &quot;License&quot;); you may not use this file except in compliance with</span>
+<span class="c1"># the License.  You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1">#    http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.</span>
+<span class="c1"># See the License for the specific language governing permissions and</span>
+<span class="c1"># limitations under the License.</span>
+<span class="c1">#</span>
+
+<span class="sd">&quot;&quot;&quot;Unit tests for local and GCS sources and sinks.&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">glob</span>
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">shutil</span>
+<span class="kn">import</span> <span class="nn">tempfile</span>
+<span class="kn">import</span> <span class="nn">unittest</span>
+
+<span class="kn">import</span> <span class="nn">hamcrest</span> <span class="k">as</span> <span class="nn">hc</span>
+<span class="kn">import</span> <span class="nn">mock</span>
+
+<span class="kn">import</span> <span class="nn">apache_beam</span> <span class="k">as</span> <span class="nn">beam</span>
+<span class="kn">from</span> <span class="nn">apache_beam</span> <span class="k">import</span> <span class="n">coders</span>
+<span class="kn">from</span> <span class="nn">apache_beam.io</span> <span class="k">import</span> <span class="n">fileio</span>
+<span class="kn">from</span> <span class="nn">apache_beam.test_pipeline</span> <span class="k">import</span> <span class="n">TestPipeline</span>
+<span class="kn">from</span> <span class="nn">apache_beam.transforms.display</span> <span class="k">import</span> <span class="n">DisplayData</span>
+<span class="kn">from</span> <span class="nn">apache_beam.transforms.display_test</span> <span class="k">import</span> <span class="n">DisplayDataItemMatcher</span>
+
+
+<div class="viewcode-block" id="TestChannelFactory"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.fileio_test.TestChannelFactory">[docs]</a><span class="k">class</span> <span class="nc">TestChannelFactory</span><span class="p">(</span><span class="n">unittest</span><span class="o">.</span><span class="n">TestCase</span><span class="p">):</span>
+
+  <span class="nd">@mock</span><span class="o">.</span><span class="n">patch</span><span class="p">(</span><span class="s1">&#39;apache_beam.io.fileio.gcsio&#39;</span><span class="p">)</span>
+<div class="viewcode-block" id="TestChannelFactory.test_size_of_files_in_glob_complete"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.fileio_test.TestChannelFactory.test_size_of_files_in_glob_complete">[docs]</a>  <span class="k">def</span> <span class="nf">test_size_of_files_in_glob_complete</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">unused_args</span><span class="p">):</span>
+    <span class="c1"># Prepare mocks.</span>
+    <span class="n">gcsio_mock</span> <span class="o">=</span> <span class="n">mock</span><span class="o">.</span><span class="n">MagicMock</span><span class="p">()</span>
+    <span class="n">fileio</span><span class="o">.</span><span class="n">gcsio</span><span class="o">.</span><span class="n">GcsIO</span> <span class="o">=</span> <span class="k">lambda</span><span class="p">:</span> <span class="n">gcsio_mock</span>
+    <span class="n">file_names</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;gs://bucket/file1&#39;</span><span class="p">,</span> <span class="s1">&#39;gs://bucket/file2&#39;</span><span class="p">]</span>
+    <span class="n">gcsio_mock</span><span class="o">.</span><span class="n">size_of_files_in_glob</span><span class="o">.</span><span class="n">return_value</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s1">&#39;gs://bucket/file1&#39;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span>
+        <span class="s1">&#39;gs://bucket/file2&#39;</span><span class="p">:</span> <span class="mi">2</span>
+    <span class="p">}</span>
+    <span class="n">expected_results</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s1">&#39;gs://bucket/file1&#39;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span>
+        <span class="s1">&#39;gs://bucket/file2&#39;</span><span class="p">:</span> <span class="mi">2</span>
+    <span class="p">}</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span>
+        <span class="n">fileio</span><span class="o">.</span><span class="n">ChannelFactory</span><span class="o">.</span><span class="n">size_of_files_in_glob</span><span class="p">(</span>
+            <span class="s1">&#39;gs://bucket/*&#39;</span><span class="p">,</span> <span class="n">file_names</span><span class="p">),</span>
+        <span class="n">expected_results</span><span class="p">)</span>
+    <span class="n">gcsio_mock</span><span class="o">.</span><span class="n">size_of_files_in_glob</span><span class="o">.</span><span class="n">assert_called_once_with</span><span class="p">(</span><span class="s1">&#39;gs://bucket/*&#39;</span><span class="p">)</span></div>
+
+  <span class="nd">@mock</span><span class="o">.</span><span class="n">patch</span><span class="p">(</span><span class="s1">&#39;apache_beam.io.fileio.gcsio&#39;</span><span class="p">)</span>
+<div class="viewcode-block" id="TestChannelFactory.test_size_of_files_in_glob_incomplete"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.fileio_test.TestChannelFactory.test_size_of_files_in_glob_incomplete">[docs]</a>  <span class="k">def</span> <span class="nf">test_size_of_files_in_glob_incomplete</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">unused_args</span><span class="p">):</span>
+    <span class="c1"># Prepare mocks.</span>
+    <span class="n">gcsio_mock</span> <span class="o">=</span> <span class="n">mock</span><span class="o">.</span><span class="n">MagicMock</span><span class="p">()</span>
+    <span class="n">fileio</span><span class="o">.</span><span class="n">gcsio</span><span class="o">.</span><span class="n">GcsIO</span> <span class="o">=</span> <span class="k">lambda</span><span class="p">:</span> <span class="n">gcsio_mock</span>
+    <span class="n">file_names</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;gs://bucket/file1&#39;</span><span class="p">,</span> <span class="s1">&#39;gs://bucket/file2&#39;</span><span class="p">]</span>
+    <span class="n">gcsio_mock</span><span class="o">.</span><span class="n">size_of_files_in_glob</span><span class="o">.</span><span class="n">return_value</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s1">&#39;gs://bucket/file1&#39;</span><span class="p">:</span> <span class="mi">1</span>
+    <span class="p">}</span>
+    <span class="n">gcsio_mock</span><span class="o">.</span><span class="n">size</span><span class="o">.</span><span class="n">return_value</span> <span class="o">=</span> <span class="mi">2</span>
+    <span class="n">expected_results</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s1">&#39;gs://bucket/file1&#39;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span>
+        <span class="s1">&#39;gs://bucket/file2&#39;</span><span class="p">:</span> <span class="mi">2</span>
+    <span class="p">}</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span>
+        <span class="n">fileio</span><span class="o">.</span><span class="n">ChannelFactory</span><span class="o">.</span><span class="n">size_of_files_in_glob</span><span class="p">(</span>
+            <span class="s1">&#39;gs://bucket/*&#39;</span><span class="p">,</span> <span class="n">file_names</span><span class="p">),</span>
+        <span class="n">expected_results</span><span class="p">)</span>
+    <span class="n">gcsio_mock</span><span class="o">.</span><span class="n">size_of_files_in_glob</span><span class="o">.</span><span class="n">assert_called_once_with</span><span class="p">(</span><span class="s1">&#39;gs://bucket/*&#39;</span><span class="p">)</span>
+    <span class="n">gcsio_mock</span><span class="o">.</span><span class="n">size</span><span class="o">.</span><span class="n">assert_called_once_with</span><span class="p">(</span><span class="s1">&#39;gs://bucket/file2&#39;</span><span class="p">)</span></div></div>
+
+
+<span class="c1"># TODO: Refactor code so all io tests are using same library</span>
+<span class="c1"># TestCaseWithTempDirCleanup class.</span>
+<span class="k">class</span> <span class="nc">_TestCaseWithTempDirCleanUp</span><span class="p">(</span><span class="n">unittest</span><span class="o">.</span><span class="n">TestCase</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Base class for TestCases that deals with TempDir clean-up.</span>
+
+<span class="sd">  Inherited test cases will call self._new_tempdir() to start a temporary dir</span>
+<span class="sd">  which will be deleted at the end of the tests (when tearDown() is called).</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">setUp</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_tempdirs</span> <span class="o">=</span> <span class="p">[]</span>
+
+  <span class="k">def</span> <span class="nf">tearDown</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">for</span> <span class="n">path</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_tempdirs</span><span class="p">:</span>
+      <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">path</span><span class="p">):</span>
+        <span class="n">shutil</span><span class="o">.</span><span class="n">rmtree</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_tempdirs</span> <span class="o">=</span> <span class="p">[]</span>
+
+  <span class="k">def</span> <span class="nf">_new_tempdir</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">mkdtemp</span><span class="p">()</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_tempdirs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">result</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">result</span>
+
+  <span class="k">def</span> <span class="nf">_create_temp_file</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s1">&#39;&#39;</span><span class="p">,</span> <span class="n">suffix</span><span class="o">=</span><span class="s1">&#39;&#39;</span><span class="p">):</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">name</span><span class="p">:</span>
+      <span class="n">name</span> <span class="o">=</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">template</span>
+    <span class="n">file_name</span> <span class="o">=</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">NamedTemporaryFile</span><span class="p">(</span>
+        <span class="n">delete</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">prefix</span><span class="o">=</span><span class="n">name</span><span class="p">,</span>
+        <span class="nb">dir</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_new_tempdir</span><span class="p">(),</span> <span class="n">suffix</span><span class="o">=</span><span class="n">suffix</span><span class="p">)</span><span class="o">.</span><span class="n">name</span>
+    <span class="k">return</span> <span class="n">file_name</span>
+
+
+<div class="viewcode-block" id="TestCompressedFile"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.fileio_test.TestCompressedFile">[docs]</a><span class="k">class</span> <span class="nc">TestCompressedFile</span><span class="p">(</span><span class="n">_TestCaseWithTempDirCleanUp</span><span class="p">):</span>
+
+<div class="viewcode-block" id="TestCompressedFile.test_seekable"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.fileio_test.TestCompressedFile.test_seekable">[docs]</a>  <span class="k">def</span> <span class="nf">test_seekable</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">readable</span> <span class="o">=</span> <span class="n">fileio</span><span class="o">.</span><span class="n">_CompressedFile</span><span class="p">(</span><span class="nb">open</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_create_temp_file</span><span class="p">(),</span> <span class="s1">&#39;r&#39;</span><span class="p">))</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertFalse</span><span class="p">(</span><span class="n">readable</span><span class="o">.</span><span class="n">seekable</span><span class="p">)</span>
+
+    <span class="n">writeable</span> <span class="o">=</span> <span class="n">fileio</span><span class="o">.</span><span class="n">_CompressedFile</span><span class="p">(</span><span class="nb">open</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_create_temp_file</span><span class="p">(),</span> <span class="s1">&#39;w&#39;</span><span class="p">))</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertFalse</span><span class="p">(</span><span class="n">writeable</span><span class="o">.</span><span class="n">seekable</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TestCompressedFile.test_tell"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.fileio_test.TestCompressedFile.test_tell">[docs]</a>  <span class="k">def</span> <span class="nf">test_tell</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">lines</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;line</span><span class="si">%d</span><span class="se">\n</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">i</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">10</span><span class="p">)]</span>
+    <span class="n">tmpfile</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_create_temp_file</span><span class="p">()</span>
+    <span class="n">writeable</span> <span class="o">=</span> <span class="n">fileio</span><span class="o">.</span><span class="n">_CompressedFile</span><span class="p">(</span><span class="nb">open</span><span class="p">(</span><span class="n">tmpfile</span><span class="p">,</span> <span class="s1">&#39;w&#39;</span><span class="p">))</span>
+    <span class="n">current_offset</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">lines</span><span class="p">:</span>
+      <span class="n">writeable</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">line</span><span class="p">)</span>
+      <span class="n">current_offset</span> <span class="o">+=</span> <span class="nb">len</span><span class="p">(</span><span class="n">line</span><span class="p">)</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">current_offset</span><span class="p">,</span> <span class="n">writeable</span><span class="o">.</span><span class="n">tell</span><span class="p">())</span>
+
+    <span class="n">writeable</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+    <span class="n">readable</span> <span class="o">=</span> <span class="n">fileio</span><span class="o">.</span><span class="n">_CompressedFile</span><span class="p">(</span><span class="nb">open</span><span class="p">(</span><span class="n">tmpfile</span><span class="p">))</span>
+    <span class="n">current_offset</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+      <span class="n">line</span> <span class="o">=</span> <span class="n">readable</span><span class="o">.</span><span class="n">readline</span><span class="p">()</span>
+      <span class="n">current_offset</span> <span class="o">+=</span> <span class="nb">len</span><span class="p">(</span><span class="n">line</span><span class="p">)</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">current_offset</span><span class="p">,</span> <span class="n">readable</span><span class="o">.</span><span class="n">tell</span><span class="p">())</span>
+      <span class="k">if</span> <span class="ow">not</span> <span class="n">line</span><span class="p">:</span>
+        <span class="k">break</span></div></div>
+
+
+<div class="viewcode-block" id="MyFileSink"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.fileio_test.MyFileSink">[docs]</a><span class="k">class</span> <span class="nc">MyFileSink</span><span class="p">(</span><span class="n">fileio</span><span class="o">.</span><span class="n">FileSink</span><span class="p">):</span>
+
+<div class="viewcode-block" id="MyFileSink.open"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.fileio_test.MyFileSink.open">[docs]</a>  <span class="k">def</span> <span class="nf">open</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">temp_path</span><span class="p">):</span>
+    <span class="c1"># TODO: Fix main session pickling.</span>
+    <span class="c1"># file_handle = super(MyFileSink, self).open(temp_path)</span>
+    <span class="n">file_handle</span> <span class="o">=</span> <span class="n">fileio</span><span class="o">.</span><span class="n">FileSink</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">temp_path</span><span class="p">)</span>
+    <span class="n">file_handle</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;[start]&#39;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">file_handle</span></div>
+
+<div class="viewcode-block" id="MyFileSink.write_encoded_record"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.fileio_test.MyFileSink.write_encoded_record">[docs]</a>  <span class="k">def</span> <span class="nf">write_encoded_record</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">file_handle</span><span class="p">,</span> <span class="n">encoded_value</span><span class="p">):</span>
+    <span class="n">file_handle</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;[&#39;</span><span class="p">)</span>
+    <span class="n">file_handle</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">encoded_value</span><span class="p">)</span>
+    <span class="n">file_handle</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;]&#39;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="MyFileSink.close"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.fileio_test.MyFileSink.close">[docs]</a>  <span class="k">def</span> <span class="nf">close</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">file_handle</span><span class="p">):</span>
+    <span class="n">file_handle</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;[end]&#39;</span><span class="p">)</span>
+    <span class="c1"># TODO: Fix main session pickling.</span>
+    <span class="c1"># file_handle = super(MyFileSink, self).close(file_handle)</span>
+    <span class="n">file_handle</span> <span class="o">=</span> <span class="n">fileio</span><span class="o">.</span><span class="n">FileSink</span><span class="o">.</span><span class="n">close</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">file_handle</span><span class="p">)</span></div></div>
+
+
+<div class="viewcode-block" id="TestFileSink"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.fileio_test.TestFileSink">[docs]</a><span class="k">class</span> <span class="nc">TestFileSink</span><span class="p">(</span><span class="n">_TestCaseWithTempDirCleanUp</span><span class="p">):</span>
+
+<div class="viewcode-block" id="TestFileSink.test_file_sink_writing"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.fileio_test.TestFileSink.test_file_sink_writing">[docs]</a>  <span class="k">def</span> <span class="nf">test_file_sink_writing</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">temp_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_new_tempdir</span><span class="p">(),</span> <span class="s1">&#39;filesink&#39;</span><span class="p">)</span>
+    <span class="n">sink</span> <span class="o">=</span> <span class="n">MyFileSink</span><span class="p">(</span>
+        <span class="n">temp_path</span><span class="p">,</span> <span class="n">file_name_suffix</span><span class="o">=</span><span class="s1">&#39;.foo&#39;</span><span class="p">,</span> <span class="n">coder</span><span class="o">=</span><span class="n">coders</span><span class="o">.</span><span class="n">ToStringCoder</span><span class="p">())</span>
+
+    <span class="c1"># Manually invoke the generic Sink API.</span>
+    <span class="n">init_token</span> <span class="o">=</span> <span class="n">sink</span><span class="o">.</span><span class="n">initialize_write</span><span class="p">()</span>
+
+    <span class="n">writer1</span> <span class="o">=</span> <span class="n">sink</span><span class="o">.</span><span class="n">open_writer</span><span class="p">(</span><span class="n">init_token</span><span class="p">,</span> <span class="s1">&#39;1&#39;</span><span class="p">)</span>
+    <span class="n">writer1</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;a&#39;</span><span class="p">)</span>
+    <span class="n">writer1</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;b&#39;</span><span class="p">)</span>
+    <span class="n">res1</span> <span class="o">=</span> <span class="n">writer1</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+
+    <span class="n">writer2</span> <span class="o">=</span> <span class="n">sink</span><span class="o">.</span><span class="n">open_writer</span><span class="p">(</span><span class="n">init_token</span><span class="p">,</span> <span class="s1">&#39;2&#39;</span><span class="p">)</span>
+    <span class="n">writer2</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;x&#39;</span><span class="p">)</span>
+    <span class="n">writer2</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;y&#39;</span><span class="p">)</span>
+    <span class="n">writer2</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;z&#39;</span><span class="p">)</span>
+    <span class="n">res2</span> <span class="o">=</span> <span class="n">writer2</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+
+    <span class="n">_</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">sink</span><span class="o">.</span><span class="n">finalize_write</span><span class="p">(</span><span class="n">init_token</span><span class="p">,</span> <span class="p">[</span><span class="n">res1</span><span class="p">,</span> <span class="n">res2</span><span class="p">]))</span>
+    <span class="c1"># Retry the finalize operation (as if the first attempt was lost).</span>
+    <span class="n">res</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">sink</span><span class="o">.</span><span class="n">finalize_write</span><span class="p">(</span><span class="n">init_token</span><span class="p">,</span> <span class="p">[</span><span class="n">res1</span><span class="p">,</span> <span class="n">res2</span><span class="p">]))</span>
+
+    <span class="c1"># Check the results.</span>
+    <span class="n">shard1</span> <span class="o">=</span> <span class="n">temp_path</span> <span class="o">+</span> <span class="s1">&#39;-00000-of-00002.foo&#39;</span>
+    <span class="n">shard2</span> <span class="o">=</span> <span class="n">temp_path</span> <span class="o">+</span> <span class="s1">&#39;-00001-of-00002.foo&#39;</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">res</span><span class="p">,</span> <span class="p">[</span><span class="n">shard1</span><span class="p">,</span> <span class="n">shard2</span><span class="p">])</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="nb">open</span><span class="p">(</span><span class="n">shard1</span><span class="p">)</span><span class="o">.</span><span class="n">read</span><span class="p">(),</span> <span class="s1">&#39;[start][a][b][end]&#39;</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="nb">open</span><span class="p">(</span><span class="n">shard2</span><span class="p">)</span><span class="o">.</span><span class="n">read</span><span class="p">(),</span> <span class="s1">&#39;[start][x][y][z][end]&#39;</span><span class="p">)</span>
+
+    <span class="c1"># Check that any temp files are deleted.</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertItemsEqual</span><span class="p">([</span><span class="n">shard1</span><span class="p">,</span> <span class="n">shard2</span><span class="p">],</span> <span class="n">glob</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="n">temp_path</span> <span class="o">+</span> <span class="s1">&#39;*&#39;</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="TestFileSink.test_file_sink_display_data"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.fileio_test.TestFileSink.test_file_sink_display_data">[docs]</a>  <span class="k">def</span> <span class="nf">test_file_sink_display_data</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">temp_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_new_tempdir</span><span class="p">(),</span> <span class="s1">&#39;display&#39;</span><span class="p">)</span>
+    <span class="n">sink</span> <span class="o">=</span> <span class="n">MyFileSink</span><span class="p">(</span>
+        <span class="n">temp_path</span><span class="p">,</span> <span class="n">file_name_suffix</span><span class="o">=</span><span class="s1">&#39;.foo&#39;</span><span class="p">,</span> <span class="n">coder</span><span class="o">=</span><span class="n">coders</span><span class="o">.</span><span class="n">ToStringCoder</span><span class="p">())</span>
+    <span class="n">dd</span> <span class="o">=</span> <span class="n">DisplayData</span><span class="o">.</span><span class="n">create_from</span><span class="p">(</span><span class="n">sink</span><span class="p">)</span>
+    <span class="n">expected_items</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="n">DisplayDataItemMatcher</span><span class="p">(</span>
+            <span class="s1">&#39;compression&#39;</span><span class="p">,</span> <span class="s1">&#39;auto&#39;</span><span class="p">),</span>
+        <span class="n">DisplayDataItemMatcher</span><span class="p">(</span>
+            <span class="s1">&#39;file_pattern&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;</span><span class="si">{}{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">temp_path</span><span class="p">,</span>
+                          <span class="s1">&#39;-</span><span class="si">%(shard_num)05d</span><span class="s1">-of-</span><span class="si">%(num_shards)05d</span><span class="s1">.foo&#39;</span><span class="p">))]</span>
+
+    <span class="n">hc</span><span class="o">.</span><span class="n">assert_that</span><span class="p">(</span><span class="n">dd</span><span class="o">.</span><span class="n">items</span><span class="p">,</span> <span class="n">hc</span><span class="o">.</span><span class="n">contains_inanyorder</span><span class="p">(</span><span class="o">*</span><span class="n">expected_items</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="TestFileSink.test_empty_write"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.fileio_test.TestFileSink.test_empty_write">[docs]</a>  <span class="k">def</span> <span class="nf">test_empty_write</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">temp_path</span> <span class="o">=</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">NamedTemporaryFile</span><span class="p">()</span><span class="o">.</span><span class="n">name</span>
+    <span class="n">sink</span> <span class="o">=</span> <span class="n">MyFileSink</span><span class="p">(</span>
+        <span class="n">temp_path</span><span class="p">,</span> <span class="n">file_name_suffix</span><span class="o">=</span><span class="s1">&#39;.foo&#39;</span><span class="p">,</span> <span class="n">coder</span><span class="o">=</span><span class="n">coders</span><span class="o">.</span><span class="n">ToStringCoder</span><span class="p">())</span>
+    <span class="n">p</span> <span class="o">=</span> <span class="n">TestPipeline</span><span class="p">()</span>
+    <span class="n">p</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">([])</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">Write</span><span class="p">(</span><span class="n">sink</span><span class="p">)</span>  <span class="c1"># pylint: disable=expression-not-assigned</span>
+    <span class="n">p</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span>
+        <span class="nb">open</span><span class="p">(</span><span class="n">temp_path</span> <span class="o">+</span> <span class="s1">&#39;-00000-of-00001.foo&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">read</span><span class="p">(),</span> <span class="s1">&#39;[start][end]&#39;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TestFileSink.test_fixed_shard_write"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.fileio_test.TestFileSink.test_fixed_shard_write">[docs]</a>  <span class="k">def</span> <span class="nf">test_fixed_shard_write</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">temp_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_new_tempdir</span><span class="p">(),</span> <span class="s1">&#39;empty&#39;</span><span class="p">)</span>
+    <span class="n">sink</span> <span class="o">=</span> <span class="n">MyFileSink</span><span class="p">(</span>
+        <span class="n">temp_path</span><span class="p">,</span>
+        <span class="n">file_name_suffix</span><span class="o">=</span><span class="s1">&#39;.foo&#39;</span><span class="p">,</span>
+        <span class="n">num_shards</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span>
+        <span class="n">shard_name_template</span><span class="o">=</span><span class="s1">&#39;_NN_SSS_&#39;</span><span class="p">,</span>
+        <span class="n">coder</span><span class="o">=</span><span class="n">coders</span><span class="o">.</span><span class="n">ToStringCoder</span><span class="p">())</span>
+    <span class="n">p</span> <span class="o">=</span> <span class="n">TestPipeline</span><span class="p">()</span>
+    <span class="n">p</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">([</span><span class="s1">&#39;a&#39;</span><span class="p">,</span> <span class="s1">&#39;b&#39;</span><span class="p">])</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">Write</span><span class="p">(</span><span class="n">sink</span><span class="p">)</span>  <span class="c1"># pylint: disable=expression-not-assigned</span>
+
+    <span class="n">p</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
+
+    <span class="n">concat</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
+        <span class="nb">open</span><span class="p">(</span><span class="n">temp_path</span> <span class="o">+</span> <span class="s1">&#39;_03_</span><span class="si">%03d</span><span class="s1">_.foo&#39;</span> <span class="o">%</span> <span class="n">shard_num</span><span class="p">)</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
+        <span class="k">for</span> <span class="n">shard_num</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">3</span><span class="p">))</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="s1">&#39;][a][&#39;</span> <span class="ow">in</span> <span class="n">concat</span><span class="p">,</span> <span class="n">concat</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="s1">&#39;][b][&#39;</span> <span class="ow">in</span> <span class="n">concat</span><span class="p">,</span> <span class="n">concat</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TestFileSink.test_file_sink_multi_shards"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.fileio_test.TestFileSink.test_file_sink_multi_shards">[docs]</a>  <span class="k">def</span> <span class="nf">test_file_sink_multi_shards</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">temp_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_new_tempdir</span><span class="p">(),</span> <span class="s1">&#39;multishard&#39;</span><span class="p">)</span>
+    <span class="n">sink</span> <span class="o">=</span> <span class="n">MyFileSink</span><span class="p">(</span>
+        <span class="n">temp_path</span><span class="p">,</span> <span class="n">file_name_suffix</span><span class="o">=</span><span class="s1">&#39;.foo&#39;</span><span class="p">,</span> <span class="n">coder</span><span class="o">=</span><span class="n">coders</span><span class="o">.</span><span class="n">ToStringCoder</span><span class="p">())</span>
+
+    <span class="c1"># Manually invoke the generic Sink API.</span>
+    <span class="n">init_token</span> <span class="o">=</span> <span class="n">sink</span><span class="o">.</span><span class="n">initialize_write</span><span class="p">()</span>
+
+    <span class="n">num_shards</span> <span class="o">=</span> <span class="mi">1000</span>
+    <span class="n">writer_results</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">num_shards</span><span class="p">):</span>
+      <span class="n">uuid</span> <span class="o">=</span> <span class="s1">&#39;uuid-</span><span class="si">%05d</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">i</span>
+      <span class="n">writer</span> <span class="o">=</span> <span class="n">sink</span><span class="o">.</span><span class="n">open_writer</span><span class="p">(</span><span class="n">init_token</span><span class="p">,</span> <span class="n">uuid</span><span class="p">)</span>
+      <span class="n">writer</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;a&#39;</span><span class="p">)</span>
+      <span class="n">writer</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;b&#39;</span><span class="p">)</span>
+      <span class="n">writer</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">uuid</span><span class="p">)</span>
+      <span class="n">writer_results</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">writer</span><span class="o">.</span><span class="n">close</span><span class="p">())</span>
+
+    <span class="n">res_first</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">sink</span><span class="o">.</span><span class="n">finalize_write</span><span class="p">(</span><span class="n">init_token</span><span class="p">,</span> <span class="n">writer_results</span><span class="p">))</span>
+    <span class="c1"># Retry the finalize operation (as if the first attempt was lost).</span>
+    <span class="n">res_second</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">sink</span><span class="o">.</span><span class="n">finalize_write</span><span class="p">(</span><span class="n">init_token</span><span class="p">,</span> <span class="n">writer_results</span><span class="p">))</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertItemsEqual</span><span class="p">(</span><span class="n">res_first</span><span class="p">,</span> <span class="n">res_second</span><span class="p">)</span>
+
+    <span class="n">res</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">res_second</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">num_shards</span><span class="p">):</span>
+      <span class="n">shard_name</span> <span class="o">=</span> <span class="s1">&#39;</span><span class="si">%s</span><span class="s1">-</span><span class="si">%05d</span><span class="s1">-of-</span><span class="si">%05d</span><span class="s1">.foo&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">temp_path</span><span class="p">,</span> <span class="n">i</span><span class="p">,</span> <span class="n">num_shards</span><span class="p">)</span>
+      <span class="n">uuid</span> <span class="o">=</span> <span class="s1">&#39;uuid-</span><span class="si">%05d</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">i</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">res</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">shard_name</span><span class="p">)</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span>
+          <span class="nb">open</span><span class="p">(</span><span class="n">shard_name</span><span class="p">)</span><span class="o">.</span><span class="n">read</span><span class="p">(),</span> <span class="p">(</span><span class="s1">&#39;[start][a][b][</span><span class="si">%s</span><span class="s1">][end]&#39;</span> <span class="o">%</span> <span class="n">uuid</span><span class="p">))</span>
+
+    <span class="c1"># Check that any temp files are deleted.</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertItemsEqual</span><span class="p">(</span><span class="n">res</span><span class="p">,</span> <span class="n">glob</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="n">temp_path</span> <span class="o">+</span> <span class="s1">&#39;*&#39;</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="TestFileSink.test_file_sink_io_error"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.fileio_test.TestFileSink.test_file_sink_io_error">[docs]</a>  <span class="k">def</span> <span class="nf">test_file_sink_io_error</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">temp_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_new_tempdir</span><span class="p">(),</span> <span class="s1">&#39;ioerror&#39;</span><span class="p">)</span>
+    <span class="n">sink</span> <span class="o">=</span> <span class="n">MyFileSink</span><span class="p">(</span>
+        <span class="n">temp_path</span><span class="p">,</span> <span class="n">file_name_suffix</span><span class="o">=</span><span class="s1">&#39;.foo&#39;</span><span class="p">,</span> <span class="n">coder</span><span class="o">=</span><span class="n">coders</span><span class="o">.</span><span class="n">ToStringCoder</span><span class="p">())</span>
+
+    <span class="c1"># Manually invoke the generic Sink API.</span>
+    <span class="n">init_token</span> <span class="o">=</span> <span class="n">sink</span><span class="o">.</span><span class="n">initialize_write</span><span class="p">()</span>
+
+    <span class="n">writer1</span> <span class="o">=</span> <span class="n">sink</span><span class="o">.</span><span class="n">open_writer</span><span class="p">(</span><span class="n">init_token</span><span class="p">,</span> <span class="s1">&#39;1&#39;</span><span class="p">)</span>
+    <span class="n">writer1</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;a&#39;</span><span class="p">)</span>
+    <span class="n">writer1</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;b&#39;</span><span class="p">)</span>
+    <span class="n">res1</span> <span class="o">=</span> <span class="n">writer1</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+
+    <span class="n">writer2</span> <span class="o">=</span> <span class="n">sink</span><span class="o">.</span><span class="n">open_writer</span><span class="p">(</span><span class="n">init_token</span><span class="p">,</span> <span class="s1">&#39;2&#39;</span><span class="p">)</span>
+    <span class="n">writer2</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;x&#39;</span><span class="p">)</span>
+    <span class="n">writer2</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;y&#39;</span><span class="p">)</span>
+    <span class="n">writer2</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;z&#39;</span><span class="p">)</span>
+    <span class="n">res2</span> <span class="o">=</span> <span class="n">writer2</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+
+    <span class="n">os</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">res2</span><span class="p">)</span>
+    <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">Exception</span><span class="p">):</span>
+      <span class="nb">list</span><span class="p">(</span><span class="n">sink</span><span class="o">.</span><span class="n">finalize_write</span><span class="p">(</span><span class="n">init_token</span><span class="p">,</span> <span class="p">[</span><span class="n">res1</span><span class="p">,</span> <span class="n">res2</span><span class="p">]))</span></div>
+
+  <span class="nd">@mock</span><span class="o">.</span><span class="n">patch</span><span class="p">(</span><span class="s1">&#39;apache_beam.io.fileio.ChannelFactory.rename&#39;</span><span class="p">)</span>
+  <span class="nd">@mock</span><span class="o">.</span><span class="n">patch</span><span class="p">(</span><span class="s1">&#39;apache_beam.io.fileio.gcsio&#39;</span><span class="p">)</span>
+<div class="viewcode-block" id="TestFileSink.test_rename_batch"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.fileio_test.TestFileSink.test_rename_batch">[docs]</a>  <span class="k">def</span> <span class="nf">test_rename_batch</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">unused_args</span><span class="p">):</span>
+    <span class="c1"># Prepare mocks.</span>
+    <span class="n">gcsio_mock</span> <span class="o">=</span> <span class="n">mock</span><span class="o">.</span><span class="n">MagicMock</span><span class="p">()</span>
+    <span class="n">fileio</span><span class="o">.</span><span class="n">gcsio</span><span class="o">.</span><span class="n">GcsIO</span> <span class="o">=</span> <span class="k">lambda</span><span class="p">:</span> <span class="n">gcsio_mock</span>
+    <span class="n">fileio</span><span class="o">.</span><span class="n">ChannelFactory</span><span class="o">.</span><span class="n">rename</span> <span class="o">=</span> <span class="n">mock</span><span class="o">.</span><span class="n">MagicMock</span><span class="p">()</span>
+    <span class="n">to_rename</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="p">(</span><span class="s1">&#39;gs://bucket/from1&#39;</span><span class="p">,</span> <span class="s1">&#39;gs://bucket/to1&#39;</span><span class="p">),</span>
+        <span class="p">(</span><span class="s1">&#39;gs://bucket/from2&#39;</span><span class="p">,</span> <span class="s1">&#39;gs://bucket/to2&#39;</span><span class="p">),</span>
+        <span class="p">(</span><span class="s1">&#39;/local/from1&#39;</span><span class="p">,</span> <span class="s1">&#39;/local/to1&#39;</span><span class="p">),</span>
+        <span class="p">(</span><span class="s1">&#39;gs://bucket/from3&#39;</span><span class="p">,</span> <span class="s1">&#39;gs://bucket/to3&#39;</span><span class="p">),</span>
+        <span class="p">(</span><span class="s1">&#39;/local/from2&#39;</span><span class="p">,</span> <span class="s1">&#39;/local/to2&#39;</span><span class="p">),</span>
+    <span class="p">]</span>
+    <span class="n">gcsio_mock</span><span class="o">.</span><span class="n">copy_batch</span><span class="o">.</span><span class="n">side_effect</span> <span class="o">=</span> <span class="p">[[</span>
+        <span class="p">(</span><span class="s1">&#39;gs://bucket/from1&#39;</span><span class="p">,</span> <span class="s1">&#39;gs://bucket/to1&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">),</span>
+        <span class="p">(</span><span class="s1">&#39;gs://bucket/from2&#39;</span><span class="p">,</span> <span class="s1">&#39;gs://bucket/to2&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">),</span>
+        <span class="p">(</span><span class="s1">&#39;gs://bucket/from3&#39;</span><span class="p">,</span> <span class="s1">&#39;gs://bucket/to3&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">),</span>
+    <span class="p">]]</span>
+    <span class="n">gcsio_mock</span><span class="o">.</span><span class="n">delete_batch</span><span class="o">.</span><span class="n">side_effect</span> <span class="o">=</span> <span class="p">[[</span>
+        <span class="p">(</span><span class="s1">&#39;gs://bucket/from1&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">),</span>
+        <span class="p">(</span><span class="s1">&#39;gs://bucket/from2&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">),</span>
+        <span class="p">(</span><span class="s1">&#39;gs://bucket/from3&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">),</span>
+    <span class="p">]]</span>
+
+    <span class="c1"># Issue batch rename.</span>
+    <span class="n">fileio</span><span class="o">.</span><span class="n">ChannelFactory</span><span class="o">.</span><span class="n">rename_batch</span><span class="p">(</span><span class="n">to_rename</span><span class="p">)</span>
+
+    <span class="c1"># Verify mocks.</span>
+    <span class="n">expected_local_rename_calls</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="n">mock</span><span class="o">.</span><span class="n">call</span><span class="p">(</span><span class="s1">&#39;/local/from1&#39;</span><span class="p">,</span> <span class="s1">&#39;/local/to1&#39;</span><span class="p">),</span>
+        <span class="n">mock</span><span class="o">.</span><span class="n">call</span><span class="p">(</span><span class="s1">&#39;/local/from2&#39;</span><span class="p">,</span> <span class="s1">&#39;/local/to2&#39;</span><span class="p">),</span>
+    <span class="p">]</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">fileio</span><span class="o">.</span><span class="n">ChannelFactory</span><span class="o">.</span><span class="n">rename</span><span class="o">.</span><span class="n">call_args_list</span><span class="p">,</span>
+                     <span class="n">expected_local_rename_calls</span><span class="p">)</span>
+    <span class="n">gcsio_mock</span><span class="o">.</span><span class="n">copy_batch</span><span class="o">.</span><span class="n">assert_called_once_with</span><span class="p">([</span>
+        <span class="p">(</span><span class="s1">&#39;gs://bucket/from1&#39;</span><span class="p">,</span> <span class="s1">&#39;gs://bucket/to1&#39;</span><span class="p">),</span>
+        <span class="p">(</span><span class="s1">&#39;gs://bucket/from2&#39;</span><span class="p">,</span> <span class="s1">&#39;gs://bucket/to2&#39;</span><span class="p">),</span>
+        <span class="p">(</span><span class="s1">&#39;gs://bucket/from3&#39;</span><span class="p">,</span> <span class="s1">&#39;gs://bucket/to3&#39;</span><span class="p">),</span>
+    <span class="p">])</span>
+    <span class="n">gcsio_mock</span><span class="o">.</span><span class="n">delete_batch</span><span class="o">.</span><span class="n">assert_called_once_with</span><span class="p">([</span>
+        <span class="s1">&#39;gs://bucket/from1&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;gs://bucket/from2&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;gs://bucket/from3&#39;</span><span class="p">,</span>
+    <span class="p">])</span></div></div>
+
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s1">&#39;__main__&#39;</span><span class="p">:</span>
+  <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">()</span><span class="o">.</span><span class="n">setLevel</span><span class="p">(</span><span class="n">logging</span><span class="o">.</span><span class="n">INFO</span><span class="p">)</span>
+  <span class="n">unittest</span><span class="o">.</span><span class="n">main</span><span class="p">()</span>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../index.html" >Module code</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright .
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.5.3.
+    </div>
+  </body>
+</html>

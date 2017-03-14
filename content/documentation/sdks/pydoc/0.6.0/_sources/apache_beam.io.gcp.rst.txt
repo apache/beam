@@ -1,0 +1,71 @@
+apache_beam.io.gcp package
+==========================
+
+Subpackages
+-----------
+
+.. toctree::
+
+    apache_beam.io.gcp.datastore
+    apache_beam.io.gcp.internal
+    apache_beam.io.gcp.tests
+
+Submodules
+----------
+
+apache_beam.io.gcp.bigquery module
+----------------------------------
+
+.. automodule:: apache_beam.io.gcp.bigquery
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+apache_beam.io.gcp.bigquery_test module
+---------------------------------------
+
+.. automodule:: apache_beam.io.gcp.bigquery_test
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+apache_beam.io.gcp.gcsio module
+-------------------------------
+
+.. automodule:: apache_beam.io.gcp.gcsio
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+apache_beam.io.gcp.gcsio_test module
+------------------------------------
+
+.. automodule:: apache_beam.io.gcp.gcsio_test
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+apache_beam.io.gcp.pubsub module
+--------------------------------
+
+.. automodule:: apache_beam.io.gcp.pubsub
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+apache_beam.io.gcp.pubsub_test module
+-------------------------------------
+
+.. automodule:: apache_beam.io.gcp.pubsub_test
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+
+Module contents
+---------------
+
+.. automodule:: apache_beam.io.gcp
+    :members:
+    :undoc-members:
+    :show-inheritance:
