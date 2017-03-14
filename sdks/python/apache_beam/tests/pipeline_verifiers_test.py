@@ -19,7 +19,6 @@
 
 import logging
 import tempfile
-import time
 import unittest
 
 from hamcrest import assert_that as hc_assert_that
