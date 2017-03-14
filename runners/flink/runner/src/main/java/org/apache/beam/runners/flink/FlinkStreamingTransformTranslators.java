@@ -121,8 +121,7 @@ class FlinkStreamingTransformTranslators {
     TRANSLATORS.put(Write.class, new WriteSinkStreamingTranslator());
     TRANSLATORS.put(TextIO.Write.Bound.class, new TextIOWriteBoundStreamingTranslator());
 
-    TRANSLATORS.put(ParDo.Bound.class, new ParDoBoundStreamingTranslator());
-    TRANSLATORS.put(ParDo.BoundMulti.class, new ParDoBoundMultiStreamingTranslator());
+    TRANSLATORS.put(ParDo.BoundMulti.class, new ParDoStreamingTranslator());
 
     TRANSLATORS.put(Window.Assign.class, new WindowAssignTranslator());
     TRANSLATORS.put(Flatten.PCollections.class, new FlattenPCollectionTranslator());
@@ -320,114 +319,6 @@ class FlinkStreamingTransformTranslators {
     }
   }
 
-  private static class ParDoBoundStreamingTranslator<InputT, OutputT>
-      extends FlinkStreamingPipelineTranslator.StreamTransformTranslator<
-        ParDo.Bound<InputT, OutputT>> {
-
-    @Override
-    public void translateNode(
-        ParDo.Bound<InputT, OutputT> transform,
-        FlinkStreamingTranslationContext context) {
-
-      DoFn<InputT, OutputT> doFn = transform.getFn();
-      rejectSplittable(doFn);
-
-      WindowingStrategy<?, ?> windowingStrategy =
-          context.getOutput(transform).getWindowingStrategy();
-
-      TypeInformation<WindowedValue<OutputT>> typeInfo =
-          context.getTypeInfo(context.getOutput(transform));
-
-      List<PCollectionView<?>> sideInputs = transform.getSideInputs();
-
-      @SuppressWarnings("unchecked")
-      PCollection<InputT> inputPCollection = (PCollection<InputT>) context.getInput(transform);
-
-      Coder<WindowedValue<InputT>> inputCoder = context.getCoder(inputPCollection);
-
-      DataStream<WindowedValue<InputT>> inputDataStream =
-          context.getInputDataStream(context.getInput(transform));
-      Coder keyCoder = null;
-      boolean stateful = false;
-      DoFnSignature signature = DoFnSignatures.getSignature(transform.getFn().getClass());
-      if (signature.stateDeclarations().size() > 0
-          || signature.timerDeclarations().size() > 0) {
-        // Based on the fact that the signature is stateful, DoFnSignatures ensures
-        // that it is also keyed
-        keyCoder = ((KvCoder) inputPCollection.getCoder()).getKeyCoder();
-        inputDataStream = inputDataStream.keyBy(new KvToByteBufferKeySelector(keyCoder));
-        stateful = true;
-      }
-
-      if (sideInputs.isEmpty()) {
-        DoFnOperator<InputT, OutputT, WindowedValue<OutputT>> doFnOperator =
-            new DoFnOperator<>(
-                transform.getFn(),
-                inputCoder,
-                new TupleTag<OutputT>("main output"),
-                Collections.<TupleTag<?>>emptyList(),
-                new DoFnOperator.DefaultOutputManagerFactory<WindowedValue<OutputT>>(),
-                windowingStrategy,
-                new HashMap<Integer, PCollectionView<?>>(), /* side-input mapping */
-                Collections.<PCollectionView<?>>emptyList(), /* side inputs */
-                context.getPipelineOptions(),
-                keyCoder);
-
-        SingleOutputStreamOperator<WindowedValue<OutputT>> outDataStream = inputDataStream
-            .transform(transform.getName(), typeInfo, doFnOperator);
-
-        context.setOutputDataStream(context.getOutput(transform), outDataStream);
-      } else {
-        Tuple2<Map<Integer, PCollectionView<?>>, DataStream<RawUnionValue>> transformedSideInputs =
-            transformSideInputs(sideInputs, context);
-
-        DoFnOperator<InputT, OutputT, WindowedValue<OutputT>> doFnOperator =
-            new DoFnOperator<>(
-                transform.getFn(),
-                inputCoder,
-                new TupleTag<OutputT>("main output"),
-                Collections.<TupleTag<?>>emptyList(),
-                new DoFnOperator.DefaultOutputManagerFactory<WindowedValue<OutputT>>(),
-                windowingStrategy,
-                transformedSideInputs.f0,
-                sideInputs,
-                context.getPipelineOptions(),
-                keyCoder);
-
-        SingleOutputStreamOperator<WindowedValue<OutputT>> outDataStream;
-        if (stateful) {
-          // we have to manually contruct the two-input transform because we're not
-          // allowed to have only one input keyed, normally.
-          KeyedStream keyedStream = (KeyedStream<?, InputT>) inputDataStream;
-          TwoInputTransformation<
-              WindowedValue<KV<?, InputT>>,
-              RawUnionValue,
-              WindowedValue<OutputT>> rawFlinkTransform = new TwoInputTransformation<>(
-              keyedStream.getTransformation(),
-              transformedSideInputs.f1.broadcast().getTransformation(),
-              transform.getName(),
-              (TwoInputStreamOperator) doFnOperator,
-              typeInfo,
-              keyedStream.getParallelism());
-
-          rawFlinkTransform.setStateKeyType(keyedStream.getKeyType());
-          rawFlinkTransform.setStateKeySelectors(keyedStream.getKeySelector(), null);
-
-          outDataStream = new SingleOutputStreamOperator(
-                  keyedStream.getExecutionEnvironment(),
-                  rawFlinkTransform) {}; // we have to cheat around the ctor being protected
-
-          keyedStream.getExecutionEnvironment().addOperator(rawFlinkTransform);
-        } else {
-          outDataStream = inputDataStream
-              .connect(transformedSideInputs.f1.broadcast())
-              .transform(transform.getName(), typeInfo, doFnOperator);
-        }
-        context.setOutputDataStream(context.getOutput(transform), outDataStream);
-      }
-    }
-  }
-
   /**
    * Wraps each element in a {@link RawUnionValue} with the given tag id.
    */
@@ -505,7 +396,7 @@ class FlinkStreamingTransformTranslators {
   }
 
 
-  private static class ParDoBoundMultiStreamingTranslator<InputT, OutputT>
+  private static class ParDoStreamingTranslator<InputT, OutputT>
       extends FlinkStreamingPipelineTranslator.StreamTransformTranslator<
       ParDo.BoundMulti<InputT, OutputT>> {
 

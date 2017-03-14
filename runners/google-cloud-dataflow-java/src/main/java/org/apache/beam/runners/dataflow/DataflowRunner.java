@@ -372,7 +372,8 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
         // Order is important. Streaming views almost all use Combine internally.
         .put(
             PTransformMatchers.classEqualTo(Combine.GroupedValues.class),
-            new PrimitiveCombineGroupedValuesOverrideFactory());
+            new PrimitiveCombineGroupedValuesOverrideFactory())
+        .put(PTransformMatchers.classEqualTo(ParDo.Bound.class), new PrimitiveParDoSingleFactory());
     overrides = ptoverrides.build();
   }
 

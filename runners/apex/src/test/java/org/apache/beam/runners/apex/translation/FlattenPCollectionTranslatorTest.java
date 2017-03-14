@@ -110,7 +110,8 @@ public class FlattenPCollectionTranslatorTest {
     PCollectionList.of(single).apply(Flatten.<String>pCollections())
       .apply(ParDo.of(new EmbeddedCollector()));
     translator.translate(p, dag);
-    Assert.assertNotNull(dag.getOperatorMeta("ParDo(EmbeddedCollector)"));
+    Assert.assertNotNull(
+        dag.getOperatorMeta("ParDo(EmbeddedCollector)/ParMultiDo(EmbeddedCollector)"));
   }
 
 }
