@@ -74,14 +74,10 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-dependency-plugin</artifactId>
-        <version>3.0.0</version>
         <executions>
           <execution>
             <goals><goal>analyze-only</goal></goals>
             <configuration>
-              <!-- Ignore runtime-only dependencies in analysis -->
-              <ignoreNonCompile>true</ignoreNonCompile>
-              <failOnWarning>true</failOnWarning>
               <usedDependencies>
                 <!--
                   BEAM-1632: Conflicting classes are brought in by bigtable-protos resulting in
