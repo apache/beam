@@ -170,9 +170,6 @@ class UnboundedReadEvaluatorFactory implements TransformEvaluatorFactory {
       UnboundedReader<OutputT> existing = shard.getExistingReader();
       if (existing == null) {
         CheckpointMarkT checkpoint = shard.getCheckpoint();
-        if (checkpoint != null) {
-          checkpoint.finalizeCheckpoint();
-        }
         return shard
             .getSource()
             .createReader(evaluationContext.getPipelineOptions(), checkpoint);
