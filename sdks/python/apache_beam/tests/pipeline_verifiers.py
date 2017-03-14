@@ -23,6 +23,7 @@ of test pipeline job. Customized verifier should extend
 """
 
 import logging
+import time
 
 from hamcrest.core.base_matcher import BaseMatcher
 
@@ -79,7 +80,27 @@ class FileChecksumMatcher(BaseMatcher):
   is a hash string computed from content of file(s).
   """
 
-  def __init__(self, file_path, expected_checksum):
+  def __init__(self, file_path, expected_checksum, sleep_secs=None):
+    """Initialize a FileChecksumMatcher object
+
+    Args:
+      file_path : A string that is the full path of output file. This path
+        can contain globs.
+      expected_checksum : A hash string that is computed from expected
+        result.
+      sleep_secs : Number of seconds to wait before verification start.
+        Extra time are given to make sure output files are ready on FS.
+    """
+    if sleep_secs is not None:
+      if isinstance(sleep_secs, int):
+        self.sleep_secs = sleep_secs
+      else:
+        raise ValueError('Sleep seconds, if received, must be int. '
+                         'But received: %r, %s' % (sleep_secs,
+                                                   type(sleep_secs)))
+    else:
+      self.sleep_secs = None
+
     self.file_path = file_path
     self.file_system = get_filesystem(self.file_path)
     self.expected_checksum = expected_checksum
@@ -94,6 +115,9 @@ class FileChecksumMatcher(BaseMatcher):
     matched_path = [f.path for f in match_result.metadata_list]
     if not matched_path:
       raise IOError('No such file or directory: %s' % self.file_path)
+
+    logging.info('Find %d files in %s: \n%s',
+                 len(matched_path), self.file_path, '\n'.join(matched_path))
     for path in matched_path:
       with self.file_system.open(path, 'r') as f:
         for line in f:
@@ -101,6 +125,11 @@ class FileChecksumMatcher(BaseMatcher):
     return read_lines
 
   def _matches(self, _):
+    if self.sleep_secs:
+      # Wait to have output file ready on FS
+      logging.info('Wait %d seconds...', self.sleep_secs)
+      time.sleep(self.sleep_secs)
+
     # Read from given file(s) path
     read_lines = self._read_with_retry()
 

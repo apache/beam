@@ -101,4 +101,5 @@ python setup.py nosetests \
     --output=$GCS_LOCATION/py-wordcount-cloud/output \
     --sdk_location=$SDK_LOCATION \
     --job_name=$JOBNAME_E2E_WC \
-    --num_workers=1"
+    --num_workers=1 \
+    --sleep_secs=20"
