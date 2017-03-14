@@ -170,9 +170,15 @@
               <li><a href="#intellij" id="markdown-toc-intellij">IntelliJ</a>                <ul>
                   <li><a href="#enable-annotation-processing" id="markdown-toc-enable-annotation-processing">Enable Annotation Processing</a></li>
                   <li><a href="#checkstyle" id="markdown-toc-checkstyle">Checkstyle</a></li>
+                  <li><a href="#code-style" id="markdown-toc-code-style">Code Style</a></li>
                 </ul>
               </li>
-              <li><a href="#eclipse" id="markdown-toc-eclipse">Eclipse</a></li>
+              <li><a href="#eclipse" id="markdown-toc-eclipse">Eclipse</a>                <ul>
+                  <li><a href="#initial-setup" id="markdown-toc-initial-setup">Initial setup</a></li>
+                  <li><a href="#checkstyle-1" id="markdown-toc-checkstyle-1">Checkstyle</a></li>
+                  <li><a href="#code-style-1" id="markdown-toc-code-style-1">Code Style</a></li>
+                </ul>
+              </li>
             </ul>
           </li>
         </ul>
@@ -368,11 +374,29 @@ clicking the “Check Module” button. The scan should report no errors.</p>
 <p>Note: Selecting “Check Project” may report some errors from the archetype
 modules as they are not configured for Checkstyle validation.</p>
 
+<h6 id="code-style">Code Style</h6>
+<p>IntelliJ supports code styles within the IDE. Use one of the following to ensure your code style
+matches the project’s checkstyle enforcements.</p>
+
+<ol>
+  <li>(Option 1) Configure IntelliJ to use “beam-codestyle.xml”.
+    <ol>
+      <li>Go to Settings -&gt; Code Style -&gt; Java.</li>
+      <li>Click the cogwheel icon next to ‘Scheme’ and select Import Scheme -&gt; Eclipse XML Profile.</li>
+      <li>Select “sdks/java/build-tools/src/main/resources/beam/beam-codestyle.xml”.</li>
+      <li>Click “OK”.</li>
+      <li>Click “Apply” and “OK”.</li>
+    </ol>
+  </li>
+  <li>(Option 2) Install <a href="https://plugins.jetbrains.com/plugin/8527-google-java-format">Google Java Format plugin</a>.</li>
+</ol>
+
 <h5 id="eclipse">Eclipse</h5>
 
-<p>Use a recent eclipse version that includes m2e. Currently we recommend Eclipse Neon.
-Start eclipse with a fresh workspace in a separate directory from your checkout.</p>
+<p>Use a recent Eclipse version that includes m2e. Currently we recommend Eclipse Neon.
+Start Eclipse with a fresh workspace in a separate directory from your checkout.</p>
 
+<h6 id="initial-setup">Initial setup</h6>
 <ol>
   <li>
     <p>Install m2e-apt: Beam uses apt annotation processing to provide auto generated code. One example is the usage of <a href="https://github.com/google/auto/tree/master/value">Google AutoValue</a>. By default m2e does not support this and you will see compile errors.</p>
@@ -405,6 +429,37 @@ Start eclipse with a fresh workspace in a separate directory from your checkout.
 </ol>
 
 <p>You now should have all the beam projects imported into eclipse and should see no compile errors.</p>
+
+<h6 id="checkstyle-1">Checkstyle</h6>
+<p>Eclipse supports checkstyle within the IDE using the Checkstyle plugin.</p>
+
+<ol>
+  <li>Install the <a href="https://marketplace.eclipse.org/content/checkstyle-plug">Checkstyle plugin</a>.</li>
+  <li>Configure Checkstyle plugin by going to Preferences - Checkstyle.
+    <ol>
+      <li>Click “New…”.</li>
+      <li>Select “External Configuration File” for type.</li>
+      <li>Click “Browse…” and select “sdks/java/build-tools/src/main/resources/beam/checkstyle.xml”.</li>
+      <li>Enter “Beam Checks” under “Name:”.</li>
+      <li>Click “OK”, then “OK”.</li>
+    </ol>
+  </li>
+</ol>
+
+<h6 id="code-style-1">Code Style</h6>
+<p>Eclipse supports code styles within the IDE. Use one of the following to ensure your code style
+matches the project’s checkstyle enforcements.</p>
+
+<ol>
+  <li>(Option 1) Configure Eclipse to use “beam-codestyle.xml”.
+    <ol>
+      <li>Go to Preferences -&gt; Java -&gt; Code Style -&gt; Formatter.</li>
+      <li>Click “Import…” and select “sdks/java/build-tools/src/main/resources/beam/beam-codestyle.xml”.</li>
+      <li>Click “Apply” and “OK”.</li>
+    </ol>
+  </li>
+  <li>(Option 2) Install <a href="https://github.com/google/google-java-format#eclipse">Google Java Format plugin</a>.</li>
+</ol>
 
 <h3 id="create-a-branch-in-your-fork">Create a branch in your fork</h3>
 <p>You’ll work on your contribution in a branch in your own (forked) repository. Create a local branch, initialized with the state of the branch you expect your changes to be merged into. Keep in mind that we use several branches, including <code class="highlighter-rouge">master</code>, feature-specific, and release-specific branches. If you are unsure, initialize with the state of the <code class="highlighter-rouge">master</code> branch.</p>
