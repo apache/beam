@@ -244,7 +244,7 @@ public class DatastoreV1 {
 
     @Nullable public abstract ValueProvider<String> getProjectId();
     @Nullable public abstract Query getQuery();
-    @Nullable public abstract ValueProvider<String> getGqlQuery();
+    @Nullable public abstract ValueProvider<String> getLiteralsAllowedGqlQuery();
     @Nullable public abstract ValueProvider<String> getNamespace();
     public abstract int getNumQuerySplits();
     @Nullable public abstract String getLocalhost();
@@ -258,7 +258,7 @@ public class DatastoreV1 {
     abstract static class Builder {
       abstract Builder setProjectId(ValueProvider<String> projectId);
       abstract Builder setQuery(Query query);
-      abstract Builder setGqlQuery(ValueProvider<String> gqlQuery);
+      abstract Builder setLiteralsAllowedGqlQuery(ValueProvider<String> literalsAllowedGqlQuery);
       abstract Builder setNamespace(ValueProvider<String> namespace);
       abstract Builder setNumQuerySplits(int numQuerySplits);
       abstract Builder setLocalhost(String localhost);
@@ -367,17 +367,17 @@ public class DatastoreV1 {
 
     /** Builds a {@link RunQueryRequest} from the {@code query} and {@code namespace}. */
     static RunQueryRequest makeRequest(Query query, @Nullable String namespace) {
-      RunQueryRequest.Builder requestBuilder = RunQueryRequest.newBuilder().setQuery(query);
-      requestBuilder.setPartitionId(forNamespace(namespace));
-      return requestBuilder.build();
+      return RunQueryRequest.newBuilder()
+          .setQuery(query)
+          .setPartitionId(forNamespace(namespace)).build();
     }
 
     @VisibleForTesting
     /** Builds a {@link RunQueryRequest} from the {@code GqlQuery} and {@code namespace}. */
     static RunQueryRequest makeRequest(GqlQuery gqlQuery, @Nullable String namespace) {
-      RunQueryRequest.Builder requestBuilder = RunQueryRequest.newBuilder().setGqlQuery(gqlQuery);
-      requestBuilder.setPartitionId(forNamespace(namespace));
-      return requestBuilder.build();
+      return RunQueryRequest.newBuilder()
+          .setGqlQuery(gqlQuery)
+          .setPartitionId(forNamespace(namespace)).build();
     }
 
     /**
@@ -472,24 +472,28 @@ public class DatastoreV1 {
      * See <a href="https://cloud.google.com/datastore/docs/reference/gql_reference">GQL Reference
      * </a> to know more about GQL grammar.
      *
+     * <p><b><i>Note:</i></b> This query is executed with literals allowed, so the users should
+     * ensure that the query is originated from trusted sources to avoid any security
+     * vulnerabilities via SQL Injection.
+     *
      * <p><b><i>Experimental</i></b>: Cloud Datastore does not a provide a clean way to translate
      * a gql query string to {@link Query}, so we end up making a query to the service for
      * translation but this may read the actual data, although it will be a small amount.
      * It needs more validation through production use cases before marking it as stable.
      */
     @Experimental(Kind.SOURCE_SINK)
-    public DatastoreV1.Read withGqlQuery(String gqlQuery) {
+    public DatastoreV1.Read withLiteralsAllowedGqlQuery(String gqlQuery) {
       checkNotNull(gqlQuery, "gqlQuery");
-      return toBuilder().setGqlQuery(StaticValueProvider.of(gqlQuery)).build();
+      return toBuilder().setLiteralsAllowedGqlQuery(StaticValueProvider.of(gqlQuery)).build();
     }
 
     /**
-     * Same as {@link Read#withGqlQuery(String)} but with a {@link ValueProvider}.
+     * Same as {@link Read#withLiteralsAllowedGqlQuery(String)} but with a {@link ValueProvider}.
      */
     @Experimental(Kind.SOURCE_SINK)
-    public DatastoreV1.Read withGqlQuery(ValueProvider<String> gqlQuery) {
+    public DatastoreV1.Read withLiteralsAllowedGqlQuery(ValueProvider<String> gqlQuery) {
       checkNotNull(gqlQuery, "gqlQuery");
-      return toBuilder().setGqlQuery(gqlQuery).build();
+      return toBuilder().setLiteralsAllowedGqlQuery(gqlQuery).build();
     }
 
     /**
@@ -567,7 +571,7 @@ public class DatastoreV1 {
         inputQuery = input.apply(Create.of(getQuery()));
       } else {
         inputQuery = input
-            .apply(Create.of(getGqlQuery())
+            .apply(Create.of(getLiteralsAllowedGqlQuery())
                 .withCoder(SerializableCoder.of(new TypeDescriptor<ValueProvider<String>>() {})))
             .apply(ParDo.of(new GqlQueryTranslateFn(v1Options)));
       }
@@ -594,18 +598,18 @@ public class DatastoreV1 {
         throw new IllegalArgumentException("Project id cannot be null");
       }
 
-      if (getQuery() == null && getGqlQuery() == null) {
+      if (getQuery() == null && getLiteralsAllowedGqlQuery() == null) {
         throw new IllegalArgumentException(
             "Either query or gql query ValueProvider should be provided");
       }
 
-      if (getQuery() != null && getGqlQuery() != null) {
+      if (getQuery() != null && getLiteralsAllowedGqlQuery() != null) {
         throw new IllegalArgumentException(
             "Only one of query or gql query ValueProvider should be provided");
       }
 
-      if (getGqlQuery() != null && getGqlQuery().isAccessible()) {
-        checkNotNull(getGqlQuery().get(), "gqlQuery");
+      if (getLiteralsAllowedGqlQuery() != null && getLiteralsAllowedGqlQuery().isAccessible()) {
+        checkNotNull(getLiteralsAllowedGqlQuery().get(), "gqlQuery");
       }
     }
 
@@ -620,7 +624,8 @@ public class DatastoreV1 {
               .withLabel("Namespace"))
           .addIfNotNull(DisplayData.item("query", query)
               .withLabel("Query"))
-          .addIfNotNull(DisplayData.item("gqlQuery", getGqlQuery()));
+          .addIfNotNull(DisplayData.item("gqlQuery", getLiteralsAllowedGqlQuery())
+              .withLabel("GqlQuery"));
     }
 
     @VisibleForTesting

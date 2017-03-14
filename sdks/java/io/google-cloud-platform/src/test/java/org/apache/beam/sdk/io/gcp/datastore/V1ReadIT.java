@@ -107,7 +107,7 @@ public class V1ReadIT {
   }
 
   /**
-   * An end-to-end test for {@link DatastoreV1.Read#withGqlQuery(String)}.
+   * An end-to-end test for {@link DatastoreV1.Read#withLiteralsAllowedGqlQuery(String)}.
    *
    * <p>Write some test entities to datastore and then run a pipeline that
    * reads and counts the total number of entities. Verify that the count matches
@@ -126,7 +126,7 @@ public class V1ReadIT {
 
     DatastoreV1.Read read = DatastoreIO.v1().read()
         .withProjectId(project)
-        .withGqlQuery(gqlQuery)
+        .withLiteralsAllowedGqlQuery(gqlQuery)
         .withNamespace(options.getNamespace());
 
     // Count the total number of entities

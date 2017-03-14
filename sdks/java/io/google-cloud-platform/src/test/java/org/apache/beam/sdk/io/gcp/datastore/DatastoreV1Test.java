@@ -167,8 +167,8 @@ public class DatastoreV1Test {
   @Test
   public void testBuildReadWithGqlQuery() throws Exception {
     DatastoreV1.Read read = DatastoreIO.v1().read()
-        .withProjectId(PROJECT_ID).withGqlQuery(GQL_QUERY).withNamespace(NAMESPACE);
-    assertEquals(GQL_QUERY, read.getGqlQuery().get());
+        .withProjectId(PROJECT_ID).withLiteralsAllowedGqlQuery(GQL_QUERY).withNamespace(NAMESPACE);
+    assertEquals(GQL_QUERY, read.getLiteralsAllowedGqlQuery().get());
     assertEquals(PROJECT_ID, read.getProjectId().get());
     assertEquals(NAMESPACE, read.getNamespace().get());
   }
@@ -207,7 +207,7 @@ public class DatastoreV1Test {
   public void testReadValidationFailsQueryAndGqlQuery() throws Exception {
     DatastoreV1.Read read = DatastoreIO.v1().read()
         .withProjectId(PROJECT_ID)
-        .withGqlQuery(GQL_QUERY)
+        .withLiteralsAllowedGqlQuery(GQL_QUERY)
         .withQuery(QUERY);
 
     thrown.expect(IllegalArgumentException.class);
@@ -259,7 +259,7 @@ public class DatastoreV1Test {
   public void testReadDisplayDataWithGqlQuery() {
     DatastoreV1.Read read = DatastoreIO.v1().read()
         .withProjectId(PROJECT_ID)
-        .withGqlQuery(GQL_QUERY)
+        .withLiteralsAllowedGqlQuery(GQL_QUERY)
         .withNamespace(NAMESPACE);
 
     DisplayData displayData = DisplayData.from(read);
@@ -284,7 +284,7 @@ public class DatastoreV1Test {
   public void testSourcePrimitiveDisplayDataWithGqlQuery() {
     DisplayDataEvaluator evaluator = DisplayDataEvaluator.create();
     PTransform<PBegin, PCollection<Entity>> read = DatastoreIO.v1().read().withProjectId(
-        "myProject").withGqlQuery(GQL_QUERY);
+        "myProject").withLiteralsAllowedGqlQuery(GQL_QUERY);
 
     Set<DisplayData> displayData = evaluator.displayDataForPrimitiveSourceTransforms(read);
     assertThat("DatastoreIO read should include the project in its primitive display data",
@@ -854,7 +854,7 @@ public class DatastoreV1Test {
 
   /**
    * Test to ensure that {@link ValueProvider} values are not accessed at pipeline construction time
-   * when built with {@link DatastoreV1.Read#withGqlQuery(String)}.
+   * when built with {@link DatastoreV1.Read#withLiteralsAllowedGqlQuery(String)}.
    */
   @Test
   public void testRuntimeOptionsNotCalledInApplyGqlQuery() {
@@ -863,7 +863,7 @@ public class DatastoreV1Test {
     pipeline
         .apply(DatastoreIO.v1().read()
             .withProjectId(options.getDatastoreProject())
-            .withGqlQuery(options.getGqlQuery()))
+            .withLiteralsAllowedGqlQuery(options.getGqlQuery()))
         .apply(DatastoreIO.v1().write().withProjectId(options.getDatastoreProject()));
   }
 
