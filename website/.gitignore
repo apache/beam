@@ -3,3 +3,9 @@ _site
 .jekyll-metadata
 vendor/
 .bundle/
+
+# Ignore IntelliJ files.
+.idea/
+*.iml
+*.ipr
+*.iws
