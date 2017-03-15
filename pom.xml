@@ -1344,16 +1344,14 @@
                 <relocations>
                   <relocation>
                     <pattern>com.google.common</pattern>
-                    <!--suppress MavenModelInspection -->
                     <shadedPattern>
-                      org.apache.${renderedArtifactId}.repackaged.com.google.common
+                      org.apache.beam.${project.artifactId}.repackaged.com.google.common
                     </shadedPattern>
                   </relocation>
                   <relocation>
                     <pattern>com.google.thirdparty</pattern>
-                    <!--suppress MavenModelInspection -->
                     <shadedPattern>
-                      org.apache.${renderedArtifactId}.repackaged.com.google.thirdparty
+                      org.apache.beam.${project.artifactId}.repackaged.com.google.thirdparty
                     </shadedPattern>
                   </relocation>
                 </relocations>
@@ -1455,32 +1453,6 @@
             </filesets>
           </configuration>
         </plugin>
-
-        <plugin>
-          <groupId>org.codehaus.mojo</groupId>
-          <artifactId>build-helper-maven-plugin</artifactId>
-          <version>3.0.0</version>
-          <executions>
-            <execution>
-              <id>render-artifact-id</id>
-              <goals>
-                <goal>regex-properties</goal>
-              </goals>
-              <phase>prepare-package</phase>
-              <configuration>
-                <regexPropertySettings>
-                  <regexPropertySetting>
-                    <name>renderedArtifactId</name>
-                    <regex>[^A-Za-z0-9]</regex>
-                    <replacement>.</replacement>
-                    <value>${project.artifactId}</value>
-                    <failIfNoMatch>false</failIfNoMatch>
-                  </regexPropertySetting>
-                </regexPropertySettings>
-              </configuration>
-            </execution>
-          </executions>
-        </plugin>
       </plugins>
     </pluginManagement>
 
@@ -1540,10 +1512,6 @@
             <version>1.0-beta-6</version>
           </dependency>
         </dependencies>
-      </plugin>
-      <plugin>
-        <groupId>org.codehaus.mojo</groupId>
-        <artifactId>build-helper-maven-plugin</artifactId>
       </plugin>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
