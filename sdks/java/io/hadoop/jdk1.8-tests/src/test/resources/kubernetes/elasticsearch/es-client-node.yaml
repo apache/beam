@@ -13,7 +13,8 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 
-# Deployment script for creating Elasticsearch nodes for client usage.
+# Deployment script for creating Elasticsearch client node. Client nodes are responsible for 
+# processing HTTP requests, perform gather processing etc.
 apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:
