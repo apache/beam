@@ -15,7 +15,4 @@
 # limitations under the License.
 #
 
-# This file is used from Python to sync versions
-include pom.xml
-
 include README.md
