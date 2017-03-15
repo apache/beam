@@ -164,11 +164,5 @@
       <version>9.4.1212.jre7</version>
       <scope>test</scope>
     </dependency>
-    <dependency>
-      <groupId>org.apache.beam</groupId>
-      <artifactId>beam-sdks-java-io-common</artifactId>
-      <scope>test</scope>
-      <classifier>tests</classifier>
-    </dependency>
   </dependencies>
 </project>
