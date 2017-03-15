@@ -25,13 +25,13 @@
   </parent>
   <packaging>pom</packaging>
   <groupId>org.apache.beam</groupId>
-  <artifactId>beam-sdks-java-io-hadoop-input-format</artifactId>
-  <name>Apache Beam :: SDKs :: Java :: IO :: Hadoop Input Format</name>
+  <artifactId>beam-sdks-java-io-hadoop</artifactId>
+  <name>Apache Beam :: SDKs :: Java :: IO :: Hadoop</name>
   <description>IO library to read data from data sources which implement Hadoop Input Format from Beam.</description>
 
   <modules>
-    <module>jdk1.8-hifio-tests</module>
-    <module>hifio</module>
+    <module>jdk1.8-tests</module>
+    <module>input-format</module>
   </modules>
 
   <dependencies>

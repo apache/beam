@@ -43,15 +43,27 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 /**
- * Runs integration test to validate HadoopInputFromatIO for an Elasticsearch instance.You need to
- * pass Elasticsearch server IP and port in beamTestPipelineOptions.
+ * A test of {@link org.apache.beam.sdk.io.hadoop.inputformat.HadoopInputFormatIO} on an
+ * independent Elasticsearch instance.
  *
- * <p>You can run just this test by doing the following: mvn test-compile compile
- * failsafe:integration-test -D beamTestPipelineOptions='[ "--serverIp=1.2.3.4",
- * "--serverPort=ES_PORT", "--userName=ES_USERNAME", "--password=ES_PASSWORD"]'
- * -Dit.test=HIFIOElasticIT -DskipITs=false Setting username and password is optional, set these
- * only if security is configured on Elasticsearch server.
+ * <p>This test requires a running instance of Elasticsearch, and the test dataset must exist in
+ * the database.
+ *
+ * <p>You can run this test by doing the following:
+ * <pre>
+ *  mvn -e -Pio-it verify -pl sdks/java/io/hadoop-input-format/jdk1.8-hifio-tests/HIFIOElasticIT
+ *  -DintegrationTestPipelineOptions='[
+ *  "--serverIp=1.2.3.4",
+ *  "--serverPort=port",
+ *  "--userName=user",
+ *  "--password=mypass" ]'
+ * </pre>
+ *
+ * <p>If you want to run this with a runner besides directrunner, there are profiles for dataflow
+ * and spark in the jdbc pom. You'll want to activate those in addition to the normal test runner
+ * invocation pipeline options.
  */
+
 @RunWith(JUnit4.class)
 public class HIFIOElasticIT implements Serializable {
 
@@ -85,15 +97,6 @@ public class HIFIOElasticIT implements Serializable {
     PCollection<Long> count = esData.apply(Count.<KV<Text, LinkedMapWritable>>globally());
     PAssert.thatSingleton(count).isEqualTo(expectedRowCount);
     PCollection<LinkedMapWritable> values = esData.apply(Values.<LinkedMapWritable>create());
-    MapElements<LinkedMapWritable, String> transformFunc =
-        MapElements.<LinkedMapWritable, String>via(new SimpleFunction<LinkedMapWritable, String>() {
-          @Override
-          public String apply(LinkedMapWritable mapw) {
-            String rowValue = "";
-            rowValue = convertMapWRowToString(mapw, rowValue);
-            return rowValue;
-          }
-        });
     PCollection<String> textValues = values.apply(transformFunc);
     // Verify the output values using checksum comparison.
     PCollection<String> consolidatedHashcode =
@@ -102,11 +105,21 @@ public class HIFIOElasticIT implements Serializable {
     pipeline.run().waitUntilFinish();
   }
 
+  MapElements<LinkedMapWritable, String> transformFunc =
+      MapElements.<LinkedMapWritable, String>via(new SimpleFunction<LinkedMapWritable, String>() {
+        @Override
+        public String apply(LinkedMapWritable mapw) {
+          String rowValue = "";
+          rowValue = convertMapWRowToString(mapw);
+          return rowValue;
+        }
+      });
   /*
    * Function to create a toString implementation of a MapWritable row by writing all field values
    * in a string row.
    */
-  private String convertMapWRowToString(LinkedMapWritable mapw, String rowValue) {
+  private String convertMapWRowToString(LinkedMapWritable mapw) {
+    String rowValue = "";
     rowValue = addFieldValuesToRow(rowValue, mapw, "User_Name");
     rowValue = addFieldValuesToRow(rowValue, mapw, "Item_Code");
     rowValue = addFieldValuesToRow(rowValue, mapw, "Txn_ID");
@@ -155,15 +168,6 @@ public class HIFIOElasticIT implements Serializable {
     // Verify that the count of objects fetched using HIFInputFormat IO is correct.
     PAssert.thatSingleton(count).isEqualTo(expectedRecordsCount);
     PCollection<LinkedMapWritable> values = esData.apply(Values.<LinkedMapWritable>create());
-    MapElements<LinkedMapWritable, String> transformFunc =
-        MapElements.<LinkedMapWritable, String>via(new SimpleFunction<LinkedMapWritable, String>() {
-          @Override
-          public String apply(LinkedMapWritable mapw) {
-            String rowValue = "";
-            rowValue = convertMapWRowToString(mapw, rowValue);
-            return rowValue;
-          }
-        });
     PCollection<String> textValues = values.apply(transformFunc);
     // Verify the output values using checksum comparison.
     PCollection<String> consolidatedHashcode =
@@ -181,12 +185,12 @@ public class HIFIOElasticIT implements Serializable {
    */
   private static Configuration getConfiguration(HIFTestOptions options) {
     Configuration conf = new Configuration();
-    conf.set(ConfigurationOptions.ES_NODES, options.getServerIp());
-    conf.set(ConfigurationOptions.ES_PORT, options.getServerPort().toString());
+    conf.set(ConfigurationOptions.ES_NODES, options.getElasticServerIp());
+    conf.set(ConfigurationOptions.ES_PORT, options.getElasticServerPort().toString());
     conf.set(ConfigurationOptions.ES_NODES_WAN_ONLY, TRUE);
     // Set username and password if Elasticsearch is configured with security.
-    conf.set(ConfigurationOptions.ES_NET_HTTP_AUTH_USER, options.getUserName());
-    conf.set(ConfigurationOptions.ES_NET_HTTP_AUTH_PASS, options.getPassword());
+    conf.set(ConfigurationOptions.ES_NET_HTTP_AUTH_USER, options.getElasticUserName());
+    conf.set(ConfigurationOptions.ES_NET_HTTP_AUTH_PASS, options.getElasticPassword());
     conf.set(ConfigurationOptions.ES_RESOURCE, ELASTIC_RESOURCE);
     conf.set("es.internal.es.version", ELASTIC_INTERNAL_VERSION);
     conf.set(ConfigurationOptions.ES_INDEX_AUTO_CREATE, TRUE);

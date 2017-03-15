@@ -97,20 +97,6 @@ public class HIFIOCassandraIT implements Serializable {
     Long expectedRecordsCount = 1000L;
     Pipeline pipeline = TestPipeline.create(options);
     Configuration conf = getConfiguration(options);
-    SimpleFunction<Row, String> myValueTranslate = new SimpleFunction<Row, String>() {
-      @Override
-      public String apply(Row input) {
-        return input.getString("y_id") + "|" + input.getString("field0") + "|"
-            + input.getString("field1") + "|" + input.getString("field2") + "|"
-            + input.getString("field3") + "|" + input.getString("field4") + "|"
-            + input.getString("field5") + "|" + input.getString("field6") + "|"
-            + input.getString("field7") + "|" + input.getString("field8") + "|"
-            + input.getString("field9") + "|" + input.getString("field10") + "|"
-            + input.getString("field11") + "|" + input.getString("field12") + "|"
-            + input.getString("field13") + "|" + input.getString("field14") + "|"
-            + input.getString("field15") + "|" + input.getString("field16");
-      }
-    };
     PCollection<KV<Long, String>> cassandraData = pipeline.apply(HadoopInputFormatIO
         .<Long, String>read().withConfiguration(conf).withValueTranslation(myValueTranslate));
     PAssert.thatSingleton(cassandraData.apply("Count", Count.<KV<Long, String>>globally()))
@@ -123,6 +109,20 @@ public class HIFIOCassandraIT implements Serializable {
     pipeline.run().waitUntilFinish();
   }
 
+  SimpleFunction<Row, String> myValueTranslate = new SimpleFunction<Row, String>() {
+    @Override
+    public String apply(Row input) {
+      return input.getString("y_id") + "|" + input.getString("field0") + "|"
+          + input.getString("field1") + "|" + input.getString("field2") + "|"
+          + input.getString("field3") + "|" + input.getString("field4") + "|"
+          + input.getString("field5") + "|" + input.getString("field6") + "|"
+          + input.getString("field7") + "|" + input.getString("field8") + "|"
+          + input.getString("field9") + "|" + input.getString("field10") + "|"
+          + input.getString("field11") + "|" + input.getString("field12") + "|"
+          + input.getString("field13") + "|" + input.getString("field14") + "|"
+          + input.getString("field15") + "|" + input.getString("field16");
+    }
+  };
   /**
    * This test reads data from the Cassandra instance based on query and verifies if data is read
    * successfully.
@@ -136,20 +136,6 @@ public class HIFIOCassandraIT implements Serializable {
     conf.set("cassandra.input.cql", "select * from " + CASSANDRA_KEYSPACE + "." + CASSANDRA_TABLE
         + " where token(y_id) > ? and token(y_id) <= ? "
         + "and y_id='user3117720508089767496' allow filtering");
-    SimpleFunction<Row, String> myValueTranslate = new SimpleFunction<Row, String>() {
-      @Override
-      public String apply(Row input) {
-        return input.getString("y_id") + "|" + input.getString("field0") + "|"
-            + input.getString("field1") + "|" + input.getString("field2") + "|"
-            + input.getString("field3") + "|" + input.getString("field4") + "|"
-            + input.getString("field5") + "|" + input.getString("field6") + "|"
-            + input.getString("field7") + "|" + input.getString("field8") + "|"
-            + input.getString("field9") + "|" + input.getString("field10") + "|"
-            + input.getString("field11") + "|" + input.getString("field12") + "|"
-            + input.getString("field13") + "|" + input.getString("field14") + "|"
-            + input.getString("field15") + "|" + input.getString("field16");
-      }
-    };
     PCollection<KV<Long, String>> cassandraData = pipeline.apply(HadoopInputFormatIO
         .<Long, String>read().withConfiguration(conf).withValueTranslation(myValueTranslate));
     PAssert.thatSingleton(cassandraData.apply("Count", Count.<KV<Long, String>>globally()))
@@ -170,16 +156,16 @@ public class HIFIOCassandraIT implements Serializable {
    */
   private static Configuration getConfiguration(HIFTestOptions options) {
     Configuration conf = new Configuration();
-    conf.set(CASSANDRA_THRIFT_PORT_PROPERTY, options.getServerPort().toString());
-    conf.set(CASSANDRA_THRIFT_ADDRESS_PROPERTY, options.getServerIp());
+    conf.set(CASSANDRA_THRIFT_PORT_PROPERTY, options.getCassandraServerPort().toString());
+    conf.set(CASSANDRA_THRIFT_ADDRESS_PROPERTY, options.getCassandraServerIp());
     conf.set(CASSANDRA_PARTITIONER_CLASS_PROPERTY, CASSANDRA_PARTITIONER_CLASS_VALUE);
     conf.set(CASSANDRA_KEYSPACE_PROPERTY, CASSANDRA_KEYSPACE);
     conf.set(CASSANDRA_COLUMNFAMILY_PROPERTY, CASSANDRA_TABLE);
-    // Set username and password if Cassandra instance has security configured.
-    conf.set(USERNAME, options.getUserName());
-    conf.set(PASSWORD, options.getPassword());
-    conf.set(INPUT_KEYSPACE_USERNAME_CONFIG, options.getUserName());
-    conf.set(INPUT_KEYSPACE_PASSWD_CONFIG, options.getPassword());
+    // Set user name and password if Cassandra instance has security configured.
+    conf.set(USERNAME, options.getCassandraUserName());
+    conf.set(PASSWORD, options.getCassandraPassword());
+    conf.set(INPUT_KEYSPACE_USERNAME_CONFIG, options.getCassandraUserName());
+    conf.set(INPUT_KEYSPACE_PASSWD_CONFIG, options.getCassandraPassword());
     conf.setClass("mapreduce.job.inputformat.class",
         org.apache.cassandra.hadoop.cql3.CqlInputFormat.class, InputFormat.class);
     conf.setClass("key.class", java.lang.Long.class, Object.class);

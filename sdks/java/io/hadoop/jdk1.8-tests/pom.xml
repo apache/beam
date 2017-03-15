@@ -24,12 +24,12 @@ and overrides the enforcer rules to allow 1.8 only behavior without making all o
   <modelVersion>4.0.0</modelVersion>
    <parent>
     <groupId>org.apache.beam</groupId>
-    <artifactId>beam-sdks-java-io-hadoop-input-format</artifactId>
+    <artifactId>beam-sdks-java-io-hadoop</artifactId>
     <version>0.7.0-SNAPSHOT</version>
     <relativePath>../pom.xml</relativePath>
   </parent>
-  <artifactId>jdk1.8-hifio-tests</artifactId>
-  <name>Apache Beam :: SDKs :: Java :: IO :: Hadoop Input Format :: jdk1.8-hifio-tests</name>
+  <artifactId>jdk1.8-tests</artifactId>
+  <name>Apache Beam :: SDKs :: Java :: IO :: Hadoop :: jdk1.8-tests</name>
   <build>
     <plugins>
     <!--  Overridden enforcer plugin for JDK1.8 for running tests -->
@@ -147,8 +147,8 @@ and overrides the enforcer rules to allow 1.8 only behavior without making all o
 
   <dependencies>
     <dependency>
-      <groupId>hadoop1</groupId>
-      <artifactId>beam-sdks-java-io-hadoop-input-format-hifio</artifactId>
+      <groupId>org.apache.beam</groupId>
+      <artifactId>beam-sdks-java-io-hadoop-input-format</artifactId>
       <version>${project.version}</version>
     </dependency>
     <dependency>

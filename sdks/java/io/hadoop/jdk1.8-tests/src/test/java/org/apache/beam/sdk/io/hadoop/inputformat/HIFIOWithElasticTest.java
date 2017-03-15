@@ -71,6 +71,7 @@ import org.slf4j.LoggerFactory;
  * MapWritable.class. If this property is not set then, using MapWritable as value class may give
  * org.apache.beam.sdk.coders.CoderException due to unexpected extra bytes after decoding.
  */
+
 @RunWith(JUnit4.class)
 public class HIFIOWithElasticTest implements Serializable {
 
