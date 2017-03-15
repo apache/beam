@@ -1,21 +1,3 @@
-# Licensed to the Apache Software Foundation (ASF) under one
-# or more contributor license agreements.  See the NOTICE file
-# distributed with this work for additional information
-# regarding copyright ownership.  The ASF licenses this file
-# to you under the Apache License, Version 2.0 (the
-# "License"); you may not use this file except in compliance
-# with the License.  You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-
-#Script to load data on Elasticsearch instance.
-
 #!/usr/bin/python
 
 import json
@@ -88,7 +70,7 @@ def upload_batch(upload_data_txt):
     logging.info("Upload: %s - upload took: %5dms, total docs uploaded: %7d" % (res_txt, took, upload_data_count))
 
 
-def get_data_for_format(format):
+def get_data_for_format(format,count):
     split_f = format.split(":")
     if not split_f:
         return None, None
@@ -99,53 +81,31 @@ def get_data_for_format(format):
     return_val = ''
 
     if field_type == "bool":
-        return_val = random.choice([True, False])
+        if count%2 == 0:
+           return_val = True
+        else:
+           return_val=False
 
     elif field_type == "str":
-        min = 3 if len(split_f) < 3 else int(split_f[2])
-        max = min + 7 if len(split_f) < 4 else int(split_f[3])
-        length = generate_count(min, max)
-        return_val = "".join([random.choice(string.ascii_letters + string.digits) for x in range(length)])
+        return_val = field_name+"{0}".format(count)
 
     elif field_type == "int":
-        min = 0 if len(split_f) < 3 else int(split_f[2])
-        max = min + 100000 if len(split_f) < 4 else int(split_f[3])
-        return_val = generate_count(min, max)
+        return_val = count
+    
+    elif field_type == "ipv4":
+        return_val = "{0}.{1}.{2}.{3}".format(1,2,3,count)
 
     elif field_type in ["ts", "tstxt"]:
-        now = int(time.time())
-        per_day = 24 * 60 * 60
-        min = now - 30 * per_day if len(split_f) < 3 else int(split_f[2])
-        max = now + 30 * per_day if len(split_f) < 4 else int(split_f[3])
-        ts = generate_count(min, max)
-        return_val = int(ts * 1000) if field_type == "ts" else datetime.datetime.fromtimestamp(ts).strftime("%Y-%m-%dT%H:%M:%S.000-0000")
+        return_val = int(count * 1000) if field_type == "ts" else datetime.datetime.fromtimestamp(count).strftime("%Y-%m-%dT%H:%M:%S.000-0000")
 
     elif field_type == "words":
-        min = 2 if len(split_f) < 3 else int(split_f[2])
-        max = min + 8 if len(split_f) < 4 else int(split_f[3])
-        count = generate_count(min, max)
-        words = []
-        for _ in range(count):
-            word_len = random.randrange(3, 10)
-            words.append("".join([random.choice(string.ascii_letters + string.digits) for x in range(word_len)]))
-        return_val = " ".join(words)
+        return_val = field_name+"{0}".format(count)
 
     elif field_type == "dict":
-        global _dict_data
-        min = 2 if len(split_f) < 3 else int(split_f[2])
-        max = min + 8 if len(split_f) < 4 else int(split_f[3])
-        count = generate_count(min, max)
-        return_val = " ".join([random.choice(_dict_data).strip() for _ in range(count)])
+        return_val = field_name+"{0}".format(count)
 
     elif field_type == "text":
-        text = ["text1", "text2", "text3"] if len(split_f) < 3 else split_f[2].split("-")
-        min = 1 if len(split_f) < 4 else int(split_f[3])
-        max = min + 1 if len(split_f) < 5 else int(split_f[4])
-        count = generate_count(min, max)
-        words = []
-        for _ in range(count):
-            words.append(""+random.choice(text))
-        return_val = " ".join(words)
+        return_val = field_name+"{0}".format(count)
 
     return field_name, return_val
 
@@ -159,13 +119,13 @@ def generate_count(min, max):
         return random.randrange(min, max);
 
 
-def generate_random_doc(format):
+def generate_random_doc(format,count):
     global id_counter
 
     res = {}
 
     for f in format:
-        f_key, f_val = get_data_for_format(f)
+        f_key, f_val = get_data_for_format(f,count)
         if f_key:
             res[f_key] = f_val
 
@@ -233,7 +193,7 @@ def generate_test_data():
                                                                   tornado.options.options.batch_size))
     for num in range(0, tornado.options.options.count):
 
-        item = generate_random_doc(format)
+        item = generate_random_doc(format,num)
 
         if out_file:
             out_file.write("%s\n" % json.dumps(item))
