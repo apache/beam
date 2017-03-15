@@ -17,10 +17,8 @@
  */
 package org.apache.beam.integration.nexmark;
 
-import javax.annotation.Nullable;
 import org.apache.beam.runners.dataflow.DataflowRunner;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
-import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 
 /**

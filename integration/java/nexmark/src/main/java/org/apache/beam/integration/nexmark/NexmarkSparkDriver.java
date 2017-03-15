@@ -18,7 +18,6 @@
 package org.apache.beam.integration.nexmark;
 
 import org.apache.beam.runners.spark.SparkPipelineOptions;
-import org.apache.beam.runners.spark.SparkRunner;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 
 /**
@@ -39,7 +38,8 @@ class NexmarkSparkDriver extends NexmarkDriver<NexmarkSparkDriver.NexmarkSparkOp
                 PipelineOptionsFactory.fromArgs(args)
                         .withValidation()
                         .as(NexmarkSparkOptions.class);
-        options.setRunner(SparkRunner.class);
+//        options.setRunner(org.apache.beam.runners.spark.SparkRunner.class);
+        options.setRunner(org.apache.beam.runners.spark.SparkRunnerDebugger.class);
         NexmarkSparkRunner runner = new NexmarkSparkRunner(options);
         new NexmarkSparkDriver().runAll(options, runner);
     }

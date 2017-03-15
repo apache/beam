@@ -66,7 +66,7 @@ class NexmarkGoogleRunner extends NexmarkRunner<NexmarkGoogleDriver.NexmarkGoogl
 
   @Override
   protected String getJobId(PipelineResult job) {
-    return ((DataflowPipelineJob)job).getJobId();
+    return ((DataflowPipelineJob) job).getJobId();
   }
 
   @Override

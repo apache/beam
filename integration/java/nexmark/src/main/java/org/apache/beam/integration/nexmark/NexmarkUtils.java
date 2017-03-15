@@ -37,7 +37,6 @@ import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.io.Read;
-import org.apache.beam.sdk.runners.PipelineRunner;
 import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -325,8 +324,8 @@ public class NexmarkUtils {
    * Setup pipeline with codes and some other options.
    */
   public static void setupPipeline(CoderStrategy coderStrategy, Pipeline p) {
-    PipelineRunner<?> runner = p.getRunner();
     //TODO Ismael check
+//    PipelineRunner<?> runner = p.getRunner();
 //    if (runner instanceof DirectRunner) {
 //      // Disable randomization of output since we want to check batch and streaming match the
 //      // model both locally and on the cloud.

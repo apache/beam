@@ -17,11 +17,6 @@
  */
 package org.apache.beam.integration.nexmark;
 
-import javax.annotation.Nullable;
-import org.apache.beam.runners.dataflow.DataflowPipelineJob;
-import org.apache.beam.runners.direct.DirectRunner;
-import org.apache.beam.sdk.PipelineResult;
-
 /**
  * Run a single query using the Direct Runner.
  */
