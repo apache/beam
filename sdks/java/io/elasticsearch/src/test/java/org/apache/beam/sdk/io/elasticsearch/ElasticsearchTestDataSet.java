@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.elasticsearch;
 import static java.net.InetAddress.getByName;
 
 import java.io.IOException;
+import org.apache.beam.sdk.io.common.IOTestPipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.elasticsearch.client.transport.TransportClient;
 import org.elasticsearch.common.transport.InetSocketTransportAddress;
@@ -58,9 +59,9 @@ public class ElasticsearchTestDataSet {
    *     Elasticsearch as shown above.
    */
   public static void main(String[] args) throws Exception {
-    PipelineOptionsFactory.register(ElasticsearchTestOptions.class);
-    ElasticsearchTestOptions options =
-        PipelineOptionsFactory.fromArgs(args).as(ElasticsearchTestOptions.class);
+    PipelineOptionsFactory.register(IOTestPipelineOptions.class);
+    IOTestPipelineOptions options =
+        PipelineOptionsFactory.fromArgs(args).as(IOTestPipelineOptions.class);
 
     createAndPopulateIndex(getClient(options), ReadOrWrite.READ);
   }
@@ -72,7 +73,7 @@ public class ElasticsearchTestDataSet {
         (rOw == ReadOrWrite.READ) ? ES_INDEX : writeIndex, ES_TYPE, NUM_DOCS, client);
   }
 
-  public static TransportClient getClient(ElasticsearchTestOptions options) throws Exception {
+  public static TransportClient getClient(IOTestPipelineOptions options) throws Exception {
     TransportClient client =
         TransportClient.builder()
             .build()
@@ -84,7 +85,7 @@ public class ElasticsearchTestDataSet {
   }
 
   public static ElasticsearchIO.ConnectionConfiguration getConnectionConfiguration(
-      ElasticsearchTestOptions options, ReadOrWrite rOw) throws IOException {
+      IOTestPipelineOptions options, ReadOrWrite rOw) throws IOException {
     ElasticsearchIO.ConnectionConfiguration connectionConfiguration =
         ElasticsearchIO.ConnectionConfiguration.create(
             new String[] {
