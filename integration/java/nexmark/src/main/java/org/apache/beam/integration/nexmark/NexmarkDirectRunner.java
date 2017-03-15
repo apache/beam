@@ -18,6 +18,9 @@
 package org.apache.beam.integration.nexmark;
 
 import javax.annotation.Nullable;
+import org.apache.beam.runners.dataflow.DataflowPipelineJob;
+import org.apache.beam.runners.direct.DirectRunner;
+import org.apache.beam.sdk.PipelineResult;
 
 /**
  * Run a single query using the Direct Runner.
@@ -44,7 +47,7 @@ class NexmarkDirectRunner extends NexmarkRunner<NexmarkDirectDriver.NexmarkDirec
 
   @Override
   protected boolean canMonitor() {
-    return false;
+    return true;
   }
 
   @Override
@@ -61,18 +64,5 @@ class NexmarkDirectRunner extends NexmarkRunner<NexmarkDirectDriver.NexmarkDirec
   protected void waitForPublisherPreload() {
     throw new UnsupportedOperationException(
         "Cannot use --pubSubMode=COMBINED with DirectRunner");
-  }
-
-  /**
-   * Monitor the performance and progress of a running job. Return final performance if
-   * it was measured.
-   */
-  @Override
-  @Nullable
-  protected NexmarkPerf monitor(NexmarkQuery query) {
-    return null;
-    //TODO Ismael Check how we can do this a real implementation
-//    throw new UnsupportedOperationException(
-//        "Cannot use --monitorJobs=true with DirectRunner");
   }
 }

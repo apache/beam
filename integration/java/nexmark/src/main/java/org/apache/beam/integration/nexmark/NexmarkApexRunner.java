@@ -18,6 +18,8 @@
 package org.apache.beam.integration.nexmark;
 
 import javax.annotation.Nullable;
+import org.apache.beam.runners.apex.ApexRunnerResult;
+import org.apache.beam.sdk.PipelineResult;
 
 /**
  * Run a query using the Apex runner.
