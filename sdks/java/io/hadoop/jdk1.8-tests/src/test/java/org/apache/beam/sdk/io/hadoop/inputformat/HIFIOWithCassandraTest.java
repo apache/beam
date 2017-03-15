@@ -173,13 +173,7 @@ public class HIFIOWithCassandraTest implements Serializable {
 
   @AfterClass
   public static void stopEmbeddedCassandra() throws Exception {
-    dropTable();
     EmbeddedCassandraServerHelper.cleanEmbeddedCassandra();
-  }
-
-  public static void dropTable() throws Exception {
-    session.execute("Drop TABLE " + CASSANDRA_TABLE);
-    session.execute("Drop KEYSPACE " + CASSANDRA_KEYSPACE);
   }
 
   /**
