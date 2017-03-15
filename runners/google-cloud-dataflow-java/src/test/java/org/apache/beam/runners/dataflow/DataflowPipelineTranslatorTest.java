@@ -1008,13 +1008,10 @@ public class DataflowPipelineTranslatorTest implements Serializable {
       .apply(parDo1)
       .apply(parDo2);
 
+    DataflowRunner runner = DataflowRunner.fromOptions(options);
+    runner.replaceTransforms(pipeline);
     Job job =
-        translator
-            .translate(
-                pipeline,
-                DataflowRunner.fromOptions(options),
-                Collections.<DataflowPackage>emptyList())
-            .getJob();
+        translator.translate(pipeline, runner, Collections.<DataflowPackage>emptyList()).getJob();
     assertAllStepOutputsHaveUniqueIds(job);
 
     List<Step> steps = job.getSteps();
@@ -1044,7 +1041,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
             .put("type", "JAVA_CLASS")
             .put("value", fn1.getClass().getName())
             .put("shortValue", fn1.getClass().getSimpleName())
-            .put("namespace", ParDo.BoundMulti.class.getName())
+            .put("namespace", parDo1.getClass().getName())
             .build(),
         ImmutableMap.<String, Object>builder()
             .put("key", "foo2")
@@ -1064,7 +1061,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
             .put("type", "JAVA_CLASS")
             .put("value", fn2.getClass().getName())
             .put("shortValue", fn2.getClass().getSimpleName())
-            .put("namespace", ParDo.BoundMulti.class.getName())
+            .put("namespace", parDo2.getClass().getName())
             .build(),
         ImmutableMap.<String, Object>builder()
             .put("key", "foo3")
