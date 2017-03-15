@@ -14,7 +14,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-
 """File-based sources and sinks."""
 
 from __future__ import absolute_import
@@ -32,9 +31,6 @@ import zlib
 from apache_beam.internal import util
 from apache_beam.io import iobase
 from apache_beam.transforms.display import DisplayDataItem
-from apache_beam.utils.value_provider import ValueProvider
-from apache_beam.utils.value_provider import StaticValueProvider
-from apache_beam.utils.value_provider import check_accessible
 
 # TODO(sourabhbajaj): Fix the constant values after the new IO factory
 # Current constants are copy pasted from gcsio.py till we fix this.
@@ -548,30 +544,25 @@ class FileSink(iobase.Sink):
                compression_type=CompressionTypes.AUTO):
     """
      Raises:
-      TypeError: if file path parameters are not a string or ValueProvider,
-                 or if compression_type is not member of CompressionTypes.
+      TypeError: if file path parameters are not a string or if compression_type
+        is not member of CompressionTypes.
       ValueError: if shard_name_template is not of expected format.
     """
-    if not (isinstance(file_path_prefix, basestring)
-            or isinstance(file_path_prefix, ValueProvider)):
-      raise TypeError('file_path_prefix must be a string or ValueProvider;'
-                      'got %r instead' % file_path_prefix)
-    if not (isinstance(file_name_suffix, basestring)
-            or isinstance(file_name_suffix, ValueProvider)):
-      raise TypeError('file_name_suffix must be a string or ValueProvider;'
-                      'got %r instead' % file_name_suffix)
+    if not isinstance(file_path_prefix, basestring):
+      raise TypeError('file_path_prefix must be a string; got %r instead' %
+                      file_path_prefix)
+    if not isinstance(file_name_suffix, basestring):
+      raise TypeError('file_name_suffix must be a string; got %r instead' %
+                      file_name_suffix)
 
     if not CompressionTypes.is_valid_compression_type(compression_type):
       raise TypeError('compression_type must be CompressionType object but '
                       'was %s' % type(compression_type))
+
     if shard_name_template is None:
       shard_name_template = DEFAULT_SHARD_NAME_TEMPLATE
     elif shard_name_template is '':
       num_shards = 1
-    if isinstance(file_path_prefix, basestring):
-      file_path_prefix = StaticValueProvider(str, file_path_prefix)
-    if isinstance(file_name_suffix, basestring):
-      file_name_suffix = StaticValueProvider(str, file_name_suffix)
     self.file_path_prefix = file_path_prefix
     self.file_name_suffix = file_name_suffix
     self.num_shards = num_shards
@@ -627,31 +618,22 @@ class FileSink(iobase.Sink):
     if file_handle is not None:
       file_handle.close()
 
-  @check_accessible(['file_path_prefix', 'file_name_suffix'])
   def initialize_write(self):
-    file_path_prefix = self.file_path_prefix.get()
-    file_name_suffix = self.file_name_suffix.get()
-    tmp_dir = file_path_prefix + file_name_suffix + time.strftime(
+    tmp_dir = self.file_path_prefix + self.file_name_suffix + time.strftime(
         '-temp-%Y-%m-%d_%H-%M-%S')
     ChannelFactory().mkdir(tmp_dir)
     return tmp_dir
 
-  @check_accessible(['file_path_prefix', 'file_name_suffix'])
   def open_writer(self, init_result, uid):
     # A proper suffix is needed for AUTO compression detection.
     # We also ensure there will be no collisions with uid and a
     # (possibly unsharded) file_path_prefix and a (possibly empty)
     # file_name_suffix.
-    file_path_prefix = self.file_path_prefix.get()
-    file_name_suffix = self.file_name_suffix.get()
     suffix = (
-        '.' + os.path.basename(file_path_prefix) + file_name_suffix)
+        '.' + os.path.basename(self.file_path_prefix) + self.file_name_suffix)
     return FileSinkWriter(self, os.path.join(init_result, uid) + suffix)
 
-  @check_accessible(['file_path_prefix', 'file_name_suffix'])
   def finalize_write(self, init_result, writer_results):
-    file_path_prefix = self.file_path_prefix.get()
-    file_name_suffix = self.file_name_suffix.get()
     writer_results = sorted(writer_results)
     num_shards = len(writer_results)
     min_threads = min(num_shards, FileSink._MAX_RENAME_THREADS)
@@ -660,8 +642,8 @@ class FileSink(iobase.Sink):
     rename_ops = []
     for shard_num, shard in enumerate(writer_results):
       final_name = ''.join([
-          file_path_prefix, self.shard_name_format % dict(
-              shard_num=shard_num, num_shards=num_shards), file_name_suffix
+          self.file_path_prefix, self.shard_name_format % dict(
+              shard_num=shard_num, num_shards=num_shards), self.file_name_suffix
       ])
       rename_ops.append((shard, final_name))
 
