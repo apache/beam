@@ -27,10 +27,10 @@ job('beam_PerformanceTests_Dataflow'){
     common_job_properties.setPostCommit(delegate, '0 */6 * * *', false)
 
     steps {
-        // Clones appropriate perfkit branch
-        shell('git clone -b apache --single-branch https://github.com/jasonkuster/PerfKitBenchmarker.git')
-        shell('pip install --user -r PerfKitBenchmarker/requirements.txt')
-        shell('python PerfKitBenchmarker/pkb.py --project=apache-beam-testing --ci_run=true --benchmarks=dpb_wordcount_benchmark --dpb_dataflow_staging_location=gs://temp-storage-for-perf-tests/staging --dpb_dataflow_jar=./ --dpb_wordcount_input=dataflow-samples/shakespeare/kinglear.txt --dpb_log_level=INFO --config_override=dpb_wordcount_benchmark.dpb_service.service_type=dataflow --bigquery_table=beam_performance.pkb_results --official=true')
         shell('rm -rf PerfKitBenchmarker')
+        // Clones appropriate perfkit branch
+        shell('git clone -b beam-pkb --single-branch https://github.com/jasonkuster/PerfKitBenchmarker.git')
+        shell('pip install --user -r PerfKitBenchmarker/requirements.txt')
+        shell('python PerfKitBenchmarker/pkb.py --project=apache-beam-testing --benchmarks=dpb_wordcount_benchmark --dpb_dataflow_staging_location=gs://temp-storage-for-perf-tests/staging --dpb_wordcount_input=dataflow-samples/shakespeare/kinglear.txt --dpb_log_level=INFO --config_override=dpb_wordcount_benchmark.dpb_service.service_type=dataflow --dpb_maven_binary=/home/jenkins/tools/maven/latest/bin/mvn --dpb_beam_it_module=examples/java --bigquery_table=beam_performance.pkb_results --official=true')
     }
 }
