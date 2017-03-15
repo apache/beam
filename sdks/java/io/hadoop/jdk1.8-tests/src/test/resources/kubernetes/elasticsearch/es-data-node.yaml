@@ -13,7 +13,7 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 
-# Deployment script for creating Elasticsearch data nodes which store and index data.
+# Kubernetes service file for Elasticsearch data nodes which store and index data.
 apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:

@@ -13,7 +13,7 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 
-# Deployment script for Elasticsearch management nodes.
+# The Kubernetes service file for Elasticsearch master nodes.
 apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:
