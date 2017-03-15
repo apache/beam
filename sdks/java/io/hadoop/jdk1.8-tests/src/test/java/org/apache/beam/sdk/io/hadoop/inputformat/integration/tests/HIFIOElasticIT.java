@@ -162,7 +162,7 @@ public class HIFIOElasticIT implements Serializable {
                   + "  \"query\": {"
                   + "  \"match\" : {"
                   + "    \"Title\" : {"
-                  + "      \"query\" : \"Title9\","
+                  + "      \"query\" : \"M9u5xcAR\","
                   + "      \"type\" : \"boolean\""
                   + "    }"
                   + "  }"
