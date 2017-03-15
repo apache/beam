@@ -307,8 +307,10 @@ public class CreateTest {
     Coder<Record> coder = new RecordCoder();
     PBegin pBegin = PBegin.in(p);
     Create.TimestampedValues<Record> values =
-        Create.timestamped(TimestampedValue.of(new Record(), new Instant()),
-            TimestampedValue.of(new Record(), new Instant())).withCoder(coder);
+        Create.timestamped(
+            TimestampedValue.of(new Record(), new Instant(0)),
+            TimestampedValue.<Record>of(new Record2(), new Instant(0)))
+            .withCoder(coder);
     Coder<Record> defaultCoder = values.getDefaultOutputCoder(pBegin);
     assertThat(defaultCoder, equalTo(coder));
   }
@@ -319,8 +321,9 @@ public class CreateTest {
     p.getCoderRegistry().registerCoder(Record.class, coder);
     PBegin pBegin = PBegin.in(p);
     Create.TimestampedValues<Record> values =
-        Create.timestamped(TimestampedValue.of(new Record(), new Instant()),
-            TimestampedValue.of(new Record(), new Instant()))
+        Create.timestamped(
+            TimestampedValue.of(new Record(), new Instant(0)),
+            TimestampedValue.<Record>of(new Record2(), new Instant(0)))
             .withType(new TypeDescriptor<Record>() {});
     Coder<Record> defaultCoder = values.getDefaultOutputCoder(pBegin);
     assertThat(defaultCoder, equalTo(coder));
@@ -370,7 +373,7 @@ public class CreateTest {
     Coder<Record> coder = new RecordCoder();
     PBegin pBegin = PBegin.in(p);
     Create.Values<Record> values =
-        Create.of(new Record(), new Record(), new Record()).withCoder(coder);
+        Create.of(new Record(), new Record2()).withCoder(coder);
     Coder<Record> defaultCoder = values.getDefaultOutputCoder(pBegin);
     assertThat(defaultCoder, equalTo(coder));
   }
@@ -381,8 +384,7 @@ public class CreateTest {
     p.getCoderRegistry().registerCoder(Record.class, coder);
     PBegin pBegin = PBegin.in(p);
     Create.Values<Record> values =
-        Create.of(new Record(), new Record(), new Record())
-            .withType(new TypeDescriptor<Record>() {});
+        Create.of(new Record(), new Record2()).withType(new TypeDescriptor<Record>() {});
     Coder<Record> defaultCoder = values.getDefaultOutputCoder(pBegin);
     assertThat(defaultCoder, equalTo(coder));
   }
