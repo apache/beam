@@ -70,53 +70,6 @@ import org.joda.time.Instant;
  */
 public class DirectRunner extends PipelineRunner<DirectPipelineResult> {
   /**
-   * The default set of transform overrides to use in the {@link DirectRunner}.
-   *
-   * <p>The order in which overrides is applied is important, as some overrides are expanded into a
-   * composite. If the composite contains {@link PTransform PTransforms} which are also overridden,
-   * these PTransforms must occur later in the iteration order. {@link ImmutableMap} has an
-   * iteration order based on the order at which elements are added to it.
-   */
-  @SuppressWarnings("rawtypes")
-  private static Map<PTransformMatcher, PTransformOverrideFactory> defaultTransformOverrides =
-      ImmutableMap.<PTransformMatcher, PTransformOverrideFactory>builder()
-          .put(
-              PTransformMatchers.writeWithRunnerDeterminedSharding(),
-              new WriteWithShardingFactory()) /* Uses a view internally. */
-          .put(
-              PTransformMatchers.classEqualTo(CreatePCollectionView.class),
-              new ViewOverrideFactory()) /* Uses pardos and GBKs */
-          .put(
-              PTransformMatchers.classEqualTo(TestStream.class),
-              new DirectTestStreamFactory()) /* primitive */
-          /* Single-output ParDos are implemented in terms of Multi-output ParDos. Any override
-          that is applied to a multi-output ParDo must first have all matching Single-output ParDos
-          converted to match.
-           */
-          .put(PTransformMatchers.splittableParDoSingle(), new ParDoSingleViaMultiOverrideFactory())
-          .put(
-              PTransformMatchers.stateOrTimerParDoSingle(),
-              new ParDoSingleViaMultiOverrideFactory())
-          // SplittableParMultiDo is implemented in terms of nonsplittable single ParDos
-          .put(PTransformMatchers.splittableParDoMulti(), new ParDoMultiOverrideFactory())
-          // state and timer pardos are implemented in terms of nonsplittable single ParDos
-          .put(PTransformMatchers.stateOrTimerParDoMulti(), new ParDoMultiOverrideFactory())
-          .put(
-              PTransformMatchers.classEqualTo(ParDo.Bound.class),
-              new ParDoSingleViaMultiOverrideFactory()) /* returns a BoundMulti */
-          .put(
-              PTransformMatchers.classEqualTo(BoundMulti.class),
-              /* returns one of two primitives; SplittableParDos are replaced above. */
-              new ParDoMultiOverrideFactory())
-          .put(
-              PTransformMatchers.classEqualTo(GBKIntoKeyedWorkItems.class),
-              new DirectGBKIntoKeyedWorkItemsOverrideFactory()) /* Returns a GBKO */
-          .put(
-              PTransformMatchers.classEqualTo(GroupByKey.class),
-              new DirectGroupByKeyOverrideFactory()) /* returns two chained primitives. */
-          .build();
-
-  /**
    * Part of a {@link PCollection}. Elements are output to a bundle, which will cause them to be
    * executed by {@link PTransform PTransforms} that consume the {@link PCollection} this bundle is
    * a part of at a later point. This is an uncommitted bundle and can have elements added to it.
@@ -309,7 +262,7 @@ public class DirectRunner extends PipelineRunner<DirectPipelineResult> {
   @Override
   public DirectPipelineResult run(Pipeline pipeline) {
     for (Map.Entry<PTransformMatcher, PTransformOverrideFactory> override :
-        defaultTransformOverrides.entrySet()) {
+        defaultTransformOverrides().entrySet()) {
       pipeline.replace(override.getKey(), override.getValue());
     }
     MetricsEnvironment.setMetricsSupported(true);
@@ -358,6 +311,52 @@ public class DirectRunner extends PipelineRunner<DirectPipelineResult> {
       }
     }
     return result;
+  }
+
+  /**
+   * The default set of transform overrides to use in the {@link DirectRunner}.
+   *
+   * <p>The order in which overrides is applied is important, as some overrides are expanded into a
+   * composite. If the composite contains {@link PTransform PTransforms} which are also overridden,
+   * these PTransforms must occur later in the iteration order. {@link ImmutableMap} has an
+   * iteration order based on the order at which elements are added to it.
+   */
+  @SuppressWarnings("rawtypes")
+  private Map<PTransformMatcher, PTransformOverrideFactory> defaultTransformOverrides() {
+    return ImmutableMap.<PTransformMatcher, PTransformOverrideFactory>builder()
+        .put(
+            PTransformMatchers.writeWithRunnerDeterminedSharding(),
+            new WriteWithShardingFactory()) /* Uses a view internally. */
+        .put(
+            PTransformMatchers.classEqualTo(CreatePCollectionView.class),
+            new ViewOverrideFactory()) /* Uses pardos and GBKs */
+        .put(
+            PTransformMatchers.classEqualTo(TestStream.class),
+            new DirectTestStreamFactory(this)) /* primitive */
+        /* Single-output ParDos are implemented in terms of Multi-output ParDos. Any override
+        that is applied to a multi-output ParDo must first have all matching Single-output ParDos
+        converted to match.
+         */
+        .put(PTransformMatchers.splittableParDoSingle(), new ParDoSingleViaMultiOverrideFactory())
+        .put(PTransformMatchers.stateOrTimerParDoSingle(), new ParDoSingleViaMultiOverrideFactory())
+        // SplittableParMultiDo is implemented in terms of nonsplittable single ParDos
+        .put(PTransformMatchers.splittableParDoMulti(), new ParDoMultiOverrideFactory())
+        // state and timer pardos are implemented in terms of nonsplittable single ParDos
+        .put(PTransformMatchers.stateOrTimerParDoMulti(), new ParDoMultiOverrideFactory())
+        .put(
+            PTransformMatchers.classEqualTo(ParDo.Bound.class),
+            new ParDoSingleViaMultiOverrideFactory()) /* returns a BoundMulti */
+        .put(
+            PTransformMatchers.classEqualTo(BoundMulti.class),
+            /* returns one of two primitives; SplittableParDos are replaced above. */
+            new ParDoMultiOverrideFactory())
+        .put(
+            PTransformMatchers.classEqualTo(GBKIntoKeyedWorkItems.class),
+            new DirectGBKIntoKeyedWorkItemsOverrideFactory()) /* Returns a GBKO */
+        .put(
+            PTransformMatchers.classEqualTo(GroupByKey.class),
+            new DirectGroupByKeyOverrideFactory()) /* returns two chained primitives. */
+        .build();
   }
 
   /**

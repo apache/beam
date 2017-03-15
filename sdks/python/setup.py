@@ -38,12 +38,15 @@ PACKAGE_NAME = 'apache-beam'
 PACKAGE_VERSION = get_version()
 PACKAGE_DESCRIPTION = 'Apache Beam SDK for Python'
 PACKAGE_URL = 'https://beam.apache.org'
-PACKAGE_DOWNLOAD_URL = 'TBD'
+PACKAGE_DOWNLOAD_URL = 'https://pypi.python.org/pypi/apache-beam'
 PACKAGE_AUTHOR = 'Apache Software Foundation'
 PACKAGE_EMAIL = 'dev@beam.apache.org'
 PACKAGE_KEYWORDS = 'apache beam'
 PACKAGE_LONG_DESCRIPTION = '''
-TBD
+Apache Beam is a unified programming model for both batch and streaming
+data processing, enabling efficient execution across diverse distributed
+execution engines and providing extensibility points for connecting to
+different technologies and user communities.
 '''
 
 REQUIRED_PIP_VERSION = '7.0.0'

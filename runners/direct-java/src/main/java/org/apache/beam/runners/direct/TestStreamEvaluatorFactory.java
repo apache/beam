@@ -18,8 +18,6 @@
 
 package org.apache.beam.runners.direct;
 
-import static com.google.common.base.Preconditions.checkState;
-
 import com.google.auto.value.AutoValue;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Supplier;
@@ -35,7 +33,6 @@ import org.apache.beam.runners.direct.DirectRunner.CommittedBundle;
 import org.apache.beam.runners.direct.DirectRunner.UncommittedBundle;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.runners.PTransformOverrideFactory;
-import org.apache.beam.sdk.runners.PipelineRunner;
 import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.testing.TestStream.ElementEvent;
 import org.apache.beam.sdk.testing.TestStream.Event;
@@ -166,11 +163,16 @@ class TestStreamEvaluatorFactory implements TransformEvaluatorFactory {
 
   static class DirectTestStreamFactory<T>
       implements PTransformOverrideFactory<PBegin, PCollection<T>, TestStream<T>> {
+    private final DirectRunner runner;
+
+    DirectTestStreamFactory(DirectRunner runner) {
+      this.runner = runner;
+    }
 
     @Override
     public PTransform<PBegin, PCollection<T>> getReplacementTransform(
         TestStream<T> transform) {
-      return new DirectTestStream<>(transform);
+      return new DirectTestStream<>(runner, transform);
     }
 
     @Override
@@ -185,22 +187,18 @@ class TestStreamEvaluatorFactory implements TransformEvaluatorFactory {
     }
 
     static class DirectTestStream<T> extends PTransform<PBegin, PCollection<T>> {
+      private final transient DirectRunner runner;
       private final TestStream<T> original;
 
       @VisibleForTesting
-      DirectTestStream(TestStream<T> transform) {
+      DirectTestStream(DirectRunner runner, TestStream<T> transform) {
+        this.runner = runner;
         this.original = transform;
       }
 
       @Override
       public PCollection<T> expand(PBegin input) {
-        PipelineRunner<?> runner = input.getPipeline().getRunner();
-        checkState(
-            runner instanceof DirectRunner,
-            "%s can only be used when running with the %s",
-            getClass().getSimpleName(),
-            DirectRunner.class.getSimpleName());
-        ((DirectRunner) runner).setClockSupplier(new TestClockSupplier());
+        runner.setClockSupplier(new TestClockSupplier());
         return PCollection.<T>createPrimitiveOutputInternal(
                 input.getPipeline(), WindowingStrategy.globalDefault(), IsBounded.UNBOUNDED)
             .setCoder(original.getValueCoder());

@@ -70,6 +70,26 @@
           </execution>
         </executions>
       </plugin>
+
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-dependency-plugin</artifactId>
+        <executions>
+          <execution>
+            <goals><goal>analyze-only</goal></goals>
+            <configuration>
+              <usedDependencies>
+                <!--
+                  BEAM-1632: Conflicting classes are brought in by bigtable-protos resulting in
+                  maven-dependency:analyze `unused dependency` error. Marking this as a
+                  `usedDependency` until the issue is resolved.
+                 -->
+                <usedDependency>com.google.api.grpc:grpc-google-common-protos</usedDependency>
+              </usedDependencies>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
     </plugins>
   </build>
 
@@ -170,6 +190,11 @@
     </dependency>
 
     <dependency>
+      <groupId>com.google.api.grpc</groupId>
+      <artifactId>grpc-google-common-protos</artifactId>
+    </dependency>
+
+    <dependency>
       <groupId>org.slf4j</groupId>
       <artifactId>slf4j-api</artifactId>
     </dependency>
@@ -252,5 +277,4 @@
       <scope>test</scope>
     </dependency>
   </dependencies>
-
 </project>

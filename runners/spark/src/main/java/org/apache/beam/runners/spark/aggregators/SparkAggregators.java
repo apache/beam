@@ -18,19 +18,16 @@
 
 package org.apache.beam.runners.spark.aggregators;
 
-import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableList;
 import java.util.Collection;
 import java.util.Map;
 import org.apache.beam.runners.core.AggregatorFactory;
 import org.apache.beam.runners.core.ExecutionContext;
 import org.apache.beam.runners.spark.translation.SparkRuntimeContext;
-import org.apache.beam.runners.spark.translation.streaming.Checkpoint.CheckpointDir;
 import org.apache.beam.sdk.AggregatorValues;
 import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.spark.Accumulator;
-import org.apache.spark.api.java.JavaSparkContext;
 
 /**
  * A utility class for handling Beam {@link Aggregator}s.
@@ -64,41 +61,14 @@ public class SparkAggregators {
   }
 
   /**
-   * Retrieves the {@link NamedAggregators} instance using the provided Spark context.
-   *
-   * @param jsc a Spark context to be used in order to retrieve the name
-   * {@link NamedAggregators} instance
-   */
-  public static Accumulator<NamedAggregators> getNamedAggregators(JavaSparkContext jsc) {
-    return getOrCreateNamedAggregators(jsc, Optional.<CheckpointDir>absent());
-  }
-
-  /**
-   * Retrieves or creates the {@link NamedAggregators} instance using the provided Spark context.
-   *
-   * @param jsc a Spark context to be used in order to retrieve the name
-   * {@link NamedAggregators} instance
-   * @param checkpointDir checkpoint dir (optional, for streaming pipelines)
-   * @return a {@link NamedAggregators} instance
-   */
-  @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
-  public static Accumulator<NamedAggregators> getOrCreateNamedAggregators(
-      JavaSparkContext jsc,
-      Optional<CheckpointDir> checkpointDir) {
-    return AggregatorsAccumulator.getInstance(jsc, checkpointDir);
-  }
-
-  /**
    * Retrieves the value of an aggregator from a SparkContext instance.
    *
    * @param aggregator The aggregator whose value to retrieve
-   * @param javaSparkContext The SparkContext instance
    * @param <T> The type of the aggregator's output
    * @return The value of the aggregator
    */
-  public static <T> AggregatorValues<T> valueOf(final Aggregator<?, T> aggregator,
-                                                final JavaSparkContext javaSparkContext) {
-    return valueOf(getNamedAggregators(javaSparkContext), aggregator);
+  public static <T> AggregatorValues<T> valueOf(final Aggregator<?, T> aggregator) {
+    return valueOf(AggregatorsAccumulator.getInstance(), aggregator);
   }
 
   /**
@@ -109,10 +79,8 @@ public class SparkAggregators {
    * @param <T>            Type of object to be returned.
    * @return The value of the aggregator.
    */
-  public static <T> T valueOf(final String name,
-                              final Class<T> typeClass,
-                              final JavaSparkContext javaSparkContext) {
-    return valueOf(getNamedAggregators(javaSparkContext), name, typeClass);
+  public static <T> T valueOf(final String name, final Class<T> typeClass) {
+    return valueOf(AggregatorsAccumulator.getInstance(), name, typeClass);
   }
 
   /**

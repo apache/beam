@@ -16,5 +16,5 @@
 #    limitations under the License.
 #
 
-kubectl.sh create -f postgres-pod-no-vol.yml
-kubectl.sh create -f postgres-service-public.yml
+kubectl delete service postgres-no-pv
+kubectl delete pod postgres-no-pv

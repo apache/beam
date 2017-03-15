@@ -20,6 +20,75 @@
 import argparse
 
 from apache_beam.transforms.display import HasDisplayData
+from apache_beam.utils.value_provider import StaticValueProvider
+from apache_beam.utils.value_provider import RuntimeValueProvider
+from apache_beam.utils.value_provider import ValueProvider
+
+
+def _static_value_provider_of(value_type):
+  """"Helper function to plug a ValueProvider into argparse.
+
+  Args:
+    value_type: the type of the value. Since the type param of argparse's
+                add_argument will always be ValueProvider, we need to
+                preserve the type of the actual value.
+  Returns:
+    A partially constructed StaticValueProvider in the form of a function.
+
+  """
+  def _f(value):
+    _f.func_name = value_type.__name__
+    return StaticValueProvider(value_type, value)
+  return _f
+
+
+class BeamArgumentParser(argparse.ArgumentParser):
+  """An ArgumentParser that supports ValueProvider options.
+
+  Example Usage::
+
+    class TemplateUserOptions(PipelineOptions):
+      @classmethod
+
+      def _add_argparse_args(cls, parser):
+        parser.add_value_provider_argument('--vp-arg1', default='start')
+        parser.add_value_provider_argument('--vp-arg2')
+        parser.add_argument('--non-vp-arg')
+
+  """
+  def add_value_provider_argument(self, *args, **kwargs):
+    """ValueProvider arguments can be either of type keyword or positional.
+    At runtime, even positional arguments will need to be supplied in the
+    key/value form.
+    """
+    # Extract the option name from positional argument ['pos_arg']
+    assert args != () and len(args[0]) >= 1
+    if args[0][0] != '-':
+      option_name = args[0]
+      if kwargs.get('nargs') is None:  # make them optionally templated
+        kwargs['nargs'] = '?'
+    else:
+      # or keyword arguments like [--kw_arg, -k, -w] or [--kw-arg]
+      option_name = [i.replace('--', '') for i in args if i[:2] == '--'][0]
+
+    # reassign the type to make room for using
+    # StaticValueProvider as the type for add_argument
+    value_type = kwargs.get('type') or str
+    kwargs['type'] = _static_value_provider_of(value_type)
+
+    # reassign default to default_value to make room for using
+    # RuntimeValueProvider as the default for add_argument
+    default_value = kwargs.get('default')
+    kwargs['default'] = RuntimeValueProvider(
+        pipeline_options_subclass=(self.pipeline_options_subclass
+                                   or PipelineOptions),
+        option_name=option_name,
+        value_type=value_type,
+        default_value=default_value,
+    )
+
+    # have add_argument do most of the work
+    self.add_argument(*args, **kwargs)
 
 
 class PipelineOptions(HasDisplayData):
@@ -67,11 +136,13 @@ class PipelineOptions(HasDisplayData):
     """
     self._flags = flags
     self._all_options = kwargs
-    parser = argparse.ArgumentParser()
+    parser = BeamArgumentParser()
+
     for cls in type(self).mro():
       if cls == PipelineOptions:
         break
       elif '_add_argparse_args' in cls.__dict__:
+        parser.pipeline_options_subclass = cls
         cls._add_argparse_args(parser)
     # The _visible_options attribute will contain only those options from the
     # flags (i.e., command line) that can be recognized. The _all_options
@@ -119,13 +190,13 @@ class PipelineOptions(HasDisplayData):
 
     # TODO(BEAM-1319): PipelineOption sub-classes in the main session might be
     # repeated. Pick last unique instance of each subclass to avoid conflicts.
-    parser = argparse.ArgumentParser()
     subset = {}
+    parser = BeamArgumentParser()
     for cls in PipelineOptions.__subclasses__():
       subset[str(cls)] = cls
     for cls in subset.values():
+      parser.pipeline_options_subclass = cls
       cls._add_argparse_args(parser)  # pylint: disable=protected-access
-
     known_args, _ = parser.parse_known_args(self._flags)
     result = vars(known_args)
 
@@ -133,7 +204,9 @@ class PipelineOptions(HasDisplayData):
     for k in result.keys():
       if k in self._all_options:
         result[k] = self._all_options[k]
-      if drop_default and parser.get_default(k) == result[k]:
+      if (drop_default and
+          parser.get_default(k) == result[k] and
+          not isinstance(parser.get_default(k), ValueProvider)):
         del result[k]
 
     return result

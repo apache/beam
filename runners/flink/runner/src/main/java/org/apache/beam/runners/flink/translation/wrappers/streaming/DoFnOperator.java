@@ -43,6 +43,7 @@ import org.apache.beam.runners.core.StateNamespaces;
 import org.apache.beam.runners.core.StateNamespaces.WindowNamespace;
 import org.apache.beam.runners.core.StateTag;
 import org.apache.beam.runners.core.StateTags;
+import org.apache.beam.runners.core.StatefulDoFnRunner;
 import org.apache.beam.runners.core.TimerInternals;
 import org.apache.beam.runners.core.TimerInternals.TimerData;
 import org.apache.beam.runners.flink.translation.types.CoderTypeSerializer;
@@ -286,6 +287,7 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
       //
       // for some K, V
 
+
       doFnRunner = DoFnRunners.lateDataDroppingRunner(
           (DoFnRunner) doFnRunner,
           stepContext,
@@ -293,8 +295,28 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
           ((GroupAlsoByWindowViaWindowSetNewDoFn) doFn).getDroppedDueToLatenessAggregator());
     } else if (keyCoder != null) {
       // It is a stateful DoFn
+
+      StatefulDoFnRunner.CleanupTimer cleanupTimer =
+          new StatefulDoFnRunner.TimeInternalsCleanupTimer(
+              stepContext.timerInternals(), windowingStrategy);
+
+      // we don't know the window type
+      @SuppressWarnings({"unchecked", "rawtypes"})
+      Coder windowCoder = windowingStrategy.getWindowFn().windowCoder();
+
+      @SuppressWarnings({"unchecked", "rawtypes"})
+      StatefulDoFnRunner.StateCleaner<?> stateCleaner =
+          new StatefulDoFnRunner.StateInternalsStateCleaner<>(
+              doFn, stepContext.stateInternals(), windowCoder);
+
       doFnRunner = DoFnRunners.defaultStatefulDoFnRunner(
-          doFn, doFnRunner, stepContext, aggregatorFactory, windowingStrategy);
+          doFn,
+          doFnRunner,
+          stepContext,
+          aggregatorFactory,
+          windowingStrategy,
+          cleanupTimer,
+          stateCleaner);
     }
 
     pushbackDoFnRunner =
@@ -746,7 +768,5 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
     public Instant currentOutputWatermarkTime() {
       return new Instant(currentOutputWatermark);
     }
-
   }
-
 }

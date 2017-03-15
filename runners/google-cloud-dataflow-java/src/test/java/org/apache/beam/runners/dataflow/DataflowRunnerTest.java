@@ -951,7 +951,7 @@ public class DataflowRunnerTest {
     thrown.expectMessage(Matchers.containsString("no translator registered"));
     DataflowPipelineTranslator.fromOptions(options)
         .translate(
-            p, (DataflowRunner) p.getRunner(), Collections.<DataflowPackage>emptyList());
+            p, DataflowRunner.fromOptions(options), Collections.<DataflowPackage>emptyList());
 
     ArgumentCaptor<Job> jobCaptor = ArgumentCaptor.forClass(Job.class);
     Mockito.verify(mockJobs).create(eq(PROJECT_ID), eq(REGION_ID), jobCaptor.capture());
@@ -989,7 +989,7 @@ public class DataflowRunnerTest {
         });
 
     translator.translate(
-        p, (DataflowRunner) p.getRunner(), Collections.<DataflowPackage>emptyList());
+        p, DataflowRunner.fromOptions(options), Collections.<DataflowPackage>emptyList());
     assertTrue(transform.translated);
   }
 
