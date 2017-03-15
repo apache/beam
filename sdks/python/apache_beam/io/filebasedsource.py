@@ -34,10 +34,6 @@ from apache_beam.io import fileio
 from apache_beam.io import iobase
 from apache_beam.io import range_trackers
 from apache_beam.transforms.display import DisplayDataItem
-from apache_beam.utils.value_provider import ValueProvider
-from apache_beam.utils.value_provider import StaticValueProvider
-from apache_beam.utils.value_provider import check_accessible
-
 
 MAX_NUM_THREADS_FOR_SIZE_ESTIMATION = 25
 
@@ -57,8 +53,7 @@ class FileBasedSource(iobase.BoundedSource):
     """Initializes ``FileBasedSource``.
 
     Args:
-      file_pattern: the file glob to read a string or a ValueProvider
-                    (placeholder to inject a runtime value).
+      file_pattern: the file glob to read.
       min_bundle_size: minimum size of bundles that should be generated when
                        performing initial splitting on this source.
       compression_type: compression type to use
@@ -76,19 +71,15 @@ class FileBasedSource(iobase.BoundedSource):
                 creation time.
     Raises:
       TypeError: when compression_type is not valid or if file_pattern is not a
-                 string or a ValueProvider.
+                 string.
       ValueError: when compression and splittable files are specified.
       IOError: when the file pattern specified yields an empty result.
     """
+    if not isinstance(file_pattern, basestring):
+      raise TypeError(
+          '%s: file_pattern must be a string;  got %r instead' %
+          (self.__class__.__name__, file_pattern))
 
-    if (not (isinstance(file_pattern, basestring)
-             or isinstance(file_pattern, ValueProvider))):
-      raise TypeError('%s: file_pattern must be of type string'
-                      ' or ValueProvider; got %r instead'
-                      % (self.__class__.__name__, file_pattern))
-
-    if isinstance(file_pattern, basestring):
-      file_pattern = StaticValueProvider(str, file_pattern)
     self._pattern = file_pattern
     self._concat_source = None
     self._min_bundle_size = min_bundle_size
@@ -102,24 +93,21 @@ class FileBasedSource(iobase.BoundedSource):
     else:
       # We can't split compressed files efficiently so turn off splitting.
       self._splittable = False
-    if validate and file_pattern.is_accessible():
+    if validate:
       self._validate()
 
   def display_data(self):
-    return {'file_pattern': DisplayDataItem(str(self._pattern),
+    return {'file_pattern': DisplayDataItem(self._pattern,
                                             label="File Pattern"),
             'compression': DisplayDataItem(str(self._compression_type),
                                            label='Compression Type')}
 
-  @check_accessible(['_pattern'])
   def _get_concat_source(self):
     if self._concat_source is None:
-      pattern = self._pattern.get()
-
       single_file_sources = []
-      file_names = [f for f in fileio.ChannelFactory.glob(pattern)]
+      file_names = [f for f in fileio.ChannelFactory.glob(self._pattern)]
       sizes = FileBasedSource._estimate_sizes_of_files(file_names,
-                                                       pattern)
+                                                       self._pattern)
 
       # We create a reference for FileBasedSource that will be serialized along
       # with each _SingleFileSource. To prevent this FileBasedSource from having
@@ -176,16 +164,13 @@ class FileBasedSource(iobase.BoundedSource):
                                                                  file_names)
         return [file_sizes[f] for f in file_names]
 
-  @check_accessible(['_pattern'])
   def _validate(self):
     """Validate if there are actual files in the specified glob pattern
     """
-    pattern = self._pattern.get()
-
     # Limit the responses as we only want to check if something exists
-    if len(fileio.ChannelFactory.glob(pattern, limit=1)) <= 0:
+    if len(fileio.ChannelFactory.glob(self._pattern, limit=1)) <= 0:
       raise IOError(
-          'No files found based on the file pattern %s' % pattern)
+          'No files found based on the file pattern %s' % self._pattern)
 
   def split(
       self, desired_bundle_size=None, start_position=None, stop_position=None):
@@ -194,11 +179,8 @@ class FileBasedSource(iobase.BoundedSource):
         start_position=start_position,
         stop_position=stop_position)
 
-  @check_accessible(['_pattern'])
   def estimate_size(self):
-    pattern = self._pattern.get()
-    file_names = [f for f in fileio.ChannelFactory.glob(pattern)]
-
+    file_names = [f for f in fileio.ChannelFactory.glob(self._pattern)]
     # We're reading very few files so we can pass names file names to
     # _estimate_sizes_of_files without pattern as otherwise we'll try to do
     # optimization based on the pattern and might end up reading much more
@@ -239,7 +221,7 @@ class FileBasedSource(iobase.BoundedSource):
                             defined by a given ``RangeTracker``.
 
     Returns:
-      an iterator that gives the records read from the given file.
+      a iterator that gives the records read from the given file.
     """
     raise NotImplementedError
 
