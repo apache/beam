@@ -48,13 +48,13 @@ matrixJob('beam_PostCommit_Java_Version_Test') {
 
   // Maven build for this job.
   steps {
-    shell('pwd && ls -alR && export')
+//    shell('pwd && ls -alR && export')
     maven {
       // Set maven parameters.
       common_job_properties.setMavenConfig(delegate)
 
       // Maven build project
-      goals('-B -e -P dataflow-runner clean install -DskipITs=false -DintegrationTestPipelineOptions=\'[ "--project=apache-beam-testing", "--tempRoot=gs://temp-storage-for-end-to-end-tests", "--runner=org.apache.beam.runners.dataflow.testing.TestDataflowRunner" ]\'')
+      goals('-B -e -P dataflow-runner clean install -pl \'!org.apache.beam:beam-sdks-python\' -DskipITs=false -DintegrationTestPipelineOptions=\'[ "--project=apache-beam-testing", "--tempRoot=gs://temp-storage-for-end-to-end-tests", "--runner=org.apache.beam.runners.dataflow.testing.TestDataflowRunner" ]\'')
     }
   }
 }
