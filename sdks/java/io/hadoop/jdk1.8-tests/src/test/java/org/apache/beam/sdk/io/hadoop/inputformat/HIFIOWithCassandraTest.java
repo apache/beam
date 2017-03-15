@@ -24,6 +24,7 @@ import com.datastax.driver.mapping.annotations.Column;
 import com.datastax.driver.mapping.annotations.Table;
 
 import java.io.Serializable;
+import java.util.Arrays;
 
 import org.apache.beam.sdk.io.hadoop.inputformat.hashing.HashingFn;
 import org.apache.beam.sdk.testing.PAssert;
@@ -95,7 +96,7 @@ public class HIFIOWithCassandraTest implements Serializable {
     // Verify the output values using checksum comparison.
     PCollection<String> consolidatedHashcode =
         textValues.apply(Combine.globally(new HashingFn()).withoutDefaults());
-    PAssert.that(consolidatedHashcode).containsInAnyOrder(expectedHashCode);
+    PAssert.that(consolidatedHashcode).containsInAnyOrder(Arrays.asList(expectedHashCode));
     p.run().waitUntilFinish();
   }
 
@@ -126,7 +127,7 @@ public class HIFIOWithCassandraTest implements Serializable {
     // Verify the output values using checksum comparison.
     PCollection<String> consolidatedHashcode =
         textValues.apply(Combine.globally(new HashingFn()).withoutDefaults());
-    PAssert.that(consolidatedHashcode).containsInAnyOrder(expectedChecksum);
+    PAssert.that(consolidatedHashcode).containsInAnyOrder(Arrays.asList(expectedChecksum));
     p.run().waitUntilFinish();
   }
 

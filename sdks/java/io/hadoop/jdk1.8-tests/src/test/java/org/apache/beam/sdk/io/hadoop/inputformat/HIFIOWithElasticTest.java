@@ -20,8 +20,8 @@ package org.apache.beam.sdk.io.hadoop.inputformat;
 import java.io.File;
 import java.io.IOException;
 import java.io.Serializable;
-import java.net.UnknownHostException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
@@ -114,21 +114,21 @@ public class HIFIOWithElasticTest implements Serializable {
     // Verify that the count of objects fetched using HIFInputFormat IO is correct.
     PAssert.thatSingleton(count).isEqualTo((long) TEST_DATA_ROW_COUNT);
     PCollection<LinkedMapWritable> values = esData.apply(Values.<LinkedMapWritable>create());
-    MapElements<LinkedMapWritable, String> transformFunc =
-        MapElements.<LinkedMapWritable, String>via(new SimpleFunction<LinkedMapWritable, String>() {
-          @Override
-          public String apply(LinkedMapWritable mapw) {
-            return mapw.get(new Text("id")) + "|" + mapw.get(new Text("scientist"));
-          }
-        });
     PCollection<String> textValues = values.apply(transformFunc);
     // Verify the output values using checksum comparison.
     PCollection<String> consolidatedHashcode =
         textValues.apply(Combine.globally(new HashingFn()).withoutDefaults());
-    PAssert.that(consolidatedHashcode).containsInAnyOrder(expectedHashCode);
+    PAssert.that(consolidatedHashcode).containsInAnyOrder(Arrays.asList(expectedHashCode));
     pipeline.run().waitUntilFinish();
   }
 
+  MapElements<LinkedMapWritable, String> transformFunc =
+      MapElements.<LinkedMapWritable, String>via(new SimpleFunction<LinkedMapWritable, String>() {
+        @Override
+        public String apply(LinkedMapWritable mapw) {
+          return mapw.get(new Text("id")) + "|" + mapw.get(new Text("scientist"));
+        }
+      });
   /**
    * Test to read data from embedded Elasticsearch instance based on query and verify whether data
    * is read successfully.
@@ -156,18 +156,11 @@ public class HIFIOWithElasticTest implements Serializable {
     // Verify that the count of objects fetched using HIFInputFormat IO is correct.
     PAssert.thatSingleton(count).isEqualTo(expectedRowCount);
     PCollection<LinkedMapWritable> values = esData.apply(Values.<LinkedMapWritable>create());
-    MapElements<LinkedMapWritable, String> transformFunc =
-        MapElements.<LinkedMapWritable, String>via(new SimpleFunction<LinkedMapWritable, String>() {
-          @Override
-          public String apply(LinkedMapWritable mapw) {
-            return mapw.get(new Text("id")) + "|" + mapw.get(new Text("scientist"));
-          }
-        });
     PCollection<String> textValues = values.apply(transformFunc);
     // Verify the output values using checksum comparison.
     PCollection<String> consolidatedHashcode =
         textValues.apply(Combine.globally(new HashingFn()).withoutDefaults());
-    PAssert.that(consolidatedHashcode).containsInAnyOrder(expectedHashCode);
+    PAssert.that(consolidatedHashcode).containsInAnyOrder(Arrays.asList(expectedHashCode));
     pipeline.run().waitUntilFinish();
   }
 
@@ -214,7 +207,7 @@ public class HIFIOWithElasticTest implements Serializable {
     private static Node node;
 
     public static void startElasticEmbeddedServer()
-        throws UnknownHostException, NodeValidationException, InterruptedException {
+        throws NodeValidationException, InterruptedException {
       Settings settings = Settings.builder()
           .put("node.data", TRUE)
           .put("network.host", ELASTIC_IN_MEM_HOSTNAME)
@@ -233,19 +226,22 @@ public class HIFIOWithElasticTest implements Serializable {
     }
 
     /**
-     * Prepares Elastic index, by adding rows. Adding data to the elastic server instance sometimes
-     * take slight more time which may lead to assertion error in the test. In such a scenario, add
-     * Thread.sleep(100) after executing createElasticRow method.
+     * Prepares Elastic index, by adding rows.
      */
     private static void prepareElasticIndex() throws InterruptedException {
       CreateIndexRequest indexRequest = new CreateIndexRequest(ELASTIC_INDEX_NAME);
       node.client().admin().indices().create(indexRequest).actionGet();
       for (int i = 0; i < TEST_DATA_ROW_COUNT; i++) {
         node.client().prepareIndex(ELASTIC_INDEX_NAME, ELASTIC_TYPE_NAME, String.valueOf(i))
-            .setSource(createElasticRow(ELASTIC_TYPE_ID_PREFIX + i, "Faraday" + i)).execute();
+            .setSource(createElasticRow(ELASTIC_TYPE_ID_PREFIX + i, "Faraday" + i)).execute()
+            .actionGet();
       }
+      node.client().admin().indices().prepareRefresh(ELASTIC_INDEX_NAME).get();
     }
-
+    /**
+     * Shutdown the embedded instance.
+     * @throws IOException
+     */
     public static void shutdown() throws IOException {
       DeleteIndexRequest indexRequest = new DeleteIndexRequest(ELASTIC_INDEX_NAME);
       node.client().admin().indices().delete(indexRequest).actionGet();
