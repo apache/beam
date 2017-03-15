@@ -12,7 +12,7 @@ import (
 	"strings"
 )
 
-var input = flag.String("input", os.ExpandEnv("$GOPATH/src/github.com/apache/beam/sdks/go/data/shakespeare/kinglear.txt"), "Files to read.")
+var input = flag.String("input", os.ExpandEnv("$GOPATH/src/github.com/apache/beam/sdks/go/data/haiku/old_pond.txt"), "Files to read.")
 
 var wordRE = regexp.MustCompile(`[a-zA-Z]+('[a-z])?`)
 
@@ -33,12 +33,10 @@ func Cap(words <-chan string, out chan<- string) {
 func Drop(elms <-chan string) {
 	i := 0
 	for elm := range elms {
-		if (i % 5000) == 0 {
-			log.Printf("Drop[%v]: %s", i, elm)
-		}
+		log.Printf("Word[%v]: %s", i, elm)
 		i++
 	}
-	log.Printf("Dropped: %v", i)
+	log.Printf("Processed: %v", i)
 }
 
 func main() {

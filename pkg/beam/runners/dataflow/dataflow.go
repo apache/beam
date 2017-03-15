@@ -12,6 +12,7 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"os/user"
 	"path"
 	"path/filepath"
 	"runtime"
@@ -25,12 +26,13 @@ var (
 	jobName         = flag.String("job_name", "", "Dataflow job name (optional).")
 	stagingLocation = flag.String("staging_location", os.ExpandEnv("gs://foo"), "GCS staging location.")
 
-	dryRun = flag.Bool("dry_run", false, "Dry run. Just print the job, but don't submit it.")
+	dryRun         = flag.Bool("dry_run", false, "Dry run. Just print the job, but don't submit it.")
+	teardownPolicy = flag.String("teardown_policy", "", "Job teardown policy (internal only).")
 )
 
 func Execute(ctx context.Context, p *beam.Pipeline) error {
 	if *jobName == "" {
-		*jobName = fmt.Sprintf("go-job-%v", time.Now().UnixNano())
+		*jobName = fmt.Sprintf("go-%v-%v", username(), time.Now().UnixNano())
 	}
 
 	edges, err := p.Build()
@@ -78,7 +80,7 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 					Location: binary,
 					Name:     "worker",
 				}},
-				WorkerHarnessContainerImage: "dataflow-dev.gcr.io/herohde/golang:latest",
+				WorkerHarnessContainerImage: fmt.Sprintf("dataflow-dev.gcr.io/%v/golang:latest", username()),
 				NumWorkers:                  1,
 			}},
 			TempStoragePrefix: *stagingLocation + "/tmp",
@@ -86,6 +88,9 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 		Steps: steps,
 	}
 
+	if *teardownPolicy != "" {
+		job.Environment.WorkerPools[0].TeardownPolicy = *teardownPolicy
+	}
 	if *endpoint == "" {
 		// TODO(herohde) 2/17/2017: until the new job type is in prod, we pretend to
 		// be python.
@@ -184,6 +189,13 @@ func buildLocalBinary() (string, error) {
 		return "", fmt.Errorf("Failed to cross-compile %v: %v", program, err)
 	}
 	return ret, nil
+}
+
+func username() string {
+	if u, err := user.Current(); err == nil {
+		return u.Username
+	}
+	return "anon"
 }
 
 func findPipelineFlags() []*displayData {

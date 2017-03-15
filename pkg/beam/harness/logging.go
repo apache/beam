@@ -53,7 +53,9 @@ func (w *remoteWriter) connect(ctx context.Context) error {
 	defer client.CloseSend()
 
 	for msg := range w.buffer {
-		fmt.Fprintf(os.Stderr, "SENDING: %v", msg)
+		// fmt.Fprintf(os.Stderr, "REMOTE: %v\n", proto.MarshalTextString(msg))
+
+		// TODO: batch up log messages
 
 		list := &pb.LogEntry_List{
 			LogEntries: []*pb.LogEntry{msg},
@@ -63,7 +65,7 @@ func (w *remoteWriter) connect(ctx context.Context) error {
 			return err
 		}
 
-		fmt.Fprintf(os.Stderr, "SENT: %v", msg)
+		// fmt.Fprintf(os.Stderr, "SENT: %v\n", msg)
 	}
 	return fmt.Errorf("Internal: buffer closed?")
 }
@@ -113,7 +115,9 @@ func (w *remoteWriter) Write(p []byte) (n int, err error) {
 			} // else ignore: no source information.
 		} // else ignore: cannot parse timestamp
 	}
-	entry.Message = string(raw)
+
+	fmt.Fprintf(os.Stderr, "LOG: %v\n", string(raw))
+	entry.Message = "GOLANG " + string(raw)
 
 	w.buffer <- entry
 	return len(p), nil

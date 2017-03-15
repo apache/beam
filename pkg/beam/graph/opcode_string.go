@@ -4,9 +4,9 @@ package graph
 
 import "fmt"
 
-const _Opcode_name = "ParDoGBKSourceSinkFlatten"
+const _Opcode_name = "ExternalParDoGBKSourceSinkFlatten"
 
-var _Opcode_index = [...]uint8{0, 5, 8, 14, 18, 25}
+var _Opcode_index = [...]uint8{0, 8, 13, 16, 22, 26, 33}
 
 func (i Opcode) String() string {
 	if i < 0 || i >= Opcode(len(_Opcode_index)-1) {

@@ -36,11 +36,10 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 	if err != nil {
 		return err
 	}
+	return ExecuteBundle(ctx, edges)
+}
 
-	//	for _, edge := range edges {
-	//		log.Printf("%v", edge)
-	//	}
-
+func ExecuteBundle(ctx context.Context, edges map[int]*graph.MultiEdge) error {
 	// (1) create channels for each edge-to-edge connection. We need to insert
 	// multiplexing for outputs that are consumed by multiple transformations.
 
@@ -215,7 +214,7 @@ func buffer(in reflect.Value) reflect.Value {
 func call(ctx context.Context, userfn *graph.UserFn, data interface{}, in, out []reflect.Value) {
 	defer closeout(out)
 
-	// log.Printf("Call enter: %v", userfn)
+	log.Printf("Call: %v [Data: %v : %v]", userfn, data, reflect.TypeOf(data))
 
 	userCtx, hasCtx := makeContext(userfn, data, nil)
 

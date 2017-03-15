@@ -1,10 +1,13 @@
 package dataflow
 
 import (
+	"encoding/base64"
 	"fmt"
+	"github.com/golang/protobuf/proto"
 	"github.com/apache/beam/sdks/go/pkg/beam/graph"
 	"github.com/apache/beam/sdks/go/pkg/beam/reflectx"
 	df "google.golang.org/api/dataflow/v1b3"
+	"log"
 	"path"
 	"reflect"
 )
@@ -104,16 +107,24 @@ func translateNodes(edges []*graph.MultiEdge) map[int]*outputReference {
 func translateEdge(edge *graph.MultiEdge) (string, properties, error) {
 	switch edge.Op {
 	case graph.Source:
+		fn, err := serializeFn(edge)
+		if err != nil {
+			return "", properties{}, err
+		}
 		return "ParallelRead", properties{
-			CustomSourceInputStep: newCustomSourceInputStep(edge.DoFn.Name),
+			CustomSourceInputStep: newCustomSourceInputStep(fn),
 			UserName:              buildName(edge.Parent, edge.DoFn.Name),
 			Format:                "custom_source",
 		}, nil
 
 	case graph.ParDo:
+		fn, err := serializeFn(edge)
+		if err != nil {
+			return "", properties{}, err
+		}
 		return "ParallelDo", properties{
 			UserName:     buildName(edge.Parent, edge.DoFn.Name),
-			SerializedFn: edge.DoFn.Name,
+			SerializedFn: fn,
 		}, nil
 
 	case graph.GBK:
@@ -134,6 +145,23 @@ func translateEdge(edge *graph.MultiEdge) (string, properties, error) {
 	default:
 		return "", properties{}, fmt.Errorf("Bad opcode: %v", edge)
 	}
+}
+
+func serializeFn(edge *graph.MultiEdge) (string, error) {
+	// NOTE: Dataflow requires serialized functions to be base64 encoded.
+
+	ref, err := graph.EncodeMultiEdge(edge)
+	if err != nil {
+		return "", fmt.Errorf("Failed to serialize %v: %v", edge, err)
+	}
+
+	log.Printf("SerializedFn: %v", proto.MarshalTextString(ref))
+
+	data, err := proto.Marshal(ref)
+	if err != nil {
+		return "", err
+	}
+	return base64.StdEncoding.EncodeToString(data), nil
 }
 
 // NOTE: Dataflow uses "/" to separate composite transforms, so we must remove
@@ -178,6 +206,7 @@ func translateType(t reflect.Type) *encoding {
 			IsPairLike: true,
 		}
 	}
+
 	return &encoding{
 		Type: "json",
 	}
