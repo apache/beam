@@ -91,6 +91,10 @@ public class HIFIOElasticIT implements Serializable {
     // Expected hashcode is evaluated during insertion time one time and hardcoded here.
     final long expectedRowCount = 1000L;
     String expectedHashCode = "ed36c09b5e24a95fd8d3cc711a043a85320bb47d";
+<<<<<<< HEAD
+=======
+    Pipeline pipeline = TestPipeline.create(options);
+>>>>>>> Changed the script to load deterministic data for Elasticsearch and changed Checksum
     Configuration conf = getConfiguration(options);
     PCollection<KV<Text, LinkedMapWritable>> esData =
         pipeline.apply(HadoopInputFormatIO.<Text, LinkedMapWritable>read().withConfiguration(conf));
@@ -162,7 +166,7 @@ public class HIFIOElasticIT implements Serializable {
                   + "  \"query\": {"
                   + "  \"match\" : {"
                   + "    \"Title\" : {"
-                  + "      \"query\" : \"M9u5xcAR\","
+                  + "      \"query\" : \"Title9\","
                   + "      \"type\" : \"boolean\""
                   + "    }"
                   + "  }"
