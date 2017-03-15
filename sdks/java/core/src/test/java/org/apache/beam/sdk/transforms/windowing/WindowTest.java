@@ -30,6 +30,7 @@ import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.when;
 
+import com.google.common.collect.Iterables;
 import java.io.Serializable;
 import java.util.Collection;
 import java.util.Collections;
@@ -50,6 +51,8 @@ import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.transforms.display.DisplayDataEvaluator;
+import org.apache.beam.sdk.transforms.windowing.Window.Bound;
 import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.util.WindowingStrategy.AccumulationMode;
 import org.apache.beam.sdk.values.KV;
@@ -443,6 +446,57 @@ public class WindowTest implements Serializable {
         hasDisplayItem("allowedLateness", allowedLateness));
     assertThat(displayData, hasDisplayItem("closingBehavior", closingBehavior.toString()));
     assertThat(displayData, hasDisplayItem("outputTimeFn", outputTimeFn.getClass()));
+  }
+
+  @Test
+  @Category(RunnableOnService.class)
+  public void testPrimitiveDisplayData() {
+    FixedWindows windowFn = FixedWindows.of(Duration.standardHours(5));
+    AfterWatermark.FromEndOfWindow triggerBuilder = AfterWatermark.pastEndOfWindow();
+    Duration allowedLateness = Duration.standardMinutes(10);
+    Window.ClosingBehavior closingBehavior = Window.ClosingBehavior.FIRE_IF_NON_EMPTY;
+    OutputTimeFn<BoundedWindow> outputTimeFn = OutputTimeFns.outputAtEndOfWindow();
+
+    Window.Bound<?> window = Window
+        .into(windowFn)
+        .triggering(triggerBuilder)
+        .accumulatingFiredPanes()
+        .withAllowedLateness(allowedLateness, closingBehavior)
+        .withOutputTimeFn(outputTimeFn);
+
+    DisplayData primitiveDisplayData =
+        Iterables.getOnlyElement(
+            DisplayDataEvaluator.create().displayDataForPrimitiveTransforms(window));
+
+    assertThat(primitiveDisplayData, hasDisplayItem("windowFn", windowFn.getClass()));
+    assertThat(primitiveDisplayData, includesDisplayDataFor("windowFn", windowFn));
+
+    assertThat(primitiveDisplayData, hasDisplayItem("trigger", triggerBuilder.toString()));
+    assertThat(primitiveDisplayData,
+        hasDisplayItem("accumulationMode", AccumulationMode.ACCUMULATING_FIRED_PANES.toString()));
+    assertThat(primitiveDisplayData,
+        hasDisplayItem("allowedLateness", allowedLateness));
+    assertThat(primitiveDisplayData, hasDisplayItem("closingBehavior", closingBehavior.toString()));
+    assertThat(primitiveDisplayData, hasDisplayItem("outputTimeFn", outputTimeFn.getClass()));
+  }
+
+  @Test
+  public void testAssignDisplayDataUnchanged() {
+    FixedWindows windowFn = FixedWindows.of(Duration.standardHours(5));
+
+    Bound<Object> original = Window.into(windowFn);
+    WindowingStrategy<?, ?> updated = WindowingStrategy.globalDefault().withWindowFn(windowFn);
+
+    DisplayData displayData = DisplayData.from(new Window.Assign<>(original, updated));
+
+    assertThat(displayData, hasDisplayItem("windowFn", windowFn.getClass()));
+    assertThat(displayData, includesDisplayDataFor("windowFn", windowFn));
+
+    assertThat(displayData, not(hasDisplayItem("trigger")));
+    assertThat(displayData, not(hasDisplayItem("accumulationMode")));
+    assertThat(displayData, not(hasDisplayItem("allowedLateness")));
+    assertThat(displayData, not(hasDisplayItem("closingBehavior")));
+    assertThat(displayData, not(hasDisplayItem("outputTimeFn")));
   }
 
   @Test
