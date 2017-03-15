@@ -5,7 +5,10 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/reflectx"
 	"log"
 	"reflect"
+	"strings"
 )
+
+//go:generate protoc -I . v1.proto --go_out=plugins=grpc:v1
 
 // TODO(herohde): perhaps switch terminology closer to the Fn Runner, when ready.
 
@@ -69,6 +72,18 @@ func (b *Graph) FakeBuild() map[int]*MultiEdge {
 	}
 
 	return ret
+}
+
+func (g *Graph) String() string {
+	var nodes []string
+	for _, node := range g.nodes {
+		nodes = append(nodes, node.String())
+	}
+	var edges []string
+	for _, edge := range g.edges {
+		edges = append(edges, edge.String())
+	}
+	return fmt.Sprintf("Nodes: %v\nEdges: %v", strings.Join(nodes, "\n"), strings.Join(edges, "\n"))
 }
 
 // Coder contains possibly untyped encode/decode user functions that are
@@ -136,7 +151,8 @@ func (s *Scope) String() string {
 type Opcode int
 
 const (
-	ParDo Opcode = iota
+	External Opcode = iota
+	ParDo
 	GBK
 	Source
 	Sink

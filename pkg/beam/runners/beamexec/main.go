@@ -9,6 +9,7 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/runners/dataflow"
 	"github.com/apache/beam/sdks/go/pkg/beam/runners/local"
 	"log"
+	"time"
 )
 
 var (
@@ -29,7 +30,13 @@ func Init(ctx context.Context) {
 	if err := harness.Main(ctx, *loggingEndpoint, *controlEndpoint); err != nil {
 		log.Fatalf("Worker failed: %v", err)
 	}
-	log.Fatal("Worker exited")
+
+	log.Print("Worker exited successfully!")
+	for {
+		// TODO: For now, just hang around until we're terminated.
+		time.Sleep(time.Hour)
+	}
+
 }
 
 var runners = map[string]func(context.Context, *beam.Pipeline) error{

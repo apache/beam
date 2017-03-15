@@ -19,14 +19,18 @@
 /*
  * Protocol Buffers describing the Fn API and boostrapping.
  *
- * TODO(lcwik): Usage of plural names in lists looks awkward in Java
+ * TODO: Usage of plural names in lists looks awkward in Java
  * e.g. getOutputsMap, addCodersBuilder
  *
- * TODO(lcwik): gRPC / proto field names conflict with generated code
+ * TODO: gRPC / proto field names conflict with generated code
  * e.g. "class" in java, "output" in python
  */
 
 syntax = "proto3";
+
+/* TODO: Consider consolidating common components in another package
+ * and lanaguage namespaces for re-use with Runner Api.
+ */
 
 package org.apache.beam.fn.v1;
 
@@ -38,9 +42,16 @@ import "google/protobuf/timestamp.proto";
 
 /*
  * Constructs that define the pipeline shape.
+ *
+ * These are mostly unstable due to the missing pieces to be shared with
+ * the Runner Api like windowing strategy, display data, .... There are still
+ * some modelling questions related to whether a side input is modelled
+ * as another field on a PrimitiveTransform or as part of inputs and we
+ * still are missing things like the CompositeTransform.
  */
 
 // A representation of an input or output definition on a primitive transform.
+// Stable
 message Target {
   // A repeated list of target definitions.
   message List {
@@ -48,7 +59,7 @@ message Target {
   }
 
   // (Required) The id of the PrimitiveTransform which is the target.
-  int64 primitive_transform_reference = 1;
+  string primitive_transform_reference = 1;
 
   // (Required) The local name of an input or output defined on the primitive
   // transform.
@@ -58,7 +69,7 @@ message Target {
 // Information defining a PCollection
 message PCollection {
   // (Required) A reference to a coder.
-  int64 coder_reference = 1;
+  string coder_reference = 1;
 
   // TODO: Windowing strategy, ...
 }
@@ -67,7 +78,7 @@ message PCollection {
 message PrimitiveTransform {
   // (Required) A pipeline level unique id which can be used as a reference to
   // refer to this.
-  int64 id = 1;
+  string id = 1;
 
   // (Required) A function spec that is used by this primitive
   // transform to process data.
@@ -83,24 +94,30 @@ message PrimitiveTransform {
   // DoFn this represents the tag name associated with each distinct output.
   map<string, PCollection> outputs = 4;
 
+  // TODO: Should we model side inputs as a special type of input for a
+  // primitive transform or should it be modeled as the relationship that
+  // the predecessor input will be a view primitive transform.
   // A map of from side input names to side inputs.
   map<string, SideInput> side_inputs = 5;
 
   // The user name of this step.
-  // TODO(robertwb): Consider removing if it simplifies the the SDK harness.
+  // TODO: This should really be in display data and not at this level
   string step_name = 6;
 }
 
 /*
  * User Definable Functions
+ *
+ * This is still unstable mainly due to how we model the side input.
  */
 
 // Defines the common elements of user-definable functions, to allow the SDK to
 // express the information the runner needs to execute work.
+// Stable
 message FunctionSpec {
   // (Required) A pipeline level unique id which can be used as a reference to
   // refer to this.
-  int64 id = 1;
+  string id = 1;
 
   // (Required) A globally unique name representing this user definable
   // function.
@@ -114,7 +131,7 @@ message FunctionSpec {
 
   // (Required) Reference to specification of execution environment required to
   // invoke this function.
-  int64 environment_reference = 3;
+  string environment_reference = 3;
 
   // Data used to parameterize this function. Depending on the urn, this may be
   // optional or required.
@@ -122,7 +139,7 @@ message FunctionSpec {
 }
 
 message SideInput {
-  // TODO(robertwb): Coder?
+  // TODO: Coder?
 
   // For RunnerAPI.
   Target input = 1;
@@ -142,8 +159,9 @@ message SideInput {
 // For example:
 //    urn:org.apache.beam:coder:kv:1.0
 //    urn:org.apache.beam:coder:iterable:1.0
+// Stable
 message Coder {
-  // TODO(lcwik): This looks weird when compared to the other function specs
+  // TODO: This looks weird when compared to the other function specs
   // which use URN to differentiate themselves. Should "Coder" be embedded
   // inside the FunctionSpec data block.
 
@@ -159,69 +177,15 @@ message Coder {
   // For an iterable coder, there must be exactly one component coder reference
   // representing the value coder.
   //
-  // TODO(robertwb): Perhaps this is redundant with the data of the FunctionSpec
+  // TODO: Perhaps this is redundant with the data of the FunctionSpec
   // for known coders?
-  repeated int64 component_coder_reference = 2;
+  repeated string component_coder_reference = 2;
 }
-
-// TODO(lcwik): None of these are really needed right now but should be
-// packed into the FunctionSpec "data" block if we want to have structured
-// data that could be readable by a runner based upon the URN.
-//// A function invoked element-wise producing zero or more outputs.
-//message DoFn {
-//  // (Optional) References to ViewFns used as side inputs.
-//  repeated int64 view_reference = 1;
-//}
-//
-//// A function invoked elementwise outputting the window it is assigned to.
-////
-//// AssignWindowFns using the urn:org.apache.beam:assign-window-fn namespace must
-//// have their functions registered such that another may implement the function
-//// within another language.
-////
-//// For example:
-////    urn:org.apache.beam:assign-window-fn:session:1.0
-//message AssignWindowFn {
-//}
-//
-//// A function invoked on a collection of windows producing zero or more outputs.
-//// Each window not part of any output implicitly is output to a mapping from
-//// itself to a singleton list containing itself.
-////
-//// MergeWindowFns using the urn:org.apache.beam:window-merge-fn namespace must
-//// have their functions registered such that another may implement the function
-//// within another language.
-////
-//// For example:
-////    urn:org.apache.beam:merge-window-fn:session:1.0
-//message MergeWindowFn {
-//}
-//
-//// A function used by SDKs to map from the state API to the users View.
-////
-//// ViewFns using the urn:org.apache.beam:view-fn namespace must have their
-//// functions registered such that another may implement the function within
-//// another language.
-////
-//// For example:
-////    urn:org.apache.beam:view-fn:list
-////    urn:org.apache.beam:view-fn:singleton
-//message ViewFn {
-//  // TODO: Should this be a KVCoder.
-//  // (Required) A reference to a coder used to encode the state key
-//  int64 state_key_coder_reference = 1;
-//
-//  // (Required) A reference to a coder used to decode the state values
-//  int64 value_coder_reference = 2;
-//}
-//
-//// A user definable function which produces output with zero input.
-//message Source {
-//}
 
 // A descriptor for connecting to a remote port using the Beam Fn Data API.
 // Allows for communication between two environments (for example between the
 // runner and the SDK).
+// Stable
 message RemoteGrpcPort {
   // (Required) An API descriptor which describes where to
   // connect to including any authentication that is required.
@@ -230,43 +194,48 @@ message RemoteGrpcPort {
 
 /*
  * Control Plane API
+ *
+ * Progress reporting and splitting still need further vetting. Also, this may change
+ * with the addition of new types of instructions/responses related to metrics.
  */
 
 // An API that describes the work that a SDK Fn Harness is meant to do.
+// Stable
 service BeamFnControl {
   // Instructions sent by the runner to the SDK requesting different types
   // of work.
   rpc Control(
-    // A stream of responses to instructions the SDK was asked to be performed.
-    stream InstructionResponse
+  // A stream of responses to instructions the SDK was asked to be performed.
+  stream InstructionResponse
   ) returns (
-    // A stream of instructions requested of the SDK to be performed.
-    stream InstructionRequest
+  // A stream of instructions requested of the SDK to be performed.
+  stream InstructionRequest
   ) {}
 }
 
 // A request sent by a runner which it the SDK is asked to fulfill.
+// Stable
 message InstructionRequest {
   // (Required) An unique identifier provided by the runner which represents
   // this requests execution. The InstructionResponse MUST have the matching id.
-  int64 instruction_id = 1;
+  string instruction_id = 1;
 
   // (Required) A request that the SDK Harness needs to interpret.
   oneof request {
     RegisterRequest register = 1000;
     ProcessBundleRequest process_bundle = 1001;
-    InitialSourceSplitRequest initial_source_split = 1002;
-    DynamicSourceSplitRequest dynamic_source_split = 1003;
-    SourceProgressRequest source_progress = 1004;
+    ProcessBundleProgressRequest process_bundle_progress = 1002;
+    ProcessBundleSplitRequest process_bundle_split = 1003;
   }
 }
 
 // The response for an associated request the SDK had been asked to fulfill.
+// Stable
 message InstructionResponse {
   // (Required) A reference provided by the runner which represents a requests
   // execution. The InstructionResponse MUST have the matching id when
   // responding to the runner.
-  int64 instruction_id = 1;
+  string instruction_id = 1;
 
   // If this is specified, then this instruction has failed.
   // A human readable string representing the reason as to why processing has
@@ -278,27 +247,29 @@ message InstructionResponse {
   oneof response {
     RegisterResponse register = 1000;
     ProcessBundleResponse process_bundle = 1001;
-    InitialSourceSplitResponse initial_source_split = 1002;
-    DynamicSourceSplitResponse dynamic_source_split = 1003;
-    SourceProgressResponse source_progress = 1004;
+    ProcessBundleProgressResponse process_bundle_progress = 1002;
+    ProcessBundleSplitResponse process_bundle_split = 1003;
   }
 }
 
 // A list of objects which can be referred to by the runner in
 // future requests.
+// Stable
 message RegisterRequest {
   // (Optional) The set of descriptors used to process bundles.
   repeated ProcessBundleDescriptor process_bundle_descriptor = 1;
 }
 
+// Stable
 message RegisterResponse {
 }
 
 // A descriptor of references used when processing a bundle.
+// Stable
 message ProcessBundleDescriptor {
   // (Required) A pipeline level unique id which can be used as a reference to
   // refer to this.
-  int64 id = 1;
+  string id = 1;
 
   // (Required) A list of primitive transforms that should
   // be used to construct the bundle processing graph.
@@ -309,91 +280,137 @@ message ProcessBundleDescriptor {
 }
 
 // A request to process a given bundle.
+// Stable
 message ProcessBundleRequest {
-  int64 process_bundle_descriptor_reference = 1;
-
-  // A set of elements to inject directly into the bundle, disjoint from those
-  // retrieved via the data plane API.
-  // TODO(robertwb): Drop this once the Python API supports the data API
-  // unless there are performance advantages.
-  Elements inline_inputs = 2;
+  string process_bundle_descriptor_reference = 1;
 }
 
+// Stable
 message ProcessBundleResponse {
-  // A set of elements produced by the bundle, disjoint with those sent to
-  // the data plane API.
-  Elements inline_outputs = 1;
 }
 
-// TODO: Should this go away in favor of using a InitialSourceSplit
-// URN function spec that consumes sources and produces SourceSplit?
-// This would allow for splitting to produce a large number of sources.
-// A request to split a source that is not being read.
-message InitialSourceSplitRequest {
-  // (Required) A reference to the source for which the split request is
-  //  destined for.
-  int64 source_reference = 1;
-
-  // (Required) The source should be split into a set of bundles where the
-  // estimated size of each is approximately this many bytes.
-  int64 desired_bundle_size_bytes = 2;
+message ProcessBundleProgressRequest {
+  // (Required) A reference to an active process bundle request with the given
+  // instruction id.
+  string instruction_reference = 1;
 }
 
-message SourceSplit {
-  // (Required) The source representing this split.
-  FunctionSpec source = 1;
+message ProcessBundleProgressResponse {
+  // (Required) The finished amount of work. A monotonically increasing
+  // unitless measure of work finished.
+  double finished_work = 1;
 
-  // Relative size of this split compared to other splits in this split
-  // response. If unspecified, the system will assign a reasonable weight
-  // (e.g. assuming it is as large as the average of its siblings).
-  double relative_size = 2;
+  // (Required) The known amount of backlog for the process bundle request.
+  // Computed as:
+  //   (estimated known work - finish work) / finished work
+  double backlog = 2;
 }
 
-message InitialSourceSplitResponse {
-  // If left unspecified, the source can not be split. Otherwise the returned
-  // set of sources represents the results of splitting the requested source.
-  repeated SourceSplit splits = 1;
+message ProcessBundleSplitRequest {
+  // (Required) A reference to an active process bundle request with the given
+  // instruction id.
+  string instruction_reference = 1;
+
+  // (Required) The fraction of work (when compared to the known amount of work)
+  // the process bundle request should try to split at.
+  double fraction = 2;
 }
 
-// A request to split a source which is actively being read.
-message DynamicSourceSplitRequest {
-  // (Required) A reference to an active work request with the given instruction
+// urn:org.apache.beam:restriction:element-count:1.0
+message ElementCountRestriction {
+  // A restriction representing the number of elements that should be processed.
+  // Effectively the range [0, count]
+  int64 count = 1;
+}
+
+// urn:org.apache.beam:restriction:element-count-skip:1.0
+message ElementCountSkipRestriction {
+  // A restriction representing the number of elements that should be skipped.
+  // Effectively the range (count, infinity]
+  int64 count = 1;
+}
+
+// Each primitive transform that is splittable is defined by a restriction
+// it is currently processing. During splitting, that currently active
+// restriction (R_initial) is split into 2 components:
+//   * a restriction (R_done) representing all elements that will be fully
+//     processed
+//   * a restriction (R_todo) representing all elements that will not be fully
+//     processed
+//
+// where:
+//   R_initial = R_done ⋃ R_todo
+message PrimitiveTransformSplit {
+  // (Required) A reference to a primitive transform with the given id that
+  // is part of the active process bundle request with the given instruction
   // id.
-  int64 instruction_reference = 1;
+  string primitive_transform_reference = 1;
 
-  // (Required) A reference to the source for which the split request is
-  // destined for.
-  int64 source_reference = 2;
+  // (Required) A function specification describing the restriction
+  // that has been completed by the primitive transform.
+  //
+  // For example, a remote GRPC source will have a specific urn and data
+  // block containing an ElementCountRestriction.
+  FunctionSpec completed_restriction = 2;
 
-  // (Required) A fraction at which to split the source, from 0.0 (beginning of
-  // the input) to 1.0 (end of the input).
-  float position = 3;
+  // (Required) A function specification describing the restriction
+  // representing the remainder of work for the primitive transform.
+  //
+  // FOr example, a remote GRPC source will have a specific urn and data
+  // block contain an ElemntCountSkipRestriction.
+  FunctionSpec remaining_restriction = 3;
 }
 
-message DynamicSourceSplitResponse {
-  // If the split was successful then primary_source and residual_source MUST be
-  // specified. primary_source will contain the currently active source over the
-  // new smaller range while residual_source will be a new source over the
-  // remainder of the original range of the pre-split source. If the source
-  // could not be split, then both fields should be unspecified.
-  SourceSplit primary_source = 1;
-  SourceSplit residual_source = 2;
-}
+message ProcessBundleSplitResponse {
+  // (Optional) A set of split responses for a currently active work item.
+  //
+  // If primitive transform B is a descendant of primitive transform A and both
+  // A and B report a split. Then B's restriction is reported as an element
+  // restriction pair and thus the fully reported restriction is:
+  //   R = A_done
+  //     ⋃ (A_boundary ⋂ B_done)
+  //     ⋃ (A_boundary ⋂ B_todo)
+  //     ⋃ A_todo
+  // If there is a decendant of B named C, then C would similarly report a
+  // set of element pair restrictions.
+  //
+  // This restriction is processed and completed by the currently active process
+  // bundle request:
+  //   A_done ⋃ (A_boundary ⋂ B_done)
+  // and these restrictions will be processed by future process bundle requests:
+  //   A_boundary ⋂ B_todo (passed to SDF B directly)
+  //   A_todo (passed to SDF A directly)
 
-message SourceProgressRequest {
-  // (Required) A reference to an active work request with the given instruction
-  // id.
-  int64 instruction_reference = 1;
-
-  // (Required) A reference to the source for which the split request is
-  // destined for.
-  int64 source_reference = 2;
-}
-
-message SourceProgressResponse {
-  // (Required) A fraction representing the sources progress, from 0.0
-  // (beginning of the input) to 1.0 (end of the input).
-  float position = 1;
+  // If primitive transform B and C are siblings and descendants of A and A, B,
+  // and C report a split. Then B and C's restrictions are relative to A's.
+  //   R = A_done
+  //     ⋃ (A_boundary ⋂ B_done)
+  //     ⋃ (A_boundary ⋂ B_todo)
+  //     ⋃ (A_boundary ⋂ B_todo)
+  //     ⋃ (A_boundary ⋂ C_todo)
+  //     ⋃ A_todo
+  // If there is no descendant of B or C also reporting a split, than
+  //   B_boundary = ∅ and C_boundary = ∅
+  //
+  // This restriction is processed and completed by the currently active process
+  // bundle request:
+  //   A_done ⋃ (A_boundary ⋂ B_done)
+  //          ⋃ (A_boundary ⋂ C_done)
+  // and these restrictions will be processed by future process bundle requests:
+  //   A_boundary ⋂ B_todo (passed to SDF B directly)
+  //   A_boundary ⋂ C_todo (passed to SDF C directly)
+  //   A_todo (passed to SDF A directly)
+  //
+  // Note that descendants splits should only be reported if it is inexpensive
+  // to compute the boundary restriction intersected with descendants splits.
+  // Also note, that the boundary restriction may represent a set of elements
+  // produced by a parent primitive transform which can not be split at each
+  // element or that there are intermediate unsplittable primitive transforms
+  // between an ancestor splittable function and a descendant splittable
+  // function which may have more than one output per element. Finally note
+  // that the descendant splits should only be reported if the split
+  // information is relatively compact.
+  repeated PrimitiveTransformSplit splits = 1;
 }
 
 /*
@@ -401,13 +418,14 @@ message SourceProgressResponse {
  */
 
 // Messages used to represent logical byte streams.
+// Stable
 message Elements {
   // Represents multiple encoded elements in nested context for a given named
   // instruction and target.
   message Data {
     // (Required) A reference to an active instruction request with the given
     // instruction id.
-    int64 instruction_reference = 1;
+    string instruction_reference = 1;
 
     // (Required) A definition representing a consumer or producer of this data.
     // If received by a harness, this represents the consumer within that
@@ -433,30 +451,36 @@ message Elements {
   repeated Data data = 1;
 }
 
+// Stable
 service BeamFnData {
   // Used to send data between harnesses.
   rpc Data(
-    // A stream of data representing input.
-    stream Elements
+  // A stream of data representing input.
+  stream Elements
   ) returns (
-    // A stream of data representing output.
-    stream Elements
+  // A stream of data representing output.
+  stream Elements
   ) {}
 }
 
 /*
  * State API
+ *
+ * This is just a high level sketch of how this could work. There is still
+ * a lot of work with respect to how the key spaces for the different types
+ * of access required (side inputs, user state, ...) and how state caching
+ * works across bundles.
  */
 
 message StateRequest {
   // (Required) An unique identifier provided by the SDK which represents this
   // requests execution. The StateResponse must have the matching id.
-  int64 id = 1;
+  string id = 1;
 
   // (Required) The associated instruction id of the work that is currently
   // being processed. This allows for the runner to associate any modifications
   // to state to be committed with the appropriate work execution.
-  int64 instruction_reference = 2;
+  string instruction_reference = 2;
 
   // At least one of the following fields should be populated.
   // Also, no request should use a state key referred to in another state key.
@@ -475,11 +499,11 @@ message StateResponse {
   // (Required) A reference provided by the SDK which represents a requests
   // execution. The StateResponse must have the matching id when responding
   // to the SDK.
-  int64 id = 1;
+  string id = 1;
 
   // (Required) The associated instruction id of the work that is currently
   // being processed.
-  int64 instruction_reference = 2;
+  string instruction_reference = 2;
 
   // (Required) A key to associate with the version of this state. Allows for
   // SDKs to share state across work items if they have the same cache key and
@@ -507,17 +531,17 @@ message StateResponse {
 service BeamFnState {
   // Used to get/append/clear state stored by the runner on behalf of the SDK.
   rpc State(
-    // A stream of state instructions requested of the runner.
-    stream StateRequest
+  // A stream of state instructions requested of the runner.
+  stream StateRequest
   ) returns (
-    // A stream of responses to state instructions the runner was asked to be
-    // performed.
-    stream StateResponse
+  // A stream of responses to state instructions the runner was asked to be
+  // performed.
+  stream StateResponse
   ) {}
 }
 
 
-// TODO(robertwb): Resolve with the other State API.
+// TODO: Resolve with the other State API.
 service SimpleBeamFnState {
   // Gets the elements associated with the given key.
   rpc Get(StateKey) returns (Elements.Data) {}
@@ -539,7 +563,7 @@ message StateKey {
   // (Required) Represents the namespace for the state. If this state is for a
   // DoFn, then this reference is expected to point to the DoFn. If this state
   // is for a side input, then this is expected to reference the ViewFn.
-  int64 function_spec_reference = 1;
+  string function_spec_reference = 1;
 
   // (Required) The bytes of the window which this state request is for encoded
   // in the outer context.
@@ -606,6 +630,10 @@ message StateClearResponse {
 
 /*
  * Logging API
+ *
+ * This is very stable. There can be some changes to how we define a LogEntry,
+ * to increase/decrease the severity types, the way we format an exception/stack
+ * trace, or the log site.
  */
 
 // A log entry
@@ -665,11 +693,11 @@ message LogEntry {
 
   // (Optional) A reference to the instruction this log statement is associated
   // with.
-  int64 instruction_reference = 5;
+  string instruction_reference = 5;
 
   // (Optional) A reference to the primitive transform this log statement is
   // associated with.
-  int64 primitive_transform_reference = 6;
+  string primitive_transform_reference = 6;
 
   // (Optional) Human-readable name of the function or method being invoked,
   // with optional context such as the class or package name. The format can
@@ -687,15 +715,16 @@ message LogEntry {
 message LogControl {
 }
 
+// Stable
 service BeamFnLogging {
   // Allows for the SDK to emit log entries which the runner can
   // associate with the active job.
   rpc Logging(
-    // A stream of log entries batched into lists emitted by the SDK harness.
-    stream LogEntry.List
+  // A stream of log entries batched into lists emitted by the SDK harness.
+  stream LogEntry.List
   ) returns (
-    // A stream of log control messages used to configure the SDK.
-    stream LogControl
+  // A stream of log control messages used to configure the SDK.
+  stream LogControl
   ) {}
 }
 
@@ -705,7 +734,7 @@ service BeamFnLogging {
 message ApiServiceDescriptor {
   // (Required) A pipeline level unique id which can be used as a reference to
   // refer to this.
-  int64 id = 1;
+  string id = 1;
 
   // (Required) The URL to connect to.
   string url = 2;
@@ -729,7 +758,7 @@ message OAuth2ClientCredentialsGrant {
 message DockerContainer {
   // (Required) A pipeline level unique id which can be used as a reference to
   // refer to this.
-  int64 id = 1;
+  string id = 1;
 
   // (Required) The Docker container URI
   // For example "dataflow.gcr.io/v1beta3/java-batch:1.5.1"
@@ -738,5 +767,5 @@ message DockerContainer {
   // (Optional) Docker registry specification.
   // If unspecified, the uri is expected to be able to be fetched without
   // requiring additional configuration by a runner.
-  int64 registry_reference = 3;
+  string registry_reference = 3;
 }
