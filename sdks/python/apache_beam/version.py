@@ -21,17 +21,14 @@
 import re
 
 
-__version__ = None
+__version__ = '0.7.0.dev'
 
 
-def get_version():
-  global __version__
-  if not __version__:
-    __version__ = get_version_from_pom()
-  return __version__
+# The following utilities are legacy code from the Maven integration;
+# see BEAM-378 for further details.
 
 
-# Read the version from pom.xml file
+# Reads the actual version from pom.xml file,
 def get_version_from_pom():
   with open('pom.xml', 'r') as f:
     pom = f.read()
@@ -46,5 +43,15 @@ def get_version_from_pom():
     return version
 
 
-if __name__ == '__main__':
-  __version__ = get_version_from_pom()
+# Synchronizes apache_beam.__version__ field for later usage
+def sync_version(version):
+  init_path = 'apache_beam/__init__.py'
+  regex = r'^__version__\s*=\s*".*"'
+  with open(init_path, "r") as f:
+    lines = f.readlines()
+  with open(init_path, "w") as f:
+    for line in lines:
+      if re.search(regex, line):
+        f.write(re.sub(regex, '__version__ = "%s"' % version, line))
+      else:
+        f.write(line)
