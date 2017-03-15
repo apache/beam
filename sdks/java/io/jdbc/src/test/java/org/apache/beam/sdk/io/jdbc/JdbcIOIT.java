@@ -28,6 +28,7 @@ import java.util.List;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.io.common.IOTestPipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -72,9 +73,9 @@ public class JdbcIOIT {
 
   @BeforeClass
   public static void setup() throws SQLException {
-    PipelineOptionsFactory.register(PostgresTestOptions.class);
-    PostgresTestOptions options = TestPipeline.testingPipelineOptions()
-        .as(PostgresTestOptions.class);
+    PipelineOptionsFactory.register(IOTestPipelineOptions.class);
+    IOTestPipelineOptions options = TestPipeline.testingPipelineOptions()
+        .as(IOTestPipelineOptions.class);
 
     // We do dataSource set up in BeforeClass rather than Before since we don't need to create a new
     // dataSource for each test.
@@ -118,11 +119,11 @@ public class JdbcIOIT {
    */
   @Test
   public void testRead() throws SQLException {
-    String tableName = JdbcTestDataSet.READ_TABLE_NAME;
+    String writeTableName = JdbcTestDataSet.READ_TABLE_NAME;
 
     PCollection<KV<String, Integer>> output = pipeline.apply(JdbcIO.<KV<String, Integer>>read()
             .withDataSourceConfiguration(JdbcIO.DataSourceConfiguration.create(dataSource))
-            .withQuery("select name,id from " + tableName)
+            .withQuery("select name,id from " + writeTableName)
             .withRowMapper(new CreateKVOfNameAndId())
             .withCoder(KvCoder.of(StringUtf8Coder.of(), BigEndianIntegerCoder.of())));
 
