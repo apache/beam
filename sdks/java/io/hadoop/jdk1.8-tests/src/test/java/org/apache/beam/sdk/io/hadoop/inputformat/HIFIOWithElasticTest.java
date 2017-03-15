@@ -139,19 +139,16 @@ public class HIFIOWithElasticTest implements Serializable {
     String expectedHashCode = "caa37dbd8258e3a7f98932958c819a57aab044ec";
     Configuration conf = getConfiguration();
     String fieldValue = ELASTIC_TYPE_ID_PREFIX + "2";
-    String query =
-                "{\n" + "  \"query\": {\n"
-                      + "  \"match\" : {\n"
-                      + "    \"id\" : {\n"
-                      + "      \"query\" : \""
-                      + fieldValue
-                      + ""
-                      + "\",\n"
-                      + "      \"type\" : \"boolean\"\n"
-                      + "    }\n"
-                      + "  }\n"
-                      + "  }\n"
-                      + "}";
+    String query = "{"
+                  + "  \"query\": {"
+                  + "  \"match\" : {"
+                  + "    \"id\" : {"
+                  + "      \"query\" : \"" + fieldValue + "\","
+                  + "      \"type\" : \"boolean\""
+                  + "    }"
+                  + "  }"
+                  + "  }"
+                  + "}";
     conf.set(ConfigurationOptions.ES_QUERY, query);
     PCollection<KV<Text, LinkedMapWritable>> esData =
         pipeline.apply(HadoopInputFormatIO.<Text, LinkedMapWritable>read().withConfiguration(conf));
