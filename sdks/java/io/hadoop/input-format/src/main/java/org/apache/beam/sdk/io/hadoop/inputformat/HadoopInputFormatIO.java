@@ -553,6 +553,7 @@ public class HadoopInputFormatIO {
             + "configuration : Expected value.class is %s but was %s.", reader.getCurrentValue()
             .getClass().getName(), actualClass.getName()));
       }
+      reader.close();
     }
 
     /**
@@ -684,6 +685,18 @@ public class HadoopInputFormatIO {
       private AtomicDouble progressValue = new AtomicDouble();
       private transient InputFormat<T1, T2> inputFormatObj;
       private transient TaskAttemptContext taskAttemptContext;
+      Set<Class<?>> immutableTypes = new HashSet<Class<?>>(
+          Arrays.asList(
+              String.class,
+              Byte.class,
+              Short.class,
+              Integer.class,
+              Long.class,
+              Float.class,
+              Double.class,
+              Boolean.class,
+              BigInteger.class,
+              BigDecimal.class));
 
       private HadoopInputFormatReader(HadoopInputFormatBoundedSource<K, V> source,
           @Nullable SimpleFunction keyTranslationFunction,
@@ -803,18 +816,6 @@ public class HadoopInputFormatIO {
        * Utility method to check if the passed object is of a known immutable type.
        */
       private boolean isKnownImmutable(Object o) {
-        Set<Class<?>> immutableTypes = new HashSet<Class<?>>(
-            Arrays.asList(
-                String.class,
-                Byte.class,
-                Short.class,
-                Integer.class,
-                Long.class,
-                Float.class,
-                Double.class,
-                Boolean.class,
-                BigInteger.class,
-                BigDecimal.class));
         return immutableTypes.contains(o.getClass());
       }
 
