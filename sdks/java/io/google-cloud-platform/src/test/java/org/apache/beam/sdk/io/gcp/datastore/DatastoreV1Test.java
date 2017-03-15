@@ -72,6 +72,7 @@ import org.apache.beam.sdk.io.gcp.datastore.DatastoreV1.DeleteEntity;
 import org.apache.beam.sdk.io.gcp.datastore.DatastoreV1.DeleteEntityFn;
 import org.apache.beam.sdk.io.gcp.datastore.DatastoreV1.DeleteKey;
 import org.apache.beam.sdk.io.gcp.datastore.DatastoreV1.DeleteKeyFn;
+import org.apache.beam.sdk.io.gcp.datastore.DatastoreV1.Read;
 import org.apache.beam.sdk.io.gcp.datastore.DatastoreV1.Read.ReadFn;
 import org.apache.beam.sdk.io.gcp.datastore.DatastoreV1.Read.SplitQueryFn;
 import org.apache.beam.sdk.io.gcp.datastore.DatastoreV1.Read.V1Options;
@@ -146,11 +147,13 @@ public class DatastoreV1Test {
 
   @Test
   public void testBuildRead() throws Exception {
-    DatastoreV1.Read read = DatastoreIO.v1().read()
-        .withProjectId(PROJECT_ID).withQuery(QUERY).withNamespace(NAMESPACE);
+    Read read = DatastoreIO.v1().read()
+        .withProjectId(PROJECT_ID).withQuery(QUERY).withNamespace(NAMESPACE)
+        .withLocalhost(LOCALHOST);
     assertEquals(QUERY, read.getQuery());
     assertEquals(PROJECT_ID, read.getProjectId());
     assertEquals(NAMESPACE, read.getNamespace());
+    assertEquals(LOCALHOST, read.getLocalhost());
   }
 
   /**
@@ -158,7 +161,7 @@ public class DatastoreV1Test {
    */
   @Test
   public void testBuildReadAlt() throws Exception {
-    DatastoreV1.Read read =  DatastoreIO.v1().read()
+    Read read =  DatastoreIO.v1().read()
         .withProjectId(PROJECT_ID).withNamespace(NAMESPACE).withQuery(QUERY)
         .withLocalhost(LOCALHOST);
     assertEquals(QUERY, read.getQuery());
@@ -169,7 +172,7 @@ public class DatastoreV1Test {
 
   @Test
   public void testReadValidationFailsProject() throws Exception {
-    DatastoreV1.Read read =  DatastoreIO.v1().read().withQuery(QUERY);
+    Read read =  DatastoreIO.v1().read().withQuery(QUERY);
     thrown.expect(NullPointerException.class);
     thrown.expectMessage("project");
     read.validate(null);
@@ -177,7 +180,7 @@ public class DatastoreV1Test {
 
   @Test
   public void testReadValidationFailsQuery() throws Exception {
-    DatastoreV1.Read read =  DatastoreIO.v1().read().withProjectId(PROJECT_ID);
+    Read read =  DatastoreIO.v1().read().withProjectId(PROJECT_ID);
     thrown.expect(NullPointerException.class);
     thrown.expectMessage("query");
     read.validate(null);
@@ -203,14 +206,14 @@ public class DatastoreV1Test {
 
   @Test
   public void testReadValidationSucceedsNamespace() throws Exception {
-    DatastoreV1.Read read =  DatastoreIO.v1().read().withProjectId(PROJECT_ID).withQuery(QUERY);
+    Read read =  DatastoreIO.v1().read().withProjectId(PROJECT_ID).withQuery(QUERY);
     /* Should succeed, as a null namespace is fine. */
     read.validate(null);
   }
 
   @Test
   public void testReadDisplayData() {
-    DatastoreV1.Read read =  DatastoreIO.v1().read()
+    Read read =  DatastoreIO.v1().read()
         .withProjectId(PROJECT_ID)
         .withQuery(QUERY)
         .withNamespace(NAMESPACE);
@@ -379,12 +382,67 @@ public class DatastoreV1Test {
   }
 
   /**
+   * Test building a DeleteEntity using builder methods.
+   */
+  @Test
+  public void testBuildDeleteKey() throws Exception {
+    DeleteKey deleteKey =
+        DatastoreIO.v1().deleteKey().withProjectId(PROJECT_ID).withLocalhost(LOCALHOST);
+    assertEquals(PROJECT_ID, deleteKey.getProjectId());
+    assertEquals(LOCALHOST, deleteKey.getLocalhost());
+  }
+
+  /**
+   * {@link #testBuildDeleteKey} but constructed in a different order.
+   */
+  @Test
+  public void testBuildDeleteKeyAlt() throws Exception {
+    DeleteKey deleteKey =
+        DatastoreIO.v1().deleteKey().withLocalhost(LOCALHOST).withProjectId(PROJECT_ID);
+    assertEquals(PROJECT_ID, deleteKey.getProjectId());
+    assertEquals(LOCALHOST, deleteKey.getLocalhost());
+  }
+
+  /**
    * Test building a Write using builder methods.
    */
   @Test
   public void testBuildWrite() throws Exception {
-    DatastoreV1.Write write =  DatastoreIO.v1().write().withProjectId(PROJECT_ID);
+    Write write = DatastoreIO.v1().write().withProjectId(PROJECT_ID).withLocalhost(LOCALHOST);
     assertEquals(PROJECT_ID, write.getProjectId());
+    assertEquals(LOCALHOST, write.getLocalhost());
+  }
+
+  /**
+   * {@link #testBuildWrite} but constructed in a different order.
+   */
+  @Test
+  public void testBuildWriteAlt() throws Exception {
+    Write write = DatastoreIO.v1().write().withLocalhost(LOCALHOST).withProjectId(PROJECT_ID);
+    assertEquals(PROJECT_ID, write.getProjectId());
+    assertEquals(LOCALHOST, write.getLocalhost());
+  }
+
+  /**
+   * Test building a DeleteEntity using builder methods.
+   */
+  @Test
+  public void testBuildDeleteEntity() throws Exception {
+    DeleteEntity deleteEntity =
+        DatastoreIO.v1().deleteEntity().withProjectId(PROJECT_ID).withLocalhost(LOCALHOST);
+    assertEquals(PROJECT_ID, deleteEntity.getProjectId());
+    assertEquals(LOCALHOST, deleteEntity.getLocalhost());
+  }
+
+  /**
+   * {@link #testBuildDeleteEntity} but constructed in a different order.
+   */
+  @Test
+  public void testBuildDeleteEntityAlt() throws Exception {
+    DeleteEntity deleteEntity =
+        DatastoreIO.v1().deleteEntity().withLocalhost(LOCALHOST).withProjectId(PROJECT_ID);
+    assertEquals(PROJECT_ID, deleteEntity.getProjectId());
+    assertEquals(LOCALHOST, deleteEntity.getLocalhost());
   }
 
   /**
