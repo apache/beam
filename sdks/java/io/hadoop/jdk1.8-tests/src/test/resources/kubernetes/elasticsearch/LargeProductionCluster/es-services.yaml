@@ -66,6 +66,10 @@ spec:
         component: elasticsearch
         role: master
       annotations:
+      # Elasticsearch uses a hybrid mmapfs / niofs directory by default to store its indices. 
+      # The default operating system limits on mmap counts is likely to be too low, which may result
+      # in out of memory exceptions. Therefore, the need to increase virtual memory 
+      # vm.max_map_count for large amount of data in the pod initialization annotation.
         pod.beta.kubernetes.io/init-containers: '[
           {
           "name": "sysctl",
