@@ -24,7 +24,7 @@
     <relativePath>../pom.xml</relativePath>
   </parent>
   <packaging>pom</packaging>
-  <groupId>hadoop</groupId>
+  <groupId>org.apache.beam</groupId>
   <artifactId>beam-sdks-java-io-hadoop-input-format</artifactId>
   <name>Apache Beam :: SDKs :: Java :: IO :: Hadoop Input Format</name>
   <description>IO library to read data from data sources which implement Hadoop Input Format from Beam.</description>
