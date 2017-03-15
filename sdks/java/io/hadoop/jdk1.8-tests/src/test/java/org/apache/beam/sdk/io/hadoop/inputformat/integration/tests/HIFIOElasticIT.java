@@ -158,9 +158,16 @@ public class HIFIOElasticIT implements Serializable {
     Long expectedRecordsCount = 1L;
     Pipeline pipeline = TestPipeline.create(options);
     Configuration conf = getConfiguration(options);
-    String query = "{" + "  \"query\": {" + "  \"match\" : {" + "    \"Title\" : {"
-        + "      \"query\" : \"M9u5xcAR\"," + "      \"type\" : \"boolean\"" + "    }" + "  }"
-        + "  }" + "}";
+    String query = "{"
+                  + "  \"query\": {"
+                  + "  \"match\" : {"
+                  + "    \"Title\" : {"
+                  + "      \"query\" : \"M9u5xcAR\","
+                  + "      \"type\" : \"boolean\""
+                  + "    }"
+                  + "  }"
+                  + "  }"
+                  + "}";
     conf.set(ConfigurationOptions.ES_QUERY, query);
     PCollection<KV<Text, LinkedMapWritable>> esData =
         pipeline.apply(HadoopInputFormatIO.<Text, LinkedMapWritable>read().withConfiguration(conf));
