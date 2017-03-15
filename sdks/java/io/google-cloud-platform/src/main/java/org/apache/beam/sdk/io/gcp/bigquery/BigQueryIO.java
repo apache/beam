@@ -513,6 +513,14 @@ public class BigQueryIO {
 
     /**
      * Reads results received after executing the given query.
+     *
+     * <p>By default, the query results will be flattened -- see
+     * "flattenResults" in the <a href="https://cloud.google.com/bigquery/docs/reference/v2/jobs">
+     * Jobs documentation</a> for more information.  To disable flattening, use
+     * {@link BigQueryIO.Read#withoutResultFlattening}.
+     *
+     * <p>By default, the query will use BigQuery's legacy SQL dialect. To use the BigQuery
+     * Standard SQL dialect, use {@link BigQueryIO.Read#usingStandardSql}.
      */
     public Read fromQuery(String query) {
       return fromQuery(StaticValueProvider.of(query));
@@ -1500,20 +1508,18 @@ public class BigQueryIO {
     }
 
     /**
-     * Creates a write transformation for the given table specification.
-     *
-     * <p>Refer to {@link #parseTableSpec(String)} for the specification format.
+     * Writes to the given table, specified in the format described in {@link #parseTableSpec}.
      */
     public Write to(String tableSpec) {
       return to(StaticValueProvider.of(tableSpec));
     }
 
-    /** Creates a write transformation for the given table. */
+    /** Writes to the given table, specified as a {@link TableReference}. */
     public Write to(TableReference table) {
       return to(StaticValueProvider.of(toTableSpec(table)));
     }
 
-    /** Creates a write transformation for the given table. */
+    /** Same as {@link #to(String)}, but with a {@link ValueProvider}. */
     public Write to(ValueProvider<String> tableSpec) {
       ensureToNotCalledYet();
       return toBuilder()
@@ -1567,10 +1573,11 @@ public class BigQueryIO {
     }
 
     /**
-     * Returns a copy of this write transformation, but using the specified schema for rows
-     * to be written.
+     * Uses the specified schema for rows to be written.
      *
-     * <p>Does not modify this object.
+     * <p>The schema is <i>required</i> only if writing to a table that does not already
+     * exist, and {@link CreateDisposition} is set to
+     * {@link CreateDisposition#CREATE_IF_NEEDED}.
      */
     public Write withSchema(TableSchema schema) {
       return toBuilder()
@@ -1587,38 +1594,22 @@ public class BigQueryIO {
           .build();
     }
 
-    /**
-     * Returns a copy of this write transformation, but using the specified create disposition.
-     *
-     * <p>Does not modify this object.
-     */
+    /** Specifies whether the table should be created if it does not exist. */
     public Write withCreateDisposition(CreateDisposition createDisposition) {
       return toBuilder().setCreateDisposition(createDisposition).build();
     }
 
-    /**
-     * Returns a copy of this write transformation, but using the specified write disposition.
-     *
-     * <p>Does not modify this object.
-     */
+    /** Specifies what to do with existing data in the table, in case the table already exists. */
     public Write withWriteDisposition(WriteDisposition writeDisposition) {
       return toBuilder().setWriteDisposition(writeDisposition).build();
     }
 
-    /**
-     * Returns a copy of this write transformation, but using the specified table description.
-     *
-     * <p>Does not modify this object.
-     */
+    /** Specifies the table description. */
     public Write withTableDescription(String tableDescription) {
       return toBuilder().setTableDescription(tableDescription).build();
     }
 
-    /**
-     * Returns a copy of this write transformation, but without BigQuery table validation.
-     *
-     * <p>Does not modify this object.
-     */
+    /** Disables BigQuery table validation. */
     public Write withoutValidation() {
       return toBuilder().setValidate(false).build();
     }
