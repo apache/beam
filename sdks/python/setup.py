@@ -30,7 +30,9 @@ from pkg_resources import get_distribution, DistributionNotFound
 
 
 def get_version():
-  global_names = {'__name__': '__main__'}
+  global_names = {
+      '__name__': '__main__',
+      '__file__': os.path.abspath('./apache_beam/version.py')}
   exec(open(os.path.normpath('./apache_beam/version.py')).read(), global_names)
   return global_names['__version__']
 

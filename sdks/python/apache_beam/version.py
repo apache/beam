@@ -18,6 +18,7 @@
 """Apache Beam SDK version information and utilities."""
 
 
+import os
 import re
 
 
@@ -33,7 +34,7 @@ def get_version():
 
 # Read the version from pom.xml file
 def get_version_from_pom():
-  with open('pom.xml', 'r') as f:
+  with open(os.path.join(os.path.dirname(__file__), '..', 'pom.xml'), 'r') as f:
     pom = f.read()
     regex = (r'.*<parent>\s*'
              r'<groupId>[a-z\.]+</groupId>\s*'
