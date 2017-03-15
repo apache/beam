@@ -80,10 +80,21 @@ class FileChecksumMatcher(BaseMatcher):
   is a hash string computed from content of file(s).
   """
 
-  def __init__(self, file_path, expected_checksum):
+  def __init__(self, file_path, expected_checksum, sleep_secs=None):
+    """Initialize a FileChecksumMatcher object
+
+    Args:
+      file_path : A string that is the full path of output file. This path
+        can contain globs.
+      expected_checksum : A hash string that is computed from expected
+        result.
+      sleep_secs : Number of seconds to wait before verification start.
+        Extra time are given to make sure output files are ready on FS.
+    """
     self.file_path = file_path
     self.file_system = get_filesystem(self.file_path)
     self.expected_checksum = expected_checksum
+    self.sleep_secs = sleep_secs
 
   @retry.with_exponential_backoff(
       num_retries=MAX_RETRIES,
@@ -105,10 +116,10 @@ class FileChecksumMatcher(BaseMatcher):
     return read_lines
 
   def _matches(self, _):
-    # Wait to have output file ready on FS
-    wait_time = 20
-    logging.info('Wait %d seconds...', wait_time)
-    time.sleep(wait_time)
+    if self.sleep_secs:
+      # Wait to have output file ready on FS
+      logging.info('Wait %d seconds...', self.sleep_secs)
+      time.sleep(self.sleep_secs)
 
     # Read from given file(s) path
     read_lines = self._read_with_retry()
