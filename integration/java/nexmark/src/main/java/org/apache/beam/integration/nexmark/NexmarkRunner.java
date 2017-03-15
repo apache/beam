@@ -53,8 +53,6 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.joda.time.Duration;
 
-import static org.apache.beam.sdk.metrics.MetricUpdates.MetricUpdate;
-
 /**
  * Run a single Nexmark query using a given configuration.
  */
@@ -203,7 +201,8 @@ public abstract class NexmarkRunner<OptionT extends Options> {
    * Find a 'steady state' events/sec from {@code snapshots} and
    * store it in {@code perf} if found.
    */
-  protected void captureSteadyState(NexmarkPerf perf, List<NexmarkPerf.ProgressSnapshot> snapshots) {
+  protected void captureSteadyState(NexmarkPerf perf,
+                                    List<NexmarkPerf.ProgressSnapshot> snapshots) {
     if (!options.isStreaming()) {
       return;
     }
@@ -365,7 +364,9 @@ public abstract class NexmarkRunner<OptionT extends Options> {
     return perf;
   }
 
-  String getJobId(PipelineResult job){return "";}
+  String getJobId(PipelineResult job) {
+    return "";
+  }
 
   // TODO specific to dataflow, see if we can find an equivalent
 /*
@@ -926,8 +927,8 @@ public abstract class NexmarkRunner<OptionT extends Options> {
                                       new TableFieldSchema().setName("index").setType("INTEGER"),
                                       new TableFieldSchema().setName("value").setType("STRING")))));
     NexmarkUtils.console("Writing results to BigQuery table %s", tableSpec);
-    BigQueryIO.Write.Bound io =
-        BigQueryIO.Write.to(tableSpec)
+    BigQueryIO.Write io =
+        BigQueryIO.write().to(tableSpec)
                         .withSchema(tableSchema)
                         .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
                         .withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_APPEND);

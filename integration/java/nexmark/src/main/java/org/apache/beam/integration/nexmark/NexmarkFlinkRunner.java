@@ -17,10 +17,6 @@
  */
 package org.apache.beam.integration.nexmark;
 
-import javax.annotation.Nullable;
-import org.apache.beam.runners.flink.FlinkRunnerResult;
-import org.apache.beam.sdk.PipelineResult;
-
 /**
  * Run a query using the Flink runner.
  */
@@ -42,7 +38,7 @@ public class NexmarkFlinkRunner extends NexmarkRunner<NexmarkFlinkDriver.Nexmark
 
   @Override
   protected boolean canMonitor() {
-    return false;
+    return true;
   }
 
   @Override
@@ -54,12 +50,6 @@ public class NexmarkFlinkRunner extends NexmarkRunner<NexmarkFlinkDriver.Nexmark
   @Override
   protected void waitForPublisherPreload() {
     throw new UnsupportedOperationException();
-  }
-
-  @Override
-  @Nullable
-  protected NexmarkPerf monitor(NexmarkQuery query) {
-    return null;
   }
 
   public NexmarkFlinkRunner(NexmarkFlinkDriver.NexmarkFlinkOptions options) {

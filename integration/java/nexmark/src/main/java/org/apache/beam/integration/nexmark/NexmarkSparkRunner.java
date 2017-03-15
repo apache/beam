@@ -17,10 +17,6 @@
  */
 package org.apache.beam.integration.nexmark;
 
-import javax.annotation.Nullable;
-import org.apache.beam.runners.spark.SparkPipelineResult;
-import org.apache.beam.sdk.PipelineResult;
-
 /**
  * Run a query using the Spark runner.
  */
@@ -42,7 +38,7 @@ public class NexmarkSparkRunner extends NexmarkRunner<NexmarkSparkDriver.Nexmark
 
     @Override
     protected boolean canMonitor() {
-        return false;
+        return true;
     }
 
     @Override
@@ -56,11 +52,6 @@ public class NexmarkSparkRunner extends NexmarkRunner<NexmarkSparkDriver.Nexmark
         throw new UnsupportedOperationException();
     }
 
-    @Override
-    @Nullable
-    protected NexmarkPerf monitor(NexmarkQuery query) {
-        return null;
-    }
 
     public NexmarkSparkRunner(NexmarkSparkDriver.NexmarkSparkOptions options) {
         super(options);
