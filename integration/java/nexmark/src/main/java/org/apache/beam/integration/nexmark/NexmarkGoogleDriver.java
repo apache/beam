@@ -45,31 +45,7 @@ class NexmarkGoogleDriver extends NexmarkDriver<NexmarkGoogleDriver.NexmarkGoogl
    * Command line flags.
    */
   public interface NexmarkGoogleOptions extends Options, DataflowPipelineOptions {
-    @Description("If set, cancel running pipelines after this long")
-    @Nullable
-    Long getRunningTimeMinutes();
 
-    void setRunningTimeMinutes(Long value);
-
-    @Description("If set and --monitorJobs is true, check that the system watermark is never more "
-                 + "than this far behind real time")
-    @Nullable
-    Long getMaxSystemLagSeconds();
-
-    void setMaxSystemLagSeconds(Long value);
-
-    @Description("If set and --monitorJobs is true, check that the data watermark is never more "
-                 + "than this far behind real time")
-    @Nullable
-    Long getMaxDataLagSeconds();
-
-    void setMaxDataLagSeconds(Long value);
-
-    @Description("Only start validating watermarks after this many seconds")
-    @Nullable
-    Long getWatermarkValidationDelaySeconds();
-
-    void setWatermarkValidationDelaySeconds(Long value);
   }
 
   /**
