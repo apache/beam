@@ -81,5 +81,3 @@ from apache_beam import version
 from apache_beam.pipeline import Pipeline
 from apache_beam.transforms import *
 # pylint: enable=wrong-import-position
-
-__version__ = version.get_version()
