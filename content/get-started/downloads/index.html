@@ -152,8 +152,9 @@
       <div class="row">
         <h1 id="apache-beam-downloads">Apache Beam Downloads</h1>
 
-<p>The easiest way to use Apache Beam is via one of the released versions in the
-<a href="https://search.maven.org/#search%7Cga%7C1%7Cg%3A%22org.apache.beam%22">Maven Central Repository</a>.</p>
+<p>The easiest way to use Apache Beam is via one of the released versions in a central repository.
+Java SDK is available on <a href="https://search.maven.org/#search%7Cga%7C1%7Cg%3A%22org.apache.beam%22">Maven Central Repository</a>,
+and Python SDK is available on <a href="https://pypi.python.org/pypi/apache-beam">PyPI</a>.</p>
 
 <p>For example, if you are developing using Maven and want to use the SDK for
 Java with the <code class="highlighter-rouge">DirectRunner</code>, add the following dependencies to your
@@ -170,6 +171,13 @@ Java with the <code class="highlighter-rouge">DirectRunner</code>, add the follo
   &lt;version&gt;0.6.0&lt;/version&gt;
   &lt;scope&gt;runtime&lt;/scope&gt;
 &lt;/dependency&gt;
+</code></pre>
+</div>
+
+<p>Similarly in Python, if you are using PyPI and want to use the SDK for Python with
+<code class="highlighter-rouge">DirectRunner</code>, add the following requirement to your <code class="highlighter-rouge">setup.py</code> file:</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>apache-beam==0.6.0
 </code></pre>
 </div>
 
