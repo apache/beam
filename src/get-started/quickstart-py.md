@@ -62,17 +62,8 @@ For instructions using other shells, see the [virtualenv documentation](https://
 
 ### Download and install
 
-1. Clone the Apache Beam repo from GitHub:
-  `git clone https://github.com/apache/beam.git`
-
-2. Navigate to the `python` directory:
-  `cd beam/sdks/python/`
-
-3. Create the Apache Beam Python SDK installation package:
-  `python setup.py sdist`
-
-4. Install the Apache Beam SDK
-  `pip install dist/apache-beam-*.tar.gz`
+Install the latest Python SDK from PyPI:
+  `pip install apache-beam`
 
 ## Execute a pipeline locally
 
