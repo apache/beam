@@ -26,16 +26,13 @@ job('beam_PerformanceTests_JDBC'){
     // Run job in postcommit every 6 hours and don't trigger every push.
     common_job_properties.setPostCommit(delegate, '0 */6 * * *', false)
 
-    common_job_properties.enablePhraseTriggeringFromPullRequest(
-      delegate,
-      'Dataflow Runner JDBC Performance Tests',
-      'Run Dataflow JDBC Performance Tests')
+    def argMap = [
+      benchmarks: 'beam_integration_benchmark',
+      dpb_beam_it_module: 'sdks/java/io/jdbc',
+      dpb_it_args: '--tempRoot=gs://temp-storage-for-end-to-end-tests,--project=apache-beam-testing,--postgresServerName=10.36.0.11,--postgresUsername=postgres,--postgresDatabaseName=postgres,--postgresPassword=uuinkks,--postgresSsl=false',
+      dpb_it_class: 'org.apache.beam.sdk.io.jdbc.JdbcIOIT',
+      dpb_beam_it_profile: 'io-it'
+    ]
 
-    steps {
-        shell('rm -rf PerfKitBenchmarker')
-        // Clones appropriate perfkit branch
-        shell('git clone -b beam-pkb --single-branch https://github.com/jasonkuster/PerfKitBenchmarker.git')
-        shell('pip install --user -r PerfKitBenchmarker/requirements.txt')
-        shell('python PerfKitBenchmarker/pkb.py --project=apache-beam-testing --benchmarks=beam_integration_benchmark --dpb_it_class=org.apache.beam.sdk.io.jdbc.JdbcIOIT --dpb_it_args=--tempRoot=gs://temp-storage-for-end-to-end-tests,--project=apache-beam-testing,--postgresServerName=10.36.0.11,--postgresUsername=postgres,--postgresDatabaseName=postgres,--postgresPassword=uuinkks,--postgresSsl=false --dpb_log_level=INFO --dpb_maven_binary=/home/jenkins/tools/maven/latest/bin/mvn --dpb_beam_it_module=sdks/java/io/jdbc --dpb_beam_it_profile=io-it --bigquery_table=beam_performance.pkb_results --official=true')
-    }
+    common_job_properties.buildPerformanceTest(delegate, argMap)
 }
