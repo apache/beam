@@ -28,7 +28,7 @@ import org.apache.beam.sdk.testing.TestPipelineOptions;
  */
 public interface V1TestOptions extends TestPipelineOptions {
   @Description("Datastore Entity kind")
-  @Default.String("beam-test")
+  @Default.String("beam_test")
   String getKind();
   void setKind(String value);
 
