@@ -42,6 +42,7 @@ public class Query0Model extends NexmarkQueryModel {
         return;
       }
       addResult(timestampedEvent);
+      //TODO test fails because offset of some hundreds of ms beween expect and actual
     }
   }
 

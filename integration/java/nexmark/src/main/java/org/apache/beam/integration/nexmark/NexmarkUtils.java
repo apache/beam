@@ -382,8 +382,7 @@ public class NexmarkUtils {
    */
   public static PTransform<PBegin, PCollection<Event>> batchEventsSource(
           NexmarkConfiguration configuration) {
-    return Read.from(new BoundedEventSource(
-            NexmarkUtils.standardGeneratorConfig(configuration), configuration.numEventGenerators));
+    return Read.from(new BoundedEventSource(standardGeneratorConfig(configuration), configuration.numEventGenerators));
   }
 
   /**
