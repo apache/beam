@@ -48,6 +48,8 @@ import org.junit.runners.JUnit4;
  */
 @RunWith(JUnit4.class)
 public class PrimitiveParDoSingleFactoryTest implements Serializable {
+  // Create a pipeline for testing Side Input propagation. This won't actually run any Pipelines,
+  // so disable enforcement.
   @Rule
   public transient TestPipeline pipeline =
       TestPipeline.create().enableAbandonedNodeEnforcement(false);
