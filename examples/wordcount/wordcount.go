@@ -76,10 +76,9 @@ func main() {
 	formatted := beam.ParDo(p, Format2, counted)
 	textio.Write(p, os.ExpandEnv(*output), formatted)
 
-	// (2) execute it locally
+	// (2) execute it
 
 	if err := beamexec.Run(ctx, p); err != nil {
 		log.Fatalf("Failed to execute job: %v", err)
 	}
-	log.Print("Success!")
 }

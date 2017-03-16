@@ -58,6 +58,4 @@ func main() {
 	if err := beamexec.Run(ctx, p); err != nil {
 		log.Fatalf("Failed to execute job: %v", err)
 	}
-
-	log.Print("Success!")
 }
