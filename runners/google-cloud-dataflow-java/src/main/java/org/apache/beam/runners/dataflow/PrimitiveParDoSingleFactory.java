@@ -21,6 +21,7 @@ package org.apache.beam.runners.dataflow;
 import java.util.List;
 import org.apache.beam.runners.core.construction.ForwardingPTransform;
 import org.apache.beam.runners.core.construction.SingleInputOutputOverrideFactory;
+import org.apache.beam.sdk.common.runner.v1.RunnerApi.DisplayData;
 import org.apache.beam.sdk.runners.PTransformOverrideFactory;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -31,8 +32,8 @@ import org.apache.beam.sdk.values.PCollectionView;
 
 /**
  * A {@link PTransformOverrideFactory} that produces {@link ParDoSingle} instances from
- * {@link ParDo.Bound} instances. {@link ParDoSingle} is a primitive {@link PTransform}, for runners
- * that wish to have a distinct one-to-one primitive {@link ParDo}.
+ * {@link ParDo.Bound} instances. {@link ParDoSingle} is a primitive {@link PTransform}, to ensure
+ * that {@link DisplayData} appears on all {@link ParDo ParDos} in the {@link DataflowRunner}.
  */
 public class PrimitiveParDoSingleFactory<InputT, OutputT>
     extends SingleInputOutputOverrideFactory<

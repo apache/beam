@@ -22,9 +22,11 @@ import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertThat;
 
+import com.google.common.collect.Iterables;
 import java.io.Serializable;
 import java.util.List;
 import org.apache.beam.runners.dataflow.PrimitiveParDoSingleFactory.ParDoSingle;
+import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -33,6 +35,7 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.transforms.display.DisplayDataEvaluator;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.junit.Rule;
@@ -51,6 +54,10 @@ public class PrimitiveParDoSingleFactoryTest implements Serializable {
 
   private PrimitiveParDoSingleFactory<Integer, Long> factory = new PrimitiveParDoSingleFactory<>();
 
+  /**
+   * A test that demonstrates that the replacement transform has the Display Data of the
+   * {@link ParDo.Bound} it replaces.
+   */
   @Test
   public void getReplacementTransformPopulateDisplayData() {
     ParDo.Bound<Integer, Long> originalTransform = ParDo.of(new ToLongFn());
@@ -61,6 +68,12 @@ public class PrimitiveParDoSingleFactoryTest implements Serializable {
     DisplayData replacementDisplayData = DisplayData.from(replacement);
 
     assertThat(replacementDisplayData, equalTo(originalDisplayData));
+
+    DisplayData primitiveDisplayData =
+        Iterables.getOnlyElement(
+            DisplayDataEvaluator.create()
+                .displayDataForPrimitiveTransforms(replacement, VarIntCoder.of()));
+    assertThat(primitiveDisplayData, equalTo(replacementDisplayData));
   }
 
   @Test
