@@ -53,6 +53,7 @@ public class Query1Model extends NexmarkQueryModel implements Serializable {
       TimestampedValue<Bid> result =
           TimestampedValue.of(resultBid, timestampedEvent.getTimestamp());
       addResult(result);
+      //TODO test fails because offset of some hundreds of ms beween expect and actual
     }
   }
 

@@ -17,6 +17,11 @@
  */
 package org.apache.beam.integration.nexmark;
 
+import static org.hamcrest.CoreMatchers.containsString;
+import static org.hamcrest.CoreMatchers.equalTo;
+import static org.hamcrest.CoreMatchers.hasItems;
+import org.hamcrest.collection.IsIterableContainingInAnyOrder;
+
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -28,16 +33,23 @@ import java.util.Set;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.TimestampedValue;
 
+import org.hamcrest.core.IsCollectionContaining;
+import org.hamcrest.core.IsEqual;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Assert;
 
 /**
- * Base class for models of the eight NEXMark queries. Provides an assertion
- * function which can be applied against the actual query results to check their consistency
- * with the model.
+ * Base class for models of the eight NEXMark queries. Provides an assertion function which can be
+ * applied against the actual query results to check their consistency with the model.
  */
 public abstract class NexmarkQueryModel implements Serializable {
+  protected final NexmarkConfiguration configuration;
+
+  public NexmarkQueryModel(NexmarkConfiguration configuration) {
+    this.configuration = configuration;
+  }
+
   /**
    * Return the start of the most recent window of {@code size} and {@code period} which ends
    * strictly before {@code timestamp}.
@@ -50,15 +62,7 @@ public abstract class NexmarkQueryModel implements Serializable {
     return new Instant(lim - s);
   }
 
-  protected final NexmarkConfiguration configuration;
-
-  public NexmarkQueryModel(NexmarkConfiguration configuration) {
-    this.configuration = configuration;
-  }
-
-  /**
-   * Convert {@code itr} to strings capturing values, timestamps and order.
-   */
+  /** Convert {@code itr} to strings capturing values, timestamps and order. */
   protected static <T> List<String> toValueTimestampOrder(Iterator<TimestampedValue<T>> itr) {
     List<String> strings = new ArrayList<>();
     while (itr.hasNext()) {
@@ -67,9 +71,7 @@ public abstract class NexmarkQueryModel implements Serializable {
     return strings;
   }
 
-  /**
-   * Convert {@code itr} to strings capturing values and order.
-   */
+  /** Convert {@code itr} to strings capturing values and order. */
   protected static <T> List<String> toValueOrder(Iterator<TimestampedValue<T>> itr) {
     List<String> strings = new ArrayList<>();
     while (itr.hasNext()) {
@@ -78,9 +80,7 @@ public abstract class NexmarkQueryModel implements Serializable {
     return strings;
   }
 
-  /**
-   * Convert {@code itr} to strings capturing values only.
-   */
+  /** Convert {@code itr} to strings capturing values only. */
   protected static <T> Set<String> toValue(Iterator<TimestampedValue<T>> itr) {
     Set<String> strings = new HashSet<>();
     while (itr.hasNext()) {
@@ -99,22 +99,23 @@ public abstract class NexmarkQueryModel implements Serializable {
   }
 
   /**
-   * Convert iterator of elements to collection of strings to use when testing coherence
-   * of model against actual query results.
+   * Convert iterator of elements to collection of strings to use when testing coherence of model
+   * against actual query results.
    */
   protected abstract <T> Collection<String> toCollection(Iterator<TimestampedValue<T>> itr);
 
-  /**
-   * Return assertion to use on results of pipeline for this query.
-   */
+  /** Return assertion to use on results of pipeline for this query. */
   public SerializableFunction<Iterable<TimestampedValue<KnownSize>>, Void> assertionFor() {
     final Collection<String> expectedStrings = toCollection(simulator().results());
+    final String[] expectedStringsArray = expectedStrings.toArray(new String[expectedStrings.size()]);
 
     return new SerializableFunction<Iterable<TimestampedValue<KnownSize>>, Void>() {
       @Override
       public Void apply(Iterable<TimestampedValue<KnownSize>> actual) {
         Collection<String> actualStrings = toCollection(relevantResults(actual).iterator());
-        Assert.assertEquals(expectedStrings, actualStrings);
+                Assert.assertThat("wrong pipeline output", actualStrings, IsEqual.equalTo(expectedStrings));
+//compare without order
+//        Assert.assertThat("wrong pipeline output", actualStrings, IsIterableContainingInAnyOrder.containsInAnyOrder(expectedStringsArray));
         return null;
       }
     };

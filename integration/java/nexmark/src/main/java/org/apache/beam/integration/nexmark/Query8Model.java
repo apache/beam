@@ -115,7 +115,7 @@ public class Query8Model extends NexmarkQueryModel implements Serializable {
           // Remember auction for future new people.
           newAuctions.put(event.newAuction.seller, event.newAuction);
         }
-      } else {
+      } else { // event is not an auction, nor a bid, so it is a person
         // Join new person with existing auctions.
         for (Auction auction : newAuctions.get(event.newPerson.id)) {
           addResult(auction, event.newPerson, timestamp);
