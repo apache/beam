@@ -2,6 +2,9 @@ aljoscha:
     name: Aljoscha Krettek
     email: aljoscha@apache.org
     twitter: aljoscha
+altay:
+    name: Ahmet Altay
+    email: altay@apache.org
 davor:
     name: Davor Bonaci
     email: davor@apache.org
@@ -18,6 +21,13 @@ jamesmalone:
     name: James Malone
     email: jamesmalone@apache.org
     twitter: chimerasaurus
+jesseanderson:
+    name: Jesse Anderson
+    twitter: jessetanderson
+klk:
+    name: Kenneth Knowles
+    email: klk@apache.org
+    twitter: KennKnowles
 robertwb:
     name: Robert Bradshaw
     email: robertwb@apache.org
@@ -29,14 +39,8 @@ takidau:
 tgroh:
     name: Thomas Groh
     email: tgroh@google.com
-jesseanderson:
-    name: Jesse Anderson
-    twitter: jessetanderson
 thw:
     name: Thomas Weise
     email: thw@apache.org
     twitter: thweise
-klk:
-    name: Kenneth Knowles
-    email: klk@apache.org
-    twitter: KennKnowles
+
