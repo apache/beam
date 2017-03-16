@@ -30,7 +30,7 @@ Beam currently supports the following language-specific SDKs:
 </tr>
 <tr>
   <td>Python</td>
-  <td>Coming Soon</td>
+  <td>Active Development</td>
 </tr>
 <tr>
   <td>Other</td>
