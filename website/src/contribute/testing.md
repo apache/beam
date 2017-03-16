@@ -243,9 +243,8 @@ details on those testing types.
 
 ### Python SDK
 
-The Python SDK is currently under development on a feature branch. We have initial
-postcommit tests by a Jenkins build; precommit testing and a full testing
-matrix will be coming soon.
+The Python SDK has postcommit tests by a Jenkins build; precommit testing and a
+full testing matrix will be coming soon.
 
 ## Testing Scenarios
 
