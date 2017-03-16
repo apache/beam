@@ -47,6 +47,17 @@
         </configuration>
       </plugin>
 
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-shade-plugin</artifactId>
+        <executions>
+          <execution>
+            <id>bundle-and-repackage</id>
+            <phase>none</phase>
+          </execution>
+        </executions>
+      </plugin>
+
       <!-- Integration Tests -->
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
@@ -86,26 +97,6 @@
                  -->
                 <usedDependency>com.google.api.grpc:grpc-google-common-protos</usedDependency>
               </usedDependencies>
-            </configuration>
-          </execution>
-        </executions>
-      </plugin>
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-shade-plugin</artifactId>
-        <executions>
-          <execution>
-            <id>disable-shading</id>
-            <phase>package</phase>
-            <goals>
-              <goal>shade</goal>
-            </goals>
-            <configuration>
-              <artifactSet>
-                <excludes>
-                  <exclude>*</exclude>
-                </excludes>
-              </artifactSet>
             </configuration>
           </execution>
         </executions>
