@@ -6,7 +6,6 @@ import (
 	"flag"
 	"fmt"
 	"github.com/apache/beam/sdks/go/pkg/beam"
-	"github.com/apache/beam/sdks/go/pkg/beam/runners/local"
 	"golang.org/x/oauth2/google"
 	df "google.golang.org/api/dataflow/v1b3"
 	"log"
@@ -27,6 +26,7 @@ var (
 	stagingLocation = flag.String("staging_location", os.ExpandEnv("gs://foo"), "GCS staging location.")
 
 	dryRun         = flag.Bool("dry_run", false, "Dry run. Just print the job, but don't submit it.")
+	block          = flag.Bool("block", true, "Wait for job to terminate.")
 	teardownPolicy = flag.String("teardown_policy", "", "Job teardown policy (internal only).")
 )
 
@@ -91,15 +91,6 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 	if *teardownPolicy != "" {
 		job.Environment.WorkerPools[0].TeardownPolicy = *teardownPolicy
 	}
-	if *endpoint == "" {
-		// TODO(herohde) 2/17/2017: until the new job type is in prod, we pretend to
-		// be python.
-		job.Environment.Version = newMsg(version{
-			JobType: "PYTHON_BATCH",
-			Major:   "5",
-		})
-	}
-
 	printJob(job)
 
 	if *dryRun {
@@ -121,7 +112,34 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 	log.Printf("Submitted job: %v", upd.Id)
 	printJob(upd)
 
-	return local.Execute(ctx, p)
+	if !*block {
+		return nil
+	}
+
+	time.Sleep(1 * time.Minute)
+	for {
+		j, err := client.Projects.Jobs.Get(*project, upd.Id).Do()
+		if err != nil {
+			return fmt.Errorf("failed to get job: %v", err)
+		}
+
+		switch j.CurrentState {
+		case "JOB_STATE_DONE":
+			log.Print("Job succeeded!")
+			return nil
+
+		case "JOB_STATE_FAILED":
+			return fmt.Errorf("job %s failed.", upd.Id)
+
+		case "JOB_STATE_RUNNING":
+			log.Printf("Job still running ...")
+
+		default:
+			log.Printf("Job state: %v ...", j.CurrentState)
+		}
+
+		time.Sleep(30 * time.Second)
+	}
 }
 
 // stageWorker uploads the worker binary to GCS as a unique object.
