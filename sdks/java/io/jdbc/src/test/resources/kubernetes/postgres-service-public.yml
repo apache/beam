@@ -13,6 +13,10 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 
+<<<<<<< HEAD:sdks/java/io/jdbc/src/test/resources/kubernetes/postgres-service-public.yml
+=======
+# Kubernetes headless service for Elasticsearch discovery of nodes.
+>>>>>>> Changes in comments:sdks/java/io/hadoop/jdk1.8-tests/src/test/resources/kubernetes/elasticsearch/es-discovery-service.yaml
 apiVersion: v1
 kind: Service
 metadata:
