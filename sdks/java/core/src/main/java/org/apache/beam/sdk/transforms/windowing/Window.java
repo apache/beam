@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.transforms.windowing;
 
+import com.google.common.annotations.VisibleForTesting;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
@@ -479,7 +480,7 @@ public class Window {
             .setWindowingStrategyInternal(outputStrategy);
       } else {
         // This is the AssignWindows primitive
-        return input.apply(new Assign<T>(outputStrategy));
+        return input.apply(new Assign<>(this, outputStrategy));
       }
     }
 
@@ -532,11 +533,11 @@ public class Window {
     }
   }
 
-
   /**
    * A Primitive {@link PTransform} that assigns windows to elements based on a {@link WindowFn}.
    */
   public static class Assign<T> extends PTransform<PCollection<T>, PCollection<T>> {
+    private final Bound<T> original;
     private final WindowingStrategy<T, ?> updatedStrategy;
 
     /**
@@ -544,7 +545,9 @@ public class Window {
      * WindowingStrategy}. Windows should be assigned using the {@link WindowFn} returned by
      * {@link #getWindowFn()}.
      */
-    private Assign(WindowingStrategy updatedStrategy) {
+    @VisibleForTesting
+    Assign(Bound<T> original, WindowingStrategy updatedStrategy) {
+      this.original = original;
       this.updatedStrategy = updatedStrategy;
     }
 
@@ -552,6 +555,11 @@ public class Window {
     public PCollection<T> expand(PCollection<T> input) {
       return PCollection.createPrimitiveOutputInternal(
           input.getPipeline(), updatedStrategy, input.isBounded());
+    }
+
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      original.populateDisplayData(builder);
     }
 
     public WindowFn<T, ?> getWindowFn() {
