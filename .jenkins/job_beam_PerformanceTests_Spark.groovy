@@ -26,11 +26,11 @@ job('beam_PerformanceTests_Spark'){
     // Run job in postcommit every 6 hours and don't trigger every push.
     common_job_properties.setPostCommit(delegate, '0 */6 * * *', false)
 
-    steps {
-        shell('rm -rf PerfKitBenchmarker')
-        // Clones appropriate perfkit branch
-        shell('git clone -b beam-pkb --single-branch https://github.com/jasonkuster/PerfKitBenchmarker.git')
-        shell('pip install --user -r PerfKitBenchmarker/requirements.txt')
-        shell('python PerfKitBenchmarker/pkb.py --project=apache-beam-testing --benchmarks=dpb_wordcount_benchmark --dpb_wordcount_input=/etc/hosts --dpb_log_level=INFO --config_override=dpb_wordcount_benchmark.dpb_service.service_type=dataproc --dpb_maven_binary=/home/jenkins/tools/maven/latest/bin/mvn --bigquery_table=beam_performance.pkb_results --official=true')
-    }
+    def argMap = [
+      benchmarks: 'dpb_wordcount_benchmark',
+      dpb_wordcount_input: '/etc/hosts',
+      config_override: 'dpb_wordcount_benchmark.dpb_service.service_type=dataproc'
+    ]
+
+    common_job_properties.buildPerformanceTest(delegate, argMap)
 }
