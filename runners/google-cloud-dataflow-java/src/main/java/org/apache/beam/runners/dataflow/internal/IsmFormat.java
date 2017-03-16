@@ -410,7 +410,7 @@ public class IsmFormat {
           + "to match the number of key components %s.",
           keyComponentCoders.size(), record.getKeyComponents());
 
-      if (record != null && consistentWithEquals()) {
+      if (consistentWithEquals()) {
         ArrayList<Object> keyComponentStructuralValues = new ArrayList<>();
         for (int i = 0; i < keyComponentCoders.size(); ++i) {
           keyComponentStructuralValues.add(
