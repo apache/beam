@@ -67,7 +67,7 @@ public class Reshuffle<K, V> extends PTransform<PCollection<KV<K, V>>, PCollecti
             .withAllowedLateness(Duration.millis(BoundedWindow.TIMESTAMP_MAX_VALUE.getMillis()));
 
     return input.apply(rewindow)
-        .apply(ReifyTimestamps.<K, V>inValues())
+        .apply("ReifyOriginalTimestamps", ReifyTimestamps.<K, V>inValues())
         .apply(GroupByKey.<K, TimestampedValue<V>>create())
         // Set the windowing strategy directly, so that it doesn't get counted as the user having
         // set allowed lateness.
@@ -82,6 +82,6 @@ public class Reshuffle<K, V> extends PTransform<PCollection<KV<K, V>>, PCollecti
                 }
               }
             }))
-        .apply(ReifyTimestamps.<K, V>extractFromValues());
+        .apply("RestoreOriginalTimestamps", ReifyTimestamps.<K, V>extractFromValues());
   }
 }
