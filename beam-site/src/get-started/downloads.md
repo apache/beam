@@ -10,8 +10,9 @@ redirect_from:
 
 # Apache Beam Downloads
 
-The easiest way to use Apache Beam is via one of the released versions in the
-[Maven Central Repository](https://search.maven.org/#search%7Cga%7C1%7Cg%3A%22org.apache.beam%22).
+The easiest way to use Apache Beam is via one of the released versions in a central repository.
+Java SDK is available on [Maven Central Repository](https://search.maven.org/#search%7Cga%7C1%7Cg%3A%22org.apache.beam%22),
+and Python SDK is available on [PyPI](https://pypi.python.org/pypi/apache-beam).
 
 For example, if you are developing using Maven and want to use the SDK for
 Java with the `DirectRunner`, add the following dependencies to your
@@ -28,6 +29,11 @@ Java with the `DirectRunner`, add the following dependencies to your
       <version>{{ site.release_latest }}</version>
       <scope>runtime</scope>
     </dependency>
+
+Similarly in Python, if you are using PyPI and want to use the SDK for Python with
+`DirectRunner`, add the following requirement to your `setup.py` file:
+
+    apache-beam=={{ site.release_latest }}
 
 Additionally, you may want to depend on additional SDK modules, such as IO
 connectors or other extensions, and additional runners to execute your pipeline
