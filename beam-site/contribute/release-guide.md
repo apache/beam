@@ -75,7 +75,7 @@ This will list your GPG keys. One of these should reflect your Apache account, f
 
 Here, the key ID is the 8-digit hex string in the `pub` line: `845E6689`.
 
-Now, add your Apache GPG key to the Beam’s `KEYS` file both in [`dev`](https://dist.apache.org/repos/dist/dev/beam/KEYS) and [`release`](https://dist.apache.org/repos/dist/release/beam/KEYS) repositories at `dist.apache.org`. Follow the instructions listed at the top of these files.
+Now, add your Apache GPG key to the Beam’s `KEYS` file both in [`dev`](https://dist.apache.org/repos/dist/dev/beam/KEYS) and [`release`](https://dist.apache.org/repos/dist/release/beam/KEYS) repositories at `dist.apache.org`. Follow the instructions listed at the top of these files. (Note: Only PMC members have write access to the release repository. If you end up getting 403 errors ask on the mailing list for assistance.)
 
 Configure `git` to use this key when signing code by giving it your key ID, as follows:
 
@@ -118,6 +118,10 @@ Configure access to the [Apache Nexus repository](http://repository.apache.org/)
 
 Get ready for updating the Beam website by following the [website development instructions]({{ site.baseurl }}/contribute/contribution-guide/#website).
 
+#### Register to PyPI
+
+Release manager needs to have an account with PyPI. If you need one, [register](https://pypi.python.org/pypi?%3Aaction=register_form) at PyPI. You also need to be a maintainer (or an owner) of the [apache-beam](https://pypi.python.org/pypi/apache-beam) package in order to push a new release. Ask on the mailing list for assistance.
+
 ### Create a new version in JIRA
 
 When contributors resolve an issue in JIRA, they are tagging it with a release that will contain their changes. With the release currently underway, new issues should be resolved against a subsequent future release. Therefore, you should create a release item for this subsequent release, as follows:
@@ -152,7 +156,7 @@ Adjust any of the above properties to the improve clarity and presentation of th
 
 ### Verify that a Release Build Works
 
-Run `mvn -Prelease` to ensure that the build processes that are specific to that
+Run `mvn -Prelease clean install` to ensure that the build processes that are specific to that
 profile are in good shape.
 
 ### Update and Verify Javadoc
@@ -210,6 +214,19 @@ Check out the release branch.
 
 The rest of this guide assumes that commands are run in the root of a repository on `${BRANCH_NAME}` with the above environment variables set.
 
+### Update the Python SDK version
+
+In the master branch, update Python SDK [version](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/version.py) identifier to the next development version (e.g. `1.2.3.dev` to `1.3.0.dev`).
+
+In the release branch, update the Python SDK version to the release version (e.g. `1.2.3.dev` to `1.2.3`).
+
+### Update release specific configurations
+
+1. Update archetypes:
+   [example](https://github.com/apache/beam/commit/d375cfa126fd7be9eeeec34f39c2b9b856f324bf)
+1. Update runner specific configurations:
+   [example](https://github.com/apache/beam/commit/f572328ce23e70adee8001e3d10f1479bd9a380d)
+
 ### Checklist to proceed to the next step
 
 1. Release Manager’s GPG key is published to `dist.apache.org`
@@ -263,13 +280,22 @@ Copy the source release to the dev repository of `dist.apache.org`.
 1. Make a directory for the new release:
 
         mkdir beam/${VERSION}
+        cd beam/${VERSION}
 
 1. Copy and rename the Beam source distribution, hashes, and GPG signature:
 
-        cp ${BEAM_ROOT}/target/beam-parent-${VERSION}-source-release.zip beam/${VERSION}/apache-beam-${VERSION}-source-release.zip
-        cp ${BEAM_ROOT}/target/beam-parent-${VERSION}-source-release.zip.asc beam/${VERSION}/apache-beam-${VERSION}-source-release.zip.asc
-        cp ${BEAM_ROOT}/target/beam-parent-${VERSION}-source-release.zip.md5 beam/${VERSION}/apache-beam-${VERSION}-source-release.zip.md5
-        cp ${BEAM_ROOT}/target/beam-parent-${VERSION}-source-release.zip.sha1 beam/${VERSION}/apache-beam-${VERSION}-source-release.zip.sha1
+        cp ${BEAM_ROOT}/target/apache-beam-${VERSION}-source-release.zip .
+        cp ${BEAM_ROOT}/target/apache-beam-${VERSION}-source-release.zip.asc .
+        cp ${BEAM_ROOT}/sdks/python/target/apache-beam-${VERSION}.zip
+        apache-beam-${VERSION}-python.zip
+
+1. Create hashes for source files and sign the python source file file
+
+        sha1sum apache-beam-${VERSION}.tar.gz > apache-beam-${VERSION}.tar.gz.sha1
+        md5sum apache-beam-${VERSION}.tar.gz > apache-beam-${VERSION}.tar.gz.md5
+        gpg --armor --detach-sig apache-beam-${VERSION}-python.zip
+        sha1sum apache-beam-${VERSION}-python.zip > apache-beam-${VERSION}-python.zip.sha1
+        md5sum apache-beam-${VERSION}-python.zip > apache-beam-${VERSION}-python.zip.md5
 
 1. Add and commit all the files.
 
@@ -282,7 +308,7 @@ Copy the source release to the dev repository of `dist.apache.org`.
 
 Create the Python SDK documentation using sphinx by running a helper script.
 ```
-cd sdks/python && ./generate_pydoc.sh
+cd sdks/python && tox -e docs
 ```
 By default the Pydoc is generated in `sdks/python/target/docs/_build`. Let `${PYDOC_ROOT}` be the absolute path to `_build`.
 
@@ -301,14 +327,15 @@ candidate into the source tree of the website.
 Add the new Javadoc to [SDK API Reference page]({{ site.baseurl }}/documentation/sdks/javadoc/) page, as follows:
 
 * Unpack the Maven artifact `org.apache.beam:beam-sdks-java-javadoc` into some temporary location. Call this `${JAVADOC_TMP}`.
-* Copy the generated Javadoc into the website repository: `cp -r ${JAVADOC_TMP} documentation/sdks/javadoc/${VERSION}`.
+* Copy the generated Javadoc into the website repository: `cp -r ${JAVADOC_TMP} src/documentation/sdks/javadoc/${VERSION}`.
 * Set up the necessary git commands to account for the new and deleted files from the javadoc.
 * Update the Javadoc link on this page to point to the new version (in `src/documentation/sdks/javadoc/current.md`).
 
 #### Create Pydoc
 Add the new Pydoc to [SDK API Reference page]({{ site.baseurl }}/documentation/sdks/pydoc/) page, as follows:
 
-* Copy the generated Pydoc into the website repository: `cp -r ${PYDOC_ROOT} documentation/sdks/pydoc/${VERSION}`.
+* Copy the generated Pydoc into the website repository: `cp -r ${PYDOC_ROOT} src/documentation/sdks/pydoc/${VERSION}`.
+* Remove `.doctrees` directory.
 * Update the Pydoc link on this page to point to the new version (in `src/documentation/sdks/pydoc/current.md`).
 
 Finally, propose a pull request with these changes. (Don’t merge before finalizing the release.)
@@ -318,6 +345,13 @@ Finally, propose a pull request with these changes. (Don’t merge before finali
 1. Maven artifacts deployed to the staging repository of [repository.apache.org](https://repository.apache.org/content/repositories/)
 1. Source distribution deployed to the dev repository of [dist.apache.org](https://dist.apache.org/repos/dist/dev/beam/)
 1. Website pull request proposed to list the [release]({{ site.baseurl }}/use/releases/), publish the [Java API reference manual]({{ site.baseurl }}/documentation/sdks/javadoc/), and publish the [Python API reference manual]({{ site.baseurl }}/documentation/sdks/pydoc/).
+
+You can (optionally) also do additional verification by:
+1. Check that Python zip file contains the `README.md`, `NOTICE`, and `LICENSE` files.
+1. Check hashes (e.g. `md5sum -c *.md5` and `sha1sum -c *.sha1`)
+1. Check signatures (e.g. `gpg --verify apache-beam-1.2.3-python.zip.asc apache-beam-1.2.3-python.zip`)
+1. `grep` for legal headers in each file.
+1. Run all jenkins suites and include links to passing tests in the voting email. (Select "Run with parameters")
 
 **********
 
@@ -343,6 +377,7 @@ Start the review-and-vote thread on the dev@ mailing list. Here’s an email tem
     * all artifacts to be deployed to the Maven Central Repository [4],
     * source code tag "v1.2.3-RC3" [5],
     * website pull request listing the release and publishing the API reference manual [6].
+    * Python artifacts are deployed along with the source release to the dist.apache.org [2]. 
 
     The vote will be open for at least 72 hours. It is adopted by majority approval, with at least 3 PMC affirmative votes.
 
@@ -404,6 +439,13 @@ Once the release candidate has been reviewed and approved by the community, the 
 
 Use the Apache Nexus repository to release the staged binary artifacts to the Maven Central repository. In the `Staging Repositories` section, find the relevant release candidate `orgapachebeam-XXX` entry and click `Release`. Drop all other release candidates that are not being released.
 
+### Deploy Python artifacts to PyPI
+
+1. Create a new release and upload the Python zip file for the new release using the [PyPI UI] (https://pypi.python.org/pypi/apache-beam)
+1. Alternatively, use the command line tool to upload the new release `twine upload apache-beam-${VERSION}.zip`
+
+Note: It is important to rename `apache-beam-${VERSION}-python.zip` to `apache-beam-${VERSION}.zip` before uploading, because PyPI expects a filename in the `<package-name>-<package-version>` format.
+
 #### Deploy source release to dist.apache.org
 
 Copy the source release from the `dev` repository to the `release` repository at `dist.apache.org` using Subversion.
@@ -426,9 +468,10 @@ In JIRA, inside [version management](https://issues.apache.org/jira/plugins/serv
 
 * Maven artifacts released and indexed in the [Maven Central Repository](https://search.maven.org/#search%7Cga%7C1%7Cg%3A%22org.apache.beam%22)
 * Source distribution available in the release repository of [dist.apache.org](https://dist.apache.org/repos/dist/release/beam/)
+* Source distribution removed from the dev repository of [dist.apache.org](https://dist.apache.org/repos/dist/dev/beam/)
 * Website pull request to [list the release]({{ site.baseurl }}/use/releases/) and publish the [API reference manual]({{ site.baseurl }}/documentation/sdks/javadoc/) merged
 * Release tagged in the source code repository
-* Release version finalized in JIRA
+* Release version finalized in JIRA. (Note: Not all committers have administrator access to JIRA. If you end up getting permissions errors ask on the mailing list for assistance.)
 
 **********
 
