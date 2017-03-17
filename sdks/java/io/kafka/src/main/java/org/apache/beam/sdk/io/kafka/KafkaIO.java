@@ -31,6 +31,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import com.google.common.io.Closeables;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -51,7 +52,9 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+
 import javax.annotation.Nullable;
+
 import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
@@ -428,6 +431,7 @@ public class KafkaIO {
       checkNotNull(getValueCoder(), "Value coder must be set");
     }
 
+    @Override
     public PCollection<KafkaRecord<K, V>> expand(PBegin input) {
      // Handles unbounded source to bounded conversion if maxNumRecords or maxReadTime is set.
       Unbounded<KafkaRecord<K, V>> unbounded =
@@ -458,6 +462,7 @@ public class KafkaIO {
     private static <KeyT, ValueT, OutT> SerializableFunction<KafkaRecord<KeyT, ValueT>, OutT>
     unwrapKafkaAndThen(final SerializableFunction<KV<KeyT, ValueT>, OutT> fn) {
       return new SerializableFunction<KafkaRecord<KeyT, ValueT>, OutT>() {
+        @Override
         public OutT apply(KafkaRecord<KeyT, ValueT> record) {
           return fn.apply(record.getKV());
         }
@@ -499,6 +504,7 @@ public class KafkaIO {
     private static final SerializableFunction<Map<String, Object>, Consumer<byte[], byte[]>>
       KAFKA_CONSUMER_FACTORY_FN =
         new SerializableFunction<Map<String, Object>, Consumer<byte[], byte[]>>() {
+          @Override
           public Consumer<byte[], byte[]> apply(Map<String, Object> config) {
             return new KafkaConsumer<>(config);
           }
@@ -627,6 +633,7 @@ public class KafkaIO {
       }
 
       Collections.sort(partitions, new Comparator<TopicPartition>() {
+        @Override
         public int compare(TopicPartition tp1, TopicPartition tp2) {
           return ComparisonChain
               .start()
@@ -750,6 +757,7 @@ public class KafkaIO {
     /** watermark before any records have been read. */
     private static Instant initialWatermark = new Instant(Long.MIN_VALUE);
 
+    @Override
     public String toString() {
       return name;
     }
@@ -800,13 +808,14 @@ public class KafkaIO {
     public UnboundedKafkaReader(
         UnboundedKafkaSource<K, V> source,
         @Nullable KafkaCheckpointMark checkpointMark) {
-
+      this.consumerSpEL = new ConsumerSpEL();
       this.source = source;
       this.name = "Reader-" + source.id;
 
       List<TopicPartition> partitions = source.spec.getTopicPartitions();
       partitionStates = ImmutableList.copyOf(Lists.transform(partitions,
           new Function<TopicPartition, PartitionState>() {
+            @Override
             public PartitionState apply(TopicPartition tp) {
               return new PartitionState(tp, UNINITIALIZED_OFFSET);
             }
@@ -886,7 +895,6 @@ public class KafkaIO {
 
     @Override
     public boolean start() throws IOException {
-      this.consumerSpEL = new ConsumerSpEL();
       Read<K, V> spec = source.spec;
       consumer = spec.getConsumerFactoryFn().apply(spec.getConsumerConfig());
       consumerSpEL.evaluateAssign(consumer, spec.getTopicPartitions());
@@ -909,6 +917,7 @@ public class KafkaIO {
       // Note that consumer is not thread safe, should not be accessed out side consumerPollLoop().
       consumerPollThread.submit(
           new Runnable() {
+            @Override
             public void run() {
               consumerPollLoop();
             }
@@ -929,6 +938,7 @@ public class KafkaIO {
 
       offsetFetcherThread.scheduleAtFixedRate(
           new Runnable() {
+            @Override
             public void run() {
               updateLatestOffsets();
             }
@@ -986,11 +996,13 @@ public class KafkaIO {
               rawRecord.topic(),
               rawRecord.partition(),
               rawRecord.offset(),
+              consumerSpEL.getEventTimestamp(rawRecord),
               decode(rawRecord.key(), source.spec.getKeyCoder()),
               decode(rawRecord.value(), source.spec.getValueCoder()));
 
           curTimestamp = (source.spec.getTimestampFn() == null)
-              ? Instant.now() : source.spec.getTimestampFn().apply(record);
+              ? new Instant(record.getTimestamp())
+                  : source.spec.getTimestampFn().apply(record);
           curRecord = record;
 
           int recordSize = (rawRecord.key() == null ? 0 : rawRecord.key().length)
@@ -1059,6 +1071,7 @@ public class KafkaIO {
       return new KafkaCheckpointMark(ImmutableList.copyOf(// avoid lazy (consumedOffset can change)
           Lists.transform(partitionStates,
               new Function<PartitionState, PartitionMark>() {
+                @Override
                 public PartitionMark apply(PartitionState p) {
                   return new PartitionMark(p.topicPartition.topic(),
                                            p.topicPartition.partition(),
