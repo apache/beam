@@ -28,6 +28,7 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -109,6 +110,12 @@ public class PubsubTestClient extends PubsubClient implements Serializable {
      */
     @Nullable
     Map<String, Long> ackDeadline;
+
+    /**
+     * Pull mode only: Messages which have previously been acked.
+     */
+    @Nullable
+    Set<String> acked;
   }
 
   private static final State STATE = new State();
@@ -178,6 +185,7 @@ public class PubsubTestClient extends PubsubClient implements Serializable {
       STATE.remainingPendingIncomingMessages = Lists.newArrayList(expectedIncomingMessages);
       STATE.pendingAckIncomingMessages = new HashMap<>();
       STATE.ackDeadline = new HashMap<>();
+      STATE.acked = new HashSet<>();
       STATE.isActive = true;
     }
     return new PubsubTestClientFactory() {
@@ -352,10 +360,17 @@ public class PubsubTestClient extends PubsubClient implements Serializable {
                  STATE.expectedSubscription);
 
       for (String ackId : ackIds) {
-        checkState(STATE.ackDeadline.remove(ackId) != null,
-                   "No message with ACK id %s is waiting for an ACK", ackId);
-        checkState(STATE.pendingAckIncomingMessages.remove(ackId) != null,
-                   "No message with ACK id %s is waiting for an ACK", ackId);
+        // Messages can be acked more than once. If a message has previously been ACKed, ignore it
+        boolean acked = STATE.acked.contains(ackId);
+        if (!acked) {
+          checkState(STATE.ackDeadline.remove(ackId) != null,
+              "No message with ACK id %s is waiting for an ACK",
+              ackId);
+          checkState(STATE.pendingAckIncomingMessages.remove(ackId) != null,
+              "No message with ACK id %s is waiting for an ACK",
+              ackId);
+          STATE.acked.add(ackId);
+        }
       }
     }
   }
