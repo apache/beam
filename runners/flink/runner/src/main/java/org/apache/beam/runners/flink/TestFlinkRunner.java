@@ -17,6 +17,14 @@
  */
 package org.apache.beam.runners.flink;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.contains;
+import static org.hamcrest.core.IsEqual.equalTo;
+
+import java.util.Collection;
+import java.util.Collections;
+import org.apache.beam.sdk.AggregatorRetrievalException;
+import org.apache.beam.sdk.AggregatorValues;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.Pipeline.PipelineExecutionException;
 import org.apache.beam.sdk.PipelineResult;
@@ -24,6 +32,7 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.PipelineOptionsValidator;
 import org.apache.beam.sdk.runners.PipelineRunner;
+import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.util.UserCodeException;
 
 /**
@@ -55,7 +64,9 @@ public class TestFlinkRunner extends PipelineRunner<PipelineResult> {
   @Override
   public PipelineResult run(Pipeline pipeline) {
     try {
-      return delegate.run(pipeline);
+      FlinkRunnerResult result = (FlinkRunnerResult) delegate.run(pipeline);
+      assertAssertionCounters(pipeline, result);
+      return result;
     } catch (Throwable t) {
       // Special case hack to pull out assertion errors from PAssert; instead there should
       // probably be a better story along the lines of UserCodeException.
@@ -78,6 +89,30 @@ public class TestFlinkRunner extends PipelineRunner<PipelineResult> {
 
   public PipelineOptions getPipelineOptions() {
     return delegate.getPipelineOptions();
+  }
+
+  private void assertAssertionCounters(Pipeline pipeline, FlinkRunnerResult result) {
+    int expectedNumberOfAssertions = PAssert.countAsserts(pipeline);
+    Collection<Integer> succeededAssertions = Collections.singleton(0);
+    try {
+      AggregatorValues<Integer> succeededAssertionsValues = result
+          .getAggregatorValues(PAssert.SUCCESS_COUNTER);
+      succeededAssertions = succeededAssertionsValues.getValuesAtSteps().values();
+    } catch (AggregatorRetrievalException e) {
+      // No assertions registered will cause an AggregatorRetrievalException here.
+    }
+    Collection<Integer> failedAssertions = Collections.singleton(0);
+    try {
+      AggregatorValues<Integer> failedAssertionsValues = result
+          .getAggregatorValues(PAssert.FAILURE_COUNTER);
+      failedAssertions = failedAssertionsValues.getValuesAtSteps().values();
+    } catch (AggregatorRetrievalException e) {
+      // No assertions registered will cause an AggregatorRetrievalException here.
+    }
+    assertThat(succeededAssertions.size(), equalTo(1));
+    assertThat(succeededAssertions, contains(expectedNumberOfAssertions));
+    assertThat(failedAssertions.size(), equalTo(1));
+    assertThat(failedAssertions, contains(0));
   }
 }
 

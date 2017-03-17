@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.flink;
 
+import com.google.common.collect.ImmutableMap;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.Map;
@@ -53,13 +54,18 @@ public class FlinkRunnerResult implements PipelineResult {
   @Override
   public <T> AggregatorValues<T> getAggregatorValues(final Aggregator<?, T> aggregator)
       throws AggregatorRetrievalException {
+    return getAggregatorValues(aggregator.getName());
+  }
+
+  @SuppressWarnings("unchecked")
+  public <T> AggregatorValues<T> getAggregatorValues(String name)
+      throws AggregatorRetrievalException {
     // TODO provide a list of all accumulator step values
-    Object value = aggregators.get(aggregator.getName());
+    final T value = (T) aggregators.get(name);
     if (value != null) {
       return new AggregatorValues<T>() {
-        @Override
-        public Map<String, T> getValuesAtSteps() {
-          return (Map<String, T>) aggregators;
+        @Override public Map<String, T> getValuesAtSteps() {
+          return ImmutableMap.of("all", value);
         }
       };
     } else {
