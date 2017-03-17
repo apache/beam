@@ -16,5 +16,4 @@
 #    limitations under the License.
 #
 
-kubectl delete service postgres-no-pv
-kubectl delete pod postgres-no-pv
+kubectl delete -f ./sdks/java/io/jdbc/src/test/resources/kubernetes/postgres.yml

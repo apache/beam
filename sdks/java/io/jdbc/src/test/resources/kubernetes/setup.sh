@@ -16,5 +16,4 @@
 #    limitations under the License.
 #
 
-kubectl create -f postgres-pod-no-vol.yml
-kubectl create -f postgres-service-public.yml
+kubectl create -f ./sdks/java/io/jdbc/src/test/resources/kubernetes/postgres.yml

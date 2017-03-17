@@ -13,16 +13,44 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 
+
 apiVersion: v1
 kind: Service
 metadata:
-  name: postgres-no-pv
+  name: postgres
   labels:
-    name: postgres-no-pv
+    name: postgres
 spec:
   ports:
     - port: 5432
       nodePort: 31234
   selector:
-    name: postgres-no-pv
+    name: postgres
   type: NodePort
+
+---
+
+apiVersion: v1
+kind: ReplicationController
+metadata:
+  name: postgres
+spec:
+  replicas: 1
+  selector:
+    name: postgres
+  template:
+    metadata:
+      name: postgres
+      labels:
+        name: postgres
+    spec:
+      containers:
+        - name: postgres
+          image: postgres
+          env:
+            - name: POSTGRES_PASSWORD
+              value: uuinkks
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+          ports:
+            - containerPort: 5432
