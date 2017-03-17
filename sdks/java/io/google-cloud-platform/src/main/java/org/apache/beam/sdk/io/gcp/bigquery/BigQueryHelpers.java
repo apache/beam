@@ -1,4 +1,24 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package org.apache.beam.sdk.io.gcp.bigquery;
+
+import static com.google.common.base.Preconditions.checkState;
 
 import com.google.api.services.bigquery.model.Job;
 import com.google.api.services.bigquery.model.JobStatus;
@@ -14,16 +34,34 @@ import java.util.UUID;
 import java.util.regex.Matcher;
 import javax.annotation.Nullable;
 
-import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Status;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.NestedValueProvider;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 
-
 /**
  * A set of helper functions and classes used by {@link BigQueryIO}.
  */
-public class BigQueryHelpers {
+class BigQueryHelpers {
+  private static final String RESOURCE_NOT_FOUND_ERROR =
+      "BigQuery %1$s not found for table \"%2$s\" . Please create the %1$s before pipeline"
+          + " execution. If the %1$s is created by an earlier stage of the pipeline, this"
+          + " validation can be disabled using #withoutValidation.";
+
+  private static final String UNABLE_TO_CONFIRM_PRESENCE_OF_RESOURCE_ERROR =
+      "Unable to confirm BigQuery %1$s presence for table \"%2$s\". If the %1$s is created by"
+          + " an earlier stage of the pipeline, this validation can be disabled using"
+          + " #withoutValidation.";
+
+  /**
+   * Status of a BigQuery job or request.
+   */
+  enum Status {
+    SUCCEEDED,
+    FAILED,
+    UNKNOWN,
+  }
+
   @Nullable
   /**
    * Return a displayable string representation for a {@link TableReference}.
@@ -136,6 +174,26 @@ public class BigQueryHelpers {
    */
   static String randomUUIDString() {
     return UUID.randomUUID().toString().replaceAll("-", "");
+  }
+
+  static void verifyTableNotExistOrEmpty(
+      DatasetService datasetService,
+      TableReference tableRef) {
+    try {
+      if (datasetService.getTable(tableRef) != null) {
+        checkState(
+            datasetService.isTableEmpty(tableRef),
+            "BigQuery table is not empty: %s.",
+            toTableSpec(tableRef));
+      }
+    } catch (IOException | InterruptedException e) {
+      if (e instanceof InterruptedException) {
+        Thread.currentThread().interrupt();
+      }
+      throw new RuntimeException(
+          "unable to confirm BigQuery table emptiness for table "
+              + toTableSpec(tableRef), e);
+    }
   }
 
   @VisibleForTesting
