@@ -46,10 +46,10 @@ import org.slf4j.LoggerFactory;
 /**
  * {@link ParDo.BoundMulti} is translated to {@link ApexParDoOperator} that wraps the {@link DoFn}.
  */
-class ParDoBoundMultiTranslator<InputT, OutputT>
+class ParDoTranslator<InputT, OutputT>
     implements TransformTranslator<ParDo.BoundMulti<InputT, OutputT>> {
   private static final long serialVersionUID = 1L;
-  private static final Logger LOG = LoggerFactory.getLogger(ParDoBoundMultiTranslator.class);
+  private static final Logger LOG = LoggerFactory.getLogger(ParDoTranslator.class);
 
   @Override
   public void translate(ParDo.BoundMulti<InputT, OutputT> transform, TranslationContext context) {

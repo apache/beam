@@ -54,7 +54,6 @@ import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.ParDo.BoundMulti;
 import org.apache.beam.sdk.transforms.View.CreatePCollectionView;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -333,23 +332,10 @@ public class DirectRunner extends PipelineRunner<DirectPipelineResult> {
         .put(
             PTransformMatchers.classEqualTo(TestStream.class),
             new DirectTestStreamFactory(this)) /* primitive */
-        /* Single-output ParDos are implemented in terms of Multi-output ParDos. Any override
-        that is applied to a multi-output ParDo must first have all matching Single-output ParDos
-        converted to match.
-         */
-        .put(PTransformMatchers.splittableParDoSingle(), new ParDoSingleViaMultiOverrideFactory())
-        .put(PTransformMatchers.stateOrTimerParDoSingle(), new ParDoSingleViaMultiOverrideFactory())
-        // SplittableParMultiDo is implemented in terms of nonsplittable single ParDos
+        // SplittableParDo is implemented in terms of GroupByKeys and Primitives
         .put(PTransformMatchers.splittableParDoMulti(), new ParDoMultiOverrideFactory())
-        // state and timer pardos are implemented in terms of nonsplittable single ParDos
+        // state and timer ParDos are implemented in terms of GroupByKeys and Primitives
         .put(PTransformMatchers.stateOrTimerParDoMulti(), new ParDoMultiOverrideFactory())
-        .put(
-            PTransformMatchers.classEqualTo(ParDo.Bound.class),
-            new ParDoSingleViaMultiOverrideFactory()) /* returns a BoundMulti */
-        .put(
-            PTransformMatchers.classEqualTo(BoundMulti.class),
-            /* returns one of two primitives; SplittableParDos are replaced above. */
-            new ParDoMultiOverrideFactory())
         .put(
             PTransformMatchers.classEqualTo(GBKIntoKeyedWorkItems.class),
             new DirectGBKIntoKeyedWorkItemsOverrideFactory()) /* Returns a GBKO */
