@@ -92,6 +92,12 @@ members:
     organization: PayPal
     roles: committer
     time_zone: "+2"
+  - name: Ismaël Mejía
+    apache_id: iemejia
+    email: iemejia [at] apache [dot] org
+    organization: Talend
+    roles: committer
+    time_zone: "+1"
   - name: Maximilian Michels
     apache_id: mxm
     email: mxm [at] apache [dot] org
