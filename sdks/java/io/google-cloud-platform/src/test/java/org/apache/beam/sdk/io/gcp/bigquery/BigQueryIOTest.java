@@ -102,14 +102,10 @@ import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.CountingInput;
 import org.apache.beam.sdk.io.CountingSource;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.JsonSchemaToTableSchema;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.Status;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.TableSpecToTableRef;
-import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Status;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
-import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.TableRowWriter;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.WriteDisposition;
-import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.WritePartition;
-import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.WriteRename;
-import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.WriteTables;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.JobService;
 import org.apache.beam.sdk.io.gcp.bigquery.PassThroughThenCleanup.CleanupOperation;
@@ -654,7 +650,9 @@ public class BigQueryIOTest implements Serializable {
 
   @Rule public final transient TestPipeline p = TestPipeline.create();
   @Rule public transient ExpectedException thrown = ExpectedException.none();
-  @Rule public transient ExpectedLogs logged = ExpectedLogs.none(BigQueryIO.class);
+  @Rule public transient ExpectedLogs loggedBigQueryIO = ExpectedLogs.none(BigQueryIO.class);
+  @Rule public transient ExpectedLogs loggedWriteRename = ExpectedLogs.none(WriteRename.class);
+  @Rule public transient ExpectedLogs loggedWriteTables = ExpectedLogs.none(WriteTables.class);
   @Rule public transient TemporaryFolder testFolder = new TemporaryFolder();
   @Mock(extraInterfaces = Serializable.class)
   public transient BigQueryServices.JobService mockJobService;
@@ -1577,7 +1575,7 @@ public class BigQueryIOTest implements Serializable {
 
   @Test
   public void testStreamingWriteFnCreateNever() throws Exception {
-    BigQueryIO.StreamingWriteFn fn = new BigQueryIO.StreamingWriteFn(
+    StreamingWriteFn fn = new StreamingWriteFn(
         null, CreateDisposition.CREATE_NEVER, null, new FakeBigQueryServices());
     assertEquals(BigQueryHelpers.parseTableSpec("dataset.table"),
         fn.getOrCreateTable(null, "dataset.table"));
@@ -2230,9 +2228,9 @@ public class BigQueryIOTest implements Serializable {
     testNumFiles(tempDir, 0);
 
     for (String fileName : fileNames) {
-      logged.verifyDebug("Removing file " + fileName);
+      loggedWriteTables.verifyDebug("Removing file " + fileName);
     }
-    logged.verifyDebug(fileNames.get(numFiles) + " does not exist.");
+    loggedWriteTables.verifyDebug(fileNames.get(numFiles) + " does not exist.");
   }
 
   @Test
@@ -2297,11 +2295,14 @@ public class BigQueryIOTest implements Serializable {
     WriteRename.removeTemporaryTables(mockDatasetService, tableRefs);
 
     for (TableReference ref : tableRefs) {
-      logged.verifyDebug("Deleting table " + toJsonString(ref));
+      loggedWriteRename.verifyDebug("Deleting table " + toJsonString(ref));
     }
-    logged.verifyWarn("Failed to delete the table " + toJsonString(tableRefs.get(0)));
-    logged.verifyNotLogged("Failed to delete the table " + toJsonString(tableRefs.get(1)));
-    logged.verifyNotLogged("Failed to delete the table " + toJsonString(tableRefs.get(2)));
+    loggedWriteRename.verifyWarn("Failed to delete the table "
+        + toJsonString(tableRefs.get(0)));
+    loggedWriteRename.verifyNotLogged("Failed to delete the table "
+        + toJsonString(tableRefs.get(1)));
+    loggedWriteRename.verifyNotLogged("Failed to delete the table "
+        + toJsonString(tableRefs.get(2)));
   }
 
   /** Test options. **/
@@ -2367,8 +2368,8 @@ public class BigQueryIOTest implements Serializable {
   public void testTagWithUniqueIdsAndTableProjectNotNullWithNvp() {
     BigQueryOptions bqOptions = PipelineOptionsFactory.as(BigQueryOptions.class);
     bqOptions.setProject("project");
-    BigQueryIO.TagWithUniqueIdsAndTable<TableRow> tag =
-        new BigQueryIO.TagWithUniqueIdsAndTable<TableRow>(
+    TagWithUniqueIdsAndTable<TableRow> tag =
+        new TagWithUniqueIdsAndTable<TableRow>(
             bqOptions, NestedValueProvider.of(
                 StaticValueProvider.of("data_set.table_name"),
                 new TableSpecToTableRef()), null, null);
@@ -2423,12 +2424,12 @@ public class BigQueryIOTest implements Serializable {
 
   @Test
   public void testShardedKeyCoderIsSerializableWithWellKnownCoderType() {
-    CoderProperties.coderSerializable(BigQueryIO.ShardedKeyCoder.of(GlobalWindow.Coder.INSTANCE));
+    CoderProperties.coderSerializable(ShardedKeyCoder.of(GlobalWindow.Coder.INSTANCE));
   }
 
   @Test
   public void testTableRowInfoCoderSerializable() {
-    CoderProperties.coderSerializable(BigQueryIO.TableRowInfoCoder.of());
+    CoderProperties.coderSerializable(TableRowInfoCoder.of());
   }
 
   @Test
@@ -2436,8 +2437,8 @@ public class BigQueryIOTest implements Serializable {
     CoderProperties.coderSerializable(
         WindowedValue.getFullCoder(
             KvCoder.of(
-                BigQueryIO.ShardedKeyCoder.of(StringUtf8Coder.of()),
-                BigQueryIO.TableRowInfoCoder.of()),
+                ShardedKeyCoder.of(StringUtf8Coder.of()),
+                TableRowInfoCoder.of()),
             IntervalWindow.getCoder()));
   }
 }
