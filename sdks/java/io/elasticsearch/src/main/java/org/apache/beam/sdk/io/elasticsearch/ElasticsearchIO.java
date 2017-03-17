@@ -68,6 +68,7 @@ import org.elasticsearch.client.RestClientBuilder;
 
 /**
  * Transforms for reading and writing data from/to Elasticsearch.
+ * This IO is only compatible with Elasticsearch v2.x
  *
  * <h3>Reading from Elasticsearch</h3>
  *
@@ -182,8 +183,10 @@ public class ElasticsearchIO {
      * @param index the index toward which the requests will be issued
      * @param type the document type toward which the requests will be issued
      * @return the connection configuration object
+     * @throws IOException when it fails to connect to Elasticsearch
      */
-    public static ConnectionConfiguration create(String[] addresses, String index, String type) {
+    public static ConnectionConfiguration create(String[] addresses, String index, String type)
+        throws IOException {
       checkArgument(
           addresses != null,
           "ConnectionConfiguration.create(addresses, index, type) called with null address");
@@ -197,11 +200,29 @@ public class ElasticsearchIO {
       checkArgument(
           type != null,
           "ConnectionConfiguration.create(addresses, index, type) called with null type");
-      return new AutoValue_ElasticsearchIO_ConnectionConfiguration.Builder()
-          .setAddresses(Arrays.asList(addresses))
-          .setIndex(index)
-          .setType(type)
-          .build();
+      ConnectionConfiguration connectionConfiguration =
+          new AutoValue_ElasticsearchIO_ConnectionConfiguration.Builder()
+              .setAddresses(Arrays.asList(addresses))
+              .setIndex(index)
+              .setType(type)
+              .build();
+      checkVersion(connectionConfiguration);
+      return connectionConfiguration;
+    }
+
+    private static void checkVersion(ConnectionConfiguration connectionConfiguration)
+        throws IOException {
+      RestClient restClient = connectionConfiguration.createClient();
+      Response response = restClient.performRequest("GET", "", new BasicHeader("", ""));
+      JsonNode jsonNode = parseResponse(response);
+      String version = jsonNode.path("version").path("number").asText();
+      boolean version2x = version.startsWith("2.");
+      restClient.close();
+      checkArgument(
+          version2x,
+          "ConnectionConfiguration.create(addresses, index, type): "
+              + "the Elasticsearch version to connect to is different of 2.x. "
+              + "This version of the ElasticsearchIO is only compatible with Elasticsearch v2.x");
     }
 
     /**

@@ -87,9 +87,6 @@ public class ElasticsearchIOTest implements Serializable {
     ServerSocket serverSocket = new ServerSocket(0);
     int esHttpPort = serverSocket.getLocalPort();
     serverSocket.close();
-    connectionConfiguration =
-        ElasticsearchIO.ConnectionConfiguration.create(
-            new String[] {"http://" + ES_IP + ":" + esHttpPort}, ES_INDEX, ES_TYPE);
     LOG.info("Starting embedded Elasticsearch instance ({})", esHttpPort);
     Settings.Builder settingsBuilder =
         Settings.settingsBuilder()
@@ -108,6 +105,9 @@ public class ElasticsearchIOTest implements Serializable {
     node = NodeBuilder.nodeBuilder().settings(settingsBuilder).build();
     LOG.info("Elasticsearch node created");
     node.start();
+    connectionConfiguration =
+      ElasticsearchIO.ConnectionConfiguration.create(
+        new String[] {"http://" + ES_IP + ":" + esHttpPort}, ES_INDEX, ES_TYPE);
   }
 
   @AfterClass
