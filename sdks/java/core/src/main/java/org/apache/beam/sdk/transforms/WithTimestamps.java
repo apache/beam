@@ -92,7 +92,11 @@ public class WithTimestamps<T> extends PTransform<PCollection<T>, PCollection<T>
    * duration that timestamps can be shifted backwards from the timestamp of the input element.
    *
    * @see DoFn#getAllowedTimestampSkew()
+   * @deprecated This method permits a elements to be timestamped behind the watermark. These
+   *     elements are considered late, and if behind the {@link Window#withAllowedLateness(Duration)
+   *     allowed lateness} of a downstream {@link PCollection} may be silently dropped.
    */
+  @Deprecated
   public Duration getAllowedTimestampSkew() {
     return allowedTimestampSkew;
   }

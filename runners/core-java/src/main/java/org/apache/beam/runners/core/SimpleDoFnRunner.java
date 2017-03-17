@@ -575,6 +575,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
       return windowedValue.getWindows();
     }
 
+    @SuppressWarnings("deprecation") // Allowed Skew is deprecated for users, but must be respected
     private void checkTimestamp(Instant timestamp) {
       // The documentation of getAllowedTimestampSkew explicitly permits Long.MAX_VALUE to be used
       // for infinite skew. Defend against underflow in that case for timestamps before the epoch
