@@ -122,6 +122,15 @@ class PipelineVerifiersTest(unittest.TestCase):
     self.assertTrue(mock_match.called)
     self.assertEqual(verifiers.MAX_RETRIES + 1, mock_match.call_count)
 
+  def test_file_checksum_matchcer_invalid_sleep_time(self):
+    with self.assertRaises(ValueError) as cm:
+      verifiers.FileChecksumMatcher('file_path',
+                                    'expected_checksum',
+                                    'invalid_sleep_time')
+    self.assertEqual(cm.exception.message,
+                     'Sleep seconds, if received, must be int. '
+                     'But received: \'invalid_sleep_time\'')
+
   @patch('time.sleep', return_value=None)
   def test_file_checksum_matcher_sleep_before_verify(self, mocked_sleep):
     temp_dir = tempfile.mkdtemp()

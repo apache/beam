@@ -91,10 +91,18 @@ class FileChecksumMatcher(BaseMatcher):
       sleep_secs : Number of seconds to wait before verification start.
         Extra time are given to make sure output files are ready on FS.
     """
+    if sleep_secs is not None:
+      if isinstance(sleep_secs, int):
+        self.sleep_secs = sleep_secs
+      else:
+        raise ValueError('Sleep seconds, if received, must be int. '
+                         'But received: %r' % sleep_secs)
+    else:
+      self.sleep_secs = None
+
     self.file_path = file_path
     self.file_system = get_filesystem(self.file_path)
     self.expected_checksum = expected_checksum
-    self.sleep_secs = sleep_secs
 
   @retry.with_exponential_backoff(
       num_retries=MAX_RETRIES,

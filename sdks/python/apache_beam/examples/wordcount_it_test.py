@@ -43,11 +43,12 @@ class WordCountIT(unittest.TestCase):
     output = '/'.join([test_pipeline.get_option('output'),
                        test_pipeline.get_option('job_name'),
                        'results'])
-    sleep_secs = int(test_pipeline.get_option('sleep_secs'))
+    arg_sleep_secs = test_pipeline.get_option('sleep_secs')
+    sleep_time = int(arg_sleep_secs) if arg_sleep_secs is not None else None
     pipeline_verifiers = [PipelineStateMatcher(),
                           FileChecksumMatcher(output + '*-of-*',
                                               self.DEFAULT_CHECKSUM,
-                                              sleep_secs)]
+                                              sleep_time)]
     extra_opts = {'output': output,
                   'on_success_matcher': all_of(*pipeline_verifiers)}
 
