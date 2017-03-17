@@ -45,6 +45,7 @@ import org.apache.beam.sdk.metrics.MetricResults;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.runners.PTransformMatcher;
+import org.apache.beam.sdk.runners.PTransformOverride;
 import org.apache.beam.sdk.runners.PTransformOverrideFactory;
 import org.apache.beam.sdk.runners.PipelineRunner;
 import org.apache.beam.sdk.testing.TestStream;
@@ -261,7 +262,7 @@ public class DirectRunner extends PipelineRunner<DirectPipelineResult> {
   public DirectPipelineResult run(Pipeline pipeline) {
     for (Map.Entry<PTransformMatcher, PTransformOverrideFactory> override :
         defaultTransformOverrides().entrySet()) {
-      pipeline.replace(override.getKey(), override.getValue());
+      pipeline.replace(PTransformOverride.of(override.getKey(), override.getValue()));
     }
     MetricsEnvironment.setMetricsSupported(true);
     DirectGraphVisitor graphVisitor = new DirectGraphVisitor();

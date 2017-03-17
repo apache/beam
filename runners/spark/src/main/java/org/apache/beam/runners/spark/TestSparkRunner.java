@@ -42,6 +42,7 @@ import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.io.BoundedReadFromUnboundedSource;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsValidator;
+import org.apache.beam.sdk.runners.PTransformOverride;
 import org.apache.beam.sdk.runners.PTransformOverrideFactory;
 import org.apache.beam.sdk.runners.PipelineRunner;
 import org.apache.beam.sdk.testing.PAssert;
@@ -207,8 +208,9 @@ public final class TestSparkRunner extends PipelineRunner<SparkPipelineResult> {
   @VisibleForTesting
   void adaptBoundedReads(Pipeline pipeline) {
     pipeline.replace(
-        PTransformMatchers.classEqualTo(BoundedReadFromUnboundedSource.class),
-        new AdaptedBoundedAsUnbounded.Factory());
+        PTransformOverride.of(
+            PTransformMatchers.classEqualTo(BoundedReadFromUnboundedSource.class),
+            new AdaptedBoundedAsUnbounded.Factory()));
   }
 
   private static class AdaptedBoundedAsUnbounded<T> extends PTransform<PBegin, PCollection<T>> {
