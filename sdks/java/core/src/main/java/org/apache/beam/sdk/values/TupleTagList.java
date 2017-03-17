@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.values;
 
+import com.google.common.base.MoreObjects;
 import com.google.common.collect.ImmutableList;
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -144,5 +145,10 @@ public class TupleTagList implements Serializable {
 
   TupleTagList(List<TupleTag<?>> tupleTags) {
     this.tupleTags = Collections.unmodifiableList(tupleTags);
+  }
+
+  @Override
+  public String toString() {
+    return MoreObjects.toStringHelper(TupleTagList.class).add("tupleTags", tupleTags).toString();
   }
 }

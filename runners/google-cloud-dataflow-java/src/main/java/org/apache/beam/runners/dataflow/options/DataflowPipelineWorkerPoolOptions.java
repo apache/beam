@@ -205,15 +205,15 @@ public interface DataflowPipelineWorkerPoolOptions extends PipelineOptions {
   void setFilesToStage(List<String> value);
 
   /**
-   * Specifies what type of persistent disk should be used. The value should be a full or partial
-   * URL of a disk type resource, e.g., zones/us-central1-f/disks/pd-standard. For
-   * more information, see the
-   * <a href="https://cloud.google.com/compute/docs/reference/latest/diskTypes">API reference
-   * documentation for DiskTypes</a>.
+   * Specifies what type of persistent disk is used. The value is a full disk type resource,
+   * e.g., compute.googleapis.com/projects//zones//diskTypes/pd-ssd. For more information,
+   * see the <a href="https://cloud.google.com/compute/docs/reference/latest/diskTypes">API
+   * reference documentation for DiskTypes</a>.
    */
-  @Description("Specifies what type of persistent disk should be used. The value should be a full "
-      + "or partial URL of a disk type resource, e.g., zones/us-central1-f/disks/pd-standard. For "
-      + "more information, see the API reference documentation for DiskTypes: "
+  @Description("Specifies what type of persistent disk is used. The "
+      + "value is a full URL of a disk type resource, e.g., "
+      + "compute.googleapis.com/projects//zones//diskTypes/pd-ssd. For more "
+      + "information, see the API reference documentation for DiskTypes: "
       + "https://cloud.google.com/compute/docs/reference/latest/diskTypes")
   String getWorkerDiskType();
   void setWorkerDiskType(String value);

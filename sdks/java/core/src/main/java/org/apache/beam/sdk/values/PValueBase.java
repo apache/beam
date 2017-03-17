@@ -17,12 +17,12 @@
  */
 package org.apache.beam.sdk.values;
 
-import java.util.Collection;
 import java.util.Collections;
+import java.util.List;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.util.StringUtils;
+import org.apache.beam.sdk.util.NameUtils;
 
 /**
  * A {@link PValueBase} is an abstract base class that provides
@@ -91,6 +91,11 @@ public abstract class PValueBase extends POutputValueBase implements PValue {
   private String name;
 
   /**
+   * A local {@link TupleTag} used in the expansion of this {@link PValueBase}.
+   */
+  private TupleTag<?> tag = new TupleTag<>();
+
+  /**
    * Whether this {@link PValueBase} has been finalized, and its core
    * properties, e.g., name, can no longer be changed.
    */
@@ -128,13 +133,12 @@ public abstract class PValueBase extends POutputValueBase implements PValue {
   }
 
   @Override
-  public Collection<? extends PValue> expand() {
-    return Collections.singletonList(this);
+  public final List<TaggedPValue> expand() {
+    return Collections.singletonList(TaggedPValue.of(tag, this));
   }
 
   @Override
-  public void finishSpecifying() {
-    finishSpecifyingOutput();
+  public void finishSpecifying(PInput input, PTransform<?, ?> transform) {
     finishedSpecifying = true;
   }
 
@@ -151,6 +155,6 @@ public abstract class PValueBase extends POutputValueBase implements PValue {
    * <p>By default, uses the base name of the current class as its kind string.
    */
   protected String getKindString() {
-    return StringUtils.approximateSimpleName(getClass());
+    return NameUtils.approximateSimpleName(getClass());
   }
 }

@@ -20,7 +20,6 @@ package org.apache.beam.sdk.transforms;
 import static org.junit.Assert.assertEquals;
 
 import java.io.Serializable;
-import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -39,11 +38,14 @@ import org.junit.runners.JUnit4;
 public class PartitionJava8Test implements Serializable {
 
   @Rule
+  public final transient TestPipeline pipeline = TestPipeline.create();
+
+  @Rule
   public transient ExpectedException thrown = ExpectedException.none();
 
   @Test
   public void testModPartition() {
-    Pipeline pipeline = TestPipeline.create();
+
 
     PCollectionList<Integer> outputs = pipeline
         .apply(Create.of(1, 2, 4, 5))
@@ -61,7 +63,6 @@ public class PartitionJava8Test implements Serializable {
    */
   @Test
   public void testPartitionFnOutputTypeDescriptorRaw() throws Exception {
-    Pipeline pipeline = TestPipeline.create();
 
     PCollectionList<String> output = pipeline
         .apply(Create.of("hello"))

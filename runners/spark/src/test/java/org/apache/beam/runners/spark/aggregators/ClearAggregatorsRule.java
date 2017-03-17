@@ -20,8 +20,9 @@ package org.apache.beam.runners.spark.aggregators;
 
 import org.junit.rules.ExternalResource;
 
+
 /**
- * A rule that clears the {@link org.apache.beam.runners.spark.aggregators.AccumulatorSingleton}
+ * A rule that clears the {@link AggregatorsAccumulator}
  * which represents the Beam {@link org.apache.beam.sdk.transforms.Aggregator}s.
  */
 public class ClearAggregatorsRule extends ExternalResource {
@@ -32,6 +33,6 @@ public class ClearAggregatorsRule extends ExternalResource {
   }
 
   public void clearNamedAggregators() {
-    AccumulatorSingleton.clear();
+    AggregatorsAccumulator.clear();
   }
 }

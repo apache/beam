@@ -24,8 +24,12 @@ import static org.junit.Assert.assertThat;
 
 import java.nio.ByteBuffer;
 import java.util.Arrays;
-import org.apache.beam.runners.flink.translation.wrappers.streaming.FlinkStateInternals;
-import org.apache.beam.sdk.coders.CoderException;
+import org.apache.beam.runners.core.StateMerging;
+import org.apache.beam.runners.core.StateNamespace;
+import org.apache.beam.runners.core.StateNamespaceForTest;
+import org.apache.beam.runners.core.StateTag;
+import org.apache.beam.runners.core.StateTags;
+import org.apache.beam.runners.flink.translation.wrappers.streaming.state.FlinkStateInternals;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.transforms.Sum;
@@ -37,16 +41,16 @@ import org.apache.beam.sdk.util.state.AccumulatorCombiningState;
 import org.apache.beam.sdk.util.state.BagState;
 import org.apache.beam.sdk.util.state.CombiningState;
 import org.apache.beam.sdk.util.state.ReadableState;
-import org.apache.beam.sdk.util.state.StateMerging;
-import org.apache.beam.sdk.util.state.StateNamespace;
-import org.apache.beam.sdk.util.state.StateNamespaceForTest;
-import org.apache.beam.sdk.util.state.StateTag;
-import org.apache.beam.sdk.util.state.StateTags;
 import org.apache.beam.sdk.util.state.ValueState;
 import org.apache.beam.sdk.util.state.WatermarkHoldState;
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.java.typeutils.GenericTypeInfo;
+import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
+import org.apache.flink.runtime.query.KvStateRegistry;
+import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
+import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.hamcrest.Matchers;
 import org.joda.time.Instant;
@@ -70,7 +74,7 @@ public class FlinkStateInternalsTest {
       StateTags.value("stringValue", StringUtf8Coder.of());
   private static final StateTag<Object, AccumulatorCombiningState<Integer, int[], Integer>>
       SUM_INTEGER_ADDR = StateTags.combiningValueFromInputInternal(
-          "sumInteger", VarIntCoder.of(), new Sum.SumIntegerFn());
+          "sumInteger", VarIntCoder.of(), Sum.ofIntegers());
   private static final StateTag<Object, BagState<String>> STRING_BAG_ADDR =
       StateTags.bag("stringBag", StringUtf8Coder.of());
   private static final StateTag<Object, WatermarkHoldState<BoundedWindow>>
@@ -88,18 +92,19 @@ public class FlinkStateInternalsTest {
   public void initStateInternals() {
     MemoryStateBackend backend = new MemoryStateBackend();
     try {
-      backend.initializeForJob(
+      AbstractKeyedStateBackend<ByteBuffer> keyedStateBackend = backend.createKeyedStateBackend(
           new DummyEnvironment("test", 1, 0),
+          new JobID(),
           "test_op",
-          new GenericTypeInfo<>(ByteBuffer.class).createSerializer(new ExecutionConfig()));
-    } catch (Exception e) {
-      throw new RuntimeException(e);
-    }
-    underTest = new FlinkStateInternals<>(backend, StringUtf8Coder.of());
-    try {
-      backend.setCurrentKey(
+          new GenericTypeInfo<>(ByteBuffer.class).createSerializer(new ExecutionConfig()),
+          1,
+          new KeyGroupRange(0, 0),
+          new KvStateRegistry().createTaskRegistry(new JobID(), new JobVertexID()));
+      underTest = new FlinkStateInternals<>(keyedStateBackend, StringUtf8Coder.of());
+
+      keyedStateBackend.setCurrentKey(
           ByteBuffer.wrap(CoderUtils.encodeToByteArray(StringUtf8Coder.of(), "Hello")));
-    } catch (CoderException e) {
+    } catch (Exception e) {
       throw new RuntimeException(e);
     }
   }

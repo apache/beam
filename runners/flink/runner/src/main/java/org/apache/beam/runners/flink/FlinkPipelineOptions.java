@@ -89,13 +89,13 @@ public interface FlinkPipelineOptions
   void setObjectReuse(Boolean reuse);
 
   /**
-   * Sets a state backend to store Beam's state during computation.
+   * State backend to store Beam's state during computation.
    * Note: Only applicable when executing in streaming mode.
-   * @param stateBackend The state backend to use
    */
   @Description("Sets the state backend to use in streaming mode. "
       + "Otherwise the default is read from the Flink config.")
-  void setStateBackend(AbstractStateBackend stateBackend);
+  @JsonIgnore
   AbstractStateBackend getStateBackend();
+  void setStateBackend(AbstractStateBackend stateBackend);
 
 }

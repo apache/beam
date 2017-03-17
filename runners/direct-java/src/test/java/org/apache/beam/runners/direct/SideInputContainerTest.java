@@ -96,12 +96,14 @@ public class SideInputContainerTest {
       };
 
   @Rule
+  public TestPipeline pipeline = TestPipeline.create().enableAbandonedNodeEnforcement(false);
+
+  @Rule
   public ExpectedException thrown = ExpectedException.none();
 
   @Mock
   private EvaluationContext context;
 
-  private TestPipeline pipeline;
 
   private SideInputContainer container;
 
@@ -114,7 +116,6 @@ public class SideInputContainerTest {
   @Before
   public void setup() {
     MockitoAnnotations.initMocks(this);
-    pipeline = TestPipeline.create();
 
     PCollection<Integer> create =
         pipeline.apply("forBaseCollection", Create.<Integer>of(1, 2, 3, 4));

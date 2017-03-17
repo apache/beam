@@ -33,6 +33,7 @@ import java.util.Map;
 import java.util.Set;
 
 import org.apache.beam.runners.core.DoFnRunners;
+import org.apache.beam.runners.core.InMemoryStateInternals;
 import org.apache.beam.runners.core.PushbackSideInputDoFnRunner;
 import org.apache.beam.runners.core.SideInputHandler;
 import org.apache.beam.runners.gearpump.GearpumpPipelineOptions;
@@ -48,7 +49,6 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowingStrategy;
 
-import org.apache.beam.sdk.util.state.InMemoryStateInternals;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.gearpump.streaming.dsl.javaapi.functions.FlatMapFunction;
@@ -134,12 +134,16 @@ public class DoFnFunction<InputT, OutputT> extends
       } else {
         // side input
         PCollectionView<?> sideInput = tagsToSideInputs.get(unionValue.getUnionTag());
-        WindowedValue<Iterable<?>> sideInputValue =
-            (WindowedValue<Iterable<?>>) unionValue.getValue();
+        WindowedValue<?> sideInputValue =
+            (WindowedValue<?>) unionValue.getValue();
+        Object value = sideInputValue.getValue();
+        if (!(value instanceof Iterable)) {
+          sideInputValue = sideInputValue.withValue(Lists.newArrayList(value));
+        }
         if (!sideInputValues.containsKey(sideInput)) {
           sideInputValues.put(sideInput, new LinkedList<WindowedValue<Iterable<?>>>());
         }
-        sideInputValues.get(sideInput).add(sideInputValue);
+        sideInputValues.get(sideInput).add((WindowedValue<Iterable<?>>) sideInputValue);
       }
     }
 

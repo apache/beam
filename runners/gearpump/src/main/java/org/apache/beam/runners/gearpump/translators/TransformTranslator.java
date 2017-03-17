@@ -23,7 +23,7 @@ import java.io.Serializable;
 import org.apache.beam.sdk.transforms.PTransform;
 
 /**
- * translates {@link PTransform} to Gearpump functions.
+ * Translates {@link PTransform} to Gearpump functions.
  */
 public interface TransformTranslator<T extends PTransform> extends Serializable {
   void translate(T transform, TranslationContext context);

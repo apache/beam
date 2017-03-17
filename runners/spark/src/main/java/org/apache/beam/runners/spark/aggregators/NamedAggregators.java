@@ -68,10 +68,12 @@ public class NamedAggregators implements Serializable {
    * @param name      Name of aggregator to retrieve.
    * @param typeClass Type class to cast the value to.
    * @param <T>       Type to be returned.
-   * @return the value of the aggregator associated with the specified name
+   * @return the value of the aggregator associated with the specified name,
+   * or <code>null</code> if the specified aggregator could not be found.
    */
   public <T> T getValue(String name, Class<T> typeClass) {
-    return typeClass.cast(mNamedAggregators.get(name).render());
+    final State<?, ?, ?> state = mNamedAggregators.get(name);
+    return state != null ? typeClass.cast(state.render()) : null;
   }
 
   /**
@@ -126,7 +128,7 @@ public class NamedAggregators implements Serializable {
   public String toString() {
     StringBuilder sb = new StringBuilder();
     for (Map.Entry<String, State<?, ?, ?>> e : mNamedAggregators.entrySet()) {
-      sb.append(e.getKey()).append(": ").append(e.getValue().render());
+      sb.append(e.getKey()).append(": ").append(e.getValue().render()).append(" ");
     }
     return sb.toString();
   }
@@ -153,7 +155,9 @@ public class NamedAggregators implements Serializable {
   }
 
   /**
-   * =&gt; combineFunction in data flow.
+   * @param <InputT> Input data type
+   * @param <InterT> Intermediate data type (useful for averages)
+   * @param <OutputT> Output data type
    */
   public static class CombineFunctionState<InputT, InterT, OutputT>
       implements State<InputT, InterT, OutputT> {

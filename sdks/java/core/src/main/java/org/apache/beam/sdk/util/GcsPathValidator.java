@@ -89,8 +89,7 @@ public class GcsPathValidator implements PathValidator {
       return GcsPath.fromUri(path);
     } catch (IllegalArgumentException e) {
       throw new IllegalArgumentException(String.format(
-          "%s expected a valid 'gs://' path but was given '%s'",
-          gcpOptions.getRunner().getSimpleName(), path), e);
+          "Expected a valid 'gs://' path but was given '%s'", path), e);
     }
   }
 }

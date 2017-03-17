@@ -83,8 +83,7 @@ public class DirectRunnerTest implements Serializable {
     PipelineOptions opts = PipelineOptionsFactory.create();
     opts.setRunner(DirectRunner.class);
 
-    Pipeline p = Pipeline.create(opts);
-    return p;
+    return Pipeline.create(opts);
   }
 
   @Test
@@ -481,11 +480,6 @@ public class DirectRunnerTest implements Serializable {
     @Override
     public long getEstimatedSizeBytes(PipelineOptions options) throws Exception {
       return underlying.getEstimatedSizeBytes(options);
-    }
-
-    @Override
-    public boolean producesSortedKeys(PipelineOptions options) throws Exception {
-      return underlying.producesSortedKeys(options);
     }
 
     @Override

@@ -87,7 +87,6 @@ public class CoderProperties {
   public static <T> void coderDeterministicInContext(
       Coder<T> coder, Coder.Context context, T value1, T value2)
       throws Exception {
-
     try {
       coder.verifyDeterministic();
     } catch (NonDeterministicException e) {
@@ -189,22 +188,34 @@ public class CoderProperties {
     }
   }
 
+  /**
+   * Verifies that the given {@code Coder<T>} can be correctly serialized and
+   * deserialized.
+   */
   public static <T> void coderSerializable(Coder<T> coder) {
     SerializableUtils.ensureSerializable(coder);
   }
 
+  /**
+   * Verifies that for the given {@code Coder<T>} and values of
+   * type {@code T}, the values are equal if and only if the
+   * encoded bytes are equal.
+   */
   public static <T> void coderConsistentWithEquals(
       Coder<T> coder, T value1, T value2)
       throws Exception {
-
     for (Coder.Context context : ALL_CONTEXTS) {
       CoderProperties.<T>coderConsistentWithEqualsInContext(coder, context, value1, value2);
     }
   }
 
+  /**
+   * Verifies that for the given {@code Coder<T>}, {@code Coder.Context}, and
+   * values of type {@code T}, the values are equal if and only if the
+   * encoded bytes are equal, in any {@code Coder.Context}.
+   */
   public static <T> void coderConsistentWithEqualsInContext(
       Coder<T> coder, Coder.Context context, T value1, T value2) throws Exception {
-
     assertEquals(
         value1.equals(value2),
         Arrays.equals(
@@ -212,12 +223,20 @@ public class CoderProperties {
             encode(coder, context, value2)));
   }
 
+  /**
+   * Verifies if a {@code Coder<T>}'s encodingId is equal to a given
+   * encodingId.
+   */
   public static <T> void coderHasEncodingId(Coder<T> coder, String encodingId) throws Exception {
     assertThat(coder.getEncodingId(), equalTo(encodingId));
     assertThat(Structs.getString(coder.asCloudObject(), PropertyNames.ENCODING_ID, ""),
         equalTo(encodingId));
   }
 
+  /**
+   * Verifies if a {@code Coder<T>} is allowed to encode using the given
+   * encodingId.
+   */
   public static <T> void coderAllowsEncoding(Coder<T> coder, String encodingId) throws Exception {
     assertThat(coder.getAllowedEncodings(), hasItem(encodingId));
     assertThat(
@@ -230,19 +249,27 @@ public class CoderProperties {
         hasItem(encodingId));
   }
 
+  /**
+   * Verifies that for the given {@code Coder<T>} and values of
+   * type {@code T}, the structural values are equal if and only if the
+   * encoded bytes are equal.
+   */
   public static <T> void structuralValueConsistentWithEquals(
       Coder<T> coder, T value1, T value2)
       throws Exception {
-
     for (Coder.Context context : ALL_CONTEXTS) {
       CoderProperties.<T>structuralValueConsistentWithEqualsInContext(
           coder, context, value1, value2);
     }
   }
 
+  /**
+   * Verifies that for the given {@code Coder<T>}, {@code Coder.Context}, and
+   * values of type {@code T}, the structural values are equal if and only if the
+   * encoded bytes are equal, in any {@code Coder.Context}.
+   */
   public static <T> void structuralValueConsistentWithEqualsInContext(
       Coder<T> coder, Coder.Context context, T value1, T value2) throws Exception {
-
     assertEquals(
         coder.structuralValue(value1).equals(coder.structuralValue(value2)),
         Arrays.equals(
@@ -250,6 +277,35 @@ public class CoderProperties {
             encode(coder, context, value2)));
   }
 
+  /**
+   * Verifies that for the given {@code Coder<T>} and value of type {@code T},
+   * the structural value is equal to the structural value yield by encoding
+   * and decoding the original value.
+   *
+   * <p>This is useful to test the correct implementation of a Coder structural
+   * equality with values that don't implement the equals contract.
+   */
+  public static <T> void structuralValueDecodeEncodeEqual(
+          Coder<T> coder, T value)
+          throws Exception {
+    for (Coder.Context context : ALL_CONTEXTS) {
+      CoderProperties.<T>structuralValueDecodeEncodeEqualInContext(
+              coder, context, value);
+    }
+  }
+
+  /**
+   * Verifies that for the given {@code Coder<T>}, {@code Coder.Context},
+   * and value of type {@code T}, the structural value is equal to the
+   * structural value yield by encoding and decoding the original value,
+   * in any {@code Coder.Context}.
+   */
+  public static <T> void structuralValueDecodeEncodeEqualInContext(
+          Coder<T> coder, Coder.Context context, T value) throws Exception {
+    assertEquals(
+            coder.structuralValue(value),
+            coder.structuralValue(decodeEncode(coder, context, value)));
+  }
 
   private static final String DECODING_WIRE_FORMAT_MESSAGE =
       "Decoded value from known wire format does not match expected value."
@@ -374,16 +430,17 @@ public class CoderProperties {
       throws Exception {
     TestElementByteSizeObserver observer = new TestElementByteSizeObserver();
 
-    CountingOutputStream os = new CountingOutputStream(ByteStreams.nullOutputStream());
-    for (T elem : elements) {
-      coder.registerByteSizeObserver(elem, observer, context);
-      coder.encode(elem, os, context);
-      observer.advance();
-    }
-    long expectedLength = os.getCount();
+    try (CountingOutputStream os = new CountingOutputStream(ByteStreams.nullOutputStream())) {
+      for (T elem : elements) {
+        coder.registerByteSizeObserver(elem, observer, context);
+        coder.encode(elem, os, context);
+        observer.advance();
+      }
+      long expectedLength = os.getCount();
 
-    assertEquals(expectedLength, observer.getSum());
-    assertEquals(elements.length, observer.getCount());
+      assertEquals(expectedLength, observer.getSum());
+      assertEquals(elements.length, observer.getCount());
+    }
   }
 
   /**

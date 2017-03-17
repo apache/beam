@@ -30,7 +30,7 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class AfterSynchronizedProcessingTimeTest {
 
-  private Trigger underTest = new AfterSynchronizedProcessingTime();
+  private Trigger underTest = AfterSynchronizedProcessingTime.ofFirstElement();
 
   @Test
   public void testFireDeadline() throws Exception {

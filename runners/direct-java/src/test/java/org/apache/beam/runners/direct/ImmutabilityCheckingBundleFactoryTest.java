@@ -46,15 +46,17 @@ import org.junit.runners.JUnit4;
  */
 @RunWith(JUnit4.class)
 public class ImmutabilityCheckingBundleFactoryTest {
+
+  @Rule public final TestPipeline p = TestPipeline.create().enableAbandonedNodeEnforcement(false);
   @Rule public ExpectedException thrown = ExpectedException.none();
   private ImmutabilityCheckingBundleFactory factory;
   private PCollection<byte[]> created;
   private PCollection<byte[]> transformed;
 
+
   @Before
   public void setup() {
-    TestPipeline p = TestPipeline.create();
-    created = p.apply(Create.<byte[]>of().withCoder(ByteArrayCoder.of()));
+    created = p.apply(Create.empty(ByteArrayCoder.of()));
     transformed = created.apply(ParDo.of(new IdentityDoFn<byte[]>()));
     DirectGraphVisitor visitor = new DirectGraphVisitor();
     p.traverseTopologically(visitor);

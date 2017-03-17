@@ -37,6 +37,7 @@ import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
@@ -45,10 +46,12 @@ import org.junit.runners.JUnit4;
 /** Tests for {@link GatherAllPanes}. */
 @RunWith(JUnit4.class)
 public class GatherAllPanesTest implements Serializable {
+
+  @Rule public transient TestPipeline p = TestPipeline.create();
+
   @Test
   @Category(NeedsRunner.class)
   public void singlePaneSingleReifiedPane() {
-    TestPipeline p = TestPipeline.create();
     PCollection<Iterable<ValueInSingleWindow<Iterable<Long>>>> accumulatedPanes =
         p.apply(CountingInput.upTo(20000))
             .apply(
@@ -91,8 +94,6 @@ public class GatherAllPanesTest implements Serializable {
   @Test
   @Category(NeedsRunner.class)
   public void multiplePanesMultipleReifiedPane() {
-    TestPipeline p = TestPipeline.create();
-
     PCollection<Long> someElems = p.apply("someLongs", CountingInput.upTo(20000));
     PCollection<Long> otherElems = p.apply("otherLongs", CountingInput.upTo(20000));
     PCollection<Iterable<ValueInSingleWindow<Iterable<Long>>>> accumulatedPanes =

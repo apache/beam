@@ -50,7 +50,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
-import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
@@ -89,6 +88,9 @@ public class ProxyInvocationHandlerTest {
     String getString();
     void setString(String value);
   }
+
+  @Rule
+  public TestPipeline p = TestPipeline.create();
 
   @Test
   public void testPropertySettingAndGetting() throws Exception {
@@ -785,7 +787,6 @@ public class ProxyInvocationHandlerTest {
       }
     };
 
-    Pipeline p = TestPipeline.create();
     p.getOptions().as(ObjectPipelineOptions.class).setValue(brokenValueType);
 
     p.apply(Create.of(1, 2, 3));

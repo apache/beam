@@ -32,6 +32,7 @@ import java.nio.charset.StandardCharsets;
 import org.apache.beam.sdk.util.ExposedByteArrayOutputStream;
 import org.apache.beam.sdk.util.StreamUtils;
 import org.apache.beam.sdk.util.VarInt;
+import org.apache.beam.sdk.values.TypeDescriptor;
 
 /**
  * A {@link Coder} that encodes {@link String Strings} in UTF-8 encoding.
@@ -48,6 +49,7 @@ public class StringUtf8Coder extends AtomicCoder<String> {
   /////////////////////////////////////////////////////////////////////////////
 
   private static final StringUtf8Coder INSTANCE = new StringUtf8Coder();
+  private static final TypeDescriptor<String> TYPE_DESCRIPTOR = new TypeDescriptor<String>() {};
 
   private static void writeString(String value, DataOutputStream dos)
       throws IOException {
@@ -113,6 +115,11 @@ public class StringUtf8Coder extends AtomicCoder<String> {
     return true;
   }
 
+  @Override
+  public TypeDescriptor<String> getEncodedTypeDescriptor() {
+    return TYPE_DESCRIPTOR;
+  }
+
   /**
    * {@inheritDoc}
    *
@@ -128,11 +135,12 @@ public class StringUtf8Coder extends AtomicCoder<String> {
     if (context.isWholeStream) {
       return Utf8.encodedLength(value);
     } else {
-      CountingOutputStream countingStream =
-          new CountingOutputStream(ByteStreams.nullOutputStream());
-      DataOutputStream stream = new DataOutputStream(countingStream);
-      writeString(value, stream);
-      return countingStream.getCount();
+      try (CountingOutputStream countingStream =
+          new CountingOutputStream(ByteStreams.nullOutputStream())) {
+        DataOutputStream stream = new DataOutputStream(countingStream);
+        writeString(value, stream);
+        return countingStream.getCount();
+      }
     }
   }
 }

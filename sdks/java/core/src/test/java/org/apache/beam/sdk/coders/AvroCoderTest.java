@@ -55,7 +55,6 @@ import org.apache.avro.reflect.Stringable;
 import org.apache.avro.reflect.Union;
 import org.apache.avro.specific.SpecificData;
 import org.apache.avro.util.Utf8;
-import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder.Context;
 import org.apache.beam.sdk.coders.Coder.NonDeterministicException;
 import org.apache.beam.sdk.testing.CoderProperties;
@@ -68,11 +67,13 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.util.CloudObject;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.TypeDescriptor;
 import org.hamcrest.Description;
 import org.hamcrest.Matcher;
 import org.hamcrest.Matchers;
 import org.hamcrest.TypeSafeMatcher;
 import org.junit.Assert;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
@@ -142,6 +143,9 @@ public class AvroCoderTest {
       c.output(c.element().text);
     }
   }
+
+  @Rule
+  public TestPipeline pipeline = TestPipeline.create();
 
   @Test
   public void testAvroCoderEncoding() throws Exception {
@@ -287,17 +291,15 @@ public class AvroCoderTest {
   @Test
   @Category(NeedsRunner.class)
   public void testDefaultCoder() throws Exception {
-    Pipeline p = TestPipeline.create();
-
     // Use MyRecord as input and output types without explicitly specifying
     // a coder (this uses the default coders, which may not be AvroCoder).
     PCollection<String> output =
-        p.apply(Create.of(new Pojo("hello", 1), new Pojo("world", 2)))
+        pipeline.apply(Create.of(new Pojo("hello", 1), new Pojo("world", 2)))
             .apply(ParDo.of(new GetTextFn()));
 
     PAssert.that(output)
         .containsInAnyOrder("hello", "world");
-    p.run();
+    pipeline.run();
   }
 
   @Test
@@ -843,6 +845,12 @@ public class AvroCoderTest {
 
     assertNonDeterministic(coder,
         reasonField(SomeGeneric.class, "foo", "erasure"));
+  }
+
+  @Test
+  public void testEncodedTypeDescriptor() throws Exception {
+    AvroCoder<Pojo> coder = AvroCoder.of(Pojo.class);
+    assertThat(coder.getEncodedTypeDescriptor(), equalTo(TypeDescriptor.of(Pojo.class)));
   }
 
   private static class SomeGeneric<T> {

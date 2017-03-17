@@ -239,7 +239,7 @@ class ByteBuddyOnTimerInvokerFactory implements OnTimerInvokerFactory {
       StackManipulation pushDelegate =
           new StackManipulation.Compound(
               MethodVariableAccess.REFERENCE.loadFrom(0),
-              FieldAccess.forField(delegateField).getter());
+              FieldAccess.forField(delegateField).read());
 
       StackManipulation pushExtraContextFactory = MethodVariableAccess.REFERENCE.loadFrom(1);
 
@@ -295,7 +295,7 @@ class ByteBuddyOnTimerInvokerFactory implements OnTimerInvokerFactory {
                                   .getDeclaredFields()
                                   .filter(ElementMatchers.named(FN_DELEGATE_FIELD_NAME))
                                   .getOnly())
-                          .putter(),
+                          .write(),
                       // Return void.
                       MethodReturn.VOID)
                   .apply(methodVisitor, implementationContext);

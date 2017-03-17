@@ -62,6 +62,8 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class CloningBundleFactoryTest {
   @Rule public ExpectedException thrown = ExpectedException.none();
+  @Rule public final TestPipeline p = TestPipeline.create().enableAbandonedNodeEnforcement(false);
+
   private CloningBundleFactory factory = CloningBundleFactory.create();
 
   @Test
@@ -76,7 +78,6 @@ public class CloningBundleFactoryTest {
 
   @Test
   public void bundleWorkingCoderSucceedsClonesOutput() {
-    TestPipeline p = TestPipeline.create();
     PCollection<Integer> created = p.apply(Create.of(1, 3).withCoder(VarIntCoder.of()));
     PCollection<KV<String, Integer>> kvs =
         created
@@ -101,7 +102,6 @@ public class CloningBundleFactoryTest {
 
   @Test
   public void keyedBundleWorkingCoderSucceedsClonesOutput() {
-    TestPipeline p = TestPipeline.create();
     PCollection<Integer> created = p.apply(Create.of(1, 3).withCoder(VarIntCoder.of()));
 
     PCollection<KV<String, Iterable<Integer>>> keyed =
@@ -130,8 +130,7 @@ public class CloningBundleFactoryTest {
 
   @Test
   public void bundleEncodeFailsAddFails() {
-    TestPipeline p = TestPipeline.create();
-    PCollection<Record> pc = p.apply(Create.<Record>of().withCoder(new RecordNoEncodeCoder()));
+    PCollection<Record> pc = p.apply(Create.empty(new RecordNoEncodeCoder()));
     UncommittedBundle<Record> bundle = factory.createBundle(pc);
 
     thrown.expect(UserCodeException.class);
@@ -142,8 +141,7 @@ public class CloningBundleFactoryTest {
 
   @Test
   public void bundleDecodeFailsAddFails() {
-    TestPipeline p = TestPipeline.create();
-    PCollection<Record> pc = p.apply(Create.<Record>of().withCoder(new RecordNoDecodeCoder()));
+    PCollection<Record> pc = p.apply(Create.empty(new RecordNoDecodeCoder()));
     UncommittedBundle<Record> bundle = factory.createBundle(pc);
 
     thrown.expect(UserCodeException.class);
@@ -154,8 +152,7 @@ public class CloningBundleFactoryTest {
 
   @Test
   public void keyedBundleEncodeFailsAddFails() {
-    TestPipeline p = TestPipeline.create();
-    PCollection<Record> pc = p.apply(Create.<Record>of().withCoder(new RecordNoEncodeCoder()));
+    PCollection<Record> pc = p.apply(Create.empty(new RecordNoEncodeCoder()));
     UncommittedBundle<Record> bundle =
         factory.createKeyedBundle(StructuralKey.of("foo", StringUtf8Coder.of()), pc);
 
@@ -167,8 +164,7 @@ public class CloningBundleFactoryTest {
 
   @Test
   public void keyedBundleDecodeFailsAddFails() {
-    TestPipeline p = TestPipeline.create();
-    PCollection<Record> pc = p.apply(Create.<Record>of().withCoder(new RecordNoDecodeCoder()));
+    PCollection<Record> pc = p.apply(Create.empty(new RecordNoDecodeCoder()));
     UncommittedBundle<Record> bundle =
         factory.createKeyedBundle(StructuralKey.of("foo", StringUtf8Coder.of()), pc);
 

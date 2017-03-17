@@ -188,11 +188,6 @@ public class CountingSource {
     }
 
     @Override
-    public boolean producesSortedKeys(PipelineOptions options) throws Exception {
-      return true;
-    }
-
-    @Override
     public org.apache.beam.sdk.io.BoundedSource.BoundedReader<Long> createReader(
         PipelineOptions options) throws IOException {
       return new BoundedCountingReader(this);

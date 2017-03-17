@@ -20,17 +20,18 @@ package org.apache.beam.runners.gearpump.translators;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
+import com.google.common.collect.Iterables;
+
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import org.apache.beam.runners.gearpump.GearpumpPipelineOptions;
 import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
-import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.values.PInput;
-import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.PValue;
 
+import org.apache.beam.sdk.values.TaggedPValue;
 import org.apache.gearpump.cluster.UserConfig;
 import org.apache.gearpump.streaming.dsl.javaapi.JavaStream;
 import org.apache.gearpump.streaming.dsl.javaapi.JavaStreamApp;
@@ -70,18 +71,26 @@ public class TranslationContext {
     }
   }
 
-  public <InputT extends PInput> InputT getInput(PTransform<InputT, ?> transform) {
-    return (InputT) getCurrentTransform(transform).getInput();
+  public List<TaggedPValue> getInputs() {
+    return getCurrentTransform().getInputs();
   }
 
-  public <OutputT extends POutput> OutputT getOutput(PTransform<?, OutputT> transform) {
-    return (OutputT) getCurrentTransform(transform).getOutput();
+  public PValue getInput() {
+    return Iterables.getOnlyElement(getInputs()).getValue();
   }
 
-  private AppliedPTransform<?, ?, ?> getCurrentTransform(PTransform<?, ?> transform) {
+  public List<TaggedPValue> getOutputs() {
+    return getCurrentTransform().getOutputs();
+  }
+
+  public PValue getOutput() {
+    return Iterables.getOnlyElement(getOutputs()).getValue();
+  }
+
+  private AppliedPTransform<?, ?, ?> getCurrentTransform() {
     checkArgument(
-        currentTransform != null && currentTransform.getTransform() == transform,
-        "can only be called with current transform");
+        currentTransform != null,
+        "current transform not set");
     return currentTransform;
   }
 

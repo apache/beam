@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.kafka;
 
+import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
@@ -24,6 +25,7 @@ import static org.junit.Assert.assertTrue;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Lists;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
@@ -37,12 +39,11 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
-
 import javax.annotation.Nullable;
-import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.Pipeline.PipelineExecutionException;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.BigEndianLongCoder;
+import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.io.UnboundedSource.UnboundedReader;
@@ -59,6 +60,7 @@ import org.apache.beam.sdk.transforms.Min;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.Values;
+import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
@@ -83,6 +85,8 @@ import org.junit.runners.JUnit4;
 
 /**
  * Tests of {@link KafkaIO}.
+ * Run with 'mvn test -Dkafka.clients.version=0.10.1.1',
+ * or 'mvn test -Dkafka.clients.version=0.9.0.1' for either Kafka client version
  */
 @RunWith(JUnit4.class)
 public class KafkaIOTest {
@@ -93,6 +97,9 @@ public class KafkaIOTest {
    * Other tests to consider :
    *   - test KafkaRecordCoder
    */
+
+  @Rule
+  public final transient TestPipeline p = TestPipeline.create();
 
   @Rule
   public ExpectedException thrown = ExpectedException.none();
@@ -141,6 +148,10 @@ public class KafkaIOTest {
     final MockConsumer<byte[], byte[]> consumer =
         new MockConsumer<byte[], byte[]>(offsetResetStrategy) {
           // override assign() in order to set offset limits & to save assigned partitions.
+          //remove keyword '@Override' here, it can work with Kafka client 0.9 and 0.10 as:
+          //1. SpEL can find this function, either input is List or Collection;
+          //2. List extends Collection, so super.assign() could find either assign(List)
+          //  or assign(Collection).
           public void assign(final List<TopicPartition> assigned) {
             super.assign(assigned);
             assignedPartitions.set(ImmutableList.copyOf(assigned));
@@ -198,6 +209,7 @@ public class KafkaIOTest {
       this.offsetResetStrategy = offsetResetStrategy;
     }
 
+    @Override
     public Consumer<byte[], byte[]> apply(Map<String, Object> config) {
       return mkMockConsumer(topics, partitionsPerTopic, numElements, offsetResetStrategy);
     }
@@ -207,14 +219,14 @@ public class KafkaIOTest {
    * Creates a consumer with two topics, with 5 partitions each.
    * numElements are (round-robin) assigned all the 10 partitions.
    */
-  private static KafkaIO.TypedRead<Integer, Long> mkKafkaReadTransform(
+  private static KafkaIO.Read<Integer, Long> mkKafkaReadTransform(
       int numElements,
       @Nullable SerializableFunction<KV<Integer, Long>, Instant> timestampFn) {
 
     List<String> topics = ImmutableList.of("topic_a", "topic_b");
 
-    KafkaIO.Read<Integer, Long> reader = KafkaIO.read()
-        .withBootstrapServers("none")
+    KafkaIO.Read<Integer, Long> reader = KafkaIO.<Integer, Long>read()
+        .withBootstrapServers("myServer1:9092,myServer2:9092")
         .withTopics(topics)
         .withConsumerFactoryFn(new ConsumerFactoryFn(
             topics, 10, numElements, OffsetResetStrategy.EARLIEST)) // 20 partitions
@@ -268,7 +280,6 @@ public class KafkaIOTest {
   @Test
   @Category(NeedsRunner.class)
   public void testUnboundedSource() {
-    Pipeline p = TestPipeline.create();
     int numElements = 1000;
 
     PCollection<Long> input = p
@@ -283,16 +294,16 @@ public class KafkaIOTest {
   @Test
   @Category(NeedsRunner.class)
   public void testUnboundedSourceWithExplicitPartitions() {
-    Pipeline p = TestPipeline.create();
     int numElements = 1000;
 
     List<String> topics = ImmutableList.of("test");
 
-    KafkaIO.TypedRead<byte[], Long> reader = KafkaIO.read()
+    KafkaIO.Read<byte[], Long> reader = KafkaIO.<byte[], Long>read()
         .withBootstrapServers("none")
         .withTopicPartitions(ImmutableList.of(new TopicPartition("test", 5)))
         .withConsumerFactoryFn(new ConsumerFactoryFn(
             topics, 10, numElements, OffsetResetStrategy.EARLIEST)) // 10 partitions
+        .withKeyCoder(ByteArrayCoder.of())
         .withValueCoder(BigEndianLongCoder.of())
         .withMaxNumRecords(numElements / 10);
 
@@ -322,7 +333,7 @@ public class KafkaIOTest {
   @Test
   @Category(NeedsRunner.class)
   public void testUnboundedSourceTimestamps() {
-    Pipeline p = TestPipeline.create();
+
     int numElements = 1000;
 
     PCollection<Long> input = p
@@ -350,7 +361,7 @@ public class KafkaIOTest {
   @Test
   @Category(NeedsRunner.class)
   public void testUnboundedSourceSplits() throws Exception {
-    Pipeline p = TestPipeline.create();
+
     int numElements = 1000;
     int numSplits = 10;
 
@@ -414,7 +425,7 @@ public class KafkaIOTest {
     UnboundedSource<KafkaRecord<Integer, Long>, KafkaCheckpointMark> source =
         mkKafkaReadTransform(numElements, new ValueAsTimestampFn())
           .makeSource()
-          .generateInitialSplits(1, PipelineOptionsFactory.fromArgs(new String[0]).create())
+          .generateInitialSplits(1, PipelineOptionsFactory.create())
           .get(0);
 
     UnboundedReader<KafkaRecord<Integer, Long>> reader = source.createReader(null, null);
@@ -454,7 +465,7 @@ public class KafkaIOTest {
     UnboundedSource<KafkaRecord<Integer, Long>, KafkaCheckpointMark> source =
         mkKafkaReadTransform(initialNumElements, new ValueAsTimestampFn())
             .makeSource()
-            .generateInitialSplits(1, PipelineOptionsFactory.fromArgs(new String[0]).create())
+            .generateInitialSplits(1, PipelineOptionsFactory.create())
             .get(0);
 
     UnboundedReader<KafkaRecord<Integer, Long>> reader = source.createReader(null, null);
@@ -473,7 +484,7 @@ public class KafkaIOTest {
     int numElements = 100; // all the 20 partitions will have elements
     List<String> topics = ImmutableList.of("topic_a", "topic_b");
 
-    source = KafkaIO.read()
+    source = KafkaIO.<Integer, Long>read()
         .withBootstrapServers("none")
         .withTopics(topics)
         .withConsumerFactoryFn(new ConsumerFactoryFn(
@@ -483,7 +494,7 @@ public class KafkaIOTest {
         .withMaxNumRecords(numElements)
         .withTimestampFn(new ValueAsTimestampFn())
         .makeSource()
-        .generateInitialSplits(1, PipelineOptionsFactory.fromArgs(new String[0]).create())
+        .generateInitialSplits(1, PipelineOptionsFactory.create())
         .get(0);
 
     reader = source.createReader(null, mark);
@@ -514,20 +525,19 @@ public class KafkaIOTest {
 
       ProducerSendCompletionThread completionThread = new ProducerSendCompletionThread().start();
 
-      Pipeline pipeline = TestPipeline.create();
       String topic = "test";
 
-      pipeline
+      p
         .apply(mkKafkaReadTransform(numElements, new ValueAsTimestampFn())
             .withoutMetadata())
-        .apply(KafkaIO.write()
+        .apply(KafkaIO.<Integer, Long>write()
             .withBootstrapServers("none")
             .withTopic(topic)
             .withKeyCoder(BigEndianIntegerCoder.of())
             .withValueCoder(BigEndianLongCoder.of())
             .withProducerFactoryFn(new ProducerFactoryFn()));
 
-      pipeline.run();
+      p.run();
 
       completionThread.shutdown();
 
@@ -547,22 +557,20 @@ public class KafkaIOTest {
 
       ProducerSendCompletionThread completionThread = new ProducerSendCompletionThread().start();
 
-      Pipeline pipeline = TestPipeline.create();
       String topic = "test";
 
-      pipeline
+      p
         .apply(mkKafkaReadTransform(numElements, new ValueAsTimestampFn())
             .withoutMetadata())
         .apply(Values.<Long>create()) // there are no keys
-        .apply(KafkaIO.write()
+        .apply(KafkaIO.<Integer, Long>write()
             .withBootstrapServers("none")
             .withTopic(topic)
-            .withKeyCoder(BigEndianIntegerCoder.of())
             .withValueCoder(BigEndianLongCoder.of())
             .withProducerFactoryFn(new ProducerFactoryFn())
             .values());
 
-      pipeline.run();
+      p.run();
 
       completionThread.shutdown();
 
@@ -588,16 +596,15 @@ public class KafkaIOTest {
 
       MOCK_PRODUCER.clear();
 
-      Pipeline pipeline = TestPipeline.create();
       String topic = "test";
 
       ProducerSendCompletionThread completionThreadWithErrors =
           new ProducerSendCompletionThread(10, 100).start();
 
-      pipeline
+      p
         .apply(mkKafkaReadTransform(numElements, new ValueAsTimestampFn())
             .withoutMetadata())
-        .apply(KafkaIO.write()
+        .apply(KafkaIO.<Integer, Long>write()
             .withBootstrapServers("none")
             .withTopic(topic)
             .withKeyCoder(BigEndianIntegerCoder.of())
@@ -605,7 +612,7 @@ public class KafkaIOTest {
             .withProducerFactoryFn(new ProducerFactoryFn()));
 
       try {
-        pipeline.run();
+        p.run();
       } catch (PipelineExecutionException e) {
         // throwing inner exception helps assert that first exception is thrown from the Sink
         throw e.getCause().getCause();
@@ -613,6 +620,54 @@ public class KafkaIOTest {
         completionThreadWithErrors.shutdown();
       }
     }
+  }
+
+  @Test
+  public void testSourceDisplayData() {
+    KafkaIO.Read<Integer, Long> read = mkKafkaReadTransform(10, null);
+
+    DisplayData displayData = DisplayData.from(read);
+
+    assertThat(displayData, hasDisplayItem("topics", "topic_a,topic_b"));
+    assertThat(displayData, hasDisplayItem("enable.auto.commit", false));
+    assertThat(displayData, hasDisplayItem("bootstrap.servers", "myServer1:9092,myServer2:9092"));
+    assertThat(displayData, hasDisplayItem("auto.offset.reset", "latest"));
+    assertThat(displayData, hasDisplayItem("receive.buffer.bytes", 524288));
+  }
+
+  @Test
+  public void testSourceWithExplicitPartitionsDisplayData() {
+    KafkaIO.Read<byte[], Long> read = KafkaIO.<byte[], Long>read()
+        .withBootstrapServers("myServer1:9092,myServer2:9092")
+        .withTopicPartitions(ImmutableList.of(new TopicPartition("test", 5),
+            new TopicPartition("test", 6)))
+        .withConsumerFactoryFn(new ConsumerFactoryFn(
+            Lists.newArrayList("test"), 10, 10, OffsetResetStrategy.EARLIEST)) // 10 partitions
+        .withKeyCoder(ByteArrayCoder.of())
+        .withValueCoder(BigEndianLongCoder.of());
+
+    DisplayData displayData = DisplayData.from(read);
+
+    assertThat(displayData, hasDisplayItem("topicPartitions", "test-5,test-6"));
+    assertThat(displayData, hasDisplayItem("enable.auto.commit", false));
+    assertThat(displayData, hasDisplayItem("bootstrap.servers", "myServer1:9092,myServer2:9092"));
+    assertThat(displayData, hasDisplayItem("auto.offset.reset", "latest"));
+    assertThat(displayData, hasDisplayItem("receive.buffer.bytes", 524288));
+  }
+
+  @Test
+  public void testSinkDisplayData() {
+    KafkaIO.Write<Integer, Long> write = KafkaIO.<Integer, Long>write()
+        .withBootstrapServers("myServerA:9092,myServerB:9092")
+        .withTopic("myTopic")
+        .withValueCoder(BigEndianLongCoder.of())
+        .withProducerFactoryFn(new ProducerFactoryFn());
+
+    DisplayData displayData = DisplayData.from(write);
+
+    assertThat(displayData, hasDisplayItem("topic", "myTopic"));
+    assertThat(displayData, hasDisplayItem("bootstrap.servers", "myServerA:9092,myServerB:9092"));
+    assertThat(displayData, hasDisplayItem("retries", 3));
   }
 
   private static void verifyProducerRecords(String topic, int numElements, boolean keyIsAbsent) {

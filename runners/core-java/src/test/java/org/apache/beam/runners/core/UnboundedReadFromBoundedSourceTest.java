@@ -36,7 +36,6 @@ import java.util.Random;
 import org.apache.beam.runners.core.UnboundedReadFromBoundedSource.BoundedToUnboundedSourceAdapter;
 import org.apache.beam.runners.core.UnboundedReadFromBoundedSource.BoundedToUnboundedSourceAdapter.Checkpoint;
 import org.apache.beam.runners.core.UnboundedReadFromBoundedSource.BoundedToUnboundedSourceAdapter.CheckpointCoder;
-import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -47,6 +46,7 @@ import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.testing.CoderProperties;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -54,6 +54,7 @@ import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Distinct;
 import org.apache.beam.sdk.transforms.Max;
 import org.apache.beam.sdk.transforms.Min;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TimestampedValue;
@@ -78,6 +79,9 @@ public class UnboundedReadFromBoundedSourceTest {
   @Rule
   public transient ExpectedException thrown = ExpectedException.none();
 
+  @Rule
+  public TestPipeline p = TestPipeline.create();
+
   @Test
   public void testCheckpointCoderNulls() throws Exception {
     CheckpointCoder<String> coder = new CheckpointCoder<>(StringUtf8Coder.of());
@@ -90,14 +94,17 @@ public class UnboundedReadFromBoundedSourceTest {
   }
 
   @Test
+  public void testCheckpointCoderIsSerializableWithWellKnownCoderType() throws Exception {
+    CoderProperties.coderSerializable(new CheckpointCoder<>(GlobalWindow.Coder.INSTANCE));
+  }
+
+  @Test
   @Category(NeedsRunner.class)
   public void testBoundedToUnboundedSourceAdapter() throws Exception {
     long numElements = 100;
     BoundedSource<Long> boundedSource = CountingSource.upTo(numElements);
     UnboundedSource<Long, Checkpoint<Long>> unboundedSource =
         new BoundedToUnboundedSourceAdapter<>(boundedSource);
-
-    Pipeline p = TestPipeline.create();
 
     PCollection<Long> output =
         p.apply(Read.from(unboundedSource).withMaxNumRecords(numElements));
@@ -308,11 +315,6 @@ public class UnboundedReadFromBoundedSourceTest {
     @Override
     protected FileBasedReader<Byte> createSingleFileReader(PipelineOptions options) {
       return new UnsplittableReader(this);
-    }
-
-    @Override
-    public boolean producesSortedKeys(PipelineOptions options) throws Exception {
-      return false;
     }
 
     @Override

@@ -35,7 +35,6 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.gearpump.streaming.dsl.javaapi.JavaStream;
 
-
 /**
  * {@link ParDo.Bound} is translated to Gearpump flatMap function
  * with {@link DoFn} wrapped in {@link DoFnFunction}.
@@ -50,14 +49,14 @@ public class ParDoBoundTranslator<InputT, OutputT> implements
   @Override
   public void translate(ParDo.Bound<InputT, OutputT> transform, TranslationContext context) {
     DoFn<InputT, OutputT> doFn = transform.getFn();
-    PCollection<OutputT> output = context.getOutput(transform);
+    PCollection<OutputT> output = (PCollection<OutputT>) context.getOutput();
     WindowingStrategy<?, ?> windowingStrategy = output.getWindowingStrategy();
 
     Collection<PCollectionView<?>> sideInputs = transform.getSideInputs();
     Map<String, PCollectionView<?>> tagsToSideInputs =
         TranslatorUtils.getTagsToSideInputs(sideInputs);
     JavaStream<WindowedValue<InputT>> inputStream = context.getInputStream(
-        context.getInput(transform));
+        context.getInput());
     JavaStream<TranslatorUtils.RawUnionValue> unionStream =
         TranslatorUtils.withSideInputStream(context,
         inputStream, tagsToSideInputs);
@@ -71,6 +70,6 @@ public class ParDoBoundTranslator<InputT, OutputT> implements
             .flatMap(doFnFunction, transform.getName())
             .map(new TranslatorUtils.FromRawUnionValue<OutputT>(), "from_RawUnionValue");
 
-    context.setOutputStream(context.getOutput(transform), outputStream);
+    context.setOutputStream(context.getOutput(), outputStream);
   }
 }

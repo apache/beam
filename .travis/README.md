@@ -19,5 +19,5 @@
 
 # Travis Scripts
 
-This directory contains scripts used for [Travis CI](https://travis-ci.org/apache/incubator-beam/)
+This directory contains scripts used for [Travis CI](https://travis-ci.org/apache/beam/)
 testing.

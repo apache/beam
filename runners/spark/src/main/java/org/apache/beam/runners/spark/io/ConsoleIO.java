@@ -37,11 +37,11 @@ public final class ConsoleIO {
     private Write() {
     }
 
-    public static <T> Unbound<T> from() {
+    public static <T> Unbound<T> out() {
       return new Unbound<>(10);
     }
 
-    public static <T> Unbound<T> from(int num) {
+    public static <T> Unbound<T> out(int num) {
       return new Unbound<>(num);
     }
 

@@ -20,6 +20,7 @@ package org.apache.beam.sdk.transforms;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.runners.PipelineRunner;
+import org.apache.beam.sdk.runners.TransformHierarchy.Node;
 import org.apache.beam.sdk.util.PCollectionViews;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
@@ -434,6 +435,15 @@ public class View {
       return new CreatePCollectionView<>(view);
     }
 
+    /**
+     * Return the {@link PCollectionView} that is returned by applying this {@link PTransform}.
+     *
+     * <p>This should not be used to obtain the output of any given application of this
+     * {@link PTransform}. That should be obtained by inspecting the {@link Node}
+     * that contains this {@link CreatePCollectionView}, as this view may have been replaced within
+     * pipeline surgery.
+     */
+    @Deprecated
     public PCollectionView<ViewT> getView() {
       return view;
     }

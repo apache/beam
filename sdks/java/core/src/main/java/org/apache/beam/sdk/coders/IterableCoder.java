@@ -25,6 +25,8 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.List;
 import org.apache.beam.sdk.util.CloudObject;
 import org.apache.beam.sdk.util.PropertyNames;
+import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.sdk.values.TypeParameter;
 
 /**
  * An {@link IterableCoder} encodes any {@link Iterable} in the format
@@ -68,9 +70,15 @@ public class IterableCoder<T> extends IterableLikeCoder<T, Iterable<T>> {
   }
 
   @Override
-  public CloudObject asCloudObject() {
-    CloudObject result = super.asCloudObject();
+  protected CloudObject initializeCloudObject() {
+    CloudObject result = CloudObject.forClassName("kind:stream");
     addBoolean(result, PropertyNames.IS_STREAM_LIKE, true);
     return result;
+  }
+
+  @Override
+  public TypeDescriptor<Iterable<T>> getEncodedTypeDescriptor() {
+    return new TypeDescriptor<Iterable<T>>() {}.where(
+        new TypeParameter<T>() {}, getElemCoder().getEncodedTypeDescriptor());
   }
 }

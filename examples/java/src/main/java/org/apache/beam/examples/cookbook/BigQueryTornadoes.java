@@ -131,7 +131,7 @@ public class BigQueryTornadoes {
    *
    * <p>Inherits standard configuration options.
    */
-  interface Options extends PipelineOptions {
+  public interface Options extends PipelineOptions {
     @Description("Table to read from, specified as "
         + "<project_id>:<dataset_id>.<table_id>")
     @Default.String(WEATHER_SAMPLES_TABLE)

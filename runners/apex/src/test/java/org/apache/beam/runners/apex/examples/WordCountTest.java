@@ -68,7 +68,7 @@ public class WordCountTest {
   static class ExtractWordsFn extends DoFn<String, String> {
     private static final long serialVersionUID = 1L;
     private final Aggregator<Long, Long> emptyLines =
-        createAggregator("emptyLines", new Sum.SumLongFn());
+        createAggregator("emptyLines", Sum.ofLongs());
 
     @ProcessElement
     public void processElement(ProcessContext c) {

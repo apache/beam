@@ -44,6 +44,7 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.hamcrest.Matcher;
 import org.hamcrest.Matchers;
+import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Before;
 import org.junit.Rule;
@@ -57,6 +58,7 @@ import org.junit.runners.JUnit4;
  */
 @RunWith(JUnit4.class)
 public class ImmutableListBundleFactoryTest {
+  @Rule public final TestPipeline p = TestPipeline.create().enableAbandonedNodeEnforcement(false);
   @Rule public ExpectedException thrown = ExpectedException.none();
 
   private ImmutableListBundleFactory bundleFactory = ImmutableListBundleFactory.create();
@@ -66,13 +68,12 @@ public class ImmutableListBundleFactoryTest {
 
   @Before
   public void setup() {
-    TestPipeline p = TestPipeline.create();
     created = p.apply(Create.of(1, 2, 3));
     downstream = created.apply(WithKeys.<String, Integer>of("foo"));
   }
 
   private <T> void createKeyedBundle(Coder<T> coder, T key) throws Exception {
-    PCollection<Integer> pcollection = TestPipeline.create().apply(Create.of(1));
+    PCollection<Integer> pcollection = p.apply("Create", Create.of(1));
     StructuralKey<?> skey = StructuralKey.of(key, coder);
 
     UncommittedBundle<Integer> inFlightBundle = bundleFactory.createKeyedBundle(skey, pcollection);
@@ -87,9 +88,17 @@ public class ImmutableListBundleFactoryTest {
   }
 
   @Test
-  public void keyedWithKeyShouldCreateKeyedBundle() throws Exception {
+  public void keyedWithStringKeyShouldCreateKeyedBundle() throws Exception {
     createKeyedBundle(StringUtf8Coder.of(), "foo");
+  }
+
+  @Test
+  public void keyedWithVarIntKeyShouldCreateKeyedBundle() throws Exception {
     createKeyedBundle(VarIntCoder.of(), 1234);
+  }
+
+  @Test
+  public void keyedWithByteArrayKeyShouldCreateKeyedBundle() throws Exception {
     createKeyedBundle(ByteArrayCoder.of(), new byte[] {0, 2, 4, 99});
   }
 
@@ -131,6 +140,28 @@ public class ImmutableListBundleFactoryTest {
         WindowedValue.timestampedValueInGlobalWindow(2, new Instant(1000L));
 
     afterCommitGetElementsShouldHaveAddedElements(ImmutableList.of(firstValue, secondValue));
+  }
+
+  @Test
+  public void addElementsAtEndOfTimeThrows() {
+    Instant timestamp = BoundedWindow.TIMESTAMP_MAX_VALUE;
+    WindowedValue<Integer> value = WindowedValue.timestampedValueInGlobalWindow(1, timestamp);
+
+    UncommittedBundle<Integer> bundle = bundleFactory.createRootBundle();
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage(timestamp.toString());
+    bundle.add(value);
+  }
+
+  @Test
+  public void addElementsPastEndOfTimeThrows() {
+    Instant timestamp = BoundedWindow.TIMESTAMP_MAX_VALUE.plus(Duration.standardMinutes(2));
+    WindowedValue<Integer> value = WindowedValue.timestampedValueInGlobalWindow(1, timestamp);
+
+    UncommittedBundle<Integer> bundle = bundleFactory.createRootBundle();
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage(timestamp.toString());
+    bundle.add(value);
   }
 
   @SuppressWarnings("unchecked")

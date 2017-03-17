@@ -20,6 +20,7 @@ package org.apache.beam.runners.direct;
 import static com.google.common.base.Preconditions.checkState;
 import static org.apache.beam.sdk.util.CoderUtils.encodeToByteArray;
 
+import com.google.common.collect.Iterables;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -102,7 +103,10 @@ class GroupByKeyOnlyEvaluatorFactory implements TransformEvaluatorFactory {
             DirectGroupByKeyOnly<K, V>> application) {
       this.evaluationContext = evaluationContext;
       this.application = application;
-      this.keyCoder = getKeyCoder(application.getInput().getCoder());
+      this.keyCoder =
+          getKeyCoder(
+              ((PCollection<KV<K, V>>) Iterables.getOnlyElement(application.getInputs()).getValue())
+                  .getCoder());
       this.groupingMap = new HashMap<>();
     }
 
@@ -152,7 +156,9 @@ class GroupByKeyOnlyEvaluatorFactory implements TransformEvaluatorFactory {
             KeyedWorkItems.elementsWorkItem(key, groupedEntry.getValue());
         UncommittedBundle<KeyedWorkItem<K, V>> bundle =
             evaluationContext.createKeyedBundle(
-                StructuralKey.of(key, keyCoder), application.getOutput());
+                StructuralKey.of(key, keyCoder),
+                (PCollection<KeyedWorkItem<K, V>>)
+                    Iterables.getOnlyElement(application.getOutputs()).getValue());
         bundle.add(WindowedValue.valueInGlobalWindow(groupedKv));
         resultBuilder.addOutput(bundle);
       }

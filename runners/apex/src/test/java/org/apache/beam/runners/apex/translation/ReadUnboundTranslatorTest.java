@@ -35,7 +35,7 @@ import org.apache.beam.runners.apex.translation.operators.ApexReadUnboundedInput
 import org.apache.beam.runners.apex.translation.utils.CollectionSource;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
-import org.apache.beam.sdk.io.CountingSource;
+import org.apache.beam.sdk.io.CountingInput;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -92,12 +92,13 @@ public class ReadUnboundTranslatorTest {
     Pipeline p = Pipeline.create(options);
 
     Set<Long> expected = ContiguousSet.create(Range.closedOpen(0L, 10L), DiscreteDomain.longs());
-    p.apply(Read.from(CountingSource.upTo(10)))
+    p.apply(CountingInput.upTo(10))
         .apply(ParDo.of(new EmbeddedCollector()));
 
     ApexRunnerResult result = (ApexRunnerResult) p.run();
     DAG dag = result.getApexDAG();
-    DAG.OperatorMeta om = dag.getOperatorMeta("Read(BoundedCountingSource)");
+    String operatorName = "CountingInput.BoundedCountingInput/Read(BoundedCountingSource)";
+    DAG.OperatorMeta om = dag.getOperatorMeta(operatorName);
     Assert.assertNotNull(om);
     Assert.assertEquals(om.getOperator().getClass(), ApexReadUnboundedInputOperator.class);
 
@@ -113,6 +114,7 @@ public class ReadUnboundTranslatorTest {
   }
 
   private static class EmbeddedCollector extends DoFn<Object, Void> {
+    private static final long serialVersionUID = 1L;
     private static final Set<Object> RESULTS = Collections.synchronizedSet(new HashSet<>());
 
     @ProcessElement

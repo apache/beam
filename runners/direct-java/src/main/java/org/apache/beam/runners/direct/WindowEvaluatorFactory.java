@@ -25,9 +25,7 @@ import org.apache.beam.runners.direct.DirectRunner.UncommittedBundle;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.Window;
-import org.apache.beam.sdk.transforms.windowing.Window.Bound;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollection;
@@ -35,7 +33,7 @@ import org.joda.time.Instant;
 
 /**
  * The {@link DirectRunner} {@link TransformEvaluatorFactory} for the
- * {@link Bound Window.Bound} primitive {@link PTransform}.
+ * {@link Window.Assign} primitive {@link PTransform}.
  */
 class WindowEvaluatorFactory implements TransformEvaluatorFactory {
   private final EvaluationContext evaluationContext;
@@ -54,10 +52,12 @@ class WindowEvaluatorFactory implements TransformEvaluatorFactory {
   }
 
   private <InputT> TransformEvaluator<InputT> createTransformEvaluator(
-      AppliedPTransform<PCollection<InputT>, PCollection<InputT>, Window.Bound<InputT>> transform) {
+      AppliedPTransform<PCollection<InputT>, PCollection<InputT>, Window.Assign<InputT>>
+          transform) {
     WindowFn<? super InputT, ?> fn = transform.getTransform().getWindowFn();
     UncommittedBundle<InputT> outputBundle =
-        evaluationContext.createBundle(transform.getOutput());
+        evaluationContext.createBundle(
+            (PCollection<InputT>) Iterables.getOnlyElement(transform.getOutputs()).getValue());
     if (fn == null) {
       return PassthroughTransformEvaluator.create(transform, outputBundle);
     }
@@ -68,14 +68,15 @@ class WindowEvaluatorFactory implements TransformEvaluatorFactory {
   public void cleanup() {}
 
   private static class WindowIntoEvaluator<InputT> implements TransformEvaluator<InputT> {
-    private final AppliedPTransform<PCollection<InputT>, PCollection<InputT>, Window.Bound<InputT>>
+    private final AppliedPTransform<PCollection<InputT>, PCollection<InputT>, Window.Assign<InputT>>
         transform;
     private final WindowFn<InputT, ?> windowFn;
     private final UncommittedBundle<InputT> outputBundle;
 
     @SuppressWarnings("unchecked")
     public WindowIntoEvaluator(
-        AppliedPTransform<PCollection<InputT>, PCollection<InputT>, Window.Bound<InputT>> transform,
+        AppliedPTransform<PCollection<InputT>, PCollection<InputT>, Window.Assign<InputT>>
+            transform,
         WindowFn<? super InputT, ?> windowFn,
         UncommittedBundle<InputT> outputBundle) {
       this.outputBundle = outputBundle;
@@ -90,7 +91,7 @@ class WindowEvaluatorFactory implements TransformEvaluatorFactory {
         Collection<? extends BoundedWindow> windows = assignWindows(windowFn, element);
         outputBundle.add(
             WindowedValue.<InputT>of(
-                element.getValue(), element.getTimestamp(), windows, PaneInfo.NO_FIRING));
+                element.getValue(), element.getTimestamp(), windows, element.getPane()));
       }
     }
 

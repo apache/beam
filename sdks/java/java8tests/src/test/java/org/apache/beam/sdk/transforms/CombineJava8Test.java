@@ -23,7 +23,6 @@ import static org.hamcrest.Matchers.not;
 
 import com.google.common.collect.Iterables;
 import java.io.Serializable;
-import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.display.DisplayData;
@@ -43,6 +42,9 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 @SuppressWarnings("serial")
 public class CombineJava8Test implements Serializable {
+
+  @Rule
+  public final transient TestPipeline pipeline = TestPipeline.create();
 
   @Rule
   public transient ExpectedException thrown = ExpectedException.none();
@@ -65,7 +67,6 @@ public class CombineJava8Test implements Serializable {
    */
   @Test
   public void testCombineGloballyLambda() {
-    Pipeline pipeline = TestPipeline.create();
 
     PCollection<Integer> output = pipeline
         .apply(Create.of(1, 2, 3, 4))
@@ -86,7 +87,6 @@ public class CombineJava8Test implements Serializable {
    */
   @Test
   public void testCombineGloballyInstanceMethodReference() {
-    Pipeline pipeline = TestPipeline.create();
 
     PCollection<Integer> output = pipeline
         .apply(Create.of(1, 2, 3, 4))
@@ -101,7 +101,6 @@ public class CombineJava8Test implements Serializable {
    */
   @Test
   public void testCombinePerKeyLambda() {
-    Pipeline pipeline = TestPipeline.create();
 
     PCollection<KV<String, Integer>> output = pipeline
         .apply(Create.of(KV.of("a", 1), KV.of("b", 2), KV.of("a", 3), KV.of("c", 4)))
@@ -125,7 +124,6 @@ public class CombineJava8Test implements Serializable {
    */
   @Test
   public void testCombinePerKeyInstanceMethodReference() {
-    Pipeline pipeline = TestPipeline.create();
 
     PCollection<KV<String, Integer>> output = pipeline
         .apply(Create.of(KV.of("a", 1), KV.of("b", 2), KV.of("a", 3), KV.of("c", 4)))

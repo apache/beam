@@ -27,7 +27,6 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
-import com.fasterxml.jackson.annotation.JsonFormat.Value;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.auto.service.AutoService;
@@ -684,7 +683,7 @@ public class PipelineOptionsFactoryTest {
   @Test
   public void testAppNameIsNotOverriddenWhenPassedInViaCommandLine() {
     ApplicationNameOptions options = PipelineOptionsFactory
-        .fromArgs(new String[]{ "--appName=testAppName" })
+        .fromArgs("--appName=testAppName")
         .as(ApplicationNameOptions.class);
     assertEquals("testAppName", options.getAppName());
   }
@@ -692,7 +691,7 @@ public class PipelineOptionsFactoryTest {
   @Test
   public void testPropertyIsSetOnRegisteredPipelineOptionNotPartOfOriginalInterface() {
     PipelineOptions options = PipelineOptionsFactory
-        .fromArgs(new String[]{ "--project=testProject" })
+        .fromArgs("--project=testProject")
         .create();
     assertEquals("testProject", options.as(GcpOptions.class).getProject());
   }
@@ -1636,6 +1635,7 @@ public class PipelineOptionsFactoryTest {
       return new RegisteredTestRunner();
     }
 
+    @Override
     public PipelineResult run(Pipeline p) {
       throw new IllegalArgumentException();
     }

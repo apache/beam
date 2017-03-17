@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.transforms;
 
+import java.lang.reflect.Method;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.HasDisplayData;
 import org.apache.beam.sdk.values.TypeDescriptor;
@@ -28,6 +30,40 @@ import org.apache.beam.sdk.values.TypeDescriptor;
  */
 public abstract class SimpleFunction<InputT, OutputT>
     implements SerializableFunction<InputT, OutputT>, HasDisplayData {
+
+  @Nullable
+  private final SerializableFunction<InputT, OutputT> fn;
+
+  protected SimpleFunction() {
+    this.fn = null;
+    // A subclass must override apply if using this constructor. Check that via
+    // reflection.
+    try {
+      Method methodThatMustBeOverridden =
+          SimpleFunction.class.getDeclaredMethod("apply", new Class[] {Object.class});
+      Method methodOnSubclass =
+          getClass().getMethod("apply", new Class[] {Object.class});
+
+      if (methodOnSubclass.equals(methodThatMustBeOverridden)) {
+        throw new IllegalStateException(
+            "Subclass of SimpleFunction must override 'apply' method"
+                + " or pass a SerializableFunction to the constructor,"
+                + " usually via a lambda or method reference.");
+      }
+
+    } catch (NoSuchMethodException exc) {
+      throw new RuntimeException("Impossible state: missing 'apply' method entirely", exc);
+    }
+  }
+
+  protected SimpleFunction(SerializableFunction<InputT, OutputT> fn) {
+    this.fn = fn;
+  }
+
+  @Override
+  public OutputT apply(InputT input) {
+    return fn.apply(input);
+  }
 
   public static <InputT, OutputT>
       SimpleFunction<InputT, OutputT> fromSerializableFunctionWithOutputType(
@@ -77,21 +113,15 @@ public abstract class SimpleFunction<InputT, OutputT>
   private static class SimpleFunctionWithOutputType<InputT, OutputT>
       extends SimpleFunction<InputT, OutputT> {
 
-    private final SerializableFunction<InputT, OutputT> fn;
     private final TypeDescriptor<OutputT> outputType;
 
     public SimpleFunctionWithOutputType(
         SerializableFunction<InputT, OutputT> fn,
         TypeDescriptor<OutputT> outputType) {
-      this.fn = fn;
+      super(fn);
       this.outputType = outputType;
     }
 
-
-    @Override
-    public OutputT apply(InputT input) {
-      return fn.apply(input);
-    }
 
     @Override
     public TypeDescriptor<OutputT> getOutputTypeDescriptor() {

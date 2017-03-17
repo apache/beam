@@ -17,6 +17,9 @@
  */
 package org.apache.beam.sdk.coders;
 
+import static org.hamcrest.Matchers.equalTo;
+import static org.junit.Assert.assertThat;
+
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
@@ -24,7 +27,9 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.TreeSet;
 import org.apache.beam.sdk.testing.CoderProperties;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.CoderUtils;
+import org.apache.beam.sdk.values.TypeDescriptor;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -88,5 +93,16 @@ public class CollectionCoderTest {
     thrown.expectMessage("cannot encode a null Collection");
 
     CoderUtils.encodeToBase64(TEST_CODER, null);
+  }
+
+  @Test
+  public void testCoderIsSerializableWithWellKnownCoderType() throws Exception {
+    CoderProperties.coderSerializable(CollectionCoder.of(GlobalWindow.Coder.INSTANCE));
+  }
+
+  public void testEncodedTypeDescriptor() throws Exception {
+    TypeDescriptor<Collection<Integer>> expectedTypeDescriptor =
+        new TypeDescriptor<Collection<Integer>>() {};
+    assertThat(TEST_CODER.getEncodedTypeDescriptor(), equalTo(expectedTypeDescriptor));
   }
 }

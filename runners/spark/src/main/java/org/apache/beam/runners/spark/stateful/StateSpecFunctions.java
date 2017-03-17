@@ -29,20 +29,24 @@ import java.util.concurrent.TimeUnit;
 import org.apache.beam.runners.spark.coders.CoderHelpers;
 import org.apache.beam.runners.spark.io.EmptyCheckpointMark;
 import org.apache.beam.runners.spark.io.MicrobatchSource;
+import org.apache.beam.runners.spark.io.SparkUnboundedSource.Metadata;
 import org.apache.beam.runners.spark.translation.SparkRuntimeContext;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.Source;
 import org.apache.beam.sdk.io.UnboundedSource;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.spark.streaming.State;
 import org.apache.spark.streaming.StateSpec;
+import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import scala.Option;
+import scala.Tuple2;
 import scala.runtime.AbstractFunction3;
 
 /**
@@ -91,18 +95,26 @@ public class StateSpecFunctions {
    * @return The appropriate {@link org.apache.spark.streaming.StateSpec} function.
    */
   public static <T, CheckpointMarkT extends UnboundedSource.CheckpointMark>
-  scala.Function3<Source<T>, scala.Option<CheckpointMarkT>, /* CheckpointMarkT */State<byte[]>,
-      Iterator<WindowedValue<T>>> mapSourceFunction(final SparkRuntimeContext runtimeContext) {
+  scala.Function3<Source<T>, scala.Option<CheckpointMarkT>, State<Tuple2<byte[], Instant>>,
+      Tuple2<Iterable<byte[]>, Metadata>> mapSourceFunction(
+           final SparkRuntimeContext runtimeContext) {
 
-    return new SerializableFunction3<Source<T>, Option<CheckpointMarkT>, State<byte[]>,
-        Iterator<WindowedValue<T>>>() {
+    return new SerializableFunction3<Source<T>, Option<CheckpointMarkT>,
+        State<Tuple2<byte[], Instant>>, Tuple2<Iterable<byte[]>, Metadata>>() {
 
       @Override
-      public Iterator<WindowedValue<T>> apply(Source<T> source, scala.Option<CheckpointMarkT>
-          startCheckpointMark, State<byte[]> state) {
+      public Tuple2<Iterable<byte[]>, Metadata> apply(
+          Source<T> source,
+          scala.Option<CheckpointMarkT> startCheckpointMark,
+          State<Tuple2<byte[], Instant>> state) {
+
         // source as MicrobatchSource
         MicrobatchSource<T, CheckpointMarkT> microbatchSource =
             (MicrobatchSource<T, CheckpointMarkT>) source;
+
+        // Initial high/low watermarks.
+        Instant lowWatermark = BoundedWindow.TIMESTAMP_MIN_VALUE;
+        Instant highWatermark;
 
         // if state exists, use it, otherwise it's first time so use the startCheckpointMark.
         // startCheckpointMark may be EmptyCheckpointMark (the Spark Java API tries to apply
@@ -110,7 +122,9 @@ public class StateSpecFunctions {
         Coder<CheckpointMarkT> checkpointCoder = microbatchSource.getCheckpointMarkCoder();
         CheckpointMarkT checkpointMark;
         if (state.exists()) {
-          checkpointMark = CoderHelpers.fromByteArray(state.get(), checkpointCoder);
+          // previous (output) watermark is now the low watermark.
+          lowWatermark = state.get()._2();
+          checkpointMark = CoderHelpers.fromByteArray(state.get()._1(), checkpointCoder);
           LOG.info("Continue reading from an existing CheckpointMark.");
         } else if (startCheckpointMark.isDefined()
             && !startCheckpointMark.get().equals(EmptyCheckpointMark.get())) {
@@ -130,17 +144,27 @@ public class StateSpecFunctions {
           throw new RuntimeException(e);
         }
 
-        // read microbatch.
-        final List<WindowedValue<T>> readValues = new ArrayList<>();
+        // read microbatch as a serialized collection.
+        final List<byte[]> readValues = new ArrayList<>();
+        final Instant watermark;
+        WindowedValue.FullWindowedValueCoder<T> coder =
+            WindowedValue.FullWindowedValueCoder.of(
+                source.getDefaultOutputCoder(),
+                GlobalWindow.Coder.INSTANCE);
         try {
           // measure how long a read takes per-partition.
           Stopwatch stopwatch = Stopwatch.createStarted();
           boolean finished = !reader.start();
           while (!finished) {
-            readValues.add(WindowedValue.of(reader.getCurrent(), reader.getCurrentTimestamp(),
-                GlobalWindow.INSTANCE, PaneInfo.NO_FIRING));
+            WindowedValue<T> wv = WindowedValue.of(reader.getCurrent(),
+                reader.getCurrentTimestamp(), GlobalWindow.INSTANCE, PaneInfo.NO_FIRING);
+            readValues.add(CoderHelpers.toByteArray(wv, coder));
             finished = !reader.advance();
           }
+
+          // end-of-read watermark is the high watermark, but don't allow decrease.
+          Instant sourceWatermark = ((MicrobatchSource.Reader) reader).getWatermark();
+          highWatermark = sourceWatermark.isAfter(lowWatermark) ? sourceWatermark : lowWatermark;
 
           // close and checkpoint reader.
           reader.close();
@@ -151,16 +175,26 @@ public class StateSpecFunctions {
           @SuppressWarnings("unchecked")
           CheckpointMarkT finishedReadCheckpointMark =
               (CheckpointMarkT) ((MicrobatchSource.Reader) reader).getCheckpointMark();
+          byte[] codedCheckpoint = new byte[0];
           if (finishedReadCheckpointMark != null) {
-            state.update(CoderHelpers.toByteArray(finishedReadCheckpointMark, checkpointCoder));
+            codedCheckpoint = CoderHelpers.toByteArray(finishedReadCheckpointMark, checkpointCoder);
           } else {
             LOG.info("Skipping checkpoint marking because the reader failed to supply one.");
           }
+          // persist the end-of-read (high) watermark for following read, where it will become
+          // the next low watermark.
+          state.update(new Tuple2<>(codedCheckpoint, highWatermark));
         } catch (IOException e) {
           throw new RuntimeException("Failed to read from reader.", e);
         }
 
-        return Iterators.unmodifiableIterator(readValues.iterator());
+        Iterable <byte[]> iterable = new Iterable<byte[]>() {
+          @Override
+          public Iterator<byte[]> iterator() {
+            return Iterators.unmodifiableIterator(readValues.iterator());
+          }
+        };
+        return new Tuple2<>(iterable, new Metadata(readValues.size(), lowWatermark, highWatermark));
       }
     };
   }

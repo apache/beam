@@ -27,17 +27,25 @@ import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
-import com.google.common.collect.Lists;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import org.apache.beam.runners.core.KeyedWorkItem;
+import org.apache.beam.runners.core.KeyedWorkItems;
+import org.apache.beam.runners.core.StateInternals;
+import org.apache.beam.runners.core.StateNamespace;
+import org.apache.beam.runners.core.StateNamespaces;
+import org.apache.beam.runners.core.StateTag;
+import org.apache.beam.runners.core.StateTags;
 import org.apache.beam.runners.direct.DirectRunner.CommittedBundle;
 import org.apache.beam.runners.direct.DirectRunner.UncommittedBundle;
 import org.apache.beam.runners.direct.ParDoMultiOverrideFactory.StatefulParDo;
 import org.apache.beam.runners.direct.WatermarkManager.TimerUpdate;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.Create;
@@ -52,21 +60,19 @@ import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.util.ReadyCheckingSideInputReader;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowingStrategy;
-import org.apache.beam.sdk.util.state.StateInternals;
-import org.apache.beam.sdk.util.state.StateNamespace;
-import org.apache.beam.sdk.util.state.StateNamespaces;
 import org.apache.beam.sdk.util.state.StateSpec;
 import org.apache.beam.sdk.util.state.StateSpecs;
-import org.apache.beam.sdk.util.state.StateTag;
-import org.apache.beam.sdk.util.state.StateTags;
 import org.apache.beam.sdk.util.state.ValueState;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.TupleTagList;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -91,6 +97,10 @@ public class StatefulParDoEvaluatorFactoryTest implements Serializable {
 
   private static final BundleFactory BUNDLE_FACTORY = ImmutableListBundleFactory.create();
 
+  @Rule
+  public transient TestPipeline pipeline =
+      TestPipeline.create().enableAbandonedNodeEnforcement(false);
+
   @Before
   public void setup() {
     MockitoAnnotations.initMocks(this);
@@ -106,7 +116,6 @@ public class StatefulParDoEvaluatorFactoryTest implements Serializable {
   public void windowCleanupScheduled() throws Exception {
     // To test the factory, first we set up a pipeline and then we use the constructed
     // pipeline to create the right parameters to pass to the factory
-    TestPipeline pipeline = TestPipeline.create();
 
     final String stateId = "my-state-id";
 
@@ -116,23 +125,29 @@ public class StatefulParDoEvaluatorFactoryTest implements Serializable {
             .apply(Create.of(KV.of("hello", 1), KV.of("hello", 2)))
             .apply(Window.<KV<String, Integer>>into(FixedWindows.of(Duration.millis(10))));
 
+    TupleTag<Integer> mainOutput = new TupleTag<>();
     PCollection<Integer> produced =
-        input.apply(
-            ParDo.of(
-                new DoFn<KV<String, Integer>, Integer>() {
-                  @StateId(stateId)
-                  private final StateSpec<Object, ValueState<String>> spec =
-                      StateSpecs.value(StringUtf8Coder.of());
+        input
+            .apply(
+                new ParDoMultiOverrideFactory.GbkThenStatefulParDo<>(
+                    ParDo.of(
+                            new DoFn<KV<String, Integer>, Integer>() {
+                              @StateId(stateId)
+                              private final StateSpec<Object, ValueState<String>> spec =
+                                  StateSpecs.value(StringUtf8Coder.of());
 
-                  @ProcessElement
-                  public void process(ProcessContext c) {}
-                }));
+                              @ProcessElement
+                              public void process(ProcessContext c) {}
+                            })
+                        .withOutputTags(mainOutput, TupleTagList.empty())))
+            .get(mainOutput)
+            .setCoder(VarIntCoder.of());
 
     StatefulParDoEvaluatorFactory<String, Integer, Integer> factory =
         new StatefulParDoEvaluatorFactory(mockEvaluationContext);
 
     AppliedPTransform<
-            PCollection<? extends KV<String, Iterable<Integer>>>, PCollectionTuple,
+            PCollection<? extends KeyedWorkItem<String, KV<String, Integer>>>, PCollectionTuple,
             StatefulParDo<String, Integer, Integer>>
         producingTransform = (AppliedPTransform) DirectGraphs.getProducer(produced);
 
@@ -208,7 +223,6 @@ public class StatefulParDoEvaluatorFactoryTest implements Serializable {
   public void testUnprocessedElements() throws Exception {
     // To test the factory, first we set up a pipeline and then we use the constructed
     // pipeline to create the right parameters to pass to the factory
-    TestPipeline pipeline = TestPipeline.create();
 
     final String stateId = "my-state-id";
 
@@ -224,25 +238,31 @@ public class StatefulParDoEvaluatorFactoryTest implements Serializable {
             .apply("Window side input", Window.<Integer>into(FixedWindows.of(Duration.millis(10))))
             .apply("View side input", View.<Integer>asList());
 
+    TupleTag<Integer> mainOutput = new TupleTag<>();
     PCollection<Integer> produced =
-        mainInput.apply(
-            ParDo.withSideInputs(sideInput)
-                .of(
-                    new DoFn<KV<String, Integer>, Integer>() {
-                      @StateId(stateId)
-                      private final StateSpec<Object, ValueState<String>> spec =
-                          StateSpecs.value(StringUtf8Coder.of());
+        mainInput
+            .apply(
+                new ParDoMultiOverrideFactory.GbkThenStatefulParDo<>(
+                    ParDo.withSideInputs(sideInput)
+                        .of(
+                            new DoFn<KV<String, Integer>, Integer>() {
+                              @StateId(stateId)
+                              private final StateSpec<Object, ValueState<String>> spec =
+                                  StateSpecs.value(StringUtf8Coder.of());
 
-                      @ProcessElement
-                      public void process(ProcessContext c) {}
-                    }));
+                              @ProcessElement
+                              public void process(ProcessContext c) {}
+                            })
+                        .withOutputTags(mainOutput, TupleTagList.empty())))
+            .get(mainOutput)
+            .setCoder(VarIntCoder.of());
 
     StatefulParDoEvaluatorFactory<String, Integer, Integer> factory =
         new StatefulParDoEvaluatorFactory(mockEvaluationContext);
 
     // This will be the stateful ParDo from the expansion
     AppliedPTransform<
-            PCollection<KV<String, Iterable<Integer>>>, PCollectionTuple,
+            PCollection<KeyedWorkItem<String, KV<String, Integer>>>, PCollectionTuple,
             StatefulParDo<String, Integer, Integer>>
         producingTransform = (AppliedPTransform) DirectGraphs.getProducer(produced);
 
@@ -267,37 +287,52 @@ public class StatefulParDoEvaluatorFactoryTest implements Serializable {
     // A single bundle with some elements in the global window; it should register cleanup for the
     // global window state merely by having the evaluator created. The cleanup logic does not
     // depend on the window.
-    WindowedValue<KV<String, Iterable<Integer>>> gbkOutputElement =
-        WindowedValue.of(
-            KV.<String, Iterable<Integer>>of("hello", Lists.newArrayList(1, 13, 15)),
-            new Instant(3),
-            firstWindow,
-            PaneInfo.NO_FIRING);
-    CommittedBundle<KV<String, Iterable<Integer>>> inputBundle =
+    String key = "hello";
+    WindowedValue<KV<String, Integer>> firstKv = WindowedValue.of(
+        KV.of(key, 1),
+        new Instant(3),
+        firstWindow,
+        PaneInfo.NO_FIRING);
+
+    WindowedValue<KeyedWorkItem<String, KV<String, Integer>>> gbkOutputElement =
+        firstKv.withValue(
+            KeyedWorkItems.elementsWorkItem(
+                "hello",
+                ImmutableList.of(
+                    firstKv,
+                    firstKv.withValue(KV.of(key, 13)),
+                    firstKv.withValue(KV.of(key, 15)))));
+
+    CommittedBundle<KeyedWorkItem<String, KV<String, Integer>>> inputBundle =
         BUNDLE_FACTORY
-            .createBundle(producingTransform.getInput())
+            .createBundle(
+                (PCollection<KeyedWorkItem<String, KV<String, Integer>>>)
+                    Iterables.getOnlyElement(producingTransform.getInputs()).getValue())
             .add(gbkOutputElement)
             .commit(Instant.now());
-    TransformEvaluator<KV<String, Iterable<Integer>>> evaluator =
+    TransformEvaluator<KeyedWorkItem<String, KV<String, Integer>>> evaluator =
         factory.forApplication(producingTransform, inputBundle);
+
     evaluator.processElement(gbkOutputElement);
 
     // This should push back every element as a KV<String, Iterable<Integer>>
     // in the appropriate window. Since the keys are equal they are single-threaded
-    TransformResult<KV<String, Iterable<Integer>>> result = evaluator.finishBundle();
+    TransformResult<KeyedWorkItem<String, KV<String, Integer>>> result =
+        evaluator.finishBundle();
 
     List<Integer> pushedBackInts = new ArrayList<>();
 
-    for (WindowedValue<?> unprocessedElement : result.getUnprocessedElements()) {
-      WindowedValue<KV<String, Iterable<Integer>>> unprocessedKv =
-          (WindowedValue<KV<String, Iterable<Integer>>>) unprocessedElement;
+    for (WindowedValue<? extends KeyedWorkItem<String, KV<String, Integer>>> unprocessedElement :
+        result.getUnprocessedElements()) {
 
       assertThat(
           Iterables.getOnlyElement(unprocessedElement.getWindows()),
           equalTo((BoundedWindow) firstWindow));
-      assertThat(unprocessedKv.getValue().getKey(), equalTo("hello"));
-      for (Integer i : unprocessedKv.getValue().getValue()) {
-        pushedBackInts.add(i);
+
+      assertThat(unprocessedElement.getValue().key(), equalTo("hello"));
+      for (WindowedValue<KV<String, Integer>> windowedKv :
+          unprocessedElement.getValue().elementsIterable()) {
+        pushedBackInts.add(windowedKv.getValue().getValue());
       }
     }
     assertThat(pushedBackInts, containsInAnyOrder(1, 13, 15));

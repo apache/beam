@@ -39,12 +39,15 @@ import org.junit.runners.JUnit4;
 public class WithKeysJava8Test {
 
   @Rule
+  public final transient TestPipeline p = TestPipeline.create();
+
+  @Rule
   public ExpectedException thrown = ExpectedException.none();
 
   @Test
   @Category(RunnableOnService.class)
   public void withLambdaAndTypeDescriptorShouldSucceed() {
-    TestPipeline p = TestPipeline.create();
+
 
     PCollection<String> values = p.apply(Create.of("1234", "3210", "0", "-12"));
     PCollection<KV<Integer, String>> kvs = values.apply(
@@ -59,7 +62,6 @@ public class WithKeysJava8Test {
 
   @Test
   public void withLambdaAndNoTypeDescriptorShouldThrow() {
-    TestPipeline p = TestPipeline.create();
 
     PCollection<String> values = p.apply(Create.of("1234", "3210", "0", "-12"));
 

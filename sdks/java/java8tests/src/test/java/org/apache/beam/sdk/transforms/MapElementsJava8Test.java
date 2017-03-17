@@ -18,11 +18,11 @@
 package org.apache.beam.sdk.transforms;
 
 import java.io.Serializable;
-import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -33,13 +33,16 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class MapElementsJava8Test implements Serializable {
 
+  @Rule
+  public final transient TestPipeline pipeline = TestPipeline.create();
+
   /**
-   * Basic test of {@link MapElements} with a lambda (which is instantiated as a
-   * {@link SerializableFunction}).
+   * Basic test of {@link MapElements} with a lambda (which is instantiated as a {@link
+   * SerializableFunction}).
    */
   @Test
-  public void testMapBasic() throws Exception {
-    Pipeline pipeline = TestPipeline.create();
+  public void testMapLambda() throws Exception {
+
     PCollection<Integer> output = pipeline
         .apply(Create.of(1, 2, 3))
         .apply(MapElements
@@ -52,11 +55,29 @@ public class MapElementsJava8Test implements Serializable {
   }
 
   /**
+   * Basic test of {@link MapElements} with a lambda wrapped into a {@link SimpleFunction} to
+   * remember its type.
+   */
+  @Test
+  public void testMapWrappedLambda() throws Exception {
+
+    PCollection<Integer> output =
+        pipeline
+            .apply(Create.of(1, 2, 3))
+            .apply(
+                MapElements
+                    .via(new SimpleFunction<Integer, Integer>((Integer i) -> i * 2) {}));
+
+    PAssert.that(output).containsInAnyOrder(6, 2, 4);
+    pipeline.run();
+  }
+
+  /**
    * Basic test of {@link MapElements} with a method reference.
    */
   @Test
   public void testMapMethodReference() throws Exception {
-    Pipeline pipeline = TestPipeline.create();
+
     PCollection<Integer> output = pipeline
         .apply(Create.of(1, 2, 3))
         .apply(MapElements

@@ -35,7 +35,7 @@ import org.apache.beam.sdk.transforms.Combine.CombineFn;
  * @param <AggInputT> the type of input element
  * @param <AggOutputT> the type of output element
  */
-class DelegatingAggregator<AggInputT, AggOutputT>
+public class DelegatingAggregator<AggInputT, AggOutputT>
     implements Aggregator<AggInputT, AggOutputT>, Serializable {
   private static final AtomicInteger ID_GEN = new AtomicInteger();
   private final int id;

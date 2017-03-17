@@ -20,6 +20,7 @@ package org.apache.beam.runners.direct;
 import com.google.auto.value.AutoValue;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Iterables;
 import com.google.common.util.concurrent.SettableFuture;
 import java.io.IOException;
 import java.util.Collection;
@@ -102,7 +103,7 @@ final class BoundedReadEvaluatorFactory implements TransformEvaluatorFactory {
    */
   private static class BoundedReadEvaluator<OutputT>
       implements TransformEvaluator<BoundedSourceShard<OutputT>> {
-    private final AppliedPTransform<?, PCollection<OutputT>, ?> transform;
+    private final PCollection<OutputT> outputPCollection;
     private final EvaluationContext evaluationContext;
     private Builder resultBuilder;
 
@@ -114,9 +115,10 @@ final class BoundedReadEvaluatorFactory implements TransformEvaluatorFactory {
         EvaluationContext evaluationContext,
         long minimumDynamicSplitSize,
         ExecutorService executor) {
-      this.transform = transform;
       this.evaluationContext = evaluationContext;
-      resultBuilder = StepTransformResult.withoutHold(transform);
+      this.outputPCollection =
+          (PCollection<OutputT>) Iterables.getOnlyElement(transform.getOutputs()).getValue();
+      this.resultBuilder = StepTransformResult.withoutHold(transform);
       this.minimumDynamicSplitSize = minimumDynamicSplitSize;
       this.produceSplitExecutor = executor;
     }
@@ -129,7 +131,7 @@ final class BoundedReadEvaluatorFactory implements TransformEvaluatorFactory {
           source.createReader(evaluationContext.getPipelineOptions())) {
         boolean contentsRemaining = reader.start();
         Future<BoundedSource<OutputT>> residualFuture = startDynamicSplitThread(source, reader);
-        UncommittedBundle<OutputT> output = evaluationContext.createBundle(transform.getOutput());
+        UncommittedBundle<OutputT> output = evaluationContext.createBundle(outputPCollection);
         while (contentsRemaining) {
           output.add(
               WindowedValue.timestampedValueInGlobalWindow(

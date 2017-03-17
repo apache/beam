@@ -52,6 +52,8 @@ import org.junit.runners.JUnit4;
  */
 @RunWith(JUnit4.class)
 public class DoFnTesterTest {
+
+  @Rule public final TestPipeline p = TestPipeline.create();
   @Rule public ExpectedException thrown = ExpectedException.none();
 
   @Test
@@ -324,7 +326,7 @@ public class DoFnTesterTest {
   public void fnWithSideInputDefault() throws Exception {
     final PCollectionView<Integer> value =
         PCollectionViews.singletonView(
-            TestPipeline.create(), WindowingStrategy.globalDefault(), true, 0, VarIntCoder.of());
+            p, WindowingStrategy.globalDefault(), true, 0, VarIntCoder.of());
 
     try (DoFnTester<Integer, Integer> tester = DoFnTester.of(new SideInputDoFn(value))) {
       tester.processElement(1);
@@ -339,7 +341,7 @@ public class DoFnTesterTest {
   public void fnWithSideInputExplicit() throws Exception {
     final PCollectionView<Integer> value =
         PCollectionViews.singletonView(
-            TestPipeline.create(), WindowingStrategy.globalDefault(), true, 0, VarIntCoder.of());
+            p, WindowingStrategy.globalDefault(), true, 0, VarIntCoder.of());
 
     try (DoFnTester<Integer, Integer> tester = DoFnTester.of(new SideInputDoFn(value))) {
       tester.setSideInput(value, GlobalWindow.INSTANCE, -2);
@@ -402,11 +404,11 @@ public class DoFnTesterTest {
    * {@link DoFn.ProcessElement @ProcessElement}.
    */
   private static class CounterDoFn extends DoFn<Long, String> {
-    Aggregator<Long, Long> agg = createAggregator("ctr", new Sum.SumLongFn());
+    Aggregator<Long, Long> agg = createAggregator("ctr", Sum.ofLongs());
     Aggregator<Long, Long> startBundleCalls =
-        createAggregator("startBundleCalls", new Sum.SumLongFn());
+        createAggregator("startBundleCalls", Sum.ofLongs());
     Aggregator<Long, Long> finishBundleCalls =
-        createAggregator("finishBundleCalls", new Sum.SumLongFn());
+        createAggregator("finishBundleCalls", Sum.ofLongs());
 
     private enum LifecycleState {
       UNINITIALIZED,

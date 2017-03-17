@@ -22,7 +22,6 @@ import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertThat;
 
-import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
@@ -40,6 +39,10 @@ import org.junit.runners.JUnit4;
  */
 @RunWith(JUnit4.class)
 public class TypedPValueTest {
+
+  @Rule
+  public final TestPipeline p = TestPipeline.create().enableAbandonedNodeEnforcement(false);
+
   @Rule
   public ExpectedException thrown = ExpectedException.none();
 
@@ -51,9 +54,8 @@ public class TypedPValueTest {
     }
   }
 
-  private static PCollectionTuple buildPCollectionTupleWithTags(
+  private PCollectionTuple buildPCollectionTupleWithTags(
       TupleTag<Integer> mainOutputTag, TupleTag<Integer> sideOutputTag) {
-    Pipeline p = TestPipeline.create();
     PCollection<Integer> input = p.apply(Create.of(1, 2, 3));
     PCollectionTuple tuple = input.apply(
         ParDo
@@ -138,7 +140,6 @@ public class TypedPValueTest {
 
   @Test
   public void testParDoWithNoSideOutputsErrorDoesNotMentionTupleTag() {
-    Pipeline p = TestPipeline.create();
     PCollection<EmptyClass> input =
         p.apply(Create.of(1, 2, 3)).apply(ParDo.of(new EmptyClassDoFn()));
 
@@ -158,14 +159,16 @@ public class TypedPValueTest {
 
   @Test
   public void testFinishSpecifyingShouldFailIfNoCoderInferrable() {
-    Pipeline p = TestPipeline.create();
+    p.enableAbandonedNodeEnforcement(false);
+    PCollection<Integer> created = p.apply(Create.of(1, 2, 3));
+    ParDo.Bound<Integer, EmptyClass> uninferrableParDo = ParDo.of(new EmptyClassDoFn());
     PCollection<EmptyClass> unencodable =
-        p.apply(Create.of(1, 2, 3)).apply(ParDo.of(new EmptyClassDoFn()));
+        created.apply(uninferrableParDo);
 
     thrown.expect(IllegalStateException.class);
     thrown.expectMessage("Unable to return a default Coder");
     thrown.expectMessage("Inferring a Coder from the CoderRegistry failed");
 
-    unencodable.finishSpecifying();
+    unencodable.finishSpecifying(created, uninferrableParDo);
   }
 }

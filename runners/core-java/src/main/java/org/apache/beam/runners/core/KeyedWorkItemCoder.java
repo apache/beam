@@ -26,14 +26,14 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.List;
+import org.apache.beam.runners.core.TimerInternals.TimerData;
+import org.apache.beam.runners.core.TimerInternals.TimerDataCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.StandardCoder;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.PropertyNames;
-import org.apache.beam.sdk.util.TimerInternals.TimerData;
-import org.apache.beam.sdk.util.TimerInternals.TimerDataCoder;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowedValue.FullWindowedValueCoder;
 
@@ -92,7 +92,7 @@ public class KeyedWorkItemCoder<K, ElemT> extends StandardCoder<KeyedWorkItem<K,
     Coder.Context nestedContext = context.nested();
     keyCoder.encode(value.key(), outStream, nestedContext);
     timersCoder.encode(value.timersIterable(), outStream, nestedContext);
-    elemsCoder.encode(value.elementsIterable(), outStream, nestedContext);
+    elemsCoder.encode(value.elementsIterable(), outStream, context);
   }
 
   @Override
@@ -101,7 +101,7 @@ public class KeyedWorkItemCoder<K, ElemT> extends StandardCoder<KeyedWorkItem<K,
     Coder.Context nestedContext = context.nested();
     K key = keyCoder.decode(inStream, nestedContext);
     Iterable<TimerData> timers = timersCoder.decode(inStream, nestedContext);
-    Iterable<WindowedValue<ElemT>> elems = elemsCoder.decode(inStream, nestedContext);
+    Iterable<WindowedValue<ElemT>> elems = elemsCoder.decode(inStream, context);
     return KeyedWorkItems.workItem(key, timers, elems);
   }
 

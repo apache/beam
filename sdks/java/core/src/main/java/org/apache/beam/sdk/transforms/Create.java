@@ -89,6 +89,7 @@ import org.joda.time.Instant;
  *
  * @param <T> the type of the elements of the resulting {@code PCollection}
  */
+@SuppressWarnings("OptionalUsedAsFieldOrParameterType")
 public class Create<T> {
   /**
    * Returns a new {@code Create.Values} transform that produces a
@@ -108,7 +109,7 @@ public class Create<T> {
    * Otherwise, use {@link Create.Values#withCoder} to set the coder explicitly.
    */
   public static <T> Values<T> of(Iterable<T> elems) {
-    return new Values<>(elems, Optional.<Coder<T>>absent());
+    return new Values<>(elems, Optional.<Coder<T>>absent(), Optional.<TypeDescriptor<T>>absent());
   }
 
   /**
@@ -128,8 +129,45 @@ public class Create<T> {
    * Otherwise, use {@link Create.Values#withCoder} to set the coder explicitly.
    */
   @SafeVarargs
-  public static <T> Values<T> of(T... elems) {
-    return of(Arrays.asList(elems));
+  public static <T> Values<T> of(T elem, T... elems) {
+    // This can't be an ImmutableList, as it may accept nulls
+    List<T> input = new ArrayList<>(elems.length + 1);
+    input.add(elem);
+    input.addAll(Arrays.asList(elems));
+    return of(input);
+  }
+
+  /**
+   * Returns a new {@code Create.Values} transform that produces
+   * an empty {@link PCollection}.
+   *
+   * <p>The elements will have a timestamp of negative infinity, see
+   * {@link Create#timestamped} for a way of creating a {@code PCollection}
+   * with timestamped elements.
+   *
+   * <p>Since there are no elements, the {@code Coder} cannot be automatically determined.
+   * Instead, the {@code Coder} is provided via the {@code coder} argument.
+   */
+  public static <T> Values<T> empty(Coder<T> coder) {
+    return new Values<>(new ArrayList<T>(), Optional.of(coder),
+        Optional.<TypeDescriptor<T>>absent());
+  }
+
+  /**
+   * Returns a new {@code Create.Values} transform that produces
+   * an empty {@link PCollection}.
+   *
+   * <p>The elements will have a timestamp of negative infinity, see
+   * {@link Create#timestamped} for a way of creating a {@code PCollection}
+   * with timestamped elements.
+   *
+   * <p>Since there are no elements, the {@code Coder} cannot be automatically determined.
+   * Instead, the {@code Coder} is determined from given {@code TypeDescriptor<T>}.
+   * Note that a default coder must be registered for the class described in the
+   * {@code TypeDescriptor<T>}.
+   */
+  public static <T> Values<T> empty(TypeDescriptor<T> type) {
+    return new Values<>(new ArrayList<T>(), Optional.<Coder<T>>absent(), Optional.of(type));
   }
 
   /**
@@ -180,8 +218,8 @@ public class Create<T> {
    */
   @SafeVarargs
   public static <T> TimestampedValues<T> timestamped(
-      @SuppressWarnings("unchecked") TimestampedValue<T>... elems) {
-    return timestamped(Arrays.asList(elems));
+      TimestampedValue<T> elem, @SuppressWarnings("unchecked") TimestampedValue<T>... elems) {
+    return timestamped(ImmutableList.<TimestampedValue<T>>builder().add(elem).add(elems).build());
   }
 
   /**
@@ -232,7 +270,24 @@ public class Create<T> {
      * <p>Note that for {@link Create.Values} with no elements, the {@link VoidCoder} is used.
      */
     public Values<T> withCoder(Coder<T> coder) {
-      return new Values<>(elems, Optional.of(coder));
+      return new Values<>(elems, Optional.of(coder), typeDescriptor);
+    }
+
+    /**
+     * Returns a {@link Create.Values} PTransform like this one that uses the given
+     * {@code TypeDescriptor<T>} to determine the {@code Coder} to use to decode each of the
+     * objects into a value of type {@code T}. Note that a default coder must be registered for the
+     * class described in the {@code TypeDescriptor<T>}.
+     *
+     * <p>By default, {@code Create.Values} can automatically determine the {@code Coder} to use
+     * if all elements have the same non-parameterized run-time class, and a default coder is
+     * registered for that class. See {@link CoderRegistry} for details on how defaults are
+     * determined.
+     *
+     * <p>Note that for {@link Create.Values} with no elements, the {@link VoidCoder} is used.
+     */
+    public Values<T> withType(TypeDescriptor<T> type) {
+      return new Values<>(elems, coder, Optional.of(type));
     }
 
     public Iterable<T> getElements() {
@@ -260,6 +315,8 @@ public class Create<T> {
     public Coder<T> getDefaultOutputCoder(PBegin input) throws CannotProvideCoderException {
       if (coder.isPresent()) {
         return coder.get();
+      } else if (typeDescriptor.isPresent()) {
+        return input.getPipeline().getCoderRegistry().getDefaultCoder(typeDescriptor.get());
       } else {
         return getDefaultCreateCoder(input.getPipeline().getCoderRegistry(), elems);
       }
@@ -273,15 +330,22 @@ public class Create<T> {
     /** The coder used to encode the values to and from a binary representation. */
     private final transient Optional<Coder<T>> coder;
 
+    /** The value type. */
+    private final transient Optional<TypeDescriptor<T>> typeDescriptor;
+
     /**
      * Constructs a {@code Create.Values} transform that produces a
      * {@link PCollection} containing the specified elements.
      *
      * <p>The arguments should not be modified after this is called.
      */
-    private Values(Iterable<T> elems, Optional<Coder<T>> coder) {
+    private Values(
+        Iterable<T> elems,
+        Optional<Coder<T>> coder,
+        Optional<TypeDescriptor<T>> typeDescriptor) {
       this.elems = elems;
       this.coder = coder;
+      this.typeDescriptor = typeDescriptor;
     }
 
     @VisibleForTesting
@@ -316,11 +380,6 @@ public class Create<T> {
       @Override
       public long getEstimatedSizeBytes(PipelineOptions options) throws Exception {
         return totalSize;
-      }
-
-      @Override
-      public boolean producesSortedKeys(PipelineOptions options) throws Exception {
-        return false;
       }
 
       @Override
@@ -492,6 +551,11 @@ public class Create<T> {
 
   private static <T> Coder<T> getDefaultCreateCoder(CoderRegistry registry, Iterable<T> elems)
       throws CannotProvideCoderException {
+    checkArgument(
+        !Iterables.isEmpty(elems),
+        "Elements must be provided to construct the default Create Coder. To Create an empty "
+            + "PCollection, either call Create.empty(Coder), or call 'withCoder(Coder)' on the "
+            + "result PTransform");
     // First try to deduce a coder using the types of the elements.
     Class<?> elementClazz = Void.class;
     for (T elem : elems) {

@@ -24,7 +24,6 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Supplier;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.ObjectStreamException;
 import java.io.OutputStream;
 import java.io.Serializable;
 import java.lang.reflect.Field;
@@ -59,6 +58,7 @@ import org.apache.avro.specific.SpecificData;
 import org.apache.avro.util.ClassUtils;
 import org.apache.avro.util.Utf8;
 import org.apache.beam.sdk.util.CloudObject;
+import org.apache.beam.sdk.util.EmptyOnDeserializationThreadLocal;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
 /**
@@ -167,29 +167,13 @@ public class AvroCoder<T> extends StandardCoder<T> {
 
   private final Class<T> type;
   private final SerializableSchemaSupplier schemaSupplier;
+  private final TypeDescriptor<T> typeDescriptor;
 
   private final List<String> nonDeterministicReasons;
 
   // Factories allocated by .get() are thread-safe and immutable.
   private static final EncoderFactory ENCODER_FACTORY = EncoderFactory.get();
   private static final DecoderFactory DECODER_FACTORY = DecoderFactory.get();
-
-  /**
-   * A {@link Serializable} {@link ThreadLocal} which discards any "stored" objects. This allows
-   * for Kryo to serialize an {@link AvroCoder} as a final field.
-   */
-  private static class EmptyOnDeserializationThreadLocal<T>
-      extends ThreadLocal<T> implements Serializable {
-    private void writeObject(java.io.ObjectOutputStream out) throws IOException {
-    }
-
-    private void readObject(java.io.ObjectInputStream in)
-        throws IOException, ClassNotFoundException {
-    }
-
-    private void readObjectNoData() throws ObjectStreamException {
-    }
-  }
 
   /**
    * A {@link Serializable} object that holds the {@link String} version of a {@link Schema}.
@@ -239,6 +223,7 @@ public class AvroCoder<T> extends StandardCoder<T> {
   protected AvroCoder(Class<T> type, Schema schema) {
     this.type = type;
     this.schemaSupplier = new SerializableSchemaSupplier(schema);
+    typeDescriptor = TypeDescriptor.of(type);
     nonDeterministicReasons = new AvroDeterminismChecker().check(TypeDescriptor.of(type), schema);
 
     // Decoder and Encoder start off null for each thread. They are allocated and potentially
@@ -327,8 +312,8 @@ public class AvroCoder<T> extends StandardCoder<T> {
   }
 
   @Override
-  public CloudObject asCloudObject() {
-    CloudObject result = super.asCloudObject();
+  protected CloudObject initializeCloudObject() {
+    CloudObject result = CloudObject.forClass(getClass());
     addString(result, "type", type.getName());
     addString(result, "schema", schemaSupplier.get().toString());
     return result;
@@ -382,6 +367,11 @@ public class AvroCoder<T> extends StandardCoder<T> {
    */
   public Schema getSchema() {
     return schemaSupplier.get();
+  }
+
+  @Override
+  public TypeDescriptor<T> getEncodedTypeDescriptor() {
+    return typeDescriptor;
   }
 
   /**

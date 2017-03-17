@@ -21,6 +21,7 @@ import static com.google.common.base.Verify.verifyNotNull;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
@@ -49,6 +50,7 @@ import com.google.api.services.bigquery.model.JobStatus;
 import com.google.api.services.bigquery.model.Table;
 import com.google.api.services.bigquery.model.TableDataInsertAllResponse;
 import com.google.api.services.bigquery.model.TableDataInsertAllResponse.InsertErrors;
+import com.google.api.services.bigquery.model.TableDataList;
 import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
@@ -136,6 +138,7 @@ public class BigQueryServicesImplTest {
     verify(response, times(1)).getStatusCode();
     verify(response, times(1)).getContent();
     verify(response, times(1)).getContentType();
+    expectedLogs.verifyInfo(String.format("Started BigQuery job: %s", jobRef));
   }
 
   /**
@@ -159,6 +162,7 @@ public class BigQueryServicesImplTest {
     verify(response, times(1)).getStatusCode();
     verify(response, times(1)).getContent();
     verify(response, times(1)).getContentType();
+    expectedLogs.verifyNotLogged("Started BigQuery job");
   }
 
   /**
@@ -317,6 +321,143 @@ public class BigQueryServicesImplTest {
     thrown.expectMessage(String.format("Unable to find BigQuery job: %s", jobRef));
 
     jobService.getJob(jobRef, Sleeper.DEFAULT, BackOff.STOP_BACKOFF);
+  }
+
+  @Test
+  public void testGetTableSucceeds() throws Exception {
+    TableReference tableRef = new TableReference()
+        .setProjectId("projectId")
+        .setDatasetId("datasetId")
+        .setTableId("tableId");
+
+    Table testTable = new Table();
+    testTable.setTableReference(tableRef);
+
+    when(response.getContentType()).thenReturn(Json.MEDIA_TYPE);
+    when(response.getStatusCode()).thenReturn(403).thenReturn(200);
+    when(response.getContent())
+        .thenReturn(toStream(errorWithReasonAndStatus("rateLimitExceeded", 403)))
+        .thenReturn(toStream(testTable));
+
+    BigQueryServicesImpl.DatasetServiceImpl datasetService =
+        new BigQueryServicesImpl.DatasetServiceImpl(bigquery, PipelineOptionsFactory.create());
+
+    Table table = datasetService.getTable(tableRef, BackOff.ZERO_BACKOFF, Sleeper.DEFAULT);
+
+    assertEquals(testTable, table);
+    verify(response, times(2)).getStatusCode();
+    verify(response, times(2)).getContent();
+    verify(response, times(2)).getContentType();
+  }
+
+  @Test
+  public void testGetTableNotFound() throws IOException, InterruptedException {
+    when(response.getContentType()).thenReturn(Json.MEDIA_TYPE);
+    when(response.getStatusCode()).thenReturn(404);
+
+    BigQueryServicesImpl.DatasetServiceImpl datasetService =
+        new BigQueryServicesImpl.DatasetServiceImpl(bigquery, PipelineOptionsFactory.create());
+
+    TableReference tableRef = new TableReference()
+        .setProjectId("projectId")
+        .setDatasetId("datasetId")
+        .setTableId("tableId");
+    Table table = datasetService.getTable(tableRef, BackOff.ZERO_BACKOFF, Sleeper.DEFAULT);
+
+    assertNull(table);
+    verify(response, times(1)).getStatusCode();
+    verify(response, times(1)).getContent();
+    verify(response, times(1)).getContentType();
+  }
+
+  @Test
+  public void testGetTableThrows() throws Exception {
+    when(response.getContentType()).thenReturn(Json.MEDIA_TYPE);
+    when(response.getStatusCode()).thenReturn(401);
+
+    TableReference tableRef = new TableReference()
+        .setProjectId("projectId")
+        .setDatasetId("datasetId")
+        .setTableId("tableId");
+
+    thrown.expect(IOException.class);
+    thrown.expectMessage(String.format("Unable to get table: %s", tableRef.getTableId()));
+
+    BigQueryServicesImpl.DatasetServiceImpl datasetService =
+        new BigQueryServicesImpl.DatasetServiceImpl(bigquery, PipelineOptionsFactory.create());
+    datasetService.getTable(tableRef, BackOff.STOP_BACKOFF, Sleeper.DEFAULT);
+  }
+
+  @Test
+  public void testIsTableEmptySucceeds() throws Exception {
+    TableReference tableRef = new TableReference()
+        .setProjectId("projectId")
+        .setDatasetId("datasetId")
+        .setTableId("tableId");
+
+    TableDataList testDataList = new TableDataList()
+        .setRows(ImmutableList.of(new TableRow()));
+
+    // First response is 403 rate limited, second response has valid payload.
+    when(response.getContentType()).thenReturn(Json.MEDIA_TYPE);
+    when(response.getStatusCode()).thenReturn(403).thenReturn(200);
+    when(response.getContent())
+        .thenReturn(toStream(errorWithReasonAndStatus("rateLimitExceeded", 403)))
+        .thenReturn(toStream(testDataList));
+
+    BigQueryServicesImpl.DatasetServiceImpl datasetService =
+        new BigQueryServicesImpl.DatasetServiceImpl(bigquery, PipelineOptionsFactory.create());
+
+    assertFalse(
+        datasetService.isTableEmpty(tableRef, BackOff.ZERO_BACKOFF, Sleeper.DEFAULT));
+
+    verify(response, times(2)).getStatusCode();
+    verify(response, times(2)).getContent();
+    verify(response, times(2)).getContentType();
+  }
+
+  @Test
+  public void testIsTableEmptyNoRetryForNotFound() throws IOException, InterruptedException {
+    when(response.getContentType()).thenReturn(Json.MEDIA_TYPE);
+    when(response.getStatusCode()).thenReturn(404);
+
+    BigQueryServicesImpl.DatasetServiceImpl datasetService =
+        new BigQueryServicesImpl.DatasetServiceImpl(bigquery, PipelineOptionsFactory.create());
+
+    TableReference tableRef = new TableReference()
+        .setProjectId("projectId")
+        .setDatasetId("datasetId")
+        .setTableId("tableId");
+
+    thrown.expect(IOException.class);
+    thrown.expectMessage(String.format("Unable to list table data: %s", tableRef.getTableId()));
+
+    try {
+      datasetService.isTableEmpty(tableRef, BackOff.ZERO_BACKOFF, Sleeper.DEFAULT);
+    } finally {
+      verify(response, times(1)).getStatusCode();
+      verify(response, times(1)).getContent();
+      verify(response, times(1)).getContentType();
+    }
+  }
+
+  @Test
+  public void testIsTableEmptyThrows() throws Exception {
+    when(response.getContentType()).thenReturn(Json.MEDIA_TYPE);
+    when(response.getStatusCode()).thenReturn(401);
+
+    TableReference tableRef = new TableReference()
+        .setProjectId("projectId")
+        .setDatasetId("datasetId")
+        .setTableId("tableId");
+
+    BigQueryServicesImpl.DatasetServiceImpl datasetService =
+        new BigQueryServicesImpl.DatasetServiceImpl(bigquery, PipelineOptionsFactory.create());
+
+    thrown.expect(IOException.class);
+    thrown.expectMessage(String.format("Unable to list table data: %s", tableRef.getTableId()));
+
+    datasetService.isTableEmpty(tableRef, BackOff.STOP_BACKOFF, Sleeper.DEFAULT);
   }
 
   @Test

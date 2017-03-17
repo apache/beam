@@ -25,7 +25,7 @@ import java.util.Map;
 import org.apache.beam.runners.direct.DirectRunner.CommittedBundle;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
-import org.apache.beam.sdk.transforms.Flatten.FlattenPCollectionList;
+import org.apache.beam.sdk.transforms.Flatten.PCollections;
 import org.apache.beam.sdk.transforms.PTransform;
 
 /**
@@ -42,7 +42,7 @@ class RootProviderRegistry {
         .put(
             TestStreamEvaluatorFactory.DirectTestStreamFactory.DirectTestStream.class,
             new TestStreamEvaluatorFactory.InputProvider(context))
-        .put(FlattenPCollectionList.class, new EmptyInputProvider());
+        .put(PCollections.class, new EmptyInputProvider());
     return new RootProviderRegistry(defaultProviders.build());
   }
 

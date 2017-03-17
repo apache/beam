@@ -25,7 +25,7 @@ import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.display.DisplayData.Builder;
 import org.apache.beam.sdk.transforms.display.HasDisplayData;
-import org.apache.beam.sdk.util.StringUtils;
+import org.apache.beam.sdk.util.NameUtils;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.TypedPValue;
@@ -84,9 +84,8 @@ import org.apache.beam.sdk.values.TypedPValue;
  * <p>PTransform operations have unique names, which are used by the
  * system when explaining what's going on during optimization and
  * execution.  Each PTransform gets a system-provided default name,
- * but it's a good practice to specify an explicit name, where
- * possible, using the {@code named()} method offered by some
- * PTransforms such as {@link ParDo}.  For example:
+ * but it's a good practice to specify a more informative explicit
+ * name when applying the transform. For example:
  *
  * <pre> {@code
  * ...
@@ -243,7 +242,7 @@ public abstract class PTransform<InputT extends PInput, OutputT extends POutput>
     if (getClass().isAnonymousClass()) {
       return "AnonymousTransform";
     } else {
-      return StringUtils.approximatePTransformName(getClass());
+      return NameUtils.approximatePTransformName(getClass());
     }
   }
 

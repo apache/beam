@@ -21,6 +21,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import org.apache.beam.sdk.values.TypeDescriptor;
 
 /**
  * A {@link Coder} that encodes {@code Integer Integers} as the ASCII bytes of
@@ -34,6 +35,8 @@ public class TextualIntegerCoder extends AtomicCoder<Integer> {
   }
 
   /////////////////////////////////////////////////////////////////////////////
+
+  private static final TypeDescriptor<Integer> TYPE_DESCRIPTOR = new TypeDescriptor<Integer>() {};
 
   protected TextualIntegerCoder() {}
 
@@ -56,6 +59,11 @@ public class TextualIntegerCoder extends AtomicCoder<Integer> {
     } catch (NumberFormatException exn) {
       throw new CoderException("error when decoding a textual integer", exn);
     }
+  }
+
+  @Override
+  public TypeDescriptor<Integer> getEncodedTypeDescriptor() {
+    return TYPE_DESCRIPTOR;
   }
 
   @Override

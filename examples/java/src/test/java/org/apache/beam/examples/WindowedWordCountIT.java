@@ -28,6 +28,7 @@ import java.util.Date;
 import java.util.List;
 import java.util.SortedMap;
 import java.util.TreeMap;
+import java.util.concurrent.ThreadLocalRandom;
 import org.apache.beam.examples.common.WriteWindowedFilesDoFn;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -47,8 +48,10 @@ import org.hamcrest.TypeSafeMatcher;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.BeforeClass;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
+import org.junit.rules.TestName;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.slf4j.Logger;
@@ -57,6 +60,8 @@ import org.slf4j.LoggerFactory;
 /** End-to-end integration test of {@link WindowedWordCount}. */
 @RunWith(JUnit4.class)
 public class WindowedWordCountIT {
+
+  @Rule public TestName testName = new TestName();
 
   private static final String DEFAULT_INPUT =
       "gs://apache-beam-samples/shakespeare/winterstale-personae";
@@ -100,7 +105,9 @@ public class WindowedWordCountIT {
     options.setOutput(
         IOChannelUtils.resolve(
             options.getTempRoot(),
-            String.format("WindowedWordCountIT-%tF-%<tH-%<tM-%<tS-%<tL", new Date()),
+            String.format(
+                "WindowedWordCountIT.%s-%tFT%<tH:%<tM:%<tS.%<tL+%s",
+                testName.getMethodName(), new Date(), ThreadLocalRandom.current().nextInt()),
             "output",
             "results"));
     return options;
@@ -133,8 +140,7 @@ public class WindowedWordCountIT {
               new IntervalWindow(windowStart, windowStart.plus(Duration.standardMinutes(10)))));
     }
 
-    ShardedFile inputFile =
-        new ExplicitShardedFile(Collections.singleton(options.getInputFile()));
+    ShardedFile inputFile = new ExplicitShardedFile(Collections.singleton(options.getInputFile()));
 
     // For this integration test, input is tiny and we can build the expected counts
     SortedMap<String, Long> expectedWordCounts = new TreeMap<>();
@@ -144,8 +150,8 @@ public class WindowedWordCountIT {
 
       for (String word : words) {
         if (!word.isEmpty()) {
-          expectedWordCounts.put(word,
-              MoreObjects.firstNonNull(expectedWordCounts.get(word), 0L) + 1L);
+          expectedWordCounts.put(
+              word, MoreObjects.firstNonNull(expectedWordCounts.get(word), 0L) + 1L);
         }
       }
     }

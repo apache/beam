@@ -110,12 +110,13 @@ public class DatastoreV1Test {
   private static final String NAMESPACE = "testNamespace";
   private static final String KIND = "testKind";
   private static final Query QUERY;
+  private static final String LOCALHOST = "localhost:9955";
   private static final V1Options V_1_OPTIONS;
   static {
     Query.Builder q = Query.newBuilder();
     q.addKindBuilder().setName(KIND);
     QUERY = q.build();
-    V_1_OPTIONS = V1Options.from(PROJECT_ID, QUERY, NAMESPACE);
+    V_1_OPTIONS = V1Options.from(PROJECT_ID, QUERY, NAMESPACE, null);
   }
   private DatastoreV1.Read initialRead;
 
@@ -136,7 +137,8 @@ public class DatastoreV1Test {
     initialRead = DatastoreIO.v1().read()
         .withProjectId(PROJECT_ID).withQuery(QUERY).withNamespace(NAMESPACE);
 
-    when(mockDatastoreFactory.getDatastore(any(PipelineOptions.class), any(String.class)))
+    when(mockDatastoreFactory.getDatastore(any(PipelineOptions.class), any(String.class),
+        any(String.class)))
         .thenReturn(mockDatastore);
     when(mockDatastoreFactory.getQuerySplitter())
         .thenReturn(mockQuerySplitter);
@@ -157,10 +159,12 @@ public class DatastoreV1Test {
   @Test
   public void testBuildReadAlt() throws Exception {
     DatastoreV1.Read read =  DatastoreIO.v1().read()
-        .withProjectId(PROJECT_ID).withNamespace(NAMESPACE).withQuery(QUERY);
+        .withProjectId(PROJECT_ID).withNamespace(NAMESPACE).withQuery(QUERY)
+        .withLocalhost(LOCALHOST);
     assertEquals(QUERY, read.getQuery());
     assertEquals(PROJECT_ID, read.getProjectId());
     assertEquals(NAMESPACE, read.getNamespace());
+    assertEquals(LOCALHOST, read.getLocalhost());
   }
 
   @Test
@@ -504,7 +508,7 @@ public class DatastoreV1Test {
 
   @Test
   public void testDatastoreWriteFnDisplayData() {
-    DatastoreWriterFn datastoreWriter = new DatastoreWriterFn(PROJECT_ID);
+    DatastoreWriterFn datastoreWriter = new DatastoreWriterFn(PROJECT_ID, null);
     DisplayData displayData = DisplayData.from(datastoreWriter);
     assertThat(displayData, hasDisplayItem("projectId", PROJECT_ID));
   }
@@ -539,7 +543,8 @@ public class DatastoreV1Test {
           makeUpsert(Entity.newBuilder().setKey(makeKey("key" + i, i + 1)).build()).build());
     }
 
-    DatastoreWriterFn datastoreWriter = new DatastoreWriterFn(PROJECT_ID, mockDatastoreFactory);
+    DatastoreWriterFn datastoreWriter = new DatastoreWriterFn(PROJECT_ID, null,
+        mockDatastoreFactory);
     DoFnTester<Mutation, Void> doFnTester = DoFnTester.of(datastoreWriter);
     doFnTester.setCloningBehavior(CloningBehavior.DO_NOT_CLONE);
     doFnTester.processBundle(mutations);

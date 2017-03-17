@@ -403,7 +403,8 @@ public class DoFnSignaturesSplittableDoFnTest {
   @Test
   public void testSplitRestrictionReturnsWrongType() throws Exception {
     thrown.expectMessage(
-        "Third argument must be OutputReceiver<SomeRestriction>, but is OutputReceiver<String>");
+        "Third argument must be DoFn.OutputReceiver<SomeRestriction>, "
+            + "but is DoFn.OutputReceiver<String>");
     DoFnSignatures.analyzeSplitRestrictionMethod(
         errors(),
         TypeDescriptor.of(FakeDoFn.class),

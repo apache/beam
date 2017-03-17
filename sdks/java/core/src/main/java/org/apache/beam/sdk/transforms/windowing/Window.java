@@ -22,6 +22,7 @@ import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.Coder.NonDeterministicException;
+import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -30,6 +31,7 @@ import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.util.WindowingStrategy.AccumulationMode;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionList;
 import org.joda.time.Duration;
 
 /**
@@ -121,8 +123,7 @@ import org.joda.time.Duration;
  *
  * <pre>{@code
  * PCollection<String> windowed_items = items.apply(
- *   Window.<String>into(FixedWindows.of(Duration.standardMinutes(1))
- *      .triggering(
+ *   Window.<String>into(FixedWindows.of(Duration.standardMinutes(1)))
  *      .triggering(
  *          AfterWatermark.pastEndOfWindow()
  *              .withEarlyFirings(AfterProcessingTime
@@ -154,6 +155,7 @@ public class Window {
      * <p>This is the default behavior.
      */
     FIRE_IF_NON_EMPTY
+
   }
 
   /**
@@ -220,6 +222,15 @@ public class Window {
   @Experimental(Kind.TRIGGER)
   public static <T> Bound<T> withAllowedLateness(Duration allowedLateness) {
     return new Bound(null).withAllowedLateness(allowedLateness);
+  }
+
+  /**
+   * <b><i>(Experimental)</i></b> Override the default {@link OutputTimeFn}, to control
+   * the output timestamp of values output from a {@link GroupByKey} operation.
+   */
+  @Experimental(Kind.OUTPUT_TIME)
+  public static <T> Bound<T> withOutputTimeFn(OutputTimeFn<?> outputTimeFn) {
+    return new Bound(null).withOutputTimeFn(outputTimeFn);
   }
 
   /**
@@ -426,30 +437,50 @@ public class Window {
 
       // Make sure that the windowing strategy is complete & valid.
       if (outputStrategy.isTriggerSpecified()
-          && !(outputStrategy.getTrigger() instanceof DefaultTrigger)) {
-        if (!(outputStrategy.getWindowFn() instanceof GlobalWindows)
-            && !outputStrategy.isAllowedLatenessSpecified()) {
-          throw new IllegalArgumentException("Except when using GlobalWindows,"
-              + " calling .triggering() to specify a trigger requires that the allowed lateness be"
-              + " specified using .withAllowedLateness() to set the upper bound on how late data"
-              + " can arrive before being dropped. See Javadoc for more details.");
-        }
-
-        if (!outputStrategy.isModeSpecified()) {
-          throw new IllegalArgumentException(
-              "Calling .triggering() to specify a trigger requires that the accumulation mode be"
-              + " specified using .discardingFiredPanes() or .accumulatingFiredPanes()."
-              + " See Javadoc for more details.");
-        }
+          && !(outputStrategy.getTrigger() instanceof DefaultTrigger)
+          && !(outputStrategy.getWindowFn() instanceof GlobalWindows)
+          && !outputStrategy.isAllowedLatenessSpecified()) {
+        throw new IllegalArgumentException(
+            "Except when using GlobalWindows,"
+                + " calling .triggering() to specify a trigger requires that the allowed lateness"
+                + " be specified using .withAllowedLateness() to set the upper bound on how late"
+                + " data can arrive before being dropped. See Javadoc for more details.");
       }
+
+      if (!outputStrategy.isModeSpecified() && canProduceMultiplePanes(outputStrategy)) {
+        throw new IllegalArgumentException(
+            "Calling .triggering() to specify a trigger or calling .withAllowedLateness() to"
+                + " specify an allowed lateness greater than zero requires that the accumulation"
+                + " mode be specified using .discardingFiredPanes() or .accumulatingFiredPanes()."
+                + " See Javadoc for more details.");
+      }
+    }
+
+    private boolean canProduceMultiplePanes(WindowingStrategy<?, ?> strategy) {
+      // The default trigger is Repeatedly.forever(AfterWatermark.pastEndOfWindow()); This fires
+      // for every late-arriving element if allowed lateness is nonzero, and thus we must have
+      // an accumulating mode specified
+      boolean dataCanArriveLate =
+          !(strategy.getWindowFn() instanceof GlobalWindows)
+              && strategy.getAllowedLateness().getMillis() > 0;
+      boolean hasCustomTrigger = !(strategy.getTrigger() instanceof DefaultTrigger);
+      return dataCanArriveLate || hasCustomTrigger;
     }
 
     @Override
     public PCollection<T> expand(PCollection<T> input) {
       WindowingStrategy<?, ?> outputStrategy =
           getOutputStrategyInternal(input.getWindowingStrategy());
-      return PCollection.createPrimitiveOutputInternal(
-          input.getPipeline(), outputStrategy, input.isBounded());
+      if (windowFn == null) {
+        // A new PCollection must be created in case input is reused in a different location as the
+        // two PCollections will, in general, have a different windowing strategy.
+        return PCollectionList.of(input)
+            .apply(Flatten.<T>pCollections())
+            .setWindowingStrategyInternal(outputStrategy);
+      } else {
+        // This is the AssignWindows primitive
+        return input.apply(new Assign<T>(outputStrategy));
+      }
     }
 
     @Override
@@ -498,6 +529,33 @@ public class Window {
     @Override
     protected String getKindString() {
       return "Window.Into()";
+    }
+  }
+
+
+  /**
+   * A Primitive {@link PTransform} that assigns windows to elements based on a {@link WindowFn}.
+   */
+  public static class Assign<T> extends PTransform<PCollection<T>, PCollection<T>> {
+    private final WindowingStrategy<T, ?> updatedStrategy;
+
+    /**
+     * Create a new {@link Assign} where the output is windowed with the updated {@link
+     * WindowingStrategy}. Windows should be assigned using the {@link WindowFn} returned by
+     * {@link #getWindowFn()}.
+     */
+    private Assign(WindowingStrategy updatedStrategy) {
+      this.updatedStrategy = updatedStrategy;
+    }
+
+    @Override
+    public PCollection<T> expand(PCollection<T> input) {
+      return PCollection.createPrimitiveOutputInternal(
+          input.getPipeline(), updatedStrategy, input.isBounded());
+    }
+
+    public WindowFn<T, ?> getWindowFn() {
+      return updatedStrategy.getWindowFn();
     }
   }
 

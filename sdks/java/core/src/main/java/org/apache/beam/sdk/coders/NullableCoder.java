@@ -30,6 +30,7 @@ import java.util.List;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.util.PropertyNames;
 import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
+import org.apache.beam.sdk.values.TypeDescriptor;
 
 /**
  * A {@link NullableCoder} encodes nullable values of type {@code T} using a nested
@@ -182,5 +183,10 @@ public class NullableCoder<T> extends StandardCoder<T> {
       return true;
     }
     return valueCoder.isRegisterByteSizeObserverCheap(value, context);
+  }
+
+  @Override
+  public TypeDescriptor<T> getEncodedTypeDescriptor() {
+    return valueCoder.getEncodedTypeDescriptor();
   }
 }

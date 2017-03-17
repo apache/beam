@@ -88,6 +88,9 @@ public @interface Experimental {
     METRICS,
 
     /** Experimental runner APIs. Should not be used by pipeline authors. */
-    CORE_RUNNERS_ONLY
+    CORE_RUNNERS_ONLY,
+
+    /** Experimental feature related to making the encoded element type available from a Coder. */
+    CODER_TYPE_ENCODING
   }
 }

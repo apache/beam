@@ -38,8 +38,6 @@ import org.apache.gearpump.streaming.dsl.api.functions.MapFunction;
 import org.apache.gearpump.streaming.dsl.javaapi.JavaStream;
 import org.apache.gearpump.streaming.dsl.window.impl.Window;
 
-
-
 /**
  * Utility methods for translators.
  */

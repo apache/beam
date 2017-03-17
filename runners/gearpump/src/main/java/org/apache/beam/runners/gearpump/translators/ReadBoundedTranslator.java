@@ -31,6 +31,8 @@ import org.apache.gearpump.streaming.source.DataSource;
  */
 public class ReadBoundedTranslator <T> implements TransformTranslator<Read.Bounded<T>> {
 
+  private static final long serialVersionUID = -3899020490896998330L;
+
   @Override
   public void translate(Read.Bounded<T> transform, TranslationContext context) {
     BoundedSource<T> boundedSource = transform.getSource();
@@ -38,7 +40,7 @@ public class ReadBoundedTranslator <T> implements TransformTranslator<Read.Bound
         context.getPipelineOptions());
     JavaStream<WindowedValue<T>> sourceStream = context.getSourceStream(sourceWrapper);
 
-    context.setOutputStream(context.getOutput(transform), sourceStream);
+    context.setOutputStream(context.getOutput(), sourceStream);
   }
 
 }

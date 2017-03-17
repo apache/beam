@@ -40,7 +40,6 @@ import java.util.List;
 import java.util.Random;
 import javax.xml.bind.annotation.XmlAttribute;
 import javax.xml.bind.annotation.XmlRootElement;
-import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.Source.Reader;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -64,6 +63,10 @@ import org.junit.runners.JUnit4;
  */
 @RunWith(JUnit4.class)
 public class XmlSourceTest {
+
+  @Rule
+  public TestPipeline p = TestPipeline.create();
+
   @Rule
   public TemporaryFolder tempFolder = new TemporaryFolder();
 
@@ -566,8 +569,6 @@ public class XmlSourceTest {
   @Test
   @Category(NeedsRunner.class)
   public void testReadXMLSmallPipeline() throws IOException {
-    Pipeline p = TestPipeline.create();
-
     File file = tempFolder.newFile("trainXMLSmall");
     Files.write(file.toPath(), trainXML.getBytes(StandardCharsets.UTF_8));
 
@@ -661,7 +662,6 @@ public class XmlSourceTest {
     List<Train> trains = generateRandomTrainList(100);
     File file = createRandomTrainXML(fileName, trains);
 
-    Pipeline p = TestPipeline.create();
     XmlSource<Train> source =
         XmlSource.<Train>from(file.toPath().toString())
             .withRootElement("trains")
@@ -807,8 +807,6 @@ public class XmlSourceTest {
     createRandomTrainXML("temp3.xml", trains3);
     generateRandomTrainList(8);
     createRandomTrainXML("otherfile.xml", trains1);
-
-    Pipeline p = TestPipeline.create();
 
     XmlSource<Train> source =
         XmlSource.<Train>from(file.getParent() + "/" + "temp*.xml")

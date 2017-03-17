@@ -21,8 +21,10 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import org.apache.beam.runners.core.triggers.TriggerStateMachine.OnMergeContext;
 import org.apache.beam.runners.core.triggers.TriggerStateMachine.OnceTriggerStateMachine;
 import org.apache.beam.runners.core.triggers.TriggerStateMachineTester.SimpleTriggerStateMachineTester;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
@@ -291,6 +293,23 @@ public class AfterWatermarkStateMachineTest {
     assertFalse(tester.shouldFire(mergedWindow));
     tester.injectElements(1);
     assertTrue(tester.shouldFire(mergedWindow));
+  }
+
+  @Test
+  public void testEarlyAndLateOnMergeSubtriggerMerges() throws Exception {
+    tester =
+        TriggerStateMachineTester.forTrigger(
+            AfterWatermarkStateMachine.pastEndOfWindow()
+                .withEarlyFirings(mockEarly)
+                .withLateFirings(mockLate),
+            Sessions.withGapDuration(Duration.millis(10)));
+
+    tester.injectElements(1);
+    tester.injectElements(5);
+
+    // Merging should re-activate the early trigger in the merged window
+    tester.mergeWindows();
+    verify(mockEarly).onMerge(Mockito.any(OnMergeContext.class));
   }
 
   /**
