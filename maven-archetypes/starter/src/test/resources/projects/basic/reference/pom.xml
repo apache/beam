@@ -21,7 +21,7 @@
 
   <groupId>archetype.it</groupId>
   <artifactId>basic</artifactId>
-  <version>0.1-SNAPSHOT</version>
+  <version>0.1</version>
 
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -40,8 +40,6 @@
       </snapshots>
     </repository>
   </repositories>
-
-  <packaging>jar</packaging>
 
   <build>
    <plugins>

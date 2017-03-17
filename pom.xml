@@ -103,7 +103,7 @@
     <timestamp>${maven.build.timestamp}</timestamp>
     <maven.build.timestamp.format>yyyy-MM-dd HH:mm</maven.build.timestamp.format>
 
-    <beam.version>0.5.0</beam.version>
+    <beam.version>0.6.0</beam.version>
 
     <dataflow.release_name>Google Cloud Dataflow SDK for Java</dataflow.release_name>
     <dataflow.container_version>${project.version}-20170202</dataflow.container_version>
@@ -114,8 +114,7 @@
   <modules>
     <module>sdk</module>
     <module>examples</module>
-    <module>maven-archetypes/starter</module>
-    <module>maven-archetypes/examples</module>
+    <module>maven-archetypes</module>
   </modules>
 
   <build>

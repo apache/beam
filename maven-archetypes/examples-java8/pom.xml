@@ -25,12 +25,12 @@
     <relativePath>../pom.xml</relativePath>
   </parent>
 
-  <artifactId>google-cloud-dataflow-java-archetypes-starter</artifactId>
-  <name>Google Cloud Dataflow SDK for Java - Starter Archetype</name>
+  <artifactId>google-cloud-dataflow-java-archetypes-examples-java8</artifactId>
+  <name>Google Cloud Dataflow SDK for Java - Java 8 Examples Archetype</name>
   <description>Google Cloud Dataflow SDK for Java is a distribution of Apache
       Beam designed to simplify usage of Apache Beam on Google Cloud Dataflow
-      service. This archetype creates a simple starter pipeline to get started
-      using the Google Cloud Dataflow SDK for Java.</description>
+      service. This archetype creates a project containing all the example
+      pipelines targeting Java 8.</description>
 
   <packaging>maven-archetype</packaging>
 
@@ -68,12 +68,6 @@
               <goals>
                 <goal>integration-test</goal>
               </goals>
-              <configuration>
-                <!--
-                On windows EOL will be \n\r but we expect \n in tests.
-                -->
-                <ignoreEOLStyle>true</ignoreEOLStyle>
-              </configuration>
             </execution>
           </executions>
         </plugin>
