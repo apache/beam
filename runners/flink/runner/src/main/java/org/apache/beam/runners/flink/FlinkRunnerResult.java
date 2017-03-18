@@ -17,8 +17,9 @@
  */
 package org.apache.beam.runners.flink;
 
-import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableList;
 import java.io.IOException;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Map;
 import org.apache.beam.sdk.AggregatorRetrievalException;
@@ -64,8 +65,13 @@ public class FlinkRunnerResult implements PipelineResult {
     final T value = (T) aggregators.get(name);
     if (value != null) {
       return new AggregatorValues<T>() {
+        @Override
+        public Collection<T> getValues() {
+          return ImmutableList.of(value);
+        }
+
         @Override public Map<String, T> getValuesAtSteps() {
-          return ImmutableMap.of("all", value);
+          throw new UnsupportedOperationException("getValuesAtSteps is not supported.");
         }
       };
     } else {

@@ -97,7 +97,7 @@ public class TestFlinkRunner extends PipelineRunner<PipelineResult> {
     try {
       AggregatorValues<Integer> succeededAssertionsValues = result
           .getAggregatorValues(PAssert.SUCCESS_COUNTER);
-      succeededAssertions = succeededAssertionsValues.getValuesAtSteps().values();
+      succeededAssertions = succeededAssertionsValues.getValues();
     } catch (AggregatorRetrievalException e) {
       // No assertions registered will cause an AggregatorRetrievalException here.
     }
@@ -105,7 +105,7 @@ public class TestFlinkRunner extends PipelineRunner<PipelineResult> {
     try {
       AggregatorValues<Integer> failedAssertionsValues = result
           .getAggregatorValues(PAssert.FAILURE_COUNTER);
-      failedAssertions = failedAssertionsValues.getValuesAtSteps().values();
+      failedAssertions = failedAssertionsValues.getValues();
     } catch (AggregatorRetrievalException e) {
       // No assertions registered will cause an AggregatorRetrievalException here.
     }
