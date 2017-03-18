@@ -68,6 +68,12 @@ members:
     organization: Google
     roles: committer
     time_zone: "-8"
+  - name: Chamikara Jayalath
+    apache_id: chamikara
+    email: chamikara [at] apache [dot] org
+    organization: Google
+    roles: committer
+    time_zone: "-8"
   - name: Eugene Kirpichov
     apache_id: jkff
     email: jkff [at] apache [dot] org
