@@ -6,15 +6,16 @@
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
-  <title>Dynamic work rebalancing for Beam</title>
-  <meta name="description" content="This morning, Eugene and Malo from the Google Cloud Dataflow team posted No shard left behind: dynamic work rebalancing in Google Cloud Dataflow. This articl...">
+  <title>Authoring I/O Transforms - Python</title>
+  <meta name="description" content="Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.
+">
 
   <link rel="stylesheet" href="/styles/site.css">
   <link rel="stylesheet" href="/css/theme.css">
   <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.2.0/jquery.min.js"></script>
   <script src="/js/bootstrap.min.js"></script>
   <script src="/js/language-switch.js"></script>
-  <link rel="canonical" href="https://beam.apache.org/blog/2016/05/18/splitAtFraction-method.html" data-proofer-ignore>
+  <link rel="canonical" href="https://beam.apache.org/documentation/io/authoring-python/" data-proofer-ignore>
   <link rel="alternate" type="application/rss+xml" title="Apache Beam" href="https://beam.apache.org/feed.xml">
   <script>
     (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
@@ -150,28 +151,19 @@
     <div class="container" role="main">
 
       <div class="row">
-        
+        <p><a href="/documentation/io/io-toc/">Pipeline I/O Table of Contents</a></p>
 
-<article class="post" itemscope itemtype="http://schema.org/BlogPosting">
+<h1 id="authoring-io-transforms---python">Authoring I/O Transforms - Python</h1>
 
-  <header class="post-header">
-    <h1 class="post-title" itemprop="name headline">Dynamic work rebalancing for Beam</h1>
-    <p class="post-meta"><time datetime="2016-05-18T11:00:00-07:00" itemprop="datePublished">May 18, 2016</time> •  Dan Halperin 
-</p>
-  </header>
+<blockquote>
+  <p>Note: This guide is still in progress. There is an open issue to finish the guide: <a href="https://issues.apache.org/jira/browse/BEAM-1025">BEAM-1025</a>.</p>
+</blockquote>
 
-  <div class="post-content" itemprop="articleBody">
-    <p>This morning, Eugene and Malo from the Google Cloud Dataflow team posted <a href="https://cloud.google.com/blog/big-data/2016/05/no-shard-left-behind-dynamic-work-rebalancing-in-google-cloud-dataflow"><em>No shard left behind: dynamic work rebalancing in Google Cloud Dataflow</em></a>. This article discusses Cloud Dataflow’s solution to the well-known straggler problem.</p>
+<p>TODO - move in the <a href="/documentation/sdks/python-custom-io/">current python SDK content</a></p>
 
-<!--more-->
+<h1 id="next-steps">Next steps</h1>
 
-<p>In a large batch processing job with many tasks executing in parallel, some of the tasks – the stragglers – can take a much longer time to complete than others, perhaps due to imperfect splitting of the work into parallel chunks when issuing the job. Typically, waiting for stragglers means that the overall job completes later than it should, and may also reserve too many machines that may be underutilized at the end. Cloud Dataflow’s dynamic work rebalancing can mitigate stragglers in most cases.</p>
-
-<p>What I’d like to highlight for the Apache Beam (incubating) community is that Cloud Dataflow’s dynamic work rebalancing is implemented using <em>runner-specific</em> control logic on top of Beam’s <em>runner-independent</em> <a href="https://github.com/apache/beam/blob/9fa97fb2491bc784df53fb0f044409dbbc2af3d7/sdks/java/core/src/main/java/org/apache/beam/sdk/io/BoundedSource.java"><code class="highlighter-rouge">BoundedSource API</code></a>. Specifically, to steal work from a straggler, a runner need only call the reader’s <a href="https://github.com/apache/beam/blob/3edae9b8b4d7afefb5c803c19bb0a1c21ebba89d/sdks/java/core/src/main/java/org/apache/beam/sdk/io/BoundedSource.java#L266"><code class="highlighter-rouge">splitAtFraction method</code></a>. This will generate a new source containing leftover work, and then the runner can pass that source off to another idle worker. As Beam matures, I hope that other runners are interested in figuring out whether these APIs can help them improve performance, implementing dynamic work rebalancing, and collaborating on API changes that will help solve other pain points.</p>
-
-  </div>
-
-</article>
+<p><a href="/documentation/io/testing/">Testing I/O Transforms</a></p>
 
       </div>
 

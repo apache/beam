@@ -77,6 +77,7 @@
               <li><a href="/documentation/pipelines/design-your-pipeline/">Design Your Pipeline</a></li>
               <li><a href="/documentation/pipelines/create-your-pipeline/">Create Your Pipeline</a></li>
               <li><a href="/documentation/pipelines/test-your-pipeline/">Test Your Pipeline</a></li>
+              <li><a href="/documentation/io/io-toc/">Pipeline I/O</a></li>
               <li role="separator" class="divider"></li>
 			  <li class="dropdown-header">SDKs</li>
 			  <li><a href="/documentation/sdks/java/">Java SDK</a></li>
@@ -1220,11 +1221,7 @@ tree, [2]
 
 <h2 id="a-nameioapipeline-io"><a name="io"></a>Pipeline I/O</h2>
 
-<p>When you create a pipeline, you often need to read data from some external source, such as a file in external data sink or a database. Likewise, you may want your pipeline to output its result data to a similar external data sink. Beam provides read and write transforms for a number of common data storage types. If you want your pipeline to read from or write to a data storage format that isn’t supported by the built-in transforms, you can implement your own read and write transforms.</p>
-
-<blockquote>
-  <p>A guide that covers how to implement your own Beam IO transforms is in progress (<a href="https://issues.apache.org/jira/browse/BEAM-1025">BEAM-1025</a>).</p>
-</blockquote>
+<p>When you create a pipeline, you often need to read data from some external source, such as a file in external data sink or a database. Likewise, you may want your pipeline to output its result data to a similar external data sink. Beam provides read and write transforms for a <a href="/documentation/io/built-in/">number of common data storage types</a>. If you want your pipeline to read from or write to a data storage format that isn’t supported by the built-in transforms, you can <a href="/documentation/io/io-toc/">implement your own read and write transforms</a>.</p>
 
 <h3 id="reading-input-data">Reading input data</h3>
 
@@ -1290,55 +1287,8 @@ tree, [2]
 </code></pre>
 </div>
 
-<h3 id="beam-provided-io-apis">Beam-provided I/O APIs</h3>
-
-<p>See the language specific source code directories for the Beam supported I/O APIs. Specific documentation for each of these I/O sources will be added in the future. (<a href="https://issues.apache.org/jira/browse/BEAM-1054">BEAM-1054</a>)</p>
-
-<table class="table table-bordered">
-<tr>
-  <th>Language</th>
-  <th>File-based</th>
-  <th>Messaging</th>
-  <th>Database</th>
-</tr>
-<tr>
-  <td>Java</td>
-  <td>
-    <p><a href="https://github.com/apache/beam/blob/master/sdks/java/core/src/main/java/org/apache/beam/sdk/io/AvroIO.java">AvroIO</a></p>
-    <p><a href="https://github.com/apache/beam/tree/master/sdks/java/io/hdfs">HDFS</a></p>
-    <p><a href="https://github.com/apache/beam/blob/master/sdks/java/core/src/main/java/org/apache/beam/sdk/io/TextIO.java">TextIO</a></p>
-    <p><a href="https://github.com/apache/beam/blob/master/sdks/java/core/src/main/java/org/apache/beam/sdk/io/">XML</a></p>
-  </td>
-  <td>
-    <p><a href="https://github.com/apache/beam/tree/master/sdks/java/io/jms">JMS</a></p>
-    <p><a href="https://github.com/apache/beam/tree/master/sdks/java/io/kafka">Kafka</a></p>
-    <p><a href="https://github.com/apache/beam/tree/master/sdks/java/io/kinesis">Kinesis</a></p>
-    <p><a href="https://github.com/apache/beam/blob/master/sdks/java/core/src/main/java/org/apache/beam/sdk/io">Google Cloud PubSub</a></p>
-  </td>
-  <td>
-    <p><a href="https://github.com/apache/beam/tree/master/sdks/java/io/hbase">Apache HBase</a></p>
-    <p><a href="https://github.com/apache/beam/tree/master/sdks/java/io/mongodb">MongoDB</a></p>
-    <p><a href="https://github.com/apache/beam/tree/master/sdks/java/io/jdbc">JDBC</a></p>
-    <p><a href="https://github.com/apache/beam/tree/master/sdks/java/io/google-cloud-platform/src/main/java/org/apache/beam/sdk/io/gcp/bigquery">Google BigQuery</a></p>
-    <p><a href="https://github.com/apache/beam/tree/master/sdks/java/io/google-cloud-platform/src/main/java/org/apache/beam/sdk/io/gcp/bigtable">Google Cloud Bigtable</a></p>
-    <p><a href="https://github.com/apache/beam/tree/master/sdks/java/io/google-cloud-platform/src/main/java/org/apache/beam/sdk/io/gcp/datastore">Google Cloud Datastore</a></p>
-  </td>
-</tr>
-<tr>
-  <td>Python</td>
-  <td>
-    <p><a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/io/avroio.py">avroio</a></p>
-    <p><a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/io/textio.py">textio</a></p>
-  </td>
-  <td>
-  </td>
-  <td>
-    <p><a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/io/gcp/bigquery.py">Google BigQuery</a></p>
-    <p><a href="https://github.com/apache/beam/tree/master/sdks/python/apache_beam/io/gcp/datastore">Google Cloud Datastore</a></p>
-  </td>
-
-</tr>
-</table>
+<h3 id="beam-provided-io-transforms">Beam-provided I/O Transforms</h3>
+<p>See the  <a href="/documentation/io/built-in/">Beam-provided I/O Transforms</a> page for a list of the currently available I/O transforms.</p>
 
 <h2 id="a-namerunningarunning-the-pipeline"><a name="running"></a>Running the pipeline</h2>
 
