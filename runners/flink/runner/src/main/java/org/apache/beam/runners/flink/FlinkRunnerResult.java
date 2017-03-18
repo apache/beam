@@ -59,6 +59,11 @@ public class FlinkRunnerResult implements PipelineResult {
   }
 
   @SuppressWarnings("unchecked")
+  public <T> T getAggregatorValue(String name) throws AggregatorRetrievalException {
+    return (T) getAggregatorValues(name).getValues().iterator().next();
+  }
+
+  @SuppressWarnings("unchecked")
   public <T> AggregatorValues<T> getAggregatorValues(String name)
       throws AggregatorRetrievalException {
     // TODO provide a list of all accumulator step values

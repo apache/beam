@@ -18,13 +18,9 @@
 package org.apache.beam.runners.flink;
 
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.core.IsEqual.equalTo;
 
-import java.util.Collection;
-import java.util.Collections;
 import org.apache.beam.sdk.AggregatorRetrievalException;
-import org.apache.beam.sdk.AggregatorValues;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.Pipeline.PipelineExecutionException;
 import org.apache.beam.sdk.PipelineResult;
@@ -93,26 +89,27 @@ public class TestFlinkRunner extends PipelineRunner<PipelineResult> {
 
   private void assertAssertionCounters(Pipeline pipeline, FlinkRunnerResult result) {
     int expectedNumberOfAssertions = PAssert.countAsserts(pipeline);
-    Collection<Integer> succeededAssertions = Collections.singleton(0);
+    Integer succeededAssertions = 0;
     try {
-      AggregatorValues<Integer> succeededAssertionsValues = result
-          .getAggregatorValues(PAssert.SUCCESS_COUNTER);
-      succeededAssertions = succeededAssertionsValues.getValues();
+      succeededAssertions = result.getAggregatorValue(PAssert.SUCCESS_COUNTER);
     } catch (AggregatorRetrievalException e) {
       // No assertions registered will cause an AggregatorRetrievalException here.
     }
-    Collection<Integer> failedAssertions = Collections.singleton(0);
+    Integer failedAssertions = 0;
     try {
-      AggregatorValues<Integer> failedAssertionsValues = result
-          .getAggregatorValues(PAssert.FAILURE_COUNTER);
-      failedAssertions = failedAssertionsValues.getValues();
+      failedAssertions = result.getAggregatorValue(PAssert.FAILURE_COUNTER);
     } catch (AggregatorRetrievalException e) {
       // No assertions registered will cause an AggregatorRetrievalException here.
     }
-    assertThat(succeededAssertions.size(), equalTo(1));
-    assertThat(succeededAssertions, contains(expectedNumberOfAssertions));
-    assertThat(failedAssertions.size(), equalTo(1));
-    assertThat(failedAssertions, contains(0));
+    assertThat(
+        String.format("Expected %d successful assertions, but found %d.",
+            expectedNumberOfAssertions, succeededAssertions),
+        succeededAssertions,
+        equalTo(expectedNumberOfAssertions));
+    assertThat(
+        String.format("Found %d failed assertions.", failedAssertions),
+        failedAssertions,
+        equalTo(0));
   }
 }
 
