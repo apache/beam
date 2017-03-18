@@ -140,4 +140,10 @@ members:
     organization: Slack
     roles: committer, PMC
     time_zone: "-8"
+  - name: Aviem Zur
+    apache_id: aviemzur
+    email: aviemzur [at] apache [dot] org
+    organization: PayPal
+    roles: committer
+    time_zone: "+2"
 ---
