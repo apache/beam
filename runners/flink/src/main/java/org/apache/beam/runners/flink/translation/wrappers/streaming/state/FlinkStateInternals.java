@@ -592,6 +592,8 @@ public class FlinkStateInternals<K> implements StateInternals {
         }
         current = combineFn.addInput(current, value);
         state.update(current);
+      } catch (RuntimeException re) {
+        throw re;
       } catch (Exception e) {
         throw new RuntimeException("Error adding to state." , e);
       }
