@@ -24,6 +24,7 @@ import com.google.api.services.bigquery.model.Job;
 import com.google.api.services.bigquery.model.JobStatus;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableSchema;
+import com.google.cloud.hadoop.util.ApiErrorExtractor;
 import com.google.common.annotations.VisibleForTesting;
 
 import java.io.IOException;
@@ -196,6 +197,43 @@ class BigQueryHelpers {
     }
   }
 
+  static void verifyDatasetPresence(DatasetService datasetService, TableReference table) {
+    try {
+      datasetService.getDataset(table.getProjectId(), table.getDatasetId());
+    } catch (Exception e) {
+      ApiErrorExtractor errorExtractor = new ApiErrorExtractor();
+      if ((e instanceof IOException) && errorExtractor.itemNotFound((IOException) e)) {
+        throw new IllegalArgumentException(
+            String.format(RESOURCE_NOT_FOUND_ERROR, "dataset", toTableSpec(table)), e);
+      } else if (e instanceof  RuntimeException) {
+        throw (RuntimeException) e;
+      } else {
+        throw new RuntimeException(
+            String.format(UNABLE_TO_CONFIRM_PRESENCE_OF_RESOURCE_ERROR, "dataset",
+                toTableSpec(table)),
+            e);
+      }
+    }
+  }
+
+  static void verifyTablePresence(DatasetService datasetService, TableReference table) {
+    try {
+      datasetService.getTable(table);
+    } catch (Exception e) {
+      ApiErrorExtractor errorExtractor = new ApiErrorExtractor();
+      if ((e instanceof IOException) && errorExtractor.itemNotFound((IOException) e)) {
+        throw new IllegalArgumentException(
+            String.format(RESOURCE_NOT_FOUND_ERROR, "table", toTableSpec(table)), e);
+      } else if (e instanceof  RuntimeException) {
+        throw (RuntimeException) e;
+      } else {
+        throw new RuntimeException(
+            String.format(UNABLE_TO_CONFIRM_PRESENCE_OF_RESOURCE_ERROR, "table",
+                toTableSpec(table)), e);
+      }
+    }
+  }
+
   @VisibleForTesting
   static class JsonSchemaToTableSchema
       implements SerializableFunction<String, TableSchema> {
@@ -283,7 +321,7 @@ class BigQueryHelpers {
       implements SerializableFunction<String, TableReference> {
     private final String executingProject;
 
-    public CreateJsonTableRefFromUuid(String executingProject) {
+    CreateJsonTableRefFromUuid(String executingProject) {
       this.executingProject = executingProject;
     }
 
