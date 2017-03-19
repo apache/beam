@@ -72,7 +72,10 @@
                   <goal>test</goal>
                 </goals>
                 <configuration>
-                  <groups>org.apache.beam.sdk.testing.RunnableOnService</groups>
+                  <groups>
+                    org.apache.beam.sdk.testing.RunnableOnService,
+                    org.apache.beam.runners.spark.UsesCheckpointRecovery
+                  </groups>
                   <excludedGroups>
                     org.apache.beam.sdk.testing.UsesStatefulParDo,
                     org.apache.beam.sdk.testing.UsesTimersInParDo,
@@ -349,6 +352,9 @@
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-surefire-plugin</artifactId>
           <configuration>
+            <excludedGroups>
+              org.apache.beam.runners.spark.UsesCheckpointRecovery
+            </excludedGroups>
             <forkCount>1</forkCount>
             <reuseForks>false</reuseForks>
             <systemPropertyVariables>
