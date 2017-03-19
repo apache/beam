@@ -344,9 +344,7 @@ Once you are ready to merge, fetch all remotes, checkout the destination branch 
 
 	$ git fetch --all
 	$ git checkout apache/master
-	$ git merge --no-ff \
-	    -m $'[BEAM-<JIRA-issue-#&>;</b>] <Title>\n\nThis closes #<pull-request-#>' \
-	    finish-pr-<pull-request-#>
+	$ git merge --no-ff -m 'This closes #<pull-request-#>' finish-pr-<pull-request-#>
 
 Always use `--no-ff` option and the specific commit message "This closes #<pull request #>" -- it ensures proper marking in the tooling. It would be nice to include additional information in the merge commit message, such as the title and summary of the pull request.
 
