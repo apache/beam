@@ -38,6 +38,7 @@ import org.apache.beam.runners.spark.PipelineRule;
 import org.apache.beam.runners.spark.ReuseSparkContextRule;
 import org.apache.beam.runners.spark.SparkPipelineResult;
 import org.apache.beam.runners.spark.TestSparkPipelineOptions;
+import org.apache.beam.runners.spark.UsesCheckpointRecovery;
 import org.apache.beam.runners.spark.aggregators.AggregatorsAccumulator;
 import org.apache.beam.runners.spark.coders.CoderHelpers;
 import org.apache.beam.runners.spark.metrics.MetricsAccumulator;
@@ -82,6 +83,7 @@ import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
 
 /**
@@ -140,6 +142,7 @@ public class ResumeFromCheckpointStreamingTest {
   }
 
   @Test
+  @Category(UsesCheckpointRecovery.class)
   public void testWithResume() throws Exception {
     // write to Kafka
     produce(ImmutableMap.of(
