@@ -923,10 +923,36 @@ class FlinkStreamingTransformTranslators {
 
       } else {
         DataStream<T> result = null;
+
+        // Determine DataStreams that we use as input several times. For those, we need to uniquify
+        // input streams because Flink seems to swallow watermarks when we have a union of one and
+        // the same stream.
+        Map<DataStream<T>, Integer> duplicates = new HashMap<>();
         for (TaggedPValue input : allInputs) {
           DataStream<T> current = context.getInputDataStream(input.getValue());
+          Integer oldValue = duplicates.put(current, 1);
+          if (oldValue != null) {
+            duplicates.put(current, oldValue + 1);
+          }
+        }
+
+        for (TaggedPValue input : allInputs) {
+          DataStream<T> current = context.getInputDataStream(input.getValue());
+
+          final Integer timesRequired = duplicates.get(current);
+          if (timesRequired > 1) {
+            current = current.flatMap(new FlatMapFunction<T, T>() {
+              private static final long serialVersionUID = 1L;
+
+              @Override
+              public void flatMap(T t, Collector<T> collector) throws Exception {
+                collector.collect(t);
+              }
+            });
+          }
           result = (result == null) ? current : result.union(current);
         }
+
         context.setOutputDataStream(context.getOutput(transform), result);
       }
     }
