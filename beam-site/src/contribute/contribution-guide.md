@@ -442,7 +442,7 @@ The general guidelines for cloning a repository can be adjusted to use the `asf-
 
 While you are working on your pull request, you can test and develop live by running the following command in the root folder of the website:
 
-	$ bundle exec jekyll serve
+	$ bundle exec jekyll serve --incremental
 
 Jekyll will start a webserver on port 4000. As you make changes to the content, Jekyll will rebuild it automatically.
 
@@ -458,8 +458,15 @@ When you are ready, submit a pull request using the [Beam Site GitHub mirror](ht
 
 During review, committers will patch in your PR, generate the static `content/`, and review the changes.
 
-#### Committing website changes
+#### Committing website changes (committers only)
 
 Follow the same committer process as above, but using repository `apache/beam-site` and branch `asf-site`.
 
-In addition, the committer is responsible for doing the final `jekyll build` to generate the static content, so follow the instructions above to install `jekyll`.
+In addition, the committer is responsible for doing the final `bundle exec jekyll build` to generate the static content, so follow the instructions above to install `jekyll`.
+
+This command generates the `content/` directory. The committer should add and commit the content related to the PR.
+
+	$ git add content/<files related to the pr>
+	$ git commit -m "Regenerate website"
+
+Finally you should merge the changes into the `asf-site` branch and push them into the `apache` repository.
