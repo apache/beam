@@ -52,3 +52,6 @@ kramdown:
 release_latest: 0.6.0
 
 # Plugins are configured in the Gemfile.
+
+# Set the time zone for site generation, fixed to US Pacific Time
+timezone: America/Los_Angeles
