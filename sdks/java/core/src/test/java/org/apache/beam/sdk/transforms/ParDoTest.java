@@ -2585,7 +2585,7 @@ public class ParDoTest implements Serializable {
 
           @ProcessElement
           public void processElement(ProcessContext context, @TimerId(timerId) Timer timer) {
-            timer.setForNowPlus(Duration.standardSeconds(1));
+            timer.offset(Duration.standardSeconds(1)).setRelative();
             context.output(3);
           }
 
@@ -2602,6 +2602,36 @@ public class ParDoTest implements Serializable {
 
   @Test
   @Category({ValidatesRunner.class, UsesTimersInParDo.class})
+  public void testEventTimeTimerAlignBounded() throws Exception {
+    final String timerId = "foo";
+
+    DoFn<KV<String, Integer>, KV<Integer, Instant>> fn =
+        new DoFn<KV<String, Integer>, KV<Integer, Instant>>() {
+
+          @TimerId(timerId)
+          private final TimerSpec spec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
+
+          @ProcessElement
+          public void processElement(ProcessContext context, @TimerId(timerId) Timer timer) {
+            timer.align(Duration.standardSeconds(1)).offset(Duration.millis(1)).setRelative();
+            context.output(KV.of(3, context.timestamp()));
+          }
+
+          @OnTimer(timerId)
+          public void onTimer(OnTimerContext context) {
+            context.output(KV.of(42, context.timestamp()));
+          }
+        };
+
+    PCollection<KV<Integer, Instant>> output =
+        pipeline.apply(Create.of(KV.of("hello", 37))).apply(ParDo.of(fn));
+    PAssert.that(output).containsInAnyOrder(KV.of(3, BoundedWindow.TIMESTAMP_MIN_VALUE),
+        KV.of(42, BoundedWindow.TIMESTAMP_MIN_VALUE.plus(1774)));
+    pipeline.run();
+  }
+
+  @Test
+  @Category({ValidatesRunner.class, UsesTimersInParDo.class})
   public void testTimerReceivedInOriginalWindow() throws Exception {
     final String timerId = "foo";
 
@@ -2613,7 +2643,7 @@ public class ParDoTest implements Serializable {
 
           @ProcessElement
           public void processElement(ProcessContext context, @TimerId(timerId) Timer timer) {
-            timer.setForNowPlus(Duration.standardSeconds(1));
+            timer.offset(Duration.standardSeconds(1)).setRelative();
           }
 
           @OnTimer(timerId)
@@ -2817,7 +2847,7 @@ public class ParDoTest implements Serializable {
 
           @ProcessElement
           public void processElement(ProcessContext context, @TimerId(timerId) Timer timer) {
-            timer.setForNowPlus(Duration.standardSeconds(1));
+            timer.offset(Duration.standardSeconds(1)).setRelative();
             context.output(3);
           }
 
@@ -2851,7 +2881,7 @@ public class ParDoTest implements Serializable {
 
           @ProcessElement
           public void processElement(ProcessContext context, @TimerId(timerId) Timer timer) {
-            timer.setForNowPlus(Duration.standardSeconds(1));
+            timer.offset(Duration.standardSeconds(1)).setRelative();
             context.output(3);
           }
 
@@ -2870,6 +2900,81 @@ public class ParDoTest implements Serializable {
 
     PCollection<Integer> output = pipeline.apply(stream).apply(ParDo.of(fn));
     PAssert.that(output).containsInAnyOrder(3, 42);
+    pipeline.run();
+  }
+
+  @Test
+  @Category({NeedsRunner.class, UsesTimersInParDo.class, UsesTestStream.class})
+  public void testEventTimeTimerAlignUnbounded() throws Exception {
+    final String timerId = "foo";
+
+    DoFn<KV<String, Integer>, KV<Integer, Instant>> fn =
+        new DoFn<KV<String, Integer>, KV<Integer, Instant>>() {
+
+          @TimerId(timerId)
+          private final TimerSpec spec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
+
+          @ProcessElement
+          public void processElement(ProcessContext context, @TimerId(timerId) Timer timer) {
+            timer.align(Duration.standardSeconds(1)).offset(Duration.millis(1)).setRelative();
+            context.output(KV.of(3, context.timestamp()));
+          }
+
+          @OnTimer(timerId)
+          public void onTimer(OnTimerContext context) {
+            context.output(KV.of(42, context.timestamp()));
+          }
+        };
+
+    TestStream<KV<String, Integer>> stream = TestStream.create(KvCoder
+        .of(StringUtf8Coder.of(), VarIntCoder.of()))
+        .advanceWatermarkTo(new Instant(5))
+        .addElements(KV.of("hello", 37))
+        .advanceWatermarkTo(new Instant(0).plus(Duration.standardSeconds(1).plus(1)))
+        .advanceWatermarkToInfinity();
+
+    PCollection<KV<Integer, Instant>> output = pipeline.apply(stream).apply(ParDo.of(fn));
+    PAssert.that(output).containsInAnyOrder(KV.of(3, new Instant(5)),
+        KV.of(42, new Instant(Duration.standardSeconds(1).minus(1).getMillis())));
+    pipeline.run();
+  }
+
+  @Test
+  @Category({NeedsRunner.class, UsesTimersInParDo.class, UsesTestStream.class})
+  public void testEventTimeTimerAlignAfterGcTimeUnbounded() throws Exception {
+    final String timerId = "foo";
+
+    DoFn<KV<String, Integer>, KV<Integer, Instant>> fn =
+        new DoFn<KV<String, Integer>, KV<Integer, Instant>>() {
+
+          @TimerId(timerId)
+          private final TimerSpec spec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
+
+          @ProcessElement
+          public void processElement(ProcessContext context, @TimerId(timerId) Timer timer) {
+            // This aligned time will exceed the END_OF_GLOBAL_WINDOW
+            timer.align(Duration.standardDays(1)).setRelative();
+            context.output(KV.of(3, context.timestamp()));
+          }
+
+          @OnTimer(timerId)
+          public void onTimer(OnTimerContext context) {
+            context.output(KV.of(42, context.timestamp()));
+          }
+        };
+
+    TestStream<KV<String, Integer>> stream = TestStream.create(KvCoder
+        .of(StringUtf8Coder.of(), VarIntCoder.of()))
+        // See GlobalWindow,
+        // END_OF_GLOBAL_WINDOW is TIMESTAMP_MAX_VALUE.minus(Duration.standardDays(1))
+        .advanceWatermarkTo(BoundedWindow.TIMESTAMP_MAX_VALUE.minus(Duration.standardDays(1)))
+        .addElements(KV.of("hello", 37))
+        .advanceWatermarkToInfinity();
+
+    PCollection<KV<Integer, Instant>> output = pipeline.apply(stream).apply(ParDo.of(fn));
+    PAssert.that(output).containsInAnyOrder(
+        KV.of(3, BoundedWindow.TIMESTAMP_MAX_VALUE.minus(Duration.standardDays(1))),
+        KV.of(42, BoundedWindow.TIMESTAMP_MAX_VALUE.minus(Duration.standardDays(1))));
     pipeline.run();
   }
 
