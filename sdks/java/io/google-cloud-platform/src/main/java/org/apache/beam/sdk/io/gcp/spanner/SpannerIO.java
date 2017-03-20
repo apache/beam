@@ -48,6 +48,9 @@ import com.google.api.client.util.BackOff;
 import com.google.api.client.util.BackOffUtils;
 import com.google.api.client.util.Sleeper;
 
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.SpannerMutationCoder;
+
 
 @Experimental(Experimental.Kind.SOURCE_SINK)
 public class SpannerIO {
@@ -55,7 +58,7 @@ public class SpannerIO {
   @VisibleForTesting
   public static final int SPANNER_MUTATIONS_PER_COMMIT_LIMIT = 20000;
 
-  public Writer writeTo(String projectId, String instanceId, String databaseId) {
+  public static Writer writeTo(String projectId, String instanceId, String databaseId) {
     return new Writer(projectId, instanceId, databaseId);
   }
 
@@ -139,7 +142,7 @@ public class SpannerIO {
               .withLabel("Output Project"))
           .addIfNotNull(DisplayData.item("instanceId", instanceId)
               .withLabel("Output Instance"))
-          .addIfNotNull(DisplayData.item("instanceId", instanceId)
+          .addIfNotNull(DisplayData.item("databaseId", databaseId)
               .withLabel("Output Database"));
     }
 
@@ -154,6 +157,7 @@ public class SpannerIO {
     public String getDatabaseId() {
       return databaseId;
     }
+
   }
 
 
@@ -169,14 +173,15 @@ public class SpannerIO {
    * mutation operation should be idempotent. 
    */
   @VisibleForTesting
-  static class SpannerWriterFn extends DoFn<Mutation, Void> {
+  static class SpannerWriterFn<T, Void> extends DoFn<Mutation, Void> {
     private static final Logger LOG = LoggerFactory.getLogger(SpannerWriterFn.class);
+    private Spanner spanner;
     private final String projectId;
     private final String instanceId;
     private final String databaseId;
     private transient DatabaseClient dbClient;
     // Current batch of mutations to be written.
-    private final List<Mutation> mutations = new ArrayList<>();
+    private final List<Mutation> mutations = new ArrayList();
 
     private static final int MAX_RETRIES = 5;
     private static final FluentBackoff BUNDLE_WRITE_BACKOFF =
@@ -190,9 +195,15 @@ public class SpannerIO {
       this.databaseId = checkNotNull(databaseId, "databaseId");
     }
 
+    @Setup
+    public void setup() throws Exception {
+        SpannerOptions options = SpannerOptions.newBuilder().build();
+        spanner = options.getService();
+    }
+
     @StartBundle
     public void startBundle(Context c) throws IOException {
-      dbClient = getDbClient(DatabaseId.of(projectId, instanceId, databaseId));
+      dbClient = getDbClient(spanner, DatabaseId.of(projectId, instanceId, databaseId));
     }
 
     @ProcessElement
@@ -210,12 +221,18 @@ public class SpannerIO {
       }
     }
 
+    @Teardown
+    public void teardown() throws Exception {
+      if (spanner == null)
+          return;
+      spanner.closeAsync().get();
+    }
+
     /**
      * Writes a batch of mutations to Cloud Spanner.
      *
-     * <p>If a commit fails, it will be retried up to {@link #MAX_RETRIES} times. All
-     * mutations in the batch will be committed again, even if the commit was partially
-     * successful. If the retry limit is exceeded, the last exception from Cloud Spanner will be
+     * <p>If a commit fails, it will be retried up to {@link #MAX_RETRIES} times.
+     * If the retry limit is exceeded, the last exception from Cloud Spanner will be
      * thrown.
      *
      * @throws SpannerException if the commit fails or IOException or InterruptedException if
@@ -227,7 +244,7 @@ public class SpannerIO {
       BackOff backoff = BUNDLE_WRITE_BACKOFF.backoff();
 
       while (true) {
-        // Batch upsert entities.
+        // Batch upsert rows.
         try {
           dbClient.writeAtLeastOnce(mutations);
 
@@ -261,10 +278,8 @@ public class SpannerIO {
     }
   }
 
-  private static DatabaseClient getDbClient(DatabaseId databaseId) throws IOException {
+  private static DatabaseClient getDbClient(Spanner spanner, DatabaseId databaseId) throws IOException {
 
-    SpannerOptions options = SpannerOptions.newBuilder().build();
-    Spanner spanner = options.getService();
     try {
       String clientProject = spanner.getOptions().getProjectId();
       if (!databaseId.getInstanceId().getProject().equals(clientProject)) {
@@ -278,14 +293,5 @@ public class SpannerIO {
     catch (Exception e) {
         throw new IOException(e);
     }
-    finally {
-      try {
-          spanner.closeAsync().get();
-      }
-      catch (Exception e) {
-          throw new IOException(e);
-      }
-    }
   }
-   
 }

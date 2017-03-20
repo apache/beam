@@ -117,17 +117,17 @@ public class SpannerMutationCoder extends AtomicCoder<Mutation> {
    * {@inheritDoc}
    *
    * @throws NonDeterministicException always.
-   *         A Datastore kind can hold arbitrary {@link Object} instances, which
+   *         A Spanner table can hold arbitrary {@link Object} instances, which
    *         makes the encoding non-deterministic.
    */
   @Override
   public void verifyDeterministic() throws NonDeterministicException {
     throw new NonDeterministicException(this,
-        "Datastore encodings can hold arbitrary Object instances");
+        "Spanner encodings can hold arbitrary Object instances");
   }
 
 
-  static class ValueSerializer {
+  static class ValueSerializer implements java.io.Serializable {
 
       private static final ValueSerializer INSTANCE = new ValueSerializer();
 
@@ -136,6 +136,11 @@ public class SpannerMutationCoder extends AtomicCoder<Mutation> {
       }
 
       public void writeTo(DataOutput out, Value v) throws IOException {
+          if (v.isNull()) {
+              out.writeByte(0);  //NULL indicator byte
+              return;
+          }
+          out.writeByte(1);  // Not a null value
           Type.Code c = v.getType().getCode();
           switch (c) {
               case BOOL:
@@ -169,7 +174,7 @@ public class SpannerMutationCoder extends AtomicCoder<Mutation> {
       }
   }
    
-  static class ValueDeserializer {
+  static class ValueDeserializer implements java.io.Serializable {
 
       private static final ValueDeserializer INSTANCE = new ValueDeserializer();
 
@@ -179,24 +184,27 @@ public class SpannerMutationCoder extends AtomicCoder<Mutation> {
 
       public Mutation.WriteBuilder readFrom(DataInput in, ValueBinder<Mutation.WriteBuilder>  vb) throws IOException {
           Type.Code c = Enum.valueOf(Type.Code.class, in.readUTF());
+          byte b = in.readByte();   // NULL indicator
           switch (c) {
               case BOOL:
-                  return vb.to(in.readBoolean());
+                  return b == 1 ? vb.to(in.readBoolean()) : vb.to((Boolean) null);
               case INT64:
-                  return vb.to(in.readLong());
+                  return b == 1 ? vb.to(in.readLong()) : vb.to((Long) null);
               case FLOAT64:
-                  return vb.to(in.readDouble());
+                  return b == 1 ? vb.to(in.readDouble()) : vb.to((Double) null);
               case STRING:
-                  return vb.to(in.readUTF());
+                  return b == 1 ? vb.to(in.readUTF()) : vb.to((String) null);
               case BYTES:
+                  if (b == 0)
+                      return vb.to((ByteArray) null);
                   int size = in.readInt();
                   byte[] buf = new byte[size];
                   in.readFully(buf);
                   return vb.to(ByteArray.copyFrom(buf));
               case TIMESTAMP:
-                  return vb.to(Timestamp.parseTimestamp(in.readUTF()));
+                  return b == 1 ? vb.to(Timestamp.parseTimestamp(in.readUTF())) : vb.to((Timestamp) null);
               case DATE:
-                  return vb.to(Date.parseDate(in.readUTF()));
+                  return b == 1 ? vb.to(Date.parseDate(in.readUTF())) : vb.to((Date) null);
               case ARRAY:
                   throw new UnsupportedOperationException("ARRAY type not implemented yet.");
               case STRUCT:

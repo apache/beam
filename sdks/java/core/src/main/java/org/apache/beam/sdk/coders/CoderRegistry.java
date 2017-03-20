@@ -19,6 +19,8 @@ package org.apache.beam.sdk.coders;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
+import com.google.cloud.spanner.Mutation;
+import com.google.cloud.spanner.Struct;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableMap;
@@ -105,6 +107,9 @@ public class CoderRegistry implements CoderProvider {
     registerCoder(Set.class, SetCoder.class);
     registerCoder(String.class, StringUtf8Coder.class);
     registerCoder(TableRow.class, TableRowJsonCoder.class);
+    registerCoder(Mutation.class, SpannerMutationCoder.class);
+    registerCoder(Struct.class, SpannerStructCoder.class);
+    registerCoder(Object.class, VoidCoder.class);
     registerCoder(TimestampedValue.class, TimestampedValue.TimestampedValueCoder.class);
     registerCoder(Void.class, VoidCoder.class);
     registerCoder(byte[].class, ByteArrayCoder.class);

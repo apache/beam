@@ -106,7 +106,7 @@ public class SpannerStructCoder extends AtomicCoder<Struct> {
   }
 
 
-  static class ValueSerializer {
+  static class ValueSerializer implements java.io.Serializable {
 
       private static final ValueSerializer INSTANCE = new ValueSerializer();
 
@@ -147,7 +147,7 @@ public class SpannerStructCoder extends AtomicCoder<Struct> {
       }
   }
    
-  static class ValueDeserializer {
+  static class ValueDeserializer implements java.io.Serializable {
 
       private static final ValueDeserializer INSTANCE = new ValueDeserializer();
 
