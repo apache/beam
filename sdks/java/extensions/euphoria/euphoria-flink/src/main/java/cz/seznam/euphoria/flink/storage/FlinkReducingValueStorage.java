@@ -15,21 +15,27 @@
  */
 package cz.seznam.euphoria.flink.storage;
 
+import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 import cz.seznam.euphoria.core.client.operator.state.ValueStorage;
 import org.apache.flink.api.common.state.ReducingState;
+import org.apache.flink.runtime.state.KvState;
 
-public class FlinkReducingValueStorage<T> implements ValueStorage<T> {
+public class FlinkReducingValueStorage<T, W extends Window> implements ValueStorage<T> {
 
   private final ReducingState<T> state;
   private final T defaultValue;
 
-  public FlinkReducingValueStorage(ReducingState<T> state, T defaultValue) {
+  private final W window;
+
+  public FlinkReducingValueStorage(ReducingState<T> state, T defaultValue, W window) {
     this.state = state;
     this.defaultValue = defaultValue;
+    this.window = window;
   }
 
   @Override
   public void set(T value) {
+    setNamespace();
     try {
       state.clear();
       state.add(value);
@@ -40,6 +46,7 @@ public class FlinkReducingValueStorage<T> implements ValueStorage<T> {
 
   @Override
   public T get() {
+    setNamespace();
     try {
       T s = state.get();
       return (s == null) ? defaultValue : s;
@@ -50,6 +57,16 @@ public class FlinkReducingValueStorage<T> implements ValueStorage<T> {
 
   @Override
   public void clear() {
+    setNamespace();
     state.clear();
+  }
+
+  /**
+   * Make sure that namespace window is set correctly in the underlying
+   * keyed state backend.
+   */
+  @SuppressWarnings("unchecked")
+  private void setNamespace() {
+    ((KvState) state).setCurrentNamespace(window);
   }
 }

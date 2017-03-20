@@ -15,22 +15,29 @@
  */
 package cz.seznam.euphoria.flink.storage;
 
+import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 import cz.seznam.euphoria.core.client.operator.state.ListStorage;
 import org.apache.flink.api.common.state.ListState;
+import org.apache.flink.runtime.state.KvState;
+
+import java.util.Collections;
 
 /**
  * Implementation of {@link ListStorage} using Flink state API
  */
-public class FlinkListStorage<T> implements ListStorage<T> {
+public class FlinkListStorage<T, W extends Window> implements ListStorage<T> {
 
   private final ListState<T> state;
+  private final W window;
 
-  public FlinkListStorage(ListState<T> state) {
+  public FlinkListStorage(ListState<T> state, W window) {
     this.state = state;
+    this.window = window;
   }
 
   @Override
   public void add(T element) {
+    setNamespace();
     try {
       state.add(element);
     } catch (Exception ex) {
@@ -40,8 +47,13 @@ public class FlinkListStorage<T> implements ListStorage<T> {
 
   @Override
   public Iterable<T> get() {
+    setNamespace();
     try {
-      return state.get();
+      Iterable<T> optional = state.get();
+      if (optional == null) {
+        return Collections.emptyList();
+      }
+      return optional;
     } catch (Exception ex) {
       throw new RuntimeException(ex);
     }
@@ -49,6 +61,16 @@ public class FlinkListStorage<T> implements ListStorage<T> {
 
   @Override
   public void clear() {
+    setNamespace();
     state.clear();
+  }
+
+  /**
+   * Make sure that namespace is set correctly in the underlying
+   * keyed state backend.
+   */
+  @SuppressWarnings("unchecked")
+  private void setNamespace() {
+    ((KvState) state).setCurrentNamespace(window);
   }
 }

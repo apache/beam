@@ -17,10 +17,10 @@ package cz.seznam.euphoria.flink.streaming.io;
 
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import cz.seznam.euphoria.core.client.dataset.windowing.Batch;
+import cz.seznam.euphoria.core.client.dataset.windowing.WindowedElement;
 import cz.seznam.euphoria.core.client.io.DataSource;
 import cz.seznam.euphoria.core.client.io.Partition;
 import cz.seznam.euphoria.core.client.io.Reader;
-import cz.seznam.euphoria.flink.streaming.StreamingWindowedElement;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
@@ -36,8 +36,8 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
 public class DataSourceWrapper<T>
-        extends RichParallelSourceFunction<StreamingWindowedElement<Batch.BatchWindow, T>>
-        implements ResultTypeQueryable<StreamingWindowedElement<Batch.BatchWindow, T>>
+        extends RichParallelSourceFunction<WindowedElement<Batch.BatchWindow, T>>
+        implements ResultTypeQueryable<WindowedElement<Batch.BatchWindow, T>>
 {
   private final DataSource<T> dataSource;
   private volatile boolean isRunning = true;
@@ -49,7 +49,7 @@ public class DataSourceWrapper<T>
   }
 
   @Override
-  public void run(SourceContext<StreamingWindowedElement<Batch.BatchWindow, T>> ctx)
+  public void run(SourceContext<WindowedElement<Batch.BatchWindow, T>> ctx)
       throws Exception
   {
     StreamingRuntimeContext runtimeContext =
@@ -107,9 +107,9 @@ public class DataSourceWrapper<T>
     }
   }
 
-  private StreamingWindowedElement<Batch.BatchWindow, T> toWindowedElement(T elem) {
+  private WindowedElement<Batch.BatchWindow, T> toWindowedElement(T elem) {
     // assign ingestion timestamp to elements
-    return new StreamingWindowedElement<>(Batch.BatchWindow.get(), System.currentTimeMillis(), elem);
+    return new WindowedElement<>(Batch.BatchWindow.get(), System.currentTimeMillis(), elem);
   }
 
   @Override
@@ -122,8 +122,8 @@ public class DataSourceWrapper<T>
 
   @Override
   @SuppressWarnings("unchecked")
-  public TypeInformation<StreamingWindowedElement<Batch.BatchWindow, T>> getProducedType() {
-    return TypeInformation.of((Class) StreamingWindowedElement.class);
+  public TypeInformation<WindowedElement<Batch.BatchWindow, T>> getProducedType() {
+    return TypeInformation.of((Class) WindowedElement.class);
   }
 
   private ThreadPoolExecutor createThreadPool() {
