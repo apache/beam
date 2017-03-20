@@ -135,8 +135,11 @@ public class SparkMetricsContainer implements Serializable {
     for (MetricUpdate<GaugeData> update : updates) {
       MetricKey key = update.getKey();
       MetricUpdate<GaugeData> current = gauges.get(key);
-      gauges.put(key, current != null
-          ? MetricUpdate.create(key, current.getUpdate().combine(update.getUpdate())) : update);
+      gauges.put(
+          key,
+          current != null
+              ? MetricUpdate.create(key, current.getUpdate().combine(update.getUpdate()))
+              : update);
     }
   }
 
