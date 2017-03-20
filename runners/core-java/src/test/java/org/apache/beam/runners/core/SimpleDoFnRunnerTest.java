@@ -388,7 +388,7 @@ public class SimpleDoFnRunnerTest {
 
     @ProcessElement
     public void process(ProcessContext context, @TimerId(TIMER_ID) Timer timer) {
-      timer.setForNowPlus(TIMER_OFFSET);
+      timer.offset(TIMER_OFFSET).setRelative();
     }
 
     @OnTimer(TIMER_ID)
