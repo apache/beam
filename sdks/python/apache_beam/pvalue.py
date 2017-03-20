@@ -99,6 +99,13 @@ class PCollection(PValue):
     """Initializes a PCollection. Do not call directly."""
     super(PCollection, self).__init__(pipeline, **kwargs)
 
+  def __eq__(self, other):
+    if isinstance(other, PCollection):
+      return self.tag == other.tag and self.producer == other.producer
+
+  def __hash__(self):
+    return hash((self.tag, self.producer))
+
   @property
   def windowing(self):
     if not hasattr(self, '_windowing'):
@@ -111,6 +118,24 @@ class PCollection(PValue):
     # can't prohibit it as it often gets implicitly picked up (e.g. as part
     # of a closure).
     return _InvalidUnpickledPCollection, ()
+
+  def to_runner_api(self, context):
+    from apache_beam.runners.api import beam_runner_api_pb2
+    from apache_beam.internal import pickler
+    return beam_runner_api_pb2.PCollection(
+        unique_name='%d%s.%s' % (
+            len(self.producer.full_label), self.producer.full_label, self.tag),
+        coder_id=pickler.dumps(self.element_type),
+        is_bounded=beam_runner_api_pb2.BOUNDED,
+        windowing_strategy_id=context.windowing_strategies.get_id(
+            self.windowing))
+
+  @staticmethod
+  def from_runner_api(proto, context):
+    from apache_beam.internal import pickler
+    # Producer and tag will be filled in later, the key point is that the
+    # same object is returned for the same pcollection id.
+    return PCollection(None, element_type=pickler.loads(proto.coder_id))
 
 
 class _InvalidUnpickledPCollection(object):
@@ -183,7 +208,8 @@ class DoOutputsTuple(object):
       tag = None
     elif self._tags and tag not in self._tags:
       raise ValueError(
-          'Tag %s is neither the main tag %s nor any of the side tags %s' % (
+          "Tag '%s' is neither the main tag '%s' "
+          "nor any of the side tags %s" % (
               tag, self._main_tag, self._tags))
     # Check if we accessed this tag before.
     if tag in self._pcolls:
@@ -194,14 +220,15 @@ class DoOutputsTuple(object):
       pcoll = PCollection(self._pipeline, tag=tag)
       # Transfer the producer from the DoOutputsTuple to the resulting
       # PCollection.
-      pcoll.producer = self.producer
+      pcoll.producer = self.producer.parts[0]
       # Add this as an output to both the inner ParDo and the outer _MultiParDo
       # PTransforms.
-      self.producer.parts[0].add_output(pcoll, tag)
-      self.producer.add_output(pcoll, tag)
+      if tag not in self.producer.parts[0].outputs:
+        self.producer.parts[0].add_output(pcoll, tag)
+        self.producer.add_output(pcoll, tag)
     else:
       # Main output is output of inner ParDo.
-      pcoll = self.producer.parts[0].outputs[0]
+      pcoll = self.producer.parts[0].outputs[None]
     self._pcolls[tag] = pcoll
     return pcoll
 
