@@ -342,9 +342,11 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
               "The DataflowRunner in batch mode does not support Read.Unbounded"));
       ptoverrides
           // State and timer pardos are implemented by expansion to GBK-then-ParDo
-          .put(PTransformMatchers.stateOrTimerParDoMulti(),
+          .put(
+              PTransformMatchers.stateOrTimerParDoMulti(),
               BatchStatefulParDoOverrides.multiOutputOverrideFactory())
-          .put(PTransformMatchers.stateOrTimerParDoSingle(),
+          .put(
+              PTransformMatchers.stateOrTimerParDoSingle(),
               BatchStatefulParDoOverrides.singleOutputOverrideFactory())
 
           // Write uses views internally
@@ -356,6 +358,9 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
               PTransformMatchers.classEqualTo(View.AsMultimap.class),
               new ReflectiveOneToOneOverrideFactory(
                   BatchViewOverrides.BatchViewAsMultimap.class, this))
+          .put(
+              PTransformMatchers.classEqualTo(Combine.GloballyAsSingletonView.class),
+              new BatchViewOverrides.BatchCombineGloballyAsSingletonViewFactory(this))
           .put(
               PTransformMatchers.classEqualTo(View.AsSingleton.class),
               new ReflectiveOneToOneOverrideFactory(
