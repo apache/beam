@@ -96,6 +96,7 @@ import org.apache.beam.sdk.runners.PTransformOverride;
 import org.apache.beam.sdk.runners.PTransformOverrideFactory;
 import org.apache.beam.sdk.runners.PipelineRunner;
 import org.apache.beam.sdk.runners.TransformHierarchy;
+import org.apache.beam.sdk.runners.TransformHierarchy.Node;
 import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.Combine.GroupedValues;
@@ -159,9 +160,6 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
 
   /** Translator for this DataflowRunner, based on options. */
   private final DataflowPipelineTranslator translator;
-
-  /** Custom transforms implementations. */
-  private final ImmutableMap<PTransformMatcher, PTransformOverrideFactory> overrides;
 
   /** A set of user defined functions to invoke at different points in execution. */
   private DataflowRunnerHooks hooks;
@@ -289,13 +287,15 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     this.translator = DataflowPipelineTranslator.fromOptions(options);
     this.pcollectionsRequiringIndexedFormat = new HashSet<>();
     this.ptransformViewsWithNonDeterministicKeyCoders = new HashSet<>();
+  }
 
+  private Map<PTransformMatcher, PTransformOverrideFactory> getOverrides(boolean streaming) {
     ImmutableMap.Builder<PTransformMatcher, PTransformOverrideFactory> ptoverrides =
         ImmutableMap.builder();
     // Create is implemented in terms of a Read, so it must precede the override to Read in
     // streaming
     ptoverrides.put(PTransformMatchers.emptyFlatten(), EmptyFlattenAsCreateFactory.instance());
-    if (options.isStreaming()) {
+    if (streaming) {
       // In streaming mode must use either the custom Pubsub unbounded source/sink or
       // defer to Windmill's built-in implementation.
       for (Class<? extends DoFn> unsupported :
@@ -334,10 +334,6 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
             PTransformMatchers.classEqualTo(unsupported),
             UnsupportedOverrideFactory.withMessage(getUnsupportedMessage(unsupported, false)));
       }
-      ptoverrides.put(
-          PTransformMatchers.classEqualTo(Read.Unbounded.class),
-          UnsupportedOverrideFactory.withMessage(
-              "The DataflowRunner in batch mode does not support Read.Unbounded"));
       ptoverrides
           // State and timer pardos are implemented by expansion to GBK-then-ParDo
           .put(PTransformMatchers.stateOrTimerParDoMulti(),
@@ -372,7 +368,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
             PTransformMatchers.classEqualTo(Combine.GroupedValues.class),
             new PrimitiveCombineGroupedValuesOverrideFactory())
         .put(PTransformMatchers.classEqualTo(ParDo.Bound.class), new PrimitiveParDoSingleFactory());
-    overrides = ptoverrides.build();
+    return ptoverrides.build();
   }
 
   private String getUnsupportedMessage(Class<?> unsupported, boolean streaming) {
@@ -485,6 +481,9 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   @Override
   public DataflowPipelineJob run(Pipeline pipeline) {
     logWarningIfPCollectionViewHasNonDeterministicKeyCoder(pipeline);
+    if (containsUnboundedPCollection(pipeline)) {
+      options.setStreaming(true);
+    }
     replaceTransforms(pipeline);
 
     LOG.info("Executing pipeline on the Dataflow Service, which will have billing implications "
@@ -674,10 +673,28 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
 
   @VisibleForTesting
   void replaceTransforms(Pipeline pipeline) {
-    for (Map.Entry<PTransformMatcher, PTransformOverrideFactory> override : overrides.entrySet()) {
+    boolean streaming = options.isStreaming() || containsUnboundedPCollection(pipeline);
+    for (Map.Entry<PTransformMatcher, PTransformOverrideFactory> override :
+        getOverrides(streaming).entrySet()) {
       pipeline.replace(PTransformOverride.of(override.getKey(), override.getValue()));
     }
   }
+
+  private boolean containsUnboundedPCollection(Pipeline p) {
+    class BoundednessVisitor extends PipelineVisitor.Defaults {
+      IsBounded boundedness = IsBounded.BOUNDED;
+
+      @Override
+      public void visitValue(PValue value, Node producer) {
+        if (value instanceof PCollection) {
+          boundedness = boundedness.and(((PCollection) value).isBounded());
+        }
+      }
+    }
+    BoundednessVisitor visitor = new BoundednessVisitor();
+    p.traverseTopologically(visitor);
+    return visitor.boundedness == IsBounded.UNBOUNDED;
+  };
 
   /**
    * Returns the DataflowPipelineTranslator associated with this object.
