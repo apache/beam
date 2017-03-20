@@ -28,6 +28,8 @@ job('beam_PerformanceTests_Spark'){
 
     def argMap = [
       benchmarks: 'dpb_wordcount_benchmark',
+      // There are currently problems uploading to Dataproc, so we use a file
+      // already present on the machines as input.
       dpb_wordcount_input: '/etc/hosts',
       config_override: 'dpb_wordcount_benchmark.dpb_service.service_type=dataproc'
     ]

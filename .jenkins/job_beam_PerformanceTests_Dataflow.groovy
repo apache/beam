@@ -30,7 +30,6 @@ job('beam_PerformanceTests_Dataflow'){
       benchmarks: 'dpb_wordcount_benchmark',
       dpb_dataflow_staging_location: 'gs://temp-storage-for-perf-tests/staging',
       dpb_wordcount_input: 'dataflow-samples/shakespeare/kinglear.txt',
-      dpb_beam_it_module: 'examples/java',
       config_override: 'dpb_wordcount_benchmark.dpb_service.service_type=dataflow'
     ]
 

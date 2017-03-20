@@ -229,8 +229,10 @@ class common_job_properties {
       dpb_log_level: 'INFO',
       dpb_maven_binary: '/home/jenkins/tools/maven/latest/bin/mvn',
       bigquery_table: 'beam_performance.pkb_results',
+      // Publishes results with official tag, for use in dashboards.
       official: 'true'
     ]
+    // Note: in case of key collision, keys present in ArgMap win.
     def joined_args = standard_args.plus(argMap)
     def argList = []
     joined_args.each({
