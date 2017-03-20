@@ -627,9 +627,7 @@ $ git checkout -b finish-pr-&lt;pull-request-#&gt; github/pr/&lt;pull-request-#&
 
 <div class="highlighter-rouge"><pre class="highlight"><code>$ git fetch --all
 $ git checkout apache/master
-$ git merge --no-ff \
-    -m $'[BEAM-&lt;JIRA-issue-#&amp;&gt;;&lt;/b&gt;] &lt;Title&gt;\n\nThis closes #&lt;pull-request-#&gt;' \
-    finish-pr-&lt;pull-request-#&gt;
+$ git merge --no-ff -m 'This closes #&lt;pull-request-#&gt;' finish-pr-&lt;pull-request-#&gt;
 </code></pre>
 </div>
 
