@@ -464,11 +464,11 @@ public class Create<T> {
       @Override
       protected boolean advanceImpl() throws IOException {
         CreateSource<T> source = getCurrentSource();
-        index++;
-        if (index >= source.allElementsBytes.size()) {
+        if (index + 1 >= source.allElementsBytes.size()) {
           next = null;
           return false;
         }
+        index++;
         next =
             Optional.fromNullable(
                 CoderUtils.decodeFromByteArray(source.coder, source.allElementsBytes.get(index)));
