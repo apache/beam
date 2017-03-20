@@ -45,15 +45,15 @@ import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.io.PubsubIO.PubsubMessage;
+import org.apache.beam.sdk.metrics.Counter;
+import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.options.PubsubOptions;
 import org.apache.beam.sdk.options.ValueProvider;
-import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SimpleFunction;
-import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.DisplayData.Builder;
 import org.apache.beam.sdk.transforms.windowing.AfterFirst;
@@ -164,8 +164,7 @@ public class PubsubUnboundedSink<T> extends PTransform<PCollection<T>, PDone> {
    * Convert elements to messages and shard them.
    */
   private static class ShardFn<T> extends DoFn<T, KV<Integer, OutgoingMessage>> {
-    private final Aggregator<Long, Long> elementCounter =
-        createAggregator("elements", Sum.ofLongs());
+    private final Counter elementCounter = Metrics.counter(ShardFn.class, "elements");
     private final Coder<T> elementCoder;
     private final int numShards;
     private final RecordIdMethod recordIdMethod;
@@ -181,7 +180,7 @@ public class PubsubUnboundedSink<T> extends PTransform<PCollection<T>, PDone> {
 
     @ProcessElement
     public void processElement(ProcessContext c) throws Exception {
-      elementCounter.addValue(1L);
+      elementCounter.inc();
       byte[] elementBytes = null;
       Map<String, String> attributes = ImmutableMap.<String, String>of();
       if (formatFn != null) {
@@ -242,12 +241,9 @@ public class PubsubUnboundedSink<T> extends PTransform<PCollection<T>, PDone> {
     @Nullable
     private transient PubsubClient pubsubClient;
 
-    private final Aggregator<Long, Long> batchCounter =
-        createAggregator("batches", Sum.ofLongs());
-    private final Aggregator<Long, Long> elementCounter =
-        createAggregator("elements", Sum.ofLongs());
-    private final Aggregator<Long, Long> byteCounter =
-        createAggregator("bytes", Sum.ofLongs());
+    private final Counter batchCounter = Metrics.counter(WriterFn.class, "batches");
+    private final Counter elementCounter = Metrics.counter(WriterFn.class, "elements");
+    private final Counter byteCounter = Metrics.counter(WriterFn.class, "bytes");
 
     WriterFn(
         PubsubClientFactory pubsubFactory, ValueProvider<TopicPath> topic,
@@ -269,9 +265,9 @@ public class PubsubUnboundedSink<T> extends PTransform<PCollection<T>, PDone> {
       int n = pubsubClient.publish(topic.get(), messages);
       checkState(n == messages.size(), "Attempted to publish %s messages but %s were successful",
                  messages.size(), n);
-      batchCounter.addValue(1L);
-      elementCounter.addValue((long) messages.size());
-      byteCounter.addValue((long) bytes);
+      batchCounter.inc();
+      elementCounter.inc(messages.size());
+      byteCounter.inc(bytes);
     }
 
     @StartBundle

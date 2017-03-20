@@ -86,6 +86,8 @@ import org.apache.beam.sdk.io.AvroSource;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.JobService;
+import org.apache.beam.sdk.metrics.Counter;
+import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.options.BigQueryOptions;
 import org.apache.beam.sdk.options.GcpOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -93,7 +95,6 @@ import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.NestedValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.runners.PipelineRunner;
-import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupByKey;
@@ -102,7 +103,6 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.SimpleFunction;
-import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -2460,9 +2460,8 @@ public class BigQueryIO {
     private static Set<String> createdTables =
         Collections.newSetFromMap(new ConcurrentHashMap<String, Boolean>());
 
-    /** Tracks bytes written, exposed as "ByteCount" Counter. */
-    private Aggregator<Long, Long> byteCountAggregator =
-        createAggregator("ByteCount", Sum.ofLongs());
+    /** Tracks bytes written, exposed as "ByteCount" Metrics Counter. */
+    private Counter byteCounter = Metrics.counter(StreamingWriteFn.class, "ByteCount");
 
     /** Constructor. */
     StreamingWriteFn(@Nullable ValueProvider<TableSchema> schema,
@@ -2564,7 +2563,7 @@ public class BigQueryIO {
         try {
           long totalBytes = bqServices.getDatasetService(options).insertAll(
               tableReference, tableRows, uniqueIds);
-          byteCountAggregator.addValue(totalBytes);
+          byteCounter.inc(totalBytes);
         } catch (IOException e) {
           throw new RuntimeException(e);
         }
