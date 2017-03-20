@@ -458,22 +458,28 @@ public class UnboundedReadFromBoundedSource<T> extends PTransform<PBegin, PColle
       private PipelineOptions options;
       private @Nullable BoundedReader<T> reader;
       private boolean closed;
+      private boolean readerDone;
 
       public ResidualSource(BoundedSource<T> residualSource, PipelineOptions options) {
         this.residualSource = checkNotNull(residualSource, "residualSource");
         this.options = checkNotNull(options, "options");
         this.reader = null;
         this.closed = false;
+        this.readerDone = false;
       }
 
       private boolean advance() throws IOException {
         checkArgument(!closed, "advance() call on closed %s", getClass().getName());
+        if (readerDone) {
+          return false;
+        }
         if (reader == null) {
           reader = residualSource.createReader(options);
-          return reader.start();
+          readerDone = !reader.start();
         } else {
-          return reader.advance();
+          readerDone = !reader.advance();
         }
+        return !readerDone;
       }
 
       T getCurrent() throws NoSuchElementException {
