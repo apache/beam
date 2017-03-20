@@ -16,6 +16,7 @@
 package cz.seznam.euphoria.flink.streaming;
 
 import cz.seznam.euphoria.core.client.dataset.partitioning.Partitioning;
+import cz.seznam.euphoria.core.client.dataset.windowing.WindowedElement;
 import cz.seznam.euphoria.core.client.operator.Repartition;
 import cz.seznam.euphoria.flink.FlinkOperator;
 import cz.seznam.euphoria.flink.functions.PartitionerWrapper;
@@ -28,8 +29,8 @@ class RepartitionTranslator implements StreamingOperatorTranslator<Repartition> 
   public DataStream<?> translate(FlinkOperator<Repartition> operator,
                                  StreamingExecutorContext context)
   {
-    DataStream<StreamingWindowedElement> input =
-        (DataStream<StreamingWindowedElement>) context.getSingleInputStream(operator);
+    DataStream<WindowedElement> input =
+        (DataStream<WindowedElement>) context.getSingleInputStream(operator);
     Partitioning partitioning = operator.getOriginalOperator().getPartitioning();
 
     PartitionerWrapper flinkPartitioner =

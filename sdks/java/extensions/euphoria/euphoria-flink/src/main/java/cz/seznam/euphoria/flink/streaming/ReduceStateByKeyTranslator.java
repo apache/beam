@@ -16,26 +16,29 @@
 package cz.seznam.euphoria.flink.streaming;
 
 import com.google.common.collect.Iterables;
+import cz.seznam.euphoria.core.client.dataset.windowing.WindowedElement;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
+import cz.seznam.euphoria.core.client.functional.CombinableReduceFunction;
 import cz.seznam.euphoria.core.client.functional.StateFactory;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
-import cz.seznam.euphoria.core.client.io.Context;
 import cz.seznam.euphoria.core.client.operator.ReduceStateByKey;
 import cz.seznam.euphoria.core.client.operator.state.State;
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.flink.FlinkOperator;
 import cz.seznam.euphoria.flink.functions.PartitionerWrapper;
-import cz.seznam.euphoria.flink.streaming.windowing.FlinkWindow;
-import cz.seznam.euphoria.flink.streaming.windowing.MultiWindowedElement;
-import cz.seznam.euphoria.flink.streaming.windowing.WindowProperties;
-import org.apache.flink.configuration.Configuration;
+import cz.seznam.euphoria.flink.streaming.windowing.AttachedWindowing;
+import cz.seznam.euphoria.flink.streaming.windowing.KeyedMultiWindowedElement;
+import cz.seznam.euphoria.flink.streaming.windowing.WindowOperator;
+import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.streaming.api.datastream.DataStream;
-import org.apache.flink.streaming.api.datastream.WindowedStream;
-import org.apache.flink.streaming.api.functions.windowing.RichWindowFunction;
-import org.apache.flink.streaming.api.windowing.windows.Window;
-import org.apache.flink.util.Collector;
+import org.apache.flink.streaming.api.functions.timestamps.BoundedOutOfOrdernessTimestampExtractor;
 
-import java.util.Iterator;
+import java.time.Duration;
+import java.util.Objects;
+import java.util.Set;
 
 class ReduceStateByKeyTranslator implements StreamingOperatorTranslator<ReduceStateByKey> {
 
@@ -44,39 +47,38 @@ class ReduceStateByKeyTranslator implements StreamingOperatorTranslator<ReduceSt
   public DataStream<?> translate(FlinkOperator<ReduceStateByKey> operator,
                                  StreamingExecutorContext context)
   {
-    DataStream<?> input =
+    DataStream input =
             Iterables.getOnlyElement(context.getInputStreams(operator));
 
     ReduceStateByKey origOperator = operator.getOriginalOperator();
 
     StateFactory<?, State> stateFactory = origOperator.getStateFactory();
+    CombinableReduceFunction stateCombiner = origOperator.getStateCombiner();
 
-    final Windowing windowing = origOperator.getWindowing();
+    Windowing windowing = origOperator.getWindowing();
+    if (windowing == null) {
+      // use attached windowing when no windowing explicitly defined
+      windowing = new AttachedWindowing<>();
+    }
+
     final UnaryFunction keyExtractor = origOperator.getKeyExtractor();
     final UnaryFunction valueExtractor = origOperator.getValueExtractor();
     final UnaryFunction eventTimeAssigner = origOperator.getEventTimeAssigner();
 
-    FlinkStreamingStateStorageProvider storageProvider
-        = new FlinkStreamingStateStorageProvider();
-
-    DataStream<StreamingWindowedElement<?, Pair>> folded;
-    // apply windowing first
-    if (windowing == null) {
-      WindowedStream windowed =
-          context.attachedWindowStream((DataStream) input, keyExtractor, valueExtractor);
-      // equivalent operation to "left fold"
-      folded = windowed.apply(new RSBKWindowFunction(storageProvider, stateFactory))
-          .name(operator.getName())
-          .setParallelism(operator.getParallelism());
-    } else {
-      WindowedStream<MultiWindowedElement<?, Pair>, Object, FlinkWindow>
-          windowed = context.flinkWindow(
-              (DataStream) input, keyExtractor, valueExtractor, windowing, eventTimeAssigner);
-      // equivalent operation to "left fold"
-      folded = windowed.apply(new RSBKWindowFunction(storageProvider, stateFactory))
-          .name(operator.getName())
-          .setParallelism(operator.getParallelism());
+    if (eventTimeAssigner != null) {
+      input = input.assignTimestampsAndWatermarks(
+              new EventTimeAssigner(context.getAllowedLateness(), eventTimeAssigner));
     }
+
+    // assign windows
+    DataStream<KeyedMultiWindowedElement> windowed = input.map(new WindowAssigner(
+            windowing, keyExtractor, valueExtractor, eventTimeAssigner))
+            .setParallelism(operator.getParallelism());
+
+    DataStream<WindowedElement<?, Pair>> reduced = (DataStream) windowed.keyBy(new KeyExtractor())
+            .transform(operator.getName(), TypeInformation.of(WindowedElement.class), new WindowOperator<>(
+                    windowing, stateFactory, stateCombiner, context.isLocalMode()))
+            .setParallelism(operator.getParallelism());
 
     // FIXME partitioner should be applied during "keyBy" to avoid
     // unnecessary shuffle, but there is no (known) way how to set custom
@@ -84,74 +86,85 @@ class ReduceStateByKeyTranslator implements StreamingOperatorTranslator<ReduceSt
 
     // apply custom partitioner if different from default
     if (!origOperator.getPartitioning().hasDefaultPartitioner()) {
-      folded = folded.partitionCustom(
+      reduced = reduced.partitionCustom(
               new PartitionerWrapper<>(origOperator.getPartitioning().getPartitioner()),
               p -> p.getElement().getKey());
     }
 
-    return folded;
+    return reduced;
   }
 
-  private static class RSBKWindowFunction<
-          WID extends cz.seznam.euphoria.core.client.dataset.windowing.Window,
-          KEY, VALUEIN, VALUEOUT,
-          W extends Window & WindowProperties<WID>>
-          extends RichWindowFunction<ElementProvider<? extends Pair<KEY, VALUEIN>>,
-          StreamingWindowedElement<WID, Pair<KEY, VALUEOUT>>,
-          KEY, W> {
+  private static class EventTimeAssigner
+          extends BoundedOutOfOrdernessTimestampExtractor<WindowedElement>
+  {
+    private final UnaryFunction<Object, Long> eventTimeFn;
 
-    private final StateFactory<?, State> stateFactory;
-    private final FlinkStreamingStateStorageProvider storageProvider;
-
-    RSBKWindowFunction(
-        FlinkStreamingStateStorageProvider storageProvider,
-        StateFactory<?, State> stateFactory) {
-
-      this.stateFactory = stateFactory;
-      this.storageProvider = storageProvider;
+    EventTimeAssigner(Duration allowedLateness, UnaryFunction<Object, Long> eventTimeFn) {
+      super(millisTime(allowedLateness.toMillis()));
+      this.eventTimeFn = Objects.requireNonNull(eventTimeFn);
     }
 
     @Override
-    public void open(Configuration parameters) throws Exception {
-      storageProvider.initialize(getRuntimeContext());
+    public long extractTimestamp(WindowedElement element) {
+      return eventTimeFn.apply(element.getElement());
+    }
+
+    private static org.apache.flink.streaming.api.windowing.time.Time
+    millisTime(long millis) {
+      return org.apache.flink.streaming.api.windowing.time.Time.milliseconds(millis);
+    }
+  }
+
+  private static class WindowAssigner implements MapFunction<WindowedElement, KeyedMultiWindowedElement>,
+          ResultTypeQueryable<KeyedMultiWindowedElement> {
+
+    private final Windowing windowing;
+    private final UnaryFunction keyExtractor;
+    private final UnaryFunction valueExtractor;
+    private final UnaryFunction eventTimeAssigner;
+
+    public WindowAssigner(Windowing windowing,
+                          UnaryFunction keyExtractor,
+                          UnaryFunction valueExtractor,
+                          UnaryFunction eventTimeAssigner) {
+      this.windowing = windowing;
+      this.keyExtractor = keyExtractor;
+      this.valueExtractor = valueExtractor;
+      this.eventTimeAssigner = eventTimeAssigner;
     }
 
     @Override
-    public void apply(
-        KEY key,
-        W window,
-        Iterable<ElementProvider<? extends Pair<KEY, VALUEIN>>> input,
-        Collector<StreamingWindowedElement<WID, Pair<KEY, VALUEOUT>>> out)
-        throws Exception {
-
-      Iterator<ElementProvider<? extends Pair<KEY, VALUEIN>>> it = input.iterator();
-      // read the first element to obtain window metadata and key
-      ElementProvider<? extends Pair<KEY, VALUEIN>> element = it.next();
-      WID wid = window.getWindowID();
-      long emissionWatermark = window.getEmissionWatermark();
-
-      @SuppressWarnings("unchecked")
-      State<VALUEIN, VALUEOUT> state = stateFactory.apply(
-          new Context() {
-            @Override
-            public void collect(Object elem) {
-              out.collect(new StreamingWindowedElement(wid, emissionWatermark, Pair.of(key, elem)));
-            }
-            @Override
-            public Object getWindow() {
-              return wid;
-            }
-          },
-          storageProvider);
-
-      // add the first element to the state
-      state.add(element.getElement().getValue());
-
-      while (it.hasNext()) {
-        state.add(it.next().getElement().getValue());
+    @SuppressWarnings("unchecked")
+    public KeyedMultiWindowedElement map(WindowedElement el) throws Exception {
+      if (eventTimeAssigner != null) {
+        el.setTimestamp((long) eventTimeAssigner.apply(el.getElement()));
       }
-      state.flush();
-      state.close();
+      Set windows = windowing.assignWindowsToElement(el);
+
+      return new KeyedMultiWindowedElement<>(
+              keyExtractor.apply(el.getElement()),
+              valueExtractor.apply(el.getElement()),
+              el.getTimestamp(),
+              windows);
+    }
+
+    @Override
+    public TypeInformation<KeyedMultiWindowedElement> getProducedType() {
+      return TypeInformation.of(KeyedMultiWindowedElement.class);
+    }
+  }
+
+  private static class KeyExtractor implements KeySelector<KeyedMultiWindowedElement, Object>,
+          ResultTypeQueryable<Object> {
+
+    @Override
+    public Object getKey(KeyedMultiWindowedElement el) throws Exception {
+      return el.getKey();
+    }
+
+    @Override
+    public TypeInformation<Object> getProducedType() {
+      return TypeInformation.of(Object.class);
     }
   }
 }
