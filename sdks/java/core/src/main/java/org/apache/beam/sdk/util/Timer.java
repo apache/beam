@@ -49,19 +49,30 @@ public interface Timer {
    *
    * <p>For {@link TimeDomain#PROCESSING_TIME}, the behavior is be unpredictable, since processing
    * time timers are ignored after a window has expired. Instead, it is recommended to use
-   * {@link #setForNowPlus(Duration)}.
+   * {@link #setRelative()}.
    */
-  void set(Instant instant);
-
-  /**
-   * Sets or resets the time relative to the current time in the timer's {@link TimeDomain} at which
-   * this it should fire. If the timer was already set, resets it to the new requested time.
-   */
-  void setForNowPlus(Duration durationFromNow);
+  void set(Instant absoluteTime);
 
   /**
    * Unsets this timer. It is permitted to {@code cancel()} whether or not the timer was actually
    * set.
    */
   void cancel();
+
+  /**
+   * Sets the timer relative to the current time, according to any offset and alignment specified.
+   * Using {@link #offset(Duration)} and {@link #align(Duration)}.
+   */
+  void setRelative();
+
+  /**
+   * Set the align offset.
+   */
+  Timer offset(Duration offset);
+
+  /**
+   * Aligns a timestamp to the next boundary of {@code period}.
+   */
+  Timer align(Duration period);
+
 }

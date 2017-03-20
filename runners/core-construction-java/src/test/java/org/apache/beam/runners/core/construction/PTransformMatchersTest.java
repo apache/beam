@@ -193,7 +193,7 @@ public class PTransformMatchersTest implements Serializable {
 
         @ProcessElement
         public void processElement(ProcessContext context, @TimerId(timerId) Timer timer) {
-          timer.setForNowPlus(Duration.standardSeconds(1));
+          timer.offset(Duration.standardSeconds(1)).setRelative();
           context.output(3);
         }
 
