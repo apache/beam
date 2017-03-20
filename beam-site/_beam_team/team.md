@@ -65,9 +65,9 @@ members:
   - name: Pei He
     apache_id: pei
     email: pei [at] apache [dot] org
-    organization: Google
+    organization: Alibaba
     roles: committer
-    time_zone: "-8"
+    time_zone: "+8"
   - name: Chamikara Jayalath
     apache_id: chamikara
     email: chamikara [at] apache [dot] org
