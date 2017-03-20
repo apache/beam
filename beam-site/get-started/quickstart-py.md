@@ -63,7 +63,10 @@ For instructions using other shells, see the [virtualenv documentation](https://
 ### Download and install
 
 Install the latest Python SDK from PyPI:
-  `pip install apache-beam`
+
+```
+pip install apache-beam
+```
 
 ## Execute a pipeline locally
 
@@ -78,14 +81,13 @@ python -m apache_beam.examples.wordcount --input README.md --output counts
 
 {:.runner-dataflow}
 ```
-# As part of the initial setup, install gcp specific extra components.
-pip install dist/apache-beam-*.tar.gz .[gcp]
+# As part of the initial setup, install Google Cloud Platform specific extra components.
+pip install apache-beam[gcp]
 python -m apache_beam.examples.wordcount --input gs://dataflow-samples/shakespeare/kinglear.txt \
                                          --output gs://<your-gcs-bucket>/counts \
                                          --runner DataflowRunner \
                                          --project your-gcp-project \
-                                         --temp_location gs://<your-gcs-bucket>/tmp/ \
-                                         --sdk_location dist/apache-beam-*.tar.gz
+                                         --temp_location gs://<your-gcs-bucket>/tmp/
 ```
 
 ## Next Steps
