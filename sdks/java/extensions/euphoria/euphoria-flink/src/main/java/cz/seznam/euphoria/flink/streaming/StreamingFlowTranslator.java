@@ -21,7 +21,6 @@ import cz.seznam.euphoria.core.client.graph.Node;
 import cz.seznam.euphoria.core.client.io.DataSink;
 import cz.seznam.euphoria.core.client.operator.FlatMap;
 import cz.seznam.euphoria.core.client.operator.Operator;
-import cz.seznam.euphoria.core.client.operator.ReduceByKey;
 import cz.seznam.euphoria.core.client.operator.ReduceStateByKey;
 import cz.seznam.euphoria.core.client.operator.Repartition;
 import cz.seznam.euphoria.core.client.operator.Union;
@@ -29,9 +28,9 @@ import cz.seznam.euphoria.core.executor.FlowUnfolder;
 import cz.seznam.euphoria.flink.FlinkOperator;
 import cz.seznam.euphoria.flink.FlowTranslator;
 import cz.seznam.euphoria.flink.streaming.io.DataSinkWrapper;
-import cz.seznam.euphoria.flink.streaming.windowing.StreamWindower;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.environment.LocalStreamEnvironment;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 
 import java.time.Duration;
@@ -61,8 +60,6 @@ public class StreamingFlowTranslator extends FlowTranslator {
     TRANSLATORS.put(Repartition.class, new RepartitionTranslator());
     TRANSLATORS.put(ReduceStateByKey.class, new ReduceStateByKeyTranslator());
     TRANSLATORS.put(Union.class, new UnionTranslator());
-
-    TRANSLATORS.put(ReduceByKey.class, new ReduceByKeyTranslator());
   }
 
   // ~ ------------------------------------------------------------------------------
@@ -98,7 +95,10 @@ public class StreamingFlowTranslator extends FlowTranslator {
     env.getConfig().setAutoWatermarkInterval(autoWatermarkInterval.toMillis());
 
     StreamingExecutorContext executorContext =
-        new StreamingExecutorContext(env, (DAG) dag, new StreamWindower(allowedLateness));
+        new StreamingExecutorContext(env,
+                (DAG) dag,
+                allowedLateness,
+                env instanceof LocalStreamEnvironment);
 
     // translate each operator to proper Flink transformation
     dag.traverse().map(Node::get).forEach(op -> {
