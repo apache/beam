@@ -219,9 +219,9 @@ class DataflowRunner(PipelineRunner):
   def _get_encoded_output_coder(self, transform_node, window_value=True):
     """Returns the cloud encoding of the coder for the output of a transform."""
     if (len(transform_node.outputs) == 1
-        and transform_node.outputs[0].element_type is not None):
+        and transform_node.outputs[None].element_type is not None):
       # TODO(robertwb): Handle type hints for multi-output transforms.
-      element_type = transform_node.outputs[0].element_type
+      element_type = transform_node.outputs[None].element_type
     else:
       # TODO(silviuc): Remove this branch (and assert) when typehints are
       # propagated everywhere. Returning an 'Any' as type hint will trigger
@@ -229,7 +229,7 @@ class DataflowRunner(PipelineRunner):
       element_type = typehints.Any
     if window_value:
       window_coder = (
-          transform_node.outputs[0].windowing.windowfn.get_window_coder())
+          transform_node.outputs[None].windowing.windowfn.get_window_coder())
     else:
       window_coder = None
     return self._get_typehint_based_encoding(

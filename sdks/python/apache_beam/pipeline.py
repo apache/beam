@@ -52,6 +52,7 @@ import os
 import shutil
 import tempfile
 
+from google.protobuf import wrappers_pb2
 from apache_beam import pvalue
 from apache_beam import typehints
 from apache_beam.internal import pickler
@@ -59,6 +60,8 @@ from apache_beam.runners import create_runner
 from apache_beam.runners import PipelineRunner
 from apache_beam.transforms import ptransform
 from apache_beam.typehints import TypeCheckError
+from apache_beam.utils import proto_utils
+from apache_beam.utils import urns
 from apache_beam.utils.pipeline_options import PipelineOptions
 from apache_beam.utils.pipeline_options import SetupOptions
 from apache_beam.utils.pipeline_options import StandardOptions
@@ -151,8 +154,14 @@ class Pipeline(object):
     """Returns the root transform of the transform stack."""
     return self.transforms_stack[0]
 
-  def run(self):
+  def run(self, test_runner_api=True):
     """Runs the pipeline. Returns whatever our runner returns after running."""
+
+    # When possible, invoke a round trip through the runner API.
+    if test_runner_api and self._verify_runner_api_compatible():
+      return Pipeline.from_runner_api(
+          self.to_runner_api(), self.runner, self.options).run(False)
+
     if self.options.view_as(SetupOptions).save_main_session:
       # If this option is chosen, verify we can pickle the main session early.
       tmpdir = tempfile.mkdtemp()
@@ -299,6 +308,42 @@ class Pipeline(object):
     self.transforms_stack.pop()
     return pvalueish_result
 
+  def _verify_runner_api_compatible(self):
+    class Visitor(PipelineVisitor):  # pylint: disable=used-before-assignment
+      ok = True  # Really a nonlocal.
+
+      def visit_transform(self, transform_node):
+        if transform_node.side_inputs:
+          Visitor.ok = False
+    self.visit(Visitor())
+    return Visitor.ok
+
+  def to_runner_api(self):
+    from apache_beam.runners import pipeline_context
+    from apache_beam.runners.api import beam_runner_api_pb2
+    context = pipeline_context.PipelineContext()
+    # Mutates context; placing inline would force dependence on
+    # argument evaluation order.
+    root_transform_id = context.transforms.get_id(self._root_transform())
+    proto = beam_runner_api_pb2.Pipeline(
+        root_transform_id=root_transform_id,
+        components=context.to_runner_api())
+    return proto
+
+  @staticmethod
+  def from_runner_api(proto, runner, options):
+    p = Pipeline(runner=runner, options=options)
+    from apache_beam.runners import pipeline_context
+    context = pipeline_context.PipelineContext(proto.components)
+    p.transforms_stack = [
+        context.transforms.get_by_id(proto.root_transform_id)]
+    # TODO(robertwb): These are only needed to continue construction. Omit?
+    p.applied_labels = set([
+        t.unique_name for t in proto.components.transforms.values()])
+    for id in proto.components.pcollections:
+      context.pcollections.get_by_id(id).pipeline = p
+    return p
+
 
 class PipelineVisitor(object):
   """Visitor pattern class used to traverse a DAG of transforms.
@@ -374,12 +419,16 @@ class AppliedPTransform(object):
         real_producer(side_input).refcounts[side_input.tag] += 1
 
   def add_output(self, output, tag=None):
-    assert (isinstance(output, pvalue.PValue) or
-            isinstance(output, pvalue.DoOutputsTuple))
-    if tag is None:
-      tag = len(self.outputs)
-    assert tag not in self.outputs
-    self.outputs[tag] = output
+    if isinstance(output, pvalue.DoOutputsTuple):
+      self.add_output(output[output._main_tag])
+    elif isinstance(output, pvalue.PValue):
+      # TODO(robertwb): Require tags when calling this method.
+      if tag is None and None in self.outputs:
+        tag = len(self.outputs)
+      assert tag not in self.outputs
+      self.outputs[tag] = output
+    else:
+      raise TypeError("Unexpected output type: %s" % output)
 
   def add_part(self, part):
     assert isinstance(part, AppliedPTransform)
@@ -441,3 +490,47 @@ class AppliedPTransform(object):
         if v not in visited:
           visited.add(v)
           visitor.visit_value(v, self)
+
+  def named_inputs(self):
+    # TODO(robertwb): Push names up into the sdk construction.
+    return {str(ix): input for ix, input in enumerate(self.inputs)
+            if isinstance(input, pvalue.PCollection)}
+
+  def to_runner_api(self, context):
+    from apache_beam.runners.api import beam_runner_api_pb2
+    return beam_runner_api_pb2.PTransform(
+        unique_name=self.full_label,
+        spec=beam_runner_api_pb2.UrnWithParameter(
+            urn=urns.PICKLED_TRANSFORM,
+            parameter=proto_utils.pack_Any(
+                wrappers_pb2.BytesValue(value=pickler.dumps(self.transform)))),
+        subtransforms=[context.transforms.get_id(part) for part in self.parts],
+        # TODO(robertwb): Side inputs.
+        inputs={tag: context.pcollections.get_id(pc)
+                for tag, pc in self.named_inputs().items()},
+        outputs={str(tag): context.pcollections.get_id(out)
+                 for tag, out in self.outputs.items()},
+        # TODO(robertwb): display_data
+        display_data=None)
+
+  @staticmethod
+  def from_runner_api(proto, context):
+    result = AppliedPTransform(
+        parent=None,
+        transform=pickler.loads(
+            proto_utils.unpack_Any(proto.spec.parameter,
+                                   wrappers_pb2.BytesValue).value),
+        full_label=proto.unique_name,
+        inputs=[
+            context.pcollections.get_by_id(id) for id in proto.inputs.values()])
+    result.parts = [
+        context.transforms.get_by_id(id) for id in proto.subtransforms]
+    result.outputs = {
+        None if tag == 'None' else tag: context.pcollections.get_by_id(id)
+        for tag, id in proto.outputs.items()}
+    if not result.parts:
+      for tag, pc in result.outputs.items():
+        if pc not in result.inputs:
+          pc.producer = result
+          pc.tag = tag
+    return result
