@@ -35,16 +35,14 @@ class WindowedElementCollector<T> implements Context<T> {
 
   @Override
   public void collect(T elem) {
-    long endWindowStamp = (window instanceof TimedWindow)
-            ? ((TimedWindow) window).maxTimestamp()
-            : Long.MAX_VALUE;
-
     // ~ timestamp assigned to element can be either end of window
     // or current watermark supplied by triggering
     // ~ this is a workaround for NoopTriggerScheduler
     // used for batch processing that fires all windows
     // at the end of bounded input
-    long stamp = Math.min(endWindowStamp, stampSupplier.get());
+    long stamp = (window instanceof TimedWindow)
+            ? ((TimedWindow) window).maxTimestamp()
+            : stampSupplier.get();
 
     wrap.collect(Datum.of(window, elem, stamp));
   }

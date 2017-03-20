@@ -21,10 +21,8 @@ import cz.seznam.euphoria.core.executor.Executor;
 import cz.seznam.euphoria.core.util.Settings;
 import cz.seznam.euphoria.flink.batch.BatchFlowTranslator;
 import cz.seznam.euphoria.flink.streaming.StreamingFlowTranslator;
-import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.core.memory.HeapMemorySegment;
-import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.runtime.state.AbstractStateBackend;
+import org.apache.flink.api.common.ExecutionConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -57,7 +55,7 @@ public class FlinkExecutor implements Executor {
   private Duration checkpointInterval;
 
   private boolean objectReuse = false;
-  
+
   // executor to submit flows, if closed all executions should be interrupted
   private final ExecutorService submitExecutor = Executors.newCachedThreadPool();
 
@@ -67,12 +65,6 @@ public class FlinkExecutor implements Executor {
 
   public FlinkExecutor(boolean localEnv) {
     this.localEnv = localEnv;
-    if (localEnv) {
-      // flink race condition bug hackfix
-      if (!MemorySegmentFactory.isInitialized()) {
-        MemorySegmentFactory.initializeFactory(HeapMemorySegment.FACTORY);
-      }
-    }
   }
 
   /**

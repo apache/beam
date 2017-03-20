@@ -21,24 +21,33 @@ import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.ReducingStateDescriptor;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 
-/** Helper around storage descriptors. */
+/**
+ * Converts Euphoria {@link cz.seznam.euphoria.core.client.operator.state.StorageDescriptor}
+ * to Flink {@link org.apache.flink.api.common.state.StateDescriptor}
+ */
 public class Descriptors {
 
+  /**
+   * Converts the given Euphoria descriptor into its Flink equivalent.
+   *
+   * @param descriptor the Euphoria descriptor
+   * @param <T>        the type of the described value
+   * @return the Flink equivalent of the the given euphoria descriptor
+   */
   public static <T> ReducingStateDescriptor<T>
   from(ValueStorageDescriptor.MergingValueStorageDescriptor<T> descriptor) {
-    return new ReducingStateDescriptor<T>(
+    return new ReducingStateDescriptor<>(
         descriptor.getName(),
         new ReducingMerger<>(descriptor.getValueMerger()),
         descriptor.getValueClass());
   }
 
   /**
-   * Converts the given euphoria descriptor into its flink equivalent.
+   * Converts the given Euphoria descriptor into its Flink equivalent.
    *
-   * @param <T> the type of the value described
-   * @param descriptor the euphoria descriptor
-   *
-   * @return the flink equivalent of the the given euphoria descriptor
+   * @param descriptor the Euphoria descriptor
+   * @param <T>        the type of the described value
+   * @return the Flink equivalent of the the given euphoria descriptor
    */
   public static <T> ValueStateDescriptor<T> from(ValueStorageDescriptor<T> descriptor) {
     return new ValueStateDescriptor<>(
@@ -48,11 +57,10 @@ public class Descriptors {
   }
 
   /**
-   * Converts the given euphoria descriptor into its flink equivalent.
+   * Converts the given Euphoria descriptor into its Flink equivalent.
    *
-   * @param <T> the type of the value described
    * @param descriptor the euphoria descriptor
-   *
+   * @param <T>        the type of the value described
    * @return the flink equivalent of the given euphoria descriptor
    */
   public static <T> ListStateDescriptor<T> from(ListStorageDescriptor<T> descriptor) {

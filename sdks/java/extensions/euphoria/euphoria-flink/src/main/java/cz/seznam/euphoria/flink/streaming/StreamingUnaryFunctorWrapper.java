@@ -16,6 +16,7 @@
 package cz.seznam.euphoria.flink.streaming;
 
 import cz.seznam.euphoria.core.client.dataset.windowing.Window;
+import cz.seznam.euphoria.core.client.dataset.windowing.WindowedElement;
 import cz.seznam.euphoria.core.client.functional.UnaryFunctor;
 import cz.seznam.euphoria.core.client.io.Context;
 import org.apache.flink.api.common.functions.FlatMapFunction;
@@ -26,9 +27,9 @@ import org.apache.flink.util.Collector;
 import java.util.Objects;
 
 public class StreamingUnaryFunctorWrapper<WID extends Window, IN, OUT>
-        implements FlatMapFunction<StreamingWindowedElement<WID, IN>,
-        StreamingWindowedElement<WID, OUT>>,
-        ResultTypeQueryable<StreamingWindowedElement<WID, OUT>> {
+        implements FlatMapFunction<WindowedElement<WID, IN>,
+        WindowedElement<WID, OUT>>,
+        ResultTypeQueryable<WindowedElement<WID, OUT>> {
 
   private final UnaryFunctor<IN, OUT> f;
 
@@ -37,14 +38,14 @@ public class StreamingUnaryFunctorWrapper<WID extends Window, IN, OUT>
   }
 
   @Override
-  public void flatMap(StreamingWindowedElement<WID, IN> value,
-                      Collector<StreamingWindowedElement<WID, OUT>> out)
+  public void flatMap(WindowedElement<WID, IN> value,
+                      Collector<WindowedElement<WID, OUT>> out)
       throws Exception
   {
     f.apply(value.getElement(), new Context<OUT>() {
       @Override
       public void collect(OUT elem) {
-        out.collect(new StreamingWindowedElement<>(
+        out.collect(new WindowedElement<>(
                 value.getWindow(), value.getTimestamp(), elem));
       }
       @Override
@@ -56,7 +57,7 @@ public class StreamingUnaryFunctorWrapper<WID extends Window, IN, OUT>
 
   @SuppressWarnings("unchecked")
   @Override
-  public TypeInformation<StreamingWindowedElement<WID, OUT>> getProducedType() {
-    return TypeInformation.of((Class) StreamingWindowedElement.class);
+  public TypeInformation<WindowedElement<WID, OUT>> getProducedType() {
+    return TypeInformation.of((Class) WindowedElement.class);
   }
 }
