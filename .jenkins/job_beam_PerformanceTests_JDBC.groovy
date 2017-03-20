@@ -26,10 +26,25 @@ job('beam_PerformanceTests_JDBC'){
     // Run job in postcommit every 6 hours and don't trigger every push.
     common_job_properties.setPostCommit(delegate, '0 */6 * * *', false)
 
+    def pipelineArgs = [
+        tempRoot: 'gs://temp-storage-for-end-to-end-tests',
+        project: 'apache-beam-testing',
+        postgresServerName: '10.36.0.11',
+        postgresUsername: 'postgres',
+        postgresDatabaseName: 'postgres',
+        postgresPassword: 'uuinkks',
+        postgresSsl: 'false'
+    ]
+    def pipelineArgList = []
+    pipelineArgs.each({
+        key, value -> pipelineArgList.add("--$key=$value")
+    })
+    def pipelineArgsJoined = pipelineArgList.join(',')
+
     def argMap = [
       benchmarks: 'beam_integration_benchmark',
       dpb_beam_it_module: 'sdks/java/io/jdbc',
-      dpb_it_args: '--tempRoot=gs://temp-storage-for-end-to-end-tests,--project=apache-beam-testing,--postgresServerName=10.36.0.11,--postgresUsername=postgres,--postgresDatabaseName=postgres,--postgresPassword=uuinkks,--postgresSsl=false',
+      dpb_it_args: pipelineArgsJoined,
       dpb_it_class: 'org.apache.beam.sdk.io.jdbc.JdbcIOIT',
       dpb_beam_it_profile: 'io-it'
     ]
