@@ -118,7 +118,6 @@ import org.apache.beam.sdk.util.IOChannelUtils;
 import org.apache.beam.sdk.util.MimeTypes;
 import org.apache.beam.sdk.util.PropertyNames;
 import org.apache.beam.sdk.util.Reshuffle;
-import org.apache.beam.sdk.util.SystemDoFnInternal;
 import org.apache.beam.sdk.util.Transport;
 import org.apache.beam.sdk.util.gcsfs.GcsPath;
 import org.apache.beam.sdk.values.KV;
@@ -2436,7 +2435,6 @@ public class BigQueryIO {
   /**
    * Implementation of DoFn to perform streaming BigQuery write.
    */
-  @SystemDoFnInternal
   @VisibleForTesting
   static class StreamingWriteFn
       extends DoFn<KV<ShardedKey<String>, TableRowInfo>, Void> {
