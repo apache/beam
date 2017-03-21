@@ -60,9 +60,9 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
 
-public class WindowOperator<KEY, WID extends Window>
+public abstract class AbstractWindowOperator<I, KEY, WID extends Window>
         extends AbstractStreamOperator<WindowedElement<WID, Pair<?, ?>>>
-        implements OneInputStreamOperator<KeyedMultiWindowedElement<WID, ?, ?>, WindowedElement<WID, Pair<?, ?>>>,
+        implements OneInputStreamOperator<I, WindowedElement<WID, Pair<?, ?>>>,
         Triggerable<KEY, WID> {
 
   private final Windowing<?, WID> windowing;
@@ -95,10 +95,10 @@ public class WindowOperator<KEY, WID extends Window>
   // cached window states by key+window
   private transient Table<KEY, WID, State> windowStates;
 
-  public WindowOperator(Windowing<?, WID> windowing,
-                        StateFactory<?, State> stateFactory,
-                        CombinableReduceFunction<State> stateCombiner,
-                        boolean localMode) {
+  public AbstractWindowOperator(Windowing<?, WID> windowing,
+                                StateFactory<?, State> stateFactory,
+                                CombinableReduceFunction<State> stateCombiner,
+                                boolean localMode) {
     this.windowing = Objects.requireNonNull(windowing);
     this.trigger = windowing.getTrigger();
     this.stateFactory = Objects.requireNonNull(stateFactory);
@@ -139,12 +139,15 @@ public class WindowOperator<KEY, WID extends Window>
     storageProvider.setWindow(window);
   }
 
+  /** Extracts the data element from the input stream record. */
+  protected abstract KeyedMultiWindowedElement<WID, KEY, ?> recordValue(StreamRecord<I> record) throws Exception;
+
   @Override
   @SuppressWarnings("unchecked")
-  public void processElement(StreamRecord<KeyedMultiWindowedElement<WID, ?, ?>> record)
+  public void processElement(StreamRecord<I> record)
           throws Exception {
 
-    KeyedMultiWindowedElement<WID, ?, ?> element = record.getValue();
+    KeyedMultiWindowedElement<WID, KEY, ?> element = recordValue(record);
 
     // drop late-comers immediately
     if (element.getTimestamp() < timerService.currentWatermark()) {

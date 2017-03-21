@@ -26,6 +26,7 @@ import cz.seznam.euphoria.core.client.operator.ReduceByKey;
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.core.client.util.Sums;
 import cz.seznam.euphoria.core.client.util.Triple;
+import cz.seznam.euphoria.core.util.Settings;
 import cz.seznam.euphoria.flink.TestFlinkExecutor;
 import org.junit.Test;
 
@@ -37,8 +38,20 @@ import java.util.stream.Collectors;
 import static org.junit.Assert.assertEquals;
 
 public class RBKTimeSlidingTest {
+
+  @Test
+  public void testEventWindowingValueOfAfterShuffle() throws Exception {
+    Settings s = new Settings();
+    s.setBoolean(ReduceStateByKeyTranslator.CFG_VALUE_OF_AFTER_SHUFFLE_KEY, true);
+    runTestEventWindowing(s);
+  }
+
   @Test
   public void testEventWindowing() throws Exception {
+    runTestEventWindowing(new Settings());
+  }
+
+  private void runTestEventWindowing(Settings s) throws Exception {
     ListDataSink<Triple<TimeInterval, String, Long>> output = ListDataSink.get(2);
 
     ListDataSource<Pair<String, Integer>> source =
@@ -56,7 +69,7 @@ public class RBKTimeSlidingTest {
             .withReadDelay(Duration.ofMillis(500))
             .withFinalDelay(Duration.ofMillis(1000));
 
-    Flow f = Flow.create("test-windowing");
+    Flow f = Flow.create("test-windowing", s);
     Dataset<Pair<String, Long>> reduced =
         ReduceByKey.of(f.createInput(source))
         .keyBy(Pair::getFirst)

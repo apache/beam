@@ -25,6 +25,7 @@ import cz.seznam.euphoria.core.client.operator.ReduceStateByKey;
 import cz.seznam.euphoria.core.client.operator.Repartition;
 import cz.seznam.euphoria.core.client.operator.Union;
 import cz.seznam.euphoria.core.executor.FlowUnfolder;
+import cz.seznam.euphoria.core.util.Settings;
 import cz.seznam.euphoria.flink.FlinkOperator;
 import cz.seznam.euphoria.flink.FlowTranslator;
 import cz.seznam.euphoria.flink.streaming.io.DataSinkWrapper;
@@ -44,23 +45,9 @@ import java.util.stream.Collectors;
 
 public class StreamingFlowTranslator extends FlowTranslator {
 
-  // static mapping of Euphoria operators to corresponding Flink transformations
-  private static final Map<Class, StreamingOperatorTranslator> TRANSLATORS =
+  // mapping of Euphoria operators to corresponding Flink transformations
+  private final Map<Class, StreamingOperatorTranslator> translators =
           new IdentityHashMap<>();
-
-  static {
-    defineTranslators();
-  }
-
-  @SuppressWarnings("unchecked")
-  private static void defineTranslators() {
-    // TODO add full support of all operators
-    TRANSLATORS.put(FlowUnfolder.InputOperator.class, new InputTranslator());
-    TRANSLATORS.put(FlatMap.class, new FlatMapTranslator());
-    TRANSLATORS.put(Repartition.class, new RepartitionTranslator());
-    TRANSLATORS.put(ReduceStateByKey.class, new ReduceStateByKeyTranslator());
-    TRANSLATORS.put(Union.class, new UnionTranslator());
-  }
 
   // ~ ------------------------------------------------------------------------------
 
@@ -68,18 +55,25 @@ public class StreamingFlowTranslator extends FlowTranslator {
   private final Duration allowedLateness;
   private final Duration autoWatermarkInterval;
 
-  public StreamingFlowTranslator(StreamExecutionEnvironment env,
+  public StreamingFlowTranslator(Settings settings,
+                                 StreamExecutionEnvironment env,
                                  Duration allowedLateness,
                                  Duration autoWatermarkInterval) {
     this.env = Objects.requireNonNull(env);
     this.allowedLateness = Objects.requireNonNull(allowedLateness);
     this.autoWatermarkInterval = Objects.requireNonNull(autoWatermarkInterval);
+
+    translators.put(FlowUnfolder.InputOperator.class, new InputTranslator());
+    translators.put(FlatMap.class, new FlatMapTranslator());
+    translators.put(Repartition.class, new RepartitionTranslator());
+    translators.put(ReduceStateByKey.class, new ReduceStateByKeyTranslator(settings));
+    translators.put(Union.class, new UnionTranslator());
   }
 
   @SuppressWarnings("unchecked")
   @Override
   protected Collection<TranslateAcceptor> getAcceptors() {
-    return TRANSLATORS.keySet()
+    return translators.keySet()
         .stream()
         .map(cls -> new TranslateAcceptor(cls)).collect(Collectors.toList());
   }
@@ -103,7 +97,7 @@ public class StreamingFlowTranslator extends FlowTranslator {
     // translate each operator to proper Flink transformation
     dag.traverse().map(Node::get).forEach(op -> {
       Operator<?, ?> originalOp = op.getOriginalOperator();
-      StreamingOperatorTranslator<Operator> translator = TRANSLATORS.get((Class) originalOp.getClass());
+      StreamingOperatorTranslator<Operator> translator = translators.get((Class) originalOp.getClass());
       if (translator == null) {
         throw new UnsupportedOperationException(
                 "Operator " + op.getClass().getSimpleName() + " not supported");
