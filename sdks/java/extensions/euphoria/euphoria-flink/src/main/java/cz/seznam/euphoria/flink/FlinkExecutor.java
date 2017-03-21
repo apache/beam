@@ -21,8 +21,8 @@ import cz.seznam.euphoria.core.executor.Executor;
 import cz.seznam.euphoria.core.util.Settings;
 import cz.seznam.euphoria.flink.batch.BatchFlowTranslator;
 import cz.seznam.euphoria.flink.streaming.StreamingFlowTranslator;
-import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -184,7 +184,8 @@ public class FlinkExecutor implements Executor {
                                                   ExecutionEnvironment environment,
                                                   Duration allowedLateness, 
                                                   Duration autoWatermarkInterval) {
-    return new StreamingFlowTranslator(environment.getStreamEnv(), allowedLateness, autoWatermarkInterval);
+    return new StreamingFlowTranslator(
+            settings, environment.getStreamEnv(), allowedLateness, autoWatermarkInterval);
   }
 
   /**
