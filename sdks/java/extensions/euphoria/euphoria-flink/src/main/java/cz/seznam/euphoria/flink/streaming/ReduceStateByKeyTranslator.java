@@ -24,11 +24,13 @@ import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 import cz.seznam.euphoria.core.client.operator.ReduceStateByKey;
 import cz.seznam.euphoria.core.client.operator.state.State;
 import cz.seznam.euphoria.core.client.util.Pair;
+import cz.seznam.euphoria.core.util.Settings;
 import cz.seznam.euphoria.flink.FlinkOperator;
 import cz.seznam.euphoria.flink.functions.PartitionerWrapper;
 import cz.seznam.euphoria.flink.streaming.windowing.AttachedWindowing;
 import cz.seznam.euphoria.flink.streaming.windowing.KeyedMultiWindowedElement;
-import cz.seznam.euphoria.flink.streaming.windowing.WindowOperator;
+import cz.seznam.euphoria.flink.streaming.windowing.KeyedMultiWindowedElementWindowOperator;
+import cz.seznam.euphoria.flink.streaming.windowing.WindowedElementWindowOperator;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.functions.KeySelector;
@@ -41,6 +43,16 @@ import java.util.Objects;
 import java.util.Set;
 
 class ReduceStateByKeyTranslator implements StreamingOperatorTranslator<ReduceStateByKey> {
+
+  static String CFG_VALUE_OF_AFTER_SHUFFLE_KEY = "euphoria.flink.streaming.windowing.only.after.shuffle";
+  static boolean CFG_VALUE_OF_AFTER_SHUFFLE_DEFAULT = false;
+
+  private boolean valueOfAfterShuffle = true;
+
+  public ReduceStateByKeyTranslator(Settings settings) {
+    this.valueOfAfterShuffle =
+            settings.getBoolean(CFG_VALUE_OF_AFTER_SHUFFLE_KEY, CFG_VALUE_OF_AFTER_SHUFFLE_DEFAULT);
+  }
 
   @Override
   @SuppressWarnings("unchecked")
@@ -70,17 +82,25 @@ class ReduceStateByKeyTranslator implements StreamingOperatorTranslator<ReduceSt
               new EventTimeAssigner(context.getAllowedLateness(), eventTimeAssigner));
     }
 
-    // assign windows
-    DataStream<KeyedMultiWindowedElement> windowed = input.map(new WindowAssigner(
-            windowing, keyExtractor, valueExtractor, eventTimeAssigner))
-            // ~ execute in the same chain of the input's processing
-            // so far, thereby, avoiding an unnecessary shuffle
-            .setParallelism(input.getParallelism());
-
-    DataStream<WindowedElement<?, Pair>> reduced = (DataStream) windowed.keyBy(new KeyExtractor())
-            .transform(operator.getName(), TypeInformation.of(WindowedElement.class), new WindowOperator<>(
-                    windowing, stateFactory, stateCombiner, context.isLocalMode()))
-            .setParallelism(operator.getParallelism());
+    DataStream<WindowedElement<?, Pair>> reduced;
+    WindowAssigner elMapper =
+            new WindowAssigner(windowing, keyExtractor, valueExtractor, eventTimeAssigner);
+    if (valueOfAfterShuffle) {
+      reduced = input.keyBy(new UnaryFunctionKeyExtractor(keyExtractor))
+                     .transform(operator.getName(), TypeInformation.of(WindowedElement.class),
+                                new WindowedElementWindowOperator(elMapper, windowing, stateFactory, stateCombiner, context.isLocalMode()))
+                     .setParallelism(operator.getParallelism());
+    } else {
+      // assign windows
+      DataStream<KeyedMultiWindowedElement> windowed = input.map(elMapper)
+              // ~ execute in the same chain of the input's processing
+              // so far, thereby, avoiding an unnecessary shuffle
+              .setParallelism(input.getParallelism());
+      reduced = (DataStream) windowed.keyBy(new KeyedMultiWindowedElementKeyExtractor())
+              .transform(operator.getName(), TypeInformation.of(WindowedElement.class),
+                      new KeyedMultiWindowedElementWindowOperator<>(windowing, stateFactory, stateCombiner, context.isLocalMode()))
+              .setParallelism(operator.getParallelism());
+    }
 
     // FIXME partitioner should be applied during "keyBy" to avoid
     // unnecessary shuffle, but there is no (known) way how to set custom
@@ -156,8 +176,30 @@ class ReduceStateByKeyTranslator implements StreamingOperatorTranslator<ReduceSt
     }
   }
 
-  private static class KeyExtractor implements KeySelector<KeyedMultiWindowedElement, Object>,
-          ResultTypeQueryable<Object> {
+  private static class UnaryFunctionKeyExtractor
+          implements KeySelector<WindowedElement, Object>,
+                     ResultTypeQueryable<Object> {
+    private final UnaryFunction keyExtractor;
+
+    public UnaryFunctionKeyExtractor(UnaryFunction keyExtractor) {
+      this.keyExtractor = Objects.requireNonNull(keyExtractor);
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public Object getKey(WindowedElement value) throws Exception {
+      return keyExtractor.apply(value.getElement());
+    }
+
+    @Override
+    public TypeInformation<Object> getProducedType() {
+      return TypeInformation.of(Object.class);
+    }
+  }
+
+  private static class KeyedMultiWindowedElementKeyExtractor
+          implements KeySelector<KeyedMultiWindowedElement, Object>,
+                     ResultTypeQueryable<Object> {
 
     @Override
     public Object getKey(KeyedMultiWindowedElement el) throws Exception {
