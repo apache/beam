@@ -22,6 +22,7 @@ from __future__ import absolute_import
 
 from apache_beam.transforms import window
 from apache_beam.transforms.core import CombinePerKey
+from apache_beam.transforms.core import Create
 from apache_beam.transforms.core import Flatten
 from apache_beam.transforms.core import GroupByKey
 from apache_beam.transforms.core import Map
@@ -222,12 +223,17 @@ def assert_that(actual, matcher, label='assert_that'):
   class AssertThat(PTransform):
 
     def expand(self, pcoll):
-      return (pcoll
-              | WindowInto(window.GlobalWindows())
-              | "ToVoidKey" >> Map(lambda v: (None, v))
-              | "Group" >> GroupByKey()
-              | "UnKey" >> Map(lambda (k, v): v)
-              | "Match" >> Map(matcher))
+      # We must have at least a single element to ensure the matcher
+      # code gets run even if the input pcollection is empty.
+      keyed_singleton = pcoll.pipeline | Create([(None, None)])
+      keyed_actual = (
+          pcoll
+          | WindowInto(window.GlobalWindows())
+          | "ToVoidKey" >> Map(lambda v: (None, v)))
+      ((keyed_singleton, keyed_actual)
+          | "Group" >> CoGroupByKey()
+          | "Unkey" >> Map(lambda (k, (_, actual_values)): actual_values)
+          | "Match" >> Map(matcher))
 
     def default_label(self):
       return label
