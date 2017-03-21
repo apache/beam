@@ -122,7 +122,7 @@ class WatermarkHoldStateTag(StateTag):
 class TriggerFn(object):
   """A TriggerFn determines when window (panes) are emitted.
 
-  See https://cloud.google.com/dataflow/model/triggers.
+  See https://beam.apache.org/documentation/programming-guide/#triggers
   """
   __metaclass__ = ABCMeta
 

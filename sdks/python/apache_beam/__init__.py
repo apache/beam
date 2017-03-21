@@ -17,7 +17,7 @@
 
 """Apache Beam SDK for Python.
 
-Apache Beam <http://cloud.google.com/dataflow/>
+Apache Beam <https://beam.apache.org/>
 provides a simple, powerful programming model for building both batch
 and streaming parallel data processing pipelines.
 
