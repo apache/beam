@@ -2559,8 +2559,9 @@ public class BigQueryIO {
             throws InterruptedException {
       if (!tableRows.isEmpty()) {
         try {
-          long totalBytes = bqServices.getDatasetService(options).insertAll(
-              tableReference, tableRows, uniqueIds);
+          DatasetService datasetService = bqServices.getDatasetService(options);
+          long totalBytes = datasetService.insertAll(tableReference,
+              datasetService.makeInsertBatches(tableRows, uniqueIds));
           byteCounter.inc(totalBytes);
         } catch (IOException e) {
           throw new RuntimeException(e);

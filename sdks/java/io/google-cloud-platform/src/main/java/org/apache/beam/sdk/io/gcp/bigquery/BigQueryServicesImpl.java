@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.api.client.googleapis.json.GoogleJsonResponseException;
@@ -45,8 +46,10 @@ import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.cloud.hadoop.util.ApiErrorExtractor;
 import com.google.common.annotations.VisibleForTesting;
+
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.NoSuchElementException;
@@ -56,6 +59,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import javax.annotation.Nullable;
+
 import org.apache.beam.sdk.options.BigQueryOptions;
 import org.apache.beam.sdk.options.GcsOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -648,13 +652,20 @@ class BigQueryServicesImpl implements BigQueryServices {
           ALWAYS_RETRY);
     }
 
-    @VisibleForTesting
-    long insertAll(TableReference ref, List<TableRow> rowList, @Nullable List<String> insertIdList,
+    private long executeBatches(TableReference ref, TableDataInsertAllRequest request,
         BackOff backoff, final Sleeper sleeper) throws IOException, InterruptedException {
       checkNotNull(ref, "ref");
       if (executor == null) {
         this.executor = options.as(GcsOptions.class).getExecutorService();
       }
+
+      List<String> insertIdList = new ArrayList<>();
+      List<TableDataInsertAllRequest.Rows> rowList = request.getRows();
+
+      for (TableDataInsertAllRequest.Rows row : rowList) {
+        insertIdList.add(row.getInsertId());
+      }
+
       if (insertIdList != null && rowList.size() != insertIdList.size()) {
         throw new AssertionError("If insertIdList is not null it needs to have at least "
             + "as many elements as rowList");
@@ -664,10 +675,10 @@ class BigQueryServicesImpl implements BigQueryServices {
       List<TableDataInsertAllResponse.InsertErrors> allErrors = new ArrayList<>();
       // These lists contain the rows to publish. Initially the contain the entire list.
       // If there are failures, they will contain only the failed rows to be retried.
-      List<TableRow> rowsToPublish = rowList;
+      List<TableDataInsertAllRequest.Rows> rowsToPublish = rowList;
       List<String> idsToPublish = insertIdList;
       while (true) {
-        List<TableRow> retryRows = new ArrayList<>();
+        List<TableDataInsertAllRequest.Rows> retryRows = new ArrayList<>();
         List<String> retryIds = (idsToPublish != null) ? new ArrayList<String>() : null;
 
         int strideIndex = 0;
@@ -679,15 +690,10 @@ class BigQueryServicesImpl implements BigQueryServices {
         List<Integer> strideIndices = new ArrayList<>();
 
         for (int i = 0; i < rowsToPublish.size(); ++i) {
-          TableRow row = rowsToPublish.get(i);
-          TableDataInsertAllRequest.Rows out = new TableDataInsertAllRequest.Rows();
-          if (idsToPublish != null) {
-            out.setInsertId(idsToPublish.get(i));
-          }
-          out.setJson(row.getUnknownKeys());
-          rows.add(out);
+          TableDataInsertAllRequest.Rows row = rowsToPublish.get(i);
+          rows.add(row);
 
-          dataSize += row.toString().length();
+          dataSize += row.getJson().toString().length();
           if (dataSize >= UPLOAD_BATCH_SIZE_BYTES || rows.size() >= maxRowsPerBatch
               || i == rowsToPublish.size() - 1) {
             TableDataInsertAllRequest content = new TableDataInsertAllRequest();
@@ -782,12 +788,52 @@ class BigQueryServicesImpl implements BigQueryServices {
       }
     }
 
+
+    /**
+     * {@inheritDoc}
+     *
+     * <p>This implementation returns a single batch of {@link TableDataInsertAllRequest}
+     * with the actual batching implementation handled in executeBatches.
+     */
     @Override
-    public long insertAll(
-        TableReference ref, List<TableRow> rowList, @Nullable List<String> insertIdList)
+    public List<TableDataInsertAllRequest> makeInsertBatches(List<TableRow> rowList,
+        @Nullable List<String> insertIdList) {
+
+      if (insertIdList != null && rowList.size() != insertIdList.size()) {
+        throw new AssertionError("If insertIdList is not null it needs to have at least "
+            + "as many elements as rowList");
+      }
+
+      TableDataInsertAllRequest request = new TableDataInsertAllRequest();
+      request.setRows(new ArrayList<TableDataInsertAllRequest.Rows>());
+      List<TableDataInsertAllRequest> batches = new ArrayList<>();
+      batches.add(request);
+
+      for (int i = 0; i < rowList.size(); ++i) {
+        TableDataInsertAllRequest.Rows row = new TableDataInsertAllRequest.Rows();
+        row.setJson(rowList.get(i));
+        if (insertIdList != null) {
+          row.setInsertId(insertIdList.get(i));
+        }
+        request.getRows().add(row);
+      }
+
+      return batches;
+    }
+
+    @Override
+    public long insertAll(TableReference ref, Collection<TableDataInsertAllRequest> batches)
         throws IOException, InterruptedException {
-      return insertAll(
-          ref, rowList, insertIdList, INSERT_BACKOFF_FACTORY.backoff(), Sleeper.DEFAULT);
+      return insertAll(ref, batches, INSERT_BACKOFF_FACTORY.backoff(), Sleeper.DEFAULT);
+    }
+
+    @VisibleForTesting
+    long insertAll(TableReference ref, Collection<TableDataInsertAllRequest> batches,
+        BackOff backOff, Sleeper sleeper) throws IOException, InterruptedException {
+      checkArgument(batches.size() == 1,
+          "parameter batches was expected to have size equal to 1");
+      TableDataInsertAllRequest request = new ArrayList<>(batches).get(0);
+      return executeBatches(ref, request, backOff, sleeper);
     }
 
 

@@ -26,10 +26,12 @@ import com.google.api.services.bigquery.model.JobConfigurationTableCopy;
 import com.google.api.services.bigquery.model.JobReference;
 import com.google.api.services.bigquery.model.JobStatistics;
 import com.google.api.services.bigquery.model.Table;
+import com.google.api.services.bigquery.model.TableDataInsertAllRequest;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
 import java.io.IOException;
 import java.io.Serializable;
+import java.util.Collection;
 import java.util.List;
 import java.util.NoSuchElementException;
 import javax.annotation.Nullable;
@@ -160,12 +162,23 @@ interface BigQueryServices extends Serializable {
         throws IOException, InterruptedException;
 
     /**
-     * Inserts {@link TableRow TableRows} with the specified insertIds if not null.
+     * Creates a {@link TableDataInsertAllRequest} containing the
+     * {@link TableRow TableRows} with the specified insertIds if not null.
      *
-     * <p>Returns the total bytes count of {@link TableRow TableRows}.
+     * @return the total bytes count of {@link TableRow TableRows}.
      */
-    long insertAll(TableReference ref, List<TableRow> rowList, @Nullable List<String> insertIdList)
+    long insertAll(TableReference ref, Collection<TableDataInsertAllRequest> batches)
         throws IOException, InterruptedException;
+
+    /**
+     * Converts a list of {@link TableRow} to a list of {@link TableDataInsertAllRequest}.
+     *
+     * @param rowList List of {@link TableRow} to make into batches
+     * @param insertIdList Optional list of insert IDs for each row
+     * @return a list of {@link TableDataInsertAllRequest} batches
+     */
+    List<TableDataInsertAllRequest> makeInsertBatches(List<TableRow> rowList,
+        @Nullable List<String> insertIdList);
 
     /** Patch BigQuery {@link Table} description. */
     Table patchTableDescription(TableReference tableReference, @Nullable String tableDescription)
