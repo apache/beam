@@ -228,7 +228,7 @@ class common_job_properties {
     def standard_args = [
       project: 'apache-beam-testing',
       dpb_log_level: 'INFO',
-      dpb_maven_binary: '/home/jenkins/tools/maven/latest/bin/mvn',
+      maven_binary: '/home/jenkins/tools/maven/latest/bin/mvn',
       bigquery_table: 'beam_performance.pkb_results',
       // Publishes results with official tag, for use in dashboards.
       official: 'true'
