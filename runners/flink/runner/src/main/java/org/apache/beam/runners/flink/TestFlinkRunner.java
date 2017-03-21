@@ -87,29 +87,19 @@ public class TestFlinkRunner extends PipelineRunner<PipelineResult> {
     return delegate.getPipelineOptions();
   }
 
-  private void assertAssertionCounters(Pipeline pipeline, FlinkRunnerResult result) {
+  private void assertAssertionCounters(
+      Pipeline pipeline,
+      FlinkRunnerResult result) throws AggregatorRetrievalException {
     int expectedNumberOfAssertions = PAssert.countAsserts(pipeline);
-    Integer succeededAssertions = 0;
-    try {
-      succeededAssertions = result.getAggregatorValue(PAssert.SUCCESS_COUNTER);
-    } catch (AggregatorRetrievalException e) {
-      // No assertions registered will cause an AggregatorRetrievalException here.
-    }
-    Integer failedAssertions = 0;
-    try {
-      failedAssertions = result.getAggregatorValue(PAssert.FAILURE_COUNTER);
-    } catch (AggregatorRetrievalException e) {
-      // No assertions registered will cause an AggregatorRetrievalException here.
-    }
+    Integer succeededAssertions =
+        expectedNumberOfAssertions > 0
+        ? result.<Integer>getAggregatorValue(PAssert.SUCCESS_COUNTER)
+        : 0;
     assertThat(
         String.format("Expected %d successful assertions, but found %d.",
             expectedNumberOfAssertions, succeededAssertions),
         succeededAssertions,
         equalTo(expectedNumberOfAssertions));
-    assertThat(
-        String.format("Found %d failed assertions.", failedAssertions),
-        failedAssertions,
-        equalTo(0));
   }
 }
 

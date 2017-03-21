@@ -18,6 +18,7 @@
 package org.apache.beam.runners.flink;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Iterables;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.Collections;
@@ -60,7 +61,7 @@ public class FlinkRunnerResult implements PipelineResult {
 
   @SuppressWarnings("unchecked")
   public <T> T getAggregatorValue(String name) throws AggregatorRetrievalException {
-    return (T) getAggregatorValues(name).getValues().iterator().next();
+    return (T) Iterables.getOnlyElement(getAggregatorValues(name).getValues());
   }
 
   @SuppressWarnings("unchecked")
