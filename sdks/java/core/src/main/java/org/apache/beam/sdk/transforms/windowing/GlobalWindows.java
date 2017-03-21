@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.transforms.windowing;
 
+import com.google.auto.value.AutoValue;
 import java.util.Collection;
 import java.util.Collections;
 import org.apache.beam.sdk.coders.Coder;
@@ -50,10 +51,11 @@ public class GlobalWindows extends NonMergingWindowFn<Object, GlobalWindow> {
 
   @Override
   public WindowMappingFn<GlobalWindow> getDefaultWindowMappingFn() {
-    return new GlobalWindowMappingFn();
+    return new AutoValue_GlobalWindows_GlobalWindowMappingFn();
   }
 
-  static class GlobalWindowMappingFn extends WindowMappingFn<GlobalWindow> {
+  @AutoValue
+  abstract static class GlobalWindowMappingFn extends WindowMappingFn<GlobalWindow> {
     @Override
     public GlobalWindow getSideInputWindow(BoundedWindow mainWindow) {
       return GlobalWindow.INSTANCE;
