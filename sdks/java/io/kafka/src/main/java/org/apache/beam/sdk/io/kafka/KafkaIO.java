@@ -996,7 +996,7 @@ public class KafkaIO {
               rawRecord.topic(),
               rawRecord.partition(),
               rawRecord.offset(),
-              consumerSpEL.getEventTimestamp(rawRecord),
+              consumerSpEL.getRecordTimestamp(rawRecord),
               decode(rawRecord.key(), source.spec.getKeyCoder()),
               decode(rawRecord.value(), source.spec.getValueCoder()));
 

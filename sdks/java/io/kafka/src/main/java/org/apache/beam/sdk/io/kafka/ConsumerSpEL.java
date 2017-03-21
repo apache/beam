@@ -50,7 +50,7 @@ class ConsumerSpEL {
       parser.parseExpression("#consumer.assign(#tp)");
 
   private Method timestampMethod;
-  private boolean hasEventTimestamp = false;
+  private boolean hasRecordTimestamp = false;
 
   public ConsumerSpEL() {
     try {
@@ -58,7 +58,7 @@ class ConsumerSpEL {
     } catch (NoSuchMethodException | SecurityException e) {
       LOG.debug("Timestamp for Kafka message is not available.");
     }
-    hasEventTimestamp = hasTimestamp();
+    hasRecordTimestamp = hasRecordTimestamp();
   }
 
   public void evaluateSeek2End(Consumer consumer, TopicPartition topicPartitions) {
@@ -75,23 +75,23 @@ class ConsumerSpEL {
     assignExpression.getValue(mapContext);
   }
 
-  private boolean hasTimestamp(){
-    boolean hasEventTimestamp = false;
+  private boolean hasRecordTimestamp(){
+    boolean hasRecordTimestamp = false;
     try {
-      hasEventTimestamp = timestampMethod != null
+      hasRecordTimestamp = timestampMethod != null
           && timestampMethod.getReturnType().equals(Long.TYPE);
     } catch (SecurityException e) {
-      hasEventTimestamp = false;
+      hasRecordTimestamp = false;
     }
-    return hasEventTimestamp;
+    return hasRecordTimestamp;
   }
 
-  public long getEventTimestamp(ConsumerRecord<byte[], byte[]> rawRecord) {
+  public long getRecordTimestamp(ConsumerRecord<byte[], byte[]> rawRecord) {
     long timestamp = -1L;
     try {
       //for Kafka 0.9, set to System.currentTimeMillis();
       //for kafka 0.10, when NO_TIMESTAMP also set to System.currentTimeMillis();
-      if (!hasEventTimestamp || (timestamp = (long) timestampMethod.invoke(rawRecord)) == -1L) {
+      if (!hasRecordTimestamp || (timestamp = (long) timestampMethod.invoke(rawRecord)) == -1L) {
         timestamp = System.currentTimeMillis();
       }
     } catch (IllegalAccessException | IllegalArgumentException | InvocationTargetException e) {
