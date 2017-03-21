@@ -689,7 +689,7 @@ class Sink(HasDisplayData):
 
   For more information on creating new sinks please refer to the official
   documentation at
-  ``https://beam.apache.org/documentation/sdks/python-custom-io#creating-sinks``.
+  ``https://beam.apache.org/documentation/sdks/python-custom-io#creating-sinks``
   """
 
   def initialize_write(self):
