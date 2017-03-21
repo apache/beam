@@ -101,6 +101,7 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
+import org.apache.beam.sdk.values.TypeDescriptor;
 import org.hamcrest.Matchers;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -1949,6 +1950,50 @@ public class ParDoTest implements Serializable {
 
     PCollection<Integer> output = pipeline.apply(Create.of(KV.of("hello", 37))).apply(ParDo.of(fn));
     PAssert.that(output).containsInAnyOrder(3, 42);
+    pipeline.run();
+  }
+
+  @Test
+  @Category({RunnableOnService.class, UsesTimersInParDo.class})
+  public void testTimerReceivedInOriginalWindow() throws Exception {
+    final String timerId = "foo";
+
+    DoFn<KV<String, Integer>, BoundedWindow> fn =
+        new DoFn<KV<String, Integer>, BoundedWindow>() {
+
+          @TimerId(timerId)
+          private final TimerSpec spec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
+
+          @ProcessElement
+          public void processElement(ProcessContext context, @TimerId(timerId) Timer timer) {
+            timer.setForNowPlus(Duration.standardSeconds(1));
+          }
+
+          @OnTimer(timerId)
+          public void onTimer(OnTimerContext context, BoundedWindow window) {
+            context.output(context.window());
+          }
+
+          public TypeDescriptor<BoundedWindow> getOutputTypeDescriptor() {
+            return (TypeDescriptor) TypeDescriptor.of(IntervalWindow.class);
+          }
+        };
+
+    SlidingWindows windowing =
+        SlidingWindows.of(Duration.standardMinutes(3)).every(Duration.standardMinutes(1));
+    PCollection<BoundedWindow> output =
+        pipeline
+            .apply(Create.timestamped(TimestampedValue.of(KV.of("hello", 24), new Instant(0L))))
+            .apply(Window.<KV<String, Integer>>into(windowing))
+            .apply(ParDo.of(fn));
+
+    PAssert.that(output)
+        .containsInAnyOrder(
+            new IntervalWindow(new Instant(0), Duration.standardMinutes(3)),
+            new IntervalWindow(
+                new Instant(0).minus(Duration.standardMinutes(1)), Duration.standardMinutes(3)),
+            new IntervalWindow(
+                new Instant(0).minus(Duration.standardMinutes(2)), Duration.standardMinutes(3)));
     pipeline.run();
   }
 
