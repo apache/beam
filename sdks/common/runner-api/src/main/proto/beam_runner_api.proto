@@ -248,10 +248,20 @@ message Parameter {
 
 message StateSpec {
   // TODO: AST for state spec
+  string id = 1;
+  Type type = 2;
+
+  enum Type {
+    VALUE = 0;
+    BAG = 1;
+    MAP = 2;
+    SET = 3;
+  }
 }
 
 message TimerSpec {
   // TODO: AST for timer spec
+  string id = 1;
 }
 
 enum IsBounded {
