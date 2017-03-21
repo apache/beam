@@ -43,11 +43,11 @@ job('beam_PerformanceTests_JDBC'){
 
     def argMap = [
       benchmarks: 'beam_integration_benchmark',
-      dpb_beam_it_module: 'sdks/java/io/jdbc',
-      dpb_it_args: pipelineArgsJoined,
-      dpb_it_class: 'org.apache.beam.sdk.io.jdbc.JdbcIOIT',
+      beam_it_module: 'sdks/java/io/jdbc',
+      beam_it_args: pipelineArgsJoined,
+      beam_it_class: 'org.apache.beam.sdk.io.jdbc.JdbcIOIT',
       // Profile is located in $BEAM_ROOT/sdks/java/io/pom.xml.
-      dpb_beam_it_profile: 'io-it'
+      beam_it_profile: 'io-it'
     ]
 
     common_job_properties.buildPerformanceTest(delegate, argMap)
