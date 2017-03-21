@@ -39,11 +39,6 @@ public class NexmarkApexRunner extends NexmarkRunner<NexmarkApexDriver.NexmarkAp
   }
 
   @Override
-  protected boolean canMonitor() {
-    return false;
-  }
-
-  @Override
   protected void invokeBuilderForPublishOnlyPipeline(
       PipelineBuilder builder) {
     builder.build(options);

@@ -158,11 +158,6 @@ public abstract class NexmarkRunner<OptionT extends Options> {
   protected abstract int maxNumWorkers();
 
   /**
-   * Return true if runner can monitor running jobs.
-   */
-  protected abstract boolean canMonitor();
-
-  /**
    * Return the current value for a long counter, or -1 if can't be retrieved.
    */
   protected long getLong(PipelineResult job, Aggregator<Long, Long> aggregator) {
@@ -1089,10 +1084,6 @@ public abstract class NexmarkRunner<OptionT extends Options> {
    */
   @Nullable
   public NexmarkPerf run(NexmarkConfiguration runConfiguration) {
-    if (options.getMonitorJobs() && !canMonitor()) {
-      throw new RuntimeException("Cannot use --monitorJobs with this runner since it does not "
-                                 + "support monitoring.");
-    }
     if (options.getManageResources() && !options.getMonitorJobs()) {
       throw new RuntimeException("If using --manageResources then must also use --monitorJobs.");
     }

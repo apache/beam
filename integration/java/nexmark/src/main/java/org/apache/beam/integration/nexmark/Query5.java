@@ -67,7 +67,6 @@ class Query5 extends NexmarkQuery {
         // Count the number of bids per auction id.
         .apply(Count.<Long>perElement())
 
-      //TODO replace by simple key
       // We'll want to keep all auctions with the maximal number of bids.
         // Start by lifting each into a singleton list.
         .apply(name + ".ToSingletons",
