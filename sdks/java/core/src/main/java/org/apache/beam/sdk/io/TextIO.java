@@ -682,7 +682,7 @@ public class TextIO {
             .addIfNotNull(DisplayData.item("filePrefix", prefixString)
               .withLabel("Output File Prefix"))
             .addIfNotDefault(DisplayData.item("fileSuffix", filenameSuffix)
-              .withLabel("Output Fix Suffix"), "")
+              .withLabel("Output File Suffix"), "")
             .addIfNotDefault(DisplayData.item("shardNameTemplate", shardTemplate)
               .withLabel("Output Shard Name Template"),
                 DEFAULT_SHARD_TEMPLATE)
