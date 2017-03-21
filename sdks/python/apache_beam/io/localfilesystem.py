@@ -22,10 +22,12 @@ import glob
 import os
 import shutil
 
+from apache_beam.io.filesystem import BeamIOError
 from apache_beam.io.filesystem import CompressedFile
 from apache_beam.io.filesystem import CompressionTypes
-from apache_beam.io.filesystem import FileSystem
 from apache_beam.io.filesystem import FileMetadata
+from apache_beam.io.filesystem import FileSystem
+from apache_beam.io.filesystem import MatchResult
 
 
 class LocalFileSystem(FileSystem):
@@ -53,7 +55,10 @@ class LocalFileSystem(FileSystem):
       patterns: list of string for the file path pattern to match against
       limits: list of maximum number of responses that need to be fetched
 
-    Returns: list of list of ``FileMetadata`` objects that match the patterns.
+    Returns: list of ``MatchResult`` objects.
+
+    Raises:
+      ``BeamIOError`` if any of the pattern match operations fail
     """
     if limits is None:
       limits = [None] * len(patterns)
@@ -65,8 +70,20 @@ class LocalFileSystem(FileSystem):
       """Find all matching paths to the pattern provided.
       """
       files = glob.glob(pattern)
-      return [FileMetadata(f, os.path.getsize(f)) for f in files[:limit]]
-    return [_match(pattern, limit) for pattern, limit in zip(patterns, limits)]
+      metadata = [FileMetadata(f, os.path.getsize(f)) for f in files[:limit]]
+      return MatchResult(pattern, metadata)
+
+    exceptions = {}
+    result = []
+    for pattern, limit in zip(patterns, limits):
+      try:
+        result.append(_match(pattern, limit))
+      except Exception as e:  # pylint: disable=broad-except
+        exceptions[pattern] = e
+
+    if exceptions:
+      raise BeamIOError("Match operation failed", exceptions)
+    return result
 
   def _path_open(self, path, mode, mime_type='application/octet-stream',
                  compression_type=CompressionTypes.AUTO):
@@ -111,6 +128,9 @@ class LocalFileSystem(FileSystem):
     Args:
       source_file_names: list of source file objects that needs to be copied
       destination_file_names: list of destination of the new object
+
+    Raises:
+      ``BeamIOError`` if any of the copy operations fail
     """
     err_msg = ("source_file_names and destination_file_names should "
                "be equal in length")
@@ -132,8 +152,15 @@ class LocalFileSystem(FileSystem):
       except OSError as err:
         raise IOError(err)
 
+    exceptions = {}
     for source, destination in zip(source_file_names, destination_file_names):
-      _copy_path(source, destination)
+      try:
+        _copy_path(source, destination)
+      except Exception as e:  # pylint: disable=broad-except
+        exceptions[(source, destination)] = e
+
+    if exceptions:
+      raise BeamIOError("Copy operation failed", exceptions)
 
   def rename(self, source_file_names, destination_file_names):
     """Rename the files at the source list to the destination list.
@@ -143,26 +170,29 @@ class LocalFileSystem(FileSystem):
       source_file_names: List of file paths that need to be moved
       destination_file_names: List of destination_file_names for the files
 
-    Returns: list of exceptions encountered in the process
+    Raises:
+      ``BeamIOError`` if any of the rename operations fail
     """
     err_msg = ("source_file_names and destination_file_names should "
                "be equal in length")
     assert len(source_file_names) == len(destination_file_names), err_msg
 
-    def _rename_file(src, dest):
+    def _rename_file(source, destination):
       """Rename a single file object"""
       try:
-        os.rename(src, dest)
+        os.rename(source, destination)
       except OSError as err:
         raise IOError(err)
 
-    exceptions = []
-    for src, dest in zip(source_file_names, destination_file_names):
+    exceptions = {}
+    for source, destination in zip(source_file_names, destination_file_names):
       try:
-        _rename_file(src, dest)
+        _rename_file(source, destination)
       except Exception as e:  # pylint: disable=broad-except
-        exceptions.append((src, dest, e))
-    return exceptions
+        exceptions[(source, destination)] = e
+
+    if exceptions:
+      raise BeamIOError("Rename operation failed", exceptions)
 
   def exists(self, path):
     """Check if the provided path exists on the FileSystem.
@@ -180,6 +210,9 @@ class LocalFileSystem(FileSystem):
 
     Args:
       paths: list of paths that give the file objects to be deleted
+
+    Raises:
+      ``BeamIOError`` if any of the delete operations fail
     """
     def _delete_path(path):
       """Recursively delete the file or directory at the provided path.
@@ -192,5 +225,12 @@ class LocalFileSystem(FileSystem):
       except OSError as err:
         raise IOError(err)
 
+    exceptions = {}
     for path in paths:
-      _delete_path(path)
+      try:
+        _delete_path(path)
+      except Exception as e:  # pylint: disable=broad-except
+        exceptions[path] = e
+
+    if exceptions:
+      raise BeamIOError("Delete operation failed", exceptions)

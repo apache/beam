@@ -18,10 +18,12 @@
 
 from __future__ import absolute_import
 
+from apache_beam.io.filesystem import BeamIOError
 from apache_beam.io.filesystem import CompressedFile
 from apache_beam.io.filesystem import CompressionTypes
-from apache_beam.io.filesystem import FileSystem
 from apache_beam.io.filesystem import FileMetadata
+from apache_beam.io.filesystem import FileSystem
+from apache_beam.io.filesystem import MatchResult
 from apache_beam.io.gcp import gcsio
 
 
@@ -47,7 +49,10 @@ class GCSFileSystem(FileSystem):
       pattern: string for the file path pattern to match against
       limit: Maximum number of responses that need to be fetched
 
-    Returns: list of list of ``FileMetadata`` objects that match the patterns.
+    Returns: list of ``MatchResult`` objects.
+
+    Raises:
+      ``BeamIOError`` if any of the pattern match operations fail
     """
     if limits is None:
       limits = [None] * len(patterns)
@@ -61,8 +66,21 @@ class GCSFileSystem(FileSystem):
       if pattern.endswith('/'):
         pattern += '*'
       file_sizes = gcsio.GcsIO().size_of_files_in_glob(pattern)
-      return [FileMetadata(path, size) for path, size in file_sizes.iteritems()]
-    return [_match(pattern, limit) for pattern, limit in zip(patterns, limits)]
+      metadata_list = [FileMetadata(path, size)
+                       for path, size in file_sizes.iteritems()]
+      return MatchResult(pattern, metadata_list)
+
+    exceptions = {}
+    result = []
+    for pattern, limit in zip(patterns, limits):
+      try:
+        result.append(_match(pattern, limit))
+      except Exception as e:  # pylint: disable=broad-except
+        exceptions[pattern] = e
+
+    if exceptions:
+      raise BeamIOError("Match operation failed", exceptions)
+    return result
 
   def _path_open(self, path, mode, mime_type='application/octet-stream',
                  compression_type=CompressionTypes.AUTO):
@@ -108,6 +126,9 @@ class GCSFileSystem(FileSystem):
     Args:
       source_file_names: list of source file objects that needs to be copied
       destination_file_names: list of destination of the new object
+
+    Raises:
+      ``BeamIOError`` if any of the copy operations fail
     """
     err_msg = ("source_file_names and destination_file_names should "
                "be equal in length")
@@ -124,8 +145,15 @@ class GCSFileSystem(FileSystem):
       else:
         gcsio.GcsIO().copy(source, destination)
 
+    exceptions = {}
     for source, destination in zip(source_file_names, destination_file_names):
-      _copy_path(source, destination)
+      try:
+        _copy_path(source, destination)
+      except Exception as e:  # pylint: disable=broad-except
+        exceptions[(source, destination)] = e
+
+    if exceptions:
+      raise BeamIOError("Copy operation failed", exceptions)
 
   def rename(self, source_file_names, destination_file_names):
     """Rename the files at the source list to the destination list.
@@ -135,7 +163,8 @@ class GCSFileSystem(FileSystem):
       source_file_names: List of file paths that need to be moved
       destination_file_names: List of destination_file_names for the files
 
-    Returns: list of exceptions encountered in the process
+    Raises:
+      ``BeamIOError`` if any of the rename operations fail
     """
     err_msg = ("source_file_names and destination_file_names should "
                "be equal in length")
@@ -152,22 +181,24 @@ class GCSFileSystem(FileSystem):
       gcs_batches.append(gcs_current_batch)
 
     # Execute GCS renames if any and return exceptions.
-    exceptions = []
+    exceptions = {}
     for batch in gcs_batches:
       copy_statuses = gcsio.GcsIO().copy_batch(batch)
       copy_succeeded = []
       for src, dest, exception in copy_statuses:
         if exception:
-          exceptions.append((src, dest, exception))
+          exceptions[(src, dest)] = exception
         else:
           copy_succeeded.append((src, dest))
       delete_batch = [src for src, dest in copy_succeeded]
       delete_statuses = gcsio.GcsIO().delete_batch(delete_batch)
       for i, (src, exception) in enumerate(delete_statuses):
-        dest = copy_succeeded[i]
+        dest = copy_succeeded[i][1]
         if exception:
-          exceptions.append((src, dest, exception))
-    return exceptions
+          exceptions[(src, dest)] = exception
+
+    if exceptions:
+      raise BeamIOError("Rename operation failed", exceptions)
 
   def exists(self, path):
     """Check if the provided path exists on the FileSystem.
@@ -186,12 +217,26 @@ class GCSFileSystem(FileSystem):
     Args:
       paths: list of paths that give the file objects to be deleted
     """
-    def _delete(path):
+    def _delete_path(path):
       """Recursively delete the file or directory at the provided path.
       """
       if path.endswith('/'):
-        path += '*'
-      metadata_list = self.match([path])[0]
-      gcsio.GcsIO().delete_batch([m.path for m in metadata_list])
+        path_to_use = path + '*'
+      else:
+        path_to_use = path
+      match_result = self.match([path_to_use])[0]
+      statuses = gcsio.GcsIO().delete_batch(
+          [m.path for m in match_result.metadata_list])
+      failures = [e for (_, e) in statuses if e is not None]
+      if failures:
+        raise failures[0]
+
+    exceptions = {}
     for path in paths:
-      _delete(path)
+      try:
+        _delete_path(path)
+      except Exception as e:  # pylint: disable=broad-except
+        exceptions[path] = e
+
+    if exceptions:
+      raise BeamIOError("Delete operation failed", exceptions)

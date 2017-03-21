@@ -25,6 +25,7 @@ import time
 
 from apache_beam.internal import util
 from apache_beam.io import iobase
+from apache_beam.io.filesystem import BeamIOError
 from apache_beam.io.filesystem import CompressionTypes
 from apache_beam.io.filesystems_util import get_filesystem
 from apache_beam.transforms.display import DisplayDataItem
@@ -179,9 +180,13 @@ class FileSink(iobase.Sink):
       """_rename_batch executes batch rename operations."""
       source_files, destination_files = batch
       exceptions = []
-      exception_infos = self._file_system.rename(source_files,
-                                                 destination_files)
-      for src, dest, exception in exception_infos:
+      try:
+        self._file_system.rename(source_files, destination_files)
+        exception_infos = {}
+      except BeamIOError as exp:
+        exception_infos = exp.exception_details
+
+      for (src, dest), exception in exception_infos.iteritems():
         if exception:
           logging.warning('Rename not successful: %s -> %s, %s', src, dest,
                           exception)

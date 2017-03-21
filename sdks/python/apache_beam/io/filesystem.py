@@ -291,6 +291,27 @@ class FileMetadata(object):
     return 'FileMetadata(%s, %s)' % (self.path, self.size_in_bytes)
 
 
+class MatchResult(object):
+  """Result from the ``FileSystem`` match operation which contains the list
+   of matched FileMetadata.
+  """
+  def __init__(self, pattern, metadata_list):
+    self.metadata_list = metadata_list
+    self.pattern = pattern
+
+
+class BeamIOError(IOError):
+  def __init__(self, msg, exception_details=None):
+    """Class representing the errors thrown in the batch file operations.
+    Args:
+      msg: Message string for the exception thrown
+      exception_details: Map of indivisual input to exception for failed
+        operations in batch.
+    """
+    super(BeamIOError, self).__init__(msg)
+    self.exception_details = exception_details
+
+
 class FileSystem(object):
   """A class that defines the functions that can be performed on a filesystem.
 
@@ -329,7 +350,10 @@ class FileSystem(object):
       patterns: list of string for the file path pattern to match against
       limits: list of maximum number of responses that need to be fetched
 
-    Returns: list of list of ``FileMetadata`` objects that match the patterns.
+    Returns: list of ``MatchResult`` objects.
+
+    Raises:
+      ``BeamIOError`` if any of the pattern match operations fail
     """
     raise NotImplementedError
 
@@ -366,6 +390,9 @@ class FileSystem(object):
     Args:
       source_file_names: list of source file objects that needs to be copied
       destination_file_names: list of destination of the new object
+
+    Raises:
+      ``BeamIOError`` if any of the copy operations fail
     """
     raise NotImplementedError
 
@@ -378,7 +405,8 @@ class FileSystem(object):
       source_file_names: List of file paths that need to be moved
       destination_file_names: List of destination_file_names for the files
 
-    Returns: list of exceptions encountered in the process
+    Raises:
+      ``BeamIOError`` if any of the rename operations fail
     """
     raise NotImplementedError
 
@@ -400,5 +428,8 @@ class FileSystem(object):
 
     Args:
       paths: list of paths that give the file objects to be deleted
+
+    Raises:
+      ``BeamIOError`` if any of the delete operations fail
     """
     raise NotImplementedError

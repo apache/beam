@@ -90,7 +90,8 @@ class FileChecksumMatcher(BaseMatcher):
   def _read_with_retry(self):
     """Read path with retry if I/O failed"""
     read_lines = []
-    matched_path = [f.path for f in self.file_system.match([self.file_path])[0]]
+    match_result = self.file_system.match([self.file_path])[0]
+    matched_path = [f.path for f in match_result.metadata_list]
     if not matched_path:
       raise IOError('No such file or directory: %s' % self.file_path)
     for path in matched_path:
