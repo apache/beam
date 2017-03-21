@@ -45,6 +45,7 @@ import org.apache.beam.sdk.transforms.windowing.SlidingWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.Window.Bound;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
+import org.apache.beam.sdk.transforms.windowing.WindowMappingFn;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollection;
 import org.hamcrest.Matchers;
@@ -313,8 +314,8 @@ public class WindowEvaluatorFactoryTest {
     }
 
     @Override
-    public BoundedWindow getSideInputWindow(BoundedWindow window) {
-      return null;
+    public WindowMappingFn<BoundedWindow> getDefaultWindowMappingFn() {
+      throw new UnsupportedOperationException("Cannot be used as a side input");
     }
   }
 }

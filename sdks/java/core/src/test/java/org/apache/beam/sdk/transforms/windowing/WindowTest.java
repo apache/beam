@@ -305,7 +305,7 @@ public class WindowTest implements Serializable {
     }
 
     @Override
-    public IntervalWindow getSideInputWindow(BoundedWindow window) {
+    public WindowMappingFn<IntervalWindow> getDefaultWindowMappingFn() {
       throw new UnsupportedOperationException(
           String.format("Can't use %s for side inputs", getClass().getSimpleName()));
     }
