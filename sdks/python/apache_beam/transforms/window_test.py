@@ -142,7 +142,7 @@ class WindowTest(unittest.TestCase):
 
   def timestamped_key_values(self, pipeline, key, *timestamps):
     return (pipeline | 'start' >> Create(timestamps)
-            | Map(lambda x: WindowedValue((key, x), x, [])))
+            | Map(lambda x: WindowedValue((key, x), x, [GlobalWindow()])))
 
   def test_sliding_windows(self):
     p = TestPipeline()
