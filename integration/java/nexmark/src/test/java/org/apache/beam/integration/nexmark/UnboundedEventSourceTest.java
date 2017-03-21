@@ -87,8 +87,8 @@ public class UnboundedEventSourceTest {
     Generator modelGenerator = new Generator(config);
 
     EventIdChecker checker = new EventIdChecker();
-    Pipeline p = TestPipeline.create();
-    PipelineOptions options = p.getOptions();
+    PipelineOptions options = TestPipeline.testingPipelineOptions();
+    Pipeline p = TestPipeline.create(options);
     UnboundedEventSource source = new UnboundedEventSource(config, 1, 0, false);
     UnboundedReader<Event> reader = source.createReader(options, null);
 

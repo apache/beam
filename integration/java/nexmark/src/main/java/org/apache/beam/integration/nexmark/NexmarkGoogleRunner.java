@@ -60,11 +60,6 @@ class NexmarkGoogleRunner extends NexmarkRunner<NexmarkGoogleDriver.NexmarkGoogl
   }
 
   @Override
-  protected boolean canMonitor() {
-    return true;
-  }
-
-  @Override
   protected String getJobId(PipelineResult job) {
     return ((DataflowPipelineJob) job).getJobId();
   }

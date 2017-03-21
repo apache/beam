@@ -41,11 +41,6 @@ class NexmarkDirectRunner extends NexmarkRunner<NexmarkDirectDriver.NexmarkDirec
   }
 
   @Override
-  protected boolean canMonitor() {
-    return true;
-  }
-
-  @Override
   protected void invokeBuilderForPublishOnlyPipeline(PipelineBuilder builder) {
     throw new UnsupportedOperationException(
         "Cannot use --pubSubMode=COMBINED with DirectRunner");

@@ -122,63 +122,80 @@ Number of events generators
 
     --numEventGenerators=4
 
-## Flink specific configuration
+## Apex specific configuration
 
---suite=SMOKE --manageResources=false --monitorJobs=false \
---flinkMaster=local
+--suite=SMOKE --manageResources=false --monitorJobs=true
 
 ## Direct specific configuration
 
---suite=SMOKE --manageResources=false --monitorJobs=false \
+--suite=SMOKE --manageResources=false --monitorJobs=true \
 --enforceEncodability=false --enforceImmutability=false
+
+## Flink specific configuration
+
+--suite=SMOKE --manageResources=false --monitorJobs=true \
+--flinkMaster=local
 
 ## Spark specific configuration
 
---suite=SMOKE
---manageResources=false --monitorJobs=false --sparkMaster=local
--Dspark.ui.enabled=false
--DSPARK_LOCAL_IP=localhost
--Dsun.io.serialization.extendedDebugInfo=true
+--suite=SMOKE --manageResources=false --monitorJobs=true --sparkMaster=local \
+-Dspark.ui.enabled=false -DSPARK_LOCAL_IP=localhost -Dsun.io.serialization.extendedDebugInfo=true
 
 # Current Status
 
-Open issues are currently opened on [github](https://github.com/iemejia/beam/issues):
+Open issues are tracked [here](https://github.com../../../../../issues):
 
-## Batch Mode / Synthetic / Local
+## Batch / Synthetic / Local
 
-| Query | Direct | Spark  | Flink  | Apex   |
-| ----: | ------ | ------ | ------ | ------ |
-|     0 | Ok     |   #1   | Ok     |        |
-|     1 | Ok     |   #1   | Ok     |        |
-|     2 | Ok     | NEX-01 | Ok     |        |
-|     3 | NEX-07 | NEX-07 | NEX-07 |        |
-|     4 | Ok     | Ok     | NEX-02 |        |
-|     5 | Ok     | NEX-03 | Ok     |        |
-|     6 | Ok     | OK     | NEX-02 |        |
-|     7 | Ok     | NEX-01 | Ok     |        |
-|     8 | Ok     | NEX-01 | Ok     |        |
-|     9 | Ok     | OK     | NEX-02 |        |
-|    10 | NEX-05 | NEX-04 | Ok     |        |
-|    11 | Ok     | NEX-01 | Ok     |        |
-|    12 | Ok     | NEX-01 | Ok     |        |
+| Query | Direct                         | Spark                          | Flink                          | Apex                            |
+| ----: | ------------------------------ | ------------------------------ | ------------------------------ | ------------------------------- |
+|     0 | ok                             | [#1](../../../../../issues/1)  | ok                             | ok                              |
+|     1 | ok                             | [#1](../../../../../issues/1)  | ok                             | ok                              |
+|     2 | ok                             | [#1](../../../../../issues/1)  | ok                             | ok                              |
+|     3 | [#7](../../../../../issues/7)  | [#7](../../../../../issues/7)  | [#7](../../../../../issues/7)  | [#7](../../../../../issues/7)   |
+|     4 | ok                             | ok                             | [#2](../../../../../issues/2)  | ok                              |
+|     5 | ok                             | [#3](../../../../../issues/3)  | ok                             | ok                              |
+|     6 | ok                             | ok                             | [#2](../../../../../issues/2)  | ok                              |
+|     7 | ok                             | [#1](../../../../../issues/1)  | ok                             | [#24](../../../../../issues/24) |
+|     8 | ok                             | [#1](../../../../../issues/1)  | ok                             | ok                              |
+|     9 | ok                             | ok                             | [#2](../../../../../issues/2)  | ok                              |
+|    10 | [#5](../../../../../issues/5)  | [#4](../../../../../issues/4)  | ok                             | ok                              |
+|    11 | ok                             | [#1](../../../../../issues/1)  | ok                             | ok                              |
+|    12 | ok                             | [#1](../../../../../issues/1)  | ok                             | ok                              |
 
-## Streaming Mode / Synthetic / Local
+## Streaming / Synthetic / Local
 
-| Query | Direct | Spark  | Flink  | Apex   |
-| ----: | ------ | ------ | ------ | ------ |
-|     0 | Ok     |        |        |        |
-|     1 | Ok     |        |        |        |
-|     2 | Ok     |        |        |        |
-|     3 | NEX-07 |        |        |        |
-|     4 | Ok     |        |        |        |
-|     5 | Ok     |        |        |        |
-|     6 | Ok     |        |        |        |
-|     7 | Ok     |        |        |        |
-|     8 | Ok     |        |        |        |
-|     9 | Ok     |        |        |        |
-|    10 | NEX-05 |        |        |        |
-|    11 | Ok     |        |        |        |
-|    12 | Ok     |        |        |        |
+| Query | Direct                         | Spark                          | Flink                          | Apex                           |
+| ----: | ------------------------------ | ------------------------------ | ------------------------------ | ------------------------------ |
+|     0 | ok                             |                                |                                | ok                             |
+|     1 | ok                             |                                |                                | ok                             |
+|     2 | ok                             |                                |                                | ok                             |
+|     3 | [#7](../../../../../issues/7)  |                                |                                | [#7](../../../../../issues/7)  |
+|     4 | ok                             |                                |                                | ok                             |
+|     5 | ok                             |                                |                                | ok                             |
+|     6 | ok                             |                                |                                | ok                             |
+|     7 | ok                             |                                |                                | ?                              |
+|     8 | ok                             |                                |                                | ok                             |
+|     9 | ok                             |                                |                                | ok                             |
+|    10 | [#5](../../../../../issues/5)  |                                |                                | ?                              |
+|    11 | ok                             |                                |                                | Ok                             |
+|    12 | ok                             |                                |                                | Ok                             |
+
+## Batch / Synthetic / Cluster
+
+TODO
+
+| Query | Dataflow                       | Spark                          | Flink                          | Apex                           |
+| ----: | ------------------------------ | ------------------------------ | ------------------------------ | ------------------------------ |
+|     0 |                                |                                |                                |                                |
+
+## Streaming / Synthetic / Cluster
+
+TODO
+
+| Query | Dataflow                       | Spark                          | Flink                          | Apex                           |
+| ----: | ------------------------------ | ------------------------------ | ------------------------------ | ------------------------------ |
+|     0 |                                |                                |                                |                                |
 
 # Running Nexmark
 

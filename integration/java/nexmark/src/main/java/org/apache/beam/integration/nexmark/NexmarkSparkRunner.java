@@ -37,11 +37,6 @@ public class NexmarkSparkRunner extends NexmarkRunner<NexmarkSparkDriver.Nexmark
     }
 
     @Override
-    protected boolean canMonitor() {
-        return true;
-    }
-
-    @Override
     protected void invokeBuilderForPublishOnlyPipeline(
             PipelineBuilder builder) {
         builder.build(options);
