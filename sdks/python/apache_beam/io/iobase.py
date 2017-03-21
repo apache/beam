@@ -559,9 +559,9 @@ class RangeTracker(object):
 
 
 class Sink(HasDisplayData):
-  """A resource that can be written to using the ``df.io.Write`` transform.
+  """A resource that can be written to using the ``beam.io.Write`` transform.
 
-  Here ``df`` stands for Dataflow Python code imported in following manner.
+  Here ``beam`` stands for Apache Beam Python code imported in following manner.
   ``import apache_beam as beam``.
 
   A parallel write to an ``iobase.Sink`` consists of three phases:
@@ -571,9 +571,6 @@ class Sink(HasDisplayData):
   2. A parallel write phase where workers write *bundles* of records
   3. A sequential *finalization* phase (e.g., committing the writes, merging
      output files, etc.)
-
-  For exact definition of a Dataflow bundle please see
-  https://cloud.google.com/dataflow/faq.
 
   Implementing a new sink requires extending two classes.
 
@@ -594,7 +591,7 @@ class Sink(HasDisplayData):
   single record from the bundle and ``close()`` which is called once
   at the end of writing a bundle.
 
-  See also ``df.io.fileio.FileSink`` which provides a simpler API for writing
+  See also ``beam.io.fileio.FileSink`` which provides a simpler API for writing
   sinks that produce files.
 
   **Execution of the Write transform**
@@ -692,7 +689,7 @@ class Sink(HasDisplayData):
 
   For more information on creating new sinks please refer to the official
   documentation at
-  ``https://cloud.google.com/dataflow/model/custom-io#creating-sinks``.
+  ``https://beam.apache.org/documentation/sdks/python-custom-io#creating-sinks``
   """
 
   def initialize_write(self):
