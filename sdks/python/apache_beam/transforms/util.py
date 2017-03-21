@@ -230,10 +230,10 @@ def assert_that(actual, matcher, label='assert_that'):
           pcoll
           | WindowInto(window.GlobalWindows())
           | "ToVoidKey" >> Map(lambda v: (None, v)))
-      ((keyed_singleton, keyed_actual)
-          | "Group" >> CoGroupByKey()
-          | "Unkey" >> Map(lambda (k, (_, actual_values)): actual_values)
-          | "Match" >> Map(matcher))
+      _ = ((keyed_singleton, keyed_actual)
+           | "Group" >> CoGroupByKey()
+           | "Unkey" >> Map(lambda (k, (_, actual_values)): actual_values)
+           | "Match" >> Map(matcher))
 
     def default_label(self):
       return label
