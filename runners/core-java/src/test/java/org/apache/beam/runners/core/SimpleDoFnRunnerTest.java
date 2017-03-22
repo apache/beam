@@ -18,6 +18,7 @@
 package org.apache.beam.runners.core;
 
 import static org.hamcrest.Matchers.contains;
+import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.isA;
 import static org.junit.Assert.assertThat;
@@ -239,6 +240,10 @@ public class SimpleDoFnRunnerTest {
                 TimeDomain.EVENT_TIME)));
   }
 
+  /**
+   * Demonstrates that attempting to output an element before the timestamp of the current element
+   * with zero {@link DoFn#getAllowedTimestampSkew() allowed timestamp skew} throws.
+   */
   @Test
   public void testBackwardsInTimeNoSkew() {
     SkewingDoFn fn = new SkewingDoFn(Duration.ZERO);
@@ -255,6 +260,7 @@ public class SimpleDoFnRunnerTest {
             WindowingStrategy.of(new GlobalWindows()));
 
     runner.startBundle();
+    // An element output at the current timestamp is fine.
     runner.processElement(
         WindowedValue.timestampedValueInGlobalWindow(Duration.ZERO, new Instant(0)));
     thrown.expect(UserCodeException.class);
@@ -265,10 +271,16 @@ public class SimpleDoFnRunnerTest {
     thrown.expectMessage(
         String.format(
             "the allowed skew (%s)", PeriodFormat.getDefault().print(Duration.ZERO.toPeriod())));
+    // An element output before (current time - skew) is forbidden
     runner.processElement(
         WindowedValue.timestampedValueInGlobalWindow(Duration.millis(1L), new Instant(0)));
   }
 
+  /**
+   * Demonstrates that attempting to output an element before the timestamp of the current element
+   * plus the value of {@link DoFn#getAllowedTimestampSkew()} throws, but between that value and
+   * the current timestamp succeeds.
+   */
   @Test
   public void testSkew() {
     SkewingDoFn fn = new SkewingDoFn(Duration.standardMinutes(10L));
@@ -285,8 +297,9 @@ public class SimpleDoFnRunnerTest {
             WindowingStrategy.of(new GlobalWindows()));
 
     runner.startBundle();
+    // Outputting between "now" and "now - allowed skew" succeeds.
     runner.processElement(
-        WindowedValue.timestampedValueInGlobalWindow(Duration.millis(1L), new Instant(0)));
+        WindowedValue.timestampedValueInGlobalWindow(Duration.standardMinutes(5L), new Instant(0)));
     thrown.expect(UserCodeException.class);
     thrown.expectCause(isA(IllegalArgumentException.class));
     thrown.expectMessage("must be no earlier");
@@ -296,10 +309,16 @@ public class SimpleDoFnRunnerTest {
         String.format(
             "the allowed skew (%s)",
             PeriodFormat.getDefault().print(Duration.standardMinutes(10L).toPeriod())));
+    // Outputting before "now - allowed skew" fails.
     runner.processElement(
         WindowedValue.timestampedValueInGlobalWindow(Duration.standardHours(1L), new Instant(0)));
   }
 
+  /**
+   * Demonstrates that attempting to output an element with a timestamp before the current one
+   * always succeeds when {@link DoFn#getAllowedTimestampSkew()} is equal to
+   * {@link Long#MAX_VALUE} milliseconds.
+   */
   @Test
   public void testInfiniteSkew() {
     SkewingDoFn fn = new SkewingDoFn(Duration.millis(Long.MAX_VALUE));
@@ -323,10 +342,10 @@ public class SimpleDoFnRunnerTest {
             Duration.millis(1L), BoundedWindow.TIMESTAMP_MIN_VALUE.plus(Duration.millis(1))));
     runner.processElement(
         WindowedValue.timestampedValueInGlobalWindow(
-            // The maximum distance
+            // This is the maximum amount a timestamp in beam can move (from the maximum timestamp
+            // to the minimum timestamp).
             Duration.millis(BoundedWindow.TIMESTAMP_MAX_VALUE.getMillis())
-                .minus(Duration.millis(BoundedWindow.TIMESTAMP_MIN_VALUE.getMillis()))
-                .minus(1L),
+                .minus(Duration.millis(BoundedWindow.TIMESTAMP_MIN_VALUE.getMillis())),
             BoundedWindow.TIMESTAMP_MAX_VALUE));
   }
 
@@ -393,6 +412,11 @@ public class SimpleDoFnRunnerTest {
     }
   }
 
+
+  /**
+   * A {@link DoFn} that outputs elements with timestamp equal to the input timestamp minus the
+   * input element.
+   */
   private static class SkewingDoFn extends DoFn<Duration, Duration> {
     private final Duration allowedSkew;
 
