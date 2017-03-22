@@ -174,6 +174,7 @@ public class MongoDbGridFSIO {
         .setParser(TEXT_PARSER)
         .setCoder(StringUtf8Coder.of())
         .setConnectionConfiguration(ConnectionConfiguration.create())
+        .setSkew(Duration.ZERO)
         .build();
   }
 
