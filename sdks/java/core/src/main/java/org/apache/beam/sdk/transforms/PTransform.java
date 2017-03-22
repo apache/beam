@@ -162,7 +162,7 @@ import org.apache.beam.sdk.values.TypedPValue;
  * operations that do not save or restore any state.
  *
  * @see <a href=
- * "https://cloud.google.com/dataflow/java-sdk/applying-transforms"
+ * "https://beam.apache.org/documentation/programming-guide/#transforms"
  * >Applying Transformations</a>
  *
  * @param <InputT> the type of the input to this PTransform

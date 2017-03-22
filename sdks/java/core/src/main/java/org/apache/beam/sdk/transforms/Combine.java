@@ -76,7 +76,7 @@ import org.apache.beam.sdk.values.TypeDescriptor;
  * {@code PTransform}s for combining {@code PCollection} elements
  * globally and per-key.
  *
- * <p>See the <a href="https://cloud.google.com/dataflow/model/combine">documentation</a>
+ * <p>See the <a href="https://beam.apache.org/documentation/programming-guide/#transforms-combine">documentation</a>
  * for how to use the operations in this class.
  */
 public class Combine {

@@ -36,7 +36,7 @@ import org.apache.beam.sdk.values.PCollection;
  * etc.)
  * </ol>
  *
- * <p>The {@link Write} transform can be used in a Dataflow pipeline to perform this write.
+ * <p>The {@link Write} transform can be used in a pipeline to perform this write.
  * Specifically, a Write transform can be applied to a {@link PCollection} {@code p} by:
  *
  * <p>{@code p.apply(Write.to(new MySink()));}

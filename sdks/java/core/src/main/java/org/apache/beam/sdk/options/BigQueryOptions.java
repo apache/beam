@@ -18,9 +18,9 @@
 package org.apache.beam.sdk.options;
 
 /**
- * Properties needed when using BigQuery with the Dataflow SDK.
+ * Properties needed when using Google BigQuery with the Apache Beam SDK.
  */
-@Description("Options that are used to configure BigQuery. See "
+@Description("Options that are used to configure Google BigQuery. See "
     + "https://cloud.google.com/bigquery/what-is-bigquery for details on BigQuery.")
 public interface BigQueryOptions extends ApplicationNameOptions, GcpOptions,
     PipelineOptions, StreamingOptions {

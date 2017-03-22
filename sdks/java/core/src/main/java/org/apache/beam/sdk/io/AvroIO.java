@@ -76,8 +76,7 @@ import org.apache.beam.sdk.values.PDone;
  *     p.apply(AvroIO.Read.from("/path/to/file.avro")
  *                 .withSchema(AvroAutoGenClass.class));
  *
- * // A Read from a GCS file (runs locally and via the Google Cloud
- * // Dataflow service):
+ * // A Read from a GCS file (runs locally and using remote execution):
  * Schema schema = new Schema.Parser().parse(new File("schema.avsc"));
  * PCollection<GenericRecord> records =
  *     p.apply(AvroIO.Read
@@ -106,8 +105,7 @@ import org.apache.beam.sdk.values.PDone;
  * records.apply(AvroIO.Write.to("/path/to/file.avro")
  *                           .withSchema(AvroAutoGenClass.class));
  *
- * // A Write to a sharded GCS file (runs locally and via the Google Cloud
- * // Dataflow service):
+ * // A Write to a sharded GCS file (runs locally and using remote execution):
  * Schema schema = new Schema.Parser().parse(new File("schema.avsc"));
  * PCollection<GenericRecord> records = ...;
  * records.apply("WriteToAvro", AvroIO.Write
@@ -122,7 +120,7 @@ import org.apache.beam.sdk.values.PDone;
  *
  * <h3>Permissions</h3>
  * Permission requirements depend on the {@link PipelineRunner} that is used to execute the
- * Dataflow job. Please refer to the documentation of corresponding {@link PipelineRunner}s for
+ * pipeline. Please refer to the documentation of corresponding {@link PipelineRunner}s for
  * more details.
  */
 public class AvroIO {
@@ -138,8 +136,8 @@ public class AvroIO {
      * with the given name or pattern. This can be a local filename
      * or filename pattern (if running locally), or a Google Cloud
      * Storage filename or filename pattern of the form
-     * {@code "gs://<bucket>/<filepath>"} (if running locally or via
-     * the Google Cloud Dataflow service). Standard
+     * {@code "gs://<bucket>/<filepath>"} (if running locally or
+     * using remote execution). Standard
      * <a href="http://docs.oracle.com/javase/tutorial/essential/io/find.html">Java
      * Filesystem glob patterns</a> ("*", "?", "[..]") are supported.
      */
@@ -360,7 +358,7 @@ public class AvroIO {
      * with the given prefix. This can be a local filename
      * (if running locally), or a Google Cloud Storage filename of
      * the form {@code "gs://<bucket>/<filepath>"}
-     * (if running locally or via the Google Cloud Dataflow service).
+     * (if running locally or using remote execution).
      *
      * <p>The files written will begin with this prefix, followed by
      * a shard identifier (see {@link Bound#withNumShards}, and end

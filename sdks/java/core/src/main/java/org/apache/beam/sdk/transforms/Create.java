@@ -83,9 +83,7 @@ import org.joda.time.Instant;
  * needs to be created without dependencies on files or other external
  * entities.  This is especially useful during testing.
  *
- * <p>Caveat: {@code Create} only supports small in-memory datasets,
- * particularly when submitting jobs to the Google Cloud Dataflow
- * service.
+ * <p>Caveat: {@code Create} only supports small in-memory datasets.
  *
  * @param <T> the type of the elements of the resulting {@code PCollection}
  */
