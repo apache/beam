@@ -120,7 +120,7 @@ import org.apache.beam.sdk.values.PDone;
  *
  * <h3>Permissions</h3>
  * Permission requirements depend on the {@link PipelineRunner} that is used to execute the
- * job. Please refer to the documentation of corresponding {@link PipelineRunner}s for
+ * pipeline. Please refer to the documentation of corresponding {@link PipelineRunner}s for
  * more details.
  */
 public class AvroIO {

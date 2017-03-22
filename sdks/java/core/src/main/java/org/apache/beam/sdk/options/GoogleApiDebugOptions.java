@@ -25,11 +25,11 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * These options configure debug settings for Google API clients created within the Beam SDK.
+ * These options configure debug settings for Google API clients created within the Apache Beam SDK.
  */
 public interface GoogleApiDebugOptions extends PipelineOptions {
   /**
-   * This option enables tracing of API calls to Google services used within the
+   * This option enables tracing of API calls to Google services used within the Apache
    * Beam SDK. Values are expected in JSON format <code>{"ApiName":"TraceDestination",...}
    * </code> where the {@code ApiName} represents the request classes canonical name. The
    * {@code TraceDestination} is a logical trace consumer to whom the trace will be reported.
@@ -40,7 +40,7 @@ public interface GoogleApiDebugOptions extends PipelineOptions {
    * to Google, specifically to the Google Cloud Dataflow team.
    */
   @Description("This option enables tracing of API calls to Google services used within the "
-      + "Beam SDK. Values are expected in JSON format {\"ApiName\":\"TraceDestination\",...} "
+      + "Apache Beam SDK. Values are expected in JSON format {\"ApiName\":\"TraceDestination\",...} "
       + "where the ApiName represents the request classes canonical name. The TraceDestination is "
       + "a logical trace consumer to whom the trace will be reported. Typically, \"producer\" is "
       + "the right destination to use: this makes API traces available to the team offering the "

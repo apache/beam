@@ -112,7 +112,7 @@ public interface GcsOptions extends
   void setPathValidator(PathValidator validator);
 
   /**
-   * Returns the default {@link ExecutorService} to use within the Beam SDK. The
+   * Returns the default {@link ExecutorService} to use within the Apache Beam SDK. The
    * {@link ExecutorService} is compatible with AppEngine.
    */
   class ExecutorServiceFactory implements DefaultValueFactory<ExecutorService> {

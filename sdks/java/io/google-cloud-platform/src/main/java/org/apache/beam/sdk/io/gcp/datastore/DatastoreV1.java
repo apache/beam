@@ -182,7 +182,7 @@ import org.slf4j.LoggerFactory;
  *
  * <h3>Permissions</h3>
  * Permission requirements depend on the {@code PipelineRunner} that is used to execute the
- * job. Please refer to the documentation of corresponding {@code PipelineRunner}s for
+ * pipeline. Please refer to the documentation of corresponding {@code PipelineRunner}s for
  * more details.
  *
  * <p>Please see <a href="https://cloud.google.com/datastore/docs/activate">Cloud Datastore Sign Up

@@ -18,7 +18,7 @@
 package org.apache.beam.sdk.options;
 
 /**
- * Properties that can be set when using Google Cloud Pub/Sub with the Beam SDK.
+ * Properties that can be set when using Google Cloud Pub/Sub with the Apache Beam SDK.
  */
 @Description("Options that are used to configure Google Cloud Pub/Sub. See "
     + "https://cloud.google.com/pubsub/docs/overview for details on Cloud Pub/Sub.")
