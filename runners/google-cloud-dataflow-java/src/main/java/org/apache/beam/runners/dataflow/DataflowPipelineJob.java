@@ -34,6 +34,10 @@ import java.io.IOException;
 import java.net.SocketTimeoutException;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.FutureTask;
+import java.util.concurrent.atomic.AtomicReference;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.runners.dataflow.util.MonitoringUtil;
@@ -338,29 +342,55 @@ public class DataflowPipelineJob implements PipelineResult {
     return null;  // Timed out.
   }
 
+  private AtomicReference<FutureTask<State>> cancelState = new AtomicReference<>();
+
   @Override
   public State cancel() throws IOException {
-    Job content = new Job();
-    content.setProjectId(getProjectId());
-    content.setId(jobId);
-    content.setRequestedState("JOB_STATE_CANCELLED");
-    try {
-      dataflowClient.updateJob(jobId, content);
-      return State.CANCELLED;
-    } catch (IOException e) {
-      State state = getState();
-      if (state.isTerminal()) {
-        LOG.warn("Job is already terminated. State is {}", state);
-        return state;
-      } else {
-        String errorMsg = String.format(
-            "Failed to cancel job in state %s, "
-                + "please go to the Developers Console to cancel it manually: %s",
-            state,
-            MonitoringUtil.getJobMonitoringPageURL(getProjectId(), getJobId()));
-        LOG.warn(errorMsg);
-        throw new IOException(errorMsg, e);
+    // Enforce that a cancel() call on the job is done at most once - as
+    // a workaround for Dataflow service's current bugs with multiple
+    // cancellation, where it may sometimes return an error when cancelling
+    // a job that was already cancelled, but still report the job state as
+    // RUNNING.
+    // To partially work around these issues, we absorb duplicate cancel()
+    // calls. This, of course, doesn't address the case when the job terminates
+    // externally almost concurrently to calling cancel(), but at least it
+    // makes it possible to safely call cancel() multiple times and from
+    // multiple threads in one program.
+    FutureTask<State> tentativeCancelTask = new FutureTask<>(new Callable<State>() {
+      @Override
+      public State call() throws Exception {
+        Job content = new Job();
+        content.setProjectId(getProjectId());
+        content.setId(jobId);
+        content.setRequestedState("JOB_STATE_CANCELLED");
+        try {
+          dataflowClient.updateJob(jobId, content);
+          return State.CANCELLED;
+        } catch (IOException e) {
+          State state = getState();
+          if (state.isTerminal()) {
+            LOG.warn("Job is already terminated. State is {}", state);
+            return state;
+          } else {
+            String errorMsg = String.format(
+                "Failed to cancel job in state %s, "
+                    + "please go to the Developers Console to cancel it manually: %s",
+                state,
+                MonitoringUtil.getJobMonitoringPageURL(getProjectId(), getJobId()));
+            LOG.warn(errorMsg);
+            throw new IOException(errorMsg, e);
+          }
+        }
       }
+    });
+    if (cancelState.compareAndSet(null, tentativeCancelTask)) {
+      // This is the thread that requested cancel first.
+      cancelState.get().run();
+    }
+    try {
+      return cancelState.get().get();
+    } catch (InterruptedException | ExecutionException e) {
+      throw new IOException(e);
     }
   }
 
