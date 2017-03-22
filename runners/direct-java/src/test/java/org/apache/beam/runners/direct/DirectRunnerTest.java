@@ -32,9 +32,16 @@ import java.io.Serializable;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.beam.runners.direct.DirectRunner.DirectPipelineResult;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
@@ -49,6 +56,7 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.runners.PipelineRunner;
 import org.apache.beam.sdk.testing.PAssert;
+import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -65,6 +73,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.hamcrest.Matchers;
+import org.joda.time.Duration;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.internal.matchers.ThrowableMessageMatcher;
@@ -219,6 +228,52 @@ public class DirectRunnerTest implements Serializable {
 
     PAssert.that(longs).containsInAnyOrder(0L, 1L, 2L);
     p.run();
+  }
+
+  @Test
+  public void cancelShouldStopPipeline() throws Exception {
+    PipelineOptions opts = TestPipeline.testingPipelineOptions();
+    opts.as(DirectOptions.class).setBlockOnRun(false);
+    opts.setRunner(DirectRunner.class);
+
+    final Pipeline p = Pipeline.create(opts);
+    p.apply(CountingInput.unbounded().withRate(1L, Duration.standardSeconds(1)));
+
+    final BlockingQueue<PipelineResult> resultExchange = new ArrayBlockingQueue<>(1);
+    Runnable cancelRunnable = new Runnable() {
+      @Override
+      public void run() {
+        try {
+          resultExchange.take().cancel();
+        } catch (InterruptedException e) {
+          Thread.currentThread().interrupt();
+          throw new IllegalStateException(e);
+        } catch (IOException e) {
+          throw new IllegalStateException(e);
+        }
+      }
+    };
+
+    Callable<PipelineResult> runPipelineRunnable = new Callable<PipelineResult>() {
+      @Override
+      public PipelineResult call() {
+        PipelineResult res = p.run();
+        try {
+          resultExchange.put(res);
+        } catch (InterruptedException e) {
+          Thread.currentThread().interrupt();
+          throw new IllegalStateException(e);
+        }
+        return res;
+      }
+    };
+
+    ExecutorService executor = Executors.newCachedThreadPool();
+    executor.submit(cancelRunnable);
+    Future<PipelineResult> result = executor.submit(runPipelineRunnable);
+
+    // If cancel doesn't work, this will hang forever
+    result.get().waitUntilFinish();
   }
 
   @Test
