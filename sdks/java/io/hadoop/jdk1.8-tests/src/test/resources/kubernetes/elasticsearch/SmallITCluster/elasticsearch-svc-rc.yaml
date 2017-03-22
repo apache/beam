@@ -87,5 +87,4 @@ spec:
         - mountPath: /data
           name: storage
       volumes:
-      - name: storage
-      emptyDir: {}
+      - name: storageemptyDir: {}
