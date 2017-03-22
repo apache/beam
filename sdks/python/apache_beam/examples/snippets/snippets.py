@@ -856,7 +856,7 @@ def model_textio_compressed(renames, expected):
   # [START model_textio_write_compressed]
   lines = p | 'ReadFromText' >> beam.io.ReadFromText(
       '/path/to/input-*.csv.gz',
-      compression_type=beam.io.fileio.CompressionTypes.GZIP)
+      compression_type=beam.io.filesystem.CompressionTypes.GZIP)
   # [END model_textio_write_compressed]
 
   beam.assert_that(lines, beam.equal_to(expected))

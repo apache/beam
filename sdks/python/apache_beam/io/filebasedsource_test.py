@@ -29,9 +29,9 @@ import hamcrest as hc
 
 import apache_beam as beam
 from apache_beam.io import filebasedsource
-from apache_beam.io import fileio
 from apache_beam.io import iobase
 from apache_beam.io import range_trackers
+from apache_beam.io.filesystem import CompressionTypes
 
 # importing following private classes for testing
 from apache_beam.io.concat_source import ConcatSource
@@ -409,7 +409,7 @@ class TestFileBasedSource(unittest.TestCase):
     pcoll = pipeline | 'Read' >> beam.Read(LineSource(
         filename,
         splittable=False,
-        compression_type=fileio.CompressionTypes.BZIP2))
+        compression_type=CompressionTypes.BZIP2))
     assert_that(pcoll, equal_to(lines))
     pipeline.run()
 
@@ -424,7 +424,7 @@ class TestFileBasedSource(unittest.TestCase):
     pcoll = pipeline | 'Read' >> beam.Read(LineSource(
         filename,
         splittable=False,
-        compression_type=fileio.CompressionTypes.GZIP))
+        compression_type=CompressionTypes.GZIP))
     assert_that(pcoll, equal_to(lines))
     pipeline.run()
 
@@ -442,7 +442,7 @@ class TestFileBasedSource(unittest.TestCase):
     pcoll = pipeline | 'Read' >> beam.Read(LineSource(
         file_pattern,
         splittable=False,
-        compression_type=fileio.CompressionTypes.BZIP2))
+        compression_type=CompressionTypes.BZIP2))
     assert_that(pcoll, equal_to(lines))
     pipeline.run()
 
@@ -461,7 +461,7 @@ class TestFileBasedSource(unittest.TestCase):
     pcoll = pipeline | 'Read' >> beam.Read(LineSource(
         file_pattern,
         splittable=False,
-        compression_type=fileio.CompressionTypes.GZIP))
+        compression_type=CompressionTypes.GZIP))
     assert_that(pcoll, equal_to(lines))
     pipeline.run()
 
@@ -475,7 +475,7 @@ class TestFileBasedSource(unittest.TestCase):
     pipeline = TestPipeline()
     pcoll = pipeline | 'Read' >> beam.Read(LineSource(
         filename,
-        compression_type=fileio.CompressionTypes.AUTO))
+        compression_type=CompressionTypes.AUTO))
     assert_that(pcoll, equal_to(lines))
     pipeline.run()
 
@@ -489,7 +489,7 @@ class TestFileBasedSource(unittest.TestCase):
     pipeline = TestPipeline()
     pcoll = pipeline | 'Read' >> beam.Read(LineSource(
         filename,
-        compression_type=fileio.CompressionTypes.AUTO))
+        compression_type=CompressionTypes.AUTO))
     assert_that(pcoll, equal_to(lines))
     pipeline.run()
 
@@ -508,7 +508,7 @@ class TestFileBasedSource(unittest.TestCase):
     pipeline = TestPipeline()
     pcoll = pipeline | 'Read' >> beam.Read(LineSource(
         file_pattern,
-        compression_type=fileio.CompressionTypes.AUTO))
+        compression_type=CompressionTypes.AUTO))
     assert_that(pcoll, equal_to(lines))
     pipeline.run()
 
@@ -530,7 +530,7 @@ class TestFileBasedSource(unittest.TestCase):
     pipeline = TestPipeline()
     pcoll = pipeline | 'Read' >> beam.Read(LineSource(
         file_pattern,
-        compression_type=fileio.CompressionTypes.AUTO))
+        compression_type=CompressionTypes.AUTO))
     assert_that(pcoll, equal_to(lines))
     pipeline.run()
 

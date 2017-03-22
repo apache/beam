@@ -28,12 +28,11 @@ import unittest
 import httplib2
 import mock
 
-from apache_beam.io import gcsio
-from apache_beam.io.gcp.internal.clients import storage
-
 # Protect against environments where apitools library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position
 try:
+  from apache_beam.io.gcp import gcsio
+  from apache_beam.io.gcp.internal.clients import storage
   from apitools.base.py.exceptions import HttpError
 except ImportError:
   HttpError = None
@@ -295,7 +294,7 @@ class TestGCSIO(unittest.TestCase):
     self.assertFalse(
         gcsio.parse_gcs_path(file_name) in self.client.objects.files)
 
-  @mock.patch('apache_beam.io.gcsio.BatchApiRequest')
+  @mock.patch('apache_beam.io.gcp.gcsio.BatchApiRequest')
   def test_delete_batch(self, *unused_args):
     gcsio.BatchApiRequest = FakeBatchApiRequest
     file_name_pattern = 'gs://gcsio-test/delete_me_%d'
@@ -346,7 +345,7 @@ class TestGCSIO(unittest.TestCase):
     self.assertRaises(IOError, self.gcs.copy, 'gs://gcsio-test/non-existent',
                       'gs://gcsio-test/non-existent-destination')
 
-  @mock.patch('apache_beam.io.gcsio.BatchApiRequest')
+  @mock.patch('apache_beam.io.gcp.gcsio.BatchApiRequest')
   def test_copy_batch(self, *unused_args):
     gcsio.BatchApiRequest = FakeBatchApiRequest
     from_name_pattern = 'gs://gcsio-test/copy_me_%d'
