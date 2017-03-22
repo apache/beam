@@ -30,12 +30,10 @@ from apache_beam.metrics.metric import MetricResults
 from apache_beam.metrics.metricbase import MetricName
 
 
-# TODO(pabloem)(JIRA-1381) Implement this once metrics are queriable from
-# dataflow service
 class DataflowMetrics(MetricResults):
   """Implementation of MetricResults class for the Dataflow runner."""
 
-  def __init__(self, dataflow_client=None, job_result=None):
+  def __init__(self, dataflow_client=None, job_result=None, job_graph=None):
     """Initialize the Dataflow metrics object.
 
     Args:
@@ -49,6 +47,36 @@ class DataflowMetrics(MetricResults):
     self.job_result = job_result
     self._queried_after_termination = False
     self._cached_metrics = None
+    self._job_graph = job_graph
+
+  def _translate_step_name(self, internal_name):
+    if not self._job_graph:
+      raise ValueError('Could not translate the internal step name.')
+
+    try:
+      [step] = [step
+                for step in self._job_graph.proto.steps
+                if step.name == internal_name]
+      [user_step_name] = [prop.value.string_value
+                          for prop in step.properties.additionalProperties
+                          if prop.key == 'user_name']
+    except ValueError:
+      raise ValueError('Could not translate the internal step name.')
+    return user_step_name
+
+  def _get_metric_key(self, metric):
+    try:
+      [step] = [prop.value
+                for prop in metric.name.context.additionalProperties
+                if prop.key == 'step']
+      step = self._translate_step_name(step)
+      [namespace] = [prop.value
+                     for prop in metric.name.context.additionalProperties
+                     if prop.key == 'namespace']
+      name = metric.name.name
+    except ValueError:
+      [step, namespace, name] = metric.name.name.split('/')
+    return MetricKey(step, MetricName(namespace, name))
 
   def _populate_metric_results(self, response):
     """Take a list of metrics, and convert it to a list of MetricResult."""
@@ -59,29 +87,31 @@ class DataflowMetrics(MetricResults):
     # Get the tentative/committed versions of every metric together.
     metrics_by_name = defaultdict(lambda: {})
     for metric in user_metrics:
-      tentative = [prop
-                   for prop in metric.name.context.additionalProperties
-                   if prop.key == 'tentative' and prop.value == 'true']
-      key = 'tentative' if tentative else 'committed'
-      metrics_by_name[metric.name.name][key] = metric
-
-    # Now we create the MetricResult elements.
-    result = []
-    for name, metric in metrics_by_name.iteritems():
-      if (name.endswith('(DIST)') or
-          name.endswith('[MIN]') or
-          name.endswith('[MAX]') or
-          name.endswith('[MEAN]') or
-          name.endswith('[COUNT]')):
+      if (metric.name.name.endswith('(DIST)') or
+          metric.name.name.endswith('[MIN]') or
+          metric.name.name.endswith('[MAX]') or
+          metric.name.name.endswith('[MEAN]') or
+          metric.name.name.endswith('[COUNT]')):
         warn('Distribution metrics will be ignored in the MetricsResult.query'
              'method. You can see them in the Dataflow User Interface.')
         # Distributions are not yet fully supported in this runner
         continue
-      [step, namespace, name] = name.split('/')
-      key = MetricKey(step, MetricName(namespace, name))
+      tentative = [prop
+                   for prop in metric.name.context.additionalProperties
+                   if prop.key == 'tentative' and prop.value == 'true']
+      is_tentative = 'tentative' if tentative else 'committed'
+
+      metric_key = self._get_metric_key(metric)
+      metrics_by_name[metric_key][is_tentative] = metric
+
+    # Now we create the MetricResult elements.
+    result = []
+    for metric_key, metric in metrics_by_name.iteritems():
       attempted = metric['tentative'].scalar.integer_value
       committed = metric['committed'].scalar.integer_value
-      result.append(MetricResult(key, attempted=attempted, committed=committed))
+      result.append(MetricResult(metric_key,
+                                 attempted=attempted,
+                                 committed=committed))
 
     return result
 
