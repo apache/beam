@@ -15,48 +15,33 @@
  */
 package cz.seznam.euphoria.core.client.dataset.windowing;
 
+import cz.seznam.euphoria.core.client.functional.TernaryFunction;
+
 /**
  * A single data element flowing in dataset. Every such element
  * is associated with a window identifier and timestamp.
+ *
+ * @param <W> type of the window
+ * @param <T> type of the data element
  */
-public class WindowedElement<W extends Window, T> {
+public interface WindowedElement<W extends Window, T> {
 
-  final T element;
-  W window;
-  long timestamp;
+  W getWindow();
 
-  public WindowedElement(W window, long timestamp, T element) {
-    this.window = window;
-    this.timestamp = timestamp;
-    this.element = element;
-  }
+  void setWindow(W window);
 
-  public W getWindow() {
-    return window;
-  }
+  long getTimestamp();
 
-  public void setWindow(W window) {
-    this.window = window;
-  }
+  void setTimestamp(long timestamp);
 
-  public long getTimestamp() {
-    return timestamp;
-  }
+  T getElement();
 
-  public void setTimestamp(long timestamp) {
-    this.timestamp = timestamp;
-  }
-
-  public T getElement() {
-    return element;
-  }
-
-  @Override
-  public String toString() {
-    return "WindowedElement{" +
-        "window=" + window +
-        ", timestamp=" + timestamp +
-        ", element=" + element +
-        '}';
-  }
+  /**
+   * Creates a new instance of {@link WindowedElement}.
+   *
+   * @param <W> type of the window
+   * @param <T> type of the data element
+   */
+  interface WindowedElementFactory<W extends Window, T>
+          extends TernaryFunction<Window, Long, T, WindowedElement<W, T>> {}
 }

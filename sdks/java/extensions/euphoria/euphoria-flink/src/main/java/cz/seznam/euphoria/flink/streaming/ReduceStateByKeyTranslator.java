@@ -16,7 +16,6 @@
 package cz.seznam.euphoria.flink.streaming;
 
 import com.google.common.collect.Iterables;
-import cz.seznam.euphoria.core.client.dataset.windowing.WindowedElement;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.functional.CombinableReduceFunction;
 import cz.seznam.euphoria.core.client.functional.StateFactory;
@@ -26,6 +25,7 @@ import cz.seznam.euphoria.core.client.operator.state.State;
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.core.util.Settings;
 import cz.seznam.euphoria.flink.FlinkOperator;
+import cz.seznam.euphoria.flink.FlinkElement;
 import cz.seznam.euphoria.flink.functions.PartitionerWrapper;
 import cz.seznam.euphoria.flink.streaming.windowing.AttachedWindowing;
 import cz.seznam.euphoria.flink.streaming.windowing.KeyedMultiWindowedElement;
@@ -82,12 +82,12 @@ class ReduceStateByKeyTranslator implements StreamingOperatorTranslator<ReduceSt
               new EventTimeAssigner(context.getAllowedLateness(), eventTimeAssigner));
     }
 
-    DataStream<WindowedElement<?, Pair>> reduced;
+    DataStream<FlinkElement<?, Pair>> reduced;
     WindowAssigner elMapper =
             new WindowAssigner(windowing, keyExtractor, valueExtractor, eventTimeAssigner);
     if (valueOfAfterShuffle) {
       reduced = input.keyBy(new UnaryFunctionKeyExtractor(keyExtractor))
-                     .transform(operator.getName(), TypeInformation.of(WindowedElement.class),
+                     .transform(operator.getName(), TypeInformation.of(FlinkElement.class),
                                 new WindowedElementWindowOperator(elMapper, windowing, stateFactory, stateCombiner, context.isLocalMode()))
                      .setParallelism(operator.getParallelism());
     } else {
@@ -97,7 +97,7 @@ class ReduceStateByKeyTranslator implements StreamingOperatorTranslator<ReduceSt
               // so far, thereby, avoiding an unnecessary shuffle
               .setParallelism(input.getParallelism());
       reduced = (DataStream) windowed.keyBy(new KeyedMultiWindowedElementKeyExtractor())
-              .transform(operator.getName(), TypeInformation.of(WindowedElement.class),
+              .transform(operator.getName(), TypeInformation.of(FlinkElement.class),
                       new KeyedMultiWindowedElementWindowOperator<>(windowing, stateFactory, stateCombiner, context.isLocalMode()))
               .setParallelism(operator.getParallelism());
     }
@@ -117,7 +117,7 @@ class ReduceStateByKeyTranslator implements StreamingOperatorTranslator<ReduceSt
   }
 
   private static class EventTimeAssigner
-          extends BoundedOutOfOrdernessTimestampExtractor<WindowedElement>
+          extends BoundedOutOfOrdernessTimestampExtractor<FlinkElement>
   {
     private final UnaryFunction<Object, Long> eventTimeFn;
 
@@ -127,7 +127,7 @@ class ReduceStateByKeyTranslator implements StreamingOperatorTranslator<ReduceSt
     }
 
     @Override
-    public long extractTimestamp(WindowedElement element) {
+    public long extractTimestamp(FlinkElement element) {
       return eventTimeFn.apply(element.getElement());
     }
 
@@ -137,7 +137,7 @@ class ReduceStateByKeyTranslator implements StreamingOperatorTranslator<ReduceSt
     }
   }
 
-  private static class WindowAssigner implements MapFunction<WindowedElement, KeyedMultiWindowedElement>,
+  private static class WindowAssigner implements MapFunction<FlinkElement, KeyedMultiWindowedElement>,
           ResultTypeQueryable<KeyedMultiWindowedElement> {
 
     private final Windowing windowing;
@@ -157,7 +157,7 @@ class ReduceStateByKeyTranslator implements StreamingOperatorTranslator<ReduceSt
 
     @Override
     @SuppressWarnings("unchecked")
-    public KeyedMultiWindowedElement map(WindowedElement el) throws Exception {
+    public KeyedMultiWindowedElement map(FlinkElement el) throws Exception {
       if (eventTimeAssigner != null) {
         el.setTimestamp((long) eventTimeAssigner.apply(el.getElement()));
       }
@@ -177,7 +177,7 @@ class ReduceStateByKeyTranslator implements StreamingOperatorTranslator<ReduceSt
   }
 
   private static class UnaryFunctionKeyExtractor
-          implements KeySelector<WindowedElement, Object>,
+          implements KeySelector<FlinkElement, Object>,
                      ResultTypeQueryable<Object> {
     private final UnaryFunction keyExtractor;
 
@@ -187,7 +187,7 @@ class ReduceStateByKeyTranslator implements StreamingOperatorTranslator<ReduceSt
 
     @Override
     @SuppressWarnings("unchecked")
-    public Object getKey(WindowedElement value) throws Exception {
+    public Object getKey(FlinkElement value) throws Exception {
       return keyExtractor.apply(value.getElement());
     }
 
