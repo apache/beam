@@ -305,7 +305,7 @@ class BeamIOError(IOError):
     """Class representing the errors thrown in the batch file operations.
     Args:
       msg: Message string for the exception thrown
-      exception_details: Optional map of indivisual input to exception for
+      exception_details: Optional map of individual input to exception for
         failed operations in batch. This parameter is optional so if specified
         the user can assume that the all errors in the filesystem operation
         have been reported. When the details are missing then the operation
@@ -333,10 +333,6 @@ class FileSystem(object):
       raise TypeError('compression_type must be CompressionType object but '
                       'was %s' % type(compression_type))
     return compression_type
-
-  @staticmethod
-  def is_compressed(fileobj):
-    return isinstance(fileobj, CompressedFile)
 
   @abc.abstractmethod
   def mkdirs(self, path):

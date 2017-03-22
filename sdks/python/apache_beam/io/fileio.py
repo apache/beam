@@ -271,6 +271,8 @@ class FileSink(iobase.Sink):
         self._file_system.rename(source_files, destination_files)
         return exceptions
       except BeamIOError as exp:
+        if exp.exception_details is None:
+          raise exp
         for (src, dest), exception in exp.exception_details.iteritems():
           if exception:
             logging.warning('Rename not successful: %s -> %s, %s', src, dest,
