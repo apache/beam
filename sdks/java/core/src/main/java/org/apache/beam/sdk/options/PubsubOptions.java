@@ -18,17 +18,17 @@
 package org.apache.beam.sdk.options;
 
 /**
- * Properties that can be set when using Pubsub with the Beam SDK.
+ * Properties that can be set when using Google Cloud Pub/Sub with the Beam SDK.
  */
-@Description("Options that are used to configure BigQuery. See "
-    + "https://cloud.google.com/bigquery/what-is-bigquery for details on BigQuery.")
+@Description("Options that are used to configure Google Cloud Pub/Sub. See "
+    + "https://cloud.google.com/pubsub/docs/overview for details on Cloud Pub/Sub.")
 public interface PubsubOptions extends ApplicationNameOptions, GcpOptions,
     PipelineOptions, StreamingOptions {
 
   /**
-   * Root URL for use with the Pubsub API.
+   * Root URL for use with the Google Cloud Pub/Sub API.
    */
-  @Description("Root URL for use with the Pubsub API")
+  @Description("Root URL for use with the Google Cloud Pub/Sub API")
   @Default.String("https://pubsub.googleapis.com")
   @Hidden
   String getPubsubRootUrl();

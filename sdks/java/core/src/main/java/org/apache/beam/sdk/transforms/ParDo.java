@@ -436,8 +436,9 @@ import org.apache.beam.sdk.values.TypedPValue;
  * this modular, composable style, trusting to the runner to
  * "flatten out" all the compositions into highly optimized stages.
  *
- * @see <a href="https://cloud.google.com/dataflow/model/par-do">the web
- * documentation for ParDo</a>
+ * @see <a href=
+ * "https://beam.apache.org/documentation/programming-guide/#transforms-pardo">
+ * the web documentation for ParDo</a>
  */
 public class ParDo {
 

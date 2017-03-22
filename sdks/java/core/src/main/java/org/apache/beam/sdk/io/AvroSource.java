@@ -122,7 +122,7 @@ import org.apache.commons.compress.utils.CountingInputStream;
  * <h3>Permissions</h3>
  *
  * <p>Permission requirements depend on the {@link PipelineRunner} that is used to execute the
- * Dataflow job. Please refer to the documentation of corresponding {@link PipelineRunner}s for
+ * job. Please refer to the documentation of corresponding {@link PipelineRunner}s for
  * more details.
  *
  * @param <T> The type of records to be read from the source.

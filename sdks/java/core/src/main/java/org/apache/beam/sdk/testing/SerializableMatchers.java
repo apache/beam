@@ -1044,7 +1044,7 @@ class SerializableMatchers implements Serializable {
    * with a {@link SerializableSupplier#get()} method that returns a fresh instance of the
    * {@link Matcher} desired. The resulting {@link SerializableMatcher} will behave according to
    * the {@link Matcher} returned by {@link SerializableSupplier#get() get()} when it is invoked
-   * during matching (which may occur on another machine, such as a Dataflow worker).
+   * during matching (which may occur on another machine).
    *
    * <pre>{@code
    * return fromSupplier(new SerializableSupplier<Matcher<T>>() {

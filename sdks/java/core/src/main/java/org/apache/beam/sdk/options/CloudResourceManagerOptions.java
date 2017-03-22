@@ -21,7 +21,7 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import org.apache.beam.sdk.util.GcpProjectUtil;
 
 /**
- * Properties needed when using CloudResourceManager with the Beam SDK.
+ * Properties needed when using Google CloudResourceManager with the Beam SDK.
  */
 @Description("Options that are used to configure CloudResourceManager. See "
     + "https://cloud.google.com/resource-manager/ for details on CloudResourceManager.")

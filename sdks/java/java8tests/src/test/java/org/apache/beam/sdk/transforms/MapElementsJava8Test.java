@@ -46,7 +46,7 @@ public class MapElementsJava8Test implements Serializable {
     PCollection<Integer> output = pipeline
         .apply(Create.of(1, 2, 3))
         .apply(MapElements
-            // Note that the type annotation is required (for Java, not for Dataflow)
+            // Note that the type annotation is required for Java
             .via((Integer i) -> i * 2)
             .withOutputType(new TypeDescriptor<Integer>() {}));
 
@@ -81,7 +81,7 @@ public class MapElementsJava8Test implements Serializable {
     PCollection<Integer> output = pipeline
         .apply(Create.of(1, 2, 3))
         .apply(MapElements
-            // Note that the type annotation is required (for Java, not for Dataflow)
+            // Note that the type annotation is required for Java
             .via(new Doubler()::doubleIt)
             .withOutputType(new TypeDescriptor<Integer>() {}));
 
