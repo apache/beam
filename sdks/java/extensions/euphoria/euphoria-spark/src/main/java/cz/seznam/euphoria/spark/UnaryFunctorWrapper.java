@@ -18,6 +18,7 @@ package cz.seznam.euphoria.spark;
 import com.google.common.collect.Iterators;
 import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 import cz.seznam.euphoria.core.client.dataset.windowing.WindowedElement;
+import cz.seznam.euphoria.core.client.dataset.windowing.WindowedElementImpl;
 import cz.seznam.euphoria.core.client.functional.UnaryFunctor;
 import org.apache.spark.api.java.function.FlatMapFunction;
 
@@ -48,6 +49,6 @@ class UnaryFunctorWrapper<WID extends Window, IN, OUT>
 
     // wrap output in WindowedElement
     return Iterators.transform(context.getOutputIterator(),
-            e -> new WindowedElement<>(window, timestamp, e));
+            e -> new WindowedElementImpl<>(window, timestamp, e));
   }
 }

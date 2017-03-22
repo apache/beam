@@ -18,6 +18,7 @@ package cz.seznam.euphoria.spark;
 import cz.seznam.euphoria.core.client.dataset.windowing.MergingWindowing;
 import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 import cz.seznam.euphoria.core.client.dataset.windowing.WindowedElement;
+import cz.seznam.euphoria.core.client.dataset.windowing.WindowedElementImpl;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.functional.CombinableReduceFunction;
 import cz.seznam.euphoria.core.client.functional.StateFactory;
@@ -197,6 +198,7 @@ class ReduceStateByKeyTranslator implements SparkOperatorTranslator<ReduceStateB
           GroupReducer reducer = activeReducers.get(kw.key());
           if (reducer == null) {
             reducer = new GroupReducer<>(stateFactory,
+                    (WindowedElement.WindowedElementFactory<Window, Object>) WindowedElementImpl::new,
                     stateCombiner,
                     storageProvider,
                     windowing,
@@ -206,7 +208,7 @@ class ReduceStateByKeyTranslator implements SparkOperatorTranslator<ReduceStateB
             activeReducers.put(kw.key(), reducer);
           }
           reducer.process(
-                  new WindowedElement(kw.window(), kw.timestamp(), Pair.of(kw.key(), value)));
+                  new WindowedElementImpl(kw.window(), kw.timestamp(), Pair.of(kw.key(), value)));
         }
 
         flushStates();

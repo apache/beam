@@ -16,8 +16,8 @@
 package cz.seznam.euphoria.flink.batch;
 
 import cz.seznam.euphoria.core.client.dataset.partitioning.Partitioning;
-import cz.seznam.euphoria.core.client.dataset.windowing.WindowedElement;
 import cz.seznam.euphoria.core.client.operator.Repartition;
+import cz.seznam.euphoria.flink.FlinkElement;
 import cz.seznam.euphoria.flink.FlinkOperator;
 import cz.seznam.euphoria.flink.Utils;
 import cz.seznam.euphoria.flink.functions.PartitionerWrapper;
@@ -30,8 +30,8 @@ class RepartitionTranslator implements BatchOperatorTranslator<Repartition> {
   public DataSet translate(FlinkOperator<Repartition> operator,
       BatchExecutorContext context) {
     
-    DataSet<WindowedElement> input = 
-        (DataSet<WindowedElement>)context.getSingleInputStream(operator);
+    DataSet<FlinkElement> input =
+        (DataSet<FlinkElement>)context.getSingleInputStream(operator);
     
     Partitioning partitioning = operator.getOriginalOperator().getPartitioning();
     PartitionerWrapper flinkPartitioner = 
@@ -39,7 +39,7 @@ class RepartitionTranslator implements BatchOperatorTranslator<Repartition> {
     
     return input.partitionCustom(
             flinkPartitioner,
-            Utils.wrapQueryable((WindowedElement we) -> (Comparable) we.getElement(), Comparable.class))
+            Utils.wrapQueryable((FlinkElement we) -> (Comparable) we.getElement(), Comparable.class))
         .setParallelism(operator.getParallelism());
   }
 }

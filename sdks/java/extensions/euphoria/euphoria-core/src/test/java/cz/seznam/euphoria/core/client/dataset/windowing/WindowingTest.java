@@ -73,7 +73,7 @@ public class WindowingTest {
                                              T elem,
                                              UnaryFunction<T, Long> eventTimeAssigner) {
     return windowing.assignWindowsToElement(
-            new WindowedElement<>(null, eventTimeAssigner.apply(elem), elem));
+            new WindowedElementImpl<>(null, eventTimeAssigner.apply(elem), elem));
   }
 
   @Test
@@ -144,7 +144,7 @@ public class WindowingTest {
 
     for (long event : data) {
       Set<TimeInterval> labels = windowing
-          .assignWindowsToElement(new WindowedElement<>(
+          .assignWindowsToElement(new WindowedElementImpl<>(
               Batch.BatchWindow.get(), eventTimeAssigner.apply(event), event));
       // verify window count
       assertEquals(3, labels.size());
