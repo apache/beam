@@ -354,8 +354,9 @@ public class DataflowPipelineJob implements PipelineResult {
         return state;
       } else {
         String errorMsg = String.format(
-            "Failed to cancel the job, "
+            "Failed to cancel job in state %s, "
                 + "please go to the Developers Console to cancel it manually: %s",
+            state,
             MonitoringUtil.getJobMonitoringPageURL(getProjectId(), getJobId()));
         LOG.warn(errorMsg);
         throw new IOException(errorMsg, e);
