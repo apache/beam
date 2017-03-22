@@ -22,6 +22,7 @@ import static com.google.common.base.Preconditions.checkState;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import java.io.IOException;
 import java.io.InputStream;
@@ -30,6 +31,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
@@ -68,6 +70,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.TypeDescriptor;
@@ -1430,6 +1433,15 @@ public class Combine {
       return sideInputs;
     }
 
+    @Override
+    public Map<TupleTag<?>, PValue> getAdditionalInputs() {
+      ImmutableMap.Builder<TupleTag<?>, PValue> additionalInputs = ImmutableMap.builder();
+      for (PCollectionView<?> sideInput : sideInputs) {
+        additionalInputs.put(sideInput.getTagInternal(), sideInput);
+      }
+      return additionalInputs.build();
+    }
+
     /**
      * Returns whether or not this transformation applies a default value.
      */
@@ -1871,6 +1883,15 @@ public class Combine {
      */
     public List<PCollectionView<?>> getSideInputs() {
       return sideInputs;
+    }
+
+    @Override
+    public Map<TupleTag<?>, PValue> getAdditionalInputs() {
+      ImmutableMap.Builder<TupleTag<?>, PValue> additionalInputs = ImmutableMap.builder();
+      for (PCollectionView<?> sideInput : sideInputs) {
+        additionalInputs.put(sideInput.getTagInternal(), sideInput);
+      }
+      return additionalInputs.build();
     }
 
     @Override
