@@ -250,7 +250,7 @@ class common_job_properties {
         // Clean up environment.
         shell('rm -rf PerfKitBenchmarker')
         // Clone appropriate perfkit branch
-        shell('git clone -b beam-pkb --single-branch https://github.com/jasonkuster/PerfKitBenchmarker.git')
+        shell('git clone https://github.com/GoogleCloudPlatform/PerfKitBenchmarker.git')
         // Install job requirements.
         shell('pip install --user -r PerfKitBenchmarker/requirements.txt')
         // Launch performance test.
