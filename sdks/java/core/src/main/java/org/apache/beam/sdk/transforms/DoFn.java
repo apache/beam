@@ -327,7 +327,7 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
    * @deprecated This method permits a {@link DoFn} to emit elements behind the watermark. These
    *     elements are considered late, and if behind the
    *     {@link Window#withAllowedLateness(Duration) allowed lateness} of a downstream
-   *     {@link PCollection} may be silently dropped.
+   *     {@link PCollection} may be silently dropped. See BEAM-644 for details on a replacement.
    */
   @Deprecated
   public Duration getAllowedTimestampSkew() {

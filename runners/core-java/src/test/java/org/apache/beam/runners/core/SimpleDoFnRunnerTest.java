@@ -19,14 +19,18 @@ package org.apache.beam.runners.core;
 
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.isA;
 import static org.junit.Assert.assertThat;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.google.common.collect.ArrayListMultimap;
+import com.google.common.collect.ListMultimap;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import org.apache.beam.runners.core.BaseExecutionContext.StepContext;
+import org.apache.beam.runners.core.DoFnRunners.OutputManager;
 import org.apache.beam.runners.core.TimerInternals.TimerData;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -45,6 +49,7 @@ import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.TupleTag;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
+import org.joda.time.format.PeriodFormat;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -234,6 +239,97 @@ public class SimpleDoFnRunnerTest {
                 TimeDomain.EVENT_TIME)));
   }
 
+  @Test
+  public void testBackwardsInTimeNoSkew() {
+    SkewingDoFn fn = new SkewingDoFn(Duration.ZERO);
+    DoFnRunner<Duration, Duration> runner =
+        new SimpleDoFnRunner<>(
+            null,
+            fn,
+            NullSideInputReader.empty(),
+            new ListOutputManager(),
+            new TupleTag<Duration>(),
+            Collections.<TupleTag<?>>emptyList(),
+            mockStepContext,
+            null,
+            WindowingStrategy.of(new GlobalWindows()));
+
+    runner.startBundle();
+    runner.processElement(
+        WindowedValue.timestampedValueInGlobalWindow(Duration.ZERO, new Instant(0)));
+    thrown.expect(UserCodeException.class);
+    thrown.expectCause(isA(IllegalArgumentException.class));
+    thrown.expectMessage("must be no earlier");
+    thrown.expectMessage(
+        String.format("timestamp of the current input (%s)", new Instant(0).toString()));
+    thrown.expectMessage(
+        String.format(
+            "the allowed skew (%s)", PeriodFormat.getDefault().print(Duration.ZERO.toPeriod())));
+    runner.processElement(
+        WindowedValue.timestampedValueInGlobalWindow(Duration.millis(1L), new Instant(0)));
+  }
+
+  @Test
+  public void testSkew() {
+    SkewingDoFn fn = new SkewingDoFn(Duration.standardMinutes(10L));
+    DoFnRunner<Duration, Duration> runner =
+        new SimpleDoFnRunner<>(
+            null,
+            fn,
+            NullSideInputReader.empty(),
+            new ListOutputManager(),
+            new TupleTag<Duration>(),
+            Collections.<TupleTag<?>>emptyList(),
+            mockStepContext,
+            null,
+            WindowingStrategy.of(new GlobalWindows()));
+
+    runner.startBundle();
+    runner.processElement(
+        WindowedValue.timestampedValueInGlobalWindow(Duration.millis(1L), new Instant(0)));
+    thrown.expect(UserCodeException.class);
+    thrown.expectCause(isA(IllegalArgumentException.class));
+    thrown.expectMessage("must be no earlier");
+    thrown.expectMessage(
+        String.format("timestamp of the current input (%s)", new Instant(0).toString()));
+    thrown.expectMessage(
+        String.format(
+            "the allowed skew (%s)",
+            PeriodFormat.getDefault().print(Duration.standardMinutes(10L).toPeriod())));
+    runner.processElement(
+        WindowedValue.timestampedValueInGlobalWindow(Duration.standardHours(1L), new Instant(0)));
+  }
+
+  @Test
+  public void testInfiniteSkew() {
+    SkewingDoFn fn = new SkewingDoFn(Duration.millis(Long.MAX_VALUE));
+    DoFnRunner<Duration, Duration> runner =
+        new SimpleDoFnRunner<>(
+            null,
+            fn,
+            NullSideInputReader.empty(),
+            new ListOutputManager(),
+            new TupleTag<Duration>(),
+            Collections.<TupleTag<?>>emptyList(),
+            mockStepContext,
+            null,
+            WindowingStrategy.of(new GlobalWindows()));
+
+    runner.startBundle();
+    runner.processElement(
+        WindowedValue.timestampedValueInGlobalWindow(Duration.millis(1L), new Instant(0)));
+    runner.processElement(
+        WindowedValue.timestampedValueInGlobalWindow(
+            Duration.millis(1L), BoundedWindow.TIMESTAMP_MIN_VALUE.plus(Duration.millis(1))));
+    runner.processElement(
+        WindowedValue.timestampedValueInGlobalWindow(
+            // The maximum distance
+            Duration.millis(BoundedWindow.TIMESTAMP_MAX_VALUE.getMillis())
+                .minus(Duration.millis(BoundedWindow.TIMESTAMP_MIN_VALUE.getMillis()))
+                .minus(1L),
+            BoundedWindow.TIMESTAMP_MAX_VALUE));
+  }
+
   static class ThrowingDoFn extends DoFn<String, String> {
     final Exception exceptionToThrow = new UnsupportedOperationException("Expected exception");
 
@@ -294,6 +390,32 @@ public class SimpleDoFnRunnerTest {
               StateNamespaces.window(windowCoder, (W) context.window()),
               context.timestamp(),
               context.timeDomain()));
+    }
+  }
+
+  private static class SkewingDoFn extends DoFn<Duration, Duration> {
+    private final Duration allowedSkew;
+
+    private SkewingDoFn(Duration allowedSkew) {
+      this.allowedSkew = allowedSkew;
+    }
+
+    @ProcessElement
+    public void processElement(ProcessContext context) {
+      context.outputWithTimestamp(context.element(), context.timestamp().minus(context.element()));
+    }
+
+    @Override
+    public Duration getAllowedTimestampSkew() {
+      return allowedSkew;
+    }
+  }
+
+  private static class ListOutputManager implements OutputManager {
+    private ListMultimap<TupleTag<?>, WindowedValue<?>> outputs = ArrayListMultimap.create();
+    @Override
+    public <T> void output(TupleTag<T> tag, WindowedValue<T> output) {
+      outputs.put(tag, output);
     }
   }
 }

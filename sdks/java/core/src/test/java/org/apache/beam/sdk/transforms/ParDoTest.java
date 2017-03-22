@@ -1282,7 +1282,7 @@ public class ParDoTest implements Serializable {
   }
 
   @Test
-  @Category(NeedsRunner.class)
+  @Category(RunnableOnService.class)
   public void testParDoShiftTimestamp() {
 
     PCollection<Integer> input =
@@ -1290,10 +1290,12 @@ public class ParDoTest implements Serializable {
 
     PCollection<String> output =
         input
-        .apply(ParDo.of(new TestOutputTimestampDoFn<Integer>()))
-        .apply(ParDo.of(new TestShiftTimestampDoFn<Integer>(Duration.millis(1000),
-                                                   Duration.millis(-1000))))
-        .apply(ParDo.of(new TestFormatTimestampDoFn<Integer>()));
+            .apply(ParDo.of(new TestOutputTimestampDoFn<Integer>()))
+            .apply(
+                ParDo.of(
+                    new TestShiftTimestampDoFn<Integer>(
+                        Duration.millis(1000), Duration.millis(-1000))))
+            .apply(ParDo.of(new TestFormatTimestampDoFn<Integer>()));
 
     PAssert.that(output).containsInAnyOrder(
                    "processing: 3, timestamp: -997",
@@ -1304,7 +1306,7 @@ public class ParDoTest implements Serializable {
   }
 
   @Test
-  @Category(NeedsRunner.class)
+  @Category(RunnableOnService.class)
   public void testParDoShiftTimestampInvalid() {
 
     pipeline
@@ -1328,11 +1330,10 @@ public class ParDoTest implements Serializable {
   @Test
   @Category(NeedsRunner.class)
   public void testParDoShiftTimestampInvalidZeroAllowed() {
-
-    pipeline.apply(Create.of(Arrays.asList(3, 42, 6)))
+    pipeline
+        .apply(Create.of(Arrays.asList(3, 42, 6)))
         .apply(ParDo.of(new TestOutputTimestampDoFn<Integer>()))
-        .apply(ParDo.of(new TestShiftTimestampDoFn<Integer>(Duration.ZERO,
-                                                   Duration.millis(-1001))))
+        .apply(ParDo.of(new TestShiftTimestampDoFn<Integer>(Duration.ZERO, Duration.millis(-1001))))
         .apply(ParDo.of(new TestFormatTimestampDoFn<Integer>()));
 
     thrown.expect(RuntimeException.class);
