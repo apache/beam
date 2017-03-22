@@ -26,12 +26,99 @@ import time
 from apache_beam.internal import util
 from apache_beam.io import iobase
 from apache_beam.io.filesystem import BeamIOError
+from apache_beam.io.filesystem import CompressedFile as _CompressedFile
 from apache_beam.io.filesystem import CompressionTypes
 from apache_beam.io.filesystems_util import get_filesystem
 from apache_beam.transforms.display import DisplayDataItem
 
 MAX_BATCH_OPERATION_SIZE = 100
 DEFAULT_SHARD_NAME_TEMPLATE = '-SSSSS-of-NNNNN'
+
+
+# TODO(sourabhbajaj): Remove this after BFS API is used everywhere
+class ChannelFactory(object):
+  @staticmethod
+  def mkdir(path):
+    bfs = get_filesystem(path)
+    bfs.mkdirs(path)
+
+  @staticmethod
+  def open(path,
+           mode,
+           mime_type='application/octet-stream',
+           compression_type=CompressionTypes.AUTO):
+    bfs = get_filesystem(path)
+    if mode == 'rb':
+      return bfs.open(path, mime_type, compression_type)
+    elif mode == 'wb':
+      return bfs.create(path, mime_type, compression_type)
+
+  @staticmethod
+  def is_compressed(fileobj):
+    return isinstance(fileobj, _CompressedFile)
+
+  @staticmethod
+  def rename(src, dest):
+    bfs = get_filesystem(path)
+    bfs.rename([src], [dest])
+
+  @staticmethod
+  def rename_batch(src_dest_pairs):
+    sources = [s for s, _ in src_dest_pairs]
+    destinations = [d for _, d in src_dest_pairs]
+    bfs = get_filesystem()
+    try:
+      bfs.rename(sources, destinations)
+      return []
+    except BeamIOError as exp:
+      return [(s, d, e) for (s, d), e in exp.exception_details.iteritems()]
+
+  @staticmethod
+  def copytree(src, dest):
+    bfs = get_filesystem()
+    bfs.copy([src], [dest])
+
+  @staticmethod
+  def exists(path):
+    bfs = get_filesystem(path)
+    bfs.exists(path)
+
+  @staticmethod
+  def rmdir(path):
+    bfs = get_filesystem(path)
+    bfs.delete([path])
+
+  @staticmethod
+  def rm(path):
+    bfs = get_filesystem(path)
+    bfs.delete([path])
+
+  @staticmethod
+  def glob(path, limit=None):
+    bfs = get_filesystem(path)
+    match_result = bfs.match([path], [limit])[0]
+    return [f.path for f in match_result.metadata_list]
+
+  @staticmethod
+  def size_in_bytes(path):
+    bfs = get_filesystem(path)
+    match_result = bfs.match([path], [limit])[0]
+    return [f.size_in_bytes for f in match_result.metadata_list][0]
+
+  @staticmethod
+  def size_of_files_in_glob(path, file_names=None):
+    bfs = get_filesystem(path)
+    match_result = bfs.match([path], [limit])[0]
+    part_files = {f.path:f.size_in_bytes for f in match_result.metadata_list}
+
+    if file_names is not None:
+      specific_files = {}
+      match_results = bfs.match(file_names)
+      for match_result in match_results:
+        for metadata in match_result.metadata_list:
+          specific_files[metadata.path] = metadata.size_in_bytes
+
+    return part_files.update(specific_files)
 
 
 class FileSink(iobase.Sink):
@@ -182,30 +269,28 @@ class FileSink(iobase.Sink):
       exceptions = []
       try:
         self._file_system.rename(source_files, destination_files)
-        exception_infos = {}
+        return exceptions
       except BeamIOError as exp:
-        exception_infos = exp.exception_details
-
-      for (src, dest), exception in exception_infos.iteritems():
-        if exception:
-          logging.warning('Rename not successful: %s -> %s, %s', src, dest,
-                          exception)
-          should_report = True
-          if isinstance(exception, IOError):
-            # May have already been copied.
-            try:
-              if self._file_system.exists(dest):
-                should_report = False
-            except Exception as exists_e:  # pylint: disable=broad-except
-              logging.warning('Exception when checking if file %s exists: '
-                              '%s', dest, exists_e)
-          if should_report:
-            logging.warning(('Exception in _rename_batch. src: %s, '
-                             'dest: %s, err: %s'), src, dest, exception)
-            exceptions.append(exception)
-        else:
-          logging.debug('Rename successful: %s -> %s', src, dest)
-      return exceptions
+        for (src, dest), exception in exp.exception_details.iteritems():
+          if exception:
+            logging.warning('Rename not successful: %s -> %s, %s', src, dest,
+                            exception)
+            should_report = True
+            if isinstance(exception, IOError):
+              # May have already been copied.
+              try:
+                if self._file_system.exists(dest):
+                  should_report = False
+              except Exception as exists_e:  # pylint: disable=broad-except
+                logging.warning('Exception when checking if file %s exists: '
+                                '%s', dest, exists_e)
+            if should_report:
+              logging.warning(('Exception in _rename_batch. src: %s, '
+                               'dest: %s, err: %s'), src, dest, exception)
+              exceptions.append(exception)
+          else:
+            logging.debug('Rename successful: %s -> %s', src, dest)
+        return exceptions
 
     exception_batches = util.run_using_threadpool(
         _rename_batch, zip(source_file_batch, destination_file_batch),
