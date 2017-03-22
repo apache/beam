@@ -19,16 +19,13 @@
 package org.apache.beam.runners.spark.metrics;
 
 import com.google.common.base.Function;
-import com.google.common.base.Objects;
 import com.google.common.base.Predicate;
 import com.google.common.collect.FluentIterable;
-import java.util.Set;
 import org.apache.beam.sdk.metrics.DistributionData;
 import org.apache.beam.sdk.metrics.DistributionResult;
 import org.apache.beam.sdk.metrics.MetricFiltering;
 import org.apache.beam.sdk.metrics.MetricKey;
 import org.apache.beam.sdk.metrics.MetricName;
-import org.apache.beam.sdk.metrics.MetricNameFilter;
 import org.apache.beam.sdk.metrics.MetricQueryResults;
 import org.apache.beam.sdk.metrics.MetricResult;
 import org.apache.beam.sdk.metrics.MetricResults;
