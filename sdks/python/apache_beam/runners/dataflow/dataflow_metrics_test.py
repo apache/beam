@@ -47,31 +47,31 @@ class TestDataflowMetrics(unittest.TestCase):
   STRUCTURED_COUNTER_LIST = {"metrics": [
       {"name": {"context":
                 {"additionalProperties": [
-                      {"key": "namespace",
-                       "value": "__main__.WordExtractingDoFn"},
-                      {"key": "step",
-                       "value": "s2"},
-                      {"key": "tentative",
-                       "value": "true"}]
-                  },
-              "name": "word_lengths",
-              "origin": "user"
-          },
-          "scalar": {"integer_value": 109475},
-          "updateTime": "2017-03-22T18:47:06.402Z"
+                    {"key": "namespace",
+                     "value": "__main__.WordExtractingDoFn"},
+                    {"key": "step",
+                     "value": "s2"},
+                    {"key": "tentative",
+                     "value": "true"}]
+                },
+                "name": "word_lengths",
+                "origin": "user"
+               },
+       "scalar": {"integer_value": 109475},
+       "updateTime": "2017-03-22T18:47:06.402Z"
       },
       {"name": {"context":
-                  {"additionalProperties": [
-                      {"key": "namespace",
-                       "value": "__main__.WordExtractingDoFn"},
-                      {"key": "step",
-                       "value": "s2"}]
-                  },
-              "name": "word_lengths",
-              "origin": "user"
-          },
-          "scalar": {"integer_value": 109475},
-          "updateTime": "2017-03-22T18:47:06.402Z"
+                {"additionalProperties": [
+                    {"key": "namespace",
+                     "value": "__main__.WordExtractingDoFn"},
+                    {"key": "step",
+                     "value": "s2"}]
+                },
+                "name": "word_lengths",
+                "origin": "user"
+               },
+       "scalar": {"integer_value": 109475},
+       "updateTime": "2017-03-22T18:47:06.402Z"
       },
   ]}
 
@@ -132,7 +132,10 @@ class TestDataflowMetrics(unittest.TestCase):
        "updateTime": "2017-02-23T01:13:36.659Z"}
   ]}
 
-  def setup_mock_client_result(self, counter_list=BASIC_COUNTER_LIST):
+  def setup_mock_client_result(self, counter_list=None):
+    if counter_list is None:
+      counter_list = self.BASIC_COUNTER_LIST
+
     mock_client = mock.Mock()
     mock_query_result = DictToObject(counter_list)
     mock_client.get_job_metrics.return_value = mock_query_result
@@ -166,7 +169,8 @@ class TestDataflowMetrics(unittest.TestCase):
     expected_counters = [
         MetricResult(
             MetricKey('split',
-                      MetricName('__main__.WordExtractingDoFn', 'word_lengths')),
+                      MetricName('__main__.WordExtractingDoFn',
+                                 'word_lengths')),
             109475, 109475),
         ]
     self.assertEqual(query_result['counters'], expected_counters)
