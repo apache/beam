@@ -55,10 +55,10 @@ class ConsumerSpEL {
   public ConsumerSpEL() {
     try {
       timestampMethod = ConsumerRecord.class.getMethod("timestamp", (Class<?>[]) null);
+      hasRecordTimestamp = timestampMethod.getReturnType().equals(Long.TYPE);
     } catch (NoSuchMethodException | SecurityException e) {
       LOG.debug("Timestamp for Kafka message is not available.");
     }
-    hasRecordTimestamp = hasRecordTimestamp();
   }
 
   public void evaluateSeek2End(Consumer consumer, TopicPartition topicPartitions) {
@@ -73,17 +73,6 @@ class ConsumerSpEL {
     mapContext.setVariable("consumer", consumer);
     mapContext.setVariable("tp", topicPartitions);
     assignExpression.getValue(mapContext);
-  }
-
-  private boolean hasRecordTimestamp(){
-    boolean hasRecordTimestamp = false;
-    try {
-      hasRecordTimestamp = timestampMethod != null
-          && timestampMethod.getReturnType().equals(Long.TYPE);
-    } catch (SecurityException e) {
-      hasRecordTimestamp = false;
-    }
-    return hasRecordTimestamp;
   }
 
   public long getRecordTimestamp(ConsumerRecord<byte[], byte[]> rawRecord) {
