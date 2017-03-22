@@ -30,15 +30,17 @@ import org.apache.beam.sdk.io.Source;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.spark.Dependency;
+import org.apache.spark.HashPartitioner;
 import org.apache.spark.InterruptibleIterator;
 import org.apache.spark.Partition;
+import org.apache.spark.Partitioner;
 import org.apache.spark.SparkContext;
 import org.apache.spark.TaskContext;
 import org.apache.spark.api.java.JavaSparkContext$;
 import org.apache.spark.rdd.RDD;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
+import scala.Option;
 
 
 /**
@@ -213,8 +215,10 @@ public class SourceRDD {
    */
   public static class Unbounded<T, CheckpointMarkT extends
         UnboundedSource.CheckpointMark> extends RDD<scala.Tuple2<Source<T>, CheckpointMarkT>> {
+
     private final MicrobatchSource<T, CheckpointMarkT> microbatchSource;
     private final SparkRuntimeContext runtimeContext;
+    private final Partitioner partitioner;
 
     // to satisfy Scala API.
     private static final scala.collection.immutable.List<Dependency<?>> NIL =
@@ -222,12 +226,14 @@ public class SourceRDD {
             .asScalaBuffer(Collections.<Dependency<?>>emptyList()).toList();
 
     public Unbounded(SparkContext sc,
-                     SparkRuntimeContext runtimeContext,
-                     MicrobatchSource<T, CheckpointMarkT> microbatchSource) {
+        SparkRuntimeContext runtimeContext,
+        MicrobatchSource<T, CheckpointMarkT> microbatchSource,
+        int initialNumPartitions) {
       super(sc, NIL,
           JavaSparkContext$.MODULE$.<scala.Tuple2<Source<T>, CheckpointMarkT>>fakeClassTag());
       this.runtimeContext = runtimeContext;
       this.microbatchSource = microbatchSource;
+      this.partitioner = new HashPartitioner(initialNumPartitions);
     }
 
     @Override
@@ -244,6 +250,13 @@ public class SourceRDD {
       } catch (Exception e) {
         throw new RuntimeException("Failed to create partitions.", e);
       }
+    }
+
+    @Override
+    public Option<Partitioner> partitioner() {
+      // setting the partitioner helps to "keep" the same partitioner in the following
+      // mapWithState read for Read.Unbounded, preventing a post-mapWithState shuffle.
+      return scala.Some.apply(partitioner);
     }
 
     @Override
