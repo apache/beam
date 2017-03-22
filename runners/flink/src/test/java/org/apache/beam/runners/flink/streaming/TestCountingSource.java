@@ -133,18 +133,8 @@ public class TestCountingSource
   public Coder<CounterMark> getCheckpointMarkCoder() {
     return DelegateCoder.of(
         VarIntCoder.of(),
-        new DelegateCoder.CodingFunction<CounterMark, Integer>() {
-          @Override
-          public Integer apply(CounterMark input) {
-            return input.current;
-          }
-        },
-        new DelegateCoder.CodingFunction<Integer, CounterMark>() {
-          @Override
-          public CounterMark apply(Integer input) {
-            return new CounterMark(input);
-          }
-        });
+        new FromCounterMark(),
+        new ToCounterMark());
   }
 
   @Override
@@ -250,5 +240,39 @@ public class TestCountingSource
   @Override
   public Coder<KV<Integer, Integer>> getDefaultOutputCoder() {
     return KvCoder.of(VarIntCoder.of(), VarIntCoder.of());
+  }
+
+  private class FromCounterMark implements DelegateCoder.CodingFunction<CounterMark, Integer> {
+    @Override
+    public Integer apply(CounterMark input) {
+      return input.current;
+    }
+
+    @Override
+    public int hashCode() {
+      return FromCounterMark.class.hashCode();
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+      return obj instanceof FromCounterMark;
+    }
+  }
+
+  private class ToCounterMark implements DelegateCoder.CodingFunction<Integer, CounterMark> {
+    @Override
+    public CounterMark apply(Integer input) {
+      return new CounterMark(input);
+    }
+
+    @Override
+    public int hashCode() {
+      return ToCounterMark.class.hashCode();
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+      return obj instanceof ToCounterMark;
+    }
   }
 }
