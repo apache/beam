@@ -112,6 +112,7 @@ public class DoFnOperatorTest {
 
     DoFnOperator<String, String, String> doFnOperator = new DoFnOperator<>(
         new IdentityDoFn<String>(),
+        "stepName",
         windowedValueCoder,
         outputTag,
         Collections.<TupleTag<?>>emptyList(),
@@ -154,6 +155,7 @@ public class DoFnOperatorTest {
 
     DoFnOperator<String, String, RawUnionValue> doFnOperator = new DoFnOperator<>(
         new MultiOutputDoFn(additionalOutput1, additionalOutput2),
+        "stepName",
         windowedValueCoder,
         mainOutput,
         ImmutableList.<TupleTag<?>>of(additionalOutput1, additionalOutput2),
@@ -212,6 +214,7 @@ public class DoFnOperatorTest {
 
     DoFnOperator<Integer, String, WindowedValue<String>> doFnOperator = new DoFnOperator<>(
         fn,
+        "stepName",
         windowedValueCoder,
         outputTag,
         Collections.<TupleTag<?>>emptyList(),
@@ -325,6 +328,7 @@ public class DoFnOperatorTest {
         KV<String, Integer>, KV<String, Integer>, WindowedValue<KV<String, Integer>>> doFnOperator =
         new DoFnOperator<>(
             fn,
+            "stepName",
             windowedValueCoder,
             outputTag,
             Collections.<TupleTag<?>>emptyList(),
@@ -420,6 +424,7 @@ public class DoFnOperatorTest {
 
     DoFnOperator<String, String, String> doFnOperator = new DoFnOperator<>(
         new IdentityDoFn<String>(),
+        "stepName",
         windowedValueCoder,
         outputTag,
         Collections.<TupleTag<?>>emptyList(),

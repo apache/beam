@@ -98,4 +98,9 @@ public interface FlinkPipelineOptions
   AbstractStateBackend getStateBackend();
   void setStateBackend(AbstractStateBackend stateBackend);
 
+  @Description("Enable/disable Beam metrics in Flink Runner")
+  @Default.Boolean(true)
+  Boolean getEnableMetrics();
+  void setEnableMetrics(Boolean enableMetrics);
+
 }

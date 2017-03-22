@@ -286,6 +286,7 @@ class FlinkStreamingTransformTranslators {
     interface DoFnOperatorFactory<InputT, OutputT> {
       DoFnOperator<InputT, OutputT, RawUnionValue> createDoFnOperator(
           DoFn<InputT, OutputT> doFn,
+          String stepName,
           List<PCollectionView<?>> sideInputs,
           TupleTag<OutputT> mainOutputTag,
           List<TupleTag<?>> additionalOutputTags,
@@ -300,6 +301,7 @@ class FlinkStreamingTransformTranslators {
     static <InputT, OutputT> void translateParDo(
         String transformName,
         DoFn<InputT, OutputT> doFn,
+        String stepName,
         PCollection<InputT> input,
         List<PCollectionView<?>> sideInputs,
         Map<TupleTag<?>, PValue> outputs,
@@ -340,6 +342,7 @@ class FlinkStreamingTransformTranslators {
         DoFnOperator<InputT, OutputT, RawUnionValue> doFnOperator =
             doFnOperatorFactory.createDoFnOperator(
                 doFn,
+                context.getCurrentTransform().getFullName(),
                 sideInputs,
                 mainOutputTag,
                 additionalOutputTags,
@@ -365,6 +368,7 @@ class FlinkStreamingTransformTranslators {
         DoFnOperator<InputT, OutputT, RawUnionValue> doFnOperator =
             doFnOperatorFactory.createDoFnOperator(
                 doFn,
+                context.getCurrentTransform().getFullName(),
                 sideInputs,
                 mainOutputTag,
                 additionalOutputTags,
@@ -483,6 +487,7 @@ class FlinkStreamingTransformTranslators {
       ParDoTranslationHelper.translateParDo(
           transform.getName(),
           transform.getFn(),
+          context.getCurrentTransform().getFullName(),
           (PCollection<InputT>) context.getInput(transform),
           transform.getSideInputs(),
           context.getOutputs(transform),
@@ -493,6 +498,7 @@ class FlinkStreamingTransformTranslators {
             @Override
             public DoFnOperator<InputT, OutputT, RawUnionValue> createDoFnOperator(
                 DoFn<InputT, OutputT> doFn,
+                String stepName,
                 List<PCollectionView<?>> sideInputs,
                 TupleTag<OutputT> mainOutputTag,
                 List<TupleTag<?>> additionalOutputTags,
@@ -504,6 +510,7 @@ class FlinkStreamingTransformTranslators {
                 Map<Integer, PCollectionView<?>> transformedSideInputs) {
               return new DoFnOperator<>(
                   doFn,
+                  stepName,
                   inputCoder,
                   mainOutputTag,
                   additionalOutputTags,
@@ -531,6 +538,7 @@ class FlinkStreamingTransformTranslators {
       ParDoTranslationHelper.translateParDo(
           transform.getName(),
           transform.newProcessFn(transform.getFn()),
+          context.getCurrentTransform().getFullName(),
           (PCollection<KeyedWorkItem<String, ElementAndRestriction<InputT, RestrictionT>>>)
               context.getInput(transform),
           transform.getSideInputs(),
@@ -548,6 +556,7 @@ class FlinkStreamingTransformTranslators {
                     DoFn<
                         KeyedWorkItem<String, ElementAndRestriction<InputT, RestrictionT>>,
                         OutputT> doFn,
+                    String stepName,
                     List<PCollectionView<?>> sideInputs,
                     TupleTag<OutputT> mainOutputTag,
                     List<TupleTag<?>> additionalOutputTags,
@@ -563,6 +572,7 @@ class FlinkStreamingTransformTranslators {
                     Map<Integer, PCollectionView<?>> transformedSideInputs) {
               return new SplittableDoFnOperator<>(
                   doFn,
+                  stepName,
                   inputCoder,
                   mainOutputTag,
                   additionalOutputTags,
@@ -700,6 +710,7 @@ class FlinkStreamingTransformTranslators {
       WindowDoFnOperator<K, InputT, Iterable<InputT>> doFnOperator =
           new WindowDoFnOperator<>(
               reduceFn,
+              context.getCurrentTransform().getFullName(),
               (Coder) windowedWorkItemCoder,
               new TupleTag<KV<K, Iterable<InputT>>>("main output"),
               Collections.<TupleTag<?>>emptyList(),
@@ -800,6 +811,7 @@ class FlinkStreamingTransformTranslators {
         WindowDoFnOperator<K, InputT, OutputT> doFnOperator =
             new WindowDoFnOperator<>(
                 reduceFn,
+                context.getCurrentTransform().getFullName(),
                 (Coder) windowedWorkItemCoder,
                 new TupleTag<KV<K, OutputT>>("main output"),
                 Collections.<TupleTag<?>>emptyList(),
@@ -825,6 +837,7 @@ class FlinkStreamingTransformTranslators {
         WindowDoFnOperator<K, InputT, OutputT> doFnOperator =
             new WindowDoFnOperator<>(
                 reduceFn,
+                context.getCurrentTransform().getFullName(),
                 (Coder) windowedWorkItemCoder,
                 new TupleTag<KV<K, OutputT>>("main output"),
                 Collections.<TupleTag<?>>emptyList(),

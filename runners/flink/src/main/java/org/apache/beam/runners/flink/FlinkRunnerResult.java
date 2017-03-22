@@ -20,6 +20,7 @@ package org.apache.beam.runners.flink;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.Map;
+import org.apache.beam.runners.flink.metrics.FlinkMetricResults;
 import org.apache.beam.sdk.AggregatorRetrievalException;
 import org.apache.beam.sdk.AggregatorValues;
 import org.apache.beam.sdk.PipelineResult;
@@ -93,6 +94,6 @@ public class FlinkRunnerResult implements PipelineResult {
 
   @Override
   public MetricResults metrics() {
-    throw new UnsupportedOperationException("The FlinkRunner does not currently support metrics.");
+    return new FlinkMetricResults(aggregators);
   }
 }

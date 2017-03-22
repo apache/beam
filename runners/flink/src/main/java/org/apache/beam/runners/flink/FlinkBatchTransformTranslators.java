@@ -571,7 +571,8 @@ class FlinkBatchTransformTranslators {
             (KvCoder<?, InputT>) context.getInput(transform).getCoder();
 
         FlinkStatefulDoFnFunction<?, ?, OutputT> doFnWrapper = new FlinkStatefulDoFnFunction<>(
-            (DoFn) doFn, windowingStrategy, sideInputStrategies, context.getPipelineOptions(),
+            (DoFn) doFn, context.getCurrentTransform().getFullName(),
+            windowingStrategy, sideInputStrategies, context.getPipelineOptions(),
             outputMap, transform.getMainOutputTag()
         );
 
@@ -585,6 +586,7 @@ class FlinkBatchTransformTranslators {
         FlinkDoFnFunction<InputT, RawUnionValue> doFnWrapper =
             new FlinkDoFnFunction(
                 doFn,
+                context.getCurrentTransform().getFullName(),
                 windowingStrategy,
                 sideInputStrategies,
                 context.getPipelineOptions(),
