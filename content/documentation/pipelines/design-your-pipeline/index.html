@@ -190,7 +190,7 @@
 </figure>
 <p>Figure 1: A linear pipeline.</p>
 
-<p>However, your pipeline can be significantly more complex. A pipeline represents a <a href="https://en.wikipedia.org/wiki/Directed_acyclic_graph">Directed Acyclic Graph</a> of steps. It can have multiple input sources, multiple output sinks, and its operations (transforms) can output multiple <code class="highlighter-rouge">PCollection</code>s. The following examples show some of the different shapes your pipeline can take.</p>
+<p>However, your pipeline can be significantly more complex. A pipeline represents a <a href="https://en.wikipedia.org/wiki/Directed_acyclic_graph">Directed Acyclic Graph</a> of steps. It can have multiple input sources, multiple output sinks, and its operations (<code class="highlighter-rouge">PTransform</code>s) can both read and output multiple <code class="highlighter-rouge">PCollection</code>s. The following examples show some of the different shapes your pipeline can take.</p>
 
 <h2 id="branching-pcollections">Branching PCollections</h2>
 
@@ -205,7 +205,28 @@
 <figure id="fig2">
     <img src="/images/design-your-pipeline-multiple-pcollections.png" alt="A pipeline with multiple transforms. Note that the PCollection of table rows is processed by two transforms." />
 </figure>
-<p>Figure 2: A pipeline with multiple transforms. Note that the PCollection of the database table rows is processed by two transforms.</p>
+<p>Figure 2: A pipeline with multiple transforms. Note that the PCollection of the database table rows is processed by two transforms. See the example code below:</p>
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">dbRowCollection</span> <span class="o">=</span> <span class="o">...;</span>
+
+<span class="n">PCollection</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">aCollection</span> <span class="o">=</span> <span class="n">dbRowCollection</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="s">"aTrans"</span><span class="o">,</span> <span class="n">ParDo</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="k">new</span> <span class="n">DoFn</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">String</span><span class="o">&gt;(){</span>
+  <span class="nd">@ProcessElement</span>
+  <span class="kd">public</span> <span class="kt">void</span> <span class="nf">processElement</span><span class="o">(</span><span class="n">ProcessContext</span> <span class="n">c</span><span class="o">)</span> <span class="o">{</span>
+    <span class="k">if</span><span class="o">(</span><span class="n">c</span><span class="o">.</span><span class="na">element</span><span class="o">().</span><span class="na">startsWith</span><span class="o">(</span><span class="s">"A"</span><span class="o">)){</span>
+      <span class="n">c</span><span class="o">.</span><span class="na">output</span><span class="o">(</span><span class="n">c</span><span class="o">.</span><span class="na">element</span><span class="o">());</span>
+    <span class="o">}</span>
+  <span class="o">}</span>
+<span class="o">}));</span>
+
+<span class="n">PCollection</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">bCollection</span> <span class="o">=</span> <span class="n">dbRowCollection</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="s">"bTrans"</span><span class="o">,</span> <span class="n">ParDo</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="k">new</span> <span class="n">DoFn</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">String</span><span class="o">&gt;(){</span>
+  <span class="nd">@ProcessElement</span>
+  <span class="kd">public</span> <span class="kt">void</span> <span class="nf">processElement</span><span class="o">(</span><span class="n">ProcessContext</span> <span class="n">c</span><span class="o">)</span> <span class="o">{</span>
+    <span class="k">if</span><span class="o">(</span><span class="n">c</span><span class="o">.</span><span class="na">element</span><span class="o">().</span><span class="na">startsWith</span><span class="o">(</span><span class="s">"B"</span><span class="o">)){</span>
+      <span class="n">c</span><span class="o">.</span><span class="na">output</span><span class="o">(</span><span class="n">c</span><span class="o">.</span><span class="na">element</span><span class="o">());</span>
+    <span class="o">}</span>
+  <span class="o">}</span>
+<span class="o">}));</span>
+</code></pre>
+</div>
 
 <h3 id="a-single-transform-that-uses-side-outputs">A single transform that uses side outputs</h3>
 
@@ -232,7 +253,37 @@
 
 <pre>if (starts with 'A') { outputToPCollectionA } else if (starts with 'B') { outputToPCollectionB }</pre>
 
-<p>where each element in the input <code class="highlighter-rouge">PCollection</code> is processed once.</p>
+<p>where each element in the input <code class="highlighter-rouge">PCollection</code> is processed once. See the example code below:</p>
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="c1">//define main stream and side output</span>
+<span class="kd">final</span> <span class="n">TupleTag</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">mainStreamTag</span> <span class="o">=</span> <span class="k">new</span> <span class="n">TupleTag</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;(){};</span>
+<span class="kd">final</span> <span class="n">TupleTag</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">sideoutTag</span> <span class="o">=</span> <span class="k">new</span> <span class="n">TupleTag</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;(){};</span>
+
+<span class="n">PCollectionTuple</span> <span class="n">mixedCollection</span> <span class="o">=</span>
+    <span class="n">dbRowCollection</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span>
+        <span class="n">ParDo</span>
+        <span class="c1">// Specify the tag for the main output, wordsBelowCutoffTag.</span>
+        <span class="o">.</span><span class="na">withOutputTags</span><span class="o">(</span><span class="n">mainStreamTag</span><span class="o">,</span>
+        <span class="c1">// Specify the tags for the two side outputs as a TupleTagList.</span>
+                        <span class="n">TupleTagList</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">sideoutTag</span><span class="o">))</span>
+        <span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="k">new</span> <span class="n">DoFn</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">String</span><span class="o">&gt;()</span> <span class="o">{</span>
+          <span class="nd">@ProcessElement</span>
+        <span class="kd">public</span> <span class="kt">void</span> <span class="nf">processElement</span><span class="o">(</span><span class="n">ProcessContext</span> <span class="n">c</span><span class="o">)</span> <span class="o">{</span>
+          <span class="k">if</span><span class="o">(</span><span class="n">c</span><span class="o">.</span><span class="na">element</span><span class="o">().</span><span class="na">startsWith</span><span class="o">(</span><span class="s">"A"</span><span class="o">)){</span><span class="c1">//output to main stream</span>
+            <span class="n">c</span><span class="o">.</span><span class="na">output</span><span class="o">(</span><span class="n">c</span><span class="o">.</span><span class="na">element</span><span class="o">());</span>
+          <span class="o">}</span><span class="k">else</span> <span class="k">if</span><span class="o">(</span><span class="n">c</span><span class="o">.</span><span class="na">element</span><span class="o">().</span><span class="na">startsWith</span><span class="o">(</span><span class="s">"B"</span><span class="o">)){</span><span class="c1">//emit as Side outputs</span>
+            <span class="n">c</span><span class="o">.</span><span class="na">sideOutput</span><span class="o">(</span><span class="n">sideoutTag</span><span class="o">,</span> <span class="n">c</span><span class="o">.</span><span class="na">element</span><span class="o">());</span>
+          <span class="o">}</span>
+        <span class="o">}</span>
+        <span class="o">}</span>
+        <span class="o">));</span>
+
+<span class="c1">// get subset of main stream </span>
+<span class="n">mixedCollection</span><span class="o">.</span><span class="na">get</span><span class="o">(</span><span class="n">mainStreamTag</span><span class="o">).</span><span class="na">apply</span><span class="o">(...);</span>
+
+<span class="c1">// get subset of Side output</span>
+<span class="n">mixedCollection</span><span class="o">.</span><span class="na">get</span><span class="o">(</span><span class="n">sideoutTag</span><span class="o">).</span><span class="na">apply</span><span class="o">(...);</span>
+</code></pre>
+</div>
 
 <p>You can use either mechanism to produce multiple output <code class="highlighter-rouge">PCollection</code>s. However, using side outputs makes more sense if the transform’s computation per element is time-consuming.</p>
 
@@ -245,12 +296,21 @@
   <li><strong>Join</strong> - You can use the <code class="highlighter-rouge">CoGroupByKey</code> transform in the Beam SDK to perform a relational join between two <code class="highlighter-rouge">PCollection</code>s. The <code class="highlighter-rouge">PCollection</code>s must be keyed (i.e. they must be collections of key/value pairs) and they must use the same key type.</li>
 </ul>
 
-<p>The example depicted in Figure 4 below is a continuation of the example illustrated in Figure 2 in the section above. After branching into two <code class="highlighter-rouge">PCollection</code>s, one with names that begin with ‘A’ and one with names that begin with ‘B’, the pipeline merges the two together into a single <code class="highlighter-rouge">PCollection</code> that now contains all names that begin with either ‘A’ or ‘B’. Here, it makes sense to use <code class="highlighter-rouge">Flatten</code> because the <code class="highlighter-rouge">PCollection</code>s being merged both contain the same type.</p>
+<p>The example depicted in Figure 4 below is a continuation of the example illustrated in Figure 2 in <a href="#multiple-transforms-process-the-same-pcollection">the section above</a>. After branching into two <code class="highlighter-rouge">PCollection</code>s, one with names that begin with ‘A’ and one with names that begin with ‘B’, the pipeline merges the two together into a single <code class="highlighter-rouge">PCollection</code> that now contains all names that begin with either ‘A’ or ‘B’. Here, it makes sense to use <code class="highlighter-rouge">Flatten</code> because the <code class="highlighter-rouge">PCollection</code>s being merged both contain the same type.</p>
 
 <figure id="fig4">
     <img src="/images/design-your-pipeline-flatten.png" alt="Part of a pipeline that merges multiple PCollections." />
 </figure>
-<p>Figure 4: Part of a pipeline that merges multiple PCollections.</p>
+<p>Figure 4: Part of a pipeline that merges multiple PCollections. See the example code below:</p>
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="c1">//merge the two PCollections with Flatten</span>
+<span class="n">PCollectionList</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">collectionList</span> <span class="o">=</span> <span class="n">PCollectionList</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">aCollection</span><span class="o">).</span><span class="na">and</span><span class="o">(</span><span class="n">bCollection</span><span class="o">);</span>
+<span class="n">PCollection</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">mergedCollectionWithFlatten</span> <span class="o">=</span> <span class="n">collectionList</span>
+    <span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">Flatten</span><span class="o">.&lt;</span><span class="n">String</span><span class="o">&gt;</span><span class="n">pCollections</span><span class="o">());</span>
+
+<span class="c1">// continue with the new merged PCollection		</span>
+<span class="n">mergedCollectionWithFlatten</span><span class="o">.</span><span class="na">apply</span><span class="o">(...);</span>
+</code></pre>
+</div>
 
 <h2 id="multiple-sources">Multiple sources</h2>
 
@@ -259,7 +319,23 @@
 <figure id="fig5">
     <img src="/images/design-your-pipeline-join.png" alt="A pipeline with multiple input sources." />
 </figure>
-<p>Figure 5: A pipeline with multiple input sources.</p>
+<p>Figure 5: A pipeline with multiple input sources. See the example code below:</p>
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">String</span><span class="o">&gt;&gt;</span> <span class="n">userAddress</span> <span class="o">=</span> <span class="n">pipeline</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">JdbcIO</span><span class="o">.&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">String</span><span class="o">&gt;&gt;</span><span class="n">read</span><span class="o">()...);</span>
+
+<span class="n">PCollection</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">String</span><span class="o">&gt;&gt;</span> <span class="n">userOrder</span> <span class="o">=</span> <span class="n">pipeline</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">TextIO</span><span class="o">.&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">String</span><span class="o">&gt;&gt;</span><span class="n">read</span><span class="o">()...);</span>
+
+<span class="kd">final</span> <span class="n">TupleTag</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">addressTag</span> <span class="o">=</span> <span class="k">new</span> <span class="n">TupleTag</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;();</span>
+<span class="kd">final</span> <span class="n">TupleTag</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">orderTag</span> <span class="o">=</span> <span class="k">new</span> <span class="n">TupleTag</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;();</span>
+
+<span class="c1">// Merge collection values into a CoGbkResult collection.</span>
+<span class="n">PCollection</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">CoGbkResult</span><span class="o">&gt;&gt;</span> <span class="n">joinedCollection</span> <span class="o">=</span>
+  <span class="n">KeyedPCollectionTuple</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">addressTag</span><span class="o">,</span> <span class="n">userAddress</span><span class="o">)</span>
+                       <span class="o">.</span><span class="na">and</span><span class="o">(</span><span class="n">orderTag</span><span class="o">,</span> <span class="n">userOrder</span><span class="o">)</span>
+                       <span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">CoGroupByKey</span><span class="o">.&lt;</span><span class="n">String</span><span class="o">&gt;</span><span class="n">create</span><span class="o">());</span>
+
+<span class="n">coGbkResultCollection</span><span class="o">.</span><span class="na">apply</span><span class="o">(...);</span>
+</code></pre>
+</div>
 
 <h2 id="whats-next">What’s next</h2>
 
