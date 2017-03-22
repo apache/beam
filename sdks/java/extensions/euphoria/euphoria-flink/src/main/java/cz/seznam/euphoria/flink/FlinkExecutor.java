@@ -50,6 +50,7 @@ public class FlinkExecutor implements Executor {
   private Optional<AbstractStateBackend> stateBackend = Optional.empty();
   private Duration autoWatermarkInterval = Duration.ofMillis(200);
   private Duration allowedLateness = Duration.ofMillis(0);
+  private Duration latencyTracking = Duration.ofSeconds(2);
   private final Set<Class<?>> registeredClasses = new HashSet<>();
   @Nullable
   private Duration checkpointInterval;
@@ -105,6 +106,7 @@ public class FlinkExecutor implements Executor {
       } else{
         environment.getExecutionConfig().disableObjectReuse();
       }
+      environment.getExecutionConfig().setLatencyTrackingInterval(latencyTracking.toMillis());
 
       Settings settings = flow.getSettings();
 
@@ -233,6 +235,20 @@ public class FlinkExecutor implements Executor {
    */
   public FlinkExecutor setAllowedLateness(Duration lateness) {
     this.allowedLateness = Objects.requireNonNull(lateness);
+    return this;
+  }
+
+  /**
+   * Specifies the interval at which latency tracking markers will be emited.
+   *
+   * @param interval the period at which to emit latency tracking metrics
+   *
+   * @return this instance (for method chaining purposes)
+   *
+   * @see ExecutionConfig#setLatencyTrackingInterval(long)
+   */
+  public FlinkExecutor setLatencyTrackingInterval(Duration interval) {
+    this.latencyTracking = Objects.requireNonNull(interval);
     return this;
   }
 
