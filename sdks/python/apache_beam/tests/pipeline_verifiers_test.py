@@ -100,7 +100,6 @@ class PipelineVerifiersTest(unittest.TestCase):
                                               case['expected_checksum'])
       hc_assert_that(self._mock_result, matcher)
 
-  @patch('time.sleep', return_value=None)
   @patch.object(LocalFileSystem, 'match')
   def test_file_checksum_matcher_read_failed(self, mock_match):
     mock_match.side_effect = IOError('No file found.')
@@ -129,7 +128,8 @@ class PipelineVerifiersTest(unittest.TestCase):
                                     'invalid_sleep_time')
     self.assertEqual(cm.exception.message,
                      'Sleep seconds, if received, must be int. '
-                     'But received: \'invalid_sleep_time\'')
+                     'But received: \'invalid_sleep_time\', '
+                     '<type \'str\'>')
 
   @patch('time.sleep', return_value=None)
   def test_file_checksum_matcher_sleep_before_verify(self, mocked_sleep):

@@ -96,7 +96,8 @@ class FileChecksumMatcher(BaseMatcher):
         self.sleep_secs = sleep_secs
       else:
         raise ValueError('Sleep seconds, if received, must be int. '
-                         'But received: %r' % sleep_secs)
+                         'But received: %r, %s' % (sleep_secs,
+                                                   type(sleep_secs)))
     else:
       self.sleep_secs = None
 
