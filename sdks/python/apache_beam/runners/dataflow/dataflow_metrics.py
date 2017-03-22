@@ -40,7 +40,9 @@ class DataflowMetrics(MetricResults):
       dataflow_client: apiclient.DataflowApplicationClient to interact with the
         dataflow service.
       job_result: DataflowPipelineResult with the state and id information of
-        the job
+        the job.
+      job_graph: apiclient.Job instance to be able to translate between internal
+        step names (e.g. "s2"), and user step names (e.g. "split").
     """
     super(DataflowMetrics, self).__init__()
     self._dataflow_client = dataflow_client
@@ -50,6 +52,7 @@ class DataflowMetrics(MetricResults):
     self._job_graph = job_graph
 
   def _translate_step_name(self, internal_name):
+    """Translate between internal step names (e.g. "s1") and user step names."""
     if not self._job_graph:
       raise ValueError('Could not translate the internal step name.')
 
@@ -65,6 +68,7 @@ class DataflowMetrics(MetricResults):
     return user_step_name
 
   def _get_metric_key(self, metric):
+    """Populate the MetricKey object for a queried metric result."""
     try:
       [step] = [prop.value
                 for prop in metric.name.context.additionalProperties
