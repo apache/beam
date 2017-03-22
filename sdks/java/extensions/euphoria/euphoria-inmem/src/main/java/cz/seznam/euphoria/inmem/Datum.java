@@ -16,7 +16,7 @@
 package cz.seznam.euphoria.inmem;
 
 import cz.seznam.euphoria.core.client.dataset.windowing.Window;
-import cz.seznam.euphoria.core.client.dataset.windowing.WindowedElement;
+import cz.seznam.euphoria.core.client.dataset.windowing.WindowedElementImpl;
 
 /**
  * Object passed inside inmem processing pipelines.
@@ -25,7 +25,7 @@ import cz.seznam.euphoria.core.client.dataset.windowing.WindowedElement;
  *  * end-of-stream marks
  *  * watermarks
  */
-class Datum extends WindowedElement<Window, Object> {
+class Datum extends WindowedElementImpl<Window, Object> {
 
   @SuppressWarnings("unchecked")
   static Datum of(Window window, Object element, long stamp) {

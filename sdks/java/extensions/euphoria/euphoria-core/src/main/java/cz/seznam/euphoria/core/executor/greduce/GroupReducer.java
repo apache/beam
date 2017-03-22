@@ -58,6 +58,7 @@ public class GroupReducer<WID extends Window, KEY, I> {
   }
 
   private final StateFactory<?, State> stateFactory;
+  private final WindowedElement.WindowedElementFactory<WID, Object> elementFactory;
   private final CombinableReduceFunction<State> stateCombiner;
   private final StorageProvider stateStorageProvider;
   private final Collector<WindowedElement<?, Pair<KEY, ?>>> collector;
@@ -71,12 +72,14 @@ public class GroupReducer<WID extends Window, KEY, I> {
   KEY key;
 
   public GroupReducer(StateFactory<?, State> stateFactory,
+               WindowedElement.WindowedElementFactory<WID, Object> elementFactory,
                CombinableReduceFunction<State> stateCombiner,
                StorageProvider stateStorageProvider,
                Windowing windowing,
                Trigger trigger,
                Collector<WindowedElement<?, Pair<KEY, ?>>> collector) {
     this.stateFactory = Objects.requireNonNull(stateFactory);
+    this.elementFactory = Objects.requireNonNull(elementFactory);
     this.stateCombiner = Objects.requireNonNull(stateCombiner);
     this.stateStorageProvider = Objects.requireNonNull(stateStorageProvider);
     this.windowing = Objects.requireNonNull(windowing);
@@ -252,11 +255,13 @@ public class GroupReducer<WID extends Window, KEY, I> {
     }
 
     @Override
+    @SuppressWarnings("unchecked")
     public void collect(T elem) {
       long stamp = (window instanceof TimedWindow)
           ? ((TimedWindow) window).maxTimestamp()
           : clock.getStamp();
-      out.collect(new WindowedElement<>(window, stamp, Pair.of(key, elem)));
+      out.collect((WindowedElement) elementFactory.apply(
+              window, stamp, Pair.of(key, elem)));
     }
 
     @Override

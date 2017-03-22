@@ -21,6 +21,7 @@ import cz.seznam.euphoria.core.client.dataset.windowing.MergingWindowing;
 import cz.seznam.euphoria.core.client.dataset.windowing.TimedWindow;
 import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 import cz.seznam.euphoria.core.client.dataset.windowing.WindowedElement;
+import cz.seznam.euphoria.core.client.dataset.windowing.WindowedElementImpl;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 import cz.seznam.euphoria.core.client.operator.ReduceByKey;
@@ -93,7 +94,7 @@ class ReduceByKeyTranslator implements SparkOperatorTranslator<ReduceByKey> {
       // pre-reduce age
       long timestamp = el.getTimestamp();
 
-      return new WindowedElement<>(kw.window(), timestamp,
+      return new WindowedElementImpl<>(kw.window(), timestamp,
               Pair.of(kw.key(), el.getElement()));
     });
   }

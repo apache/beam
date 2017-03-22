@@ -70,8 +70,8 @@ public final class Session<T> implements MergingWindowing<T, TimeInterval> {
 
   @Override
   public Set<TimeInterval> assignWindowsToElement(WindowedElement<?, T> el) {
-    TimeInterval ret =
-            new TimeInterval(el.timestamp, el.timestamp + gapDurationMillis);
+    long stamp = el.getTimestamp();
+    TimeInterval ret = new TimeInterval(stamp, stamp + gapDurationMillis);
     return Collections.singleton(ret);
   }
 

@@ -15,9 +15,9 @@
  */
 package cz.seznam.euphoria.flink.streaming.io;
 
-import cz.seznam.euphoria.core.client.dataset.windowing.WindowedElement;
 import cz.seznam.euphoria.core.client.io.DataSink;
 import cz.seznam.euphoria.core.client.io.Writer;
+import cz.seznam.euphoria.flink.FlinkElement;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.checkpoint.Checkpointed;
@@ -26,7 +26,7 @@ import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 import java.io.Serializable;
 
 public class DataSinkWrapper<T>
-    extends RichSinkFunction<WindowedElement<?, T>>
+    extends RichSinkFunction<FlinkElement<?, T>>
     implements Checkpointed {
 
   private DataSink<T> dataSink;
@@ -56,7 +56,7 @@ public class DataSinkWrapper<T>
   }
 
   @Override
-  public void invoke(WindowedElement<?, T> elem) throws Exception {
+  public void invoke(FlinkElement<?, T> elem) throws Exception {
     writer.write(elem.getElement());
   }
 
