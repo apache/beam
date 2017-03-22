@@ -998,19 +998,32 @@ public class BigtableIO {
     }
 
     @Override
+    @Nullable
     public final synchronized BigtableSource splitAtFraction(double fraction) {
       ByteKey splitKey;
       try {
         splitKey = rangeTracker.getRange().interpolateKey(fraction);
-      } catch (IllegalArgumentException e) {
+      } catch (RuntimeException e) {
         LOG.info(
-            "%s: Failed to interpolate key for fraction %s.", rangeTracker.getRange(), fraction);
+            "%s: Failed to interpolate key for fraction %s.", rangeTracker.getRange(), fraction, e);
         return null;
       }
       LOG.debug(
           "Proposing to split {} at fraction {} (key {})", rangeTracker, fraction, splitKey);
-      BigtableSource primary = source.withEndKey(splitKey);
-      BigtableSource residual = source.withStartKey(splitKey);
+      BigtableSource primary;
+      BigtableSource residual;
+      try {
+         primary = source.withEndKey(splitKey);
+         residual =  source.withStartKey(splitKey);
+      } catch (RuntimeException e) {
+        LOG.info(
+            "%s: Interpolating for fraction %s yielded invalid split key %s.",
+            rangeTracker.getRange(),
+            fraction,
+            splitKey,
+            e);
+        return null;
+      }
       if (!rangeTracker.trySplitAtPosition(splitKey)) {
         return null;
       }
