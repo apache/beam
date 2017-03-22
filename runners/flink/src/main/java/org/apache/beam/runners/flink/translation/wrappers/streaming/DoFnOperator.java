@@ -47,6 +47,8 @@ import org.apache.beam.runners.core.StateTags;
 import org.apache.beam.runners.core.StatefulDoFnRunner;
 import org.apache.beam.runners.core.TimerInternals;
 import org.apache.beam.runners.core.TimerInternals.TimerData;
+import org.apache.beam.runners.flink.FlinkPipelineOptions;
+import org.apache.beam.runners.flink.metrics.DoFnRunnerWithMetricsUpdate;
 import org.apache.beam.runners.flink.translation.types.CoderTypeSerializer;
 import org.apache.beam.runners.flink.translation.utils.SerializedPipelineOptions;
 import org.apache.beam.runners.flink.translation.wrappers.SerializableFnAggregatorWrapper;
@@ -139,7 +141,9 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
 
   protected transient FlinkStateInternals<?> stateInternals;
 
-  private Coder<WindowedValue<InputT>> inputCoder;
+  private final String stepName;
+
+  private final Coder<WindowedValue<InputT>> inputCoder;
 
   private final Coder<?> keyCoder;
 
@@ -155,6 +159,7 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
 
   public DoFnOperator(
       DoFn<InputT, FnOutputT> doFn,
+      String stepName,
       Coder<WindowedValue<InputT>> inputCoder,
       TupleTag<FnOutputT> mainOutputTag,
       List<TupleTag<?>> additionalOutputTags,
@@ -165,6 +170,7 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
       PipelineOptions options,
       Coder<?> keyCoder) {
     this.doFn = doFn;
+    this.stepName = stepName;
     this.inputCoder = inputCoder;
     this.mainOutputTag = mainOutputTag;
     this.additionalOutputTags = additionalOutputTags;
@@ -319,6 +325,11 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
           windowingStrategy,
           cleanupTimer,
           stateCleaner);
+    }
+
+    if ((serializedOptions.getPipelineOptions().as(FlinkPipelineOptions.class))
+        .getEnableMetrics()) {
+      doFnRunner = new DoFnRunnerWithMetricsUpdate<>(stepName, doFnRunner, getRuntimeContext());
     }
 
     pushbackDoFnRunner =

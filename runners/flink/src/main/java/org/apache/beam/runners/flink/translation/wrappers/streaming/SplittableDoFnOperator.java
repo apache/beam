@@ -59,6 +59,7 @@ public class SplittableDoFnOperator<
 
   public SplittableDoFnOperator(
       DoFn<KeyedWorkItem<String, ElementAndRestriction<InputT, RestrictionT>>, FnOutputT> doFn,
+      String stepName,
       Coder<
           WindowedValue<
               KeyedWorkItem<String, ElementAndRestriction<InputT, RestrictionT>>>> inputCoder,
@@ -72,6 +73,7 @@ public class SplittableDoFnOperator<
       Coder<?> keyCoder) {
     super(
         doFn,
+        stepName,
         inputCoder,
         mainOutputTag,
         additionalOutputTags,
