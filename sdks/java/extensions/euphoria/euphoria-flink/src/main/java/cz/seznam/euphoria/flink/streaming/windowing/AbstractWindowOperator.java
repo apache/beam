@@ -21,7 +21,6 @@ import com.google.common.collect.Table;
 import cz.seznam.euphoria.core.client.dataset.windowing.MergingWindowing;
 import cz.seznam.euphoria.core.client.dataset.windowing.TimedWindow;
 import cz.seznam.euphoria.core.client.dataset.windowing.Window;
-import cz.seznam.euphoria.core.client.dataset.windowing.WindowedElement;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.functional.CombinableReduceFunction;
 import cz.seznam.euphoria.core.client.functional.StateFactory;
@@ -37,6 +36,7 @@ import cz.seznam.euphoria.core.client.triggers.Trigger;
 import cz.seznam.euphoria.core.client.triggers.TriggerContext;
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.flink.storage.Descriptors;
+import cz.seznam.euphoria.flink.FlinkElement;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -61,8 +61,8 @@ import java.util.List;
 import java.util.Objects;
 
 public abstract class AbstractWindowOperator<I, KEY, WID extends Window>
-        extends AbstractStreamOperator<WindowedElement<WID, Pair<?, ?>>>
-        implements OneInputStreamOperator<I, WindowedElement<WID, Pair<?, ?>>>,
+        extends AbstractStreamOperator<FlinkElement<WID, Pair<?, ?>>>
+        implements OneInputStreamOperator<I, FlinkElement<WID, Pair<?, ?>>>,
         Triggerable<KEY, WID> {
 
   private final Windowing<?, WID> windowing;
@@ -451,7 +451,7 @@ public abstract class AbstractWindowOperator<I, KEY, WID extends Window>
 
       // FIXME timestamp is duplicated here
       output.collect(reuse.replace(
-              new WindowedElement<>(window, stamp, Pair.of(key, elem)),
+              new FlinkElement<>(window, stamp, Pair.of(key, elem)),
               stamp));
     }
 

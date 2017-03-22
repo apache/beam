@@ -16,9 +16,9 @@
 package cz.seznam.euphoria.flink.streaming;
 
 import cz.seznam.euphoria.core.client.dataset.windowing.Window;
-import cz.seznam.euphoria.core.client.dataset.windowing.WindowedElement;
 import cz.seznam.euphoria.core.client.functional.UnaryFunctor;
 import cz.seznam.euphoria.core.client.io.Context;
+import cz.seznam.euphoria.flink.FlinkElement;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
@@ -27,9 +27,9 @@ import org.apache.flink.util.Collector;
 import java.util.Objects;
 
 public class StreamingUnaryFunctorWrapper<WID extends Window, IN, OUT>
-        implements FlatMapFunction<WindowedElement<WID, IN>,
-        WindowedElement<WID, OUT>>,
-        ResultTypeQueryable<WindowedElement<WID, OUT>> {
+        implements FlatMapFunction<FlinkElement<WID, IN>,
+        FlinkElement<WID, OUT>>,
+        ResultTypeQueryable<FlinkElement<WID, OUT>> {
 
   private final UnaryFunctor<IN, OUT> f;
 
@@ -38,14 +38,14 @@ public class StreamingUnaryFunctorWrapper<WID extends Window, IN, OUT>
   }
 
   @Override
-  public void flatMap(WindowedElement<WID, IN> value,
-                      Collector<WindowedElement<WID, OUT>> out)
+  public void flatMap(FlinkElement<WID, IN> value,
+                      Collector<FlinkElement<WID, OUT>> out)
       throws Exception
   {
     f.apply(value.getElement(), new Context<OUT>() {
       @Override
       public void collect(OUT elem) {
-        out.collect(new WindowedElement<>(
+        out.collect(new FlinkElement<>(
                 value.getWindow(), value.getTimestamp(), elem));
       }
       @Override
@@ -57,7 +57,7 @@ public class StreamingUnaryFunctorWrapper<WID extends Window, IN, OUT>
 
   @SuppressWarnings("unchecked")
   @Override
-  public TypeInformation<WindowedElement<WID, OUT>> getProducedType() {
-    return TypeInformation.of((Class) WindowedElement.class);
+  public TypeInformation<FlinkElement<WID, OUT>> getProducedType() {
+    return TypeInformation.of((Class) FlinkElement.class);
   }
 }

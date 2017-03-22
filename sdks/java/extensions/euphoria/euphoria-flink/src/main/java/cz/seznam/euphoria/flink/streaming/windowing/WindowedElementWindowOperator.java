@@ -16,11 +16,11 @@
 package cz.seznam.euphoria.flink.streaming.windowing;
 
 import cz.seznam.euphoria.core.client.dataset.windowing.Window;
-import cz.seznam.euphoria.core.client.dataset.windowing.WindowedElement;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.functional.CombinableReduceFunction;
 import cz.seznam.euphoria.core.client.functional.StateFactory;
 import cz.seznam.euphoria.core.client.operator.state.State;
+import cz.seznam.euphoria.flink.FlinkElement;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
@@ -28,16 +28,16 @@ import java.util.Objects;
 
 /**
  * An {@link AbstractWindowOperator} implementation which expects input
- * elements to be of type {@link WindowedElement} and transforms these
+ * elements to be of type {@link FlinkElement} and transforms these
  * into {@link KeyedMultiWindowedElement} on the fly.
  */
 public class WindowedElementWindowOperator<KEY, WID extends Window>
-        extends AbstractWindowOperator<WindowedElement<WID, ?>, KEY, WID> {
+        extends AbstractWindowOperator<FlinkElement<WID, ?>, KEY, WID> {
 
-    MapFunction<WindowedElement<WID, ?>, KeyedMultiWindowedElement<WID, KEY, ?>> mapper;
+    MapFunction<FlinkElement<WID, ?>, KeyedMultiWindowedElement<WID, KEY, ?>> mapper;
 
     public WindowedElementWindowOperator(
-            MapFunction<WindowedElement<WID, ?>, KeyedMultiWindowedElement<WID, KEY, ?>> mapper,
+            MapFunction<FlinkElement<WID, ?>, KeyedMultiWindowedElement<WID, KEY, ?>> mapper,
             Windowing<?, WID> windowing,
             StateFactory<?, State> stateFactory,
             CombinableReduceFunction<State> stateCombiner,
@@ -48,7 +48,7 @@ public class WindowedElementWindowOperator<KEY, WID extends Window>
 
     @Override
     protected KeyedMultiWindowedElement<WID, KEY, ?>
-    recordValue(StreamRecord<WindowedElement<WID, ?>> record) throws Exception {
+    recordValue(StreamRecord<FlinkElement<WID, ?>> record) throws Exception {
         return mapper.map(record.getValue());
     }
 }

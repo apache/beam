@@ -67,8 +67,8 @@ public final class TimeSliding<T>
   public Set<TimeInterval> assignWindowsToElement(WindowedElement<?, T> el) {
     Set<TimeInterval> ret =
             Sets.newHashSetWithExpectedSize((int) (this.duration / this.slide));
-    for (long start = el.timestamp - el.timestamp % this.slide;
-         start > el.timestamp - this.duration;
+    for (long start = el.getTimestamp() - el.getTimestamp() % this.slide;
+         start > el.getTimestamp() - this.duration;
          start -= this.slide) {
       ret.add(new TimeInterval(start, start + this.duration));
     }

@@ -66,7 +66,8 @@ public class Time<T> implements Windowing<T, TimeInterval> {
 
   @Override
   public Set<TimeInterval> assignWindowsToElement(WindowedElement<?, T> el) {
-    long start = el.timestamp - (el.timestamp + durationMillis) % durationMillis;
+    long stamp = el.getTimestamp();
+    long start = stamp - (stamp + durationMillis) % durationMillis;
     long end = start + durationMillis;
     return singleton(new TimeInterval(start, end));
   }
