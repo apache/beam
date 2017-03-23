@@ -69,7 +69,7 @@ import org.slf4j.LoggerFactory;
 /**
  * A bounded source and sink for Google Cloud Bigtable.
  *
- * <p>For more information, see the online documentation at
+ * <p>For more information about Cloud Bigtable, see the online documentation at
  * <a href="https://cloud.google.com/bigtable/">Google Cloud Bigtable</a>.
  *
  * <h3>Reading from Cloud Bigtable</h3>
@@ -141,13 +141,13 @@ import org.slf4j.LoggerFactory;
  * <h3>Experimental</h3>
  *
  * <p>This connector for Cloud Bigtable is considered experimental and may break or receive
- * backwards-incompatible changes in future versions of the Cloud Dataflow SDK. Cloud Bigtable is
+ * backwards-incompatible changes in future versions of the Apache Beam SDK. Cloud Bigtable is
  * in Beta, and thus it may introduce breaking changes in future revisions of its service or APIs.
  *
  * <h3>Permissions</h3>
  *
  * <p>Permission requirements depend on the {@link PipelineRunner} that is used to execute the
- * Dataflow job. Please refer to the documentation of corresponding
+ * pipeline. Please refer to the documentation of corresponding
  * {@link PipelineRunner PipelineRunners} for more details.
  */
 @Experimental
