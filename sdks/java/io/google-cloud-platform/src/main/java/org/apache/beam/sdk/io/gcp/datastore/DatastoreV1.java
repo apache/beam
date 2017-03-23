@@ -132,7 +132,7 @@ import org.slf4j.LoggerFactory;
  *         .withQuery(query));
  * } </pre>
  *
- * <p><b>Note:</b> Normally, a Cloud Dataflow job will read from Cloud Datastore in parallel across
+ * <p><b>Note:</b> A runner may read from Cloud Datastore in parallel across
  * many workers. However, when the {@link Query} is configured with a limit using
  * {@link com.google.datastore.v1.Query.Builder#setLimit(Int32Value)} or if the Query contains
  * inequality filters like {@code GREATER_THAN, LESS_THAN} etc., then all returned results

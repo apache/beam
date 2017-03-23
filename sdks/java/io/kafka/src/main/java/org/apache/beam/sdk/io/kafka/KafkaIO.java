@@ -151,8 +151,7 @@ import org.slf4j.LoggerFactory;
  *
  * <h3>Partition Assignment and Checkpointing</h3>
  * The Kafka partitions are evenly distributed among splits (workers).
- * Dataflow checkpointing is fully supported and
- * each split can resume from previous checkpoint. See
+ * Checkpointing is fully supported and each split can resume from previous checkpoint. See
  * {@link UnboundedKafkaSource#generateInitialSplits(int, PipelineOptions)} for more details on
  * splits and checkpoint support.
  *
@@ -818,7 +817,6 @@ public class KafkaIO {
 
         checkState(checkpointMark.getPartitions().size() == partitions.size(),
             "checkPointMark and assignedPartitions should match");
-        // we could consider allowing a mismatch, though it is not expected in current Dataflow
 
         for (int i = 0; i < partitions.size(); i++) {
           PartitionMark ckptMark = checkpointMark.getPartitions().get(i);

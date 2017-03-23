@@ -104,9 +104,7 @@ public abstract class BoundedSource<T> extends Source<T> {
    *
    * <p>Sources which support dynamic work rebalancing should use
    * {@link org.apache.beam.sdk.io.range.RangeTracker} to manage the (source-specific)
-   * range of positions that is being split. If your source supports dynamic work rebalancing,
-   * please use that class to implement it if possible; if not possible, please contact the team
-   * at <i>dataflow-feedback@google.com</i>.
+   * range of positions that is being split.
    */
   @Experimental(Experimental.Kind.SOURCE_SINK)
   public abstract static class BoundedReader<T> extends Source.Reader<T> {

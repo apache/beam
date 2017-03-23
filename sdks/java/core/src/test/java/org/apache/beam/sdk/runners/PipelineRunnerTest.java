@@ -35,9 +35,6 @@ import org.junit.runners.JUnit4;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
-/**
- * Tests for DataflowRunner.
- */
 @RunWith(JUnit4.class)
 public class PipelineRunnerTest {
 

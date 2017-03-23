@@ -68,8 +68,8 @@ public class TFRecordIO {
      * Returns a transform for reading TFRecord files that reads from the file(s)
      * with the given filename or filename pattern. This can be a local path (if running locally),
      * or a Google Cloud Storage filename or filename pattern of the form
-     * {@code "gs://<bucket>/<filepath>"} (if running locally or via the Google Cloud Dataflow
-     * service). Standard <a href="http://docs.oracle.com/javase/tutorial/essential/io/find.html"
+     * {@code "gs://<bucket>/<filepath>"} (if running locally or using remote
+     * execution). Standard <a href="http://docs.oracle.com/javase/tutorial/essential/io/find.html"
      * >Java Filesystem glob patterns</a> ("*", "?", "[..]") are supported.
      */
     public static Bound from(String filepattern) {
@@ -284,7 +284,7 @@ public class TFRecordIO {
      * with the given prefix. This can be a local filename
      * (if running locally), or a Google Cloud Storage filename of
      * the form {@code "gs://<bucket>/<filepath>"}
-     * (if running locally or via the Google Cloud Dataflow service).
+     * (if running locally or using remote execution).
      *
      * <p>The files written will begin with this prefix, followed by
      * a shard identifier (see {@link TFRecordIO.Write.Bound#withNumShards(int)}, and end
