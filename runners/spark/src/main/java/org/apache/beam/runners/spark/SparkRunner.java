@@ -97,8 +97,6 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
    */
   private final SparkPipelineOptions mOptions;
 
-  private SparkPipelineTranslator translator;
-
   /**
    * Creates and returns a new SparkRunner with default options. In particular, against a
    * spark instance running in local mode.
@@ -147,6 +145,9 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
 
     final SparkPipelineResult result;
     final Future<?> startPipeline;
+
+    final SparkPipelineTranslator translator;
+
     final ExecutorService executorService = Executors.newSingleThreadExecutor();
 
     MetricsEnvironment.setMetricsSupported(true);
@@ -165,8 +166,7 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
       // update cache candidates
       translator = new StreamingTransformTranslator.Translator(
           new TransformTranslator.Translator());
-      updateCacheCandidates(pipeline, translator,
-          contextFactory.getEvaluationContext());
+      updateCacheCandidates(pipeline, translator, contextFactory.getEvaluationContext());
 
       // Checkpoint aggregator/metrics values
       jssc.addStreamingListener(
@@ -204,8 +204,7 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
     } else {
       // create the evaluation context
       final JavaSparkContext jsc = SparkContextFactory.getSparkContext(mOptions);
-      final EvaluationContext evaluationContext =
-          new EvaluationContext(jsc, pipeline);
+      final EvaluationContext evaluationContext = new EvaluationContext(jsc, pipeline);
       translator = new TransformTranslator.Translator();
 
       // update the cache candidates
@@ -270,12 +269,12 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
   /**
    * Evaluator that update/populate the cache candidates.
    */
-  private void updateCacheCandidates(Pipeline pipeline,
-                                     SparkPipelineTranslator translator,
-                                     EvaluationContext evaluationContext) {
-     CacheVisitor updater =
-         new CacheVisitor(translator, evaluationContext);
-     pipeline.traverseTopologically(updater);
+  private void updateCacheCandidates(
+      Pipeline pipeline,
+      SparkPipelineTranslator translator,
+      EvaluationContext evaluationContext) {
+     CacheVisitor cacheVisitor = new CacheVisitor(translator, evaluationContext);
+     pipeline.traverseTopologically(cacheVisitor);
   }
 
   /**
@@ -323,13 +322,13 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
   }
 
   /**
-   * Traverses the pipeline to determine the {@link TranslationMode} for this pipeline, and
-   * populate the candidates for caching. It's the preparation step of the runner.
+   * Traverses the pipeline to populate the candidates for caching.
    */
   static class CacheVisitor extends Evaluator {
 
-    public CacheVisitor(SparkPipelineTranslator translator,
-                        EvaluationContext evaluationContext) {
+    protected CacheVisitor(
+        SparkPipelineTranslator translator,
+        EvaluationContext evaluationContext) {
       super(translator, evaluationContext);
     }
 
@@ -338,10 +337,6 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
       // we populate cache candidates by updating the map with inputs of each node.
       // The goal is to detect the PCollections accessed more than one time, and so enable cache
       // on the underlying RDDs or DStreams.
-      // A PCollection (RDD/DStream) needs to be cached only if it's used as an input of more
-      // than one transformation, so it won't be evaluated again all the way throughout its lineage.
-
-      // update cache candidates with node inputs
 
       for (TaggedPValue input : node.getInputs()) {
         PValue value = input.getValue();

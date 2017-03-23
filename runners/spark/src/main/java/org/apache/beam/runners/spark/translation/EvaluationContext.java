@@ -21,7 +21,6 @@ package org.apache.beam.runners.spark.translation;
 import static com.google.common.base.Preconditions.checkArgument;
 
 import com.google.common.collect.Iterables;
-
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -157,9 +156,9 @@ public class EvaluationContext {
       JavaRDD<WindowedValue<T>> rdd =
           getSparkContext().parallelize(CoderHelpers.toByteArrays(elems, windowCoder))
           .map(CoderHelpers.fromByteFunction(windowCoder));
-      // create a BoundedDataset that would create a RDD on demand
       putDataset(transform, new BoundedDataset<>(rdd));
     } else {
+      // create a BoundedDataset that would create a RDD on demand
       datasets.put(getOutput(transform), new BoundedDataset<>(values, jsc, coder));
     }
   }
@@ -207,18 +206,6 @@ public class EvaluationContext {
   }
 
   /**
-   * Retrieves an iterable of results associated with the PCollection passed in.
-   *
-   * @param pcollection Collection we wish to translate.
-   * @param <T>         Type of elements contained in collection.
-   * @return Natively types result associated with collection.
-   */
-  <T> Iterable<T> get(PCollection<T> pcollection) {
-    Iterable<WindowedValue<T>> windowedValues = getWindowedValues(pcollection);
-    return Iterables.transform(windowedValues, WindowingHelpers.<T>unwindowValueFunction());
-  }
-
-  /**
    * Retrun the current views creates in the pipepline.
    *
    * @return SparkPCollectionView
@@ -241,6 +228,15 @@ public class EvaluationContext {
     pviews.putPView(view, value, coder);
   }
 
+  /**
+   * Get the map of cache candidates hold by the evaluation context.
+   *
+   * @return The current {@link Map} of cache candidates.
+   */
+  public Map<PCollection, Long> getCacheCandidates() {
+    return this.cacheCandidates;
+  }
+
   <T> Iterable<WindowedValue<T>> getWindowedValues(PCollection<T> pcollection) {
     @SuppressWarnings("unchecked")
     BoundedDataset<T> boundedDataset = (BoundedDataset<T>) datasets.get(pcollection);
@@ -250,10 +246,6 @@ public class EvaluationContext {
 
   private String storageLevel() {
     return runtime.getPipelineOptions().as(SparkPipelineOptions.class).getStorageLevel();
-  }
-
-  public Map<PCollection, Long> getCacheCandidates() {
-    return this.cacheCandidates;
   }
 
 }

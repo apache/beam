@@ -42,17 +42,19 @@ public class CacheTest {
   @Test
   public void cacheCandidatesUpdaterTest() throws Exception {
     Pipeline pipeline = pipelineRule.createPipeline();
-    PCollection pCollection = pipeline.apply(Create.of("foo", "bar"));
+    PCollection<String> pCollection = pipeline.apply(Create.of("foo", "bar"));
     // first read
-    pCollection.apply(Count.globally());
+    pCollection.apply(Count.<String>globally());
     // second read
-    pCollection.apply(Count.globally());
+    // as we access the same PCollection two times, the Spark runner does optimization and so
+    // will cache the RDD representing this PCollection
+    pCollection.apply(Count.<String>globally());
 
     JavaSparkContext jsc = SparkContextFactory.getSparkContext(pipelineRule.getOptions());
     EvaluationContext ctxt = new EvaluationContext(jsc, pipeline);
-    SparkRunner.CacheVisitor updater =
+    SparkRunner.CacheVisitor cacheVisitor =
         new SparkRunner.CacheVisitor(new TransformTranslator.Translator(), ctxt);
-    pipeline.traverseTopologically(updater);
+    pipeline.traverseTopologically(cacheVisitor);
     assertEquals(2L, (long) ctxt.getCacheCandidates().get(pCollection));
   }
 
