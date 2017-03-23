@@ -31,7 +31,6 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import com.google.common.io.Closeables;
-
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -52,9 +51,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-
 import javax.annotation.Nullable;
-
 import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
@@ -75,7 +72,6 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
-import org.apache.beam.sdk.transforms.windowing.Trigger;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.ExposedByteArrayInputStream;
 import org.apache.beam.sdk.values.KV;
@@ -208,11 +204,11 @@ import org.slf4j.LoggerFactory;
  * <em>auto commit</em> (for external monitoring or other purposes), you can set
  * <tt>"group.id"</tt>, <tt>"enable.auto.commit"</tt>, etc.
  *
- * <h3>Watermark</h3>
- * The default watermark increases along as processing timestamp, which may results in
- * late-data. You can provide a customized {@code WatermarkFn} with
- * {@link Read#withWatermarkFn(SerializableFunction)}, or handle the late records properly
- * in {@link Trigger}.
+ * <h3>Event Timestamp and Watermark</h3>
+ * The default event_timestamp and watermark increases along as processing timestamp,
+ * You can provide a customized {@code WatermarkFn} with
+ * {@link Read#withWatermarkFn(SerializableFunction)}, and {@code TimestampFn} with
+ * {@link Read#withTimestampFn(SerializableFunction)} to overwrite it.
  */
 public class KafkaIO {
   /**
@@ -1008,8 +1004,7 @@ public class KafkaIO {
               decode(rawRecord.value(), source.spec.getValueCoder()));
 
           curTimestamp = (source.spec.getTimestampFn() == null)
-              ? new Instant(record.getTimestamp())
-                  : source.spec.getTimestampFn().apply(record);
+              ? Instant.now() : source.spec.getTimestampFn().apply(record);
           curRecord = record;
 
           int recordSize = (rawRecord.key() == null ? 0 : rawRecord.key().length)
@@ -1072,7 +1067,7 @@ public class KafkaIO {
       //watermark increases as current_timestamp, in case of latency,
       //developers need to either provide a customized watermarkFn, or tune Triggers.
       return source.spec.getWatermarkFn() != null
-          ? source.spec.getWatermarkFn().apply(curRecord) : Instant.now();
+          ? source.spec.getWatermarkFn().apply(curRecord) : curTimestamp;
     }
 
     @Override
