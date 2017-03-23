@@ -1,7 +1,5 @@
 package beam
 
-import "github.com/apache/beam/sdks/go/pkg/beam"
-
 // Sample data types
 
 // ExampleCombineFn is the sample combine fn.
@@ -17,7 +15,7 @@ type OutputType int64
 type InputType int64
 
 // Key is of type beam.EncodedData
-type Key beam.EncodedData
+type Key EncodedData
 
 // Combine functions specify how to combine a collection of input values (InputType) into a single output
 // value (OutputType). This is done via one or more intermediate mutable accumulators (AccumulatorType).
@@ -35,24 +33,29 @@ type Key beam.EncodedData
 // A combine function must implement all methods below.
 
 // CreateAccumulator produces a fresh accumulator.
-func (e ExampleCombineFn) CreateAccumulator( /* Key */ /* BeamTypes: O, side inputs */ ) AccumulatorType
+func (e ExampleCombineFn) CreateAccumulator( /* Key */ /* BeamTypes: O, side inputs */ ) AccumulatorType {
+	return 0
+}
 
 // AddInput updates the accumulator to include the supplied input
-func (e ExampleCombineFn) AddInput( /* Key */ InputType, AccumulatorType /* BeamTypes: O, side inputs */)
+func (e ExampleCombineFn) AddInput( /* Key */ InputType, AccumulatorType /* BeamTypes: O, side inputs */) {
+}
 
 // MergeAccumulators merges the accumulators, returning a single value holding the merged value.
 // TODO(wcn): Java signature is an iterable. Are we really merging so many accumulators? That seems
 // unlikely and unwieldy.
-func (e ExampleCombineFn) MergeAccumulators( /* Key */ []AccumulatorType) AccumulatorType {}
+func (e ExampleCombineFn) MergeAccumulators( /* Key */ []AccumulatorType) AccumulatorType { return 0 }
 
 // Default returns the zero value of OutputType
-func (e ExampleCombineFn) Default() OutputType {}
+func (e ExampleCombineFn) Default() OutputType { return 0 }
 
 // ExtractOutput produces an output from the accumulator.
-func (e ExampleCombineFn) ExtractOutput( /* Key */ AccumulatorType /* BeamTypes: O, side inputs */) OutputType
+func (e ExampleCombineFn) ExtractOutput( /* Key */ AccumulatorType /* BeamTypes: O, side inputs */) OutputType {
+	return 0
+}
 
 // Compact  ...
-func (e ExampleCombineFn) Compact( /* Key */ AccumulatorType) AccumulatorType {}
+func (e ExampleCombineFn) Compact( /* Key */ AccumulatorType) AccumulatorType { return 0 }
 
 // Apply produces an output from a sequence of inputs.
-func (e ExampleCombineFn) Apply( /* Key */ chan<- InputType) OutputType {}
+func (e ExampleCombineFn) Apply( /* Key */ chan<- InputType) OutputType { return 0 }
