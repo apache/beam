@@ -103,7 +103,7 @@ final class StaticWindows extends NonMergingWindowFn<Object, BoundedWindow> {
 
   @Override
   public WindowMappingFn<BoundedWindow> getDefaultWindowMappingFn() {
-    return new WindowMappingFn<BoundedWindow>() {
+    return new WindowMappingFn<BoundedWindow>(Duration.millis(Long.MAX_VALUE)) {
       @Override
       public BoundedWindow getSideInputWindow(BoundedWindow mainWindow) {
         checkArgument(
@@ -111,12 +111,6 @@ final class StaticWindows extends NonMergingWindowFn<Object, BoundedWindow> {
             "%s only supports side input windows for main input windows that it contains",
             StaticWindows.class.getSimpleName());
         return mainWindow;
-      }
-
-      @Override
-      public Duration maximumLookback() {
-        // TODO: This may be unsafe.
-        return Duration.millis(Long.MAX_VALUE);
       }
     };
   }

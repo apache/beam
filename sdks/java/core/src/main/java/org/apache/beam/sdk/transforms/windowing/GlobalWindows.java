@@ -20,7 +20,6 @@ package org.apache.beam.sdk.transforms.windowing;
 import java.util.Collection;
 import java.util.Collections;
 import org.apache.beam.sdk.coders.Coder;
-import org.joda.time.Duration;
 import org.joda.time.Instant;
 
 /**
@@ -55,11 +54,6 @@ public class GlobalWindows extends NonMergingWindowFn<Object, GlobalWindow> {
     @Override
     public GlobalWindow getSideInputWindow(BoundedWindow mainWindow) {
       return GlobalWindow.INSTANCE;
-    }
-
-    @Override
-    public Duration maximumLookback() {
-      return Duration.ZERO;
     }
   }
 

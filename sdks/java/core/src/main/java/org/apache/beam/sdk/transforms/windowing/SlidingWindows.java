@@ -139,11 +139,6 @@ public class SlidingWindows extends NonMergingWindowFn<Object, IntervalWindow> {
         long lastStart = lastStartFor(mainWindow.maxTimestamp().minus(size));
         return new IntervalWindow(new Instant(lastStart + period.getMillis()), size);
       }
-
-      @Override
-      public Duration maximumLookback() {
-        return Duration.ZERO;
-      }
     };
   }
 
