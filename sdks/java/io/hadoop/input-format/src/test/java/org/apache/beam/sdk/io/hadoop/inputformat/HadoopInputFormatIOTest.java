@@ -25,7 +25,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map.Entry;
 
-import org.apache.beam.sdk.Pipeline.PipelineExecutionException;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.BoundedSource;
@@ -46,7 +45,6 @@ import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.LongWritable;
-import org.apache.hadoop.io.MapWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.mapreduce.InputFormat;
@@ -404,51 +402,6 @@ public class HadoopInputFormatIOTest {
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage(expectedMessage);
     read.validate(input);
-  }
-
-  /**
-   * This test validates reading from Hadoop InputFormat if wrong key class is set in
-   * configuration.
-   */
-  @Test
-  public void testReadFailsWithWrongKeyClass() {
-    SerializableConfiguration wrongConf = loadTestConfiguration(
-       EmployeeInputFormat.class,
-       MapWritable.class, // Actual key class is Text.class.
-       Employee.class);
-    HadoopInputFormatIO.Read<Text, String> read = HadoopInputFormatIO.<Text, String>read()
-        .withConfiguration(wrongConf.getHadoopConfiguration());
-    String expectedMessage =
-        String.format("java.lang.IllegalArgumentException: " + "Wrong InputFormat key class in "
-            + "configuration : Expected key.class is %s but was %s.", Text.class.getName(),
-            MapWritable.class.getName());
-    thrown.expect(PipelineExecutionException.class);
-    thrown.expectMessage(expectedMessage);
-    p.apply("ReadTest", read);
-    p.run();
-  }
-
-  /**
-   * This test validates reading from Hadoop InputFormat if wrong value class is set in
-   * configuration.
-   */
-  @Test
-  public void testReadFailsWithWrongValueClass() {
-    SerializableConfiguration wrongConf = loadTestConfiguration(
-       EmployeeInputFormat.class,
-       Text.class,
-       MapWritable.class); // Actual value class is Employee.class.
-    HadoopInputFormatIO.Read<Text, MapWritable> read = HadoopInputFormatIO.<Text, MapWritable>read()
-        .withConfiguration(wrongConf.getHadoopConfiguration());
-    String expectedMessage =
-        String.format("java.lang.IllegalArgumentException: "
-            + "Wrong InputFormat value class in configuration : "
-            + "Expected value.class is %s but was %s.", Employee.class.getName(),
-            MapWritable.class.getName());
-    thrown.expect(PipelineExecutionException.class);
-    thrown.expectMessage(expectedMessage);
-    p.apply("ReadTest", read);
-    p.run();
   }
 
   @Test
