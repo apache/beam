@@ -1307,7 +1307,7 @@ public class ParDoTest implements Serializable {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(NeedsRunner.class)
   public void testParDoShiftTimestampInvalid() {
 
     pipeline
