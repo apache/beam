@@ -74,14 +74,15 @@ We have augmented the original queries with five more:
 The queries can be executed using a 'Driver' for a given backend.
 Currently the supported drivers are:
 
+* **NexmarkApexDriver** for running via the Apex runner.
 * **NexmarkDirectDriver** for running locally on a single machine.
-* **NexmarkGoogleDriver** for running on the Google Cloud Dataflow
-  service. Requires a Google Cloud account.
+* **NexmarkGoogleDriver** for running on the Google Cloud Dataflow service.
+  Requires a Google Cloud account.
 * **NexmarkFlinkDriver** for running on a Flink cluster. Requires the
   cluster to be established and the Nexmark jar to be distributed to
   each worker.
 * **NexmarkSparkDriver** for running on a Spark cluster.
-  
+
 Other drivers are straightforward.
 
 Test data is deterministically synthesized on demand. The test
@@ -103,16 +104,7 @@ the Google Cloud Dataflow driver.
 
 # Configuration
 
-Common configuration parameters:
-
-Available Suites:
-
-- DEFAULT: Test default configuration with query 0.
-- SMOKE: Run the 12 default configurations.
-- STRESS: Like smoke but for 1m events.
-- FULL_THROTTLE: Like SMOKE but 100m events.
-
-        --suite=SMOKE
+## Common configuration parameters
 
 Decide if batch or streaming:
 
@@ -122,24 +114,52 @@ Number of events generators
 
     --numEventGenerators=4
 
-## Apex specific configuration
+Run query N
 
---suite=SMOKE --manageResources=false --monitorJobs=true
+    --query=N
 
-## Direct specific configuration
+## Available Suites
 
---suite=SMOKE --manageResources=false --monitorJobs=true \
---enforceEncodability=false --enforceImmutability=false
+- DEFAULT: Test default configuration with query 0.
+- SMOKE: Run the 12 default configurations.
+- STRESS: Like smoke but for 1m events.
+- FULL_THROTTLE: Like SMOKE but 100m events.
 
-## Flink specific configuration
+        --suite=SMOKE
 
---suite=SMOKE --manageResources=false --monitorJobs=true \
---flinkMaster=local
+### Apex specific configuration
 
-## Spark specific configuration
+    --suite=SMOKE --manageResources=false --monitorJobs=true
 
---suite=SMOKE --manageResources=false --monitorJobs=true --sparkMaster=local \
--Dspark.ui.enabled=false -DSPARK_LOCAL_IP=localhost -Dsun.io.serialization.extendedDebugInfo=true
+### Dataflow specific configuration
+
+    --query=0 --suite=SMOKE --manageResources=false --monitorJobs=true \
+    --enforceEncodability=false --enforceImmutability=false
+    --project=<your project> \
+    --zone=<your zone> \
+    --workerMachineType=n1-highmem-8 \
+    --stagingLocation=<a gs path for staging>
+
+    --runner=BlockingDataflowRunner \
+    --tempLocation=gs://talend-imejia/nexmark/temp/ \
+    --stagingLocation=gs://talend-imejia/nexmark/temp/staging/ \
+    --filesToStage=target/beam-integration-java-0.7.0-SNAPSHOT.jar
+
+### Direct specific configuration
+
+    --suite=SMOKE --manageResources=false --monitorJobs=true \
+    --enforceEncodability=false --enforceImmutability=false
+
+### Flink specific configuration
+
+    --suite=SMOKE --manageResources=false --monitorJobs=true \
+    --flinkMaster=[local] --parallelism=#numcores
+
+### Spark specific configuration
+
+    --suite=SMOKE --manageResources=false --monitorJobs=true \
+    --sparkMaster=local \
+    -Dspark.ui.enabled=false -DSPARK_LOCAL_IP=localhost -Dsun.io.serialization.extendedDebugInfo=true
 
 # Current Status
 
@@ -149,19 +169,19 @@ Open issues are tracked [here](https://github.com../../../../../issues):
 
 | Query | Direct                         | Spark                          | Flink                          | Apex                            |
 | ----: | ------------------------------ | ------------------------------ | ------------------------------ | ------------------------------- |
-|     0 | ok                             | [#1](../../../../../issues/1)  | ok                             | ok                              |
-|     1 | ok                             | [#1](../../../../../issues/1)  | ok                             | ok                              |
-|     2 | ok                             | [#1](../../../../../issues/1)  | ok                             | ok                              |
+|     0 | ok                             | ok                             | ok                             | ok                              |
+|     1 | ok                             | ok                             | ok                             | ok                              |
+|     2 | ok                             | ok                             | ok                             | ok                              |
 |     3 | [#7](../../../../../issues/7)  | [#7](../../../../../issues/7)  | [#7](../../../../../issues/7)  | [#7](../../../../../issues/7)   |
 |     4 | ok                             | ok                             | [#2](../../../../../issues/2)  | ok                              |
-|     5 | ok                             | [#3](../../../../../issues/3)  | ok                             | ok                              |
+|     5 | ok                             | ok                             | ok                             | ok                              |
 |     6 | ok                             | ok                             | [#2](../../../../../issues/2)  | ok                              |
-|     7 | ok                             | [#1](../../../../../issues/1)  | ok                             | [#24](../../../../../issues/24) |
-|     8 | ok                             | [#1](../../../../../issues/1)  | ok                             | ok                              |
+|     7 | ok                             | ok                             | ok                             | [#24](../../../../../issues/24) |
+|     8 | ok                             | ok                             | ok                             | ok                              |
 |     9 | ok                             | ok                             | [#2](../../../../../issues/2)  | ok                              |
-|    10 | [#5](../../../../../issues/5)  | [#4](../../../../../issues/4)  | ok                             | ok                              |
-|    11 | ok                             | [#1](../../../../../issues/1)  | ok                             | ok                              |
-|    12 | ok                             | [#1](../../../../../issues/1)  | ok                             | ok                              |
+|    10 | [#5](../../../../../issues/5)  | ok                             | ok                             | ok                              |
+|    11 | ok                             | ok                             | ok                             | ok                              |
+|    12 | ok                             | ok                             | ok                             | ok                              |
 
 ## Streaming / Synthetic / Local
 
@@ -205,11 +225,11 @@ Batch Mode
 
 -Dexec.classpathScope="test"
 
-    mvn exec:java -Dexec.mainClass=org.apache.beam.integration.nexmark.NexmarkDirectDriver -Dexec.args="--suite=SMOKE --streaming=false --numEventGenerators=4 --manageResources=false --monitorJobs=false --enforceEncodability=false --enforceImmutability=false"
+    mvn exec:java -Dexec.mainClass=org.apache.beam.integration.nexmark.drivers.NexmarkDirectDriver -Dexec.args="--suite=SMOKE --streaming=false --numEventGenerators=4 --manageResources=false --monitorJobs=false --enforceEncodability=false --enforceImmutability=false"
 
 Streaming Mode
 
-    mvn exec:java -Dexec.mainClass=org.apache.beam.integration.nexmark.NexmarkDirectDriver -Dexec.args="--suite=SMOKE --streaming=true --numEventGenerators=4 --manageResources=false --monitorJobs=false --enforceEncodability=false --enforceImmutability=false"
+    mvn exec:java -Dexec.mainClass=org.apache.beam.integration.nexmark.drivers.NexmarkDirectDriver -Dexec.args="--suite=SMOKE --streaming=true --numEventGenerators=4 --manageResources=false --monitorJobs=false --enforceEncodability=false --enforceImmutability=false"
 
 ## Running on Google Cloud Dataflow
 
@@ -218,7 +238,7 @@ service.
 
 ```
 java -cp integration/java/target/java-integration-all-bundled-0.2.0-incubating-SNAPSHOT.jar \
-  org.apache.beam.integration.nexmark.NexmarkGoogleDriver \
+  org.apache.beam.integration.nexmark.drivers.NexmarkGoogleDriver \
   --project=<your project> \
   --zone=<your zone> \
   --workerMachineType=n1-highmem-8 \
@@ -251,7 +271,7 @@ java -cp integration/java/target/java-integration-all-bundled-0.2.0-incubating-S
 
 ```
 java -cp integration/java/target/java-integration-all-bundled-0.2.0-incubating-SNAPSHOT.jar \
-  org.apache.beam.integration.nexmark.NexmarkGoogleDriver \
+  org.apache.beam.integration.nexmark.drivers.NexmarkGoogleDriver \
   --project=<your project> \
   --zone=<your zone> \
   --workerMachineType=n1-highmem-8 \

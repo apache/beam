@@ -17,11 +17,6 @@
  */
 package org.apache.beam.integration.nexmark;
 
-import static org.hamcrest.CoreMatchers.containsString;
-import static org.hamcrest.CoreMatchers.equalTo;
-import static org.hamcrest.CoreMatchers.hasItems;
-import org.hamcrest.collection.IsIterableContainingInAnyOrder;
-
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -30,10 +25,11 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 
+import org.apache.beam.integration.nexmark.model.KnownSize;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.TimestampedValue;
 
-import org.hamcrest.core.IsCollectionContaining;
+
 import org.hamcrest.core.IsEqual;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -107,15 +103,18 @@ public abstract class NexmarkQueryModel implements Serializable {
   /** Return assertion to use on results of pipeline for this query. */
   public SerializableFunction<Iterable<TimestampedValue<KnownSize>>, Void> assertionFor() {
     final Collection<String> expectedStrings = toCollection(simulator().results());
-    final String[] expectedStringsArray = expectedStrings.toArray(new String[expectedStrings.size()]);
+    final String[] expectedStringsArray =
+      expectedStrings.toArray(new String[expectedStrings.size()]);
 
     return new SerializableFunction<Iterable<TimestampedValue<KnownSize>>, Void>() {
       @Override
       public Void apply(Iterable<TimestampedValue<KnownSize>> actual) {
-        Collection<String> actualStrings = toCollection(relevantResults(actual).iterator());
-                Assert.assertThat("wrong pipeline output", actualStrings, IsEqual.equalTo(expectedStrings));
+      Collection<String> actualStrings = toCollection(relevantResults(actual).iterator());
+        Assert.assertThat("wrong pipeline output", actualStrings,
+          IsEqual.equalTo(expectedStrings));
 //compare without order
-//        Assert.assertThat("wrong pipeline output", actualStrings, IsIterableContainingInAnyOrder.containsInAnyOrder(expectedStringsArray));
+//      Assert.assertThat("wrong pipeline output", actualStrings,
+//        IsIterableContainingInAnyOrder.containsInAnyOrder(expectedStringsArray));
         return null;
       }
     };

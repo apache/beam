@@ -28,6 +28,9 @@ import java.util.List;
 import java.util.Map;
 import javax.annotation.Nullable;
 
+import org.apache.beam.integration.nexmark.model.Auction;
+import org.apache.beam.integration.nexmark.model.Bid;
+import org.apache.beam.integration.nexmark.model.Person;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
@@ -48,7 +51,7 @@ import org.joda.time.Instant;
  * <p>See <a href="http://datalab.cs.pdx.edu/niagaraST/NEXMark/">
  * http://datalab.cs.pdx.edu/niagaraST/NEXMark/</a>
  */
-public class NexmarkDriver<OptionT extends Options> {
+public class NexmarkDriver<OptionT extends NexmarkOptions> {
 
   /**
    * Entry point.

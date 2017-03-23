@@ -27,7 +27,7 @@ import javax.annotation.Nullable;
 /**
  * Summary of performance for a particular run of a configuration.
  */
-class NexmarkPerf {
+public class NexmarkPerf {
   /**
    * A sample of the number of events and number of results (if known) generated at
    * a particular time.
@@ -177,8 +177,6 @@ class NexmarkPerf {
 
   /**
    * Parse a {@link NexmarkPerf} object from JSON {@code string}.
-   *
-   * @throws IOException
    */
   public static NexmarkPerf fromString(String string) {
     try {
