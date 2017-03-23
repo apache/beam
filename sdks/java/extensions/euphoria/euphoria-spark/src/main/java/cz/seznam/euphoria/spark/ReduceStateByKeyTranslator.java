@@ -195,7 +195,7 @@ class ReduceStateByKeyTranslator implements SparkOperatorTranslator<ReduceStateB
 
           GroupReducer reducer = activeReducers.get(kw.key());
           if (reducer == null) {
-            reducer = new GroupReducer<Window, Object, Object>(stateFactory,
+            reducer = new GroupReducer<>(stateFactory,
                     SparkElement::new,
                     stateCombiner,
                     storageProvider,
