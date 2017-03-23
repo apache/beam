@@ -13,19 +13,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package cz.seznam.euphoria.core.client.dataset.windowing;
+package cz.seznam.euphoria.spark;
 
+import cz.seznam.euphoria.core.client.dataset.windowing.Window;
+import cz.seznam.euphoria.core.client.dataset.windowing.WindowedElement;
 
-public class WindowedElementImpl<W extends Window, T> implements WindowedElement<W, T> {
+public class SparkElement<W extends Window, T> implements WindowedElement<W, T> {
+  private W window;
+  private T element;
+  private long timestamp;
 
-  final T element;
-  W window;
-  long timestamp;
-
-  public WindowedElementImpl(W window, long timestamp, T element) {
+  public SparkElement(W window, long timestamp, T element) {
     this.window = window;
-    this.timestamp = timestamp;
     this.element = element;
+    this.timestamp = timestamp;
   }
 
   @Override
@@ -34,16 +35,10 @@ public class WindowedElementImpl<W extends Window, T> implements WindowedElement
   }
 
   @Override
-  public void setWindow(W window) {
-    this.window = window;
-  }
-
-  @Override
   public long getTimestamp() {
     return timestamp;
   }
 
-  @Override
   public void setTimestamp(long timestamp) {
     this.timestamp = timestamp;
   }
@@ -51,14 +46,5 @@ public class WindowedElementImpl<W extends Window, T> implements WindowedElement
   @Override
   public T getElement() {
     return element;
-  }
-
-  @Override
-  public String toString() {
-    return "WindowedElement{" +
-            "window=" + window +
-            ", timestamp=" + timestamp +
-            ", element=" + element +
-            '}';
   }
 }

@@ -55,7 +55,6 @@ public class FlinkElement<W extends Window, T> implements WindowedElement<W, T> 
     return timestamp;
   }
 
-  @Override
   public void setTimestamp(long timestamp) {
     this.timestamp = timestamp;
   }

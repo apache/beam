@@ -28,11 +28,7 @@ public interface WindowedElement<W extends Window, T> {
 
   W getWindow();
 
-  void setWindow(W window);
-
   long getTimestamp();
-
-  void setTimestamp(long timestamp);
 
   T getElement();
 

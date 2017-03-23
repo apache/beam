@@ -20,8 +20,6 @@ import cz.seznam.euphoria.core.client.dataset.partitioning.Partitioning;
 import cz.seznam.euphoria.core.client.dataset.windowing.MergingWindowing;
 import cz.seznam.euphoria.core.client.dataset.windowing.TimedWindow;
 import cz.seznam.euphoria.core.client.dataset.windowing.Window;
-import cz.seznam.euphoria.core.client.dataset.windowing.WindowedElement;
-import cz.seznam.euphoria.core.client.dataset.windowing.WindowedElementImpl;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 import cz.seznam.euphoria.core.client.operator.ReduceByKey;
@@ -51,7 +49,7 @@ class ReduceByKeyTranslator implements SparkOperatorTranslator<ReduceByKey> {
   @Override
   public JavaRDD<?> translate(ReduceByKey operator, SparkExecutorContext context) {
     @SuppressWarnings("unchecked")
-    final JavaRDD<WindowedElement> input = (JavaRDD<WindowedElement>) context.getSingleInput(operator);
+    final JavaRDD<SparkElement> input = (JavaRDD<SparkElement>) context.getSingleInput(operator);
     @SuppressWarnings("unchecked")
     final UnaryFunction<Iterable<Object>, Object> reducer = operator.getReducer();
     @SuppressWarnings("unchecked")
@@ -94,17 +92,17 @@ class ReduceByKeyTranslator implements SparkOperatorTranslator<ReduceByKey> {
       // pre-reduce age
       long timestamp = el.getTimestamp();
 
-      return new WindowedElementImpl<>(kw.window(), timestamp,
-              Pair.of(kw.key(), el.getElement()));
+      return new SparkElement<>(
+              kw.window(), timestamp, Pair.of(kw.key(), el.getElement()));
     });
   }
 
   /**
-   * Extracts {@link KeyedWindow} from {@link WindowedElement} and
+   * Extracts {@link KeyedWindow} from {@link SparkElement} and
    * assigns timestamp according to (optional) eventTimeAssigner.
    */
   private static class CompositeKeyExtractor
-          implements PairFlatMapFunction<WindowedElement, KeyedWindow, TimestampedElement> {
+          implements PairFlatMapFunction<SparkElement, KeyedWindow, TimestampedElement> {
 
     private final UnaryFunction keyExtractor;
     private final UnaryFunction valueExtractor;
@@ -124,7 +122,7 @@ class ReduceByKeyTranslator implements SparkOperatorTranslator<ReduceByKey> {
 
     @Override
     @SuppressWarnings("unchecked")
-    public Iterator<Tuple2<KeyedWindow, TimestampedElement>> call(WindowedElement wel) throws Exception {
+    public Iterator<Tuple2<KeyedWindow, TimestampedElement>> call(SparkElement wel) throws Exception {
       if (eventTimeAssigner != null) {
         wel.setTimestamp((long) eventTimeAssigner.apply(wel.getElement()));
       }
