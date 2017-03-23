@@ -364,8 +364,8 @@ public class DataflowPipelineJob implements PipelineResult {
         content.setId(jobId);
         content.setRequestedState("JOB_STATE_CANCELLED");
         try {
-          dataflowClient.updateJob(jobId, content);
-          return State.CANCELLED;
+          Job job = dataflowClient.updateJob(jobId, content);
+          return MonitoringUtil.toState(job.getCurrentState());
         } catch (IOException e) {
           State state = getState();
           if (state.isTerminal()) {
@@ -384,7 +384,8 @@ public class DataflowPipelineJob implements PipelineResult {
       }
     });
     if (cancelState.compareAndSet(null, tentativeCancelTask)) {
-      // This is the thread that requested cancel first.
+      // This thread should perform cancellation, while others will
+      // only wait for the result.
       cancelState.get().run();
     }
     try {

@@ -723,7 +723,7 @@ public class DataflowPipelineJobTest {
         mock(Dataflow.Projects.Locations.Jobs.Update.class);
     when(mockJobs.update(eq(PROJECT_ID), eq(REGION_ID), eq(JOB_ID), any(Job.class)))
         .thenReturn(update);
-    when(update.execute()).thenReturn(new Job());
+    when(update.execute()).thenReturn(new Job().setCurrentState("JOB_STATE_CANCELLED"));
 
     DataflowPipelineJob job = new DataflowPipelineJob(JOB_ID, options, null);
 
