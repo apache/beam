@@ -147,6 +147,7 @@ import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.NonMergingWindowFn;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
+import org.apache.beam.sdk.transforms.windowing.WindowMappingFn;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.IOChannelFactory;
 import org.apache.beam.sdk.util.IOChannelUtils;
@@ -1048,7 +1049,7 @@ public class BigQueryIOTest implements Serializable {
     }
 
     @Override
-    public PartitionedGlobalWindow getSideInputWindow(BoundedWindow window) {
+    public WindowMappingFn<PartitionedGlobalWindow> getDefaultWindowMappingFn() {
       throw new UnsupportedOperationException(
           "PartitionedGlobalWindows is not allowed in side inputs");
     }

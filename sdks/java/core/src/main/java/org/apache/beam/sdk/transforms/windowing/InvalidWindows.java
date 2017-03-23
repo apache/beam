@@ -75,7 +75,7 @@ public class InvalidWindows<W extends BoundedWindow> extends WindowFn<Object, W>
   }
 
   @Override
-  public W getSideInputWindow(BoundedWindow window) {
+  public WindowMappingFn<W> getDefaultWindowMappingFn() {
     throw new UnsupportedOperationException("InvalidWindows is not allowed in side inputs");
   }
 
