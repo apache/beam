@@ -205,10 +205,12 @@ import org.slf4j.LoggerFactory;
  * <tt>"group.id"</tt>, <tt>"enable.auto.commit"</tt>, etc.
  *
  * <h3>Event Timestamp and Watermark</h3>
- * The default event_timestamp and watermark increases along as processing timestamp,
- * You can provide a customized {@code WatermarkFn} with
+ * By default record timestamp and watermark are based on processing time in KafkaIO reader.
+ * This can be overridden by providing {@code WatermarkFn} with
  * {@link Read#withWatermarkFn(SerializableFunction)}, and {@code TimestampFn} with
- * {@link Read#withTimestampFn(SerializableFunction)} to overwrite it.
+ * {@link Read#withTimestampFn(SerializableFunction)}.<br>
+ * Note that {@link KafkaRecord#getTimestamp()} reflects timestamp provided by Kafka if any,
+ * otherwise it is set to processing time.
  */
 public class KafkaIO {
   /**

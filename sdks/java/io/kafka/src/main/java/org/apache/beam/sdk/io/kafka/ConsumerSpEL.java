@@ -20,7 +20,6 @@ package org.apache.beam.sdk.io.kafka;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.Collection;
-
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.common.TopicPartition;
@@ -84,8 +83,7 @@ class ConsumerSpEL {
         timestamp = System.currentTimeMillis();
       }
     } catch (IllegalAccessException | IllegalArgumentException | InvocationTargetException e) {
-      // should not go to here, as it's confirmed that method timestamp() is
-      // there.
+      // Not expected. Method timestamp() is already checked.
       throw new RuntimeException(e);
     }
     return timestamp;
