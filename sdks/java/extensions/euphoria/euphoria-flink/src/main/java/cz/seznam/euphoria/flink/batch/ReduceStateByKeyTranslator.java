@@ -155,9 +155,9 @@ public class ReduceStateByKeyTranslator implements BatchOperatorTranslator<Reduc
     public void reduce(Iterable<FlinkElement<?, Pair>> values,
                        org.apache.flink.util.Collector<FlinkElement<?, Pair>> out)
     {
-      GroupReducer reducer = new GroupReducer(
+      GroupReducer reducer = new GroupReducer<>(
               stateFactory,
-              (WindowedElement.WindowedElementFactory<Window, Object>) FlinkElement::new,
+              FlinkElement::new,
               stateCombiner,
               stateStorageProvider,
               windowing,

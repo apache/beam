@@ -57,8 +57,19 @@ public class GroupReducer<WID extends Window, KEY, I> {
     void collect(T elem);
   }
 
+  /**
+   * Creates a new instance of {@link WindowedElement}.
+   *
+   * @param <W> type of the window
+   * @param <T> type of the data element
+   */
+  @FunctionalInterface
+  public interface WindowedElementFactory<W extends Window, T> {
+    WindowedElement<W, T> create(W window, long timestamp, T element);
+  }
+
   private final StateFactory<?, State> stateFactory;
-  private final WindowedElement.WindowedElementFactory<WID, Object> elementFactory;
+  private final WindowedElementFactory<WID, Object> elementFactory;
   private final CombinableReduceFunction<State> stateCombiner;
   private final StorageProvider stateStorageProvider;
   private final Collector<WindowedElement<?, Pair<KEY, ?>>> collector;
@@ -72,12 +83,12 @@ public class GroupReducer<WID extends Window, KEY, I> {
   KEY key;
 
   public GroupReducer(StateFactory<?, State> stateFactory,
-               WindowedElement.WindowedElementFactory<WID, Object> elementFactory,
-               CombinableReduceFunction<State> stateCombiner,
-               StorageProvider stateStorageProvider,
-               Windowing windowing,
-               Trigger trigger,
-               Collector<WindowedElement<?, Pair<KEY, ?>>> collector) {
+                      WindowedElementFactory<WID, Object> elementFactory,
+                      CombinableReduceFunction<State> stateCombiner,
+                      StorageProvider stateStorageProvider,
+                      Windowing windowing,
+                      Trigger trigger,
+                      Collector<WindowedElement<?, Pair<KEY, ?>>> collector) {
     this.stateFactory = Objects.requireNonNull(stateFactory);
     this.elementFactory = Objects.requireNonNull(elementFactory);
     this.stateCombiner = Objects.requireNonNull(stateCombiner);
@@ -260,8 +271,7 @@ public class GroupReducer<WID extends Window, KEY, I> {
       long stamp = (window instanceof TimedWindow)
           ? ((TimedWindow) window).maxTimestamp()
           : clock.getStamp();
-      out.collect((WindowedElement) elementFactory.apply(
-              window, stamp, Pair.of(key, elem)));
+      out.collect((WindowedElement) elementFactory.create(window, stamp, Pair.of(key, elem)));
     }
 
     @Override
