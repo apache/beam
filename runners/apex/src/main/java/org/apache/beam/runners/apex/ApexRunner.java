@@ -49,6 +49,7 @@ import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsValidator;
 import org.apache.beam.sdk.runners.PTransformMatcher;
+import org.apache.beam.sdk.runners.PTransformOverride;
 import org.apache.beam.sdk.runners.PTransformOverrideFactory;
 import org.apache.beam.sdk.runners.PipelineRunner;
 import org.apache.beam.sdk.transforms.Combine;
@@ -114,7 +115,7 @@ public class ApexRunner extends PipelineRunner<ApexRunnerResult> {
   public ApexRunnerResult run(final Pipeline pipeline) {
     for (Map.Entry<PTransformMatcher, PTransformOverrideFactory> override :
         getOverrides().entrySet()) {
-      pipeline.replace(override.getKey(), override.getValue());
+      pipeline.replace(PTransformOverride.of(override.getKey(), override.getValue()));
     }
 
     final ApexPipelineTranslator translator = new ApexPipelineTranslator(options);
