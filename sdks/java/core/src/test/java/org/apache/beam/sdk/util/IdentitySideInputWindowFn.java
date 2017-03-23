@@ -25,7 +25,6 @@ import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.NonMergingWindowFn;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.transforms.windowing.WindowMappingFn;
-import org.joda.time.Duration;
 
 /**
  * A {@link WindowFn} for use during tests that returns the input window for calls to
@@ -55,11 +54,6 @@ public class IdentitySideInputWindowFn extends NonMergingWindowFn<Integer, Bound
       @Override
       public BoundedWindow getSideInputWindow(BoundedWindow window) {
         return window;
-      }
-
-      @Override
-      public Duration maximumLookback() {
-        return Duration.ZERO;
       }
     };
   }
