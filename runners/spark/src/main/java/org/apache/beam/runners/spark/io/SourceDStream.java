@@ -28,6 +28,7 @@ import org.apache.spark.api.java.JavaSparkContext$;
 import org.apache.spark.rdd.RDD;
 import org.apache.spark.streaming.StreamingContext;
 import org.apache.spark.streaming.Time;
+import org.apache.spark.streaming.api.java.JavaPairDStream;
 import org.apache.spark.streaming.dstream.InputDStream;
 import org.apache.spark.streaming.scheduler.RateController;
 import org.apache.spark.streaming.scheduler.RateController$;
@@ -59,6 +60,8 @@ class SourceDStream<T, CheckpointMarkT extends UnboundedSource.CheckpointMark>
   private final UnboundedSource<T, CheckpointMarkT> unboundedSource;
   private final SparkRuntimeContext runtimeContext;
   private final Duration boundReadDuration;
+  // Number of partitions for the DStream is final and remains the same throughout the entire
+  // lifetime of the pipeline, including when resuming from checkpoint.
   private final int numPartitions;
   // the initial parallelism, set by Spark's backend, will be determined once when the job starts.
   // in case of resuming/recovering from checkpoint, the DStream will be reconstructed and this
@@ -127,7 +130,11 @@ class SourceDStream<T, CheckpointMarkT extends UnboundedSource.CheckpointMark>
     return "Beam UnboundedSource [" + id() + "]";
   }
 
-  public int getNumPartitions() {
+  /**
+   * Number of partitions is exposed so clients of {@link SourceDStream} can use this to set
+   * appropriate partitioning for operations such as {@link JavaPairDStream#mapWithState}.
+   */
+  int getNumPartitions() {
     return numPartitions;
   }
 
