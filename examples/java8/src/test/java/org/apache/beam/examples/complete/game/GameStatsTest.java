@@ -38,7 +38,7 @@ import org.junit.runners.JUnit4;
  * Tests of GameStats.
  * Because the pipeline was designed for easy readability and explanations, it lacks good
  * modularity for testing. See our testing documentation for better ideas:
- * https://cloud.google.com/dataflow/pipelines/testing-your-pipeline.
+ * https://beam.apache.org/documentation/pipelines/test-your-pipeline/
  */
 @RunWith(JUnit4.class)
 public class GameStatsTest implements Serializable {
