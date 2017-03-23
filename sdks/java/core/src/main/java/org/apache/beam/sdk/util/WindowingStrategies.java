@@ -128,11 +128,11 @@ public class WindowingStrategies implements Serializable {
 
   // This URN says that the coder is just a UDF blob the indicated SDK understands
   // TODO: standardize such things
-  private static final String CUSTOM_CODER_URN = "urn:beam:coders:javasdk:0.1";
+  public static final String CUSTOM_CODER_URN = "urn:beam:coders:javasdk:0.1";
 
   // This URN says that the WindowFn is just a UDF blob the indicated SDK understands
   // TODO: standardize such things
-  private static final String CUSTOM_WINDOWFN_URN = "urn:beam:windowfn:javasdk:0.1";
+  public static final String CUSTOM_WINDOWFN_URN = "urn:beam:windowfn:javasdk:0.1";
 
   private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
