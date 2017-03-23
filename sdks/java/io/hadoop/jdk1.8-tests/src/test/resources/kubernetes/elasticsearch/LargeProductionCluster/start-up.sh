@@ -17,6 +17,3 @@
 
 # Create Elasticsearch services and deployments.
 kubectl create -f es-services.yaml
-# Wait until es-master_rc deployment is provisioned
-sleep 2m
-kubectl create -f es-client-data-node-deployment.yaml

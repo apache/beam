@@ -17,5 +17,4 @@
 #
 
 # Delete elasticsearch services and deployments.
-kubectl delete -f es-client-data-node-deployment.yaml
 kubectl delete -f es-services.yaml
