@@ -18,7 +18,6 @@
 package org.apache.beam.runners.flink;
 
 import com.google.common.base.Joiner;
-import com.google.common.collect.ImmutableMap;
 import java.io.File;
 import java.net.URISyntaxException;
 import java.net.URL;
@@ -36,7 +35,6 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsValidator;
 import org.apache.beam.sdk.runners.PipelineRunner;
 import org.apache.beam.sdk.runners.TransformHierarchy;
-import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.values.PValue;
@@ -58,9 +56,6 @@ public class FlinkRunner extends PipelineRunner<PipelineResult> {
    * Provided options.
    */
   private final FlinkPipelineOptions options;
-
-  /** Custom transforms implementations. */
-  private final Map<Class<?>, Class<?>> overrides;
 
   /**
    * Construct a runner from the provided options.
@@ -102,19 +97,6 @@ public class FlinkRunner extends PipelineRunner<PipelineResult> {
   private FlinkRunner(FlinkPipelineOptions options) {
     this.options = options;
     this.ptransformViewsWithNonDeterministicKeyCoders = new HashSet<>();
-
-    ImmutableMap.Builder<Class<?>, Class<?>> builder = ImmutableMap.<Class<?>, Class<?>>builder();
-    if (options.isStreaming()) {
-      builder.put(Combine.GloballyAsSingletonView.class,
-          FlinkStreamingViewOverrides.StreamingCombineGloballyAsSingletonView.class);
-      builder.put(View.AsMap.class, FlinkStreamingViewOverrides.StreamingViewAsMap.class);
-      builder.put(View.AsMultimap.class, FlinkStreamingViewOverrides.StreamingViewAsMultimap.class);
-      builder.put(View.AsSingleton.class,
-          FlinkStreamingViewOverrides.StreamingViewAsSingleton.class);
-      builder.put(View.AsList.class, FlinkStreamingViewOverrides.StreamingViewAsList.class);
-      builder.put(View.AsIterable.class, FlinkStreamingViewOverrides.StreamingViewAsIterable.class);
-    }
-    overrides = builder.build();
   }
 
   @Override
