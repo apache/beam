@@ -17,7 +17,6 @@ package cz.seznam.euphoria.spark;
 
 import cz.seznam.euphoria.core.client.dataset.partitioning.Partitioner;
 import cz.seznam.euphoria.core.client.dataset.partitioning.Partitioning;
-import cz.seznam.euphoria.core.client.dataset.windowing.WindowedElement;
 import cz.seznam.euphoria.core.client.operator.Repartition;
 import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
@@ -32,7 +31,7 @@ class RepartitionTranslator implements SparkOperatorTranslator<Repartition> {
   public JavaRDD<?> translate(Repartition operator,
                               SparkExecutorContext context) {
 
-    final JavaRDD<WindowedElement> input = (JavaRDD) context.getSingleInput(operator);
+    final JavaRDD<SparkElement> input = (JavaRDD) context.getSingleInput(operator);
     Partitioning partitioning = operator.getPartitioning();
 
     if (partitioning.getNumPartitions() == 1) {
@@ -42,7 +41,7 @@ class RepartitionTranslator implements SparkOperatorTranslator<Repartition> {
 
     // ~ map RDD<Object> to RDD<Tuple<Integer, Object>>
     // where Integer is the partition number
-    JavaPairRDD<Integer, WindowedElement> pairs = input.mapToPair(
+    JavaPairRDD<Integer, SparkElement> pairs = input.mapToPair(
             new TupleByPartition(partitioning));
 
     pairs = pairs.partitionBy(new IntPartitioner(partitioning.getNumPartitions()));
@@ -50,7 +49,8 @@ class RepartitionTranslator implements SparkOperatorTranslator<Repartition> {
     return pairs.values();
   }
 
-  private static class TupleByPartition implements PairFunction<WindowedElement, Integer, WindowedElement> {
+  private static class TupleByPartition
+          implements PairFunction<SparkElement, Integer, SparkElement> {
 
     private final Partitioning partitioning;
 
@@ -60,7 +60,7 @@ class RepartitionTranslator implements SparkOperatorTranslator<Repartition> {
 
     @Override
     @SuppressWarnings("unchecked")
-    public Tuple2<Integer, WindowedElement> call(WindowedElement el)  {
+    public Tuple2<Integer, SparkElement> call(SparkElement el)  {
       Partitioner partitioner = partitioning.getPartitioner();
       int partitionId = partitioner.getPartition(el.getElement());
       return new Tuple2<>(

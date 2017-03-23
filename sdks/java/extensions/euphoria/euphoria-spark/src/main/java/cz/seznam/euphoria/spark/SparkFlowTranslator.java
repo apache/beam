@@ -16,7 +16,6 @@
 package cz.seznam.euphoria.spark;
 
 import com.google.common.base.Preconditions;
-import cz.seznam.euphoria.core.client.dataset.windowing.WindowedElement;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.functional.UnaryPredicate;
 import cz.seznam.euphoria.core.client.graph.DAG;
@@ -132,7 +131,7 @@ public class SparkFlowTranslator {
 
               final DataSink<?> sink = op.output().getOutputSink();
               sinks.add(sink);
-              JavaRDD<WindowedElement> sparkOutput =
+              JavaRDD<SparkElement> sparkOutput =
                       Objects.requireNonNull((JavaRDD) executorContext.getOutput(op));
 
               // unwrap data from WindowedElement

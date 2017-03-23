@@ -17,7 +17,6 @@ package cz.seznam.euphoria.spark;
 
 import com.google.common.collect.AbstractIterator;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
-import cz.seznam.euphoria.core.client.dataset.windowing.WindowedElement;
 import cz.seznam.euphoria.core.client.io.Context;
 
 import java.util.Iterator;
@@ -62,16 +61,16 @@ class FunctionContextAsync<T> extends FunctionContext<T> {
   /**
    * Returns blocking iterator.
    */
-  public Iterator<WindowedElement> iterator() {
+  public Iterator<SparkElement> iterator() {
     if (consumed) {
       // this kind of iterator can be consumed only once
       throw new IllegalStateException("Iterator already consumed");
     }
     consumed = true;
 
-    return new AbstractIterator<WindowedElement>() {
+    return new AbstractIterator<SparkElement>() {
       @Override
-      protected WindowedElement computeNext() {
+      protected SparkElement computeNext() {
         try {
           // this can be item itself, EOS/EOM token or Exception
           Object o = queue.take();
@@ -84,7 +83,7 @@ class FunctionContextAsync<T> extends FunctionContext<T> {
           } else if (o instanceof Throwable) {
             throw (Throwable) o;
           }
-          return (WindowedElement) o;
+          return (SparkElement) o;
         } catch (Throwable e) {
           throw new RuntimeException(e);
         }
