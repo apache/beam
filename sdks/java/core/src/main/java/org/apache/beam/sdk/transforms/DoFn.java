@@ -384,9 +384,6 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
   /**
    * Annotation for declaring and dereferencing state cells.
    *
-   * <p><i>Not currently supported by any runner. When ready, the feature will work as described
-   * here.</i>
-   *
    * <p>To declare a state cell, create a field of type {@link StateSpec} annotated with a {@link
    * StateId}. To use the cell during processing, add a parameter of the appropriate {@link State}
    * subclass to your {@link ProcessElement @ProcessElement} or {@link OnTimer @OnTimer} method, and
@@ -427,9 +424,6 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
 
   /**
    * Annotation for declaring and dereferencing timers.
-   *
-   * <p><i>Not currently supported by any runner. When ready, the feature will work as described
-   * here.</i>
    *
    * <p>To declare a timer, create a field of type {@link TimerSpec} annotated with a {@link
    * TimerId}. To use the cell during processing, add a parameter of the type {@link Timer} to your
@@ -474,9 +468,6 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
 
   /**
    * Annotation for registering a callback for a timer.
-   *
-   * <p><i>Not currently supported by any runner. When ready, the feature will work as described
-   * here.</i>
    *
    * <p>See the javadoc for {@link TimerId} for use in a full example.
    *
