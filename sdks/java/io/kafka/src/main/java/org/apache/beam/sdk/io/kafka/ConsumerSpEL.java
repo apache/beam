@@ -76,11 +76,11 @@ class ConsumerSpEL {
   }
 
   public long getRecordTimestamp(ConsumerRecord<byte[], byte[]> rawRecord) {
-    long timestamp = -1L;
+    long timestamp;
     try {
       //for Kafka 0.9, set to System.currentTimeMillis();
       //for kafka 0.10, when NO_TIMESTAMP also set to System.currentTimeMillis();
-      if (!hasRecordTimestamp || (timestamp = (long) timestampMethod.invoke(rawRecord)) == -1L) {
+      if (!hasRecordTimestamp || (timestamp = (long) timestampMethod.invoke(rawRecord)) <= 0L) {
         timestamp = System.currentTimeMillis();
       }
     } catch (IllegalAccessException | IllegalArgumentException | InvocationTargetException e) {

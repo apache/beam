@@ -75,6 +75,7 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.transforms.windowing.Trigger;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.ExposedByteArrayInputStream;
 import org.apache.beam.sdk.values.KV;
@@ -206,6 +207,12 @@ import org.slf4j.LoggerFactory;
  * {@link ProducerConfig} for sink. E.g. if you would like to enable offset
  * <em>auto commit</em> (for external monitoring or other purposes), you can set
  * <tt>"group.id"</tt>, <tt>"enable.auto.commit"</tt>, etc.
+ *
+ * <h3>Watermark</h3>
+ * The default watermark increases along as processing timestamp, which may results in
+ * late-data. You can provide a customized {@code WatermarkFn} with
+ * {@link Read#withWatermarkFn(SerializableFunction)}, or handle the late records properly
+ * in {@link Trigger}.
  */
 public class KafkaIO {
   /**
@@ -1062,8 +1069,10 @@ public class KafkaIO {
         return initialWatermark;
       }
 
+      //watermark increases as current_timestamp, in case of latency,
+      //developers need to either provide a customized watermarkFn, or tune Triggers.
       return source.spec.getWatermarkFn() != null
-          ? source.spec.getWatermarkFn().apply(curRecord) : curTimestamp;
+          ? source.spec.getWatermarkFn().apply(curRecord) : Instant.now();
     }
 
     @Override
