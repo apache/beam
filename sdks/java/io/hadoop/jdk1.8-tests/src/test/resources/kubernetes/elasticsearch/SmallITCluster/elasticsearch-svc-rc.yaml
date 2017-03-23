@@ -54,7 +54,7 @@ spec:
         securityContext:
           capabilities:
             add:
-              - IPC_LOC
+              - IPC_LOCK
               - SYS_RESOURCE
         image: quay.io/pires/docker-elasticsearch-kubernetes:5.2.2
         env:
