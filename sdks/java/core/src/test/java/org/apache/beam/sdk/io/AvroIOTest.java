@@ -68,7 +68,9 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.DisplayDataEvaluator;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
+import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.util.IOChannelUtils;
 import org.apache.beam.sdk.util.SerializableUtils;
@@ -308,13 +310,20 @@ public class AvroIOTest {
     }
 
     @Override
-    public String apply(Context input) {
+    public String windowedFilename(WindowedContext input) {
       String filename = outputFilePrefix + "-" + input.getWindow().toString() +  "-"
           + input.getShardNumber() + "-of-" + (input.getNumShards() - 1) + "-pane-"
           + input.getPaneInfo().getIndex();
       if (input.getPaneInfo().isLast()) {
         filename += "-final";
       }
+      return filename;
+    }
+
+    @Override
+    public String unwindowedFilename(Context input) {
+      String filename = outputFilePrefix + input.getShardNumber() + "-of-"
+          + (input.getNumShards() - 1);
       return filename;
     }
 

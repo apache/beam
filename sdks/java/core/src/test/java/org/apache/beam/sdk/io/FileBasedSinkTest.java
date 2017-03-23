@@ -228,8 +228,8 @@ public class FileBasedSinkTest {
     writeOp.finalize(fileResults, options);
 
     for (int i = 0; i < numFiles; i++) {
-      String outputFilename = writeOp.getSink().getFileNamePolicy().apply(
-          new Context(null, null, i, numFiles));
+      String outputFilename = writeOp.getSink().getFileNamePolicy().unwindowedFilename(
+          new Context(i, numFiles));
       assertTrue(new File(outputFilename).exists());
       assertFalse(temporaryFiles.get(i).exists());
     }
@@ -294,8 +294,8 @@ public class FileBasedSinkTest {
       List<String> lines = Arrays.asList(inputContents.get(i));
       writeFile(lines, inputTmpFile);
       inputFilePaths.put(inputTmpFile.toString(),
-          writeOp.getSink().getFileNamePolicy().apply(
-              new Context(null, null, i, inputFilenames.size())));
+          writeOp.getSink().getFileNamePolicy().unwindowedFilename(
+              new Context(i, inputFilenames.size())));
     }
 
     // Copy input files to output files.
@@ -310,7 +310,7 @@ public class FileBasedSinkTest {
   public List<String> generateDestinationFilenames(FilenamePolicy policy, int numFiles) {
     List<String> filenames = new ArrayList<>();
     for (int i = 0; i < numFiles; i++) {
-      filenames.add(policy.apply(new Context(null, null, i, numFiles)));
+      filenames.add(policy.unwindowedFilename(new Context(i, numFiles)));
     }
     return filenames;
   }

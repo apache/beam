@@ -50,6 +50,7 @@ import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.FileBasedSink.FilenamePolicy.Context;
+import org.apache.beam.sdk.io.FileBasedSink.FilenamePolicy.WindowedContext;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.NestedValueProvider;
@@ -163,30 +164,45 @@ public abstract class FileBasedSink<T> extends Sink<T> {
   /**
    * A naming policy for output files.
    */
-  public abstract static class FilenamePolicy
-      implements org.apache.beam.sdk.transforms.SerializableFunction<
-       FilenamePolicy.Context, String> {
-    /**
-     * Context used for generating a name based on window, pane, shard numer, and num shards.
-     * Window and pane will only be provided if windowed writes have been requested using
-     * {@link Write.Bound#withWindowedWrites}. The policy must produce unique filenames for unique
-     * Context objects.
-     */
+  public abstract static class FilenamePolicy {
     public static class Context {
-      @Nullable private BoundedWindow window;
-      @Nullable private PaneInfo paneInfo;
       private int shardNumber;
       private int numShards;
 
-      public Context(
-          @Nullable BoundedWindow window,
-          @Nullable PaneInfo paneInfo,
-          int shardNumber,
-          int numShards) {
-        this.window = window;
-        this.paneInfo = paneInfo;
+
+      public Context(int shardNumber, int numShards) {
         this.shardNumber = shardNumber;
         this.numShards = numShards;
+      }
+
+      public int getShardNumber() {
+        return shardNumber;
+      }
+
+
+      public int getNumShards() {
+        return numShards;
+      }
+    }
+
+    /**
+     * Context used for generating a name based on window, pane, shard numer, and num shards.
+     * Window and pane will only be provided if windowed writes have been requested using
+     * {@link Write#withWindowedWrites}. The policy must produce unique filenames for unique
+     * Context objects.
+     */
+    public static class WindowedContext extends Context {
+      @Nullable private BoundedWindow window;
+      @Nullable private PaneInfo paneInfo;
+
+      public WindowedContext(
+          BoundedWindow window,
+          PaneInfo paneInfo,
+          int shardNumber,
+          int numShards) {
+        super(shardNumber, numShards);
+        this.window = window;
+        this.paneInfo = paneInfo;
       }
 
       @Nullable
@@ -198,15 +214,22 @@ public abstract class FileBasedSink<T> extends Sink<T> {
       public PaneInfo getPaneInfo() {
         return paneInfo;
       }
-
-      public int getShardNumber() {
-        return shardNumber;
-      }
-
-      public int getNumShards() {
-        return numShards;
-      }
     }
+
+    /**
+     * When a sink has requested windowed or triggered output, this method will be invoked to return
+     * the filename. The {@link WindowedContext} object gives access to the window and pane, as
+     * well as sharding information. The policy must return unique and consistent filenames
+     * for different windows and panes.
+     */
+    public abstract String windowedFilename(WindowedContext c);
+
+    /**
+     * When a sink has not requested windowed output, this method will be invoked to return the
+     * filename. The {@link Context} object only provides sharding information, which is used by
+     * the policy to generate unique and consistent filenames.
+     */
+    public abstract String unwindowedFilename(Context c);
 
     /**
      * @return The base filename for all output files.
@@ -241,7 +264,7 @@ public abstract class FileBasedSink<T> extends Sink<T> {
     }
 
     @Override
-    public String apply(FilenamePolicy.Context context) {
+    public String unwindowedFilename(FilenamePolicy.Context context) {
       if (context.numShards <= 0) {
         return null;
       }
@@ -250,6 +273,12 @@ public abstract class FileBasedSink<T> extends Sink<T> {
       return IOChannelUtils.constructName(
             baseOutputFilename.get(), fileNamingTemplate, suffix, context.getShardNumber(),
           context.getNumShards());
+    }
+
+    @Override
+    public String windowedFilename(FilenamePolicy.WindowedContext c) {
+      throw new UnsupportedOperationException("There is no default policy for windowed file"
+          + " output. Please provide an explicit FilenamePolicy to generate filenames");
     }
 
     @Override
@@ -558,7 +587,7 @@ public abstract class FileBasedSink<T> extends Sink<T> {
         FilenamePolicy filenamePolicy = getSink().fileNamePolicy;
         for (int i = 0; i < files.size(); i++) {
           outputFilenames.put(files.get(i),
-              filenamePolicy.apply(new Context(null, null, i, files.size())));
+              filenamePolicy.unwindowedFilename(new Context(i, files.size())));
         }
       }
 
@@ -809,8 +838,13 @@ public abstract class FileBasedSink<T> extends Sink<T> {
       }
 
       FilenamePolicy filenamePolicy = getWriteOperation().getSink().fileNamePolicy;
-      String destinationFile = filenamePolicy.apply(new Context(
-          window, paneInfo, shard, numShards));
+      String destinationFile;
+      if (window != null) {
+        destinationFile = filenamePolicy.windowedFilename(new WindowedContext(
+            window, paneInfo, shard, numShards));
+      } else {
+        destinationFile =  filenamePolicy.unwindowedFilename(new Context(shard, numShards));
+      }
       FileResult result = new FileResult(filename, destinationFile);
       LOG.debug("Result for bundle {}: {} {}", this.id, filename, destinationFile);
       return result;

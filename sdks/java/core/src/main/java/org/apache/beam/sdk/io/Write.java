@@ -227,7 +227,7 @@ public class Write<T> extends PTransform<PCollection<T>, PDone> {
    * generated multiple times; it's up to the sink implementation to keep these output shards
    * unique.
    *
-   * <p>This option can only be used if {@link Bound#withNumShards(int)} is also set to a
+   * <p>This option can only be used if {@link #withNumShards(int)} is also set to a
    * positive value.
    */
   public Write<T> withWindowedWrites() {
