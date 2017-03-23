@@ -26,7 +26,6 @@ import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
-
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -35,6 +34,35 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
 import javax.annotation.Nullable;
+import org.apache.beam.integration.nexmark.io.PubsubHelper;
+import org.apache.beam.integration.nexmark.model.Auction;
+import org.apache.beam.integration.nexmark.model.Bid;
+import org.apache.beam.integration.nexmark.model.Event;
+import org.apache.beam.integration.nexmark.model.KnownSize;
+import org.apache.beam.integration.nexmark.model.Person;
+import org.apache.beam.integration.nexmark.queries.Query0;
+import org.apache.beam.integration.nexmark.queries.Query0Model;
+import org.apache.beam.integration.nexmark.queries.Query1;
+import org.apache.beam.integration.nexmark.queries.Query10;
+import org.apache.beam.integration.nexmark.queries.Query11;
+import org.apache.beam.integration.nexmark.queries.Query12;
+import org.apache.beam.integration.nexmark.queries.Query1Model;
+import org.apache.beam.integration.nexmark.queries.Query2;
+import org.apache.beam.integration.nexmark.queries.Query2Model;
+import org.apache.beam.integration.nexmark.queries.Query3;
+import org.apache.beam.integration.nexmark.queries.Query3Model;
+import org.apache.beam.integration.nexmark.queries.Query4;
+import org.apache.beam.integration.nexmark.queries.Query4Model;
+import org.apache.beam.integration.nexmark.queries.Query5;
+import org.apache.beam.integration.nexmark.queries.Query5Model;
+import org.apache.beam.integration.nexmark.queries.Query6;
+import org.apache.beam.integration.nexmark.queries.Query6Model;
+import org.apache.beam.integration.nexmark.queries.Query7;
+import org.apache.beam.integration.nexmark.queries.Query7Model;
+import org.apache.beam.integration.nexmark.queries.Query8;
+import org.apache.beam.integration.nexmark.queries.Query8Model;
+import org.apache.beam.integration.nexmark.queries.Query9;
+import org.apache.beam.integration.nexmark.queries.Query9Model;
 import org.apache.beam.sdk.AggregatorRetrievalException;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
@@ -56,7 +84,7 @@ import org.joda.time.Duration;
 /**
  * Run a single Nexmark query using a given configuration.
  */
-public abstract class NexmarkRunner<OptionT extends Options> {
+public abstract class NexmarkRunner<OptionT extends NexmarkOptions> {
   /**
    * Minimum number of samples needed for 'stead-state' rate calculation.
    */
@@ -84,7 +112,7 @@ public abstract class NexmarkRunner<OptionT extends Options> {
    */
   private static final Duration STUCK_TERMINATE_DELAY = Duration.standardDays(3);
   /**
-   * Options shared by all runs.
+   * NexmarkOptions shared by all runs.
    */
   protected final OptionT options;
 
@@ -359,7 +387,7 @@ public abstract class NexmarkRunner<OptionT extends Options> {
     return perf;
   }
 
-  String getJobId(PipelineResult job) {
+  protected String getJobId(PipelineResult job) {
     return "";
   }
 
@@ -461,7 +489,7 @@ public abstract class NexmarkRunner<OptionT extends Options> {
   /**
    * Build and run a pipeline using specified options.
    */
-  protected interface PipelineBuilder<OptionT extends Options> {
+  protected interface PipelineBuilder<OptionT extends NexmarkOptions> {
     void build(OptionT publishOnlyOptions);
   }
 
@@ -966,7 +994,7 @@ public abstract class NexmarkRunner<OptionT extends Options> {
             // We'll shutdown the publisher job when we notice the main job has finished.
             invokeBuilderForPublishOnlyPipeline(new PipelineBuilder() {
               @Override
-              public void build(Options publishOnlyOptions) {
+              public void build(NexmarkOptions publishOnlyOptions) {
                 Pipeline sp = Pipeline.create(options);
                 NexmarkUtils.setupPipeline(configuration.coderStrategy, sp);
                 publisherMonitor = new Monitor<Event>(queryName, "publisher");

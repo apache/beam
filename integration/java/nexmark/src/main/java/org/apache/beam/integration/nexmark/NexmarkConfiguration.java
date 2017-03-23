@@ -29,7 +29,7 @@ import java.util.Objects;
  * programmatically. We only capture properties which may influence the resulting
  * pipeline performance, as captured by {@link NexmarkPerf}.
  */
-class NexmarkConfiguration implements Serializable {
+public class NexmarkConfiguration implements Serializable {
   public static final NexmarkConfiguration DEFAULT = new NexmarkConfiguration();
 
   /** If {@literal true}, include additional debugging and monitoring stats. */
@@ -228,7 +228,7 @@ class NexmarkConfiguration implements Serializable {
   /**
    * Replace any properties of this configuration which have been supplied by the command line.
    */
-  public void overrideFromOptions(Options options) {
+  public void overrideFromOptions(NexmarkOptions options) {
     if (options.getDebug() != null) {
       debug = options.getDebug();
     }
@@ -511,8 +511,6 @@ class NexmarkConfiguration implements Serializable {
 
   /**
    * Parse an object from {@code string}.
-   *
-   * @throws IOException
    */
   public static NexmarkConfiguration fromString(String string) {
     try {

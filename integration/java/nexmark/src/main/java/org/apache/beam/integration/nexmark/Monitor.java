@@ -19,6 +19,7 @@ package org.apache.beam.integration.nexmark;
 
 import java.io.Serializable;
 
+import org.apache.beam.integration.nexmark.model.KnownSize;
 import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Max;

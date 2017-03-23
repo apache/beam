@@ -100,7 +100,7 @@ public enum NexmarkSuite {
    * with any set command line flags, except for --isStreaming which is only respected for
    * the {@link #DEFAULT} suite.
    */
-  public Iterable<NexmarkConfiguration> getConfigurations(Options options) {
+  public Iterable<NexmarkConfiguration> getConfigurations(NexmarkOptions options) {
     Set<NexmarkConfiguration> results = new LinkedHashSet<>();
     for (NexmarkConfiguration configuration : configurations) {
       NexmarkConfiguration result = configuration.clone();

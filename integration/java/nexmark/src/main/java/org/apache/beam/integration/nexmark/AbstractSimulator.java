@@ -34,7 +34,7 @@ import org.joda.time.Instant;
  * @param <InputT> Type of input elements.
  * @param <OutputT> Type of output elements.
  */
-abstract class AbstractSimulator<InputT, OutputT> {
+public abstract class AbstractSimulator<InputT, OutputT> {
   /** Window size for action bucket sampling. */
   public static final Duration WINDOW_SIZE = Duration.standardMinutes(1);
 

@@ -16,6 +16,6 @@
  * limitations under the License.
  */
 /**
- * Nexmark Benchmark Integration Queries.
+ * Nexmark.
  */
 package org.apache.beam.integration.nexmark;

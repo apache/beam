@@ -20,14 +20,30 @@ package org.apache.beam.integration.nexmark;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableList;
 import com.google.common.hash.Hashing;
-
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.Iterator;
 import java.util.List;
-
+import org.apache.beam.integration.nexmark.model.Auction;
+import org.apache.beam.integration.nexmark.model.AuctionBid;
+import org.apache.beam.integration.nexmark.model.AuctionCount;
+import org.apache.beam.integration.nexmark.model.AuctionPrice;
+import org.apache.beam.integration.nexmark.model.Bid;
+import org.apache.beam.integration.nexmark.model.BidsPerSession;
+import org.apache.beam.integration.nexmark.model.CategoryPrice;
+import org.apache.beam.integration.nexmark.model.Done;
+import org.apache.beam.integration.nexmark.model.Event;
+import org.apache.beam.integration.nexmark.model.IdNameReserve;
+import org.apache.beam.integration.nexmark.model.KnownSize;
+import org.apache.beam.integration.nexmark.model.NameCityStateId;
+import org.apache.beam.integration.nexmark.model.Person;
+import org.apache.beam.integration.nexmark.model.SellerPrice;
+import org.apache.beam.integration.nexmark.sources.BoundedEventSource;
+import org.apache.beam.integration.nexmark.sources.Generator;
+import org.apache.beam.integration.nexmark.sources.GeneratorConfig;
+import org.apache.beam.integration.nexmark.sources.UnboundedEventSource;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
@@ -67,7 +83,7 @@ public class NexmarkUtils {
   /**
    * Mapper for (de)serializing JSON.
    */
-  static final ObjectMapper MAPPER = new ObjectMapper();
+  public static final ObjectMapper MAPPER = new ObjectMapper();
 
   /**
    * Possible sources for events.
@@ -382,7 +398,8 @@ public class NexmarkUtils {
    */
   public static PTransform<PBegin, PCollection<Event>> batchEventsSource(
           NexmarkConfiguration configuration) {
-    return Read.from(new BoundedEventSource(standardGeneratorConfig(configuration), configuration.numEventGenerators));
+    return Read.from(new BoundedEventSource(standardGeneratorConfig(configuration),
+      configuration.numEventGenerators));
   }
 
   /**

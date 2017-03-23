@@ -243,7 +243,7 @@ $GCLOUD compute ssh \
   --zone=$ZONE \
   $MASTER \
   --command "~/$FLINK_VER/bin/flink run \
-  -c org.apache.beam.integration.nexmark.NexmarkFlinkDriver \
+  -c org.apache.beam.integration.nexmark.drivers.NexmarkFlinkDriver \
   ~/$FLINK_VER/lib/java-integration-all-bundled-0.2.0-incubating-SNAPSHOT.jar \
   --project=$PROJECT \
   --streaming=true \
