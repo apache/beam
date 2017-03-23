@@ -73,7 +73,7 @@ public class WindowingTest {
                                              T elem,
                                              UnaryFunction<T, Long> eventTimeAssigner) {
     return windowing.assignWindowsToElement(
-            new WindowedElementImpl<>(null, eventTimeAssigner.apply(elem), elem));
+            new Elem<W, T>(null, elem, eventTimeAssigner.apply(elem)));
   }
 
   @Test
@@ -144,8 +144,8 @@ public class WindowingTest {
 
     for (long event : data) {
       Set<TimeInterval> labels = windowing
-          .assignWindowsToElement(new WindowedElementImpl<>(
-              Batch.BatchWindow.get(), eventTimeAssigner.apply(event), event));
+          .assignWindowsToElement(new Elem<>(
+              Batch.BatchWindow.get(), event, eventTimeAssigner.apply(event)));
       // verify window count
       assertEquals(3, labels.size());
       // verify that each window contains the original event
@@ -154,6 +154,33 @@ public class WindowingTest {
         assertTrue(stamp >= l.getStartMillis());
         assertTrue(stamp <= l.getEndMillis());
       }
+    }
+  }
+
+  private static class Elem<W extends Window, T> implements WindowedElement<W, T> {
+    private final W window;
+    private final T element;
+    private final long timestamp;
+
+    public Elem(W window, T element, long timestamp) {
+      this.window = window;
+      this.element = element;
+      this.timestamp = timestamp;
+    }
+
+    @Override
+    public W getWindow() {
+      return window;
+    }
+
+    @Override
+    public long getTimestamp() {
+      return timestamp;
+    }
+
+    @Override
+    public T getElement() {
+      return element;
     }
   }
 }

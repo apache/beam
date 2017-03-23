@@ -17,8 +17,6 @@ package cz.seznam.euphoria.spark;
 
 import com.google.common.collect.Iterators;
 import cz.seznam.euphoria.core.client.dataset.windowing.Window;
-import cz.seznam.euphoria.core.client.dataset.windowing.WindowedElement;
-import cz.seznam.euphoria.core.client.dataset.windowing.WindowedElementImpl;
 import cz.seznam.euphoria.core.client.functional.UnaryFunctor;
 import org.apache.spark.api.java.function.FlatMapFunction;
 
@@ -26,7 +24,7 @@ import java.util.Iterator;
 import java.util.Objects;
 
 class UnaryFunctorWrapper<WID extends Window, IN, OUT>
-        implements FlatMapFunction<WindowedElement<WID, IN>, WindowedElement<WID, OUT>> {
+        implements FlatMapFunction<SparkElement<WID, IN>, SparkElement<WID, OUT>> {
 
   private final FunctionContextMem<OUT> context;
   private final UnaryFunctor<IN, OUT> functor;
@@ -37,7 +35,7 @@ class UnaryFunctorWrapper<WID extends Window, IN, OUT>
   }
 
   @Override
-  public Iterator<WindowedElement<WID, OUT>> call(WindowedElement<WID, IN> elem) {
+  public Iterator<SparkElement<WID, OUT>> call(SparkElement<WID, IN> elem) {
     final WID window = elem.getWindow();
     final long timestamp = elem.getTimestamp();
 
@@ -49,6 +47,6 @@ class UnaryFunctorWrapper<WID extends Window, IN, OUT>
 
     // wrap output in WindowedElement
     return Iterators.transform(context.getOutputIterator(),
-            e -> new WindowedElementImpl<>(window, timestamp, e));
+            e -> new SparkElement<>(window, timestamp, e));
   }
 }
