@@ -1064,8 +1064,6 @@ public class KafkaIO {
         return initialWatermark;
       }
 
-      //watermark increases as current_timestamp, in case of latency,
-      //developers need to either provide a customized watermarkFn, or tune Triggers.
       return source.spec.getWatermarkFn() != null
           ? source.spec.getWatermarkFn().apply(curRecord) : curTimestamp;
     }
