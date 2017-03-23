@@ -20,4 +20,4 @@ package org.apache.beam.sdk.testing;
 /**
  * Category tag for tests which validate that a Beam runner is correctly implemented.
  */
-public interface ValidatesRunner extends RunnableOnService {}
+public interface ValidatesRunner extends NeedsRunner {}
