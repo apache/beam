@@ -32,8 +32,7 @@ import java.io.Serializable;
 import java.util.LinkedList;
 import java.util.List;
 import javax.annotation.Nullable;
-import org.apache.beam.runners.dataflow.BatchStatefulParDoOverrides.StatefulMultiOutputParDo;
-import org.apache.beam.runners.dataflow.BatchStatefulParDoOverrides.StatefulSingleOutputParDo;
+import org.apache.beam.runners.dataflow.BatchStatefulParDoOverrides.StatefulParDo;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.Pipeline.PipelineVisitor;
@@ -63,21 +62,7 @@ import org.mockito.stubbing.Answer;
 public class BatchStatefulParDoOverridesTest implements Serializable {
 
   @Test
-  public void testSingleOutputOverrideNonCrashing() throws Exception {
-    DataflowPipelineOptions options = buildPipelineOptions();
-    options.setRunner(DataflowRunner.class);
-    Pipeline pipeline = Pipeline.create(options);
-
-    DummyStatefulDoFn fn = new DummyStatefulDoFn();
-    pipeline.apply(Create.of(KV.of(1, 2))).apply(ParDo.of(fn));
-
-    DataflowRunner runner = DataflowRunner.fromOptions(options);
-    runner.replaceTransforms(pipeline);
-    assertThat(findBatchStatefulDoFn(pipeline), equalTo((DoFn) fn));
-  }
-
-  @Test
-  public void testMultiOutputOverrideNonCrashing() throws Exception {
+  public void testOverrideNonCrashing() throws Exception {
     DataflowPipelineOptions options = buildPipelineOptions();
     options.setRunner(DataflowRunner.class);
     Pipeline pipeline = Pipeline.create(options);
@@ -132,13 +117,9 @@ public class BatchStatefulParDoOverridesTest implements Serializable {
 
     @Override
     public CompositeBehavior enterCompositeTransform(Node node) {
-      if (node.getTransform() instanceof StatefulSingleOutputParDo) {
+      if (node.getTransform() instanceof StatefulParDo) {
         batchStatefulDoFn =
-            ((StatefulSingleOutputParDo) node.getTransform()).getOriginalParDo().getFn();
-        return CompositeBehavior.DO_NOT_ENTER_TRANSFORM;
-      } else if (node.getTransform() instanceof StatefulMultiOutputParDo) {
-        batchStatefulDoFn =
-            ((StatefulMultiOutputParDo) node.getTransform()).getOriginalParDo().getFn();
+            ((StatefulParDo) node.getTransform()).getOriginalParDo().getFn();
         return CompositeBehavior.DO_NOT_ENTER_TRANSFORM;
       } else {
         return CompositeBehavior.ENTER_TRANSFORM;

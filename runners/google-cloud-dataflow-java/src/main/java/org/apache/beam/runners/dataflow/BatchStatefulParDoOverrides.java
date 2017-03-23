@@ -58,17 +58,6 @@ import org.joda.time.Instant;
 public class BatchStatefulParDoOverrides {
 
   /**
-   * Returns a {@link PTransformOverrideFactory} that replaces a single-output
-   * {@link ParDo} with a composite transform specialized for the {@link DataflowRunner}.
-   */
-  public static <K, InputT, OutputT>
-      PTransformOverrideFactory<
-              PCollection<KV<K, InputT>>, PCollection<OutputT>, ParDo.Bound<KV<K, InputT>, OutputT>>
-          singleOutputOverrideFactory() {
-    return new SingleOutputOverrideFactory<>();
-  }
-
-  /**
    * Returns a {@link PTransformOverrideFactory} that replaces a multi-output
    * {@link ParDo} with a composite transform specialized for the {@link DataflowRunner}.
    */
@@ -76,34 +65,11 @@ public class BatchStatefulParDoOverrides {
       PTransformOverrideFactory<
               PCollection<KV<K, InputT>>, PCollectionTuple,
               ParDo.BoundMulti<KV<K, InputT>, OutputT>>
-          multiOutputOverrideFactory() {
-    return new MultiOutputOverrideFactory<>();
+          overrideFactory() {
+    return new OverrideFactory<>();
   }
 
-  private static class SingleOutputOverrideFactory<K, InputT, OutputT>
-      implements PTransformOverrideFactory<
-          PCollection<KV<K, InputT>>, PCollection<OutputT>, ParDo.Bound<KV<K, InputT>, OutputT>> {
-
-    @Override
-    @SuppressWarnings("unchecked")
-    public PTransform<PCollection<KV<K, InputT>>, PCollection<OutputT>> getReplacementTransform(
-        ParDo.Bound<KV<K, InputT>, OutputT> originalParDo) {
-      return new StatefulSingleOutputParDo<>(originalParDo);
-    }
-
-    @Override
-    public PCollection<KV<K, InputT>> getInput(List<TaggedPValue> inputs, Pipeline p) {
-      return (PCollection<KV<K, InputT>>) Iterables.getOnlyElement(inputs).getValue();
-    }
-
-    @Override
-    public Map<PValue, ReplacementOutput> mapOutputs(
-        List<TaggedPValue> outputs, PCollection<OutputT> newOutput) {
-      return ReplacementOutputs.singleton(outputs, newOutput);
-    }
-  }
-
-  private static class MultiOutputOverrideFactory<K, InputT, OutputT>
+  private static class OverrideFactory<K, InputT, OutputT>
       implements PTransformOverrideFactory<
           PCollection<KV<K, InputT>>, PCollectionTuple, ParDo.BoundMulti<KV<K, InputT>, OutputT>> {
 
@@ -111,7 +77,7 @@ public class BatchStatefulParDoOverrides {
     @SuppressWarnings("unchecked")
     public PTransform<PCollection<KV<K, InputT>>, PCollectionTuple> getReplacementTransform(
         BoundMulti<KV<K, InputT>, OutputT> originalParDo) {
-      return new StatefulMultiOutputParDo<>(originalParDo);
+      return new StatefulParDo<>(originalParDo);
     }
 
     @Override
@@ -126,40 +92,12 @@ public class BatchStatefulParDoOverrides {
     }
   }
 
-  static class StatefulSingleOutputParDo<K, InputT, OutputT>
-      extends PTransform<PCollection<KV<K, InputT>>, PCollection<OutputT>> {
-
-    private final ParDo.Bound<KV<K, InputT>, OutputT> originalParDo;
-
-    StatefulSingleOutputParDo(ParDo.Bound<KV<K, InputT>, OutputT> originalParDo) {
-      this.originalParDo = originalParDo;
-    }
-
-    ParDo.Bound<KV<K, InputT>, OutputT> getOriginalParDo() {
-      return originalParDo;
-    }
-
-    @Override
-    public PCollection<OutputT> expand(PCollection<KV<K, InputT>> input) {
-      DoFn<KV<K, InputT>, OutputT> fn = originalParDo.getFn();
-      verifyFnIsStateful(fn);
-
-      PTransform<
-              PCollection<? extends KV<K, Iterable<KV<Instant, WindowedValue<KV<K, InputT>>>>>>,
-              PCollection<OutputT>>
-          statefulParDo =
-              ParDo.of(new BatchStatefulDoFn<>(fn)).withSideInputs(originalParDo.getSideInputs());
-
-      return input.apply(new GbkBeforeStatefulParDo<K, InputT>()).apply(statefulParDo);
-    }
-  }
-
-  static class StatefulMultiOutputParDo<K, InputT, OutputT>
+  static class StatefulParDo<K, InputT, OutputT>
       extends PTransform<PCollection<KV<K, InputT>>, PCollectionTuple> {
 
     private final BoundMulti<KV<K, InputT>, OutputT> originalParDo;
 
-    StatefulMultiOutputParDo(ParDo.BoundMulti<KV<K, InputT>, OutputT> originalParDo) {
+    StatefulParDo(ParDo.BoundMulti<KV<K, InputT>, OutputT> originalParDo) {
       this.originalParDo = originalParDo;
     }
 
