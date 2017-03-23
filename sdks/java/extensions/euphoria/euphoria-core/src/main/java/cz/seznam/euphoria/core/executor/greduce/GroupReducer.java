@@ -57,7 +57,19 @@ public class GroupReducer<WID extends Window, KEY, I> {
     void collect(T elem);
   }
 
+  /**
+   * Creates a new instance of {@link WindowedElement}.
+   *
+   * @param <W> type of the window
+   * @param <T> type of the data element
+   */
+  @FunctionalInterface
+  public interface WindowedElementFactory<W extends Window, T> {
+    WindowedElement<W, T> create(W window, long timestamp, T element);
+  }
+
   private final StateFactory<?, State> stateFactory;
+  private final WindowedElementFactory<WID, Object> elementFactory;
   private final CombinableReduceFunction<State> stateCombiner;
   private final StorageProvider stateStorageProvider;
   private final Collector<WindowedElement<?, Pair<KEY, ?>>> collector;
@@ -71,12 +83,14 @@ public class GroupReducer<WID extends Window, KEY, I> {
   KEY key;
 
   public GroupReducer(StateFactory<?, State> stateFactory,
-               CombinableReduceFunction<State> stateCombiner,
-               StorageProvider stateStorageProvider,
-               Windowing windowing,
-               Trigger trigger,
-               Collector<WindowedElement<?, Pair<KEY, ?>>> collector) {
+                      WindowedElementFactory<WID, Object> elementFactory,
+                      CombinableReduceFunction<State> stateCombiner,
+                      StorageProvider stateStorageProvider,
+                      Windowing windowing,
+                      Trigger trigger,
+                      Collector<WindowedElement<?, Pair<KEY, ?>>> collector) {
     this.stateFactory = Objects.requireNonNull(stateFactory);
+    this.elementFactory = Objects.requireNonNull(elementFactory);
     this.stateCombiner = Objects.requireNonNull(stateCombiner);
     this.stateStorageProvider = Objects.requireNonNull(stateStorageProvider);
     this.windowing = Objects.requireNonNull(windowing);
@@ -252,11 +266,12 @@ public class GroupReducer<WID extends Window, KEY, I> {
     }
 
     @Override
+    @SuppressWarnings("unchecked")
     public void collect(T elem) {
       long stamp = (window instanceof TimedWindow)
           ? ((TimedWindow) window).maxTimestamp()
           : clock.getStamp();
-      out.collect(new WindowedElement<>(window, stamp, Pair.of(key, elem)));
+      out.collect((WindowedElement) elementFactory.create(window, stamp, Pair.of(key, elem)));
     }
 
     @Override

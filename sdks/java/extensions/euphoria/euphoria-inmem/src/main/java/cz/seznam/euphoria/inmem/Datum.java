@@ -25,7 +25,11 @@ import cz.seznam.euphoria.core.client.dataset.windowing.WindowedElement;
  *  * end-of-stream marks
  *  * watermarks
  */
-class Datum extends WindowedElement<Window, Object> {
+class Datum implements WindowedElement<Window, Object> {
+
+  private final Window window;
+  private final Object element;
+  private long timestamp;
 
   @SuppressWarnings("unchecked")
   static Datum of(Window window, Object element, long stamp) {
@@ -89,11 +93,32 @@ class Datum extends WindowedElement<Window, Object> {
   }
 
   private Datum(long stamp) {
-    super(null, stamp, null);
+    this(null, null, stamp);
   }
 
   private Datum(Window window, Object element, long stamp) {
-    super(window, stamp,  element);
+    this.window = window;
+    this.element = element;
+    this.timestamp = stamp;
+  }
+
+  @Override
+  public Window getWindow() {
+    return window;
+  }
+
+  @Override
+  public long getTimestamp() {
+    return timestamp;
+  }
+
+  public void setTimestamp(long stamp) {
+    timestamp = stamp;
+  }
+
+  @Override
+  public Object getElement() {
+    return element;
   }
 
   /** Is this regular element message? */

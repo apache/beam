@@ -17,7 +17,6 @@ package cz.seznam.euphoria.spark;
 
 import cz.seznam.euphoria.core.client.dataset.windowing.MergingWindowing;
 import cz.seznam.euphoria.core.client.dataset.windowing.Window;
-import cz.seznam.euphoria.core.client.dataset.windowing.WindowedElement;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.functional.CombinableReduceFunction;
 import cz.seznam.euphoria.core.client.functional.StateFactory;
@@ -52,7 +51,7 @@ class ReduceStateByKeyTranslator implements SparkOperatorTranslator<ReduceStateB
   public JavaRDD<?> translate(ReduceStateByKey operator,
                               SparkExecutorContext context) {
 
-    final JavaRDD<WindowedElement> input = (JavaRDD) context.getSingleInput(operator);
+    final JavaRDD<SparkElement> input = (JavaRDD) context.getSingleInput(operator);
 
     StateFactory<?, State> stateFactory = operator.getStateFactory();
     CombinableReduceFunction<State> stateCombiner = operator.getStateCombiner();
@@ -109,11 +108,11 @@ class ReduceStateByKeyTranslator implements SparkOperatorTranslator<ReduceStateB
   }
 
   /**
-   * Extracts {@link KeyedWindow} from {@link WindowedElement} and
+   * Extracts {@link KeyedWindow} from {@link SparkElement} and
    * assigns timestamp according to (optional) eventTimeAssigner.
    */
   private static class CompositeKeyExtractor
-          implements PairFlatMapFunction<WindowedElement, KeyedWindow, Object> {
+          implements PairFlatMapFunction<SparkElement, KeyedWindow, Object> {
 
     private final UnaryFunction keyExtractor;
     private final UnaryFunction valueExtractor;
@@ -133,7 +132,7 @@ class ReduceStateByKeyTranslator implements SparkOperatorTranslator<ReduceStateB
 
     @Override
     @SuppressWarnings("unchecked")
-    public Iterator<Tuple2<KeyedWindow, Object>> call(WindowedElement wel) throws Exception {
+    public Iterator<Tuple2<KeyedWindow, Object>> call(SparkElement wel) throws Exception {
       if (eventTimeAssigner != null) {
         wel.setTimestamp((long) eventTimeAssigner.apply(wel.getElement()));
       }
@@ -152,7 +151,7 @@ class ReduceStateByKeyTranslator implements SparkOperatorTranslator<ReduceStateB
 
 
   private static class StateReducer
-          implements FlatMapFunction<Iterator<Tuple2<KeyedWindow, Object>>, WindowedElement> {
+          implements FlatMapFunction<Iterator<Tuple2<KeyedWindow, Object>>, SparkElement> {
 
     private final Windowing windowing;
     private final Trigger trigger;
@@ -175,9 +174,9 @@ class ReduceStateByKeyTranslator implements SparkOperatorTranslator<ReduceStateB
 
     @Override
     @SuppressWarnings("unchecked")
-    public Iterator<WindowedElement> call(Iterator<Tuple2<KeyedWindow, Object>> iterator) {
+    public Iterator<SparkElement> call(Iterator<Tuple2<KeyedWindow, Object>> iterator) {
       activeReducers = new HashMap<>();
-      FunctionContextAsync<WindowedElement<?, Pair<?, ?>>> context = new FunctionContextAsync<>();
+      FunctionContextAsync<SparkElement<?, Pair<?, ?>>> context = new FunctionContextAsync<>();
 
       // reduce states in separate thread
       context.runAsynchronously(() -> {
@@ -197,16 +196,17 @@ class ReduceStateByKeyTranslator implements SparkOperatorTranslator<ReduceStateB
           GroupReducer reducer = activeReducers.get(kw.key());
           if (reducer == null) {
             reducer = new GroupReducer<>(stateFactory,
+                    SparkElement::new,
                     stateCombiner,
                     storageProvider,
                     windowing,
                     trigger,
-                    el -> context.collect((WindowedElement) el));
+                    el -> context.collect((SparkElement) el));
 
             activeReducers.put(kw.key(), reducer);
           }
           reducer.process(
-                  new WindowedElement(kw.window(), kw.timestamp(), Pair.of(kw.key(), value)));
+                  new SparkElement(kw.window(), kw.timestamp(), Pair.of(kw.key(), value)));
         }
 
         flushStates();
