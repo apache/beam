@@ -54,6 +54,7 @@ spec:
         securityContext:
           capabilities:
             add:
+# IPC_LOCK capability is enabled to allow Elasticsearch to lock the heap in memory so it will not be swapped.   
               - IPC_LOCK
               - SYS_RESOURCE
         image: quay.io/pires/docker-elasticsearch-kubernetes:5.2.2
