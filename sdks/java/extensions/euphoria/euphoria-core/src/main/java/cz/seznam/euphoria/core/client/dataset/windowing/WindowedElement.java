@@ -31,13 +31,4 @@ public interface WindowedElement<W extends Window, T> {
   long getTimestamp();
 
   T getElement();
-
-  /**
-   * Creates a new instance of {@link WindowedElement}.
-   *
-   * @param <W> type of the window
-   * @param <T> type of the data element
-   */
-  interface WindowedElementFactory<W extends Window, T>
-          extends TernaryFunction<Window, Long, T, WindowedElement<W, T>> {}
 }
