@@ -755,7 +755,7 @@ public class DataflowPipelineJobTest {
     DataflowPipelineJob job = new DataflowPipelineJob(JOB_ID, options, null);
 
     thrown.expect(IOException.class);
-    thrown.expectMessage("Failed to cancel the job, "
+    thrown.expectMessage("Failed to cancel job in state RUNNING, "
         + "please go to the Developers Console to cancel it manually:");
     job.cancel();
 
