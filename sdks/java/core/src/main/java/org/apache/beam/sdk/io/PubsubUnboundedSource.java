@@ -106,8 +106,6 @@ import org.slf4j.LoggerFactory;
  * are blocking. We rely on the underlying runner to allow multiple
  * {@link UnboundedSource.UnboundedReader} instances to execute concurrently and thus hide latency.
  * </ul>
- *
- * <p>NOTE: This is not the implementation used when running on the Google Cloud Dataflow service.
  */
 public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>> {
   private static final Logger LOG = LoggerFactory.getLogger(PubsubUnboundedSource.class);

@@ -87,8 +87,6 @@ import org.joda.time.Duration;
  * <li>A failed bundle will cause messages to be resent. Thus we rely on the Pubsub consumer
  * to dedup messages.
  * </ul>
- *
- * <p>NOTE: This is not the implementation used when running on the Google Cloud Dataflow service.
  */
 public class PubsubUnboundedSink<T> extends PTransform<PCollection<T>, PDone> {
   /**

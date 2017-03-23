@@ -408,8 +408,7 @@ public abstract class HDFSFileSink<T, K, V> extends Sink<T> {
       FileOutputFormat.setOutputPath(job, new Path(path));
 
       // Each Writer is responsible for writing one bundle of elements and is represented by one
-      // unique Hadoop task based on uId/hash. All tasks share the same job ID. Since Dataflow
-      // handles retrying of failed bundles, each task has one attempt only.
+      // unique Hadoop task based on uId/hash. All tasks share the same job ID.
       JobID jobId = job.getJobID();
       TaskID taskId = new TaskID(jobId, TaskType.REDUCE, hash);
       context = new TaskAttemptContextImpl(job.getConfiguration(), new TaskAttemptID(taskId, 0));

@@ -839,9 +839,6 @@ public class PubsubIO {
      * <p>TODO: Consider replacing with BoundedReadFromUnboundedSource on top
      * of PubsubUnboundedSource.
      *
-     * <p>NOTE: This is not the implementation used when running on the Google Cloud Dataflow
-     * service in streaming mode.
-     *
      * <p>Public so can be suppressed by runners.
      */
     public class PubsubBoundedReader extends DoFn<Void, T> {
@@ -1131,9 +1128,6 @@ public class PubsubIO {
 
     /**
      * Writer to Pubsub which batches messages from bounded collections.
-     *
-     * <p>NOTE: This is not the implementation used when running on the Google Cloud Dataflow
-     * service in streaming mode.
      *
      * <p>Public so can be suppressed by runners.
      */
