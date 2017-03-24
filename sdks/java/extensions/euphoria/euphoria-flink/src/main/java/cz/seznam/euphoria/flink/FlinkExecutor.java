@@ -193,6 +193,10 @@ public class FlinkExecutor implements Executor {
   /**
    * See {@link ExecutionConfig#disableObjectReuse()}
    * and {@link ExecutionConfig#disableObjectReuse()}.
+   *
+   * @param reuse set TRUE for enabling object reuse
+   *
+   * @return this instance (for method chaining purposes)
    */
   public FlinkExecutor setObjectReuse(boolean reuse){
     this.objectReuse = reuse;

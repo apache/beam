@@ -36,7 +36,7 @@ import cz.seznam.euphoria.core.client.triggers.Trigger;
 import cz.seznam.euphoria.core.client.triggers.TriggerContext;
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.flink.storage.Descriptors;
-import cz.seznam.euphoria.flink.FlinkElement;
+import cz.seznam.euphoria.flink.streaming.StreamingElement;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -61,8 +61,8 @@ import java.util.List;
 import java.util.Objects;
 
 public abstract class AbstractWindowOperator<I, KEY, WID extends Window>
-        extends AbstractStreamOperator<FlinkElement<WID, Pair<?, ?>>>
-        implements OneInputStreamOperator<I, FlinkElement<WID, Pair<?, ?>>>,
+        extends AbstractStreamOperator<StreamingElement<WID, Pair<?, ?>>>
+        implements OneInputStreamOperator<I, StreamingElement<WID, Pair<?, ?>>>,
         Triggerable<KEY, WID> {
 
   private final Windowing<?, WID> windowing;
@@ -139,7 +139,13 @@ public abstract class AbstractWindowOperator<I, KEY, WID extends Window>
     storageProvider.setWindow(window);
   }
 
-  /** Extracts the data element from the input stream record. */
+  /**
+   * Extracts the data element from the input stream record.
+   *
+   * @param record input stream record
+   *
+   * @return extracted data element fro Flink stream record
+   */
   protected abstract KeyedMultiWindowedElement<WID, KEY, ?> recordValue(StreamRecord<I> record) throws Exception;
 
   @Override
@@ -147,12 +153,12 @@ public abstract class AbstractWindowOperator<I, KEY, WID extends Window>
   public void processElement(StreamRecord<I> record)
           throws Exception {
 
-    KeyedMultiWindowedElement<WID, KEY, ?> element = recordValue(record);
-
     // drop late-comers immediately
-    if (element.getTimestamp() < timerService.currentWatermark()) {
+    if (record.getTimestamp() < timerService.currentWatermark()) {
       return;
     }
+
+    KeyedMultiWindowedElement<WID, KEY, ?> element = recordValue(record);
 
     if (windowing instanceof MergingWindowing) {
       MergingWindowSet<WID> mergingWindowSet = getMergingWindowSet();
@@ -203,7 +209,7 @@ public abstract class AbstractWindowOperator<I, KEY, WID extends Window>
 
         // process trigger
         Trigger.TriggerResult triggerResult = trigger.onElement(
-                element.getTimestamp(),
+                record.getTimestamp(),
                 currentWindow,
                 triggerContext);
 
@@ -228,7 +234,7 @@ public abstract class AbstractWindowOperator<I, KEY, WID extends Window>
 
         // process trigger
         Trigger.TriggerResult triggerResult = trigger.onElement(
-                element.getTimestamp(),
+                record.getTimestamp(),
                 window,
                 triggerContext);
 
@@ -449,9 +455,8 @@ public abstract class AbstractWindowOperator<I, KEY, WID extends Window>
               ? ((TimedWindow) window).maxTimestamp()
               : timerService.currentWatermark();
 
-      // FIXME timestamp is duplicated here
       output.collect(reuse.replace(
-              new FlinkElement<>(window, stamp, Pair.of(key, elem)),
+              new StreamingElement<>(window, Pair.of(key, elem)),
               stamp));
     }
 

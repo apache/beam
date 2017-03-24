@@ -20,35 +20,35 @@ import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.functional.CombinableReduceFunction;
 import cz.seznam.euphoria.core.client.functional.StateFactory;
 import cz.seznam.euphoria.core.client.operator.state.State;
-import cz.seznam.euphoria.flink.FlinkElement;
-import org.apache.flink.api.common.functions.MapFunction;
+import cz.seznam.euphoria.flink.streaming.StreamingElement;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
 import java.util.Objects;
 
 /**
  * An {@link AbstractWindowOperator} implementation which expects input
- * elements to be of type {@link FlinkElement} and transforms these
+ * elements to be of type {@link StreamingElement} and transforms these
  * into {@link KeyedMultiWindowedElement} on the fly.
  */
-public class WindowedElementWindowOperator<KEY, WID extends Window>
-        extends AbstractWindowOperator<FlinkElement<WID, ?>, KEY, WID> {
+public class StreamingElementWindowOperator<KEY, WID extends Window>
+        extends AbstractWindowOperator<StreamingElement<WID, ?>, KEY, WID> {
 
-    MapFunction<FlinkElement<WID, ?>, KeyedMultiWindowedElement<WID, KEY, ?>> mapper;
+  WindowAssigner<?, KEY, ?, WID> windowAssigner;
 
-    public WindowedElementWindowOperator(
-            MapFunction<FlinkElement<WID, ?>, KeyedMultiWindowedElement<WID, KEY, ?>> mapper,
-            Windowing<?, WID> windowing,
-            StateFactory<?, State> stateFactory,
-            CombinableReduceFunction<State> stateCombiner,
-            boolean localMode) {
-        super(windowing, stateFactory, stateCombiner, localMode);
-        this.mapper = Objects.requireNonNull(mapper);
-    }
+  public StreamingElementWindowOperator(
+          WindowAssigner<?, KEY, ?, WID> windowAssigner,
+          Windowing<?, WID> windowing,
+          StateFactory<?, State> stateFactory,
+          CombinableReduceFunction<State> stateCombiner,
+          boolean localMode) {
+    super(windowing, stateFactory, stateCombiner, localMode);
+    this.windowAssigner = Objects.requireNonNull(windowAssigner);
+  }
 
-    @Override
-    protected KeyedMultiWindowedElement<WID, KEY, ?>
-    recordValue(StreamRecord<FlinkElement<WID, ?>> record) throws Exception {
-        return mapper.map(record.getValue());
-    }
+  @Override
+  @SuppressWarnings("unchecked")
+  protected KeyedMultiWindowedElement<WID, KEY, ?>
+  recordValue(StreamRecord<StreamingElement<WID, ?>> record) throws Exception {
+    return windowAssigner.apply((StreamRecord) record);
+  }
 }
