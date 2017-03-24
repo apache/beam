@@ -43,9 +43,9 @@ func translate(edges []*graph.MultiEdge) ([]*df.Step, error) {
 						OutputInfo: []output{{
 							UserName:   "out",
 							OutputName: "out",
-							Encoding: &encoding{
+							Encoding: &graph.CoderRef{
 								Type: "kind:windowed_value",
-								Components: []*encoding{
+								Components: []*graph.CoderRef{
 									translateCoder(edge.Input[i].From),
 								},
 							},
@@ -184,10 +184,10 @@ func buildScopeName(scope *graph.Scope) string {
 
 // TODO(herohde) 2/22/2017: for now, use structurally sound - but bogus - coders.
 
-func translateCoder(ref *graph.Node) *encoding {
-	return &encoding{
+func translateCoder(ref *graph.Node) *graph.CoderRef {
+	return &graph.CoderRef{
 		Type: "kind:windowed_value",
-		Components: []*encoding{
+		Components: []*graph.CoderRef{
 			translateType(ref.T),
 			{Type: "kind:global_window"},
 		},
@@ -195,11 +195,11 @@ func translateCoder(ref *graph.Node) *encoding {
 	}
 }
 
-func translateType(t reflect.Type) *encoding {
+func translateType(t reflect.Type) *graph.CoderRef {
 	if k, v, ok := reflectx.UnfoldComposite(t); ok {
-		return &encoding{
+		return &graph.CoderRef{
 			Type: "kind:pair",
-			Components: []*encoding{
+			Components: []*graph.CoderRef{
 				translateType(k),
 				translateType(v),
 			},
@@ -207,8 +207,11 @@ func translateType(t reflect.Type) *encoding {
 		}
 	}
 
-	return &encoding{
-		Type: "json",
+	return &graph.CoderRef{
+		Type: "kind:length_prefix",
+		Components: []*graph.CoderRef{
+			{Type: "json"},
+		},
 	}
 }
 

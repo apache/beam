@@ -24,6 +24,7 @@ var (
 	project         = flag.String("project", "", "Dataflow project.")
 	jobName         = flag.String("job_name", "", "Dataflow job name (optional).")
 	stagingLocation = flag.String("staging_location", os.ExpandEnv("gs://foo"), "GCS staging location.")
+	image           = flag.String("worker_harness_container_image", "", "Worker harness container image.")
 
 	dryRun         = flag.Bool("dry_run", false, "Dry run. Just print the job, but don't submit it.")
 	block          = flag.Bool("block", true, "Wait for job to terminate.")
@@ -63,6 +64,7 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 		Name:      *jobName,
 		Type:      "JOB_TYPE_BATCH",
 		Environment: &df.Environment{
+			Experiments: []string{"use_gci_image"},
 			UserAgent: newMsg(userAgent{
 				Name:    "Apache Beam SDK for Go",
 				Version: "0.1.0",
@@ -80,7 +82,7 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 					Location: binary,
 					Name:     "worker",
 				}},
-				WorkerHarnessContainerImage: fmt.Sprintf("dataflow-dev.gcr.io/%v/golang:latest", username()),
+				WorkerHarnessContainerImage: *image,
 				NumWorkers:                  1,
 			}},
 			TempStoragePrefix: *stagingLocation + "/tmp",
@@ -111,6 +113,7 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 
 	log.Printf("Submitted job: %v", upd.Id)
 	printJob(upd)
+	log.Printf("Link: https://console.cloud.google.com/dataflow/job/%v?project=%v", upd.Id, *project)
 
 	if !*block {
 		return nil

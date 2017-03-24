@@ -65,7 +65,10 @@ func Main(ctx context.Context, loggingEndpoint, controlEndpoint string) error {
 		}
 	}()
 
-	ctrl := &control{make(map[string]*graph.Graph)}
+	ctrl := &control{
+		graphs: make(map[string]*graph.Graph),
+		data:   &DataConnectionManager{},
+	}
 	for {
 		req, err := client.Recv()
 		if err != nil {
@@ -89,6 +92,7 @@ func Main(ctx context.Context, loggingEndpoint, controlEndpoint string) error {
 
 type control struct {
 	graphs map[string]*graph.Graph
+	data   *DataConnectionManager
 
 	// TODO: running pipelines
 }
@@ -102,7 +106,7 @@ func (c *control) handleInstruction(ctx context.Context, req *pb.InstructionRequ
 		msg := req.GetRegister()
 
 		for _, desc := range msg.GetProcessBundleDescriptor() {
-			g, err := translateBundle(desc)
+			g, err := translateBundle(ctx, c.data, desc)
 			if err != nil {
 				return &pb.InstructionResponse{
 					InstructionId: id,
@@ -135,6 +139,16 @@ func (c *control) handleInstruction(ctx context.Context, req *pb.InstructionRequ
 				InstructionId: id,
 				Error:         fmt.Sprintf("Subgraph %v not found", ref),
 				Response:      dummy,
+			}
+		}
+
+		// TODO: clone graph or pass in instruction id as a special value. The below assumes
+		// serial bundle execution.
+
+		edges := g.FakeBuild()
+		for _, edge := range edges {
+			if edge.Op == graph.External {
+				edge.Data = id
 			}
 		}
 

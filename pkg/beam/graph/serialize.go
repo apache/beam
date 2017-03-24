@@ -40,7 +40,11 @@ func EncodeMultiEdge(edge *MultiEdge) (*v1.MultiEdge, error) {
 		if err != nil {
 			return nil, fmt.Errorf("Bad output type: %v", err)
 		}
-		ret.Outbound = append(ret.Outbound, &v1.MultiEdge_Outbound{Type: t})
+		real, err := EncodeType(out.To.T)
+		if err != nil {
+			return nil, fmt.Errorf("Bad node type: %v", err)
+		}
+		ret.Outbound = append(ret.Outbound, &v1.MultiEdge_Outbound{Type: t, Node: &v1.Node{real}})
 	}
 	return ret, nil
 }
@@ -98,8 +102,20 @@ func sym2addr(name string) (uintptr, error) {
 }
 
 func EncodeType(t reflect.Type) (*v1.Type, error) {
+	return encodeType(t, false)
+}
+
+func encodeType(t reflect.Type, dataField bool) (*v1.Type, error) {
 	if t == reflectx.Error {
 		return &v1.Type{Kind: v1.Type_ERROR}, nil
+	}
+	if t == reflectx.ReflectValue {
+		return &v1.Type{Kind: v1.Type_UNIVERSAL}, nil
+	}
+
+	// Special handling of datafield values.
+	if t == DataFnValueType && dataField {
+		return &v1.Type{Kind: v1.Type_FNVALUE}, nil
 	}
 
 	switch t.Kind() {
@@ -129,7 +145,7 @@ func EncodeType(t reflect.Type) (*v1.Type, error) {
 		return &v1.Type{Kind: v1.Type_STRING}, nil
 
 	case reflect.Slice:
-		elm, err := EncodeType(t.Elem())
+		elm, err := encodeType(t.Elem(), dataField)
 		if err != nil {
 			return nil, fmt.Errorf("Bad element: %v", err)
 		}
@@ -138,7 +154,7 @@ func EncodeType(t reflect.Type) (*v1.Type, error) {
 		var fields []*v1.Type_StructField
 		for i := 0; i < t.NumField(); i++ {
 			f := t.Field(i)
-			fType, err := EncodeType(f.Type)
+			fType, err := encodeType(f.Type, dataField || reflectx.HasTag(f, reflectx.DataTag))
 			if err != nil {
 				return nil, fmt.Errorf("Bad field type: %v", err)
 			}
@@ -159,7 +175,7 @@ func EncodeType(t reflect.Type) (*v1.Type, error) {
 	case reflect.Func:
 		var in []*v1.Type
 		for i := 0; i < t.NumIn(); i++ {
-			param, err := EncodeType(t.In(i))
+			param, err := encodeType(t.In(i), dataField)
 			if err != nil {
 				return nil, fmt.Errorf("Bad parameter type: %v", err)
 			}
@@ -167,7 +183,7 @@ func EncodeType(t reflect.Type) (*v1.Type, error) {
 		}
 		var out []*v1.Type
 		for i := 0; i < t.NumOut(); i++ {
-			ret, err := EncodeType(t.Out(i))
+			ret, err := encodeType(t.Out(i), dataField)
 			if err != nil {
 				return nil, fmt.Errorf("Bad return type: %v", err)
 			}
@@ -175,7 +191,7 @@ func EncodeType(t reflect.Type) (*v1.Type, error) {
 		}
 		return &v1.Type{Kind: v1.Type_FUNC, ParameterTypes: in, ReturnTypes: out, IsVariadic: t.IsVariadic()}, nil
 	case reflect.Chan:
-		elm, err := EncodeType(t.Elem())
+		elm, err := encodeType(t.Elem(), dataField)
 		if err != nil {
 			return nil, fmt.Errorf("Bad element: %v", err)
 		}
@@ -270,6 +286,11 @@ func DecodeType(t *v1.Type) (reflect.Type, error) {
 
 	case v1.Type_ERROR:
 		return reflectx.Error, nil
+	case v1.Type_UNIVERSAL:
+		return reflectx.ReflectValue, nil
+
+	case v1.Type_FNVALUE:
+		return DataFnValueType, nil
 
 	default:
 		return nil, fmt.Errorf("Unexpected type kind: %v", t.Kind)

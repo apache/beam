@@ -18,7 +18,7 @@ import (
 
 // Options used purely at pipeline construction-time can just be flags.
 var (
-	input  = flag.String("input", os.ExpandEnv("$GOPATH/src/github.com/apache/beam/sdks/go/data/shakespeare/kinglear.txt"), "Files to read.")
+	input  = flag.String("input", os.ExpandEnv("$GOPATH/src/github.com/apache/beam/sdks/go/data/haiku/old_pond.txt"), "Files to read.")
 	output = flag.String("output", "/tmp/wordcount/out.", "Prefix of output.")
 )
 
@@ -71,7 +71,7 @@ func main() {
 
 	p := beam.NewPipeline()
 
-	lines := textio.Read(p, *input)
+	lines, _ := textio.Immediate(p, *input)
 	counted := CountWords(p, lines)
 	formatted := beam.ParDo(p, Format2, counted)
 	textio.Write(p, os.ExpandEnv(*output), formatted)

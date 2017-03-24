@@ -37,7 +37,11 @@ message Type {
         FUNC = 30;
         CHAN = 31;
         ERROR = 32;
+        UNIVERSAL = 33;
         // Add ENCODED/UNIVERSAL/TIMESTAMP/..
+
+        // Data
+        FNVALUE = 40;
     }
     // (Required) Type kind.
     Kind kind = 1;
@@ -85,7 +89,14 @@ message FunctionRef {
     Type type = 2;
 }
 
-// MultiEdge prepresents a serialized MultiEdge.
+message Node {
+    Type type = 1;
+
+    // Coder code = 3
+}
+
+// MultiEdge prepresents a serialized MultiEdge. It includes the output
+// nodes, but not the input nodes.
 message MultiEdge {
     // UserFn
     FunctionRef user_fn = 1;
@@ -99,6 +110,7 @@ message MultiEdge {
 
     message Outbound {
         Type type = 1;
+        Node node = 2;
     }
     repeated Outbound outbound = 4;
 }

@@ -46,6 +46,10 @@ func (b *Graph) NewEdge(parent *Scope) *MultiEdge {
 }
 
 func (b *Graph) NewNode(t reflect.Type) *Node {
+	if reflectx.ClassOf(t).IsGeneric() {
+		panic(fmt.Errorf("Invalid node type: %v", t))
+	}
+
 	id := len(b.nodes) + 1
 	n := &Node{id: id, T: t}
 	b.nodes = append(b.nodes, n)
@@ -84,21 +88,6 @@ func (g *Graph) String() string {
 		edges = append(edges, edge.String())
 	}
 	return fmt.Sprintf("Nodes: %v\nEdges: %v", strings.Join(nodes, "\n"), strings.Join(edges, "\n"))
-}
-
-// Coder contains possibly untyped encode/decode user functions that are
-// type-bound at runtime. Universal coders can thus be used for many different
-// types.
-type Coder struct {
-	ID string
-	// Need Opcode for special coders? GBK, etc.
-
-	Enc *UserFn
-	Dec *UserFn
-
-	// Data holds immediate values to be bound into "data" context field, if
-	// present. We require symmetry between enc and dec for simplicity.
-	Data interface{}
 }
 
 // Node is a typed connector, usually corresponding to PCollection<T>. The type
