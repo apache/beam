@@ -285,12 +285,25 @@ class Job(object):
         indent=2, sort_keys=True)
 
   @staticmethod
+  def _build_default_job_name(user_name):
+    """Generates a default name for a job.
+
+    user_name is lowercased, and any characters outside of [-a-z0-9]
+    are removed. If necessary, the user_name is truncated to shorten
+    the job name to 63 characters."""
+    user_name = re.sub('[^-a-z0-9]', '', user_name.lower())
+    date_component = datetime.utcnow().strftime('%m%d%H%M%S-%f')
+    app_user_name = 'beamapp-{}'.format(user_name)
+    job_name = '{}-{}'.format(app_user_name, date_component)
+    if len(job_name) > 63:
+      job_name = '{}-{}'.format(app_user_name[:-(len(job_name) - 63)],
+                                date_component)
+    return job_name
+
+  @staticmethod
   def default_job_name(job_name):
     if job_name is None:
-      user_name = getpass.getuser().lower()
-      date_component = datetime.utcnow().strftime('%m%d%H%M%S-%f')
-      app_name = 'beamapp'
-      job_name = '{}-{}-{}'.format(app_name, user_name, date_component)
+      job_name = Job._build_default_job_name(getpass.getuser())
     return job_name
 
   def __init__(self, options):
