@@ -106,7 +106,7 @@ GCP_REQUIREMENTS = [
   'proto-google-cloud-datastore-v1==0.90.0',
   'googledatastore==7.0.0',
   # GCP packages required by tests
-  'google-cloud-bigquery>=0.22.1,<0.23',
+  'google-cloud-bigquery>=0.23.0,<1.0.0',
 ]
 
 
