@@ -110,7 +110,8 @@ class TestDataflowMetrics(unittest.TestCase):
       {"name": {"context":
                 {"additionalProperties": [
                     {"key": "original_name",
-                     "value": "user-split-longstepname/split/__main__.WordExtractingDoFn/"
+                     "value": "user-split-longstepname/split/"
+                              "__main__.WordExtractingDoFn/"
                               "words_TentativeAggregateValue"},
                     {"key": "step", "value": "split"},
                     {"key": "tentative", "value": "true"}]},
