@@ -13,12 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package cz.seznam.euphoria.flink.functions;
+package cz.seznam.euphoria.flink.batch;
 
 import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 import cz.seznam.euphoria.core.client.functional.UnaryFunctor;
 import cz.seznam.euphoria.core.client.io.Context;
-import cz.seznam.euphoria.flink.batch.BatchElement;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
@@ -26,14 +25,14 @@ import org.apache.flink.util.Collector;
 
 import java.util.Objects;
 
-public class UnaryFunctorWrapper<WID extends Window, IN, OUT>
+public class BatchUnaryFunctorWrapper<WID extends Window, IN, OUT>
         implements FlatMapFunction<BatchElement<WID, IN>,
         BatchElement<WID, OUT>>,
         ResultTypeQueryable<BatchElement<WID, OUT>> {
 
   private final UnaryFunctor<IN, OUT> f;
 
-  public UnaryFunctorWrapper(UnaryFunctor<IN, OUT> f) {
+  public BatchUnaryFunctorWrapper(UnaryFunctor<IN, OUT> f) {
     this.f = Objects.requireNonNull(f);
   }
 

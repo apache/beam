@@ -61,7 +61,7 @@ public class WindowAssigner<I, KEY, VALUE, W extends Window>
       reuse = new TimestampedElement();
     }
     reuse.setTimestamp(record.getTimestamp());
-    reuse.setElement(el);
+    reuse.setStreamingElement(el);
     Set windows = windowing.assignWindowsToElement(reuse);
 
     return new KeyedMultiWindowedElement<>(
@@ -76,9 +76,6 @@ public class WindowAssigner<I, KEY, VALUE, W extends Window>
     private long timestamp;
     private StreamingElement<W, T> element;
 
-    public TimestampedElement() {
-    }
-
     @Override
     public W getWindow() {
       return element.getWindow();
@@ -89,7 +86,7 @@ public class WindowAssigner<I, KEY, VALUE, W extends Window>
       return timestamp;
     }
 
-    public void setTimestamp(long timestamp) {
+    private void setTimestamp(long timestamp) {
       this.timestamp = timestamp;
     }
 
@@ -98,7 +95,7 @@ public class WindowAssigner<I, KEY, VALUE, W extends Window>
       return element.getElement();
     }
 
-    public void setElement(StreamingElement<W, T> element) {
+    private void setStreamingElement(StreamingElement<W, T> element) {
       this.element = element;
     }
   }
