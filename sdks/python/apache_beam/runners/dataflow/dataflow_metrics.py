@@ -79,7 +79,7 @@ class DataflowMetrics(MetricResults):
                      if prop.key == 'namespace']
       name = metric.name.name
     except ValueError:
-      [step, namespace, name] = metric.name.name.split('/')
+      [step, namespace, name] = metric.name.name.rsplit('/', 2)
     return MetricKey(step, MetricName(namespace, name))
 
   def _populate_metric_results(self, response):

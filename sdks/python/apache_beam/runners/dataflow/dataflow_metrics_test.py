@@ -103,18 +103,18 @@ class TestDataflowMetrics(unittest.TestCase):
                      "value": "user-split-split/__main__.WordExtractingDoFn/"
                               "words_TentativeAggregateValue"},
                     {"key": "step", "value": "split"}]},
-                "name": "split/__main__.WordExtractingDoFn/words",
+                "name": "longstepname/split/__main__.WordExtractingDoFn/words",
                 "origin": "user"},
        "scalar": {"integer_value": 26181},
        "updateTime": "2017-02-23T01:13:36.659Z"},
       {"name": {"context":
                 {"additionalProperties": [
                     {"key": "original_name",
-                     "value": "user-split-split/__main__.WordExtractingDoFn/"
+                     "value": "user-split-longstepname/split/__main__.WordExtractingDoFn/"
                               "words_TentativeAggregateValue"},
                     {"key": "step", "value": "split"},
                     {"key": "tentative", "value": "true"}]},
-                "name": "split/__main__.WordExtractingDoFn/words",
+                "name": "longstepname/split/__main__.WordExtractingDoFn/words",
                 "origin": "user"},
        "scalar": {"integer_value": 26185},
        "updateTime": "2017-02-23T01:13:36.659Z"},
@@ -185,7 +185,7 @@ class TestDataflowMetrics(unittest.TestCase):
                       MetricName('__main__.WordExtractingDoFn', 'empty_lines')),
             1080, 1080),
         MetricResult(
-            MetricKey('split',
+            MetricKey('longstepname/split',
                       MetricName('__main__.WordExtractingDoFn', 'words')),
             26181, 26185),
         ]
