@@ -37,6 +37,7 @@ import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.functions.timestamps.BoundedOutOfOrdernessTimestampExtractor;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
+import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
@@ -149,6 +150,9 @@ class ReduceStateByKeyTranslator implements StreamingOperatorTranslator<ReduceSt
 
     private WindowAssignerOperator(WindowAssigner windowAssigner) {
       this.windowAssigner = windowAssigner;
+
+      // allow chaining to optimize performance
+      this.chainingStrategy = ChainingStrategy.ALWAYS;
     }
 
     @Override
