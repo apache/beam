@@ -86,9 +86,11 @@ class GCEMetadataCredentials(OAuth2Credentials):
       retry_filter=retry.retry_on_server_errors_and_timeout_filter)
   def _refresh(self, http_request):
     refresh_time = datetime.datetime.now()
-    req = urllib2.Request('http://metadata.google.internal/computeMetadata/v1/'
-                          'instance/service-accounts/default/token',
-                          headers={'Metadata-Flavor': 'Google'})
+    metadata_root = os.environ.get(
+        'GCE_METADATA_ROOT', 'metadata.google.internal')
+    token_url = ('http://{}/computeMetadata/v1/instance/service-accounts/'
+                 'default/token').format(metadata_root)
+    req = urllib2.Request(token_url, headers={'Metadata-Flavor': 'Google'})
     token_data = json.loads(urllib2.urlopen(req).read())
     self.access_token = token_data['access_token']
     self.token_expiry = (refresh_time +
