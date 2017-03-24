@@ -18,7 +18,6 @@ package cz.seznam.euphoria.flink.batch;
 import cz.seznam.euphoria.core.client.functional.UnaryFunctor;
 import cz.seznam.euphoria.core.client.operator.FlatMap;
 import cz.seznam.euphoria.flink.FlinkOperator;
-import cz.seznam.euphoria.flink.functions.UnaryFunctorWrapper;
 import org.apache.flink.api.java.DataSet;
 
 class FlatMapTranslator implements BatchOperatorTranslator<FlatMap> {
@@ -30,7 +29,7 @@ class FlatMapTranslator implements BatchOperatorTranslator<FlatMap> {
     DataSet<?> input = context.getSingleInputStream(operator);
     UnaryFunctor mapper = operator.getOriginalOperator().getFunctor();
     return input
-        .flatMap(new UnaryFunctorWrapper<>(mapper))
+        .flatMap(new BatchUnaryFunctorWrapper<>(mapper))
         .returns((Class) BatchElement.class)
         .setParallelism(operator.getParallelism())
         .name(operator.getName());
