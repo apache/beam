@@ -14,19 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Headless service that allows us to get the IP addresses of our Cassandra nodes
-apiVersion: v1
-kind: Service
-metadata:
-  labels:
-    name: cassandra-peers
-  name: cassandra-peers
-spec:
-  clusterIP: None
-  ports:
-    - port: 7000
-      name: intra-node-communication
-    - port: 7001
-      name: tls-intra-node-communication
-  selector:
-    name: cassandra
+#!/bin/sh
+
+# Create Cassandra services and Replication controller.
+kubectl create -f cassandra-svc-rc.yaml

@@ -13,7 +13,38 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
+# Headless service that allows us to get the IP addresses of our Cassandra nodes
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    name: cassandra-peers
+  name: cassandra-peers
+spec:
+  clusterIP: None
+  ports:
+    - port: 7000
+      name: intra-node-communication
+    - port: 7001
+      name: tls-intra-node-communication
+  selector:
+    name: cassandra
+---
+# Kubernetes service file exposing Cassandra endpoint used by clients.
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    name: cassandra
+  name: cassandra
+spec:
+  ports:
+    - port: 9042
+      name: cql
+  selector:
+    name: cassandra
+  type: LoadBalancer
+---
 # Replication Controller for Cassandra which tracks the Cassandra pods.
 apiVersion: v1
 kind: ReplicationController
@@ -42,10 +73,9 @@ spec:
               value: DC1
             - name: CASSANDRA_RACK
               value: Kubernetes Cluster
-            - name: CASSANDRA_ENDPOINT_SNITCH
-              value: GossipingPropertyFileSnitch
+# Number of tokens currently configured to 1. If this is not configured, default value is 256. You can change it as per requirement.			  
             - name: CASSANDRA_NUM_TOKENS
-              value: '1' 
+              value: '1'
           ports:
             - containerPort: 9042
               name: cql

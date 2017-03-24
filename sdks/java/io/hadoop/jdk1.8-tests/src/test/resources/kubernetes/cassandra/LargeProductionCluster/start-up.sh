@@ -14,18 +14,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Kubernetes service file exposing Cassandra endpoint used by clients.
-apiVersion: v1
-kind: Service
-metadata:
-  labels:
-    name: cassandra
-  name: cassandra
-spec:
-  ports:
-    - port: 9042
-      name: cql
-  selector:
-    name: cassandra
-  type: LoadBalancer
+#!/bin/sh
 
+# Create Cassandra services and Replication controller.
+kubectl create -f cassandra-svc-rc.yaml
+# scale cassandra cluster upto 3 nodes
+kubectl scale rc cassandra --replicas=3
+# Wait until all replica pods are up and running.
+sleep 3m
