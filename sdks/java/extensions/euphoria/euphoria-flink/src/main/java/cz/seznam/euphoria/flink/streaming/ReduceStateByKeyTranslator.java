@@ -25,22 +25,23 @@ import cz.seznam.euphoria.core.client.operator.state.State;
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.core.util.Settings;
 import cz.seznam.euphoria.flink.FlinkOperator;
-import cz.seznam.euphoria.flink.FlinkElement;
 import cz.seznam.euphoria.flink.functions.PartitionerWrapper;
 import cz.seznam.euphoria.flink.streaming.windowing.AttachedWindowing;
 import cz.seznam.euphoria.flink.streaming.windowing.KeyedMultiWindowedElement;
 import cz.seznam.euphoria.flink.streaming.windowing.KeyedMultiWindowedElementWindowOperator;
-import cz.seznam.euphoria.flink.streaming.windowing.WindowedElementWindowOperator;
-import org.apache.flink.api.common.functions.MapFunction;
+import cz.seznam.euphoria.flink.streaming.windowing.StreamingElementWindowOperator;
+import cz.seznam.euphoria.flink.streaming.windowing.WindowAssigner;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.functions.timestamps.BoundedOutOfOrdernessTimestampExtractor;
+import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
+import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
+import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
 import java.time.Duration;
 import java.util.Objects;
-import java.util.Set;
 
 class ReduceStateByKeyTranslator implements StreamingOperatorTranslator<ReduceStateByKey> {
 
@@ -82,22 +83,25 @@ class ReduceStateByKeyTranslator implements StreamingOperatorTranslator<ReduceSt
               new EventTimeAssigner(context.getAllowedLateness(), eventTimeAssigner));
     }
 
-    DataStream<FlinkElement<?, Pair>> reduced;
+    DataStream<StreamingElement<?, Pair>> reduced;
     WindowAssigner elMapper =
-            new WindowAssigner(windowing, keyExtractor, valueExtractor, eventTimeAssigner);
+            new WindowAssigner(windowing, keyExtractor, valueExtractor);
     if (valueOfAfterShuffle) {
       reduced = input.keyBy(new UnaryFunctionKeyExtractor(keyExtractor))
-                     .transform(operator.getName(), TypeInformation.of(FlinkElement.class),
-                                new WindowedElementWindowOperator(elMapper, windowing, stateFactory, stateCombiner, context.isLocalMode()))
+                     .transform(operator.getName(), TypeInformation.of(StreamingElement.class),
+                                new StreamingElementWindowOperator(elMapper, windowing, stateFactory, stateCombiner, context.isLocalMode()))
                      .setParallelism(operator.getParallelism());
     } else {
       // assign windows
-      DataStream<KeyedMultiWindowedElement> windowed = input.map(elMapper)
+      DataStream<KeyedMultiWindowedElement> windowed = input.transform(
+              operator.getName() + "::window-assigner",
+              TypeInformation.of(KeyedMultiWindowedElement.class),
+              new WindowAssignerOperator(elMapper))
               // ~ execute in the same chain of the input's processing
               // so far, thereby, avoiding an unnecessary shuffle
               .setParallelism(input.getParallelism());
       reduced = (DataStream) windowed.keyBy(new KeyedMultiWindowedElementKeyExtractor())
-              .transform(operator.getName(), TypeInformation.of(FlinkElement.class),
+              .transform(operator.getName(), TypeInformation.of(StreamingElement.class),
                       new KeyedMultiWindowedElementWindowOperator<>(windowing, stateFactory, stateCombiner, context.isLocalMode()))
               .setParallelism(operator.getParallelism());
     }
@@ -117,7 +121,7 @@ class ReduceStateByKeyTranslator implements StreamingOperatorTranslator<ReduceSt
   }
 
   private static class EventTimeAssigner
-          extends BoundedOutOfOrdernessTimestampExtractor<FlinkElement>
+          extends BoundedOutOfOrdernessTimestampExtractor<StreamingElement>
   {
     private final UnaryFunction<Object, Long> eventTimeFn;
 
@@ -127,7 +131,7 @@ class ReduceStateByKeyTranslator implements StreamingOperatorTranslator<ReduceSt
     }
 
     @Override
-    public long extractTimestamp(FlinkElement element) {
+    public long extractTimestamp(StreamingElement element) {
       return eventTimeFn.apply(element.getElement());
     }
 
@@ -137,47 +141,28 @@ class ReduceStateByKeyTranslator implements StreamingOperatorTranslator<ReduceSt
     }
   }
 
-  private static class WindowAssigner implements MapFunction<FlinkElement, KeyedMultiWindowedElement>,
-          ResultTypeQueryable<KeyedMultiWindowedElement> {
+  private static class WindowAssignerOperator
+          extends AbstractStreamOperator<KeyedMultiWindowedElement>
+          implements OneInputStreamOperator<StreamingElement, KeyedMultiWindowedElement> {
 
-    private final Windowing windowing;
-    private final UnaryFunction keyExtractor;
-    private final UnaryFunction valueExtractor;
-    private final UnaryFunction eventTimeAssigner;
+    private final WindowAssigner windowAssigner;
 
-    public WindowAssigner(Windowing windowing,
-                          UnaryFunction keyExtractor,
-                          UnaryFunction valueExtractor,
-                          UnaryFunction eventTimeAssigner) {
-      this.windowing = windowing;
-      this.keyExtractor = keyExtractor;
-      this.valueExtractor = valueExtractor;
-      this.eventTimeAssigner = eventTimeAssigner;
+    private WindowAssignerOperator(WindowAssigner windowAssigner) {
+      this.windowAssigner = windowAssigner;
     }
 
     @Override
     @SuppressWarnings("unchecked")
-    public KeyedMultiWindowedElement map(FlinkElement el) throws Exception {
-      if (eventTimeAssigner != null) {
-        el.setTimestamp((long) eventTimeAssigner.apply(el.getElement()));
-      }
-      Set windows = windowing.assignWindowsToElement(el);
+    public void processElement(StreamRecord<StreamingElement> record) throws Exception {
+      KeyedMultiWindowedElement assigned = windowAssigner.apply(record);
+      record.replace(assigned);
 
-      return new KeyedMultiWindowedElement<>(
-              keyExtractor.apply(el.getElement()),
-              valueExtractor.apply(el.getElement()),
-              el.getTimestamp(),
-              windows);
-    }
-
-    @Override
-    public TypeInformation<KeyedMultiWindowedElement> getProducedType() {
-      return TypeInformation.of(KeyedMultiWindowedElement.class);
+      output.collect((StreamRecord) record);
     }
   }
 
   private static class UnaryFunctionKeyExtractor
-          implements KeySelector<FlinkElement, Object>,
+          implements KeySelector<StreamingElement, Object>,
                      ResultTypeQueryable<Object> {
     private final UnaryFunction keyExtractor;
 
@@ -187,7 +172,7 @@ class ReduceStateByKeyTranslator implements StreamingOperatorTranslator<ReduceSt
 
     @Override
     @SuppressWarnings("unchecked")
-    public Object getKey(FlinkElement value) throws Exception {
+    public Object getKey(StreamingElement value) throws Exception {
       return keyExtractor.apply(value.getElement());
     }
 

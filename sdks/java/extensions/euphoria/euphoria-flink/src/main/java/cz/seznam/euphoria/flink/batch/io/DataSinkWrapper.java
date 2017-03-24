@@ -17,14 +17,14 @@ package cz.seznam.euphoria.flink.batch.io;
 
 import cz.seznam.euphoria.core.client.io.DataSink;
 import cz.seznam.euphoria.core.client.io.Writer;
-import cz.seznam.euphoria.flink.FlinkElement;
+import cz.seznam.euphoria.flink.batch.BatchElement;
 import org.apache.flink.api.common.io.OutputFormat;
 import org.apache.flink.configuration.Configuration;
 
 import java.io.IOException;
 
 public class DataSinkWrapper<T>
-    implements OutputFormat<FlinkElement<?, T>>
+    implements OutputFormat<BatchElement<?, T>>
 {
   private final DataSink<T> dataSink;
 
@@ -45,7 +45,7 @@ public class DataSinkWrapper<T>
   }
 
   @Override
-  public void writeRecord(FlinkElement<?, T> record) throws IOException {
+  public void writeRecord(BatchElement<?, T> record) throws IOException {
     writer.write(record.getElement());
   }
 

@@ -24,7 +24,6 @@ import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 import cz.seznam.euphoria.core.client.operator.ReduceByKey;
 import cz.seznam.euphoria.core.client.util.Pair;
-import cz.seznam.euphoria.flink.FlinkElement;
 import cz.seznam.euphoria.flink.FlinkOperator;
 import cz.seznam.euphoria.flink.Utils;
 import cz.seznam.euphoria.flink.functions.PartitionerWrapper;
@@ -78,14 +77,14 @@ public class ReduceByKeyTranslator implements BatchOperatorTranslator<ReduceByKe
     final UnaryFunction udfValue = origOperator.getValueExtractor();
 
     // ~ extract key/value from input elements and assign windows
-    DataSet<FlinkElement<Window, Pair>> tuples;
+    DataSet<BatchElement<Window, Pair>> tuples;
     {
       // FIXME require keyExtractor to deliver `Comparable`s
 
       UnaryFunction<Object, Long> timeAssigner = origOperator.getEventTimeAssigner();
-      FlatMapOperator<Object, FlinkElement<Window, Pair>> wAssigned =
+      FlatMapOperator<Object, BatchElement<Window, Pair>> wAssigned =
           input.flatMap((i, c) -> {
-            FlinkElement wel = (FlinkElement) i;
+            BatchElement wel = (BatchElement) i;
             if (timeAssigner != null) {
               long stamp = timeAssigner.apply(wel.getElement());
               wel.setTimestamp(stamp);
@@ -96,18 +95,18 @@ public class ReduceByKeyTranslator implements BatchOperatorTranslator<ReduceByKe
               long stamp = (wid instanceof TimedWindow)
                   ? ((TimedWindow) wid).maxTimestamp()
                   : wel.getTimestamp();
-              c.collect(new FlinkElement<>(
+              c.collect(new BatchElement<>(
                       wid, stamp, Pair.of(udfKey.apply(el), udfValue.apply(el))));
             }
           });
       tuples = wAssigned
           .name(operator.getName() + "::map-input")
           .setParallelism(operator.getParallelism())
-          .returns(new TypeHint<FlinkElement<Window, Pair>>() {});
+          .returns(new TypeHint<BatchElement<Window, Pair>>() {});
     }
 
     // ~ reduce the data now
-    Operator<FlinkElement<Window, Pair>, ?> reduced;
+    Operator<BatchElement<Window, Pair>, ?> reduced;
     reduced = tuples
         .groupBy(new RBKKeySelector())
         .reduce(new RBKReducer(reducer));
@@ -125,8 +124,8 @@ public class ReduceByKeyTranslator implements BatchOperatorTranslator<ReduceByKe
           .partitionCustom(
               new PartitionerWrapper<>(origOperator.getPartitioning().getPartitioner()),
               Utils.wrapQueryable(
-                  (KeySelector<FlinkElement<Window, Pair>, Comparable>)
-                      (FlinkElement<Window, Pair> we) -> (Comparable) we.getElement().getKey(),
+                  (KeySelector<BatchElement<Window, Pair>, Comparable>)
+                      (BatchElement<Window, Pair> we) -> (Comparable) we.getElement().getKey(),
                   Comparable.class))
           .setParallelism(operator.getParallelism());
     }
@@ -141,18 +140,18 @@ public class ReduceByKeyTranslator implements BatchOperatorTranslator<ReduceByKe
    */
   @SuppressWarnings("unchecked")
   static class RBKKeySelector
-          implements KeySelector<FlinkElement<Window, Pair>, Tuple2<Comparable, Comparable>> {
+          implements KeySelector<BatchElement<Window, Pair>, Tuple2<Comparable, Comparable>> {
     
     @Override
     public Tuple2<Comparable, Comparable> getKey(
-            FlinkElement<Window, Pair> value) {
+            BatchElement<Window, Pair> value) {
 
       return new Tuple2(value.getWindow(), value.getElement().getKey());
     }
   }
 
   static class RBKReducer
-        implements ReduceFunction<FlinkElement<Window, Pair>> {
+        implements ReduceFunction<BatchElement<Window, Pair>> {
 
     final UnaryFunction<Iterable, Object> reducer;
 
@@ -161,11 +160,11 @@ public class ReduceByKeyTranslator implements BatchOperatorTranslator<ReduceByKe
     }
 
     @Override
-    public FlinkElement<Window, Pair>
-    reduce(FlinkElement<Window, Pair> p1, FlinkElement<Window, Pair> p2) {
+    public BatchElement<Window, Pair>
+    reduce(BatchElement<Window, Pair> p1, BatchElement<Window, Pair> p2) {
 
       Window wid = p1.getWindow();
-      return new FlinkElement<>(
+      return new BatchElement<>(
               wid,
               Math.max(p1.getTimestamp(), p2.getTimestamp()),
               Pair.of(

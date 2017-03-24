@@ -18,7 +18,6 @@ package cz.seznam.euphoria.flink.streaming;
 import cz.seznam.euphoria.core.client.functional.UnaryFunctor;
 import cz.seznam.euphoria.core.client.operator.FlatMap;
 import cz.seznam.euphoria.flink.FlinkOperator;
-import cz.seznam.euphoria.flink.FlinkElement;
 import org.apache.flink.streaming.api.datastream.DataStream;
 
 class FlatMapTranslator implements StreamingOperatorTranslator<FlatMap> {
@@ -32,7 +31,7 @@ class FlatMapTranslator implements StreamingOperatorTranslator<FlatMap> {
     UnaryFunctor mapper = operator.getOriginalOperator().getFunctor();
     return input
         .flatMap(new StreamingUnaryFunctorWrapper<>(mapper))
-        .returns((Class) FlinkElement.class)
+        .returns((Class) StreamingElement.class)
         .name(operator.getName())
         .setParallelism(operator.getParallelism());
   }

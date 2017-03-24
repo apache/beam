@@ -84,8 +84,8 @@ public class StreamingFlowTranslator extends FlowTranslator {
     // transform flow to acyclic graph of supported operators
     DAG<FlinkOperator<Operator<?, ?>>> dag = flowToDag(flow);
 
-    // we're running exclusively on event time
-    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
+    // we're running exclusively on ingestion time
+    env.setStreamTimeCharacteristic(TimeCharacteristic.IngestionTime);
     env.getConfig().setAutoWatermarkInterval(autoWatermarkInterval.toMillis());
 
     StreamingExecutorContext executorContext =

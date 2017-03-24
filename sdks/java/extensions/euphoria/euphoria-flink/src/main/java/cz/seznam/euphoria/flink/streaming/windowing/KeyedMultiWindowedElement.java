@@ -16,14 +16,14 @@
 package cz.seznam.euphoria.flink.streaming.windowing;
 
 import cz.seznam.euphoria.core.client.dataset.windowing.Window;
-import cz.seznam.euphoria.flink.FlinkElement;
+import cz.seznam.euphoria.flink.streaming.StreamingElement;
 
 import java.util.Set;
 
 /**
  * Single data element associated with multiple windows. It's rather used
  * for performance optimization as the same thing could be expressed
- * as a set of {@link FlinkElement} instances.
+ * as a set of {@link StreamingElement} instances.
  *
  * @param <WID>   Type of used window
  * @param <KEY>   Type of element's key
@@ -33,7 +33,6 @@ public class KeyedMultiWindowedElement<WID extends Window, KEY, VALUE> {
 
   private KEY key;
   private VALUE value;
-  private long timestamp;
   private Set<WID> windows;
 
   public KeyedMultiWindowedElement() {
@@ -41,11 +40,9 @@ public class KeyedMultiWindowedElement<WID extends Window, KEY, VALUE> {
 
   public KeyedMultiWindowedElement(KEY key,
                                    VALUE value,
-                                   long timestamp,
                                    Set<WID> windows) {
     this.key = key;
     this.value = value;
-    this.timestamp = timestamp;
     this.windows = windows;
   }
 
@@ -63,14 +60,6 @@ public class KeyedMultiWindowedElement<WID extends Window, KEY, VALUE> {
 
   public void setValue(VALUE value) {
     this.value = value;
-  }
-
-  public long getTimestamp() {
-    return timestamp;
-  }
-
-  public void setTimestamp(long timestamp) {
-    this.timestamp = timestamp;
   }
 
   public Set<WID> getWindows() {
