@@ -15,7 +15,7 @@
 # limitations under the License.
 #
 """Unit tests for the apiclient module."""
-
+import re
 import unittest
 
 from mock import Mock
@@ -44,6 +44,17 @@ class UtilTest(unittest.TestCase):
     apiclient.DataflowApplicationClient(
         pipeline_options,
         DataflowRunner.BATCH_ENVIRONMENT_MAJOR_VERSION)
+
+  def test_invalid_default_job_name(self):
+    # Regexp for job names in dataflow.
+    regexp = re.compile('[a-z]([-a-z0-9]{0,61}[a-z0-9])?$')
+
+    job_name = apiclient.Job._build_default_job_name('invalid.-_user_n*/ame')
+    self.assertTrue(regexp.match(job_name))
+
+    job_name = apiclient.Job._build_default_job_name(
+        'invalid-extremely-long.username_that_shouldbeshortened_or_is_invalid')
+    self.assertTrue(regexp.match(job_name))
 
   def test_default_job_name(self):
     job_name = apiclient.Job.default_job_name(None)
