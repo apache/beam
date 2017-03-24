@@ -184,7 +184,7 @@ public class PTransformMatchers {
 
   /**
    * A {@link PTransformMatcher} which matches a {@link Flatten.PCollections} which
-   * consumes no input {@link PCollection PCollections}.
+   * consumes a single input {@link PCollection} multiple times.
    */
   public static PTransformMatcher flattenWithDuplicateInputs() {
     return new PTransformMatcher() {
