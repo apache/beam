@@ -76,10 +76,8 @@ public abstract class UnboundedSource<
       PipelineOptions options, @Nullable CheckpointMarkT checkpointMark) throws IOException;
 
   /**
-   * Returns a {@link Coder} for encoding and decoding the checkpoints for this source, or
-   * null if the checkpoints do not need to be durably committed.
+   * Returns a {@link Coder} for encoding and decoding the checkpoints for this source.
    */
-  @Nullable
   public abstract Coder<CheckpointMarkT> getCheckpointMarkCoder();
 
   /**
