@@ -62,8 +62,11 @@ public class DeduplicatedFlattenFactory<T>
           if (instanceEntry.getValue().equals(1)) {
             output = output.and(instanceEntry.getKey());
           } else {
-            PCollection<T> duplicated = instanceEntry.getKey()
-                .apply(ParDo.of(new DuplicateFn<T>(instanceEntry.getValue())));
+            String duplicationName = String.format("Multiply %s", instanceEntry.getKey().getName());
+            PCollection<T> duplicated =
+                instanceEntry
+                    .getKey()
+                    .apply(duplicationName, ParDo.of(new DuplicateFn<T>(instanceEntry.getValue())));
             output = output.and(duplicated);
           }
         }
