@@ -109,7 +109,6 @@ public class KafkaSource implements DataSource<Pair<byte[], byte[]>> {
 
     private void commitIfNeeded() {
       if (uncommittedCount > 0) {
-        c.commitSync();
         c.commitAsync();
         LOG.debug("Committed {} records.", uncommittedCount);
         uncommittedCount = 0;
