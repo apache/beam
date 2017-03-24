@@ -1007,7 +1007,7 @@ public class BigtableIO {
         splitKey = rangeTracker.getRange().interpolateKey(fraction);
       } catch (RuntimeException e) {
         LOG.info(
-            "%s: Failed to interpolate key for fraction %s.", rangeTracker.getRange(), fraction, e);
+            "{}: Failed to interpolate key for fraction {}.", rangeTracker.getRange(), fraction, e);
         return null;
       }
       LOG.debug(
@@ -1019,7 +1019,7 @@ public class BigtableIO {
          residual =  source.withStartKey(splitKey);
       } catch (RuntimeException e) {
         LOG.info(
-            "%s: Interpolating for fraction %s yielded invalid split key %s.",
+            "{}: Interpolating for fraction {} yielded invalid split key {}.",
             rangeTracker.getRange(),
             fraction,
             splitKey,
