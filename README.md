@@ -101,3 +101,4 @@ To get involved in Apache Beam:
 * [Apache Beam](http://beam.apache.org)
 * [Overview](http://beam.apache.org/use/beam-overview/)
 * [Quickstart](http://beam.apache.org/use/quickstart/)
+* [Contribution Guides](https://beam.apache.org/contribute/)
