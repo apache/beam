@@ -322,8 +322,7 @@ public class Query10 extends NexmarkQuery {
             // We expect no late data here, but we'll assume the worst so we can detect any.
             .withAllowedLateness(Duration.standardDays(1))
             .discardingFiredPanes())
-      // TODO etienne: unnecessary groupByKey? because aggregators are shared in parallel
-      // and Pardo is also in parallel, why group all elements in memory of the same executor?
+      // this GroupByKey allows to have one file per window
       .apply(name + ".GroupByKey2", GroupByKey.<Void, OutputFile>create())
         .apply(name + ".Index",
             ParDo.of(new DoFn<KV<Void, Iterable<OutputFile>>, Done>() {
