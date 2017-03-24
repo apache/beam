@@ -98,7 +98,7 @@ func ExecuteBundle(ctx context.Context, edges map[int]*graph.MultiEdge) error {
 		}
 
 		switch edge.Op {
-		case graph.Source, graph.ParDo:
+		case graph.Source, graph.ParDo, graph.External:
 			dofn := edge.DoFn
 			data := edge.Data
 

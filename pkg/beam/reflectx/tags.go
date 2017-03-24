@@ -24,14 +24,23 @@ func FindTaggedField(t reflect.Type, values ...string) (reflect.StructField, boo
 
 	for i := 0; i < t.NumField(); i++ {
 		f := t.Field(i)
-		list := strings.Split(f.Tag.Get("beam"), ",")
-		for _, elm := range list {
-			for _, value := range values {
-				if elm == value {
-					return f, true
-				}
-			}
+		if HasTag(f, values...) {
+			return f, true
 		}
 	}
 	return reflect.StructField{}, false
+}
+
+// HasTag returns true iff the given field contains one of the given tags
+// under the "beam" key.
+func HasTag(f reflect.StructField, values ...string) bool {
+	list := strings.Split(f.Tag.Get("beam"), ",")
+	for _, elm := range list {
+		for _, value := range values {
+			if elm == value {
+				return true
+			}
+		}
+	}
+	return false
 }

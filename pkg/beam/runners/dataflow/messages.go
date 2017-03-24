@@ -3,6 +3,7 @@ package dataflow
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/apache/beam/sdks/go/pkg/beam/graph"
 	"google.golang.org/api/googleapi"
 )
 
@@ -63,31 +64,9 @@ type properties struct {
 }
 
 type output struct {
-	UserName   string    `json:"user_name,omitempty"`
-	OutputName string    `json:"output_name,omitempty"`
-	Encoding   *encoding `json:"encoding,omitempty"`
-}
-
-/*
-    "@type": "kind:windowed_value",
-    "component_encodings": [
-      {
-         "@type": "StrUtf8Coder$eNprYEpOLEhMzkiNT0pNzNVLzk9JLSqGUlzBJUWhJWkWziAeVyGDZmMhY20hU5IeAAajEkY=",
-         "component_encodings": []
-      },
-      {
-         "@type": "kind:global_window"
-      }
-   ],
-   "is_wrapper": true
-*/
-
-// encoding defines the (structured) Coder.
-type encoding struct {
-	Type       string      `json:"@type,omitempty"`
-	Components []*encoding `json:"component_encodings,omitempty"`
-	IsWrapper  bool        `json:"is_wrapper,omitempty"`
-	IsPairLike bool        `json:"is_pair_like,omitempty"`
+	UserName   string          `json:"user_name,omitempty"`
+	OutputName string          `json:"output_name,omitempty"`
+	Encoding   *graph.CoderRef `json:"encoding,omitempty"`
 }
 
 type integer struct {

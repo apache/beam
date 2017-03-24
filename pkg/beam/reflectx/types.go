@@ -27,7 +27,6 @@ var (
 	ReflectType  = reflect.TypeOf((*reflect.Type)(nil)).Elem()
 )
 
-/*
 // SkipPtr returns the target of a Ptr type, if a Ptr. Otherwise itself.
 func SkipPtr(t reflect.Type) reflect.Type {
 	if t.Kind() == reflect.Ptr {
@@ -35,7 +34,6 @@ func SkipPtr(t reflect.Type) reflect.Type {
 	}
 	return t
 }
-*/
 
 // MakeKV returns a synthetic KV type.
 func MakeKV(key, value reflect.Type) (reflect.Type, error) {

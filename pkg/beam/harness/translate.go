@@ -1,19 +1,21 @@
 package harness
 
 import (
-	"encoding/base64"
+	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/golang/protobuf/proto"
-	protobuf "github.com/golang/protobuf/ptypes/any"
-	protobufw "github.com/golang/protobuf/ptypes/wrappers"
 	"github.com/apache/beam/sdks/go/pkg/beam"
 	"github.com/apache/beam/sdks/go/pkg/beam/graph"
 	"github.com/apache/beam/sdks/go/pkg/beam/graph/v1"
+	"github.com/apache/beam/sdks/go/pkg/beam/protox"
 	"github.com/apache/beam/sdks/go/pkg/beam/reflectx"
 	pb "github.com/apache/beam/sdks/go/third_party/beam/org_apache_beam_fn_v1"
 	"log"
 	"reflect"
+)
+
+const (
+	RemoteGrpcPortTypeUrl = "type.googleapis.com/org.apache.beam.fn.v1.RemoteGrpcPort"
 )
 
 type nodeID struct {
@@ -37,7 +39,7 @@ type nodeID struct {
 
 // translateBundle translates a ProcessBundleDescriptor to a sub-graph that can run
 // bundles.
-func translateBundle(bundle *pb.ProcessBundleDescriptor) (*graph.Graph, error) {
+func translateBundle(ctx context.Context, mgr *DataConnectionManager, bundle *pb.ProcessBundleDescriptor) (*graph.Graph, error) {
 	log.Printf("BUNDLE: %v", bundle)
 
 	// coders := make(map[int64]*graph.Coder)
@@ -50,134 +52,190 @@ func translateBundle(bundle *pb.ProcessBundleDescriptor) (*graph.Graph, error) {
 	nodes := make(map[nodeID]*graph.Node)
 
 	for _, transform := range bundle.GetPrimitiveTransform() {
-		edge := g.NewEdge(g.Root())
-
 		// TODO: serialize opcode, types, I/O mapping, etc.
-		spec := transform.GetFunctionSpec()
-		edge.Op, _ = translateOpcode(spec.GetUrn())
+		// NOTE: we will see only graph fragments w/o GBK or FLATTEN, which are handled by
+		// the service.
 
-		if spec.Data != nil {
-			me, err := unpackData(spec.Data)
+		spec := transform.GetFunctionSpec()
+		switch spec.GetUrn() {
+		case "urn:org.apache.beam:source:java:0.1":
+			var me v1.MultiEdge
+			if err := protox.UnpackProto(spec.Data, &me); err != nil {
+				return nil, err
+			}
+			dofn, data, err := decodeFn(me.UserFn, me.Data)
 			if err != nil {
 				return nil, err
 			}
 
-			if me.UserFn != nil {
-				fn, err := graph.DecodeFnRef(me.UserFn)
+			edge := g.NewEdge(g.Root())
+			edge.Op = graph.Source
+			edge.DoFn = dofn
+			edge.Data = data
+
+			var to []nodeID
+			for key, _ := range transform.GetOutputs() {
+				if key == "bogus" {
+					continue // NOTE: remove bogus output
+				}
+
+				// TODO: real type and coder.
+				// TODO: we need to reorder output
+
+				to = append(to, nodeID{transform.GetId(), key})
+			}
+			for i := 0; i < len(me.Outbound); i++ {
+				t, err := graph.DecodeType(me.Outbound[i].Type)
 				if err != nil {
-					return nil, err
+					return nil, fmt.Errorf("Failed to decode outbound: %v", err)
 				}
-				edge.DoFn, err = graph.ReflectFn(fn)
+				real, err := graph.DecodeType(me.Outbound[i].Node.Type)
 				if err != nil {
-					return nil, err
+					return nil, fmt.Errorf("Failed to decode node: %v", err)
 				}
 
-				if ct, ok := edge.DoFn.Context(); ok {
-					f, _ := reflectx.FindTaggedField(ct, reflectx.DataTag)
-					log.Printf("Data: %v of %v", me.Data, f.Type)
+				n := g.NewNode(real)
+				n.Coder = beam.InternalCoder
+				nodes[to[i]] = n
 
-					data := reflect.New(f.Type).Interface()
-					log.Printf("T: %v", reflect.TypeOf(data))
+				output := &graph.Outbound{
+					To: n,
+					T:  t,
+				}
+				edge.Output = append(edge.Output, output)
+			}
 
-					if err := json.Unmarshal([]byte(me.Data), data); err != nil {
-						return nil, fmt.Errorf("Failed to decode data: %v", err)
-					}
+		case "urn:org.apache.beam:dofn:java:0.1":
+			var me v1.MultiEdge
+			if err := protox.UnpackBase64Proto(spec.Data, &me); err != nil {
+				return nil, err
+			}
+			dofn, data, err := decodeFn(me.UserFn, me.Data)
+			if err != nil {
+				return nil, err
+			}
 
-					log.Printf("T2: %v %v", data, reflect.TypeOf(data))
-					edge.Data = reflect.ValueOf(data).Elem().Interface()
+			edge := g.NewEdge(g.Root())
+			edge.Op = graph.ParDo
+			edge.DoFn = dofn
+			edge.Data = data
+
+			var from []*graph.Node
+			for _ /* key */, in := range transform.GetInputs() {
+				for _, target := range in.GetTarget() {
+					// TODO: we need to reorder input
+					n := nodes[nodeID{target.GetPrimitiveTransformReference(), target.GetName()}]
+					from = append(from, n)
+				}
+			}
+			for i := 0; i < len(me.Inbound); i++ {
+				t, err := graph.DecodeType(me.Inbound[i].Type)
+				if err != nil {
+					return nil, fmt.Errorf("Failed to decode inbound: %v", err)
 				}
 
-				var from []*graph.Node
-				for _ /* key */, in := range transform.GetInputs() {
-					for _, target := range in.GetTarget() {
-						// TODO: we need to reorder input
-						n := nodes[nodeID{target.GetPrimitiveTransformReference(), target.GetName()}]
-						from = append(from, n)
-					}
+				input := &graph.Inbound{
+					From: from[i],
+					T:    t,
 				}
-				for i := 0; i < len(me.Inbound); i++ {
-					t, err := graph.DecodeType(me.Inbound[i].Type)
-					if err != nil {
-						return nil, fmt.Errorf("Failed to decode inbound: %v", err)
-					}
+				edge.Input = append(edge.Input, input)
+			}
 
-					input := &graph.Inbound{
-						From: from[i],
-						T:    t,
-					}
-					edge.Input = append(edge.Input, input)
+			var to []nodeID
+			for key, _ := range transform.GetOutputs() {
+				if key == "bogus" {
+					continue // NOTE: remove bogus output
 				}
 
-				var to []nodeID
-				for key, _ := range transform.GetOutputs() {
-					if key == "bogus" {
-						continue // NOTE: remove bogus output
-					}
+				// TODO: real type and coder.
+				// TODO: we need to reorder output
 
-					// TODO: real type and coder.
-					// TODO: we need to reorder output
-
-					to = append(to, nodeID{transform.GetId(), key})
+				to = append(to, nodeID{transform.GetId(), key})
+			}
+			for i := 0; i < len(me.Outbound); i++ {
+				t, err := graph.DecodeType(me.Outbound[i].Type)
+				if err != nil {
+					return nil, fmt.Errorf("Failed to decode outbound: %v", err)
 				}
-				for i := 0; i < len(me.Outbound); i++ {
-					t, err := graph.DecodeType(me.Outbound[i].Type)
-					if err != nil {
-						return nil, fmt.Errorf("Failed to decode outbound: %v", err)
-					}
+				real, err := graph.DecodeType(me.Outbound[i].Node.Type)
+				if err != nil {
+					return nil, fmt.Errorf("Failed to decode node: %v", err)
+				}
 
-					n := g.NewNode(t)
-					n.Coder = beam.InternalCoder
-					nodes[to[i]] = n
+				n := g.NewNode(real)
+				n.Coder = beam.InternalCoder
+				nodes[to[i]] = n
 
-					output := &graph.Outbound{
-						To: n,
-						T:  t,
-					}
-					edge.Output = append(edge.Output, output)
+				output := &graph.Outbound{
+					To: n,
+					T:  t,
+				}
+				edge.Output = append(edge.Output, output)
+			}
+
+		case "urn:org.apache.beam:sink:runner:0.1":
+			var port pb.RemoteGrpcPort
+			if err := protox.Unpack(spec.Data, RemoteGrpcPortTypeUrl, &port); err != nil {
+				return nil, err
+			}
+			if size := len(transform.GetOutputs()); size != 1 {
+				return nil, fmt.Errorf("Expected 1 output, got %v", size)
+			}
+
+			portID := port.GetApiServiceDescriptor().GetId()
+			portUrl := port.GetApiServiceDescriptor().GetUrl()
+			if err := mgr.Open(ctx, portID, portUrl); err != nil {
+				return nil, fmt.Errorf("Failed to open data port %v: %v", portUrl, err)
+			}
+
+			var target *pb.Target
+			for key, _ := range transform.GetOutputs() {
+				target = &pb.Target{transform.GetId(), key}
+			}
+
+			// NOTE: we use the Encoded type as input to receive serialized data of type n.T.
+			// For now, all we need is to wrap pipeline data into the global window.
+
+			edge := g.NewEdge(g.Root())
+			edge.Op = graph.External
+			edge.DoFn, _ = graph.ReflectFn(func(opt DataConnectionContext, in <-chan []byte) error {
+				return SinkFn(mgr, portID, opt, target, in)
+			})
+
+			for _ /* key */, in := range transform.GetInputs() {
+				for _, target := range in.GetTarget() {
+					n := nodes[nodeID{target.GetPrimitiveTransformReference(), target.GetName()}]
+					edge.Input = append(edge.Input, &graph.Inbound{n, edge.DoFn.Param[1].T})
 				}
 			}
 
-		} else {
-			// TODO: EXTERNAL
+		default:
+			return nil, fmt.Errorf("Unexpected opcode: %v", spec)
 		}
 	}
 
 	return g, nil
 }
 
-func translateOpcode(urn string) (graph.Opcode, error) {
-	switch urn {
-	case "urn:org.apache.beam:source:java:0.1":
-		return graph.Source, nil
-	case "urn:org.apache.beam:dofn:java:0.1":
-		return graph.ParDo, nil
-	default:
-		log.Printf("Unexpected opcode: %v", urn)
-		return graph.External, nil // fmt.Errorf("Unexpected opcode: %v", urn)
-	}
-}
-
-func unpackData(data *protobuf.Any) (*v1.MultiEdge, error) {
-	var buf protobufw.BytesValue
-	if err := proto.Unmarshal(data.Value, &buf); err != nil {
-		return nil, fmt.Errorf("BytesValue unmarshal failed: %v", err)
-	}
-
-	// log.Printf("DATA: \"%v\"", string(buf.Value))
-
-	decoded, err := base64.StdEncoding.DecodeString(string(buf.Value))
+func decodeFn(ref *v1.FunctionRef, dataStr string) (*graph.UserFn, interface{}, error) {
+	fn, err := graph.DecodeFnRef(ref)
 	if err != nil {
-		// NOTE: for sources, the data is no longer base64 encoded. Bug?
-
-		log.Printf("No base64: %v", err)
-		decoded = buf.Value
-
-		// return nil, fmt.Errorf("base64 decoding failed: %v", err)
+		return nil, nil, err
 	}
-
-	var ret v1.MultiEdge
-	if err := proto.Unmarshal(decoded, &ret); err != nil {
-		return nil, fmt.Errorf("FunctionRef unmarshal failed: %v", err)
+	dofn, err := graph.ReflectFn(fn)
+	if err != nil {
+		return nil, nil, err
 	}
-	return &ret, nil
+	var tmp interface{}
+	if ct, ok := dofn.Context(); ok {
+		f, _ := reflectx.FindTaggedField(ct, reflectx.DataTag)
+		// log.Printf("Data: %v of %v", me.Data, f.Type)
+
+		data := reflect.New(f.Type).Interface()
+		if err := json.Unmarshal([]byte(dataStr), data); err != nil {
+			return nil, nil, fmt.Errorf("Failed to decode data: %v", err)
+		}
+		tmp = reflect.ValueOf(data).Elem().Interface()
+	}
+	return dofn, tmp, nil
 }
