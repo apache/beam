@@ -13,8 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package cz.seznam.euphoria.flink;
+package cz.seznam.euphoria.flink.streaming;
 
+import cz.seznam.euphoria.flink.streaming.StreamingElement;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -23,12 +24,12 @@ import org.junit.Test;
 
 import static org.junit.Assert.*;
 
-public class FlinkElementTest {
+public class StreamingElementTest {
 
   @Test
   public void testSerializer() {
-    TypeSerializer<FlinkElement> serializer =
-            TypeInformation.of(FlinkElement.class)
+    TypeSerializer<StreamingElement> serializer =
+            TypeInformation.of(StreamingElement.class)
                     .createSerializer(new ExecutionConfig());
 
     // must be POJO serializer for performance reasons
