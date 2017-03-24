@@ -84,10 +84,11 @@ spec:
           privileged: false
           capabilities:
             add:
+# IPC_LOCK capability is enabled to allow Elasticsearch to lock the heap in memory so it will not be swapped.            
               - IPC_LOCK
+# SYS_RESOURCE capability is set to control and override various resource limits.              
               - SYS_RESOURCE
         image: quay.io/pires/docker-elasticsearch-kubernetes:5.2.2
-        imagePullPolicy: Always
         env:
         - name: NAMESPACE
           valueFrom:
@@ -163,9 +164,9 @@ spec:
             add:
 # IPC_LOCK capability is enabled to allow Elasticsearch to lock the heap in memory so it will not be swapped. 
               - IPC_LOCK
+# SYS_RESOURCE capability is set to control and override various resource limits.
               - SYS_RESOURCE
         image: quay.io/pires/docker-elasticsearch-kubernetes:5.2.2
-        imagePullPolicy: Always
         env:
         - name: NAMESPACE
           valueFrom:
@@ -234,10 +235,11 @@ spec:
           privileged: false
           capabilities:
             add:
+# IPC_LOCK capability is enabled to allow Elasticsearch to lock the heap in memory so it will not be swapped.            
               - IPC_LOCK
+# SYS_RESOURCE capability is set to control and override various resource limits.              
               - SYS_RESOURCE
         image: quay.io/pires/docker-elasticsearch-kubernetes:5.2.2
-        imagePullPolicy: Always
         env:
         - name: NAMESPACE
           valueFrom:

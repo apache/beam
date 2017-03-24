@@ -15,10 +15,15 @@
 # limitations under the License.
 #!/bin/sh
 
-# Identify external IP of the pod
+# Identify external IP
 external_ip="$(kubectl get svc elasticsearch -o jsonpath='{.status.loadBalancer.ingress[0].ip}')"
+while [ -z "$external_ip" ]
+do
+   sleep 10s
+   external_ip="$(kubectl get svc elasticsearch -o jsonpath='{.status.loadBalancer.ingress[0].ip}')"
+done
 echo "External IP - $external_ip"
 echo
 
-#run the script
+# Run the script
 /usr/bin/python es_test_data.py --count=1000 --format=Txn_ID:int,Item_Code:int,Item_ID:int,User_Name:str,last_updated:ts,Price:int,Title:str,Description:str,Age:int,Item_Name:str,Item_Price:int,Availability:bool,Batch_Num:int,Last_Ordered:tstxt,City:text --es_url=http://$external_ip:9200 &
