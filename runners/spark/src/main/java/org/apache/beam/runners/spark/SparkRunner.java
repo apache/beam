@@ -191,6 +191,12 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
       // but this is fine since it is idempotent).
       initAccumulators(mOptions, jssc.sparkContext());
 
+      // register listeners.
+      for (JavaStreamingListener listener: mOptions.as(SparkContextOptions.class).getListeners()) {
+        LOG.info("Registered listener {}." + listener.getClass().getSimpleName());
+        jssc.addStreamingListener(new JavaStreamingListenerWrapper(listener));
+      }
+
       startPipeline = executorService.submit(new Runnable() {
 
         @Override
