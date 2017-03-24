@@ -86,13 +86,12 @@ public class SparkRunnerStreamingContextFactory implements JavaStreamingContextF
     pipeline.traverseTopologically(new SparkRunner.Evaluator(translator, ctxt));
     ctxt.computeOutputs();
 
+    // update cache candidates
+    SparkRunner.updateCacheCandidates(pipeline, translator, ctxt);
+
     checkpoint(jssc);
 
     return jssc;
-  }
-
-  public EvaluationContext getEvaluationContext() {
-    return this.ctxt;
   }
 
   private void checkpoint(JavaStreamingContext jssc) {
