@@ -75,6 +75,8 @@ public class Query5 extends NexmarkQuery {
 
       // We'll want to keep all auctions with the maximal number of bids.
         // Start by lifting each into a singleton list.
+        // need to do so because bellow combine returns a list of auctions in the key in case of
+        // equal number of bids. Combine needs to have same input type and return type.
         .apply(name + ".ToSingletons",
             ParDo.of(new DoFn<KV<Long, Long>, KV<List<Long>, Long>>() {
                   @ProcessElement
