@@ -164,7 +164,11 @@ public abstract class FileBasedSink<T> extends Sink<T> {
   /**
    * A naming policy for output files.
    */
-  public abstract static class FilenamePolicy {
+  public abstract static class FilenamePolicy implements Serializable {
+    /**
+     * Context used for generating a name based on shard numer, and num shards.
+     * The policy must produce unique filenames for unique {@link Context} objects.
+     */
     public static class Context {
       private int shardNumber;
       private int numShards;
@@ -187,9 +191,7 @@ public abstract class FileBasedSink<T> extends Sink<T> {
 
     /**
      * Context used for generating a name based on window, pane, shard numer, and num shards.
-     * Window and pane will only be provided if windowed writes have been requested using
-     * {@link Write#withWindowedWrites}. The policy must produce unique filenames for unique
-     * Context objects.
+     * The policy must produce unique filenames for unique {@link WindowedContext} objects.
      */
     public static class WindowedContext extends Context {
       @Nullable private BoundedWindow window;
@@ -270,15 +272,16 @@ public abstract class FileBasedSink<T> extends Sink<T> {
       }
 
       String suffix = getFileExtension(extension);
-      return IOChannelUtils.constructName(
-            baseOutputFilename.get(), fileNamingTemplate, suffix, context.getShardNumber(),
+      String filename = IOChannelUtils.constructName(
+          baseOutputFilename.get(), fileNamingTemplate, suffix, context.getShardNumber(),
           context.getNumShards());
+      return filename;
     }
 
     @Override
     public String windowedFilename(FilenamePolicy.WindowedContext c) {
       throw new UnsupportedOperationException("There is no default policy for windowed file"
-          + " output. Please provide an explicit FilenamePolicy to generate filenames");
+          + " output. Please provide an explicit FilenamePolicy to generate filenames.");
     }
 
     @Override

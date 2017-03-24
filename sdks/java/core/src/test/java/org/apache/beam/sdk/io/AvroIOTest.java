@@ -68,9 +68,7 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.DisplayDataEvaluator;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
-import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
-import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.util.IOChannelUtils;
 import org.apache.beam.sdk.util.SerializableUtils;
@@ -491,8 +489,10 @@ public class AvroIOTest {
 
     Bound<String> write = AvroIO.Write.to(outputFilePrefix).withSchema(String.class);
     if (numShards > 1) {
+      System.out.println("NumShards " + numShards);
       write = write.withNumShards(numShards);
     } else {
+      System.out.println("no sharding");
       write = write.withoutSharding();
     }
     p.apply(Create.of(ImmutableList.copyOf(expectedElements))).apply(write);

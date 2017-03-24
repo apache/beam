@@ -76,11 +76,16 @@ public class WriteOneFilePerWindow extends PTransform<PCollection<String>, PDone
     }
 
     @Override
-    public String apply(Context context) {
+    public String windowedFilename(WindowedContext context) {
       IntervalWindow window = (IntervalWindow) context.getWindow();
       return String.format(
           "%s-%s-of-%s",
           filenamePrefixForWindow(window), context.getShardNumber(), context.getNumShards());
+    }
+
+    @Override
+    public String unwindowedFilename(Context context) {
+      throw new UnsupportedOperationException("Unsupported.");
     }
   }
 }
