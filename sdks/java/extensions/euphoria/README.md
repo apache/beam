@@ -1,6 +1,7 @@
 # Euphoria
 
 [![Build Status](https://travis-ci.org/seznam/euphoria.svg?branch=master)](https://travis-ci.org/seznam/euphoria)
+[![Join the chat at https://gitter.im/euphoria-api/Lobby](https://badges.gitter.im/euphoira-api/Lobby.svg)](https://gitter.im/euphoria-api/Lobby?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
 Euphoria is an open source Java API for creating unified big-data
 processing flows.  It provides an engine independent programming model
