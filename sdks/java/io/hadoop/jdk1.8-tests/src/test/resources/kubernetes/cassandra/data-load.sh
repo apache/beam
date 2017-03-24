@@ -37,22 +37,21 @@ echo
 # Create keyspace
 keyspace_creation_command="drop keyspace if exists ycsb;create keyspace ycsb WITH REPLICATION = {'class' : 'SimpleStrategy', 'replication_factor': 3 };"
 kubectl exec -ti $running_seed -- cqlsh -e "$keyspace_creation_command"
-echo "Keyspace created successfully."
-echo "------------------------------"
+echo "Keyspace creation............"
+echo "-----------------------------"
 echo "$keyspace_creation_command"
 echo
 
 # Create table
 table_creation_command="use ycsb;drop table if exists usertable;create table usertable (y_id varchar primary key,field0 varchar,field1 varchar,field2 varchar,field3 varchar,field4 varchar,field5 varchar,field6 varchar,field7 varchar,field8 varchar,field9 varchar);"
 kubectl exec -ti $running_seed -- cqlsh -e "$table_creation_command"
-echo "Table created successfully."
-echo "-------------------------------"
+echo "Table creation .............."
+echo "-----------------------------"
 echo "$table_creation_command"
 
 cd ycsb-0.12.0
 
-echo "Starting to load data"
+echo "Starting to load data on ${external_ip}"
 echo "-----------------------------"
 # Record count set to 1000, change this value to load as per requirement. dataintegrity flag is set to true to load deterministic data
-./bin/ycsb load cassandra-cql -p hosts=${external_ip} -p dataintegrity=true -p recordcount=1000 -P workloads/workloadd -s > workloada_load_res.txt
-echo "Data loaded on ${external_ip} successfully."
+./bin/ycsb load cassandra-cql -p hosts=${external_ip} -p dataintegrity=true -p recordcount=1000 -p insertorder=ordered -p fieldlength=20 -P workloads/workloadd -s > workloada_load_res.txt
