@@ -338,7 +338,6 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
      * This way Pubsub will send them again promptly.
      */
     public void nackAll(PubsubReader<T> reader) throws IOException {
-      checkState(this.reader == null, "Cannot nackAll on persisting checkpoint");
       List<String> batchYetToAckIds =
           new ArrayList<>(Math.min(notYetReadIds.size(), ACK_BATCH_SIZE));
       for (String ackId : notYetReadIds) {
