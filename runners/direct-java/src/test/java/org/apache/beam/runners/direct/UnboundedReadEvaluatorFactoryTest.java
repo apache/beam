@@ -458,6 +458,9 @@ public class UnboundedReadEvaluatorFactoryTest {
     @Override
     public UnboundedSource.UnboundedReader<T> createReader(
         PipelineOptions options, @Nullable TestCheckpointMark checkpointMark) {
+      checkState(
+          checkpointMark == null || checkpointMark.decoded,
+          "Cannot resume from a checkpoint that has not been decoded");
       return new TestUnboundedReader(elems, checkpointMark == null ? -1 : checkpointMark.index);
     }
 
@@ -564,6 +567,7 @@ public class UnboundedReadEvaluatorFactoryTest {
   private static class TestCheckpointMark implements CheckpointMark {
     final int index;
     private boolean finalized = false;
+    private boolean decoded = false;
 
     private TestCheckpointMark(int index) {
       this.index = index;
@@ -573,6 +577,10 @@ public class UnboundedReadEvaluatorFactoryTest {
     public void finalizeCheckpoint() throws IOException {
       checkState(
           !finalized, "%s was finalized more than once", TestCheckpointMark.class.getSimpleName());
+      checkState(
+          !decoded,
+          "%s was finalized after being deccoded",
+          TestCheckpointMark.class.getSimpleName());
       finalized = true;
     }
 
@@ -594,7 +602,9 @@ public class UnboundedReadEvaluatorFactoryTest {
       public TestCheckpointMark decode(
           InputStream inStream, org.apache.beam.sdk.coders.Coder.Context context)
           throws IOException {
-        return new TestCheckpointMark(VarInt.decodeInt(inStream));
+        TestCheckpointMark decoded = new TestCheckpointMark(VarInt.decodeInt(inStream));
+        decoded.decoded = true;
+        return decoded;
       }
     }
   }
