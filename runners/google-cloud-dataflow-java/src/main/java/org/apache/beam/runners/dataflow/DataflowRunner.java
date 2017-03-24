@@ -58,6 +58,7 @@ import java.util.Random;
 import java.util.Set;
 import java.util.SortedSet;
 import java.util.TreeSet;
+import org.apache.beam.runners.core.construction.DeduplicatedFlattenFactory;
 import org.apache.beam.runners.core.construction.EmptyFlattenAsCreateFactory;
 import org.apache.beam.runners.core.construction.PTransformMatchers;
 import org.apache.beam.runners.core.construction.ReplacementOutputs;
@@ -294,7 +295,9 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
         ImmutableMap.builder();
     // Create is implemented in terms of a Read, so it must precede the override to Read in
     // streaming
-    ptoverrides.put(PTransformMatchers.emptyFlatten(), EmptyFlattenAsCreateFactory.instance());
+    ptoverrides
+        .put(PTransformMatchers.flattenWithDuplicateInputs(), DeduplicatedFlattenFactory.create())
+        .put(PTransformMatchers.emptyFlatten(), EmptyFlattenAsCreateFactory.instance());
     if (streaming) {
       // In streaming mode must use either the custom Pubsub unbounded source/sink or
       // defer to Windmill's built-in implementation.
