@@ -21,6 +21,7 @@ import com.google.common.base.MoreObjects;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
@@ -56,6 +57,7 @@ final class TransformExecutorServices {
    */
   private static class ParallelEvaluationState implements TransformExecutorService {
     private final ExecutorService executor;
+    private final AtomicBoolean active = new AtomicBoolean(true);
 
     private ParallelEvaluationState(ExecutorService executor) {
       this.executor = executor;
@@ -63,11 +65,18 @@ final class TransformExecutorServices {
 
     @Override
     public void schedule(TransformExecutor<?> work) {
-      executor.submit(work);
+      if (active.get()) {
+        executor.submit(work);
+      }
     }
 
     @Override
     public void complete(TransformExecutor<?> completed) {
+    }
+
+    @Override
+    public void shutdown() {
+      active.set(false);
     }
   }
 
@@ -84,6 +93,7 @@ final class TransformExecutorServices {
 
     private AtomicReference<TransformExecutor<?>> currentlyEvaluating;
     private final Queue<TransformExecutor<?>> workQueue;
+    private boolean active = true;
 
     private SerialEvaluationState(ExecutorService executor) {
       this.executor = executor;
@@ -113,12 +123,20 @@ final class TransformExecutorServices {
       updateCurrentlyEvaluating();
     }
 
+    @Override
+    public void shutdown() {
+      synchronized (this) {
+        active = false;
+      }
+      workQueue.clear();
+    }
+
     private void updateCurrentlyEvaluating() {
       if (currentlyEvaluating.get() == null) {
         // Only synchronize if we need to update what's currently evaluating
         synchronized (this) {
           TransformExecutor<?> newWork = workQueue.poll();
-          if (newWork != null) {
+          if (active && newWork != null) {
             if (currentlyEvaluating.compareAndSet(null, newWork)) {
               executor.submit(newWork);
             } else {

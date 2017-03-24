@@ -59,6 +59,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.dataflow.BatchViewOverrides.GroupByKeyAndSortValuesOnly;
 import org.apache.beam.runners.dataflow.DataflowRunner.CombineGroupedValues;
+import org.apache.beam.runners.dataflow.PrimitiveParDoSingleFactory.ParDoSingle;
 import org.apache.beam.runners.dataflow.TransformTranslator.StepTranslationContext;
 import org.apache.beam.runners.dataflow.TransformTranslator.TranslationContext;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
@@ -327,8 +328,7 @@ public class DataflowPipelineTranslator {
       workerPool.setNumWorkers(options.getNumWorkers());
 
       if (options.isStreaming()
-          && (options.getExperiments() == null
-              || !options.getExperiments().contains("enable_windmill_service"))) {
+          && !DataflowRunner.hasExperiment(options, "enable_windmill_service")) {
         // Use separate data disk for streaming.
         Disk disk = new Disk();
         disk.setDiskType(options.getWorkerDiskType());
@@ -849,15 +849,15 @@ public class DataflowPipelineTranslator {
         });
 
     registerTransformTranslator(
-        ParDo.Bound.class,
-        new TransformTranslator<ParDo.Bound>() {
+        ParDoSingle.class,
+        new TransformTranslator<ParDoSingle>() {
           @Override
-          public void translate(ParDo.Bound transform, TranslationContext context) {
+          public void translate(ParDoSingle transform, TranslationContext context) {
             translateSingleHelper(transform, context);
           }
 
           private <InputT, OutputT> void translateSingleHelper(
-              ParDo.Bound<InputT, OutputT> transform, TranslationContext context) {
+              ParDoSingle<InputT, OutputT> transform, TranslationContext context) {
 
             StepTranslationContext stepContext = context.addStep(transform, "ParallelDo");
             translateInputs(

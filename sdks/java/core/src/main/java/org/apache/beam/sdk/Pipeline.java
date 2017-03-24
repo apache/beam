@@ -19,9 +19,12 @@ package org.apache.beam.sdk;
 
 import static com.google.common.base.Preconditions.checkState;
 
+import com.google.common.collect.HashMultimap;
+import com.google.common.collect.SetMultimap;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import org.apache.beam.sdk.coders.CoderRegistry;
@@ -29,7 +32,7 @@ import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptions.CheckEnabled;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.sdk.runners.PTransformMatcher;
+import org.apache.beam.sdk.runners.PTransformOverride;
 import org.apache.beam.sdk.runners.PTransformOverrideFactory;
 import org.apache.beam.sdk.runners.PTransformOverrideFactory.ReplacementOutput;
 import org.apache.beam.sdk.runners.PipelineRunner;
@@ -172,14 +175,67 @@ public class Pipeline {
     return begin().apply(name, root);
   }
 
+  /**
+   * Replaces all nodes that match a {@link PTransformOverride} in this pipeline. Overrides are
+   * applied in the order they are present within the list.
+   *
+   * <p>After all nodes are replaced, ensures that no nodes in the updated graph match any of the
+   * overrides.
+   */
+  public void replaceAll(List<PTransformOverride> overrides) {
+    for (PTransformOverride override : overrides) {
+      replace(override);
+    }
+    checkNoMoreMatches(overrides);
+  }
+
+  private void checkNoMoreMatches(final List<PTransformOverride> overrides) {
+    traverseTopologically(
+        new PipelineVisitor.Defaults() {
+          SetMultimap<Node, PTransformOverride> matched = HashMultimap.create();
+
+          @Override
+          public CompositeBehavior enterCompositeTransform(Node node) {
+            if (!node.isRootNode()) {
+              for (PTransformOverride override : overrides) {
+                if (override.getMatcher().matches(node.toAppliedPTransform())) {
+                  matched.put(node, override);
+                }
+              }
+            }
+            if (!matched.containsKey(node)) {
+              return CompositeBehavior.ENTER_TRANSFORM;
+            }
+            return CompositeBehavior.DO_NOT_ENTER_TRANSFORM;
+          }
+
+          @Override
+          public void leaveCompositeTransform(Node node) {
+            if (node.isRootNode()) {
+              checkState(
+                  matched.isEmpty(), "Found nodes that matched overrides. Matches: %s", matched);
+            }
+          }
+
+          @Override
+          public void visitPrimitiveTransform(Node node) {
+            for (PTransformOverride override : overrides) {
+              if (override.getMatcher().matches(node.toAppliedPTransform())) {
+                matched.put(node, override);
+              }
+            }
+          }
+        });
+  }
+
   public void replace(
-      final PTransformMatcher matcher, PTransformOverrideFactory replacementFactory) {
+      final PTransformOverride override) {
     final Collection<Node> matches = new ArrayList<>();
     transforms.visit(
         new PipelineVisitor.Defaults() {
           @Override
           public CompositeBehavior enterCompositeTransform(Node node) {
-            if (!node.isRootNode() && matcher.matches(node.toAppliedPTransform())) {
+            if (!node.isRootNode() && override.getMatcher().matches(node.toAppliedPTransform())) {
               matches.add(node);
               // This node will be replaced. It should not be visited.
               return CompositeBehavior.DO_NOT_ENTER_TRANSFORM;
@@ -189,13 +245,13 @@ public class Pipeline {
 
           @Override
           public void visitPrimitiveTransform(Node node) {
-            if (matcher.matches(node.toAppliedPTransform())) {
+            if (override.getMatcher().matches(node.toAppliedPTransform())) {
               matches.add(node);
             }
           }
         });
     for (Node match : matches) {
-      applyReplacement(match, replacementFactory);
+      applyReplacement(match, override.getOverrideFactory());
     }
   }
 

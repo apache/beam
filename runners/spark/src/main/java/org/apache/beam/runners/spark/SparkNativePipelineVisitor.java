@@ -92,7 +92,6 @@ public class SparkNativePipelineVisitor extends SparkRunner.Evaluator {
   @Override
   <TransformT extends PTransform<? super PInput, POutput>> void
   doVisitTransform(TransformHierarchy.Node node) {
-    super.doVisitTransform(node);
     @SuppressWarnings("unchecked")
     TransformT transform = (TransformT) node.getTransform();
     @SuppressWarnings("unchecked")

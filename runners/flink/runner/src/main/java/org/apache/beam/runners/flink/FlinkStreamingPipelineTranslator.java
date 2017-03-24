@@ -24,6 +24,7 @@ import org.apache.beam.runners.core.construction.SingleInputOutputOverrideFactor
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.runners.PTransformMatcher;
+import org.apache.beam.sdk.runners.PTransformOverride;
 import org.apache.beam.sdk.runners.PTransformOverrideFactory;
 import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.transforms.Combine;
@@ -95,7 +96,7 @@ class FlinkStreamingPipelineTranslator extends FlinkPipelineTranslator {
 
     for (Map.Entry<PTransformMatcher, PTransformOverrideFactory> override :
         transformOverrides.entrySet()) {
-      pipeline.replace(override.getKey(), override.getValue());
+      pipeline.replace(PTransformOverride.of(override.getKey(), override.getValue()));
     }
     super.translate(pipeline);
   }

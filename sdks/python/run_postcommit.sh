@@ -61,7 +61,6 @@ GCS_LOCATION=gs://temp-storage-for-end-to-end-tests
 
 # Job name needs to be unique
 JOBNAME_E2E_WC=py-wordcount-`date +%s`
-JOBNAME_VR_TEST=py-validatesrunner-`date +%s`
 
 PROJECT=apache-beam-testing
 
@@ -77,13 +76,15 @@ echo "mock" >> postcommit_requirements.txt
 # Run ValidatesRunner tests on Google Cloud Dataflow service
 echo ">>> RUNNING DATAFLOW RUNNER VALIDATESRUNNER TESTS"
 python setup.py nosetests \
-  -a ValidatesRunner --test-pipeline-options=" \
+  -a ValidatesRunner \
+  --processes=4 \
+  --process-timeout=600 \
+  --test-pipeline-options=" \
     --runner=TestDataflowRunner \
     --project=$PROJECT \
     --staging_location=$GCS_LOCATION/staging-validatesrunner-test \
     --temp_location=$GCS_LOCATION/temp-validatesrunner-test \
     --sdk_location=$SDK_LOCATION \
-    --job_name=$JOBNAME_VR_TEST \
     --requirements_file=postcommit_requirements.txt \
     --num_workers=1"
 
@@ -91,7 +92,8 @@ python setup.py nosetests \
 # and validate job that finishes successfully.
 echo ">>> RUNNING TEST DATAFLOW RUNNER py-wordcount"
 python setup.py nosetests \
-  -a IT --test-pipeline-options=" \
+  -a IT \
+  --test-pipeline-options=" \
     --runner=TestDataflowRunner \
     --project=$PROJECT \
     --staging_location=$GCS_LOCATION/staging-wordcount \
@@ -99,4 +101,5 @@ python setup.py nosetests \
     --output=$GCS_LOCATION/py-wordcount-cloud/output \
     --sdk_location=$SDK_LOCATION \
     --job_name=$JOBNAME_E2E_WC \
-    --num_workers=1"
+    --num_workers=1 \
+    --sleep_secs=20"

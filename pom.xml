@@ -127,7 +127,7 @@
     <joda.version>2.4</joda.version>
     <junit.version>4.12</junit.version>
     <mockito.version>1.9.5</mockito.version>
-    <netty.version>4.1.3.Final</netty.version>
+    <netty.version>4.1.6.Final</netty.version>
     <os-maven-plugin.version>1.4.0.Final</os-maven-plugin.version>
     <protobuf.version>3.1.0</protobuf.version>
     <pubsub.version>v1-rev10-1.22.0</pubsub.version>
@@ -170,7 +170,7 @@
               <artifactId>maven-javadoc-plugin</artifactId>
               <executions>
                 <execution>
-                  <id>javadoc</id>
+                  <id>attach-javadocs</id>
                   <phase>package</phase>
                   <goals>
                     <goal>jar</goal>
@@ -363,6 +363,19 @@
       <dependency>
         <groupId>org.apache.beam</groupId>
         <artifactId>beam-sdks-java-harness</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.apache.beam</groupId>
+        <artifactId>beam-sdks-java-io-common</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.apache.beam</groupId>
+        <artifactId>beam-sdks-java-io-common</artifactId>
+        <classifier>tests</classifier>
         <version>${project.version}</version>
       </dependency>
 
@@ -1169,13 +1182,7 @@
           <artifactId>versions-maven-plugin</artifactId>
           <version>2.3</version>
         </plugin>
-	
-        <plugin>
-          <groupId>org.codehaus.mojo</groupId>
-          <artifactId>build-helper-maven-plugin</artifactId>
-          <version>1.12</version>
-        </plugin>
-	
+
         <plugin>
           <groupId>org.codehaus.mojo</groupId>
           <artifactId>exec-maven-plugin</artifactId>

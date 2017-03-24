@@ -41,7 +41,7 @@ from apache_beam import coders
 from apache_beam.io.filebasedsource_test import EOL
 from apache_beam.io.filebasedsource_test import write_data
 from apache_beam.io.filebasedsource_test import write_pattern
-from apache_beam.io.fileio import CompressionTypes
+from apache_beam.io.filesystem import CompressionTypes
 
 from apache_beam.test_pipeline import TestPipeline
 

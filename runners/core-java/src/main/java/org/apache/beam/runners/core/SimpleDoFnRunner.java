@@ -23,6 +23,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Sets;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
@@ -575,8 +576,12 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
       return windowedValue.getWindows();
     }
 
+    @SuppressWarnings("deprecation") // Allowed Skew is deprecated for users, but must be respected
     private void checkTimestamp(Instant timestamp) {
-      if (timestamp.isBefore(windowedValue.getTimestamp().minus(fn.getAllowedTimestampSkew()))) {
+      // The documentation of getAllowedTimestampSkew explicitly permits Long.MAX_VALUE to be used
+      // for infinite skew. Defend against underflow in that case for timestamps before the epoch
+      if (fn.getAllowedTimestampSkew().getMillis() != Long.MAX_VALUE
+          && timestamp.isBefore(windowedValue.getTimestamp().minus(fn.getAllowedTimestampSkew()))) {
         throw new IllegalArgumentException(
             String.format(
                 "Cannot output with timestamp %s. Output timestamps must be no earlier than the "
@@ -766,22 +771,26 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
 
     @Override
     public void output(OutputT output) {
-      context.outputWithTimestamp(output, timestamp);
+      context.outputWindowedValue(
+          output, timestamp(), Collections.singleton(window()), PaneInfo.NO_FIRING);
     }
 
     @Override
     public void outputWithTimestamp(OutputT output, Instant timestamp) {
-      context.outputWithTimestamp(output, timestamp);
+      context.outputWindowedValue(
+          output, timestamp, Collections.singleton(window()), PaneInfo.NO_FIRING);
     }
 
     @Override
     public <T> void sideOutput(TupleTag<T> tag, T output) {
-      context.sideOutputWithTimestamp(tag, output, timestamp);
+      context.sideOutputWindowedValue(
+          tag, output, timestamp, Collections.singleton(window()), PaneInfo.NO_FIRING);
     }
 
     @Override
     public <T> void sideOutputWithTimestamp(TupleTag<T> tag, T output, Instant timestamp) {
-      context.sideOutputWithTimestamp(tag, output, timestamp);
+      context.sideOutputWindowedValue(
+          tag, output, timestamp, Collections.singleton(window()), PaneInfo.NO_FIRING);
     }
 
     @Override

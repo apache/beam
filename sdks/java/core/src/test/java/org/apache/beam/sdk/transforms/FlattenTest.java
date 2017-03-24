@@ -22,6 +22,9 @@ import static org.apache.beam.sdk.TestUtils.LINES2;
 import static org.apache.beam.sdk.TestUtils.LINES_ARRAY;
 import static org.apache.beam.sdk.TestUtils.NO_LINES;
 import static org.apache.beam.sdk.TestUtils.NO_LINES_ARRAY;
+import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.not;
+import static org.junit.Assert.assertThat;
 
 import com.google.common.collect.ImmutableSet;
 import java.io.Serializable;
@@ -90,6 +93,18 @@ public class FlattenTest implements Serializable {
         .apply(Flatten.<String>pCollections());
 
     PAssert.that(output).containsInAnyOrder(flattenLists(inputs));
+    p.run();
+  }
+
+  @Test
+  @Category(RunnableOnService.class)
+  public void testFlattenPCollectionsSingletonList() {
+    PCollection<String> input = p.apply(Create.of(LINES));
+    PCollection<String> output = PCollectionList.of(input).apply(Flatten.<String>pCollections());
+
+    assertThat(output, not(equalTo(input)));
+
+    PAssert.that(output).containsInAnyOrder(LINES);
     p.run();
   }
 

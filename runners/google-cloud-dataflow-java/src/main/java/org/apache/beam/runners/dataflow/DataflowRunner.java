@@ -51,7 +51,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -93,9 +92,11 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsValidator;
 import org.apache.beam.sdk.options.ValueProvider.NestedValueProvider;
 import org.apache.beam.sdk.runners.PTransformMatcher;
+import org.apache.beam.sdk.runners.PTransformOverride;
 import org.apache.beam.sdk.runners.PTransformOverrideFactory;
 import org.apache.beam.sdk.runners.PipelineRunner;
 import org.apache.beam.sdk.runners.TransformHierarchy;
+import org.apache.beam.sdk.runners.TransformHierarchy.Node;
 import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.Combine.GroupedValues;
@@ -159,9 +160,6 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
 
   /** Translator for this DataflowRunner, based on options. */
   private final DataflowPipelineTranslator translator;
-
-  /** Custom transforms implementations. */
-  private final ImmutableMap<PTransformMatcher, PTransformOverrideFactory> overrides;
 
   /** A set of user defined functions to invoke at different points in execution. */
   private DataflowRunnerHooks hooks;
@@ -289,13 +287,15 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     this.translator = DataflowPipelineTranslator.fromOptions(options);
     this.pcollectionsRequiringIndexedFormat = new HashSet<>();
     this.ptransformViewsWithNonDeterministicKeyCoders = new HashSet<>();
+  }
 
+  private Map<PTransformMatcher, PTransformOverrideFactory> getOverrides(boolean streaming) {
     ImmutableMap.Builder<PTransformMatcher, PTransformOverrideFactory> ptoverrides =
         ImmutableMap.builder();
     // Create is implemented in terms of a Read, so it must precede the override to Read in
     // streaming
     ptoverrides.put(PTransformMatchers.emptyFlatten(), EmptyFlattenAsCreateFactory.instance());
-    if (options.isStreaming()) {
+    if (streaming) {
       // In streaming mode must use either the custom Pubsub unbounded source/sink or
       // defer to Windmill's built-in implementation.
       for (Class<? extends DoFn> unsupported :
@@ -304,14 +304,12 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
             PTransformMatchers.parDoWithFnType(unsupported),
             UnsupportedOverrideFactory.withMessage(getUnsupportedMessage(unsupported, true)));
       }
-      if (options.getExperiments() == null
-          || !options.getExperiments().contains("enable_custom_pubsub_source")) {
+      if (!hasExperiment(options, "enable_custom_pubsub_source")) {
         ptoverrides.put(
             PTransformMatchers.classEqualTo(PubsubUnboundedSource.class),
             new ReflectiveRootOverrideFactory(StreamingPubsubIORead.class, this));
       }
-      if (options.getExperiments() == null
-          || !options.getExperiments().contains("enable_custom_pubsub_sink")) {
+      if (!hasExperiment(options, "enable_custom_pubsub_sink")) {
         ptoverrides.put(
             PTransformMatchers.classEqualTo(PubsubUnboundedSink.class),
             new StreamingPubsubIOWriteOverrideFactory(this));
@@ -336,10 +334,6 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
             PTransformMatchers.classEqualTo(unsupported),
             UnsupportedOverrideFactory.withMessage(getUnsupportedMessage(unsupported, false)));
       }
-      ptoverrides.put(
-          PTransformMatchers.classEqualTo(Read.Unbounded.class),
-          UnsupportedOverrideFactory.withMessage(
-              "The DataflowRunner in batch mode does not support Read.Unbounded"));
       ptoverrides
           // State and timer pardos are implemented by expansion to GBK-then-ParDo
           .put(PTransformMatchers.stateOrTimerParDoMulti(),
@@ -372,8 +366,9 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
         // Order is important. Streaming views almost all use Combine internally.
         .put(
             PTransformMatchers.classEqualTo(Combine.GroupedValues.class),
-            new PrimitiveCombineGroupedValuesOverrideFactory());
-    overrides = ptoverrides.build();
+            new PrimitiveCombineGroupedValuesOverrideFactory())
+        .put(PTransformMatchers.classEqualTo(ParDo.Bound.class), new PrimitiveParDoSingleFactory());
+    return ptoverrides.build();
   }
 
   private String getUnsupportedMessage(Class<?> unsupported, boolean streaming) {
@@ -486,6 +481,9 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   @Override
   public DataflowPipelineJob run(Pipeline pipeline) {
     logWarningIfPCollectionViewHasNonDeterministicKeyCoder(pipeline);
+    if (containsUnboundedPCollection(pipeline)) {
+      options.setStreaming(true);
+    }
     replaceTransforms(pipeline);
 
     LOG.info("Executing pipeline on the Dataflow Service, which will have billing implications "
@@ -541,20 +539,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       workerPool.setWorkerHarnessContainerImage(workerHarnessContainerImage);
     }
 
-    // Requirements about the service.
-    Map<String, Object> environmentVersion = new HashMap<>();
-    environmentVersion.put(
-        PropertyNames.ENVIRONMENT_VERSION_MAJOR_KEY,
-        DataflowRunnerInfo.getDataflowRunnerInfo().getEnvironmentMajorVersion());
-    newJob.getEnvironment().setVersion(environmentVersion);
-    // Default jobType is JAVA_BATCH_AUTOSCALING: A Java job with workers that the job can
-    // autoscale if specified.
-    String jobType = "JAVA_BATCH_AUTOSCALING";
-
-    if (options.isStreaming()) {
-      jobType = "STREAMING";
-    }
-    environmentVersion.put(PropertyNames.ENVIRONMENT_VERSION_JOB_TYPE_KEY, jobType);
+    newJob.getEnvironment().setVersion(getEnvironmentVersion(options));
 
     if (hooks != null) {
       hooks.modifyEnvironmentBeforeSubmission(newJob.getEnvironment());
@@ -662,12 +647,54 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     return dataflowPipelineJob;
   }
 
+  /** Returns true if the specified experiment is enabled, handling null experiments. */
+  public static boolean hasExperiment(DataflowPipelineDebugOptions options, String experiment) {
+    List<String> experiments =
+        firstNonNull(options.getExperiments(), Collections.<String>emptyList());
+    return experiments.contains(experiment);
+  }
+
+  /** Helper to configure the Dataflow Job Environment based on the user's job options. */
+  private static Map<String, Object> getEnvironmentVersion(DataflowPipelineOptions options) {
+    DataflowRunnerInfo runnerInfo = DataflowRunnerInfo.getDataflowRunnerInfo();
+    String majorVersion;
+    String jobType;
+    if (hasExperiment(options, "beam_fn_api")) {
+      majorVersion = runnerInfo.getFnApiEnvironmentMajorVersion();
+      jobType = options.isStreaming() ? "FNAPI_STREAMING" : "FNAPI_BATCH";
+    } else {
+      majorVersion = runnerInfo.getLegacyEnvironmentMajorVersion();
+      jobType = options.isStreaming() ? "STREAMING" : "JAVA_BATCH_AUTOSCALING";
+    }
+    return ImmutableMap.<String, Object>of(
+        PropertyNames.ENVIRONMENT_VERSION_MAJOR_KEY, majorVersion,
+        PropertyNames.ENVIRONMENT_VERSION_JOB_TYPE_KEY, jobType);
+  }
+
   @VisibleForTesting
   void replaceTransforms(Pipeline pipeline) {
-    for (Map.Entry<PTransformMatcher, PTransformOverrideFactory> override : overrides.entrySet()) {
-      pipeline.replace(override.getKey(), override.getValue());
+    boolean streaming = options.isStreaming() || containsUnboundedPCollection(pipeline);
+    for (Map.Entry<PTransformMatcher, PTransformOverrideFactory> override :
+        getOverrides(streaming).entrySet()) {
+      pipeline.replace(PTransformOverride.of(override.getKey(), override.getValue()));
     }
   }
+
+  private boolean containsUnboundedPCollection(Pipeline p) {
+    class BoundednessVisitor extends PipelineVisitor.Defaults {
+      IsBounded boundedness = IsBounded.BOUNDED;
+
+      @Override
+      public void visitValue(PValue value, Node producer) {
+        if (value instanceof PCollection) {
+          boundedness = boundedness.and(((PCollection) value).isBounded());
+        }
+      }
+    }
+    BoundednessVisitor visitor = new BoundednessVisitor();
+    p.traverseTopologically(visitor);
+    return visitor.boundedness == IsBounded.UNBOUNDED;
+  };
 
   /**
    * Returns the DataflowPipelineTranslator associated with this object.

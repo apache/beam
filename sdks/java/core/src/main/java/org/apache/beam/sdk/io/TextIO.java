@@ -116,7 +116,7 @@ public class TextIO {
      * Returns a transform for reading text files that reads from the file(s)
      * with the given filename or filename pattern. This can be a local path (if running locally),
      * or a Google Cloud Storage filename or filename pattern of the form
-     * {@code "gs://<bucket>/<filepath>"} (if running locally or via the Google Cloud Dataflow
+     * {@code "gs://<bucket>/<filepath>"} (if running locally or using remote execution)
      * service). Standard <a href="http://docs.oracle.com/javase/tutorial/essential/io/find.html"
      * >Java Filesystem glob patterns</a> ("*", "?", "[..]") are supported.
      */
@@ -342,7 +342,7 @@ public class TextIO {
      * with the given prefix. This can be a local filename
      * (if running locally), or a Google Cloud Storage filename of
      * the form {@code "gs://<bucket>/<filepath>"}
-     * (if running locally or via the Google Cloud Dataflow service).
+     * (if running locally or using remote execution).
      *
      * <p>The files written will begin with this prefix, followed by
      * a shard identifier (see {@link Bound#withNumShards(int)}, and end
@@ -682,7 +682,7 @@ public class TextIO {
             .addIfNotNull(DisplayData.item("filePrefix", prefixString)
               .withLabel("Output File Prefix"))
             .addIfNotDefault(DisplayData.item("fileSuffix", filenameSuffix)
-              .withLabel("Output Fix Suffix"), "")
+              .withLabel("Output File Suffix"), "")
             .addIfNotDefault(DisplayData.item("shardNameTemplate", shardTemplate)
               .withLabel("Output Shard Name Template"),
                 DEFAULT_SHARD_TEMPLATE)

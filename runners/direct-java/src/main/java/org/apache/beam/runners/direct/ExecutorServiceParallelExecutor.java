@@ -25,6 +25,8 @@ import com.google.common.base.Optional;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
+import com.google.common.cache.RemovalListener;
+import com.google.common.cache.RemovalNotification;
 import com.google.common.collect.Iterables;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -48,6 +50,7 @@ import org.apache.beam.runners.core.TimerInternals.TimerData;
 import org.apache.beam.runners.direct.DirectRunner.CommittedBundle;
 import org.apache.beam.runners.direct.WatermarkManager.FiredTimers;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.PipelineResult.State;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.util.UserCodeException;
@@ -55,6 +58,8 @@ import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PValue;
+import org.joda.time.Duration;
+import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -99,6 +104,7 @@ final class ExecutorServiceParallelExecutor implements PipelineExecutor {
    * {@link CompletionCallback} decrement this value.
    */
   private final AtomicLong outstandingWork = new AtomicLong();
+  private AtomicReference<State> pipelineState = new AtomicReference<>(State.RUNNING);
 
   public static ExecutorServiceParallelExecutor create(
       int targetParallelism,
@@ -138,7 +144,10 @@ final class ExecutorServiceParallelExecutor implements PipelineExecutor {
     // Executing TransformExecutorServices have a strong reference to their TransformExecutorService
     // which stops the TransformExecutorServices from being prematurely garbage collected
     executorServices =
-        CacheBuilder.newBuilder().weakValues().build(serialTransformExecutorServiceCacheLoader());
+        CacheBuilder.newBuilder()
+            .weakValues()
+            .removalListener(shutdownExecutorServiceListener())
+            .build(serialTransformExecutorServiceCacheLoader());
 
     this.allUpdates = new ConcurrentLinkedQueue<>();
     this.visibleUpdates = new LinkedBlockingQueue<>();
@@ -155,6 +164,19 @@ final class ExecutorServiceParallelExecutor implements PipelineExecutor {
       @Override
       public TransformExecutorService load(StepAndKey stepAndKey) throws Exception {
         return TransformExecutorServices.serial(executorService);
+      }
+    };
+  }
+
+  private RemovalListener<StepAndKey, TransformExecutorService> shutdownExecutorServiceListener() {
+    return new RemovalListener<StepAndKey, TransformExecutorService>() {
+      @Override
+      public void onRemoval(
+          RemovalNotification<StepAndKey, TransformExecutorService> notification) {
+        TransformExecutorService service = notification.getValue();
+        if (service != null) {
+          service.shutdown();
+        }
       }
     };
   }
@@ -179,7 +201,7 @@ final class ExecutorServiceParallelExecutor implements PipelineExecutor {
   }
 
   @SuppressWarnings("unchecked")
-  public void scheduleConsumption(
+  private void scheduleConsumption(
       AppliedPTransform<?, ?, ?> consumer,
       CommittedBundle<?> bundle,
       CompletionCallback onComplete) {
@@ -219,7 +241,9 @@ final class ExecutorServiceParallelExecutor implements PipelineExecutor {
             onComplete,
             transformExecutor);
     outstandingWork.incrementAndGet();
-    transformExecutor.schedule(callable);
+    if (!pipelineState.get().isTerminal()) {
+      transformExecutor.schedule(callable);
+    }
   }
 
   private boolean isKeyed(PValue pvalue) {
@@ -234,20 +258,66 @@ final class ExecutorServiceParallelExecutor implements PipelineExecutor {
   }
 
   @Override
-  public void awaitCompletion() throws Exception {
-    VisibleExecutorUpdate update;
-    do {
-      // Get an update; don't block forever if another thread has handled it
-      update = visibleUpdates.poll(2L, TimeUnit.SECONDS);
-      if (update == null && executorService.isShutdown()) {
+  public State waitUntilFinish(Duration duration) throws Exception {
+    Instant completionTime;
+    if (duration.equals(Duration.ZERO)) {
+      completionTime = new Instant(Long.MAX_VALUE);
+    } else {
+      completionTime = Instant.now().plus(duration);
+    }
+
+    VisibleExecutorUpdate update = null;
+    while (Instant.now().isBefore(completionTime)
+        && (update == null || isTerminalStateUpdate(update))) {
+      // Get an update; don't block forever if another thread has handled it. The call to poll will
+      // wait the entire timeout; this call primarily exists to relinquish any core.
+      update = visibleUpdates.poll(25L, TimeUnit.MILLISECONDS);
+      if (update == null && pipelineState.get().isTerminal()) {
         // there are no updates to process and no updates will ever be published because the
         // executor is shutdown
-        return;
+        return pipelineState.get();
       } else if (update != null && update.exception.isPresent()) {
         throw update.exception.get();
       }
-    } while (update == null || !update.isDone());
+    }
+    return pipelineState.get();
+  }
+
+  @Override
+  public State getPipelineState() {
+    return pipelineState.get();
+  }
+
+  private boolean isTerminalStateUpdate(VisibleExecutorUpdate update) {
+    return !(update.getNewState() == null && update.getNewState().isTerminal());
+  }
+
+  @Override
+  public void stop() {
+    shutdownIfNecessary(State.CANCELLED);
+    while (!visibleUpdates.offer(VisibleExecutorUpdate.cancelled())) {
+      // Make sure "This Pipeline was Cancelled" notification arrives.
+      visibleUpdates.poll();
+    }
+  }
+
+  private void shutdownIfNecessary(State newState) {
+    if (!newState.isTerminal()) {
+      return;
+    }
+    LOG.debug("Pipeline has terminated. Shutting down.");
+    pipelineState.compareAndSet(State.RUNNING, newState);
+    // Stop accepting new work before shutting down the executor. This ensures that thread don't try
+    // to add work to the shutdown executor.
+    executorServices.invalidateAll();
+    executorServices.cleanUp();
+    parallelExecutorService.shutdown();
     executorService.shutdown();
+    try {
+      registry.cleanup();
+    } catch (Exception e) {
+      visibleUpdates.add(VisibleExecutorUpdate.fromException(e));
+    }
   }
 
   /**
@@ -341,29 +411,35 @@ final class ExecutorServiceParallelExecutor implements PipelineExecutor {
   }
 
   /**
-   * An update of interest to the user. Used in {@link #awaitCompletion} to decide whether to
+   * An update of interest to the user. Used in {@link #waitUntilFinish} to decide whether to
    * return normally or throw an exception.
    */
   private static class VisibleExecutorUpdate {
     private final Optional<? extends Exception> exception;
-    private final boolean done;
+    @Nullable
+    private final State newState;
 
     public static VisibleExecutorUpdate fromException(Exception e) {
-      return new VisibleExecutorUpdate(false, e);
+      return new VisibleExecutorUpdate(null, e);
     }
 
     public static VisibleExecutorUpdate finished() {
-      return new VisibleExecutorUpdate(true, null);
+      return new VisibleExecutorUpdate(State.DONE, null);
     }
 
-    private VisibleExecutorUpdate(boolean done, @Nullable Exception exception) {
+    public static VisibleExecutorUpdate cancelled() {
+      return new VisibleExecutorUpdate(State.CANCELLED, null);
+    }
+
+    private VisibleExecutorUpdate(State newState, @Nullable Exception exception) {
       this.exception = Optional.fromNullable(exception);
-      this.done = done;
+      this.newState = newState;
     }
 
-    public boolean isDone() {
-      return done;
+    public State getNewState() {
+      return newState;
     }
+
   }
 
   private class MonitorRunnable implements Runnable {
@@ -475,22 +551,15 @@ final class ExecutorServiceParallelExecutor implements PipelineExecutor {
     }
 
     private boolean shouldShutdown() {
-      boolean shouldShutdown = exceptionThrown || evaluationContext.isDone();
-      if (shouldShutdown) {
-        LOG.debug("Pipeline has terminated. Shutting down.");
-        executorService.shutdown();
-        try {
-          registry.cleanup();
-        } catch (Exception e) {
-          visibleUpdates.add(VisibleExecutorUpdate.fromException(e));
-        }
-        if (evaluationContext.isDone()) {
-          while (!visibleUpdates.offer(VisibleExecutorUpdate.finished())) {
-            visibleUpdates.poll();
-          }
-        }
+      State nextState = State.UNKNOWN;
+      if (exceptionThrown) {
+        nextState = State.FAILED;
+      } else if (evaluationContext.isDone()) {
+        visibleUpdates.offer(VisibleExecutorUpdate.finished());
+        nextState = State.DONE;
       }
-      return shouldShutdown;
+      shutdownIfNecessary(nextState);
+      return pipelineState.get().isTerminal();
     }
 
     /**

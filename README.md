@@ -96,6 +96,8 @@ To get involved in Apache Beam:
 * [Subscribe](mailto:dev-subscribe@beam.apache.org) or [mail](mailto:dev@beam.apache.org) the [dev@beam.apache.org](http://mail-archives.apache.org/mod_mbox/beam-dev/) list.
 * Report issues on [JIRA](https://issues.apache.org/jira/browse/BEAM).
 
+We also have a [contributor's guide](https://beam.apache.org/contribute/contribution-guide/).
+
 ## More Information
 
 * [Apache Beam](http://beam.apache.org)

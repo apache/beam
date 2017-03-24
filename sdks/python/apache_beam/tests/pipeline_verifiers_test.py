@@ -24,16 +24,20 @@ import unittest
 from hamcrest import assert_that as hc_assert_that
 from mock import Mock, patch
 
-from apache_beam.io.fileio import ChannelFactory
+from apache_beam.io.localfilesystem import LocalFileSystem
 from apache_beam.runners.runner import PipelineState
 from apache_beam.runners.runner import PipelineResult
 from apache_beam.tests import pipeline_verifiers as verifiers
 from apache_beam.tests.test_utils import patch_retry
 
 try:
+  # pylint: disable=wrong-import-order, wrong-import-position
+  # pylint: disable=ungrouped-imports
   from apitools.base.py.exceptions import HttpError
+  from apache_beam.io.gcp.gcsfilesystem import GCSFileSystem
 except ImportError:
   HttpError = None
+  GCSFileSystem = None
 
 
 class PipelineVerifiersTest(unittest.TestCase):
@@ -96,26 +100,47 @@ class PipelineVerifiersTest(unittest.TestCase):
                                               case['expected_checksum'])
       hc_assert_that(self._mock_result, matcher)
 
-  @patch.object(ChannelFactory, 'glob')
-  def test_file_checksum_matcher_read_failed(self, mock_glob):
-    mock_glob.side_effect = IOError('No file found.')
+  @patch.object(LocalFileSystem, 'match')
+  def test_file_checksum_matcher_read_failed(self, mock_match):
+    mock_match.side_effect = IOError('No file found.')
     matcher = verifiers.FileChecksumMatcher('dummy/path', Mock())
     with self.assertRaises(IOError):
       hc_assert_that(self._mock_result, matcher)
-    self.assertTrue(mock_glob.called)
-    self.assertEqual(verifiers.MAX_RETRIES + 1, mock_glob.call_count)
+    self.assertTrue(mock_match.called)
+    self.assertEqual(verifiers.MAX_RETRIES + 1, mock_match.call_count)
 
-  @patch.object(ChannelFactory, 'glob')
+  @patch.object(GCSFileSystem, 'match')
   @unittest.skipIf(HttpError is None, 'google-apitools is not installed')
-  def test_file_checksum_matcher_service_error(self, mock_glob):
-    mock_glob.side_effect = HttpError(
+  def test_file_checksum_matcher_service_error(self, mock_match):
+    mock_match.side_effect = HttpError(
         response={'status': '404'}, url='', content='Not Found',
     )
     matcher = verifiers.FileChecksumMatcher('gs://dummy/path', Mock())
     with self.assertRaises(HttpError):
       hc_assert_that(self._mock_result, matcher)
-    self.assertTrue(mock_glob.called)
-    self.assertEqual(verifiers.MAX_RETRIES + 1, mock_glob.call_count)
+    self.assertTrue(mock_match.called)
+    self.assertEqual(verifiers.MAX_RETRIES + 1, mock_match.call_count)
+
+  def test_file_checksum_matchcer_invalid_sleep_time(self):
+    with self.assertRaises(ValueError) as cm:
+      verifiers.FileChecksumMatcher('file_path',
+                                    'expected_checksum',
+                                    'invalid_sleep_time')
+    self.assertEqual(cm.exception.message,
+                     'Sleep seconds, if received, must be int. '
+                     'But received: \'invalid_sleep_time\', '
+                     '<type \'str\'>')
+
+  @patch('time.sleep', return_value=None)
+  def test_file_checksum_matcher_sleep_before_verify(self, mocked_sleep):
+    temp_dir = tempfile.mkdtemp()
+    case = self.test_cases[0]
+    self.create_temp_file(case['content'], temp_dir)
+    matcher = verifiers.FileChecksumMatcher(temp_dir + '/*',
+                                            case['expected_checksum'],
+                                            10)
+    hc_assert_that(self._mock_result, matcher)
+    self.assertTrue(mocked_sleep.called)
 
 
 if __name__ == '__main__':

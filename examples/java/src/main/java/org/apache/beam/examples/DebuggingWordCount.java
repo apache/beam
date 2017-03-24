@@ -151,7 +151,7 @@ public class DebuggingWordCount {
      * <p>Below we verify that the set of filtered words matches our expected counts. Note
      * that PAssert does not provide any output and that successful completion of the
      * Pipeline implies that the expectations were met. Learn more at
-     * https://cloud.google.com/dataflow/pipelines/testing-your-pipeline on how to test
+     * https://beam.apache.org/documentation/pipelines/test-your-pipeline/ on how to test
      * your Pipeline and see {@link DebuggingWordCountTest} for an example unit test.
      */
     List<KV<String, Long>> expectedResults = Arrays.asList(

@@ -83,9 +83,7 @@ import org.joda.time.Instant;
  * needs to be created without dependencies on files or other external
  * entities.  This is especially useful during testing.
  *
- * <p>Caveat: {@code Create} only supports small in-memory datasets,
- * particularly when submitting jobs to the Google Cloud Dataflow
- * service.
+ * <p>Caveat: {@code Create} only supports small in-memory datasets.
  *
  * @param <T> the type of the elements of the resulting {@code PCollection}
  */
@@ -464,11 +462,11 @@ public class Create<T> {
       @Override
       protected boolean advanceImpl() throws IOException {
         CreateSource<T> source = getCurrentSource();
-        index++;
-        if (index >= source.allElementsBytes.size()) {
+        if (index + 1 >= source.allElementsBytes.size()) {
           next = null;
           return false;
         }
+        index++;
         next =
             Optional.fromNullable(
                 CoderUtils.decodeFromByteArray(source.coder, source.allElementsBytes.get(index)));

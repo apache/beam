@@ -43,6 +43,7 @@ import org.apache.beam.sdk.transforms.display.HasDisplayData;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
+import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.util.TimeDomain;
 import org.apache.beam.sdk.util.Timer;
 import org.apache.beam.sdk.util.TimerSpec;
@@ -317,14 +318,20 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
   }
 
   /**
-   * Returns the allowed timestamp skew duration, which is the maximum
-   * duration that timestamps can be shifted backward in
-   * {@link DoFn.Context#outputWithTimestamp}.
+   * Returns the allowed timestamp skew duration, which is the maximum duration that timestamps can
+   * be shifted backward in {@link DoFn.Context#outputWithTimestamp}.
    *
-   * <p>The default value is {@code Duration.ZERO}, in which case
-   * timestamps can only be shifted forward to future.  For infinite
-   * skew, return {@code Duration.millis(Long.MAX_VALUE)}.
+   * <p>The default value is {@code Duration.ZERO}, in which case timestamps can only be shifted
+   * forward to future. For infinite skew, return {@code Duration.millis(Long.MAX_VALUE)}.
+   *
+   * @deprecated This method permits a {@link DoFn} to emit elements behind the watermark. These
+   *     elements are considered late, and if behind the
+   *     {@link Window#withAllowedLateness(Duration) allowed lateness} of a downstream
+   *     {@link PCollection} may be silently dropped. See
+   *     https://issues.apache.org/jira/browse/BEAM-644 for details on a replacement.
+   *
    */
+  @Deprecated
   public Duration getAllowedTimestampSkew() {
     return Duration.ZERO;
   }
@@ -377,9 +384,6 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
   /**
    * Annotation for declaring and dereferencing state cells.
    *
-   * <p><i>Not currently supported by any runner. When ready, the feature will work as described
-   * here.</i>
-   *
    * <p>To declare a state cell, create a field of type {@link StateSpec} annotated with a {@link
    * StateId}. To use the cell during processing, add a parameter of the appropriate {@link State}
    * subclass to your {@link ProcessElement @ProcessElement} or {@link OnTimer @OnTimer} method, and
@@ -420,9 +424,6 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
 
   /**
    * Annotation for declaring and dereferencing timers.
-   *
-   * <p><i>Not currently supported by any runner. When ready, the feature will work as described
-   * here.</i>
    *
    * <p>To declare a timer, create a field of type {@link TimerSpec} annotated with a {@link
    * TimerId}. To use the cell during processing, add a parameter of the type {@link Timer} to your
@@ -467,9 +468,6 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
 
   /**
    * Annotation for registering a callback for a timer.
-   *
-   * <p><i>Not currently supported by any runner. When ready, the feature will work as described
-   * here.</i>
    *
    * <p>See the javadoc for {@link TimerId} for use in a full example.
    *

@@ -55,10 +55,9 @@ public class GcpApiSurfaceTest {
             classesInPackage("com.google.auth"),
             classesInPackage("com.google.bigtable.v2"),
             classesInPackage("com.google.cloud.bigtable.config"),
+            Matchers.<Class<?>>equalTo(com.google.cloud.bigtable.grpc.BigtableClusterName.class),
             Matchers.<Class<?>>equalTo(com.google.cloud.bigtable.grpc.BigtableInstanceName.class),
             Matchers.<Class<?>>equalTo(com.google.cloud.bigtable.grpc.BigtableTableName.class),
-            // https://github.com/GoogleCloudPlatform/cloud-bigtable-client/pull/1056
-            classesInPackage("com.google.common.collect"),
             // via Bigtable, PR above out to fix.
             classesInPackage("com.google.datastore.v1"),
             classesInPackage("com.google.protobuf"),

@@ -24,6 +24,7 @@ import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.startsWith;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
@@ -62,14 +63,12 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.Pipeline.PipelineVisitor;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptions.CheckEnabled;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.runners.TransformHierarchy;
-import org.apache.beam.sdk.runners.dataflow.TestCountingSource;
 import org.apache.beam.sdk.testing.ExpectedLogs;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
@@ -81,7 +80,6 @@ import org.apache.beam.sdk.util.ReleaseInfo;
 import org.apache.beam.sdk.util.TestCredential;
 import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.util.gcsfs.GcsPath;
-import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.hamcrest.Description;
@@ -1048,35 +1046,6 @@ public class DataflowRunnerTest {
         DataflowRunner.fromOptions(options).toString());
   }
 
-  private static PipelineOptions makeOptions(boolean streaming) {
-    DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
-    options.setRunner(DataflowRunner.class);
-    options.setStreaming(streaming);
-    options.setJobName("TestJobName");
-    options.setProject("test-project");
-    options.setTempLocation("gs://test/temp/location");
-    options.setGcpCredential(new TestCredential());
-    options.setPathValidatorClass(NoopPathValidator.class);
-    return options;
-  }
-
-  private void testUnsupportedSource(PTransform<PBegin, ?> source, String name, boolean streaming)
-      throws Exception {
-    String mode = streaming ? "streaming" : "batch";
-    thrown.expect(UnsupportedOperationException.class);
-    thrown.expectMessage(
-        "The DataflowRunner in " + mode + " mode does not support " + name);
-
-    Pipeline p = Pipeline.create(makeOptions(streaming));
-    p.apply(source);
-    p.run();
-  }
-
-  @Test
-  public void testReadUnboundedUnsupportedInBatch() throws Exception {
-    testUnsupportedSource(Read.from(new TestCountingSource(1)), "Read.Unbounded", false);
-  }
-
   /**
    * Tests that the {@link DataflowRunner} with {@code --templateLocation} returns normally
    * when the runner issuccessfully run.
@@ -1117,5 +1086,21 @@ public class DataflowRunnerTest {
     thrown.expectMessage("Cannot create output file at");
     thrown.expect(RuntimeException.class);
     p.run();
+  }
+
+  @Test
+  public void testHasExperiment() {
+    DataflowPipelineDebugOptions options =
+        PipelineOptionsFactory.as(DataflowPipelineDebugOptions.class);
+
+    options.setExperiments(null);
+    assertFalse(DataflowRunner.hasExperiment(options, "foo"));
+
+    options.setExperiments(ImmutableList.of("foo", "bar"));
+    assertTrue(DataflowRunner.hasExperiment(options, "foo"));
+    assertTrue(DataflowRunner.hasExperiment(options, "bar"));
+    assertFalse(DataflowRunner.hasExperiment(options, "baz"));
+    assertFalse(DataflowRunner.hasExperiment(options, "ba"));
+    assertFalse(DataflowRunner.hasExperiment(options, "BAR"));
   }
 }

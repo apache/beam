@@ -723,7 +723,7 @@ public class DataflowPipelineJobTest {
         mock(Dataflow.Projects.Locations.Jobs.Update.class);
     when(mockJobs.update(eq(PROJECT_ID), eq(REGION_ID), eq(JOB_ID), any(Job.class)))
         .thenReturn(update);
-    when(update.execute()).thenReturn(new Job());
+    when(update.execute()).thenReturn(new Job().setCurrentState("JOB_STATE_CANCELLED"));
 
     DataflowPipelineJob job = new DataflowPipelineJob(JOB_ID, options, null);
 
@@ -755,7 +755,7 @@ public class DataflowPipelineJobTest {
     DataflowPipelineJob job = new DataflowPipelineJob(JOB_ID, options, null);
 
     thrown.expect(IOException.class);
-    thrown.expectMessage("Failed to cancel the job, "
+    thrown.expectMessage("Failed to cancel job in state RUNNING, "
         + "please go to the Developers Console to cancel it manually:");
     job.cancel();
 

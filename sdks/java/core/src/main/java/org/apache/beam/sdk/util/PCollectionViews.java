@@ -32,6 +32,8 @@ import java.util.NoSuchElementException;
 import java.util.Objects;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.transforms.ViewFn;
@@ -228,8 +230,13 @@ public class PCollectionViews {
    * <p>For internal use only.
    *
    * <p>Instantiate via {@link PCollectionViews#singletonView}.
+   *
+   * @deprecated Beam views are migrating off of {@code Iterable<WindowedValue<T>>} as a primitive
+   *     view type.
    */
-  private static class SingletonViewFn<T> extends ViewFn<Iterable<WindowedValue<T>>, T> {
+  @Deprecated
+  @Experimental(Kind.CORE_RUNNERS_ONLY)
+  public static class SingletonViewFn<T> extends ViewFn<Iterable<WindowedValue<T>>, T> {
     @Nullable private byte[] encodedDefaultValue;
     @Nullable private transient T defaultValue;
     @Nullable private Coder<T> valueCoder;
@@ -292,8 +299,13 @@ public class PCollectionViews {
    * <p>For internal use only.
    *
    * <p>Instantiate via {@link PCollectionViews#iterableView}.
+   *
+   * @deprecated Beam views are migrating off of {@code Iterable<WindowedValue<T>>} as a primitive
+   *     view type.
    */
-  private static class IterableViewFn<T>
+  @Deprecated
+  @Experimental(Kind.CORE_RUNNERS_ONLY)
+  public static class IterableViewFn<T>
       extends ViewFn<Iterable<WindowedValue<T>>, Iterable<T>> {
 
     @Override
@@ -315,8 +327,13 @@ public class PCollectionViews {
    * <p>For internal use only.
    *
    * <p>Instantiate via {@link PCollectionViews#listView}.
+   *
+   * @deprecated Beam views are migrating off of {@code Iterable<WindowedValue<T>>} as a primitive
+   *     view type.
    */
-  private static class ListViewFn<T> extends ViewFn<Iterable<WindowedValue<T>>, List<T>> {
+  @Deprecated
+  @Experimental(Kind.CORE_RUNNERS_ONLY)
+  public static class ListViewFn<T> extends ViewFn<Iterable<WindowedValue<T>>, List<T>> {
     @Override
     public List<T> apply(Iterable<WindowedValue<T>> contents) {
       return ImmutableList.copyOf(
@@ -333,8 +350,13 @@ public class PCollectionViews {
   /**
    * Implementation of conversion {@code Iterable<WindowedValue<KV<K, V>>>}
    * to {@code Map<K, Iterable<V>>}.
+   *
+   * @deprecated Beam views are migrating off of {@code Iterable<WindowedValue<T>>} as a primitive
+   *     view type.
    */
-  private static class MultimapViewFn<K, V>
+  @Deprecated
+  @Experimental(Kind.CORE_RUNNERS_ONLY)
+  public static class MultimapViewFn<K, V>
       extends ViewFn<Iterable<WindowedValue<KV<K, V>>>, Map<K, Iterable<V>>> {
 
     @Override
@@ -352,11 +374,15 @@ public class PCollectionViews {
   }
 
   /**
-   * Implementation of conversion {@code Iterable<WindowedValue<KV<K, V>>} with one value per key
-   * to {@code Map<K, V>}.
+   * Implementation of conversion {@code Iterable<WindowedValue<KV<K, V>>} with one value per key to
+   * {@code Map<K, V>}.
+   *
+   * @deprecated Beam views are migrating off of {@code Iterable<WindowedValue<T>>} as a primitive
+   *     view type.
    */
-  private static class MapViewFn<K, V>
-      extends ViewFn<Iterable<WindowedValue<KV<K, V>>>, Map<K, V>> {
+  @Deprecated
+  @Experimental(Kind.CORE_RUNNERS_ONLY)
+  public static class MapViewFn<K, V> extends ViewFn<Iterable<WindowedValue<KV<K, V>>>, Map<K, V>> {
     /**
      * Input iterable must actually be {@code Iterable<WindowedValue<KV<K, V>>>}.
      */

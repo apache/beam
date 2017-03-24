@@ -22,11 +22,11 @@ import com.google.common.base.Supplier;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
-import java.io.IOException;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import javax.annotation.Nullable;
@@ -45,8 +45,7 @@ import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.metrics.MetricResults;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.runners.PTransformMatcher;
-import org.apache.beam.sdk.runners.PTransformOverrideFactory;
+import org.apache.beam.sdk.runners.PTransformOverride;
 import org.apache.beam.sdk.runners.PipelineRunner;
 import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.transforms.Aggregator;
@@ -54,7 +53,6 @@ import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.ParDo.BoundMulti;
 import org.apache.beam.sdk.transforms.View.CreatePCollectionView;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -261,10 +259,7 @@ public class DirectRunner extends PipelineRunner<DirectPipelineResult> {
 
   @Override
   public DirectPipelineResult run(Pipeline pipeline) {
-    for (Map.Entry<PTransformMatcher, PTransformOverrideFactory> override :
-        defaultTransformOverrides().entrySet()) {
-      pipeline.replace(override.getKey(), override.getValue());
-    }
+    pipeline.replaceAll(defaultTransformOverrides());
     MetricsEnvironment.setMetricsSupported(true);
     DirectGraphVisitor graphVisitor = new DirectGraphVisitor();
     pipeline.traverseTopologically(graphVisitor);
@@ -322,40 +317,37 @@ public class DirectRunner extends PipelineRunner<DirectPipelineResult> {
    * iteration order based on the order at which elements are added to it.
    */
   @SuppressWarnings("rawtypes")
-  private Map<PTransformMatcher, PTransformOverrideFactory> defaultTransformOverrides() {
-    return ImmutableMap.<PTransformMatcher, PTransformOverrideFactory>builder()
-        .put(
-            PTransformMatchers.writeWithRunnerDeterminedSharding(),
-            new WriteWithShardingFactory()) /* Uses a view internally. */
-        .put(
-            PTransformMatchers.classEqualTo(CreatePCollectionView.class),
-            new ViewOverrideFactory()) /* Uses pardos and GBKs */
-        .put(
-            PTransformMatchers.classEqualTo(TestStream.class),
-            new DirectTestStreamFactory(this)) /* primitive */
-        /* Single-output ParDos are implemented in terms of Multi-output ParDos. Any override
-        that is applied to a multi-output ParDo must first have all matching Single-output ParDos
-        converted to match.
-         */
-        .put(PTransformMatchers.splittableParDoSingle(), new ParDoSingleViaMultiOverrideFactory())
-        .put(PTransformMatchers.stateOrTimerParDoSingle(), new ParDoSingleViaMultiOverrideFactory())
-        // SplittableParMultiDo is implemented in terms of nonsplittable single ParDos
-        .put(PTransformMatchers.splittableParDoMulti(), new ParDoMultiOverrideFactory())
-        // state and timer pardos are implemented in terms of nonsplittable single ParDos
-        .put(PTransformMatchers.stateOrTimerParDoMulti(), new ParDoMultiOverrideFactory())
-        .put(
-            PTransformMatchers.classEqualTo(ParDo.Bound.class),
-            new ParDoSingleViaMultiOverrideFactory()) /* returns a BoundMulti */
-        .put(
-            PTransformMatchers.classEqualTo(BoundMulti.class),
-            /* returns one of two primitives; SplittableParDos are replaced above. */
-            new ParDoMultiOverrideFactory())
-        .put(
-            PTransformMatchers.classEqualTo(GBKIntoKeyedWorkItems.class),
-            new DirectGBKIntoKeyedWorkItemsOverrideFactory()) /* Returns a GBKO */
-        .put(
-            PTransformMatchers.classEqualTo(GroupByKey.class),
-            new DirectGroupByKeyOverrideFactory()) /* returns two chained primitives. */
+  private List<PTransformOverride> defaultTransformOverrides() {
+    return ImmutableList.<PTransformOverride>builder()
+        .add(
+            PTransformOverride.of(
+                PTransformMatchers.writeWithRunnerDeterminedSharding(),
+                new WriteWithShardingFactory())) /* Uses a view internally. */
+        .add(
+            PTransformOverride.of(
+                PTransformMatchers.classEqualTo(CreatePCollectionView.class),
+                new ViewOverrideFactory())) /* Uses pardos and GBKs */
+        .add(
+            PTransformOverride.of(
+                PTransformMatchers.classEqualTo(TestStream.class),
+                new DirectTestStreamFactory(this))) /* primitive */
+        // SplittableParMultiDo is implemented in terms of nonsplittable simple ParDos and extra
+        // primitives
+        .add(
+            PTransformOverride.of(
+                PTransformMatchers.splittableParDoMulti(), new ParDoMultiOverrideFactory()))
+        // state and timer pardos are implemented in terms of simple ParDos and extra primitives
+        .add(
+            PTransformOverride.of(
+                PTransformMatchers.stateOrTimerParDoMulti(), new ParDoMultiOverrideFactory()))
+        .add(
+            PTransformOverride.of(
+                PTransformMatchers.classEqualTo(GBKIntoKeyedWorkItems.class),
+                new DirectGBKIntoKeyedWorkItemsOverrideFactory())) /* Returns a GBKO */
+        .add(
+            PTransformOverride.of(
+                PTransformMatchers.classEqualTo(GroupByKey.class),
+                new DirectGroupByKeyOverrideFactory())) /* returns two chained primitives. */
         .build();
   }
 
@@ -434,14 +426,34 @@ public class DirectRunner extends PipelineRunner<DirectPipelineResult> {
      * {@link DirectOptions#isShutdownUnboundedProducersWithMaxWatermark()} set to false,
      * this method will never return.
      *
-     * <p>See also {@link PipelineExecutor#awaitCompletion()}.
+     * <p>See also {@link PipelineExecutor#waitUntilFinish(Duration)}.
      */
     @Override
     public State waitUntilFinish() {
-      if (!state.isTerminal()) {
+      return waitUntilFinish(Duration.ZERO);
+    }
+
+    @Override
+    public State cancel() {
+      this.state = executor.getPipelineState();
+      if (!this.state.isTerminal()) {
+        executor.stop();
+        this.state = executor.getPipelineState();
+      }
+      return executor.getPipelineState();
+    }
+
+    @Override
+    public State waitUntilFinish(Duration duration) {
+      State startState = this.state;
+      if (!startState.isTerminal()) {
         try {
-          executor.awaitCompletion();
-          state = State.DONE;
+          state = executor.waitUntilFinish(duration);
+        } catch (UserCodeException uce) {
+          // Emulates the behavior of Pipeline#run(), where a stack trace caused by a
+          // UserCodeException is truncated and replaced with the stack starting at the call to
+          // waitToFinish
+          throw new Pipeline.PipelineExecutionException(uce.getCause());
         } catch (Exception e) {
           if (e instanceof InterruptedException) {
             Thread.currentThread().interrupt();
@@ -452,19 +464,7 @@ public class DirectRunner extends PipelineRunner<DirectPipelineResult> {
           throw new RuntimeException(e);
         }
       }
-      return state;
-    }
-
-    @Override
-    public State cancel() throws IOException {
-      throw new UnsupportedOperationException("DirectPipelineResult does not support cancel.");
-    }
-
-    @Override
-    public State waitUntilFinish(Duration duration) {
-      throw new UnsupportedOperationException(
-          "DirectPipelineResult does not support waitUntilFinish with a Duration parameter. See"
-              + " BEAM-596.");
+      return this.state;
     }
   }
 

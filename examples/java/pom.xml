@@ -209,6 +209,7 @@
                 <configuration>
                   <includes>
                     <include>WordCountIT.java</include>
+                    <include>WindowedWordCountIT.java</include>
                   </includes>
                   <parallel>all</parallel>
                   <threadCount>4</threadCount>
@@ -263,6 +264,31 @@
                       "--project=apache-beam-testing",
                       "--tempRoot=gs://temp-storage-for-end-to-end-tests",
                       "--runner=org.apache.beam.runners.dataflow.testing.TestDataflowRunner"
+                      ]
+                    </beamTestPipelineOptions>
+                  </systemPropertyVariables>
+                </configuration>
+              </execution>
+              <execution>
+                <id>dataflow-runner-integration-tests-streaming</id>
+                <goals>
+                  <goal>integration-test</goal>
+                  <goal>verify</goal>
+                </goals>
+                <configuration>
+                  <includes>
+                    <include>WordCountIT.java</include>
+                    <include>WindowedWordCountIT.java</include>
+                  </includes>
+                  <parallel>all</parallel>
+                  <threadCount>4</threadCount>
+                  <systemPropertyVariables>
+                    <beamTestPipelineOptions>
+                      [
+                      "--project=apache-beam-testing",
+                      "--tempRoot=gs://temp-storage-for-end-to-end-tests",
+                      "--runner=org.apache.beam.runners.dataflow.testing.TestDataflowRunner",
+                      "--streaming=true"
                       ]
                     </beamTestPipelineOptions>
                   </systemPropertyVariables>

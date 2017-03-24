@@ -28,5 +28,5 @@ public interface MutationDetector extends AutoCloseable {
   /**
    * @throws IllegalMutationException if illegal mutations are detected.
    */
-  void verifyUnmodified();
+  void verifyUnmodified() throws IllegalMutationException;
 }

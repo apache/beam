@@ -77,11 +77,9 @@ public class SparkUnboundedSource {
 
     SparkPipelineOptions options = rc.getPipelineOptions().as(SparkPipelineOptions.class);
     Long maxRecordsPerBatch = options.getMaxRecordsPerBatch();
-    SourceDStream<T, CheckpointMarkT> sourceDStream = new SourceDStream<>(jssc.ssc(), source, rc);
-    // if max records per batch was set by the user.
-    if (maxRecordsPerBatch > 0) {
-      sourceDStream.setMaxRecordsPerBatch(maxRecordsPerBatch);
-    }
+    SourceDStream<T, CheckpointMarkT> sourceDStream =
+        new SourceDStream<>(jssc.ssc(), source, rc, maxRecordsPerBatch);
+
     JavaPairInputDStream<Source<T>, CheckpointMarkT> inputDStream =
         JavaPairInputDStream$.MODULE$.fromInputDStream(sourceDStream,
             JavaSparkContext$.MODULE$.<Source<T>>fakeClassTag(),
@@ -89,8 +87,11 @@ public class SparkUnboundedSource {
 
     // call mapWithState to read from a checkpointable sources.
     JavaMapWithStateDStream<Source<T>, CheckpointMarkT, Tuple2<byte[], Instant>,
-        Tuple2<Iterable<byte[]>, Metadata>> mapWithStateDStream = inputDStream.mapWithState(
-            StateSpec.function(StateSpecFunctions.<T, CheckpointMarkT>mapSourceFunction(rc)));
+        Tuple2<Iterable<byte[]>, Metadata>> mapWithStateDStream =
+        inputDStream.mapWithState(
+            StateSpec
+                .function(StateSpecFunctions.<T, CheckpointMarkT>mapSourceFunction(rc))
+                .numPartitions(sourceDStream.getNumPartitions()));
 
     // set checkpoint duration for read stream, if set.
     checkpointStream(mapWithStateDStream, options);

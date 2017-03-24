@@ -21,6 +21,7 @@ import static org.apache.beam.sdk.testing.WindowFnTestUtils.runWindowFn;
 import static org.apache.beam.sdk.testing.WindowFnTestUtils.set;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static org.hamcrest.CoreMatchers.containsString;
+import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
@@ -33,9 +34,12 @@ import java.util.Map;
 import java.util.Set;
 import org.apache.beam.sdk.testing.WindowFnTestUtils;
 import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.hamcrest.Matchers;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
@@ -44,6 +48,7 @@ import org.junit.runners.JUnit4;
  */
 @RunWith(JUnit4.class)
 public class FixedWindowsTest {
+  @Rule public ExpectedException thrown = ExpectedException.none();
 
   @Test
   public void testSimpleFixedWindow() throws Exception {
@@ -81,6 +86,34 @@ public class FixedWindowsTest {
         runWindowFn(
             FixedWindows.of(Duration.standardSeconds(10)).withOffset(Duration.standardSeconds(5)),
             Arrays.asList(1L, 2L, 1000L, 5000L, 5001L, 10000L)));
+  }
+
+  @Test
+  public void testDefaultWindowMappingFn() {
+    PartitioningWindowFn<?, ?> windowFn = FixedWindows.of(Duration.standardMinutes(20L));
+    WindowMappingFn<?> mapping = windowFn.getDefaultWindowMappingFn();
+
+    assertThat(
+        mapping.getSideInputWindow(
+            new BoundedWindow() {
+              @Override
+              public Instant maxTimestamp() {
+                return new Instant(100L);
+              }
+            }),
+        Matchers.<BoundedWindow>equalTo(
+            new IntervalWindow(
+                new Instant(0L), new Instant(0L).plus(Duration.standardMinutes(20L)))));
+    assertThat(mapping.maximumLookback(), equalTo(Duration.ZERO));
+  }
+
+  @Test
+  public void testDefaultWindowMappingFnGlobalWindow() {
+    PartitioningWindowFn<?, ?> windowFn = FixedWindows.of(Duration.standardMinutes(20L));
+    WindowMappingFn<?> mapping = windowFn.getDefaultWindowMappingFn();
+
+    thrown.expect(IllegalArgumentException.class);
+    mapping.getSideInputWindow(GlobalWindow.INSTANCE);
   }
 
   void checkConstructionFailure(int size, int offset) {

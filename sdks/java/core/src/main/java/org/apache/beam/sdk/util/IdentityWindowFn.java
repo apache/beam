@@ -27,6 +27,7 @@ import org.apache.beam.sdk.transforms.windowing.InvalidWindows;
 import org.apache.beam.sdk.transforms.windowing.NonMergingWindowFn;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
+import org.apache.beam.sdk.transforms.windowing.WindowMappingFn;
 import org.apache.beam.sdk.values.PCollection;
 import org.joda.time.Instant;
 
@@ -89,7 +90,7 @@ public class IdentityWindowFn<T> extends NonMergingWindowFn<T, BoundedWindow> {
   }
 
   @Override
-  public BoundedWindow getSideInputWindow(BoundedWindow window) {
+  public WindowMappingFn<BoundedWindow> getDefaultWindowMappingFn() {
     throw new UnsupportedOperationException(
         String.format(
             "%s.getSideInputWindow() should never be called."
