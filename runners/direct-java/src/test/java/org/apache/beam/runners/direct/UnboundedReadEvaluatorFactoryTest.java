@@ -579,7 +579,7 @@ public class UnboundedReadEvaluatorFactoryTest {
           !finalized, "%s was finalized more than once", TestCheckpointMark.class.getSimpleName());
       checkState(
           !decoded,
-          "%s was finalized after being deccoded",
+          "%s was finalized after being decoded",
           TestCheckpointMark.class.getSimpleName());
       finalized = true;
     }
