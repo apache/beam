@@ -79,6 +79,9 @@ class DataflowMetrics(MetricResults):
                      if prop.key == 'namespace']
       name = metric.name.name
     except ValueError:
+      # An unstructured metric name is "step/namespace/name", but step names
+      # can (and often do) contain slashes. Must only split on the right-most
+      # two slashes, to preserve the full step name.
       [step, namespace, name] = metric.name.name.rsplit('/', 2)
     return MetricKey(step, MetricName(namespace, name))
 
