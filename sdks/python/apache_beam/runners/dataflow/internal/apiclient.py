@@ -293,12 +293,11 @@ class Job(object):
     the job name to 63 characters."""
     user_name = re.sub('[^-a-z0-9]', '', user_name.lower())
     date_component = datetime.utcnow().strftime('%m%d%H%M%S-%f')
-    app_name = 'beamapp'
-    job_name = '{}-{}-{}'.format(app_name, user_name, date_component)
+    app_user_name = 'beamapp-{}'.format(user_name)
+    job_name = '{}-{}'.format(app_user_name, date_component)
     if len(job_name) > 63:
-      job_name = '{}-{}-{}'.format(app_name,
-                                   user_name[:-(len(job_name) - 63)],
-                                   date_component)
+      job_name = '{}-{}'.format(app_user_name[:-(len(job_name) - 63)],
+                                date_component)
     return job_name
 
   @staticmethod
