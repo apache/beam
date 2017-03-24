@@ -40,6 +40,79 @@ public class MetricFilteringTest {
   }
 
   @Test
+  public void testMatchCompositeStepNameFilters() {
+    // MetricsFilter with a Class-namespace + name filter + step filter.
+    // Successful match.
+    assertTrue(MetricFiltering.matches(
+        MetricsFilter.builder().addNameFilter(
+            MetricNameFilter.named(MetricFilteringTest.class, "myMetricName"))
+            .addStep("myStep").build(),
+        MetricKey.create(
+            "myBigStep/myStep", MetricName.named(MetricFilteringTest.class, "myMetricName"))));
+
+    // Unsuccessful match.
+    assertFalse(MetricFiltering.matches(
+        MetricsFilter.builder().addNameFilter(
+            MetricNameFilter.named(MetricFilteringTest.class, "myMetricName"))
+            .addStep("myOtherStep").build(),
+        MetricKey.create(
+            "myOtherStepNoMatch/myStep",
+            MetricName.named(MetricFilteringTest.class, "myMetricName"))));
+  }
+
+  @Test
+  public void testMatchStepNameFilters() {
+    // MetricsFilter with a Class-namespace + name filter + step filter.
+    // Successful match.
+    assertTrue(MetricFiltering.matches(
+        MetricsFilter.builder().addNameFilter(
+            MetricNameFilter.named(MetricFilteringTest.class, "myMetricName"))
+        .addStep("myStep").build(),
+        MetricKey.create("myStep", MetricName.named(MetricFilteringTest.class, "myMetricName"))));
+
+    // Unsuccessful match.
+    assertFalse(MetricFiltering.matches(
+        MetricsFilter.builder().addNameFilter(
+            MetricNameFilter.named(MetricFilteringTest.class, "myMetricName"))
+        .addStep("myOtherStep").build(),
+        MetricKey.create("myStep", MetricName.named(MetricFilteringTest.class, "myMetricName"))));
+  }
+
+  @Test
+  public void testMatchClassNamespaceFilters() {
+    // MetricsFilter with a Class-namespace + name filter. Without step filter.
+    // Successful match.
+    assertTrue(MetricFiltering.matches(
+        MetricsFilter.builder().addNameFilter(
+            MetricNameFilter.named(MetricFilteringTest.class, "myMetricName")).build(),
+        MetricKey.create("anyStep", MetricName.named(MetricFilteringTest.class, "myMetricName"))));
+
+    // Unsuccessful match.
+    assertFalse(MetricFiltering.matches(
+        MetricsFilter.builder().addNameFilter(
+            MetricNameFilter.named(MetricFilteringTest.class, "myMetricName")).build(),
+        MetricKey.create("anyStep", MetricName.named(MetricFiltering.class, "myMetricName"))));
+  }
+
+  @Test
+  public void testMatchStringNamespaceFilters() {
+    // MetricsFilter with a String-namespace + name filter. Without step filter.
+    // Successful match.
+    assertTrue(
+        MetricFiltering.matches(
+            MetricsFilter.builder().addNameFilter(
+                MetricNameFilter.named("myNamespace", "myMetricName")).build(),
+            MetricKey.create("anyStep", MetricName.named("myNamespace", "myMetricName"))));
+
+    // Unsuccessful match.
+    assertFalse(
+        MetricFiltering.matches(
+            MetricsFilter.builder().addNameFilter(
+                MetricNameFilter.named("myOtherNamespace", "myMetricName")).build(),
+            MetricKey.create("anyStep", MetricName.named("myNamespace", "myMetricname"))));
+  }
+
+  @Test
   public void testMatchesSubPath() {
     assertTrue("Match of the first element",
         matchesSubPath("Top1/Outer1/Inner1/Bottom1", "Top1"));
