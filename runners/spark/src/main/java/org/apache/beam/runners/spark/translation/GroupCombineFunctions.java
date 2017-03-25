@@ -18,8 +18,7 @@
 
 package org.apache.beam.runners.spark.translation;
 
-import static com.google.common.base.Preconditions.checkArgument;
-
+import com.google.common.base.Optional;
 import org.apache.beam.runners.spark.coders.CoderHelpers;
 import org.apache.beam.runners.spark.util.ByteArray;
 import org.apache.beam.sdk.coders.Coder;
@@ -67,14 +66,12 @@ public class GroupCombineFunctions {
   /**
    * Apply a composite {@link org.apache.beam.sdk.transforms.Combine.Globally} transformation.
    */
-  public static <InputT, AccumT> Iterable<WindowedValue<AccumT>> combineGlobally(
+  public static <InputT, AccumT> Optional<Iterable<WindowedValue<AccumT>>> combineGlobally(
       JavaRDD<WindowedValue<InputT>> rdd,
       final SparkGlobalCombineFn<InputT, AccumT, ?> sparkCombineFn,
       final Coder<InputT> iCoder,
       final Coder<AccumT> aCoder,
       final WindowingStrategy<?, ?> windowingStrategy) {
-    checkArgument(!rdd.isEmpty(), "CombineGlobally computation should be skipped for empty RDDs.");
-
     // coders.
     final WindowedValue.FullWindowedValueCoder<InputT> wviCoder =
         WindowedValue.FullWindowedValueCoder.of(iCoder,
@@ -93,6 +90,11 @@ public class GroupCombineFunctions {
     //---- AccumT: A
     //---- InputT: I
     JavaRDD<byte[]> inputRDDBytes = rdd.map(CoderHelpers.toByteFunction(wviCoder));
+
+    if (inputRDDBytes.isEmpty()) {
+      return Optional.absent();
+    }
+
     /*Itr<WV<A>>*/ byte[] accumulatedBytes = inputRDDBytes.aggregate(
         CoderHelpers.toByteArray(sparkCombineFn.zeroValue(), iterAccumCoder),
         new Function2</*A*/ byte[], /*I*/ byte[], /*A*/ byte[]>() {
@@ -115,7 +117,8 @@ public class GroupCombineFunctions {
           }
         }
     );
-    return CoderHelpers.fromByteArray(accumulatedBytes, iterAccumCoder);
+
+    return Optional.of(CoderHelpers.fromByteArray(accumulatedBytes, iterAccumCoder));
   }
 
   /**
