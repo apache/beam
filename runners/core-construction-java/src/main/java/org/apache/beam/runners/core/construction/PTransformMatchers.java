@@ -17,6 +17,8 @@
  */
 package org.apache.beam.runners.core.construction;
 
+import java.util.HashSet;
+import java.util.Set;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.io.Write;
@@ -30,6 +32,8 @@ import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.ProcessElementMethod;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PValue;
+import org.apache.beam.sdk.values.TaggedPValue;
 
 /**
  * A {@link PTransformMatcher} that matches {@link PTransform PTransforms} based on the class of the
@@ -174,6 +178,28 @@ public class PTransformMatchers {
       public boolean matches(AppliedPTransform<?, ?, ?> application) {
         return (application.getTransform() instanceof Flatten.PCollections)
             && application.getInputs().isEmpty();
+      }
+    };
+  }
+
+  /**
+   * A {@link PTransformMatcher} which matches a {@link Flatten.PCollections} which
+   * consumes a single input {@link PCollection} multiple times.
+   */
+  public static PTransformMatcher flattenWithDuplicateInputs() {
+    return new PTransformMatcher() {
+      @Override
+      public boolean matches(AppliedPTransform<?, ?, ?> application) {
+        if (application.getTransform() instanceof Flatten.PCollections) {
+          Set<PValue> observed = new HashSet<>();
+          for (TaggedPValue pvalue : application.getInputs()) {
+            boolean firstInstance = observed.add(pvalue.getValue());
+            if (!firstInstance) {
+              return true;
+            }
+          }
+        }
+        return false;
       }
     };
   }
