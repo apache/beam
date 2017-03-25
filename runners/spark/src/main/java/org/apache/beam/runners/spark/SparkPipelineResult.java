@@ -144,7 +144,7 @@ public abstract class SparkPipelineResult implements PipelineResult {
     protected void stop() {
       SparkContextFactory.stopSparkContext(javaSparkContext);
       if (Objects.equals(state, State.RUNNING)) {
-        super.changeState(State.STOPPED);
+        this.state = State.STOPPED;
       }
     }
 
@@ -182,7 +182,7 @@ public abstract class SparkPipelineResult implements PipelineResult {
       } finally {
         SparkContextFactory.stopSparkContext(javaSparkContext);
         if (Objects.equals(state, State.RUNNING)) {
-          super.changeState(State.STOPPED);
+          this.state = State.STOPPED;
         }
       }
     }
