@@ -53,7 +53,7 @@ public abstract class SparkPipelineResult implements PipelineResult {
     this.pipelineExecution = pipelineExecution;
     this.javaSparkContext = javaSparkContext;
     // pipelineExecution is expected to have started executing eagerly.
-    state = State.RUNNING;
+    this.state = State.RUNNING;
   }
 
   private static RuntimeException runtimeExceptionFrom(final Throwable e) {
@@ -104,16 +104,15 @@ public abstract class SparkPipelineResult implements PipelineResult {
   @Override
   public State waitUntilFinish(final Duration duration) {
     try {
-      state = awaitTermination(duration);
+      State finishState = awaitTermination(duration);
+      changeState(finishState);
     } catch (final TimeoutException e) {
       // ignore.
     } catch (final ExecutionException e) {
-      state = PipelineResult.State.FAILED;
-      stop();
+      changeState(PipelineResult.State.FAILED);
       throw beamExceptionFrom(e.getCause());
     } catch (final Exception e) {
-      state = PipelineResult.State.FAILED;
-      stop();
+      changeState(PipelineResult.State.FAILED);
       throw beamExceptionFrom(e);
     }
 
@@ -127,11 +126,7 @@ public abstract class SparkPipelineResult implements PipelineResult {
 
   @Override
   public PipelineResult.State cancel() throws IOException {
-    if (state != null && !state.isTerminal()) {
-      stop();
-      state = PipelineResult.State.CANCELLED;
-    }
-
+    changeState(PipelineResult.State.CANCELLED);
     return state;
   }
 
@@ -149,7 +144,7 @@ public abstract class SparkPipelineResult implements PipelineResult {
     protected void stop() {
       SparkContextFactory.stopSparkContext(javaSparkContext);
       if (Objects.equals(state, State.RUNNING)) {
-        state = State.STOPPED;
+        super.changeState(State.STOPPED);
       }
     }
 
@@ -187,7 +182,7 @@ public abstract class SparkPipelineResult implements PipelineResult {
       } finally {
         SparkContextFactory.stopSparkContext(javaSparkContext);
         if (Objects.equals(state, State.RUNNING)) {
-          state = State.STOPPED;
+          super.changeState(State.STOPPED);
         }
       }
     }
@@ -198,7 +193,7 @@ public abstract class SparkPipelineResult implements PipelineResult {
       pipelineExecution.get(); // execution is asynchronous anyway so no need to time-out.
       javaStreamingContext.awaitTerminationOrTimeout(duration.getMillis());
 
-      State terminationState = null;
+      State terminationState;
       switch (javaStreamingContext.getState()) {
          case ACTIVE:
            terminationState = State.RUNNING;
@@ -207,12 +202,19 @@ public abstract class SparkPipelineResult implements PipelineResult {
            terminationState = State.DONE;
            break;
          default:
-           state = State.UNKNOWN;
+           terminationState = State.UNKNOWN;
            break;
        }
        return terminationState;
     }
+  }
 
+  private void changeState(State newState) {
+    State oldState = this.state;
+    this.state = newState;
+    if (!oldState.isTerminal() && newState.isTerminal()) {
+      stop();
+    }
   }
 
 }
