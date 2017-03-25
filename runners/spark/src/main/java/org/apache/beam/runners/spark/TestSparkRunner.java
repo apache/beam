@@ -40,6 +40,10 @@ import org.apache.beam.runners.spark.util.GlobalWatermarkHolder;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.io.BoundedReadFromUnboundedSource;
+import org.apache.beam.sdk.metrics.MetricNameFilter;
+import org.apache.beam.sdk.metrics.MetricQueryResults;
+import org.apache.beam.sdk.metrics.MetricResult;
+import org.apache.beam.sdk.metrics.MetricsFilter;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsValidator;
 import org.apache.beam.sdk.runners.PTransformOverride;
@@ -134,8 +138,14 @@ public final class TestSparkRunner extends PipelineRunner<SparkPipelineResult> {
             finishState,
             isOneOf(PipelineResult.State.STOPPED, PipelineResult.State.DONE));
 
-        // validate assertion succeeded (at least once).
-        int successAssertions = result.getAggregatorValue(PAssert.SUCCESS_COUNTER, Integer.class);
+        MetricQueryResults queryResults = result.metrics().queryMetrics(
+            MetricsFilter.builder().addNameFilter(
+                MetricNameFilter.named(PAssert.class, PAssert.SUCCESS_COUNTER)).build());
+        long successAssertions = 0;
+        for (MetricResult<Long> res : queryResults.counters()) {
+          successAssertions += res.attempted().longValue();
+        }
+
         Integer expectedAssertions = testSparkPipelineOptions.getExpectedAssertions() != null
             ? testSparkPipelineOptions.getExpectedAssertions() : expectedNumberOfAssertions;
         assertThat(
@@ -143,13 +153,21 @@ public final class TestSparkRunner extends PipelineRunner<SparkPipelineResult> {
                 "Expected %d successful assertions, but found %d.",
                 expectedAssertions, successAssertions),
             successAssertions,
-            is(expectedAssertions));
+            is(expectedAssertions.longValue()));
+
+
         // validate assertion didn't fail.
-        int failedAssertions = result.getAggregatorValue(PAssert.FAILURE_COUNTER, Integer.class);
+        queryResults = result.metrics().queryMetrics(
+            MetricsFilter.builder().addNameFilter(
+                MetricNameFilter.named(PAssert.class, PAssert.FAILURE_COUNTER)).build());
+        long failedAssertions = 0;
+        for (MetricResult<Long> res : queryResults.counters()) {
+          failedAssertions += res.attempted().longValue();
+        }
         assertThat(
             String.format("Found %d failed assertions.", failedAssertions),
             failedAssertions,
-            is(0));
+            is(0L));
 
         LOG.info(
             String.format(
