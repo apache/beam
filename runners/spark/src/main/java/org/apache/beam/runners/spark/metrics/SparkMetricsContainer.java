@@ -96,7 +96,11 @@ public class SparkMetricsContainer implements Serializable {
     out.defaultWriteObject();
   }
 
-  private void materialize() {
+  /**
+   * Materialize metrics. Must be called to enable this instance's data to be serialized correctly.
+   * This method is idempotent.
+   */
+  public void materialize() {
     // Nullifying metricsContainers makes this method idempotent.
     if (metricsContainers != null) {
       for (MetricsContainer container : metricsContainers.asMap().values()) {

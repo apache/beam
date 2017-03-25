@@ -114,6 +114,8 @@ public class StateSpecFunctions {
 
         SparkMetricsContainer sparkMetricsContainer = new SparkMetricsContainer();
         MetricsContainer metricsContainer = sparkMetricsContainer.getContainer(stepName);
+        // Add metrics container to the scope of org.apache.beam.sdk.io.Source.Reader methods
+        // since they may report metrics.
         try (Closeable ignored = MetricsEnvironment.scopedMetricsContainer(metricsContainer)) {
           // source as MicrobatchSource
           MicrobatchSource<T, CheckpointMarkT> microbatchSource =

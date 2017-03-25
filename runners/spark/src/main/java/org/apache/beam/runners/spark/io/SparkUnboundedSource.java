@@ -20,7 +20,6 @@ package org.apache.beam.runners.spark.io;
 
 import java.io.Serializable;
 import java.util.Collections;
-import java.util.Iterator;
 import org.apache.beam.runners.spark.SparkPipelineOptions;
 import org.apache.beam.runners.spark.coders.CoderHelpers;
 import org.apache.beam.runners.spark.metrics.MetricsAccumulator;
@@ -41,7 +40,6 @@ import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext$;
 import org.apache.spark.api.java.function.FlatMapFunction;
 import org.apache.spark.api.java.function.Function;
-import org.apache.spark.api.java.function.VoidFunction;
 import org.apache.spark.rdd.RDD;
 import org.apache.spark.streaming.Duration;
 import org.apache.spark.streaming.StateSpec;
@@ -112,25 +110,8 @@ public class SparkUnboundedSource {
           }
         });
 
-    // Accumulate unbounded source metrics
-    metadataDStream.foreachRDD(new VoidFunction<JavaRDD<Metadata>>() {
-      @Override
-      public void call(JavaRDD<Metadata> metadataRDD) throws Exception {
-        final Accumulator<SparkMetricsContainer> metricsAccum = MetricsAccumulator.getInstance();
-        metadataRDD.foreachPartition(new VoidFunction<Iterator<Metadata>>() {
-          @Override
-          public void call(Iterator<Metadata> metadatas) throws Exception {
-            while (metadatas.hasNext()) {
-              Metadata metadata = metadatas.next();
-              metricsAccum.localValue().update(metadata.getMetricsContainer());
-            }
-          }
-        });
-      }
-    });
-
-    // register the ReportingDStream op.
-    new ReportingDStream(metadataDStream.dstream(), id, getSourceName(source, id)).register();
+    // register ReadReportDStream to report information related to this read.
+    new ReadReportDStream(metadataDStream.dstream(), id, getSourceName(source, id)).register();
 
     // output the actual (deserialized) stream.
     WindowedValue.FullWindowedValueCoder<T> coder =
@@ -167,16 +148,20 @@ public class SparkUnboundedSource {
   }
 
   /**
-   * A DStream function that reports the properties of the read to the
+   * A DStream function for reporting information related to the read process.
+   *
+   * <p>Reports properties of the read to
    * {@link org.apache.spark.streaming.scheduler.InputInfoTracker}
-   * for RateControl purposes and visibility.
+   * for RateControl purposes and visibility.</p>
+   * <p>Updates {@link GlobalWatermarkHolder}.</p>
+   * <p>Updates {@link MetricsAccumulator} with metrics reported in the read.</p>
    */
-  private static class ReportingDStream extends DStream<BoxedUnit> {
+  private static class ReadReportDStream extends DStream<BoxedUnit> {
     private final DStream<Metadata> parent;
     private final int inputDStreamId;
     private final String sourceName;
 
-    ReportingDStream(
+    ReadReportDStream(
         DStream<Metadata> parent,
         int inputDStreamId,
         String sourceName) {
@@ -201,6 +186,7 @@ public class SparkUnboundedSource {
     public scala.Option<RDD<BoxedUnit>> compute(Time validTime) {
       // compute parent.
       scala.Option<RDD<Metadata>> parentRDDOpt = parent.getOrCompute(validTime);
+      final Accumulator<SparkMetricsContainer> metricsAccum = MetricsAccumulator.getInstance();
       long count = 0;
       SparkWatermarks sparkWatermark = null;
       Instant globalLowWatermarkForBatch = BoundedWindow.TIMESTAMP_MIN_VALUE;
@@ -218,6 +204,8 @@ public class SparkUnboundedSource {
           globalHighWatermarkForBatch =
               globalHighWatermarkForBatch.isBefore(partitionHighWatermark)
                   ? partitionHighWatermark : globalHighWatermarkForBatch;
+          // Update metrics reported in the read
+          metricsAccum.value().update(metadata.getMetricsContainer());
         }
 
         sparkWatermark =
@@ -267,6 +255,7 @@ public class SparkUnboundedSource {
       this.metricsContainer = metricsContainer;
       this.lowWatermark = lowWatermark;
       this.highWatermark = highWatermark;
+      metricsContainer.materialize();
     }
 
     long getNumRecords() {
