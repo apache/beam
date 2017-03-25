@@ -109,11 +109,11 @@ public class CoderRegistry implements CoderProvider {
     registerCoder(TableRow.class, TableRowJsonCoder.class);
     registerCoder(Mutation.class, SpannerMutationCoder.class);
     registerCoder(Struct.class, SpannerStructCoder.class);
-    registerCoder(Object.class, VoidCoder.class);
     registerCoder(TimestampedValue.class, TimestampedValue.TimestampedValueCoder.class);
     registerCoder(Void.class, VoidCoder.class);
     registerCoder(byte[].class, ByteArrayCoder.class);
     registerCoder(IntervalWindow.class, IntervalWindow.getCoder());
+    registerCoder(Object.class, VoidCoder.class);
   }
 
   /**
