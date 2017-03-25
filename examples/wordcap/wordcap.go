@@ -11,7 +11,6 @@ import (
 	"os"
 	"regexp"
 	"strings"
-	"time"
 )
 
 var (
@@ -42,7 +41,6 @@ func Drop(elms <-chan string) {
 		i++
 	}
 	log.Printf("Processed: %v", i)
-	time.Sleep(30 * time.Second)
 }
 
 func main() {

@@ -160,6 +160,8 @@ func (c *control) handleInstruction(ctx context.Context, req *pb.InstructionRequ
 			}
 		}
 
+		time.Sleep(30 * time.Second)
+
 		return &pb.InstructionResponse{
 			InstructionId: id,
 			Response: &pb.InstructionResponse_ProcessBundle{
