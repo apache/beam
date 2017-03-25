@@ -105,14 +105,14 @@ public abstract class SparkPipelineResult implements PipelineResult {
   public State waitUntilFinish(final Duration duration) {
     try {
       State finishState = awaitTermination(duration);
-      changeState(finishState);
+      offerNewState(finishState);
     } catch (final TimeoutException e) {
       // ignore.
     } catch (final ExecutionException e) {
-      changeState(PipelineResult.State.FAILED);
+      offerNewState(PipelineResult.State.FAILED);
       throw beamExceptionFrom(e.getCause());
     } catch (final Exception e) {
-      changeState(PipelineResult.State.FAILED);
+      offerNewState(PipelineResult.State.FAILED);
       throw beamExceptionFrom(e);
     }
 
@@ -126,7 +126,7 @@ public abstract class SparkPipelineResult implements PipelineResult {
 
   @Override
   public PipelineResult.State cancel() throws IOException {
-    changeState(PipelineResult.State.CANCELLED);
+    offerNewState(PipelineResult.State.CANCELLED);
     return state;
   }
 
@@ -209,7 +209,7 @@ public abstract class SparkPipelineResult implements PipelineResult {
     }
   }
 
-  private void changeState(State newState) {
+  private void offerNewState(State newState) {
     State oldState = this.state;
     this.state = newState;
     if (!oldState.isTerminal() && newState.isTerminal()) {
