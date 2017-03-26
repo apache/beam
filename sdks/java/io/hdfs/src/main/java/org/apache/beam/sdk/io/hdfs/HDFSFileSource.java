@@ -91,7 +91,7 @@ import org.slf4j.LoggerFactory;
  * {@code
  * HDFSFileSource<K, V> source = HDFSFileSource.from(path, MyInputFormat.class,
  *   MyKey.class, MyValue.class);
- * PCollection<KV<MyKey, MyValue>> records = Read.from(mySource);
+ * PCollection<KV<MyKey, MyValue>> records = pipeline.apply(Read.from(mySource));
  * }
  * </pre>
  *
