@@ -40,15 +40,15 @@ import org.apache.beam.runners.spark.SparkPipelineResult;
 import org.apache.beam.runners.spark.TestSparkPipelineOptions;
 import org.apache.beam.runners.spark.UsesCheckpointRecovery;
 import org.apache.beam.runners.spark.aggregators.AggregatorsAccumulator;
-import org.apache.beam.runners.spark.coders.CoderHelpers;
 import org.apache.beam.runners.spark.io.MicrobatchSource;
 import org.apache.beam.runners.spark.metrics.MetricsAccumulator;
 import org.apache.beam.runners.spark.translation.streaming.utils.EmbeddedKafkaCluster;
 import org.apache.beam.runners.spark.util.GlobalWatermarkHolder;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.coders.InstantCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.kafka.KafkaIO;
+import org.apache.beam.sdk.io.kafka.serialization.InstantDeserializer;
+import org.apache.beam.sdk.io.kafka.serialization.InstantSerializer;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.MetricNameFilter;
 import org.apache.beam.sdk.metrics.Metrics;
@@ -77,6 +77,7 @@ import org.apache.beam.sdk.values.PDone;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.serialization.Serializer;
+import org.apache.kafka.common.serialization.StringDeserializer;
 import org.apache.kafka.common.serialization.StringSerializer;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -121,18 +122,7 @@ public class ResumeFromCheckpointStreamingTest {
     producerProps.put("request.required.acks", 1);
     producerProps.put("bootstrap.servers", EMBEDDED_KAFKA_CLUSTER.getBrokerList());
     Serializer<String> stringSerializer = new StringSerializer();
-    Serializer<Instant> instantSerializer = new Serializer<Instant>() {
-      @Override
-      public void configure(Map<String, ?> configs, boolean isKey) { }
-
-      @Override
-      public byte[] serialize(String topic, Instant data) {
-        return CoderHelpers.toByteArray(data, InstantCoder.of());
-      }
-
-      @Override
-      public void close() { }
-    };
+    Serializer<Instant> instantSerializer = new InstantSerializer();
 
     try (@SuppressWarnings("unchecked") KafkaProducer<String, Instant> kafkaProducer =
         new KafkaProducer(producerProps, stringSerializer, instantSerializer)) {
@@ -222,8 +212,8 @@ public class ResumeFromCheckpointStreamingTest {
     KafkaIO.Read<String, Instant> read = KafkaIO.<String, Instant>read()
         .withBootstrapServers(EMBEDDED_KAFKA_CLUSTER.getBrokerList())
         .withTopics(Collections.singletonList(TOPIC))
-        .withKeyCoder(StringUtf8Coder.of())
-        .withValueCoder(InstantCoder.of())
+        .withKeyDeserializer(StringDeserializer.class)
+        .withValueDeserializer(InstantDeserializer.class)
         .updateConsumerProperties(ImmutableMap.<String, Object>of("auto.offset.reset", "earliest"))
         .withTimestampFn(new SerializableFunction<KV<String, Instant>, Instant>() {
           @Override
