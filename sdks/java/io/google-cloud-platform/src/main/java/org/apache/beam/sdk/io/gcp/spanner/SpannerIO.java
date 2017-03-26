@@ -210,7 +210,7 @@ public class SpannerIO {
     public void processElement(ProcessContext c) throws Exception {
       Mutation m = c.element();
       int columnCount = m.asMap().size();
-      if ((mutations.size() * columnCount) >= SpannerIO.SPANNER_MUTATIONS_PER_COMMIT_LIMIT) {
+      if ((mutations.size() + 1) * columnCount >= SpannerIO.SPANNER_MUTATIONS_PER_COMMIT_LIMIT) {
         flushBatch();
       }
       mutations.add(m);
