@@ -87,9 +87,6 @@
                 org.apache.beam.sdk.testing.UsesSplittableParDo,
                 org.apache.beam.sdk.testing.UsesUnboundedPCollections,
               </excludedGroups>
-              <excludes>
-                <exclude>org.apache.beam.sdk.transforms.FlattenTest</exclude>
-              </excludes>
             </configuration>
           </execution>
         </executions>

@@ -49,8 +49,8 @@ import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
-import org.apache.beam.sdk.testing.RunnableOnService;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.InvalidWindows;
@@ -90,7 +90,7 @@ public class ViewTest implements Serializable {
   public transient ExpectedException thrown = ExpectedException.none();
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testSingletonSideInput() {
 
     final PCollectionView<Integer> view =
@@ -112,7 +112,7 @@ public class ViewTest implements Serializable {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testWindowedSingletonSideInput() {
 
     final PCollectionView<Integer> view =
@@ -191,7 +191,7 @@ public class ViewTest implements Serializable {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testListSideInput() {
 
     final PCollectionView<List<Integer>> view =
@@ -217,7 +217,7 @@ public class ViewTest implements Serializable {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testWindowedListSideInput() {
 
     final PCollectionView<List<Integer>> view =
@@ -257,7 +257,7 @@ public class ViewTest implements Serializable {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testEmptyListSideInput() throws Exception {
 
     final PCollectionView<List<Integer>> view =
@@ -283,7 +283,7 @@ public class ViewTest implements Serializable {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testListSideInputIsImmutable() {
 
     final PCollectionView<List<Integer>> view =
@@ -328,7 +328,7 @@ public class ViewTest implements Serializable {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testIterableSideInput() {
 
     final PCollectionView<Iterable<Integer>> view =
@@ -353,7 +353,7 @@ public class ViewTest implements Serializable {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testWindowedIterableSideInput() {
 
     final PCollectionView<Iterable<Integer>> view =
@@ -392,7 +392,7 @@ public class ViewTest implements Serializable {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testEmptyIterableSideInput() throws Exception {
 
     final PCollectionView<Iterable<Integer>> view =
@@ -417,7 +417,7 @@ public class ViewTest implements Serializable {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testIterableSideInputIsImmutable() {
 
     final PCollectionView<Iterable<Integer>> view =
@@ -448,7 +448,7 @@ public class ViewTest implements Serializable {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testMultimapSideInput() {
 
     final PCollectionView<Map<String, Iterable<Integer>>> view =
@@ -475,7 +475,7 @@ public class ViewTest implements Serializable {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testMultimapAsEntrySetSideInput() {
 
     final PCollectionView<Map<String, Iterable<Integer>>> view =
@@ -526,7 +526,7 @@ public class ViewTest implements Serializable {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testMultimapSideInputWithNonDeterministicKeyCoder() {
 
     final PCollectionView<Map<String, Iterable<Integer>>> view =
@@ -555,7 +555,7 @@ public class ViewTest implements Serializable {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testWindowedMultimapSideInput() {
 
     final PCollectionView<Map<String, Iterable<Integer>>> view =
@@ -593,7 +593,7 @@ public class ViewTest implements Serializable {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testWindowedMultimapAsEntrySetSideInput() {
 
     final PCollectionView<Map<String, Iterable<Integer>>> view =
@@ -635,7 +635,7 @@ public class ViewTest implements Serializable {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testWindowedMultimapSideInputWithNonDeterministicKeyCoder() {
 
     final PCollectionView<Map<String, Iterable<Integer>>> view =
@@ -674,7 +674,7 @@ public class ViewTest implements Serializable {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testEmptyMultimapSideInput() throws Exception {
 
     final PCollectionView<Map<String, Iterable<Integer>>> view =
@@ -702,7 +702,7 @@ public class ViewTest implements Serializable {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testEmptyMultimapSideInputWithNonDeterministicKeyCoder() throws Exception {
 
     final PCollectionView<Map<String, Iterable<Integer>>> view =
@@ -732,7 +732,7 @@ public class ViewTest implements Serializable {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testMultimapSideInputIsImmutable() {
 
     final PCollectionView<Map<String, Iterable<Integer>>> view =
@@ -779,7 +779,7 @@ public class ViewTest implements Serializable {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testMapSideInput() {
 
     final PCollectionView<Map<String, Integer>> view =
@@ -805,7 +805,7 @@ public class ViewTest implements Serializable {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testMapAsEntrySetSideInput() {
 
     final PCollectionView<Map<String, Integer>> view =
@@ -834,7 +834,7 @@ public class ViewTest implements Serializable {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testMapSideInputWithNonDeterministicKeyCoder() {
 
     final PCollectionView<Map<String, Integer>> view =
@@ -862,7 +862,7 @@ public class ViewTest implements Serializable {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testWindowedMapSideInput() {
 
     final PCollectionView<Map<String, Integer>> view =
@@ -899,7 +899,7 @@ public class ViewTest implements Serializable {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testWindowedMapAsEntrySetSideInput() {
 
     final PCollectionView<Map<String, Integer>> view =
@@ -940,7 +940,7 @@ public class ViewTest implements Serializable {
 
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testWindowedMapSideInputWithNonDeterministicKeyCoder() {
 
     final PCollectionView<Map<String, Integer>> view =
@@ -979,7 +979,7 @@ public class ViewTest implements Serializable {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testEmptyMapSideInput() throws Exception {
 
     final PCollectionView<Map<String, Integer>> view =
@@ -1008,7 +1008,7 @@ public class ViewTest implements Serializable {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testEmptyMapSideInputWithNonDeterministicKeyCoder() throws Exception {
 
     final PCollectionView<Map<String, Integer>> view =
@@ -1071,7 +1071,7 @@ public class ViewTest implements Serializable {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testMapSideInputIsImmutable() {
 
     final PCollectionView<Map<String, Integer>> view =
@@ -1117,7 +1117,7 @@ public class ViewTest implements Serializable {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testCombinedMapSideInput() {
 
     final PCollectionView<Map<String, Integer>> view =
@@ -1143,7 +1143,7 @@ public class ViewTest implements Serializable {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testWindowedSideInputFixedToFixed() {
 
     final PCollectionView<Integer> view =
@@ -1175,7 +1175,7 @@ public class ViewTest implements Serializable {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testWindowedSideInputFixedToGlobal() {
 
     final PCollectionView<Integer> view =
@@ -1207,7 +1207,7 @@ public class ViewTest implements Serializable {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testWindowedSideInputFixedToFixedWithDefault() {
 
     final PCollectionView<Integer> view =
@@ -1237,7 +1237,7 @@ public class ViewTest implements Serializable {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testSideInputWithNullDefault() {
 
     final PCollectionView<Void> view =
@@ -1266,7 +1266,7 @@ public class ViewTest implements Serializable {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testSideInputWithNestedIterables() {
     final PCollectionView<Iterable<Integer>> view1 =
         pipeline.apply("CreateVoid1", Create.of((Void) null).withCoder(VoidCoder.of()))

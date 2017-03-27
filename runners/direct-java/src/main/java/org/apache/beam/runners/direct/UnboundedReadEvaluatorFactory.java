@@ -41,6 +41,7 @@ import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
+import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
@@ -187,6 +188,9 @@ class UnboundedReadEvaluatorFactory implements TransformEvaluatorFactory {
       UnboundedReader<OutputT> existing = shard.getExistingReader();
       if (existing == null) {
         CheckpointMarkT checkpoint = shard.getCheckpoint();
+        if (checkpoint != null) {
+          checkpoint = CoderUtils.clone(shard.getSource().getCheckpointMarkCoder(), checkpoint);
+        }
         return shard
             .getSource()
             .createReader(evaluationContext.getPipelineOptions(), checkpoint);

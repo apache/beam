@@ -23,8 +23,8 @@ import static org.junit.Assert.assertThat;
 
 import java.io.Serializable;
 import org.apache.beam.sdk.testing.PAssert;
-import org.apache.beam.sdk.testing.RunnableOnService;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -48,7 +48,7 @@ public class ReifyTimestampsTest implements Serializable {
   @Rule public transient TestPipeline pipeline = TestPipeline.create();
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void inValuesSucceeds() {
     PCollection<KV<String, Integer>> timestamped =
         pipeline
@@ -76,7 +76,7 @@ public class ReifyTimestampsTest implements Serializable {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void extractFromValuesSucceeds() {
     PCollection<KV<String, TimestampedValue<Integer>>> preified =
         pipeline.apply(

@@ -38,7 +38,6 @@ import org.apache.beam.runners.spark.translation.TransformEvaluator;
 import org.apache.beam.runners.spark.translation.TransformTranslator;
 import org.apache.beam.runners.spark.translation.streaming.Checkpoint.CheckpointDir;
 import org.apache.beam.runners.spark.translation.streaming.SparkRunnerStreamingContextFactory;
-import org.apache.beam.runners.spark.translation.streaming.StreamingTransformTranslator;
 import org.apache.beam.runners.spark.util.GlobalWatermarkHolder.WatermarksListener;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.Read;
@@ -163,11 +162,6 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
           JavaStreamingContext.getOrCreate(checkpointDir.getSparkCheckpointDir().toString(),
               contextFactory);
 
-      // update cache candidates
-      translator = new StreamingTransformTranslator.Translator(
-          new TransformTranslator.Translator());
-      updateCacheCandidates(pipeline, translator, contextFactory.getEvaluationContext());
-
       // Checkpoint aggregator/metrics values
       jssc.addStreamingListener(
           new JavaStreamingListenerWrapper(
@@ -269,7 +263,7 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
   /**
    * Evaluator that update/populate the cache candidates.
    */
-  private void updateCacheCandidates(
+  public static void updateCacheCandidates(
       Pipeline pipeline,
       SparkPipelineTranslator translator,
       EvaluationContext evaluationContext) {

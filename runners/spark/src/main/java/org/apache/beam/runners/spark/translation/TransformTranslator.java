@@ -27,6 +27,7 @@ import static org.apache.beam.runners.spark.io.hadoop.ShardNameBuilder.replaceSh
 import static org.apache.beam.runners.spark.translation.TranslationUtils.rejectSplittable;
 import static org.apache.beam.runners.spark.translation.TranslationUtils.rejectStateAndTimers;
 
+import com.google.common.base.Optional;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -259,9 +260,20 @@ public final class TransformTranslator {
                 ((BoundedDataset<InputT>) context.borrowDataset(transform)).getRDD();
 
             JavaRDD<WindowedValue<OutputT>> outRdd;
-            // handle empty input RDD, which will naturally skip the entire execution
-            // as Spark will not run on empty RDDs.
-            if (inRdd.isEmpty()) {
+
+            Optional<Iterable<WindowedValue<AccumT>>> maybeAccumulated =
+                GroupCombineFunctions.combineGlobally(inRdd, sparkCombineFn, iCoder, aCoder,
+                    windowingStrategy);
+
+            if (maybeAccumulated.isPresent()) {
+              Iterable<WindowedValue<OutputT>> output =
+                  sparkCombineFn.extractOutput(maybeAccumulated.get());
+              outRdd = context.getSparkContext()
+                  .parallelize(CoderHelpers.toByteArrays(output, wvoCoder))
+                  .map(CoderHelpers.fromByteFunction(wvoCoder));
+            } else {
+              // handle empty input RDD, which will naturally skip the entire execution
+              // as Spark will not run on empty RDDs.
               JavaSparkContext jsc = new JavaSparkContext(inRdd.context());
               if (hasDefault) {
                 OutputT defaultValue = combineFn.defaultValue();
@@ -272,14 +284,8 @@ public final class TransformTranslator {
               } else {
                 outRdd = jsc.emptyRDD();
               }
-            } else {
-              Iterable<WindowedValue<AccumT>> accumulated = GroupCombineFunctions.combineGlobally(
-                  inRdd, sparkCombineFn, iCoder, aCoder, windowingStrategy);
-              Iterable<WindowedValue<OutputT>> output = sparkCombineFn.extractOutput(accumulated);
-              outRdd = context.getSparkContext()
-                  .parallelize(CoderHelpers.toByteArrays(output, wvoCoder))
-                  .map(CoderHelpers.fromByteFunction(wvoCoder));
             }
+
             context.putDataset(transform, new BoundedDataset<>(outRdd));
           }
 

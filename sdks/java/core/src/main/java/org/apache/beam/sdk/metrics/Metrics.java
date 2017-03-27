@@ -58,6 +58,22 @@ public class Metrics {
     return new DelegatingDistribution(MetricName.named(namespace, name));
   }
 
+  /**
+   * Create a metric that can have its new value set, and is aggregated by taking the last reported
+   * value.
+   */
+  public static Gauge gauge(String namespace, String name) {
+    return new DelegatingGauge(MetricName.named(namespace, name));
+  }
+
+  /**
+   * Create a metric that can have its new value set, and is aggregated by taking the last reported
+   * value.
+   */
+  public static Gauge gauge(Class<?> namespace, String name) {
+    return new DelegatingGauge(MetricName.named(namespace, name));
+  }
+
   /** Implementation of {@link Counter} that delegates to the instance for the current context. */
   private static class DelegatingCounter implements Counter, Serializable {
     private final MetricName name;
@@ -105,6 +121,25 @@ public class Metrics {
       MetricsContainer container = MetricsEnvironment.getCurrentContainer();
       if (container != null) {
         container.getDistribution(name).update(value);
+      }
+    }
+  }
+
+  /**
+   * Implementation of {@link Gauge} that delegates to the instance for the current context.
+   */
+  private static class DelegatingGauge implements Gauge, Serializable {
+    private final MetricName name;
+
+    private DelegatingGauge(MetricName name) {
+      this.name = name;
+    }
+
+    @Override
+    public void set(long value) {
+      MetricsContainer container = MetricsEnvironment.getCurrentContainer();
+      if (container != null) {
+        container.getGauge(name).set(value);
       }
     }
   }

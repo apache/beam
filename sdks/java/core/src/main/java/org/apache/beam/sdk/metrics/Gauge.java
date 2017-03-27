@@ -15,10 +15,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.beam.sdk.metrics;
+
+import org.apache.beam.sdk.annotations.Experimental;
 
 /**
- * Provides utilities for integration testing and {@link
- * org.apache.beam.sdk.testing.ValidatesRunner} tests of the Google Cloud Dataflow
- * runner.
+ * A metric that reports the latest value out of reported values.
+ *
+ * <p>Since metrics are collected from many workers the value may not be the absolute last,
+ * but one of the latest values.</p>
  */
-package org.apache.beam.runners.dataflow.testing;
+@Experimental(Experimental.Kind.METRICS)
+public interface Gauge extends Metric {
+  /** Set current value for this gauge. */
+  void set(long value);
+}

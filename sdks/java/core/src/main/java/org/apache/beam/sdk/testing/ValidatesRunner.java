@@ -18,21 +18,6 @@
 package org.apache.beam.sdk.testing;
 
 /**
- * Category tag for validation tests which utilize {@link TestPipeline} for execution and
- * {@link PAssert} for validation. Example usage:
- * <pre><code>
- *     {@literal @}Test
- *     {@literal @}Category(RunnableOnService.class)
- *     public class ParDoTest {
- *       {@literal @}Rule
- *       public final transient TestPipeline p = TestPipeline.create();
- *
- *       public void testParDo() {
- *         p.apply(...);
- *         PAssert.that(p);
- *         p.run();
- *       }
- *     }
- * </code></pre>
+ * Category tag for tests which validate that a Beam runner is correctly implemented.
  */
-public interface RunnableOnService extends NeedsRunner {}
+public interface ValidatesRunner extends NeedsRunner {}

@@ -33,7 +33,8 @@ public abstract class MetricUpdates {
 
   public static final MetricUpdates EMPTY = MetricUpdates.create(
       Collections.<MetricUpdate<Long>>emptyList(),
-      Collections.<MetricUpdate<DistributionData>>emptyList());
+      Collections.<MetricUpdate<DistributionData>>emptyList(),
+      Collections.<MetricUpdate<GaugeData>>emptyList());
 
   /**
    * Representation of a single metric update.
@@ -64,10 +65,14 @@ public abstract class MetricUpdates {
   /** All of the distribution updates. */
   public abstract Iterable<MetricUpdate<DistributionData>> distributionUpdates();
 
+  /** All of the gauges updates. */
+  public abstract Iterable<MetricUpdate<GaugeData>> gaugeUpdates();
+
   /** Create a new {@link MetricUpdates} bundle. */
   public static MetricUpdates create(
       Iterable<MetricUpdate<Long>> counterUpdates,
-      Iterable<MetricUpdate<DistributionData>> distributionUpdates) {
-    return new AutoValue_MetricUpdates(counterUpdates, distributionUpdates);
+      Iterable<MetricUpdate<DistributionData>> distributionUpdates,
+      Iterable<MetricUpdate<GaugeData>> gaugeUpdates) {
+    return new AutoValue_MetricUpdates(counterUpdates, distributionUpdates, gaugeUpdates);
   }
 }
