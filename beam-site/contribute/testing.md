@@ -160,11 +160,11 @@ details on those testing types.
    </td>
    <td>Correctness
    </td>
-   <td>E2E Test, <a href="https://github.com/apache/beam/blob/master/runners/pom.xml#L47">@RunnableonService</a>
+   <td>E2E Test, <a href="https://github.com/apache/beam/blob/master/runners/pom.xml#L47">@ValidatesRunner</a>
    </td>
    <td><a href="https://github.com/apache/beam/blob/master/examples/java/src/test/java/org/apache/beam/examples/WordCountIT.java#L78">WordCountIT</a>, <a href="https://github.com/apache/beam/blob/master/sdks/java/core/src/test/java/org/apache/beam/sdk/transforms/ParDoTest.java">ParDoTest</a>
    </td>
-   <td>E2E, @RunnableonService
+   <td>E2E, @ValidatesRunner
    </td>
    <td>Postcommit
    </td>
@@ -279,7 +279,7 @@ viewed.
 
 Running in postcommit removes as stringent of a time constraint, which gives us
 the ability to do some more comprehensive testing. In postcommit we have a test
-suite running the RunnableOnService tests against each supported runner, and
+suite running the ValidatesRunner tests against each supported runner, and
 another for running the full set of E2E tests against each runner.
 Currently-supported runners are Dataflow, Flink, Spark, and Gearpump, with
 others soon to follow. Work is ongoing to enable Flink, Spark, and Gearpump in
@@ -304,9 +304,9 @@ importance of testing, Beam has a robust set of unit tests, as well as testing
 coverage measurement tools, which protect the codebase from simple to moderate
 breakages. Beam Java unit tests are written in JUnit.
 
-### RunnableOnService (Working Title)
+### ValidatesRunner (Working Title)
 
-RunnableOnService tests contain components of both component and end-to-end
+ValidatesRunner tests contain components of both component and end-to-end
 tests. They fulfill the typical purpose of a component test - they are meant to
 test a well-scoped piece of Beam functionality or the interactions between two
 such pieces and can be run in a component-test-type fashion against the
@@ -316,7 +316,7 @@ functionality, but runner functionality as well. They are more lightweight than
 a traditional end-to-end test and, because of their well-scoped nature, provide
 good signal as to what exactly is working or broken against a particular runner.
 
-The name “RunnableOnService” is an artifact of when Beam was still the Google
+The name “ValidatesRunner” is an artifact of when Beam was still the Google
 Cloud Dataflow SDK and [will be
 changing](https://issues.apache.org/jira/browse/BEAM-655) to something more
 indicative of its use in the coming months.
@@ -364,9 +364,9 @@ environments. We currently provide the ability to run against the DirectRunner,
 against a local Spark instance, a local Flink instance, and against the Google
 Cloud Dataflow service.
 
-### RunnableOnService Tests
+### ValidatesRunner Tests
 
-RunnableOnService tests are tests built to use the Beam TestPipeline class,
+ValidatesRunner tests are tests built to use the Beam TestPipeline class,
 which enables test authors to write simple functionality verification. They are
 meant to use some of the built-in utilities of the SDK, namely PAssert, to
 verify that the simple pipelines they run end in the correct state.
@@ -394,7 +394,7 @@ due to the one of the following scenarios:
 
 Abandoned node detection is *automatically enabled* when a real pipeline 
 runner (i.e. not a `CrashingRunner`) and/or a 
-`@NeedsRunner` / `@RunnableOnService` annotation are detected. 
+`@NeedsRunner` / `@ValidatesRunner` annotation are detected. 
 
 Consider the following test:
   
