@@ -1,57 +1,41 @@
 package org.apache.beam.sdk.io.gcp.spanner;
 
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.MoreObjects;
-import com.google.common.collect.ImmutableList;
-
-import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
-import static com.google.common.base.Verify.verify;
 
+import com.google.api.client.util.BackOff;
+import com.google.api.client.util.BackOffUtils;
+import com.google.api.client.util.Sleeper;
 import com.google.cloud.spanner.DatabaseClient;
 import com.google.cloud.spanner.DatabaseId;
 import com.google.cloud.spanner.Mutation;
 import com.google.cloud.spanner.Spanner;
-import com.google.cloud.spanner.SpannerOptions;
 import com.google.cloud.spanner.SpannerException;
-
+import com.google.cloud.spanner.SpannerOptions;
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.MoreObjects;
 import java.io.IOException;
-import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.NoSuchElementException;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.options.GcpOptions;
-import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.Flatten;
-import org.apache.beam.sdk.transforms.GroupByKey;
-import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.DisplayData.Builder;
 import org.apache.beam.sdk.util.FluentBackoff;
-import org.apache.beam.sdk.util.RetryHttpRequestInitializer;
-import org.apache.beam.sdk.values.KV;
-import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.api.client.util.BackOff;
-import com.google.api.client.util.BackOffUtils;
-import com.google.api.client.util.Sleeper;
 
-import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.SpannerMutationCoder;
-
-
+/**
+ * {@link Spanner} provides an API for reading from and writing to
+ * <a href="https://cloud.google.com/spanner/">Google Cloud Spanner</a> over different
+ * versions of the Cloud Spanner Client libraries.
+ *
+ */
 @Experimental(Experimental.Kind.SOURCE_SINK)
 public class SpannerIO {
 
@@ -63,7 +47,7 @@ public class SpannerIO {
   }
 
   /**
-   * A {@link PTransform} that writes {@link Mutation} objects to Cloud Spanner
+   * A {@link PTransform} that writes {@link Mutation} objects to Cloud Spanner.
    *
    * @see SpannerIO
    */
@@ -165,15 +149,14 @@ public class SpannerIO {
    * {@link DoFn} that writes {@link Mutation}s to Cloud Spanner. Mutations are written in
    * batches, where the maximum batch size is {@link SpannerIO#SPANNER_MUTATIONS_PER_COMMIT_LIMIT}.
    *
-   * <p>See <a
-   * href="https://cloud.google.com/spanner">
+   * <p>See <a href="https://cloud.google.com/spanner"/>
    *
-   * <p>Commits are non-transactional.  If a commit fails, it will be retried (up to 
-   * {@link SpannerIO#SPANNER_MUTATIONS_PER_COMMIT_LIMIT}. times). This means that the 
-   * mutation operation should be idempotent. 
+   * <p>Commits are non-transactional.  If a commit fails, it will be retried (up to
+   * {@link SpannerIO#SPANNER_MUTATIONS_PER_COMMIT_LIMIT}. times). This means that the
+   * mutation operation should be idempotent.
    */
   @VisibleForTesting
-  static class SpannerWriterFn<T, Void> extends DoFn<Mutation, Void> {
+  static class SpannerWriterFn<T, V> extends DoFn<Mutation, Void> {
     private static final Logger LOG = LoggerFactory.getLogger(SpannerWriterFn.class);
     private Spanner spanner;
     private final String projectId;
@@ -225,8 +208,9 @@ public class SpannerIO {
 
     @Teardown
     public void teardown() throws Exception {
-      if (spanner == null)
+      if (spanner == null) {
           return;
+      }
       spanner.closeAsync().get();
     }
 
@@ -272,15 +256,16 @@ public class SpannerIO {
       super.populateDisplayData(builder);
       builder
           .addIfNotNull(DisplayData.item("projectId", projectId)
-              .withLabel("Output Project"))
+              .withLabel("Project"))
           .addIfNotNull(DisplayData.item("instanceId", instanceId)
-              .withLabel("Output Instance"))
+              .withLabel("Instance"))
           .addIfNotNull(DisplayData.item("databaseId", databaseId)
-              .withLabel("Output Database"));
+              .withLabel("Database"));
     }
   }
 
-  private static DatabaseClient getDbClient(Spanner spanner, DatabaseId databaseId) throws IOException {
+  private static DatabaseClient getDbClient(Spanner spanner, DatabaseId databaseId)
+          throws IOException {
 
     try {
       String clientProject = spanner.getOptions().getProjectId();
@@ -291,8 +276,7 @@ public class SpannerIO {
         throw new IllegalArgumentException(err);
       }
       return spanner.getDatabaseClient(databaseId);
-    } 
-    catch (Exception e) {
+    } catch (Exception e) {
         throw new IOException(e);
     }
   }

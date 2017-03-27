@@ -1,26 +1,26 @@
 package org.apache.beam.sdk.coders;
 
-import com.google.cloud.spanner.Mutation;
-import com.google.cloud.spanner.Value;
-import com.google.cloud.spanner.Type;
-import com.google.cloud.spanner.ValueBinder;
-import com.google.cloud.spanner.Timestamp;
-import com.google.cloud.spanner.Date;
-
-import com.google.cloud.ByteArray;
-
 import com.fasterxml.jackson.annotation.JsonCreator;
-
+import com.google.cloud.ByteArray;
+import com.google.cloud.spanner.Date;
+import com.google.cloud.spanner.Mutation;
+import com.google.cloud.spanner.Timestamp;
+import com.google.cloud.spanner.Type;
+import com.google.cloud.spanner.Value;
+import com.google.cloud.spanner.ValueBinder;
+import com.google.common.io.ByteArrayDataInput;
+import com.google.common.io.ByteArrayDataOutput;
+import com.google.common.io.ByteStreams;
+import java.io.DataInput;
+import java.io.DataOutput;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.io.DataOutput;
-import java.io.DataInput;
 import java.util.Map;
-import com.google.common.io.ByteArrayDataOutput;
-import com.google.common.io.ByteArrayDataInput;
-import com.google.common.io.ByteStreams;
 
+/**
+ * A {@link Coder} that encodes Spanner {@link Mutation} objects.
+ */
 public class SpannerMutationCoder extends AtomicCoder<Mutation> {
 
   @JsonCreator
@@ -35,13 +35,16 @@ public class SpannerMutationCoder extends AtomicCoder<Mutation> {
   private SpannerMutationCoder() {}
 
   @Override
-  public void encode(Mutation value, OutputStream outStream, Context context) throws IOException, CoderException {
+  public void encode(Mutation value, OutputStream outStream, Context context)
+              throws IOException, CoderException {
+
       if (value == null) {
           throw new CoderException("cannot encode a null Mutation");
       }
 
-      if (Mutation.Op.DELETE == value.getOperation())
+      if (Mutation.Op.DELETE == value.getOperation()) {
           throw new UnsupportedOperationException("DELETE Mutations not supported!");
+      }
 
       ByteArrayDataOutput out = ByteStreams.newDataOutput();
 
@@ -52,7 +55,7 @@ public class SpannerMutationCoder extends AtomicCoder<Mutation> {
 
       // Write number of columns
       out.writeInt(state.size());
-    
+
       // Write out column names, types and values
       ValueSerializer ser = ValueSerializer.of();
       for (String columnName : state.keySet()) {
@@ -103,12 +106,12 @@ public class SpannerMutationCoder extends AtomicCoder<Mutation> {
           case INSERT_OR_UPDATE:
               return Mutation.newInsertOrUpdateBuilder(tableName);
       }
-      throw new UnsupportedOperationException("Cannot determinate mutation operation or operation unsupported.");
+      throw new UnsupportedOperationException("Mutation operation unsupported.");
   }
 
   @Override
   protected long getEncodedElementByteSize(Mutation value, Context context)
-      throws Exception {
+          throws Exception {
     //return value.getSerializedSize();
     return 0L;    //TODO: Implement this.
   }
@@ -173,7 +176,7 @@ public class SpannerMutationCoder extends AtomicCoder<Mutation> {
           }
       }
   }
-   
+
   static class ValueDeserializer implements java.io.Serializable {
 
       private static final ValueDeserializer INSTANCE = new ValueDeserializer();
@@ -182,7 +185,9 @@ public class SpannerMutationCoder extends AtomicCoder<Mutation> {
           return INSTANCE;
       }
 
-      public Mutation.WriteBuilder readFrom(DataInput in, ValueBinder<Mutation.WriteBuilder>  vb) throws IOException {
+      public Mutation.WriteBuilder readFrom(DataInput in, ValueBinder<Mutation.WriteBuilder>  vb)
+                  throws IOException {
+
           Type.Code c = Enum.valueOf(Type.Code.class, in.readUTF());
           byte b = in.readByte();   // NULL indicator
           switch (c) {
@@ -195,14 +200,16 @@ public class SpannerMutationCoder extends AtomicCoder<Mutation> {
               case STRING:
                   return b == 1 ? vb.to(in.readUTF()) : vb.to((String) null);
               case BYTES:
-                  if (b == 0)
+                  if (b == 0) {
                       return vb.to((ByteArray) null);
+                  }
                   int size = in.readInt();
                   byte[] buf = new byte[size];
                   in.readFully(buf);
                   return vb.to(ByteArray.copyFrom(buf));
               case TIMESTAMP:
-                  return b == 1 ? vb.to(Timestamp.parseTimestamp(in.readUTF())) : vb.to((Timestamp) null);
+                  return b == 1 ? vb.to(Timestamp.parseTimestamp(in.readUTF())) :
+                      vb.to((Timestamp) null);
               case DATE:
                   return b == 1 ? vb.to(Date.parseDate(in.readUTF())) : vb.to((Date) null);
               case ARRAY:
@@ -210,7 +217,7 @@ public class SpannerMutationCoder extends AtomicCoder<Mutation> {
               case STRUCT:
                   throw new UnsupportedOperationException("STRUCT type not implemented yet.");
           }
-          throw new UnsupportedOperationException("Cannot determine type from input stream or type unsupported.");
+          throw new UnsupportedOperationException("Type unsupported.");
       }
   }
 

@@ -54,7 +54,9 @@ public class GcpApiSurfaceTest {
             classesInPackage("com.google.api.services.bigquery.model"),
             classesInPackage("com.google.auth"),
             classesInPackage("com.google.bigtable.v2"),
+            classesInPackage("com.google.cloud"),
             classesInPackage("com.google.cloud.bigtable.config"),
+            classesInPackage("com.google.cloud.spanner"),
             Matchers.<Class<?>>equalTo(com.google.cloud.bigtable.grpc.BigtableInstanceName.class),
             Matchers.<Class<?>>equalTo(com.google.cloud.bigtable.grpc.BigtableTableName.class),
             // https://github.com/GoogleCloudPlatform/cloud-bigtable-client/pull/1056

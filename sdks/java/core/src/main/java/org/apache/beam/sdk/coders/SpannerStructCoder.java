@@ -1,26 +1,25 @@
 package org.apache.beam.sdk.coders;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.google.cloud.ByteArray;
+import com.google.cloud.spanner.Date;
 import com.google.cloud.spanner.Struct;
-import com.google.cloud.spanner.Value;
+import com.google.cloud.spanner.Timestamp;
 import com.google.cloud.spanner.Type;
 import com.google.cloud.spanner.ValueBinder;
-import com.google.cloud.spanner.Timestamp;
-import com.google.cloud.spanner.Date;
-
-import com.google.cloud.ByteArray;
-
-import com.fasterxml.jackson.annotation.JsonCreator;
-
+import com.google.common.io.ByteArrayDataInput;
+import com.google.common.io.ByteArrayDataOutput;
+import com.google.common.io.ByteStreams;
+import java.io.DataInput;
+import java.io.DataOutput;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.io.DataOutput;
-import java.io.DataInput;
 import java.util.List;
-import com.google.common.io.ByteArrayDataOutput;
-import com.google.common.io.ByteArrayDataInput;
-import com.google.common.io.ByteStreams;
 
+/**
+ * A {@link Coder} that encodes Spanner {@link Struct} objects.
+ */
 public class SpannerStructCoder extends AtomicCoder<Struct> {
 
   @JsonCreator
@@ -35,7 +34,8 @@ public class SpannerStructCoder extends AtomicCoder<Struct> {
   private SpannerStructCoder() {}
 
   @Override
-  public void encode(Struct value, OutputStream outStream, Context context) throws IOException, CoderException {
+  public void encode(Struct value, OutputStream outStream, Context context)
+          throws IOException, CoderException {
       if (value == null) {
           throw new CoderException("cannot encode a null Struct");
       }
@@ -46,10 +46,10 @@ public class SpannerStructCoder extends AtomicCoder<Struct> {
 
       // Write number of columns
       out.writeInt(value.getColumnCount());
-    
+
       // Write out column names, types and values
       ValueSerializer ser = ValueSerializer.of();
-    
+
       for (Type.StructField f : fields) {
           out.writeUTF(f.getName());
           out.writeUTF(f.getType().getCode().name());
@@ -114,7 +114,8 @@ public class SpannerStructCoder extends AtomicCoder<Struct> {
           return INSTANCE;
       }
 
-      public void writeTo(DataOutput out, Struct v, String colName, Type.Code c) throws IOException {
+      public void writeTo(DataOutput out, Struct v, String colName, Type.Code c)
+              throws IOException {
           switch (c) {
               case BOOL:
                   out.writeBoolean(v.getBoolean(colName));
@@ -146,7 +147,7 @@ public class SpannerStructCoder extends AtomicCoder<Struct> {
           }
       }
   }
-   
+
   static class ValueDeserializer implements java.io.Serializable {
 
       private static final ValueDeserializer INSTANCE = new ValueDeserializer();
@@ -155,7 +156,9 @@ public class SpannerStructCoder extends AtomicCoder<Struct> {
           return INSTANCE;
       }
 
-      public Struct.Builder readFrom(DataInput in, ValueBinder<Struct.Builder>  vb) throws IOException {
+      public Struct.Builder readFrom(DataInput in, ValueBinder<Struct.Builder>  vb)
+              throws IOException {
+
           Type.Code c = Enum.valueOf(Type.Code.class, in.readUTF());
           switch (c) {
               case BOOL:
@@ -180,7 +183,7 @@ public class SpannerStructCoder extends AtomicCoder<Struct> {
               case STRUCT:
                   throw new UnsupportedOperationException("STRUCT type not implemented yet.");
           }
-          throw new UnsupportedOperationException("Cannot determine type from input stream or type unsupported.");
+          throw new UnsupportedOperationException("Type unsupported.");
       }
   }
 
