@@ -54,6 +54,8 @@ import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.spark.Partitioner;
+import org.apache.spark.api.java.JavaPairRDD;
+import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext$;
 import org.apache.spark.api.java.function.FlatMapFunction;
 import org.apache.spark.api.java.function.Function;
@@ -135,12 +137,35 @@ public class SparkGroupAlsoByWindowViaWindowSet {
     //---- InputT: I
     DStream<Tuple2</*K*/ ByteArray, /*Itr<WV<I>>*/ byte[]>> pairDStream =
         inputDStream
-            .map(WindowingHelpers.<KV<K, Iterable<WindowedValue<InputT>>>>unwindowFunction())
-            .mapToPair(TranslationUtils.<K, Iterable<WindowedValue<InputT>>>toPairFunction())
-            // move to bytes and use coders for deserialization because there's a shuffle
-            // and checkpointing involved.
-            .mapToPair(CoderHelpers.toByteFunction(keyCoder, itrWvCoder))
+            .transformToPair(
+                new Function<
+                    JavaRDD<WindowedValue<KV<K, Iterable<WindowedValue<InputT>>>>>,
+                    JavaPairRDD<ByteArray, byte[]>>() {
+                  // we use mapPartitions with the RDD API because its the only available API
+                  // that allows to preserve partitioning.
+                  @Override
+                  public JavaPairRDD<ByteArray, byte[]> call(
+                      JavaRDD<WindowedValue<KV<K, Iterable<WindowedValue<InputT>>>>> rdd)
+                      throws Exception {
+                    return rdd.mapPartitions(
+                            TranslationUtils.functionToFlatMapFunction(
+                                WindowingHelpers
+                                    .<KV<K, Iterable<WindowedValue<InputT>>>>unwindowFunction()),
+                            true)
+                        .mapPartitionsToPair(
+                            TranslationUtils
+                                .<K, Iterable<WindowedValue<InputT>>>toPairFlatMapFunction(),
+                            true)
+                        // move to bytes representation and use coders for deserialization
+                        // because of checkpointing.
+                        .mapPartitionsToPair(
+                            TranslationUtils.pairFunctionToPairFlatMapFunction(
+                                CoderHelpers.toByteFunction(keyCoder, itrWvCoder)),
+                            true);
+                  }
+                })
             .dstream();
+
     PairDStreamFunctions<ByteArray, byte[]> pairDStreamFunctions =
         DStream.toPairDStreamFunctions(
         pairDStream,
