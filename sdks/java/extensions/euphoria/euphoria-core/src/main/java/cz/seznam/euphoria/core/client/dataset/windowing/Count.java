@@ -18,8 +18,6 @@ package cz.seznam.euphoria.core.client.dataset.windowing;
 import cz.seznam.euphoria.core.client.triggers.CountTrigger;
 import cz.seznam.euphoria.core.client.triggers.Trigger;
 
-import java.util.Set;
-
 import static java.util.Collections.singleton;
 
 /**
@@ -34,7 +32,7 @@ public final class Count<T> implements Windowing<T, Batch.BatchWindow> {
   }
 
   @Override
-  public Set<Batch.BatchWindow> assignWindowsToElement(WindowedElement<?, T> el) {
+  public Iterable<Batch.BatchWindow> assignWindowsToElement(WindowedElement<?, T> el) {
     return singleton(Batch.BatchWindow.get());
   }
 

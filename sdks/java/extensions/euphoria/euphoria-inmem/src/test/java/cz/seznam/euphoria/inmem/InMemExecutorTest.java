@@ -356,7 +356,7 @@ public class InMemExecutorTest {
     }
 
     @Override
-    public Set<SizedCountWindow> assignWindowsToElement(WindowedElement<?, T> input) {
+    public Iterable<SizedCountWindow> assignWindowsToElement(WindowedElement<?, T> input) {
       int sz = size.apply(input.getElement());
       return Sets.newHashSet(new SizedCountWindow(sz), new SizedCountWindow(2 * sz));
     }

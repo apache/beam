@@ -31,7 +31,6 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
-import java.util.Set;
 
 /**
  * Session windowing.
@@ -69,7 +68,7 @@ public final class Session<T> implements MergingWindowing<T, TimeInterval> {
   }
 
   @Override
-  public Set<TimeInterval> assignWindowsToElement(WindowedElement<?, T> el) {
+  public Iterable<TimeInterval> assignWindowsToElement(WindowedElement<?, T> el) {
     long stamp = el.getTimestamp();
     TimeInterval ret = new TimeInterval(stamp, stamp + gapDurationMillis);
     return Collections.singleton(ret);

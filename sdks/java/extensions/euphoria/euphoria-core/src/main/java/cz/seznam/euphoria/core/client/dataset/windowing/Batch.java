@@ -20,7 +20,6 @@ import cz.seznam.euphoria.core.client.triggers.Trigger;
 
 import java.io.ObjectStreamException;
 import java.util.Collections;
-import java.util.Set;
 
 /**
  * Windowing with single window across the whole dataset. Suitable for
@@ -60,7 +59,7 @@ public final class Batch<T>
   private Batch() {}
 
   @Override
-  public Set<BatchWindow> assignWindowsToElement(WindowedElement<?, T> el) {
+  public Iterable<BatchWindow> assignWindowsToElement(WindowedElement<?, T> el) {
     return Collections.singleton(BatchWindow.INSTANCE);
   }
 

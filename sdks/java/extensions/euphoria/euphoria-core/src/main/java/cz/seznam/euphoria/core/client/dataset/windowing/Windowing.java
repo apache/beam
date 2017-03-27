@@ -18,7 +18,6 @@ package cz.seznam.euphoria.core.client.dataset.windowing;
 import cz.seznam.euphoria.core.client.triggers.Trigger;
 
 import java.io.Serializable;
-import java.util.Set;
 
 
 /**
@@ -35,9 +34,9 @@ public interface Windowing<T, W extends Window> extends Serializable {
    *
    * @param el The element to which windows should be assigned.
    *
-   * @return set of windows to be assign this element into, never {@code null}.
+   * @return collection of windows to be assigned this element into, never {@code null}.
    */
-  Set<W> assignWindowsToElement(WindowedElement<?, T> el);
+  Iterable<W> assignWindowsToElement(WindowedElement<?, T> el);
 
   /**
    * @return a {@link Trigger} associated with the current windowing strategy
