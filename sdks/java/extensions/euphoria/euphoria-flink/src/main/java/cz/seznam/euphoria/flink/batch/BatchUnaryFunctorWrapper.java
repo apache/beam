@@ -13,12 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package cz.seznam.euphoria.flink.functions;
+package cz.seznam.euphoria.flink.batch;
 
 import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 import cz.seznam.euphoria.core.client.functional.UnaryFunctor;
 import cz.seznam.euphoria.core.client.io.Context;
-import cz.seznam.euphoria.flink.FlinkElement;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
@@ -26,26 +25,26 @@ import org.apache.flink.util.Collector;
 
 import java.util.Objects;
 
-public class UnaryFunctorWrapper<WID extends Window, IN, OUT>
-        implements FlatMapFunction<FlinkElement<WID, IN>,
-        FlinkElement<WID, OUT>>,
-        ResultTypeQueryable<FlinkElement<WID, OUT>> {
+public class BatchUnaryFunctorWrapper<WID extends Window, IN, OUT>
+        implements FlatMapFunction<BatchElement<WID, IN>,
+        BatchElement<WID, OUT>>,
+        ResultTypeQueryable<BatchElement<WID, OUT>> {
 
   private final UnaryFunctor<IN, OUT> f;
 
-  public UnaryFunctorWrapper(UnaryFunctor<IN, OUT> f) {
+  public BatchUnaryFunctorWrapper(UnaryFunctor<IN, OUT> f) {
     this.f = Objects.requireNonNull(f);
   }
 
   @Override
-  public void flatMap(FlinkElement<WID, IN> value,
-                      Collector<FlinkElement<WID, OUT>> out)
+  public void flatMap(BatchElement<WID, IN> value,
+                      Collector<BatchElement<WID, OUT>> out)
       throws Exception
   {
     f.apply(value.getElement(), new Context<OUT>() {
       @Override
       public void collect(OUT elem) {
-        out.collect(new FlinkElement<>(
+        out.collect(new BatchElement<>(
                 value.getWindow(), value.getTimestamp(), elem));
       }
       @Override
@@ -57,7 +56,7 @@ public class UnaryFunctorWrapper<WID extends Window, IN, OUT>
 
   @SuppressWarnings("unchecked")
   @Override
-  public TypeInformation<FlinkElement<WID, OUT>> getProducedType() {
-    return TypeInformation.of((Class) FlinkElement.class);
+  public TypeInformation<BatchElement<WID, OUT>> getProducedType() {
+    return TypeInformation.of((Class) BatchElement.class);
   }
 }

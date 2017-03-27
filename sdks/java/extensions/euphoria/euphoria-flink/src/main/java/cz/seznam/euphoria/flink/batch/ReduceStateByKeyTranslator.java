@@ -17,7 +17,6 @@ package cz.seznam.euphoria.flink.batch;
 
 import com.google.common.collect.Iterables;
 import cz.seznam.euphoria.core.client.dataset.windowing.Window;
-import cz.seznam.euphoria.core.client.dataset.windowing.WindowedElement;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.functional.CombinableReduceFunction;
 import cz.seznam.euphoria.core.client.functional.StateFactory;
@@ -29,7 +28,6 @@ import cz.seznam.euphoria.core.client.triggers.Trigger;
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.core.executor.greduce.GroupReducer;
 import cz.seznam.euphoria.core.util.Settings;
-import cz.seznam.euphoria.flink.FlinkElement;
 import cz.seznam.euphoria.flink.FlinkOperator;
 import cz.seznam.euphoria.flink.Utils;
 import cz.seznam.euphoria.flink.functions.PartitionerWrapper;
@@ -75,9 +73,9 @@ public class ReduceStateByKeyTranslator implements BatchOperatorTranslator<Reduc
     UnaryFunction<Object, Long> timeAssigner = origOperator.getEventTimeAssigner();
 
     // FIXME require keyExtractor to deliver `Comparable`s
-    DataSet<FlinkElement> wAssigned =
+    DataSet<BatchElement> wAssigned =
             input.flatMap((i, c) -> {
-              FlinkElement wel = (FlinkElement) i;
+              BatchElement wel = (BatchElement) i;
 
               // assign timestamp if timeAssigner defined
               if (timeAssigner != null) {
@@ -86,27 +84,27 @@ public class ReduceStateByKeyTranslator implements BatchOperatorTranslator<Reduc
               Set<Window> assigned = windowing.assignWindowsToElement(wel);
               for (Window wid : assigned) {
                 Object el = wel.getElement();
-                c.collect(new FlinkElement<>(
+                c.collect(new BatchElement<>(
                         wid,
                         wel.getTimestamp(),
                         Pair.of(udfKey.apply(el), udfValue.apply(el))));
               }
             })
-            .returns(FlinkElement.class)
+            .returns(BatchElement.class)
             .name(operator.getName() + "::map-input")
             .setParallelism(operator.getParallelism());
 
     // ~ reduce the data now
-    DataSet<FlinkElement<?, Pair>> reduced =
+    DataSet<BatchElement<?, Pair>> reduced =
         wAssigned.groupBy((KeySelector)
             Utils.wrapQueryable(
                 // ~ FIXME if the underlying windowing is "non merging" we can group by
                 // "key _and_ window", thus, better utilizing the available resources
-                (FlinkElement<?, Pair> we) -> (Comparable) we.getElement().getFirst(),
+                (BatchElement<?, Pair> we) -> (Comparable) we.getElement().getFirst(),
                 Comparable.class))
             .sortGroup(Utils.wrapQueryable(
-                (KeySelector<FlinkElement<?, ?>, Long>)
-                        FlinkElement::getTimestamp, Long.class),
+                (KeySelector<BatchElement<?, ?>, Long>)
+                        BatchElement::getTimestamp, Long.class),
                 Order.ASCENDING)
             .reduceGroup(new RSBKReducer(origOperator, stateStorageProvider, windowing))
             .setParallelism(operator.getParallelism())
@@ -118,8 +116,8 @@ public class ReduceStateByKeyTranslator implements BatchOperatorTranslator<Reduc
           .partitionCustom(new PartitionerWrapper<>(
               origOperator.getPartitioning().getPartitioner()),
               Utils.wrapQueryable(
-                  (KeySelector<FlinkElement<?, Pair>, Comparable>)
-                      (FlinkElement<?, Pair> we) -> (Comparable) we.getElement().getKey(),
+                  (KeySelector<BatchElement<?, Pair>, Comparable>)
+                      (BatchElement<?, Pair> we) -> (Comparable) we.getElement().getKey(),
                   Comparable.class))
           .setParallelism(operator.getParallelism());
     }
@@ -128,8 +126,8 @@ public class ReduceStateByKeyTranslator implements BatchOperatorTranslator<Reduc
   }
 
   static class RSBKReducer
-          implements GroupReduceFunction<FlinkElement<?, Pair>, FlinkElement<?, Pair>>,
-          ResultTypeQueryable<FlinkElement<?, Pair>>
+          implements GroupReduceFunction<BatchElement<?, Pair>, BatchElement<?, Pair>>,
+          ResultTypeQueryable<BatchElement<?, Pair>>
   {
     private final StateFactory<?, State> stateFactory;
     private final CombinableReduceFunction<State> stateCombiner;
@@ -152,18 +150,18 @@ public class ReduceStateByKeyTranslator implements BatchOperatorTranslator<Reduc
 
     @Override
     @SuppressWarnings("unchecked")
-    public void reduce(Iterable<FlinkElement<?, Pair>> values,
-                       org.apache.flink.util.Collector<FlinkElement<?, Pair>> out)
+    public void reduce(Iterable<BatchElement<?, Pair>> values,
+                       org.apache.flink.util.Collector<BatchElement<?, Pair>> out)
     {
       GroupReducer reducer = new GroupReducer<>(
               stateFactory,
-              FlinkElement::new,
+              BatchElement::new,
               stateCombiner,
               stateStorageProvider,
               windowing,
               trigger,
-              elem -> out.collect((FlinkElement) elem));
-      for (FlinkElement value : values) {
+              elem -> out.collect((BatchElement) elem));
+      for (BatchElement value : values) {
         reducer.process(value);
       }
       reducer.close();
@@ -171,8 +169,8 @@ public class ReduceStateByKeyTranslator implements BatchOperatorTranslator<Reduc
 
     @Override
     @SuppressWarnings("unchecked")
-    public TypeInformation<FlinkElement<?, Pair>> getProducedType() {
-      return TypeInformation.of((Class) FlinkElement.class);
+    public TypeInformation<BatchElement<?, Pair>> getProducedType() {
+      return TypeInformation.of((Class) BatchElement.class);
     }
   }
 }

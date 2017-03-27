@@ -20,7 +20,7 @@ import cz.seznam.euphoria.core.client.dataset.windowing.Batch;
 import cz.seznam.euphoria.core.client.io.DataSource;
 import cz.seznam.euphoria.core.client.io.Partition;
 import cz.seznam.euphoria.core.client.io.Reader;
-import cz.seznam.euphoria.flink.FlinkElement;
+import cz.seznam.euphoria.flink.batch.BatchElement;
 import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.io.statistics.BaseStatistics;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -34,7 +34,7 @@ import java.util.List;
 import java.util.function.BiFunction;
 
 public class DataSourceWrapper<T>
-        implements InputFormat<FlinkElement<Batch.BatchWindow, T>,
+        implements InputFormat<BatchElement<Batch.BatchWindow, T>,
         PartitionWrapper<T>>,
         ResultTypeQueryable<T> {
 
@@ -92,10 +92,10 @@ public class DataSourceWrapper<T>
   }
 
   @Override
-  public FlinkElement<Batch.BatchWindow, T> nextRecord(
-          FlinkElement<Batch.BatchWindow, T> reuse)
+  public BatchElement<Batch.BatchWindow, T> nextRecord(
+          BatchElement<Batch.BatchWindow, T> reuse)
       throws IOException {
-    return new FlinkElement<>(Batch.BatchWindow.get(), 0L, reader.next());
+    return new BatchElement<>(Batch.BatchWindow.get(), 0L, reader.next());
   }
 
   @Override
@@ -106,6 +106,6 @@ public class DataSourceWrapper<T>
   @Override
   @SuppressWarnings("unchecked")
   public TypeInformation<T> getProducedType() {
-    return TypeInformation.of((Class) FlinkElement.class);
+    return TypeInformation.of((Class) BatchElement.class);
   }
 }

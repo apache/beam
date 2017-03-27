@@ -20,7 +20,7 @@ import cz.seznam.euphoria.core.client.dataset.windowing.Batch;
 import cz.seznam.euphoria.core.client.io.DataSource;
 import cz.seznam.euphoria.core.client.io.Partition;
 import cz.seznam.euphoria.core.client.io.Reader;
-import cz.seznam.euphoria.flink.FlinkElement;
+import cz.seznam.euphoria.flink.streaming.StreamingElement;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
@@ -36,8 +36,8 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
 public class DataSourceWrapper<T>
-        extends RichParallelSourceFunction<FlinkElement<Batch.BatchWindow, T>>
-        implements ResultTypeQueryable<FlinkElement<Batch.BatchWindow, T>>
+        extends RichParallelSourceFunction<StreamingElement<Batch.BatchWindow, T>>
+        implements ResultTypeQueryable<StreamingElement<Batch.BatchWindow, T>>
 {
   private final DataSource<T> dataSource;
   private volatile boolean isRunning = true;
@@ -49,7 +49,7 @@ public class DataSourceWrapper<T>
   }
 
   @Override
-  public void run(SourceContext<FlinkElement<Batch.BatchWindow, T>> ctx)
+  public void run(SourceContext<StreamingElement<Batch.BatchWindow, T>> ctx)
       throws Exception {
     StreamingRuntimeContext runtimeContext =
             (StreamingRuntimeContext) getRuntimeContext();
@@ -106,9 +106,9 @@ public class DataSourceWrapper<T>
     }
   }
 
-  private FlinkElement<Batch.BatchWindow, T> toStreamingElement(T elem) {
+  private StreamingElement<Batch.BatchWindow, T> toStreamingElement(T elem) {
     // assign ingestion timestamp to elements
-    return new FlinkElement<>(Batch.BatchWindow.get(), System.currentTimeMillis(), elem);
+    return new StreamingElement<>(Batch.BatchWindow.get(), elem);
   }
 
   @Override
@@ -121,8 +121,8 @@ public class DataSourceWrapper<T>
 
   @Override
   @SuppressWarnings("unchecked")
-  public TypeInformation<FlinkElement<Batch.BatchWindow, T>> getProducedType() {
-    return TypeInformation.of((Class) FlinkElement.class);
+  public TypeInformation<StreamingElement<Batch.BatchWindow, T>> getProducedType() {
+    return TypeInformation.of((Class) StreamingElement.class);
   }
 
   private ThreadPoolExecutor createThreadPool() {
