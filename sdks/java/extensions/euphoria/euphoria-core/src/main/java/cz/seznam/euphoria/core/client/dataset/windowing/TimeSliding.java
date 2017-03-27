@@ -64,7 +64,7 @@ public final class TimeSliding<T>
   }
 
   @Override
-  public Set<TimeInterval> assignWindowsToElement(WindowedElement<?, T> el) {
+  public Iterable<TimeInterval> assignWindowsToElement(WindowedElement<?, T> el) {
     Set<TimeInterval> ret =
             Sets.newHashSetWithExpectedSize((int) (this.duration / this.slide));
     for (long start = el.getTimestamp() - el.getTimestamp() % this.slide;

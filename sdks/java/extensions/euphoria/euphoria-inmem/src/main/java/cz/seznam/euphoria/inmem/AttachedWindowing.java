@@ -22,7 +22,6 @@ import cz.seznam.euphoria.core.client.triggers.NoopTrigger;
 import cz.seznam.euphoria.core.client.triggers.Trigger;
 
 import java.util.Collections;
-import java.util.Set;
 
 class AttachedWindowing<T, W extends Window> implements Windowing<T, W> {
 
@@ -30,7 +29,7 @@ class AttachedWindowing<T, W extends Window> implements Windowing<T, W> {
 
   @SuppressWarnings("unchecked")
   @Override
-  public Set<W> assignWindowsToElement(WindowedElement<?, T> input) {
+  public Iterable<W> assignWindowsToElement(WindowedElement<?, T> input) {
     return Collections.singleton((W) input.getWindow());
   }
 

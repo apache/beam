@@ -32,7 +32,6 @@ import org.junit.Test;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-import java.util.Set;
 
 import static org.junit.Assert.assertEquals;
 
@@ -169,7 +168,7 @@ public class JoinTest extends AbstractOperatorTest {
       implements Windowing<Either<Integer, Long>, IntWindow> {
 
     @Override
-    public Set<IntWindow> assignWindowsToElement(
+    public Iterable<IntWindow> assignWindowsToElement(
         WindowedElement<?, Either<Integer, Long>> input) {
       int element;
       Either<Integer, Long> unwrapped = input.getElement();
