@@ -33,14 +33,14 @@ public class KeyedMultiWindowedElement<WID extends Window, KEY, VALUE> {
 
   private KEY key;
   private VALUE value;
-  private Set<WID> windows;
+  private Iterable<WID> windows;
 
   public KeyedMultiWindowedElement() {
   }
 
   public KeyedMultiWindowedElement(KEY key,
                                    VALUE value,
-                                   Set<WID> windows) {
+                                   Iterable<WID> windows) {
     this.key = key;
     this.value = value;
     this.windows = windows;
@@ -62,11 +62,11 @@ public class KeyedMultiWindowedElement<WID extends Window, KEY, VALUE> {
     this.value = value;
   }
 
-  public Set<WID> getWindows() {
+  public Iterable<WID> getWindows() {
     return windows;
   }
 
-  public void setWindows(Set<WID> windows) {
+  public void setWindows(Iterable<WID> windows) {
     this.windows = windows;
   }
 }

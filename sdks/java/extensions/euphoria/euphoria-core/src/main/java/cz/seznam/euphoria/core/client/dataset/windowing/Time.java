@@ -25,7 +25,6 @@ import javax.annotation.Nullable;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.Objects;
-import java.util.Set;
 
 import static java.util.Collections.singleton;
 
@@ -65,7 +64,7 @@ public class Time<T> implements Windowing<T, TimeInterval> {
   }
 
   @Override
-  public Set<TimeInterval> assignWindowsToElement(WindowedElement<?, T> el) {
+  public Iterable<TimeInterval> assignWindowsToElement(WindowedElement<?, T> el) {
     long stamp = el.getTimestamp();
     long start = stamp - (stamp + durationMillis) % durationMillis;
     long end = start + durationMillis;

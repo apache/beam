@@ -56,7 +56,6 @@ import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.stream.Collectors;
 
 import static java.util.Arrays.asList;
@@ -612,7 +611,7 @@ public class ReduceStateByKeyTest extends AbstractOperatorTest {
 
   static class TimeAssertingWindowing<T> implements Windowing<T, TimeInterval> {
     @Override
-    public Set<TimeInterval> assignWindowsToElement(WindowedElement<?, T> input) {
+    public Iterable<TimeInterval> assignWindowsToElement(WindowedElement<?, T> input) {
       return Collections.singleton(new TimeInterval(0, Long.MAX_VALUE));
     }
 

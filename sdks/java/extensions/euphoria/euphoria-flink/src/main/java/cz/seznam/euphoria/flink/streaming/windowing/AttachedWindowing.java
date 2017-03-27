@@ -23,13 +23,12 @@ import cz.seznam.euphoria.core.client.triggers.Trigger;
 import cz.seznam.euphoria.core.client.triggers.TriggerContext;
 
 import java.util.Collections;
-import java.util.Set;
 
 public class AttachedWindowing<T, WID extends Window> implements Windowing<T, WID> {
 
   @Override
   @SuppressWarnings("unchecked")
-  public Set<WID> assignWindowsToElement(WindowedElement<?, T> el) {
+  public Iterable<WID> assignWindowsToElement(WindowedElement<?, T> el) {
     return Collections.singleton((WID) el.getWindow());
   }
 

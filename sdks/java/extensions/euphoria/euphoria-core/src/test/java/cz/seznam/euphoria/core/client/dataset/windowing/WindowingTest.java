@@ -69,7 +69,7 @@ public class WindowingTest {
     assertEquals(expectDurationMillis, w.getDuration());
   }
 
-  <W extends Window, T> Set<W> assignWindows(Windowing<T, W> windowing,
+  <W extends Window, T> Iterable<W> assignWindows(Windowing<T, W> windowing,
                                              T elem,
                                              UnaryFunction<T, Long> eventTimeAssigner) {
     return windowing.assignWindowsToElement(
@@ -109,7 +109,7 @@ public class WindowingTest {
   }
 
   private TimeInterval assertSessionWindow(
-      Set<TimeInterval> window, long expectedStartMillis, long expectedEndMillis) {
+      Iterable<TimeInterval> window, long expectedStartMillis, long expectedEndMillis) {
     TimeInterval w = Iterables.getOnlyElement(window);
     assertSessionWindow(w, expectedStartMillis, expectedEndMillis);
     return w;
@@ -143,11 +143,11 @@ public class WindowingTest {
     };
 
     for (long event : data) {
-      Set<TimeInterval> labels = windowing
+      Iterable<TimeInterval> labels = windowing
           .assignWindowsToElement(new Elem<>(
               Batch.BatchWindow.get(), event, eventTimeAssigner.apply(event)));
       // verify window count
-      assertEquals(3, labels.size());
+      assertEquals(3, Iterables.size(labels));
       // verify that each window contains the original event
       for (TimeInterval l : labels) {
         long stamp = event * 1000L;
