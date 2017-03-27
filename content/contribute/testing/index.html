@@ -167,13 +167,13 @@
   </li>
   <li><a href="#testing-types" id="markdown-toc-testing-types">Testing Types</a>    <ul>
       <li><a href="#unit" id="markdown-toc-unit">Unit</a></li>
-      <li><a href="#runnableonservice-working-title" id="markdown-toc-runnableonservice-working-title">RunnableOnService (Working Title)</a></li>
+      <li><a href="#validatesrunner-working-title" id="markdown-toc-validatesrunner-working-title">ValidatesRunner (Working Title)</a></li>
       <li><a href="#e2e" id="markdown-toc-e2e">E2E</a></li>
     </ul>
   </li>
   <li><a href="#testing-systems" id="markdown-toc-testing-systems">Testing Systems</a>    <ul>
       <li><a href="#e2e-testing-framework" id="markdown-toc-e2e-testing-framework">E2E Testing Framework</a></li>
-      <li><a href="#runnableonservice-tests" id="markdown-toc-runnableonservice-tests">RunnableOnService Tests</a></li>
+      <li><a href="#validatesrunner-tests" id="markdown-toc-validatesrunner-tests">ValidatesRunner Tests</a></li>
       <li><a href="#effective-use-of-the-testpipeline-junit-rule" id="markdown-toc-effective-use-of-the-testpipeline-junit-rule">Effective use of the TestPipeline JUnit rule</a></li>
       <li><a href="#api-surface-testing" id="markdown-toc-api-surface-testing">API Surface testing</a></li>
     </ul>
@@ -331,11 +331,11 @@ details on those testing types.</p>
    </td>
    <td>Correctness
    </td>
-   <td>E2E Test, <a href="https://github.com/apache/beam/blob/master/runners/pom.xml#L47">@RunnableonService</a>
+   <td>E2E Test, <a href="https://github.com/apache/beam/blob/master/runners/pom.xml#L47">@ValidatesRunner</a>
    </td>
    <td><a href="https://github.com/apache/beam/blob/master/examples/java/src/test/java/org/apache/beam/examples/WordCountIT.java#L78">WordCountIT</a>, <a href="https://github.com/apache/beam/blob/master/sdks/java/core/src/test/java/org/apache/beam/sdk/transforms/ParDoTest.java">ParDoTest</a>
    </td>
-   <td>E2E, @RunnableonService
+   <td>E2E, @ValidatesRunner
    </td>
    <td>Postcommit
    </td>
@@ -450,7 +450,7 @@ viewed.</p>
 
 <p>Running in postcommit removes as stringent of a time constraint, which gives us
 the ability to do some more comprehensive testing. In postcommit we have a test
-suite running the RunnableOnService tests against each supported runner, and
+suite running the ValidatesRunner tests against each supported runner, and
 another for running the full set of E2E tests against each runner.
 Currently-supported runners are Dataflow, Flink, Spark, and Gearpump, with
 others soon to follow. Work is ongoing to enable Flink, Spark, and Gearpump in
@@ -475,9 +475,9 @@ importance of testing, Beam has a robust set of unit tests, as well as testing
 coverage measurement tools, which protect the codebase from simple to moderate
 breakages. Beam Java unit tests are written in JUnit.</p>
 
-<h3 id="runnableonservice-working-title">RunnableOnService (Working Title)</h3>
+<h3 id="validatesrunner-working-title">ValidatesRunner (Working Title)</h3>
 
-<p>RunnableOnService tests contain components of both component and end-to-end
+<p>ValidatesRunner tests contain components of both component and end-to-end
 tests. They fulfill the typical purpose of a component test - they are meant to
 test a well-scoped piece of Beam functionality or the interactions between two
 such pieces and can be run in a component-test-type fashion against the
@@ -487,7 +487,7 @@ functionality, but runner functionality as well. They are more lightweight than
 a traditional end-to-end test and, because of their well-scoped nature, provide
 good signal as to what exactly is working or broken against a particular runner.</p>
 
-<p>The name “RunnableOnService” is an artifact of when Beam was still the Google
+<p>The name “ValidatesRunner” is an artifact of when Beam was still the Google
 Cloud Dataflow SDK and <a href="https://issues.apache.org/jira/browse/BEAM-655">will be
 changing</a> to something more
 indicative of its use in the coming months.</p>
@@ -537,9 +537,9 @@ environments. We currently provide the ability to run against the DirectRunner,
 against a local Spark instance, a local Flink instance, and against the Google
 Cloud Dataflow service.</p>
 
-<h3 id="runnableonservice-tests">RunnableOnService Tests</h3>
+<h3 id="validatesrunner-tests">ValidatesRunner Tests</h3>
 
-<p>RunnableOnService tests are tests built to use the Beam TestPipeline class,
+<p>ValidatesRunner tests are tests built to use the Beam TestPipeline class,
 which enables test authors to write simple functionality verification. They are
 meant to use some of the built-in utilities of the SDK, namely PAssert, to
 verify that the simple pipelines they run end in the correct state.</p>
@@ -568,7 +568,7 @@ due to the one of the following scenarios:</p>
 
 <p>Abandoned node detection is <em>automatically enabled</em> when a real pipeline 
 runner (i.e. not a <code class="highlighter-rouge">CrashingRunner</code>) and/or a 
-<code class="highlighter-rouge">@NeedsRunner</code> / <code class="highlighter-rouge">@RunnableOnService</code> annotation are detected.</p>
+<code class="highlighter-rouge">@NeedsRunner</code> / <code class="highlighter-rouge">@ValidatesRunner</code> annotation are detected.</p>
 
 <p>Consider the following test:</p>
 
