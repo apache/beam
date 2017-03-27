@@ -29,10 +29,10 @@ import static org.junit.Assert.assertThat;
 
 import java.io.Serializable;
 import org.apache.beam.sdk.PipelineResult;
-import org.apache.beam.sdk.testing.RunnableOnService;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.UsesAttemptedMetrics;
 import org.apache.beam.sdk.testing.UsesCommittedMetrics;
+import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -119,7 +119,7 @@ public class MetricsTest implements Serializable {
     assertThat(cell.getCumulative(), CoreMatchers.equalTo(42L));
   }
 
-  @Category({RunnableOnService.class, UsesCommittedMetrics.class})
+  @Category({ValidatesRunner.class, UsesCommittedMetrics.class})
   @Test
   public void committedMetricsReportToQuery() {
     PipelineResult result = runPipelineWithMetrics();
@@ -148,7 +148,7 @@ public class MetricsTest implements Serializable {
   }
 
 
-  @Category({RunnableOnService.class, UsesAttemptedMetrics.class})
+  @Category({ValidatesRunner.class, UsesAttemptedMetrics.class})
   @Test
   public void attemptedMetricsReportToQuery() {
     PipelineResult result = runPipelineWithMetrics();

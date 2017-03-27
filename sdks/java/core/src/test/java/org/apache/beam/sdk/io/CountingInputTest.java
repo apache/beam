@@ -24,8 +24,8 @@ import static org.junit.Assert.assertThat;
 import org.apache.beam.sdk.io.CountingInput.UnboundedCountingInput;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
-import org.apache.beam.sdk.testing.RunnableOnService;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Distinct;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -70,7 +70,7 @@ public class CountingInputTest {
   public TestPipeline p = TestPipeline.create();
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testBoundedInput() {
     long numElements = 1000;
     PCollection<Long> input = p.apply(CountingInput.upTo(numElements));
@@ -80,7 +80,7 @@ public class CountingInputTest {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testEmptyBoundedInput() {
     PCollection<Long> input = p.apply(CountingInput.upTo(0));
 
@@ -89,7 +89,7 @@ public class CountingInputTest {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testEmptyBoundedInputSubrange() {
     PCollection<Long> input = p.apply(CountingInput.forSubrange(42, 42));
 
@@ -99,7 +99,7 @@ public class CountingInputTest {
 
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testBoundedInputSubrange() {
     long start = 10;
     long end = 1000;
@@ -125,7 +125,7 @@ public class CountingInputTest {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testUnboundedInput() {
     long numElements = 1000;
 
@@ -164,7 +164,7 @@ public class CountingInputTest {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testUnboundedInputTimestamps() {
     long numElements = 1000;
 

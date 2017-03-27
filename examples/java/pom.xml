@@ -539,7 +539,7 @@
 
     <!--
       For testing the example itself, use the direct runner. This is separate from
-      the use of RunnableOnService tests for testing a particular runner.
+      the use of ValidatesRunner tests for testing a particular runner.
     -->
     <dependency>
       <groupId>org.apache.beam</groupId>

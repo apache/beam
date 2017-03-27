@@ -130,7 +130,7 @@
       <scope>test</scope>
     </dependency>
 
-    <!-- Depend on test jar to scan for RunnableOnService tests -->
+    <!-- Depend on test jar to scan for ValidatesRunner tests -->
     <dependency>
       <groupId>org.apache.beam</groupId>
       <artifactId>beam-sdks-java-core</artifactId>
@@ -206,7 +206,7 @@
               <goal>test</goal>
             </goals>
             <configuration>
-              <groups>org.apache.beam.sdk.testing.RunnableOnService</groups>
+              <groups>org.apache.beam.sdk.testing.ValidatesRunner</groups>
               <excludedGroups>
                 org.apache.beam.sdk.testing.FlattenWithHeterogeneousCoders,
                 org.apache.beam.sdk.testing.UsesStatefulParDo,
