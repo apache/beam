@@ -50,8 +50,21 @@ def String findExecutable(String[] candidates, versionRegex) {
     return null
 }
 
-pythonBin = findExecutable(pythonCandidates as String[], requiredPythonVersion)
-pipBin = findExecutable(pipCandidates as String[], requiredPythonVersion)
+def Boolean isWindows() {
+    return System.properties['os.name'].toLowerCase(Locale.ROOT).contains('windows');
+}
+
+/* On MS Windows applications with dots in the filename can only be executed
+ * if the .exe suffix is also included. That is 'pip2.7' will cause an execution error,
+ * while 'pip2.7.exe' will succeed (given that pip2.7.exe is an executable in the PATH).
+ * The specializeCandidateForOS closure takes care of this conversion.
+ */
+def specializeCandidateForOS = { it -> isWindows() ? it + '.exe' : it }
+
+pythonBin = findExecutable(pythonCandidates.collect(specializeCandidateForOS) as String[],
+                           requiredPythonVersion)
+pipBin = findExecutable(pipCandidates.collect(specializeCandidateForOS) as String[],
+                        requiredPythonVersion)
 
 if (pythonBin == null) {
    throw new MojoFailureException("Unable to find Python 2.7 in path")
