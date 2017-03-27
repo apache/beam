@@ -23,7 +23,6 @@ import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.base.Strings.isNullOrEmpty;
 import static org.apache.beam.sdk.util.SerializableUtils.serializeToByteArray;
 import static org.apache.beam.sdk.util.StringUtils.byteArrayToJsonString;
-import static org.apache.beam.sdk.util.StringUtils.jsonStringToByteArray;
 import static org.apache.beam.sdk.util.Structs.addBoolean;
 import static org.apache.beam.sdk.util.Structs.addDictionary;
 import static org.apache.beam.sdk.util.Structs.addList;
@@ -49,7 +48,6 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedList;
@@ -91,6 +89,7 @@ import org.apache.beam.sdk.util.CloudObject;
 import org.apache.beam.sdk.util.PropertyNames;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.util.WindowingStrategies;
 import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
@@ -891,9 +890,16 @@ public class DataflowPipelineTranslator {
             stepContext.addOutput(context.getOutput(transform));
 
             WindowingStrategy<?, ?> strategy = context.getOutput(transform).getWindowingStrategy();
-            byte[] serializedBytes = serializeToByteArray(strategy);
+
+            byte[] serializedBytes;
+            try {
+              serializedBytes = WindowingStrategies.toProto(strategy).toByteArray();
+            } catch (IOException e) {
+              throw new RuntimeException(
+                  String.format("Error serializing WindowingStrategy %s as protobuf", strategy), e);
+            }
+
             String serializedJson = byteArrayToJsonString(serializedBytes);
-            assert Arrays.equals(serializedBytes, jsonStringToByteArray(serializedJson));
             stepContext.addInput(PropertyNames.SERIALIZED_FN, serializedJson);
           }
         });
