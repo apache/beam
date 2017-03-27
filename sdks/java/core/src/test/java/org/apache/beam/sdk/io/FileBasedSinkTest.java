@@ -17,12 +17,12 @@
  */
 package org.apache.beam.sdk.io;
 
-import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+
+import com.google.common.collect.Lists;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -41,13 +41,17 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.zip.GZIPInputStream;
 
 import org.apache.beam.sdk.io.FileBasedSink.CompressionType;
 import org.apache.beam.sdk.io.FileBasedSink.FileBasedWriteOperation;
 import org.apache.beam.sdk.io.FileBasedSink.FileBasedWriter;
 import org.apache.beam.sdk.io.FileBasedSink.FileResult;
+import org.apache.beam.sdk.io.FileBasedSink.FilenamePolicy;
+import org.apache.beam.sdk.io.FileBasedSink.FilenamePolicy.Context;
 import org.apache.beam.sdk.io.FileBasedSink.WritableByteChannelFactory;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -99,7 +103,7 @@ public class FileBasedSinkTest {
     expected.addAll(values);
     expected.add(SimpleSink.SimpleWriter.FOOTER);
 
-    writer.open(testUid);
+    writer.open(testUid, null, null, -1, -1);
     for (String value : values) {
       writer.write(value);
     }
@@ -215,20 +219,18 @@ public class FileBasedSinkTest {
 
     int numFiles = temporaryFiles.size();
 
-    List<File> outputFiles = new ArrayList<>();
     List<FileResult> fileResults = new ArrayList<>();
-    List<String> outputFilenames = writeOp.generateDestinationFilenames(numFiles);
-
-    // Create temporary output bundles and output File objects
+    // Create temporary output bundles and output File objects.
     for (int i = 0; i < numFiles; i++) {
-      fileResults.add(new FileResult(temporaryFiles.get(i).toString()));
-      outputFiles.add(new File(outputFilenames.get(i)));
+      fileResults.add(new FileResult(temporaryFiles.get(i).toString(), null));
     }
 
     writeOp.finalize(fileResults, options);
 
     for (int i = 0; i < numFiles; i++) {
-      assertTrue(outputFiles.get(i).exists());
+      String outputFilename = writeOp.getSink().getFileNamePolicy().apply(
+          new Context(null, null, i, numFiles));
+      assertTrue(new File(outputFilename).exists());
       assertFalse(temporaryFiles.get(i).exists());
     }
 
@@ -258,7 +260,7 @@ public class FileBasedSinkTest {
       outputFiles.add(outputFile);
     }
 
-    writeOp.removeTemporaryFiles(Collections.<String>emptyList(), options);
+    writeOp.removeTemporaryFiles(Collections.<String>emptySet(), true, options);
 
     for (int i = 0; i < numFiles; i++) {
       assertFalse(temporaryFiles.get(i).exists());
@@ -274,12 +276,12 @@ public class FileBasedSinkTest {
     PipelineOptions options = PipelineOptionsFactory.create();
     SimpleSink.SimpleWriteOperation writeOp = buildWriteOperation();
 
-    List<String> inputFilenames = Arrays.asList("input-3", "input-2", "input-1");
-    List<String> inputContents = Arrays.asList("3", "2", "1");
+    List<String> inputFilenames = Arrays.asList("input-1", "input-2", "input-3");
+    List<String> inputContents = Arrays.asList("1", "2", "3");
     List<String> expectedOutputFilenames = Arrays.asList(
-        "output-00002-of-00003.test", "output-00001-of-00003.test", "output-00000-of-00003.test");
+        "output-00000-of-00003.test", "output-00001-of-00003.test", "output-00002-of-00003.test");
 
-    List<String> inputFilePaths = new ArrayList<>();
+    Map<String, String> inputFilePaths = new HashMap<>();
     List<String> expectedOutputPaths = new ArrayList<>();
 
     for (int i = 0; i < inputFilenames.size(); i++) {
@@ -291,19 +293,26 @@ public class FileBasedSinkTest {
       File inputTmpFile = tmpFolder.newFile(inputFilenames.get(i));
       List<String> lines = Arrays.asList(inputContents.get(i));
       writeFile(lines, inputTmpFile);
-      inputFilePaths.add(inputTmpFile.toString());
+      inputFilePaths.put(inputTmpFile.toString(),
+          writeOp.getSink().getFileNamePolicy().apply(
+              new Context(null, null, i, inputFilenames.size())));
     }
 
     // Copy input files to output files.
-    List<String> actual = writeOp.copyToOutputFiles(inputFilePaths, options);
-
-    // Assert that the expected paths are returned.
-    assertThat(expectedOutputPaths, containsInAnyOrder(actual.toArray()));
+    writeOp.copyToOutputFiles(inputFilePaths, options);
 
     // Assert that the contents were copied.
     for (int i = 0; i < expectedOutputPaths.size(); i++) {
       assertFileContains(Arrays.asList(inputContents.get(i)), expectedOutputPaths.get(i));
     }
+  }
+
+  public List<String> generateDestinationFilenames(FilenamePolicy policy, int numFiles) {
+    List<String> filenames = new ArrayList<>();
+    for (int i = 0; i < numFiles; i++) {
+      filenames.add(policy.apply(new Context(null, null, i, numFiles)));
+    }
+    return filenames;
   }
 
   /**
@@ -314,36 +323,35 @@ public class FileBasedSinkTest {
     List<String> expected;
     List<String> actual;
     SimpleSink sink = new SimpleSink(getBaseOutputFilename(), "test", ".SS.of.NN");
-    SimpleSink.SimpleWriteOperation writeOp = new SimpleSink.SimpleWriteOperation(sink);
+    FilenamePolicy policy = sink.getFileNamePolicy();
 
     expected = Arrays.asList(appendToTempFolder("output.00.of.03.test"),
         appendToTempFolder("output.01.of.03.test"), appendToTempFolder("output.02.of.03.test"));
-    actual = writeOp.generateDestinationFilenames(3);
+    actual = generateDestinationFilenames(policy, 3);
     assertEquals(expected, actual);
 
     expected = Arrays.asList(appendToTempFolder("output.00.of.01.test"));
-    actual = writeOp.generateDestinationFilenames(1);
+    actual = generateDestinationFilenames(policy, 1);
     assertEquals(expected, actual);
 
     expected = new ArrayList<>();
-    actual = writeOp.generateDestinationFilenames(0);
+    actual = generateDestinationFilenames(policy, 0);
     assertEquals(expected, actual);
 
     // Also validate that we handle the case where the user specified "." that we do
     // not prefix an additional "." making "..test"
     sink = new SimpleSink(getBaseOutputFilename(), ".test", ".SS.of.NN");
-    writeOp = new SimpleSink.SimpleWriteOperation(sink);
     expected = Arrays.asList(appendToTempFolder("output.00.of.03.test"),
         appendToTempFolder("output.01.of.03.test"), appendToTempFolder("output.02.of.03.test"));
-    actual = writeOp.generateDestinationFilenames(3);
+    actual = generateDestinationFilenames(policy, 3);
     assertEquals(expected, actual);
 
     expected = Arrays.asList(appendToTempFolder("output.00.of.01.test"));
-    actual = writeOp.generateDestinationFilenames(1);
+    actual = generateDestinationFilenames(policy, 1);
     assertEquals(expected, actual);
 
     expected = new ArrayList<>();
-    actual = writeOp.generateDestinationFilenames(0);
+    actual = generateDestinationFilenames(policy, 0);
     assertEquals(expected, actual);
   }
 
@@ -355,20 +363,21 @@ public class FileBasedSinkTest {
     List<String> expected;
     List<String> actual;
     SimpleSink.SimpleWriteOperation writeOp = buildWriteOperation();
+    FilenamePolicy policy = writeOp.getSink().getFileNamePolicy();
 
     expected = Arrays.asList(
         appendToTempFolder("output-00000-of-00003.test"),
         appendToTempFolder("output-00001-of-00003.test"),
         appendToTempFolder("output-00002-of-00003.test"));
-    actual = writeOp.generateDestinationFilenames(3);
+    actual = generateDestinationFilenames(policy, 3);
     assertEquals(expected, actual);
 
     expected = Arrays.asList(appendToTempFolder("output-00000-of-00001.test"));
-    actual = writeOp.generateDestinationFilenames(1);
+    actual = generateDestinationFilenames(policy, 1);
     assertEquals(expected, actual);
 
     expected = new ArrayList<>();
-    actual = writeOp.generateDestinationFilenames(0);
+    actual = generateDestinationFilenames(policy, 0);
     assertEquals(expected, actual);
   }
 
@@ -380,16 +389,17 @@ public class FileBasedSinkTest {
     SimpleSink sink = new SimpleSink("output", "test", "-NN");
     SimpleSink.SimpleWriteOperation writeOp = new SimpleSink.SimpleWriteOperation(sink);
 
-    // A single shard doesn't need to include the shard number.
-    assertEquals(Arrays.asList("output-01.test"),
-                 writeOp.generateDestinationFilenames(1));
-
     // More than one shard does.
     try {
-      writeOp.generateDestinationFilenames(3);
+      Iterable<FileResult> results = Lists.newArrayList(
+          new FileResult("temp1", "file1"),
+          new FileResult("temp2", "file1"),
+          new FileResult("temp3", "file1"));
+
+      writeOp.buildOutputFilenames(results);
       fail("Should have failed.");
     } catch (IllegalStateException exn) {
-      assertEquals("Shard name template '-NN' only generated 1 distinct file names for 3 files.",
+      assertEquals("Only generated 1 distinct file names for 3 files.",
                    exn.getMessage());
     }
   }
@@ -402,19 +412,19 @@ public class FileBasedSinkTest {
     List<String> expected;
     List<String> actual;
     SimpleSink sink = new SimpleSink(appendToTempFolder(baseOutputFilename), "");
-    SimpleSink.SimpleWriteOperation writeOp = new SimpleSink.SimpleWriteOperation(sink);
+    FilenamePolicy policy = sink.getFileNamePolicy();
 
     expected = Arrays.asList(appendToTempFolder("output-00000-of-00003"),
         appendToTempFolder("output-00001-of-00003"), appendToTempFolder("output-00002-of-00003"));
-    actual = writeOp.generateDestinationFilenames(3);
+    actual = generateDestinationFilenames(policy, 3);
     assertEquals(expected, actual);
 
     expected = Arrays.asList(appendToTempFolder("output-00000-of-00001"));
-    actual = writeOp.generateDestinationFilenames(1);
+    actual = generateDestinationFilenames(policy, 1);
     assertEquals(expected, actual);
 
     expected = new ArrayList<>();
-    actual = writeOp.generateDestinationFilenames(0);
+    actual = generateDestinationFilenames(policy, 0);
     assertEquals(expected, actual);
   }
 
@@ -513,7 +523,7 @@ public class FileBasedSinkTest {
     expected.add("footer");
     expected.add("footer");
 
-    writer.open(testUid);
+    writer.open(testUid, null, null, -1, -1);
     writer.write("a");
     writer.write("b");
     final FileResult result = writer.close();
