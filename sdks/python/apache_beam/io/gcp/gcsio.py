@@ -754,7 +754,6 @@ class GcsBufferedWriter(object):
     self.path = path
     self.mode = mode
     self.bucket, self.name = parse_gcs_path(path)
-    self.mode = mode
 
     self.closed = False
     self.position = 0
