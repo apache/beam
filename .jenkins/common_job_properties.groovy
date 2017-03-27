@@ -206,7 +206,8 @@ class common_job_properties {
   static void setPostCommit(context,
                             String buildSchedule = '0 */6 * * *',
                             boolean triggerEveryPush = true,
-                            String notifyAddress = 'commits@beam.apache.org') {
+                            String notifyAddress = 'commits@beam.apache.org',
+                            boolean emailIndividuals = true) {
     // Set build triggers
     context.triggers {
       // By default runs every 6 hours.
@@ -218,7 +219,7 @@ class common_job_properties {
 
     context.publishers {
       // Notify an email address for each failed build (defaults to commits@).
-      mailer(notifyAddress, false, true)
+      mailer(notifyAddress, false, emailIndividuals)
     }
   }
 

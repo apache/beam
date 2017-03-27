@@ -23,8 +23,14 @@ job('beam_PerformanceTests_JDBC'){
     // Set default Beam job properties.
     common_job_properties.setTopLevelMainJobProperties(delegate)
 
-    // Run job in postcommit every 6 hours and don't trigger every push.
-    common_job_properties.setPostCommit(delegate, '0 */6 * * *', false)
+    // Run job in postcommit every 6 hours, don't trigger every push, and
+    // don't email individual committers.
+    common_job_properties.setPostCommit(
+        delegate,
+        '0 */6 * * *',
+        false,
+        'commits@beam.apache.org',
+        false)
 
     def pipelineArgs = [
         tempRoot: 'gs://temp-storage-for-end-to-end-tests',
