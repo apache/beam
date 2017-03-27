@@ -242,6 +242,7 @@ public class WindowingStrategies implements Serializable {
         windowFnSpec.getSpec().getUrn().equals(CUSTOM_WINDOWFN_URN),
         "Only Java-serialized %s instances are supported, with URN %s. But found URN %s",
         WindowFn.class.getSimpleName(),
+        CUSTOM_WINDOWFN_URN,
         windowFnSpec.getSpec().getUrn());
 
     Object deserializedWindowFn =
