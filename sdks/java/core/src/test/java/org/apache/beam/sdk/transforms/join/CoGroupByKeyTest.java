@@ -19,6 +19,7 @@ package org.apache.beam.sdk.transforms.join;
 
 import static org.hamcrest.collection.IsIterableContainingInAnyOrder.containsInAnyOrder;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
 
 import com.google.common.collect.Iterables;
@@ -39,6 +40,7 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFnTester;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.transforms.join.CoGroupByKey.FilterOption;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.OutputTimeFns;
@@ -146,6 +148,13 @@ public class CoGroupByKeyTest implements Serializable {
     p.run();
   }
 
+  private PCollection<KV<Integer, CoGbkResult>> buildPurchasesCoGbk(
+      Pipeline p,
+      TupleTag<String> purchasesTag,
+      TupleTag<String> addressesTag,
+      TupleTag<String> namesTag){
+    return buildPurchasesCoGbk(p, purchasesTag, addressesTag, namesTag, FilterOption.NONE);
+  }
   /**
    * Returns a {@code PCollection<KV<Integer, CoGbkResult>>} containing the
    * results of the {@code CoGroupByKey} over three
@@ -156,7 +165,8 @@ public class CoGroupByKeyTest implements Serializable {
       Pipeline p,
       TupleTag<String> purchasesTag,
       TupleTag<String> addressesTag,
-      TupleTag<String> namesTag) {
+      TupleTag<String> namesTag,
+      FilterOption option) {
     List<KV<Integer, String>> idToPurchases =
         Arrays.asList(
             KV.of(2, "Boat"),
@@ -200,7 +210,8 @@ public class CoGroupByKeyTest implements Serializable {
         KeyedPCollectionTuple.of(namesTag, nameTable)
             .and(addressesTag, addressTable)
             .and(purchasesTag, purchasesTable)
-            .apply(CoGroupByKey.<Integer>create());
+            .apply(option.equals(FilterOption.NONE) ? CoGroupByKey.<Integer>create()
+                : CoGroupByKey.<Integer>create().withInnerFilter());
     return coGbkResults;
   }
 
@@ -302,6 +313,46 @@ public class CoGroupByKeyTest implements Serializable {
             assertThat(results.get(10).getAll(purchasesTag), containsInAnyOrder("Pens"));
             assertThat(results.get(11).getAll(purchasesTag), containsInAnyOrder("House"));
             assertThat(results.get(14).getAll(purchasesTag), containsInAnyOrder("Shoes"));
+
+            return null;
+          }
+        });
+
+    p.run();
+  }
+
+  @Test
+  @Category(ValidatesRunner.class)
+  public void testCoGroupByKeyWithInnerJoinOption() {
+    final TupleTag<String> namesTag = new TupleTag<>();
+    final TupleTag<String> addressesTag = new TupleTag<>();
+    final TupleTag<String> purchasesTag = new TupleTag<>();
+
+
+    PCollection<KV<Integer, CoGbkResult>> coGbkResults =
+        buildPurchasesCoGbk(p, purchasesTag, addressesTag, namesTag, FilterOption.INNER_JOIN);
+
+    PAssert.thatMap(coGbkResults).satisfies(
+        new SerializableFunction<Map<Integer, CoGbkResult>, Void>() {
+          @Override
+          public Void apply(Map<Integer, CoGbkResult> results) {
+            assertNull(results.get(1));
+            assertNull(results.get(3));
+            assertNull(results.get(4));
+            assertNull(results.get(10));
+            assertNull(results.get(11));
+            assertNull(results.get(14));
+            assertNull(results.get(20));
+
+            CoGbkResult result2 = results.get(2);
+            assertEquals("Sally James", result2.getOnly(namesTag));
+            assertEquals("53 S. 3rd", result2.getOnly(addressesTag));
+            assertThat(result2.getAll(purchasesTag), containsInAnyOrder("Suit", "Boat"));
+
+            CoGbkResult result8 = results.get(8);
+            assertEquals("Jeffery Spalding", result8.getOnly(namesTag));
+            assertEquals("6 Watling Rd", result8.getOnly(addressesTag));
+            assertThat(result8.getAll(purchasesTag), containsInAnyOrder("House", "Suit Case"));
 
             return null;
           }
