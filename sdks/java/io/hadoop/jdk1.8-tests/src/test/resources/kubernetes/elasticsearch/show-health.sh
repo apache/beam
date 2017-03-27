@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/sh -e
 
 external_ip="$(kubectl get svc elasticsearch -o jsonpath='{.status.loadBalancer.ingress[0].ip}')"
 

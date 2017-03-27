@@ -14,7 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-#!/bin/sh
+#!/bin/bash -e
 
 # Create Cassandra services and Replication controller.
 kubectl create -f cassandra-svc-rc.yaml

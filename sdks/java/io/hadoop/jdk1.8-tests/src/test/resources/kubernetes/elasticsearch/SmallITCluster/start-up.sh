@@ -1,4 +1,3 @@
-#!/bin/sh
 #    Licensed to the Apache Software Foundation (ASF) under one or more
 #    contributor license agreements.  See the NOTICE file distributed with
 #    this work for additional information regarding copyright ownership.
@@ -14,6 +13,8 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 #
+
+#!/bin/sh -e
 
 # Create Elasticsearch services and deployments.
 kubectl create -f elasticsearch-svc-rc.yaml

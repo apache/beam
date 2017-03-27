@@ -15,6 +15,7 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 -->
+
 <!-- The HifIO tests for Cassandra and Elasticsearch both work only with 
   jdk1.8, but Beam's enforcer rules require jdk1.7 and jdk1.8 support. This 
   child module contains only those tests and overrides the enforcer rules to 
@@ -75,11 +76,6 @@
     </pluginManagement>
 
     <plugins>
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-shade-plugin</artifactId>
-      </plugin>
-
       <!-- Overridden enforcer plugin for JDK1.8 for running tests -->
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
