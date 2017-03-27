@@ -29,6 +29,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import org.apache.beam.sdk.metrics.DistributionData;
+import org.apache.beam.sdk.metrics.GaugeData;
 import org.apache.beam.sdk.metrics.MetricKey;
 import org.apache.beam.sdk.metrics.MetricUpdates;
 import org.apache.beam.sdk.metrics.MetricUpdates.MetricUpdate;
@@ -47,6 +48,7 @@ public class SparkMetricsContainer implements Serializable {
 
   private final Map<MetricKey, MetricUpdate<Long>> counters = new HashMap<>();
   private final Map<MetricKey, MetricUpdate<DistributionData>> distributions = new HashMap<>();
+  private final Map<MetricKey, MetricUpdate<GaugeData>> gauges = new HashMap<>();
 
   public MetricsContainer getContainer(String stepName) {
     if (metricsContainers == null) {
@@ -76,9 +78,14 @@ public class SparkMetricsContainer implements Serializable {
     return sparkMetricsContainer.distributions.values();
   }
 
+  static Collection<MetricUpdate<GaugeData>> getGauges() {
+    return getInstance().gauges.values();
+  }
+
   SparkMetricsContainer update(SparkMetricsContainer other) {
     this.updateCounters(other.counters.values());
     this.updateDistributions(other.distributions.values());
+    this.updateGauges(other.gauges.values());
     return this;
   }
 
@@ -101,6 +108,7 @@ public class SparkMetricsContainer implements Serializable {
         MetricUpdates cumulative = container.getCumulative();
         this.updateCounters(cumulative.counterUpdates());
         this.updateDistributions(cumulative.distributionUpdates());
+        this.updateGauges(cumulative.gaugeUpdates());
       }
     }
   }
@@ -120,6 +128,18 @@ public class SparkMetricsContainer implements Serializable {
       MetricUpdate<DistributionData> current = distributions.get(key);
       distributions.put(key, current != null
           ? MetricUpdate.create(key, current.getUpdate().combine(update.getUpdate())) : update);
+    }
+  }
+
+  private void updateGauges(Iterable<MetricUpdate<GaugeData>> updates) {
+    for (MetricUpdate<GaugeData> update : updates) {
+      MetricKey key = update.getKey();
+      MetricUpdate<GaugeData> current = gauges.get(key);
+      gauges.put(
+          key,
+          current != null
+              ? MetricUpdate.create(key, current.getUpdate().combine(update.getUpdate()))
+              : update);
     }
   }
 

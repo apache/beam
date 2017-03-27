@@ -25,6 +25,8 @@ import com.google.common.collect.FluentIterable;
 import java.util.Set;
 import org.apache.beam.sdk.metrics.DistributionData;
 import org.apache.beam.sdk.metrics.DistributionResult;
+import org.apache.beam.sdk.metrics.GaugeData;
+import org.apache.beam.sdk.metrics.GaugeResult;
 import org.apache.beam.sdk.metrics.MetricKey;
 import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.metrics.MetricNameFilter;
@@ -69,6 +71,16 @@ public class SparkMetricResults extends MetricResults {
               .from(SparkMetricsContainer.getDistributions())
               .filter(matchesFilter(filter))
               .transform(TO_DISTRIBUTION_RESULT)
+              .toList();
+    }
+
+    @Override
+    public Iterable<MetricResult<GaugeResult>> gauges() {
+      return
+          FluentIterable
+              .from(SparkMetricsContainer.getGauges())
+              .filter(matchesFilter(filter))
+              .transform(TO_GAUGE_RESULT)
               .toList();
     }
 
@@ -140,6 +152,21 @@ public class SparkMetricResults extends MetricResults {
             MetricKey key = metricResult.getKey();
             return new SparkMetricResult<>(key.metricName(), key.stepName(),
                 metricResult.getUpdate());
+          } else {
+            return null;
+          }
+        }
+      };
+
+  private static final Function<MetricUpdate<GaugeData>, MetricResult<GaugeResult>>
+      TO_GAUGE_RESULT =
+      new Function<MetricUpdate<GaugeData>, MetricResult<GaugeResult>>() {
+        @Override
+        public MetricResult<GaugeResult> apply(MetricUpdate<GaugeData> metricResult) {
+          if (metricResult != null) {
+            MetricKey key = metricResult.getKey();
+            return new SparkMetricResult<>(key.metricName(), key.stepName(),
+                metricResult.getUpdate().extractResult());
           } else {
             return null;
           }
