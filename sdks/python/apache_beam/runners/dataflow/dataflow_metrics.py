@@ -103,13 +103,13 @@ class DataflowMetrics(MetricResults):
              'method. You can see them in the Dataflow User Interface.')
         # Distributions are not yet fully supported in this runner
         continue
-      tentative = [prop
-                   for prop in metric.name.context.additionalProperties
-                   if prop.key == 'tentative' and prop.value == 'true']
-      is_tentative = 'tentative' if tentative else 'committed'
+      is_tentative = [prop
+                      for prop in metric.name.context.additionalProperties
+                      if prop.key == 'tentative' and prop.value == 'true']
+      tentative_or_committed = 'tentative' if is_tentative else 'committed'
 
       metric_key = self._get_metric_key(metric)
-      metrics_by_name[metric_key][is_tentative] = metric
+      metrics_by_name[metric_key][tentative_or_committed] = metric
 
     # Now we create the MetricResult elements.
     result = []
