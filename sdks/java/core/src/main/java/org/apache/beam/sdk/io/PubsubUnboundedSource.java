@@ -1253,7 +1253,7 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
    * Subscription to read from. If {@literal null} then {@link #topic} must be given.
    * Otherwise {@link #topic} must be null.
    *
-   * <p>If no subscription is given a random one will be created when the transorm is
+   * <p>If no subscription is given a random one will be created when the transform is
    * applied. This field will be update with that subscription's path. The created
    * subscription is never deleted.
    */
