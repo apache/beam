@@ -87,9 +87,20 @@ def _dependency_file_copy(from_path, to_path):
   """Copies a local file to a GCS file or vice versa."""
   logging.info('file copy from %s to %s.', from_path, to_path)
   if from_path.startswith('gs://') or to_path.startswith('gs://'):
-    command_args = ['gsutil', '-m', '-q', 'cp', from_path, to_path]
-    logging.info('Executing command: %s', command_args)
-    processes.check_call(command_args)
+    from apache_beam.io.gcp import gcsio
+    if from_path.startswith('gs://') and to_path.startswith('gs://'):
+      # Both files are GCS files so copy.
+      gcsio.GcsIO().copy(from_path, to_path)
+    elif to_path.startswith('gs://'):
+      # Only target is a GCS file, read local file and upload.
+      with open(from_path, 'rb') as f:
+        with gcsio.GcsIO().open(to_path, mode='wb') as g:
+          g.write(f.read())
+    else:
+      # Source is a GCS file but target is local file.
+      with gcsio.GcsIO().open(from_path, mode='rb') as g:
+        with open(to_path, 'wb') as f:
+          f.write(g.read())
   else:
     # Branch used only for unit tests and integration tests.
     # In such environments GCS support is not available.
