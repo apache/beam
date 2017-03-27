@@ -306,10 +306,6 @@ public class JdbcIO {
       return input
           .apply(Create.of(getQuery()))
           .apply(ParDo.of(new ReadFn<>(this))).setCoder(getCoder())
-          // generate a random key followed by a GroupByKey and then ungroup
-          // to prevent fusion
-          // see https://cloud.google.com/dataflow/service/dataflow-service-desc#preventing-fusion
-          // for details
           .apply(ParDo.of(new DoFn<T, KV<Integer, T>>() {
             private Random random;
             @Setup

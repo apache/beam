@@ -55,7 +55,7 @@ public interface GcpOptions extends GoogleApiDebugOptions, PipelineOptions {
   /**
    * Project id to use when launching jobs.
    */
-  @Description("Project id. Required when running a Dataflow in the cloud. "
+  @Description("Project id. Required when using Google Cloud Platform services. "
       + "See https://cloud.google.com/storage/docs/projects for further details.")
   @Default.InstanceFactory(DefaultProjectFactory.class)
   String getProject();
