@@ -735,7 +735,7 @@ class ReduceStateByKeyReducer implements Runnable {
     Object itemKey = keyExtractor.apply(item);
     Object itemValue = valueExtractor.apply(item);
 
-    Set<Window> windows = windowing.assignWindowsToElement(element);
+    Iterable<Window> windows = windowing.assignWindowsToElement(element);
     for (Window window : windows) {
       ElementTriggerContext pitctx =
           new ElementTriggerContext(new KeyedWindow(window, itemKey));
@@ -757,7 +757,7 @@ class ReduceStateByKeyReducer implements Runnable {
     Object itemKey = keyExtractor.apply(item);
     Object itemValue = valueExtractor.apply(item);
 
-    Set<Window> windows = windowing.assignWindowsToElement(element);
+    Iterable<Window> windows = windowing.assignWindowsToElement(element);
     for (Window window : windows) {
 
       // ~ first try to merge the new window into the set of existing ones

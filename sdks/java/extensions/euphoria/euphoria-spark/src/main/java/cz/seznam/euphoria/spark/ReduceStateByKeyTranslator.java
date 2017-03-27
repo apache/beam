@@ -138,8 +138,8 @@ class ReduceStateByKeyTranslator implements SparkOperatorTranslator<ReduceStateB
         wel.setTimestamp(eventTimeAssigner.extractTimestamp(wel.getElement()));
       }
 
-      Set<Window> windows = windowing.assignWindowsToElement(wel);
-      List<Tuple2<KeyedWindow, Object>> out = new ArrayList<>(windows.size());
+      Iterable<Window> windows = windowing.assignWindowsToElement(wel);
+      List<Tuple2<KeyedWindow, Object>> out = new ArrayList<>();
       for (Window wid : windows) {
         Object el = wel.getElement();
         out.add(new Tuple2<>(

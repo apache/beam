@@ -90,7 +90,7 @@ public class ReduceByKeyTranslator implements BatchOperatorTranslator<ReduceByKe
               long stamp = timeAssigner.extractTimestamp(wel.getElement());
               wel.setTimestamp(stamp);
             }
-            Set<Window> assigned = windowing.assignWindowsToElement(wel);
+            Iterable<Window> assigned = windowing.assignWindowsToElement(wel);
             for (Window wid : assigned) {
               Object el = wel.getElement();
               long stamp = (wid instanceof TimedWindow)
