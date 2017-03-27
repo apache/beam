@@ -62,21 +62,21 @@ public class CountingSourceTest {
   public static void addCountingAsserts(PCollection<Long> input, long numElements) {
     // Count == numElements
     PAssert
-      .thatSingleton(input.apply("Count", Count.<Long>globally()))
-      .isEqualTo(numElements);
+        .thatSingleton(input.apply("Count", Count.<Long>globally()))
+        .isEqualTo(numElements);
     // Unique count == numElements
     PAssert
-      .thatSingleton(input.apply(Distinct.<Long>create())
-                          .apply("UniqueCount", Count.<Long>globally()))
-      .isEqualTo(numElements);
+        .thatSingleton(input.apply(Distinct.<Long>create())
+            .apply("UniqueCount", Count.<Long>globally()))
+        .isEqualTo(numElements);
     // Min == 0
     PAssert
-      .thatSingleton(input.apply("Min", Min.<Long>globally()))
-      .isEqualTo(0L);
+        .thatSingleton(input.apply("Min", Min.<Long>globally()))
+        .isEqualTo(0L);
     // Max == numElements-1
     PAssert
-      .thatSingleton(input.apply("Max", Max.<Long>globally()))
-      .isEqualTo(numElements - 1);
+        .thatSingleton(input.apply("Max", Max.<Long>globally()))
+        .isEqualTo(numElements - 1);
   }
 
   @Rule
@@ -131,7 +131,7 @@ public class CountingSourceTest {
   public void testProgress() throws IOException {
     final int numRecords = 5;
     @SuppressWarnings("deprecation")  // testing CountingSource
-    BoundedSource<Long> source = CountingSource.upTo(numRecords);
+        BoundedSource<Long> source = CountingSource.upTo(numRecords);
     try (BoundedReader<Long> reader = source.createReader(PipelineOptionsFactory.create())) {
       // Check preconditions before starting. Note that CountingReader can always give an accurate
       // remaining parallelism.
@@ -202,9 +202,9 @@ public class CountingSourceTest {
     PCollection<Long> input =
         p.apply(
             Read.from(
-                    CountingSource.createUnbounded()
-                        .withTimestampFn(new ValueAsTimestampFn())
-                        .withRate(1, period))
+                CountingSource.createUnbounded()
+                    .withTimestampFn(new ValueAsTimestampFn())
+                    .withRate(1, period))
                 .withMaxNumRecords(numElements));
     addCountingAsserts(input, numElements);
 
