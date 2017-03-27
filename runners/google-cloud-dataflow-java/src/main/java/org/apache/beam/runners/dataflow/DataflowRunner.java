@@ -366,6 +366,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
                   BatchViewOverrides.BatchViewAsIterable.class, this));
     }
     ptoverrides
+        .put(PTransformMatchers.classEqualTo(Reshuffle.class), new ReshuffleOverrideFactory())
         // Order is important. Streaming views almost all use Combine internally.
         .put(
             PTransformMatchers.classEqualTo(Combine.GroupedValues.class),
