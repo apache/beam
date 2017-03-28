@@ -135,7 +135,12 @@ public final class TestSparkRunner extends PipelineRunner<SparkPipelineResult> {
             isOneOf(PipelineResult.State.STOPPED, PipelineResult.State.DONE));
 
         // validate assertion succeeded (at least once).
-        int successAssertions = result.getAggregatorValue(PAssert.SUCCESS_COUNTER, Integer.class);
+        int successAssertions = 0;
+        try {
+          successAssertions = result.getAggregatorValue(PAssert.SUCCESS_COUNTER, Integer.class);
+        } catch (NullPointerException e) {
+          // No assertions registered will cause an NPE here.
+        }
         Integer expectedAssertions = testSparkPipelineOptions.getExpectedAssertions() != null
             ? testSparkPipelineOptions.getExpectedAssertions() : expectedNumberOfAssertions;
         assertThat(
@@ -145,7 +150,12 @@ public final class TestSparkRunner extends PipelineRunner<SparkPipelineResult> {
             successAssertions,
             is(expectedAssertions));
         // validate assertion didn't fail.
-        int failedAssertions = result.getAggregatorValue(PAssert.FAILURE_COUNTER, Integer.class);
+        int failedAssertions = 0;
+        try {
+          failedAssertions = result.getAggregatorValue(PAssert.FAILURE_COUNTER, Integer.class);
+        } catch (NullPointerException e) {
+          // No assertions registered will cause an NPE here.
+        }
         assertThat(
             String.format("Found %d failed assertions.", failedAssertions),
             failedAssertions,
