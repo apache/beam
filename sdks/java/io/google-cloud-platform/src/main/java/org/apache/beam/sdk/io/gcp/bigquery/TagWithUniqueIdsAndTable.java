@@ -73,9 +73,9 @@ class TagWithUniqueIdsAndTable<T>
   public void processElement(ProcessContext context, BoundedWindow window) throws IOException {
     String uniqueId = randomUUID + sequenceNo++;
     ThreadLocalRandom randomGenerator = ThreadLocalRandom.current();
-    String tableSpec = tableSpecFromWindowedValue(
-        context.getPipelineOptions().as(BigQueryOptions.class),
-        ValueInSingleWindow.of(context.element(), context.timestamp(), window, context.pane()));
+      String tableSpec = tableSpecFromWindowedValue(
+          context.getPipelineOptions().as(BigQueryOptions.class),
+          ValueInSingleWindow.of(context.element(), context.timestamp(), window, context.pane()));
     // We output on keys 0-50 to ensure that there's enough batching for
     // BigQuery.
     context.output(KV.of(ShardedKey.of(tableSpec, randomGenerator.nextInt(0, 50)),
@@ -97,12 +97,5 @@ class TagWithUniqueIdsAndTable<T>
   }
 
 
-  private String tableSpecFromWindowedValue(BigQueryOptions options,
-                                            ValueInSingleWindow<T> value) {
-    TableReference table = write.getTableRefFunction().apply(value);
-    if (Strings.isNullOrEmpty(table.getProjectId())) {
-      table.setProjectId(options.getProject());
-    }
-    return BigQueryHelpers.toTableSpec(table);
-  }
+
 }
