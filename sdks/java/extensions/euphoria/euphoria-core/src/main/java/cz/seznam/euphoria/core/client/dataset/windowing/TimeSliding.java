@@ -16,13 +16,14 @@
 package cz.seznam.euphoria.core.client.dataset.windowing;
 
 import com.google.common.base.Preconditions;
-import com.google.common.collect.Sets;
+import com.google.common.collect.AbstractIterator;
 import cz.seznam.euphoria.core.client.io.Context;
 import cz.seznam.euphoria.core.client.triggers.TimeTrigger;
 import cz.seznam.euphoria.core.client.triggers.Trigger;
 
+import java.io.Serializable;
 import java.time.Duration;
-import java.util.Set;
+import java.util.Iterator;
 
 /**
  * Time sliding windowing.
@@ -65,14 +66,7 @@ public final class TimeSliding<T>
 
   @Override
   public Iterable<TimeInterval> assignWindowsToElement(WindowedElement<?, T> el) {
-    Set<TimeInterval> ret =
-            Sets.newHashSetWithExpectedSize((int) (this.duration / this.slide));
-    for (long start = el.getTimestamp() - el.getTimestamp() % this.slide;
-         start > el.getTimestamp() - this.duration;
-         start -= this.slide) {
-      ret.add(new TimeInterval(start, start + this.duration));
-    }
-    return ret;
+    return new SlidingWindowSet(el.getTimestamp(), duration, slide);
   }
 
   @Override
@@ -94,6 +88,44 @@ public final class TimeSliding<T>
 
   public long getSlide() {
     return slide;
+  }
+
+
+  /**
+   * Calculates window boundaries lazily during the iteration.
+   */
+  public static class SlidingWindowSet implements Iterable<TimeInterval> {
+
+    private final long elementStamp;
+    private final long duration;
+    private final long slide;
+
+    public SlidingWindowSet(long elementStamp, long duration, long slide) {
+      this.elementStamp = elementStamp;
+      this.duration = duration;
+      this.slide = slide;
+    }
+
+    @Override
+    public Iterator<TimeInterval> iterator() {
+      return new AbstractIterator<TimeInterval>() {
+
+        private long start = elementStamp - elementStamp % slide;
+
+        @Override
+        protected TimeInterval computeNext() {
+          TimeInterval window = null;
+          if (start > elementStamp - duration) {
+            window = new TimeInterval(start, start + duration);
+            start -= slide;
+          } else {
+            endOfData();
+          }
+
+          return window;
+        }
+      };
+    }
   }
 }
 
