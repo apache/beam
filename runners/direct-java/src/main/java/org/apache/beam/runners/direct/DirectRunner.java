@@ -422,9 +422,7 @@ public class DirectRunner extends PipelineRunner<DirectPipelineResult> {
      * {@link org.apache.beam.sdk.PipelineResult.State#FAILED}.
      *
      * <p>NOTE: if the {@link Pipeline} contains an {@link IsBounded#UNBOUNDED unbounded}
-     * {@link PCollection}, and the {@link PipelineRunner} was created with
-     * {@link DirectOptions#isShutdownUnboundedProducersWithMaxWatermark()} set to false,
-     * this method will never return.
+     * {@link PCollection} this method will never return.
      *
      * <p>See also {@link PipelineExecutor#waitUntilFinish(Duration)}.
      */
