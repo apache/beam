@@ -40,7 +40,7 @@ class ChannelFactory(object):
   @staticmethod
   def mkdir(path):
     bfs = get_filesystem(path)
-    bfs.mkdirs(path)
+    return bfs.mkdirs(path)
 
   @staticmethod
   def open(path,
@@ -59,14 +59,16 @@ class ChannelFactory(object):
 
   @staticmethod
   def rename(src, dest):
-    bfs = get_filesystem(path)
-    bfs.rename([src], [dest])
+    bfs = get_filesystem(src)
+    return bfs.rename([src], [dest])
 
   @staticmethod
   def rename_batch(src_dest_pairs):
     sources = [s for s, _ in src_dest_pairs]
     destinations = [d for _, d in src_dest_pairs]
-    bfs = get_filesystem()
+    if len(sources) == 0:
+      return []
+    bfs = get_filesystem(sources[0])
     try:
       bfs.rename(sources, destinations)
       return []
@@ -75,23 +77,23 @@ class ChannelFactory(object):
 
   @staticmethod
   def copytree(src, dest):
-    bfs = get_filesystem()
-    bfs.copy([src], [dest])
+    bfs = get_filesystem(src)
+    return bfs.copy([src], [dest])
 
   @staticmethod
   def exists(path):
     bfs = get_filesystem(path)
-    bfs.exists(path)
+    return bfs.exists(path)
 
   @staticmethod
   def rmdir(path):
     bfs = get_filesystem(path)
-    bfs.delete([path])
+    return bfs.delete([path])
 
   @staticmethod
   def rm(path):
     bfs = get_filesystem(path)
-    bfs.delete([path])
+    return bfs.delete([path])
 
   @staticmethod
   def glob(path, limit=None):
@@ -102,13 +104,13 @@ class ChannelFactory(object):
   @staticmethod
   def size_in_bytes(path):
     bfs = get_filesystem(path)
-    match_result = bfs.match([path], [limit])[0]
+    match_result = bfs.match([path])[0]
     return [f.size_in_bytes for f in match_result.metadata_list][0]
 
   @staticmethod
   def size_of_files_in_glob(path, file_names=None):
     bfs = get_filesystem(path)
-    match_result = bfs.match([path], [limit])[0]
+    match_result = bfs.match([path])[0]
     part_files = {f.path:f.size_in_bytes for f in match_result.metadata_list}
 
     if file_names is not None:
@@ -118,7 +120,8 @@ class ChannelFactory(object):
         for metadata in match_result.metadata_list:
           specific_files[metadata.path] = metadata.size_in_bytes
 
-    return part_files.update(specific_files)
+      part_files.update(specific_files)
+    return part_files
 
 
 class FileSink(iobase.Sink):
