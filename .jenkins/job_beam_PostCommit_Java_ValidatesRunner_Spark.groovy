@@ -18,11 +18,11 @@
 
 import common_job_properties
 
-// This job runs the suite of RunnableOnService tests against the Spark runner.
-mavenJob('beam_PostCommit_Java_RunnableOnService_Spark') {
-  description('Runs the RunnableOnService suite on the Spark runner.')
+// This job runs the suite of ValidatesRunner tests against the Spark runner.
+mavenJob('beam_PostCommit_Java_ValidatesRunner_Spark') {
+  description('Runs the ValidatesRunner suite on the Spark runner.')
 
-  previousNames('beam_PostCommit_RunnableOnService_SparkLocal')
+  previousNames('beam_PostCommit_Java_RunnableOnService_Spark')
 
   // Set common parameters.
   common_job_properties.setTopLevelMainJobProperties(delegate)
@@ -36,9 +36,9 @@ mavenJob('beam_PostCommit_Java_RunnableOnService_Spark') {
   // Allows triggering this build against pull requests.
   common_job_properties.enablePhraseTriggeringFromPullRequest(
     delegate,
-    'Apache Spark Runner RunnableOnService Tests',
-    'Run Spark RunnableOnService')
+    'Apache Spark Runner ValidatesRunner Tests',
+    'Run Spark ValidatesRunner')
 
   // Maven goals for this job.
-  goals('-B -e clean verify -am -pl runners/spark -Prunnable-on-service-tests -Plocal-runnable-on-service-tests -Dspark.ui.enabled=false')
+  goals('-B -e clean verify -am -pl runners/spark -Pvalidates-runner-tests -Plocal-validates-runner-tests -Dspark.ui.enabled=false')
 }
