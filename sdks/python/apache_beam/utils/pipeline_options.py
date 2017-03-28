@@ -277,6 +277,15 @@ class GoogleCloudOptions(PipelineOptions):
     parser.add_argument('--temp_location',
                         default=None,
                         help='GCS path for saving temporary workflow jobs.')
+    # The Cloud Dataflow service does not yet honor this setting. However, once
+    # service support is added then users of this SDK will be able to control
+    # the region. Default is up to the Dataflow service. See
+    # https://cloud.google.com/compute/docs/regions-zones/regions-zones for a
+    # list of valid options/
+    parser.add_argument('--region',
+                        default='us-central1',
+                        help='The Google Compute Engine region for creating '
+                        'Dataflow job.')
     parser.add_argument('--service_account_name',
                         default=None,
                         help='Name of the service account for Google APIs.')
