@@ -29,6 +29,7 @@ import cz.seznam.euphoria.core.client.functional.StateFactory;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 import cz.seznam.euphoria.core.client.functional.UnaryFunctor;
 import cz.seznam.euphoria.core.client.io.Context;
+import cz.seznam.euphoria.core.client.operator.ExtractEventTime;
 import cz.seznam.euphoria.core.client.operator.FlatMap;
 import cz.seznam.euphoria.core.client.operator.ReduceStateByKey;
 import cz.seznam.euphoria.core.client.operator.state.ListStorage;
@@ -659,7 +660,7 @@ public class ReduceStateByKeyTest extends AbstractOperatorTest {
                 .stateFactory(ReduceByKeyTest.SumState::new)
                 .combineStateBy(ReduceByKeyTest.SumState::combine)
                 .windowBy(Time.of(Duration.ofSeconds(5)),
-                        (UnaryFunction<Pair<String, Long>, Long>) Pair::getSecond)
+                          (ExtractEventTime<Pair<String, Integer>>) Pair::getSecond)
                 .output();
         // ~ now use a custom windowing with a trigger which does
         // the assertions subject to this test (use RSBK which has to

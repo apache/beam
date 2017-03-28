@@ -19,8 +19,8 @@ import cz.seznam.euphoria.core.annotation.operator.Derived;
 import cz.seznam.euphoria.core.annotation.operator.StateComplexity;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.partitioning.Partitioning;
-import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.dataset.windowing.Window;
+import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 import cz.seznam.euphoria.core.client.graph.DAG;
@@ -91,7 +91,7 @@ public class SumByKey<
       return windowBy(windowing, null);
     }
     public <W extends Window> OutputBuilder<IN, KEY, W>
-    windowBy(Windowing<IN, W> windowing, UnaryFunction<IN, Long> eventTimeAssigner) {
+    windowBy(Windowing<IN, W> windowing, ExtractEventTime<IN> eventTimeAssigner) {
       return new OutputBuilder<>(name, input, keyExtractor, valueExtractor,
               windowing, eventTimeAssigner, this);
     }
@@ -113,14 +113,14 @@ public class SumByKey<
     @Nullable
     private final Windowing<IN, W> windowing;
     @Nullable
-    private final UnaryFunction<IN, Long> eventTimeAssigner;
+    private final ExtractEventTime<IN> eventTimeAssigner;
 
     OutputBuilder(String name,
                   Dataset<IN> input,
                   UnaryFunction<IN, KEY> keyExtractor,
                   UnaryFunction<IN, Long> valueExtractor,
                   @Nullable Windowing<IN, W> windowing,
-                  @Nullable UnaryFunction<IN, Long> eventTimeAssigner,
+                  @Nullable ExtractEventTime<IN> eventTimeAssigner,
                   PartitioningBuilder<KEY, ?> partitioning) {
       super(partitioning);
 
@@ -158,7 +158,7 @@ public class SumByKey<
            UnaryFunction<IN, KEY> keyExtractor,
            UnaryFunction<IN, Long> valueExtractor,
            @Nullable Windowing<IN, W> windowing,
-           @Nullable UnaryFunction<IN, Long> eventTimeAssigner,
+           @Nullable ExtractEventTime<IN> eventTimeAssigner,
            Partitioning<KEY> partitioning)
   {
     super(name, flow, input, keyExtractor, windowing, eventTimeAssigner, partitioning);
