@@ -42,7 +42,7 @@ public class StateAwareWindowWiseSingleInputOperator<
           Flow flow, Dataset<IN> input,
           UnaryFunction<KIN, KEY> extractor,
           @Nullable Windowing<WIN, W> windowing,
-          @Nullable UnaryFunction<WIN, Long> eventTimeAssigner,
+          @Nullable ExtractEventTime<WIN> eventTimeAssigner,
           Partitioning<KEY> partitioning) {
     
     super(name, flow, windowing, eventTimeAssigner, extractor, partitioning);

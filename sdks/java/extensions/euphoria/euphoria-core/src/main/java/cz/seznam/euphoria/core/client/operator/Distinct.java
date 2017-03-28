@@ -19,8 +19,8 @@ import cz.seznam.euphoria.core.annotation.operator.Recommended;
 import cz.seznam.euphoria.core.annotation.operator.StateComplexity;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.partitioning.Partitioning;
-import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.dataset.windowing.Window;
+import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.functional.CombinableReduceFunction;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
@@ -88,7 +88,7 @@ public class Distinct<IN, ELEM, W extends Window>
       return windowBy(windowing, null);
     }
     public <W extends Window> OutputBuilder<IN, ELEM, W>
-    windowBy(Windowing<IN, W> windowing, UnaryFunction<IN, Long> eventTimeAssigner) {
+    windowBy(Windowing<IN, W> windowing, ExtractEventTime<IN> eventTimeAssigner) {
       return new OutputBuilder<>(name, input, mapper, this, windowing, eventTimeAssigner);
     }
     @Override
@@ -108,14 +108,14 @@ public class Distinct<IN, ELEM, W extends Window>
     @Nullable
     private final Windowing<IN, W> windowing;
     @Nullable
-    private final UnaryFunction<IN, Long> eventTimeAssigner;
+    private final ExtractEventTime<IN> eventTimeAssigner;
 
     OutputBuilder(String name,
                   Dataset<IN> input,
                   @Nullable UnaryFunction<IN, ELEM> mapper,
                   PartitioningBuilder<ELEM, ?> partitioning,
                   @Nullable Windowing<IN, W> windowing,
-                  @Nullable UnaryFunction<IN, Long> eventTimeAssigner) {
+                  @Nullable ExtractEventTime<IN> eventTimeAssigner) {
 
       super(partitioning);
       this.name = Objects.requireNonNull(name);
@@ -150,7 +150,7 @@ public class Distinct<IN, ELEM, W extends Window>
            UnaryFunction<IN, ELEM> mapper,
            Partitioning<ELEM> partitioning,
            @Nullable Windowing<IN, W> windowing,
-           @Nullable UnaryFunction<IN, Long> eventTimeAssigner) {
+           @Nullable ExtractEventTime<IN> eventTimeAssigner) {
 
     super(name, flow, input, mapper, windowing, eventTimeAssigner, partitioning);
   }

@@ -31,6 +31,7 @@ import cz.seznam.euphoria.core.client.io.DataSource;
 import cz.seznam.euphoria.core.client.io.Partition;
 import cz.seznam.euphoria.core.client.io.Reader;
 import cz.seznam.euphoria.core.client.io.Writer;
+import cz.seznam.euphoria.core.client.operator.ExtractEventTime;
 import cz.seznam.euphoria.core.client.operator.FlatMap;
 import cz.seznam.euphoria.core.client.operator.Operator;
 import cz.seznam.euphoria.core.client.operator.ReduceStateByKey;
@@ -602,7 +603,7 @@ public class InMemExecutor implements Executor {
 
     final Partitioning partitioning = reduceStateByKey.getPartitioning();
     final Windowing windowing = reduceStateByKey.getWindowing();
-    final UnaryFunction eventTimeAssigner = reduceStateByKey.getEventTimeAssigner();
+    final ExtractEventTime eventTimeAssigner = reduceStateByKey.getEventTimeAssigner();
 
     List<BlockingQueue<Datum>> repartitioned = repartitionSuppliers(
         suppliers, keyExtractor, partitioning,
@@ -642,7 +643,7 @@ public class InMemExecutor implements Executor {
       final UnaryFunction keyExtractor,
       final Partitioning partitioning,
       final Optional<Windowing> windowing,
-      final Optional<UnaryFunction> eventTimeAssigner) {
+      final Optional<ExtractEventTime> eventTimeAssigner) {
 
     int numInputPartitions = suppliers.size();
     final boolean isMergingWindowing = windowing.isPresent()
@@ -699,8 +700,8 @@ public class InMemExecutor implements Executor {
             }
 
             if (eventTimeAssigner.isPresent() && datum.isElement()) {
-              UnaryFunction assigner = eventTimeAssigner.get();
-              datum.setTimestamp((long) assigner.apply(datum.getElement()));
+              ExtractEventTime assigner = eventTimeAssigner.get();
+              datum.setTimestamp(assigner.extractTimestamp(datum.getElement()));
             }
 
             if (!handleMetaData(datum, ret, readerId, clocks, !hasTimeAssignment)) {

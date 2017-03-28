@@ -165,7 +165,7 @@ public class ReduceByKey<
     }
     public  <W extends Window>
     DatasetBuilder5<IN, KEY, VALUE, OUT, W>
-    windowBy(Windowing<IN, W> windowing, UnaryFunction<IN, Long> eventTimeAssigner) {
+    windowBy(Windowing<IN, W> windowing, ExtractEventTime<IN> eventTimeAssigner) {
       return new DatasetBuilder5<>(name, input, keyExtractor, valueExtractor,
               reducer, Objects.requireNonNull(windowing), eventTimeAssigner, this);
     }
@@ -190,7 +190,7 @@ public class ReduceByKey<
     @Nullable
     private final Windowing<IN, W> windowing;
     @Nullable
-    private final UnaryFunction<IN, Long> eventTimeAssigner;
+    private final ExtractEventTime<IN> eventTimeAssigner;
 
     DatasetBuilder5(String name,
                     Dataset<IN> input,
@@ -198,7 +198,7 @@ public class ReduceByKey<
                     UnaryFunction<IN, VALUE> valueExtractor,
                     ReduceFunction<VALUE, OUT> reducer,
                     @Nullable Windowing<IN, W> windowing,
-                    @Nullable UnaryFunction<IN, Long> eventTimeAssigner,
+                    @Nullable ExtractEventTime<IN> eventTimeAssigner,
                     PartitioningBuilder<KEY, ?> partitioning) {
 
       // initialize default partitioning according to input
@@ -242,7 +242,7 @@ public class ReduceByKey<
               UnaryFunction<KIN, KEY> keyExtractor,
               UnaryFunction<KIN, VALUE> valueExtractor,
               @Nullable Windowing<IN, W> windowing,
-              @Nullable UnaryFunction<IN, Long> eventTimeAssigner,
+              @Nullable ExtractEventTime<IN> eventTimeAssigner,
               ReduceFunction<VALUE, OUT> reducer,
               Partitioning<KEY> partitioning) {
     super(name, flow, input, keyExtractor, windowing, eventTimeAssigner, partitioning);

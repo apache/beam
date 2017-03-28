@@ -17,8 +17,8 @@ package cz.seznam.euphoria.core.client.operator;
 
 import cz.seznam.euphoria.core.client.dataset.partitioning.Partitioner;
 import cz.seznam.euphoria.core.client.dataset.partitioning.Partitioning;
-import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.dataset.windowing.Window;
+import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 
@@ -41,7 +41,7 @@ public abstract class StateAwareWindowWiseOperator<
           String name,
           Flow flow,
           @Nullable Windowing<WIN, W> windowing,
-          @Nullable UnaryFunction<WIN, Long> eventTimeAssigner,
+          @Nullable ExtractEventTime<WIN> eventTimeAssigner,
           UnaryFunction<KIN, KEY> keyExtractor,
           Partitioning<KEY> partitioning) {
     
@@ -73,7 +73,7 @@ public abstract class StateAwareWindowWiseOperator<
     this.partitioning = new Partitioning<KEY>() {
       @Override
       public Partitioner<KEY> getPartitioner() {
-        return partitioner::getPartition;
+        return partitioner;
       }
 
       @Override
