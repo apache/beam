@@ -61,7 +61,7 @@
         </configuration>
         <executions>
           <execution>
-            <id>runnable-on-service-tests</id>
+            <id>validates-runner-tests</id>
             <phase>integration-test</phase>
             <goals>
               <goal>test</goal>

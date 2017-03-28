@@ -41,7 +41,7 @@
 
   <profiles>
     <profile>
-      <id>disable-runnable-on-service-tests</id>
+      <id>disable-validates-runner-tests</id>
       <activation>
         <activeByDefault>true</activeByDefault>
       </activation>
@@ -52,7 +52,7 @@
             <artifactId>maven-surefire-plugin</artifactId>
             <executions>
               <execution>
-                <id>runnable-on-service-tests</id>
+                <id>validates-runner-tests</id>
                 <configuration>
                   <skip>true</skip>
                 </configuration>
