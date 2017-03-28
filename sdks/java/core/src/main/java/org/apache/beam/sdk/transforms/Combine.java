@@ -1433,6 +1433,11 @@ public class Combine {
       return sideInputs;
     }
 
+    /**
+     * Returns the side inputs of this {@link Combine}, tagged with the tag of the
+     * {@link PCollectionView}. The values of the returned map will be equal to the result of
+     * {@link #getSideInputs()}.
+     */
     @Override
     public Map<TupleTag<?>, PValue> getAdditionalInputs() {
       ImmutableMap.Builder<TupleTag<?>, PValue> additionalInputs = ImmutableMap.builder();
@@ -1885,6 +1890,11 @@ public class Combine {
       return sideInputs;
     }
 
+    /**
+     * Returns the side inputs of this {@link Combine}, tagged with the tag of the
+     * {@link PCollectionView}. The values of the returned map will be equal to the result of
+     * {@link #getSideInputs()}.
+     */
     @Override
     public Map<TupleTag<?>, PValue> getAdditionalInputs() {
       ImmutableMap.Builder<TupleTag<?>, PValue> additionalInputs = ImmutableMap.builder();

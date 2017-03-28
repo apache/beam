@@ -199,7 +199,7 @@ public abstract class PTransform<InputT extends PInput, OutputT extends POutput>
    * Returns all {@link PValue PValues} that are consumed as inputs to this {@link PTransform} that
    * are independent of the expansion of the {@link InputT} within {@link #expand(PInput)}.
    *
-   * <p>For example, can contain any Side Input consumed by this {@link PTransform}.
+   * <p>For example, this can contain any side input consumed by this {@link PTransform}.
    */
   public Map<TupleTag<?>, PValue> getAdditionalInputs() {
     return Collections.emptyMap();
