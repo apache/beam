@@ -188,7 +188,7 @@ public class TopPerKey<
 
     public <W extends Window>
     OutputBuilder<IN, K, V, S, W>
-    windowBy(Windowing<IN, W> windowing, UnaryFunction<IN, Long> eventTimeAssigner) {
+    windowBy(Windowing<IN, W> windowing, ExtractEventTime<IN> eventTimeAssigner) {
       return new OutputBuilder<>(name, input, keyFn, valueFn,
               scoreFn, this, requireNonNull(windowing), eventTimeAssigner);
     }
@@ -213,7 +213,7 @@ public class TopPerKey<
     @Nullable
     private final Windowing<IN, W> windowing;
     @Nullable
-    private final UnaryFunction<IN, Long> eventTimeAssigner;
+    private final ExtractEventTime<IN> eventTimeAssigner;
 
     OutputBuilder(String name,
                   Dataset<IN> input,
@@ -222,7 +222,7 @@ public class TopPerKey<
                   UnaryFunction<IN, S> scoreFn,
                   PartitioningBuilder<K, ?> partitioning,
                   @Nullable Windowing<IN, W> windowing,
-                  @Nullable UnaryFunction<IN, Long> eventTimeAssigner) {
+                  @Nullable ExtractEventTime<IN> eventTimeAssigner) {
 
       super(partitioning);
 
@@ -267,7 +267,7 @@ public class TopPerKey<
             UnaryFunction<IN, SCORE> scoreFn,
             Partitioning<KEY> partitioning,
             @Nullable Windowing<IN, W> windowing,
-            @Nullable UnaryFunction<IN, Long> eventTimeAssigner) {
+            @Nullable ExtractEventTime<IN> eventTimeAssigner) {
     super(name, flow, input, keyFn, windowing, eventTimeAssigner, partitioning);
     
     this.valueFn = valueFn;

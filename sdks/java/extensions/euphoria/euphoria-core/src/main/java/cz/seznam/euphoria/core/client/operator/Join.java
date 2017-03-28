@@ -172,18 +172,17 @@ public class Join<LEFT, RIGHT, KEY, OUT, W extends Window>
     public <W extends Window>
     OutputBuilder<LEFT, RIGHT, KEY, OUT, W>
     windowBy(Windowing<Either<LEFT, RIGHT>, W> windowing,
-             UnaryFunction<LEFT, Long> leftEventTimeFn,
-             UnaryFunction<RIGHT, Long> rightEventTimeFn) {
+             ExtractEventTime<LEFT> leftEventTimeFn,
+             ExtractEventTime<RIGHT> rightEventTimeFn) {
 
-      UnaryFunction<Either<LEFT, RIGHT>, Long> eventTimeAssigner = null;
+      ExtractEventTime<Either<LEFT, RIGHT>> eventTimeAssigner = null;
 
       if (leftEventTimeFn != null || rightEventTimeFn != null) {
         Objects.requireNonNull(leftEventTimeFn);
         Objects.requireNonNull(rightEventTimeFn);
-
-        eventTimeAssigner = either -> either.isLeft() ?
-                leftEventTimeFn.apply(either.left()) :
-                rightEventTimeFn.apply(either.right());
+        eventTimeAssigner = either -> either.isLeft()
+                ? leftEventTimeFn.extractTimestamp(either.left())
+                : rightEventTimeFn.extractTimestamp(either.right());
       }
 
       return new OutputBuilder<>(name, left, right, leftKeyExtractor,
@@ -206,7 +205,7 @@ public class Join<LEFT, RIGHT, KEY, OUT, W extends Window>
     @Nullable
     private final Windowing<Either<LEFT, RIGHT>, W> windowing;
     @Nullable
-    private final UnaryFunction<Either<LEFT, RIGHT>, Long> eventTimeAssigner;
+    private final ExtractEventTime<Either<LEFT, RIGHT>> eventTimeAssigner;
 
     OutputBuilder(String name,
                   Dataset<LEFT> left,
@@ -217,7 +216,7 @@ public class Join<LEFT, RIGHT, KEY, OUT, W extends Window>
                   boolean outer,
                   PartitioningBuilder<KEY, ?> partitioning,
                   @Nullable Windowing<Either<LEFT, RIGHT>, W> windowing,
-                  @Nullable UnaryFunction<Either<LEFT, RIGHT>, Long> eventTimeAssigner) {
+                  @Nullable ExtractEventTime<Either<LEFT, RIGHT>> eventTimeAssigner) {
 
       super(partitioning);
 
@@ -267,7 +266,7 @@ public class Join<LEFT, RIGHT, KEY, OUT, W extends Window>
        Flow flow,
        Dataset<LEFT> left, Dataset<RIGHT> right,
        @Nullable Windowing<Either<LEFT, RIGHT>, W> windowing,
-       @Nullable UnaryFunction<Either<LEFT, RIGHT>, Long> eventTimeAssigner,
+       @Nullable ExtractEventTime<Either<LEFT, RIGHT>> eventTimeAssigner,
        Partitioning<KEY> partitioning,
        UnaryFunction<LEFT, KEY> leftKeyExtractor,
        UnaryFunction<RIGHT, KEY> rightKeyExtractor,

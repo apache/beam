@@ -22,6 +22,7 @@ import cz.seznam.euphoria.core.client.dataset.windowing.TimedWindow;
 import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
+import cz.seznam.euphoria.core.client.operator.ExtractEventTime;
 import cz.seznam.euphoria.core.client.operator.ReduceByKey;
 import cz.seznam.euphoria.core.client.util.Pair;
 import org.apache.spark.api.java.JavaPairRDD;
@@ -53,7 +54,7 @@ class ReduceByKeyTranslator implements SparkOperatorTranslator<ReduceByKey> {
     @SuppressWarnings("unchecked")
     final UnaryFunction<Iterable<Object>, Object> reducer = operator.getReducer();
     @SuppressWarnings("unchecked")
-    final UnaryFunction<?, Long> eventTimeAssigner = operator.getEventTimeAssigner();
+    final ExtractEventTime<?> eventTimeAssigner = operator.getEventTimeAssigner();
 
     final Partitioning partitioning = operator.getPartitioning();
     final Windowing windowing =
@@ -108,12 +109,12 @@ class ReduceByKeyTranslator implements SparkOperatorTranslator<ReduceByKey> {
     private final UnaryFunction valueExtractor;
     private final Windowing windowing;
     @Nullable
-    private final UnaryFunction eventTimeAssigner;
+    private final ExtractEventTime eventTimeAssigner;
 
     public CompositeKeyExtractor(UnaryFunction keyExtractor,
                                  UnaryFunction valueExtractor,
                                  Windowing windowing,
-                                 @Nullable UnaryFunction<?, Long> eventTimeAssigner) {
+                                 @Nullable ExtractEventTime eventTimeAssigner) {
       this.keyExtractor = keyExtractor;
       this.valueExtractor = valueExtractor;
       this.windowing = windowing;
@@ -124,7 +125,7 @@ class ReduceByKeyTranslator implements SparkOperatorTranslator<ReduceByKey> {
     @SuppressWarnings("unchecked")
     public Iterator<Tuple2<KeyedWindow, TimestampedElement>> call(SparkElement wel) throws Exception {
       if (eventTimeAssigner != null) {
-        wel.setTimestamp((long) eventTimeAssigner.apply(wel.getElement()));
+        wel.setTimestamp(eventTimeAssigner.extractTimestamp(wel.getElement()));
       }
 
       Set<Window> windows = windowing.assignWindowsToElement(wel);

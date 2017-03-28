@@ -175,7 +175,7 @@ public class ReduceStateByKey<
     }
     public <WIN, W extends Window>
     DatasetBuilder6<IN, WIN, KEY, VALUE, OUT, STATE, W>
-    windowBy(Windowing<WIN, W> windowing, UnaryFunction<WIN, Long> eventTimeAssigner) {
+    windowBy(Windowing<WIN, W> windowing, ExtractEventTime<WIN> eventTimeAssigner) {
       return new DatasetBuilder6<>(name, input, keyExtractor, valueExtractor,
               stateFactory, stateCombiner,
               Objects.requireNonNull(windowing), eventTimeAssigner, this);
@@ -204,7 +204,7 @@ public class ReduceStateByKey<
     @Nullable
     private final Windowing<WIN, W> windowing;
     @Nullable
-    private final UnaryFunction<WIN, Long> eventTimeAssigner;
+    private final ExtractEventTime<WIN> eventTimeAssigner;
 
     DatasetBuilder6(String name,
                     Dataset<IN> input,
@@ -213,7 +213,7 @@ public class ReduceStateByKey<
                     StateFactory<OUT, STATE> stateFactory,
                     CombinableReduceFunction<STATE> stateCombiner,
                     @Nullable Windowing<WIN, W> windowing,
-                    @Nullable UnaryFunction<WIN, Long> eventTimeAssigner,
+                    @Nullable ExtractEventTime<WIN> eventTimeAssigner,
                     PartitioningBuilder<KEY, ?> partitioning)
     {
       // initialize partitioning
@@ -263,7 +263,7 @@ public class ReduceStateByKey<
                    UnaryFunction<KIN, KEY> keyExtractor,
                    UnaryFunction<KIN, VALUE> valueExtractor,
                    @Nullable Windowing<WIN, W> windowing,
-                   @Nullable UnaryFunction<WIN, Long> eventTimeAssigner,
+                   @Nullable ExtractEventTime<WIN> eventTimeAssigner,
                    StateFactory<OUT, STATE> stateFactory,
                    CombinableReduceFunction<STATE> stateCombiner,
                    Partitioning<KEY> partitioning)

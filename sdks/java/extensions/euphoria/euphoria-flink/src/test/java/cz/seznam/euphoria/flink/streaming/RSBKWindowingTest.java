@@ -20,10 +20,10 @@ import cz.seznam.euphoria.core.client.dataset.windowing.Time;
 import cz.seznam.euphoria.core.client.dataset.windowing.TimeInterval;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.functional.StateFactory;
-import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 import cz.seznam.euphoria.core.client.io.Context;
 import cz.seznam.euphoria.core.client.io.ListDataSink;
 import cz.seznam.euphoria.core.client.io.ListDataSource;
+import cz.seznam.euphoria.core.client.operator.ExtractEventTime;
 import cz.seznam.euphoria.core.client.operator.MapElements;
 import cz.seznam.euphoria.core.client.operator.ReduceStateByKey;
 import cz.seznam.euphoria.core.client.operator.state.ListStorage;
@@ -116,8 +116,7 @@ public class RSBKWindowingTest {
         .combineStateBy(AccState::combine)
         .windowBy(Time.of(Duration.ofMillis(5)),
             // ~ event time
-            (UnaryFunction<Pair<String, Integer>, Long>) what ->
-                (long) what.getSecond())
+            (ExtractEventTime<Pair<String, Integer>>) what -> (long) what.getSecond())
         .setNumPartitions(1)
         .output();
 
@@ -168,8 +167,7 @@ public class RSBKWindowingTest {
             .combineStateBy(AccState::combine)
             .windowBy(Time.of(Duration.ofMillis(5)),
                 // ~ event time
-                (UnaryFunction<Pair<String, Integer>, Long>) what ->
-                    (long) what.getSecond())
+                (ExtractEventTime<Pair<String, Integer>>) what -> (long) what.getSecond())
             .setNumPartitions(1)
             .output();
 
@@ -185,8 +183,7 @@ public class RSBKWindowingTest {
         .combineStateBy(AccState::combine)
         .windowBy(Time.of(Duration.ofMillis(5)),
             // ~ event time
-            (UnaryFunction<Pair<String, Integer>, Long>) what ->
-                (long) what.getSecond())
+            (ExtractEventTime<Pair<String, Integer>>) what -> (long) what.getSecond())
         .setNumPartitions(1)
         .output();
 

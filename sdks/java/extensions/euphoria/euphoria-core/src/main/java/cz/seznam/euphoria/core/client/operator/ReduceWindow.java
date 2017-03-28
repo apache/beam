@@ -107,7 +107,7 @@ public class ReduceWindow<
     private final ReduceFunction<VALUE, OUT> reducer;
     private int numPartitions = -1;
     private Windowing<T, ?> windowing;
-    private UnaryFunction<T, Long> eventTimeAssigner;
+    private ExtractEventTime<T> eventTimeAssigner;
 
     public OutputBuilder(
         String name,
@@ -133,7 +133,7 @@ public class ReduceWindow<
       return windowBy(windowing, null);
     }
     public <W extends Window> OutputBuilder<T, VALUE, OUT>
-    windowBy(Windowing<T, W> windowing, UnaryFunction<T, Long> eventTimeAssigner) {
+    windowBy(Windowing<T, W> windowing, ExtractEventTime<T> eventTimeAssigner) {
       this.windowing = windowing;
       this.eventTimeAssigner = eventTimeAssigner;
       return this;
@@ -165,7 +165,7 @@ public class ReduceWindow<
           Dataset<IN> input,
           UnaryFunction<IN, VALUE> valueExtractor,
           @Nullable Windowing<IN, W> windowing,
-          @Nullable UnaryFunction<IN, Long> eventTimeAssigner,
+          @Nullable ExtractEventTime<IN> eventTimeAssigner,
           ReduceFunction<VALUE, OUT> reducer,
           int numPartitions) {
     

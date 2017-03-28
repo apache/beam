@@ -79,7 +79,7 @@ public class CountByKey<IN, KEY, W extends Window>
     }
 
     public <W extends Window> OutputBuilder<IN, KEY, W>
-    windowBy(Windowing<IN, W> windowing, UnaryFunction<IN, Long> eventTimeAssigner) {
+    windowBy(Windowing<IN, W> windowing, ExtractEventTime<IN> eventTimeAssigner) {
       return new OutputBuilder<>(name, input, keyExtractor, windowing, eventTimeAssigner, this);
     }
 
@@ -101,14 +101,14 @@ public class CountByKey<IN, KEY, W extends Window>
     @Nullable
     private final Windowing<IN, W> windowing;
     @Nullable
-    private final UnaryFunction<IN, Long> eventTimeAssigner;
+    private final ExtractEventTime<IN> eventTimeAssigner;
 
 
     OutputBuilder(String name,
                   Dataset<IN> input,
                   UnaryFunction<IN, KEY> keyExtractor,
                   @Nullable Windowing<IN, W> windowing,
-                  @Nullable UnaryFunction<IN, Long> eventTimeAssigner,
+                  @Nullable ExtractEventTime<IN> eventTimeAssigner,
                   PartitioningBuilder<KEY, ?> partitioning) {
 
       //initialize partitioning
@@ -144,7 +144,7 @@ public class CountByKey<IN, KEY, W extends Window>
              Dataset<IN> input,
              UnaryFunction<IN, KEY> extractor,
              @Nullable Windowing<IN, W> windowing,
-             @Nullable UnaryFunction<IN, Long> eventTimeAssigner,
+             @Nullable ExtractEventTime<IN> eventTimeAssigner,
              Partitioning<KEY> partitioning) {
 
     super(name, flow, input, extractor, windowing, eventTimeAssigner,  partitioning);
