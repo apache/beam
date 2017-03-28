@@ -18,7 +18,6 @@
 package org.apache.beam.runners.direct;
 
 import static org.hamcrest.Matchers.containsInAnyOrder;
-import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.nullValue;
 import static org.junit.Assert.assertThat;
 import static org.mockito.Mockito.mock;
@@ -27,7 +26,6 @@ import static org.mockito.Mockito.when;
 import com.google.common.collect.ImmutableList;
 import org.apache.beam.runners.direct.DirectRunner.CommittedBundle;
 import org.apache.beam.runners.direct.DirectRunner.PCollectionViewWriter;
-import org.apache.beam.runners.direct.ViewEvaluatorFactory.ViewOverrideFactory;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VoidCoder;
@@ -71,7 +69,7 @@ public class ViewEvaluatorFactoryTest {
             .apply(GroupByKey.<Void, String>create())
             .apply(Values.<Iterable<String>>create());
     PCollectionView<Iterable<String>> view =
-        concat.apply(new ViewEvaluatorFactory.WriteView<>(createView));
+        concat.apply(new ViewOverrideFactory.WriteView<>(createView));
 
     EvaluationContext context = mock(EvaluationContext.class);
     TestViewWriter<String, Iterable<String>> viewWriter = new TestViewWriter<>();
@@ -92,13 +90,6 @@ public class ViewEvaluatorFactoryTest {
         viewWriter.latest,
         containsInAnyOrder(
             WindowedValue.valueInGlobalWindow("foo"), WindowedValue.valueInGlobalWindow("bar")));
-  }
-
-  @Test
-  public void overrideFactoryGetInputSucceeds() {
-    ViewOverrideFactory<String, String> factory = new ViewOverrideFactory<>();
-    PCollection<String> input = p.apply(Create.of("foo", "bar"));
-    assertThat(factory.getInput(input.expand(), p), equalTo(input));
   }
 
   private static class TestViewWriter<ElemT, ViewT> implements PCollectionViewWriter<ElemT, ViewT> {
