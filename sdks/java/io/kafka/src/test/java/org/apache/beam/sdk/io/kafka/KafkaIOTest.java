@@ -17,7 +17,9 @@
  */
 package org.apache.beam.sdk.io.kafka;
 
+import static org.apache.beam.sdk.metrics.MetricMatchers.attemptedMetricsResult;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
+import static org.hamcrest.Matchers.hasItem;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
@@ -41,6 +43,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.Pipeline.PipelineExecutionException;
+import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.InstantCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -50,7 +53,17 @@ import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.io.UnboundedSource.UnboundedReader;
 import org.apache.beam.sdk.io.kafka.serialization.InstantDeserializer;
+import org.apache.beam.sdk.metrics.GaugeResult;
+import org.apache.beam.sdk.metrics.MetricMatchers;
+import org.apache.beam.sdk.metrics.MetricName;
+import org.apache.beam.sdk.metrics.MetricNameFilter;
+import org.apache.beam.sdk.metrics.MetricQueryResults;
+import org.apache.beam.sdk.metrics.MetricResult;
+import org.apache.beam.sdk.metrics.MetricsFilter;
+import org.apache.beam.sdk.metrics.SinkMetrics;
+import org.apache.beam.sdk.metrics.SourceMetrics;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
@@ -90,6 +103,7 @@ import org.hamcrest.collection.IsIterableContainingInAnyOrder;
 import org.joda.time.Instant;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -550,6 +564,76 @@ public class KafkaIOTest {
   }
 
   @Test
+  @Category(NeedsRunner.class)
+  public void testUnboundedSourceMetrics() {
+    int numElements = 1000;
+
+    String readStep = "readFromKafka";
+
+    p.apply(readStep,
+        mkKafkaReadTransform(numElements, new ValueAsTimestampFn()).withoutMetadata());
+
+    PipelineResult result = p.run();
+
+    String splitId = "0";
+
+    MetricName elementsRead = SourceMetrics.elementsRead().getName();
+    MetricName elementsReadBySplit = SourceMetrics.elementsReadBySplit(splitId).getName();
+    MetricName bytesRead = SourceMetrics.bytesRead().getName();
+    MetricName bytesReadBySplit = SourceMetrics.bytesReadBySplit(splitId).getName();
+    MetricName backlogElementsOfSplit = SourceMetrics.backlogElementsOfSplit(splitId).getName();
+    MetricName backlogBytesOfSplit = SourceMetrics.backlogBytesOfSplit(splitId).getName();
+
+    MetricQueryResults metrics = result.metrics().queryMetrics(
+        MetricsFilter.builder().build());
+
+    Iterable<MetricResult<Long>> counters = metrics.counters();
+    Iterable<MetricResult<GaugeResult>> gauges = metrics.gauges();
+
+    assertThat(counters, hasItem(
+        MetricMatchers.attemptedMetricsResult(
+            elementsRead.namespace(),
+            elementsRead.name(),
+            readStep,
+            1000L)));
+
+    assertThat(counters, hasItem(
+        MetricMatchers.attemptedMetricsResult(
+            elementsReadBySplit.namespace(),
+            elementsReadBySplit.name(),
+            readStep,
+            1000L)));
+
+    assertThat(counters, hasItem(
+        MetricMatchers.attemptedMetricsResult(
+            bytesRead.namespace(),
+            bytesRead.name(),
+            readStep,
+            12000L)));
+
+    assertThat(counters, hasItem(
+        MetricMatchers.attemptedMetricsResult(
+            bytesReadBySplit.namespace(),
+            bytesReadBySplit.name(),
+            readStep,
+            12000L)));
+
+    assertThat(gauges, hasItem(
+        attemptedMetricsResult(
+            backlogElementsOfSplit.namespace(),
+            backlogElementsOfSplit.name(),
+            readStep,
+            GaugeResult.create(0L, Instant.now()))));
+
+    assertThat(gauges, hasItem(
+        attemptedMetricsResult(
+            backlogBytesOfSplit.namespace(),
+            backlogBytesOfSplit.name(),
+            readStep,
+            GaugeResult.create(0L, Instant.now()))));
+  }
+
+  @Test
   public void testSink() throws Exception {
     // Simply read from kafka source and write to kafka sink. Then verify the records
     // are correctly published to mock kafka producer.
@@ -750,6 +834,52 @@ public class KafkaIOTest {
 
     assertTrue(KafkaIO.inferCoder(registry, DeserializerWithInterfaces.class).getValueCoder()
             instanceof VarLongCoder);
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testSinkMetrics() throws Exception {
+    // Simply read from kafka source and write to kafka sink. Then verify the metrics are reported.
+
+    int numElements = 1000;
+
+    synchronized (MOCK_PRODUCER_LOCK) {
+
+      MOCK_PRODUCER.clear();
+
+      ProducerSendCompletionThread completionThread = new ProducerSendCompletionThread().start();
+
+      String topic = "test";
+
+      p
+          .apply(mkKafkaReadTransform(numElements, new ValueAsTimestampFn())
+              .withoutMetadata())
+          .apply("writeToKafka", KafkaIO.<Integer, Long>write()
+              .withBootstrapServers("none")
+              .withTopic(topic)
+              .withKeySerializer(IntegerSerializer.class)
+              .withValueSerializer(LongSerializer.class)
+              .withProducerFactoryFn(new ProducerFactoryFn()));
+
+      PipelineResult result = p.run();
+
+      MetricName elementsWritten = SinkMetrics.elementsWritten().getName();
+
+      MetricQueryResults metrics = result.metrics().queryMetrics(
+          MetricsFilter.builder()
+              .addNameFilter(MetricNameFilter.inNamespace(elementsWritten.namespace()))
+              .build());
+
+
+      assertThat(metrics.counters(), hasItem(
+          MetricMatchers.attemptedMetricsResult(
+              elementsWritten.namespace(),
+              elementsWritten.name(),
+              "writeToKafka",
+              1000L)));
+
+      completionThread.shutdown();
+    }
   }
 
   private static void verifyProducerRecords(String topic, int numElements, boolean keyIsAbsent) {
