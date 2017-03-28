@@ -17,23 +17,27 @@ package cz.seznam.euphoria.core.client.operator;
 
 import cz.seznam.euphoria.core.annotation.operator.Recommended;
 import cz.seznam.euphoria.core.annotation.operator.StateComplexity;
-import cz.seznam.euphoria.core.client.operator.state.State;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.partitioning.Partitioning;
-import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.dataset.windowing.Window;
+import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.functional.CombinableReduceFunction;
 import cz.seznam.euphoria.core.client.functional.ReduceFunction;
+import cz.seznam.euphoria.core.client.functional.StateFactory;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 import cz.seznam.euphoria.core.client.graph.DAG;
 import cz.seznam.euphoria.core.client.io.Context;
 import cz.seznam.euphoria.core.client.operator.state.ListStorage;
 import cz.seznam.euphoria.core.client.operator.state.ListStorageDescriptor;
+import cz.seznam.euphoria.core.client.operator.state.State;
 import cz.seznam.euphoria.core.client.operator.state.StorageProvider;
+import cz.seznam.euphoria.core.client.operator.state.ValueStorage;
+import cz.seznam.euphoria.core.client.operator.state.ValueStorageDescriptor;
 import cz.seznam.euphoria.core.client.util.Pair;
 
 import javax.annotation.Nullable;
+import java.util.Arrays;
 import java.util.Iterator;
 import java.util.Objects;
 
@@ -104,9 +108,10 @@ public class ReduceByKey<
     }
     @SuppressWarnings("unchecked")
     public DatasetBuilder4<IN, KEY, IN, IN> combineBy(CombinableReduceFunction<IN> reducer) {
-      return new DatasetBuilder4(name, input, keyExtractor, e -> e, (ReduceFunction) reducer);
+      return new DatasetBuilder4(name, input, keyExtractor, e -> e, reducer);
     }
   }
+
   public static class DatasetBuilder3<IN, KEY, VALUE> {
     private final String name;
     private final Dataset<IN> input;
@@ -130,6 +135,7 @@ public class ReduceByKey<
       return new DatasetBuilder4<>(name, input, keyExtractor, valueExtractor, reducer);
     }
   }
+
   public static class DatasetBuilder4<IN, KEY, VALUE, OUT>
           extends PartitioningBuilder<KEY, DatasetBuilder4<IN, KEY, VALUE, OUT>>
           implements OutputBuilder<Pair<KEY, OUT>> {
@@ -260,85 +266,158 @@ public class ReduceByKey<
     return reducer instanceof CombinableReduceFunction;
   }
 
-  // state represents the output value
-  private static class ReduceState<VALUE, OUT> extends State<VALUE, OUT> {
+  @SuppressWarnings("unchecked")
+  @Override
+  public DAG<Operator<?, ?>> getBasicOps() {
+    CombinableReduceFunction<AddAll<OUT>> stateCombine = new AddAllStateCombiner();
+    StateFactory stateFactory = isCombinable()
+            ? new CombiningReduceState.Factory<>((CombinableReduceFunction) reducer)
+            : new NonCombiningReduceState.Factory<>(reducer);
+    Flow flow = getFlow();
+    Operator reduceState = new ReduceStateByKey(getName(),
+        flow, input, keyExtractor, valueExtractor,
+        windowing, eventTimeAssigner,
+        stateFactory, stateCombine,
+        partitioning);
+    return DAG.of(reduceState);
+  }
 
-    private final ReduceFunction<VALUE, OUT> reducer;
-    private final boolean combinable;
+  private interface AddAll<S> {
+    void addAll(S other);
+  }
 
-    final ListStorage<VALUE> reducableValues;
+  private static class AddAllStateCombiner<T extends AddAll<T>>
+          implements CombinableReduceFunction<T> {
+    @Override
+    public T apply(Iterable<T> xs) {
+      final T first;
+      Iterator<T> x = xs.iterator();
+      first = x.next();
+      while (x.hasNext()) {
+        first.addAll(x.next());
+      }
+      return first;
+    }
+  }
 
-    ReduceState(Context<OUT> context,
-                StorageProvider storageProvider,
-                ReduceFunction<VALUE, OUT> reducer,
-                boolean combinable) {
+  static class CombiningReduceState<E>
+          extends State<E, E>
+          implements AddAll<CombiningReduceState<E>> {
+
+    static final class Factory<E> implements StateFactory<E, State<E, E>> {
+      private final CombinableReduceFunction<E> r;
+
+      Factory(CombinableReduceFunction<E> r) {
+        this.r = Objects.requireNonNull(r);
+      }
+
+      @Override
+      public State<E, E> apply(Context<E> ctx, StorageProvider storageProvider) {
+        return new CombiningReduceState<>(ctx, storageProvider, r);
+      }
+    }
+
+    @SuppressWarnings("unchecked")
+    private static final ValueStorageDescriptor STORAGE_DESC =
+            ValueStorageDescriptor.of("rbsk-value", (Class) Object.class, null);
+
+    private final CombinableReduceFunction<E> reducer;
+    private final ValueStorage<E> storage;
+
+    CombiningReduceState(Context<E> context,
+                         StorageProvider storageProvider,
+                         CombinableReduceFunction<E> reducer) {
       super(context, storageProvider);
       this.reducer = Objects.requireNonNull(reducer);
-      this.combinable = combinable;
+
       @SuppressWarnings("unchecked")
-      ListStorageDescriptor<VALUE> values =
-          ListStorageDescriptor.of("values", (Class) Object.class);
-      reducableValues = storageProvider.getListStorage(values);
+      ValueStorage<E> vs = storageProvider.getValueStorage(STORAGE_DESC);
+      this.storage = vs;
     }
 
     @Override
-    @SuppressWarnings("unchecked")
-    public void add(VALUE element) {
-      reducableValues.add(element);
-      combineIfPossible();
-    }
-
-    @Override
-    @SuppressWarnings("unchecked")
-    public void flush() {
-      OUT result = reducer.apply(reducableValues.get());
-      getContext().collect(result);
-    }
-
-    void add(ReduceState<VALUE, OUT> other) {
-      this.reducableValues.addAll(other.reducableValues.get());
-      combineIfPossible();
-    }
-
-    @SuppressWarnings("unchecked")
-    private void combineIfPossible() {
-      if (combinable) {
-        OUT val = reducer.apply(reducableValues.get());
-        reducableValues.clear();
-        reducableValues.add((VALUE) val);
+    public void add(E element) {
+      E v = this.storage.get();
+      if (v == null) {
+        this.storage.set(element);
+      } else {
+        this.storage.set(this.reducer.apply(Arrays.asList(v, element)));
       }
     }
 
     @Override
-    public void close() {
-      reducableValues.clear();
+    public void flush() {
+      getContext().collect(this.storage.get());
     }
 
+    @Override
+    public void close() {
+      this.storage.clear();
+    }
+
+    @Override
+    public void addAll(CombiningReduceState<E> other) {
+      this.storage.set(this.reducer.apply(Arrays.asList(this.storage.get(), other.storage.get())));
+    }
   }
 
-  @SuppressWarnings("unchecked")
-  @Override
-  public DAG<Operator<?, ?>> getBasicOps() {
-    // this can be implemented using ReduceStateByKey
+  private static class NonCombiningReduceState<VALUE, OUT>
+          extends State<VALUE, OUT>
+          implements AddAll<NonCombiningReduceState<VALUE, OUT>> {
 
-    Flow flow = getFlow();
-    Operator<?, ?> reduceState;
-    reduceState = new ReduceStateByKey<>(getName(),
-        flow, input, keyExtractor, valueExtractor,
-        windowing,
-        eventTimeAssigner,
-        (Context<OUT> c, StorageProvider provider) -> new ReduceState<>(
-            c, provider, reducer, isCombinable()),
-        (Iterable<ReduceState> states) -> {
-          final ReduceState first;
-          Iterator<ReduceState> i = states.iterator();
-          first = i.next();
-          while (i.hasNext()) {
-            first.add(i.next());
-          }
-          return first;
-        },
-        partitioning);
-    return DAG.of(reduceState);
+
+    static final class Factory<VALUE, OUT>
+            implements StateFactory<OUT, NonCombiningReduceState<VALUE, OUT>> {
+      private final ReduceFunction<VALUE, OUT> r;
+
+      Factory(ReduceFunction<VALUE, OUT> r) {
+        this.r = Objects.requireNonNull(r);
+      }
+
+      @Override
+      public NonCombiningReduceState<VALUE, OUT>
+      apply(Context<OUT> ctx, StorageProvider storageProvider) {
+        return new NonCombiningReduceState<>(ctx, storageProvider, r);
+      }
+    }
+
+    @SuppressWarnings("unchecked")
+    private static final ListStorageDescriptor STORAGE_DESC =
+            ListStorageDescriptor.of("values", (Class) Object.class);
+
+    private final ReduceFunction<VALUE, OUT> reducer;
+    private final ListStorage<VALUE> reducibleValues;
+
+    NonCombiningReduceState(Context<OUT> context,
+                            StorageProvider storageProvider,
+                            ReduceFunction<VALUE, OUT> reducer) {
+      super(context, storageProvider);
+      this.reducer = Objects.requireNonNull(reducer);
+
+      @SuppressWarnings("unchecked")
+      ListStorage<VALUE> ls = storageProvider.getListStorage(STORAGE_DESC);
+      reducibleValues = ls;
+    }
+
+    @Override
+    public void add(VALUE element) {
+      reducibleValues.add(element);
+    }
+
+    @Override
+    public void flush() {
+      OUT result = reducer.apply(reducibleValues.get());
+      getContext().collect(result);
+    }
+
+    @Override
+    public void close() {
+      reducibleValues.clear();
+    }
+
+    @Override
+    public void addAll(NonCombiningReduceState<VALUE, OUT> other) {
+      this.reducibleValues.addAll(other.reducibleValues.get());
+    }
   }
 }
