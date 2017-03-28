@@ -160,7 +160,7 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
      * <p>Once passed to {@code sideOutput} the element should not be modified
      * in any way.
      *
-     * <p>The caller of {@code ParDo} uses {@link ParDo#withOutputTags} to
+     * <p>The caller of {@code ParDo} uses {@link ParDo.SingleOutput#withOutputTags} to
      * specify the tags of side outputs that it consumes. Non-consumed side
      * outputs, e.g., outputs for monitoring purposes only, don't necessarily
      * need to be specified.
@@ -179,7 +179,7 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
      * <p><i>Note:</i> A splittable {@link DoFn} is not allowed to output from
      * {@link StartBundle} or {@link FinishBundle} methods.
      *
-     * @see ParDo#withOutputTags
+     * @see ParDo.SingleOutput#withOutputTags
      */
     public abstract <T> void sideOutput(TupleTag<T> tag, T output);
 
@@ -206,7 +206,7 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
      * <p><i>Note:</i> A splittable {@link DoFn} is not allowed to output from
      * {@link StartBundle} or {@link FinishBundle} methods.
      *
-     * @see ParDo#withOutputTags
+     * @see ParDo.SingleOutput#withOutputTags
      */
     public abstract <T> void sideOutputWithTimestamp(
         TupleTag<T> tag, T output, Instant timestamp);
@@ -272,7 +272,7 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
      * Returns the value of the side input.
      *
      * @throws IllegalArgumentException if this is not a side input
-     * @see ParDo#withSideInputs
+     * @see ParDo.SingleOutput#withSideInputs
      */
     public abstract <T> T sideInput(PCollectionView<T> view);
 

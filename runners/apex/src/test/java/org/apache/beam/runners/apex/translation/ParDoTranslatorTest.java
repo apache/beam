@@ -281,13 +281,14 @@ public class ParDoTranslatorTest {
 
     PCollectionTuple outputs = pipeline
         .apply(Create.of(inputs))
-        .apply(ParDo.withSideInputs(sideInput1)
-            .withSideInputs(sideInputUnread)
-            .withSideInputs(sideInput2)
-            .withOutputTags(mainOutputTag, TupleTagList.of(sideOutputTag))
+        .apply(ParDo
             .of(new TestMultiOutputWithSideInputsFn(
                 Arrays.asList(sideInput1, sideInput2),
-                Arrays.<TupleTag<String>>asList())));
+                Arrays.<TupleTag<String>>asList()))
+            .withSideInputs(sideInput1)
+            .withSideInputs(sideInputUnread)
+            .withSideInputs(sideInput2)
+            .withOutputTags(mainOutputTag, TupleTagList.of(sideOutputTag)));
 
     outputs.get(mainOutputTag).apply(ParDo.of(new EmbeddedCollector()));
     outputs.get(sideOutputTag).setCoder(VoidCoder.of());

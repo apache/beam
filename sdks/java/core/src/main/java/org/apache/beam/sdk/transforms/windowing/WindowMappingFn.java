@@ -19,14 +19,14 @@
 package org.apache.beam.sdk.transforms.windowing;
 
 import java.io.Serializable;
-import org.apache.beam.sdk.transforms.ParDo.BoundMulti;
+import org.apache.beam.sdk.transforms.ParDo.MultiOutput;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.joda.time.Duration;
 
 /**
  * A function that takes the windows of elements in a main input and maps them to the appropriate
  * window in a {@link PCollectionView} consumed as a
- * {@link BoundMulti#withSideInputs(PCollectionView[]) side input}.
+ * {@link MultiOutput#withSideInputs(PCollectionView[]) side input}.
  */
 public abstract class WindowMappingFn<TargetWindowT extends BoundedWindow> implements Serializable {
   private final Duration maximumLookback;

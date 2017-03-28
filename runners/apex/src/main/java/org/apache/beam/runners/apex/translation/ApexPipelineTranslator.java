@@ -59,7 +59,7 @@ public class ApexPipelineTranslator implements Pipeline.PipelineVisitor {
 
   static {
     // register TransformTranslators
-    registerTransformTranslator(ParDo.BoundMulti.class, new ParDoTranslator<>());
+    registerTransformTranslator(ParDo.MultiOutput.class, new ParDoTranslator<>());
     registerTransformTranslator(Read.Unbounded.class, new ReadUnboundedTranslator());
     registerTransformTranslator(Read.Bounded.class, new ReadBoundedTranslator());
     registerTransformTranslator(GroupByKey.class, new GroupByKeyTranslator());

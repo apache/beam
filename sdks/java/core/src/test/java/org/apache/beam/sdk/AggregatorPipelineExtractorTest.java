@@ -64,17 +64,17 @@ public class AggregatorPipelineExtractorTest {
 
   @SuppressWarnings("unchecked")
   @Test
-  public void testGetAggregatorStepsWithParDoBoundExtractsSteps() {
+  public void testGetAggregatorStepsWithParDoSingleOutputExtractsSteps() {
     @SuppressWarnings("rawtypes")
-    ParDo.Bound bound = mock(ParDo.Bound.class, "Bound");
+    ParDo.SingleOutput parDo = mock(ParDo.SingleOutput.class, "parDo");
     AggregatorProvidingDoFn<ThreadGroup, StrictMath> fn = new AggregatorProvidingDoFn<>();
-    when(bound.getFn()).thenReturn(fn);
+    when(parDo.getFn()).thenReturn(fn);
 
     Aggregator<Long, Long> aggregatorOne = fn.addAggregator(Sum.ofLongs());
     Aggregator<Integer, Integer> aggregatorTwo = fn.addAggregator(Min.ofIntegers());
 
     TransformHierarchy.Node transformNode = mock(TransformHierarchy.Node.class);
-    when(transformNode.getTransform()).thenReturn(bound);
+    when(transformNode.getTransform()).thenReturn(parDo);
 
     doAnswer(new VisitNodesAnswer(ImmutableList.of(transformNode)))
         .when(p)
@@ -85,24 +85,24 @@ public class AggregatorPipelineExtractorTest {
     Map<Aggregator<?, ?>, Collection<PTransform<?, ?>>> aggregatorSteps =
         extractor.getAggregatorSteps();
 
-    assertEquals(ImmutableSet.<PTransform<?, ?>>of(bound), aggregatorSteps.get(aggregatorOne));
-    assertEquals(ImmutableSet.<PTransform<?, ?>>of(bound), aggregatorSteps.get(aggregatorTwo));
+    assertEquals(ImmutableSet.<PTransform<?, ?>>of(parDo), aggregatorSteps.get(aggregatorOne));
+    assertEquals(ImmutableSet.<PTransform<?, ?>>of(parDo), aggregatorSteps.get(aggregatorTwo));
     assertEquals(aggregatorSteps.size(), 2);
   }
 
   @SuppressWarnings("unchecked")
   @Test
-  public void testGetAggregatorStepsWithParDoBoundMultiExtractsSteps() {
+  public void testGetAggregatorStepsWithParDoMultiOutputExtractsSteps() {
     @SuppressWarnings("rawtypes")
-    ParDo.BoundMulti bound = mock(ParDo.BoundMulti.class, "BoundMulti");
+    ParDo.MultiOutput parDo = mock(ParDo.MultiOutput.class, "parDo");
     AggregatorProvidingDoFn<Object, Void> fn = new AggregatorProvidingDoFn<>();
-    when(bound.getFn()).thenReturn(fn);
+    when(parDo.getFn()).thenReturn(fn);
 
     Aggregator<Long, Long> aggregatorOne = fn.addAggregator(Max.ofLongs());
     Aggregator<Double, Double> aggregatorTwo = fn.addAggregator(Min.ofDoubles());
 
     TransformHierarchy.Node transformNode = mock(TransformHierarchy.Node.class);
-    when(transformNode.getTransform()).thenReturn(bound);
+    when(transformNode.getTransform()).thenReturn(parDo);
 
     doAnswer(new VisitNodesAnswer(ImmutableList.of(transformNode)))
         .when(p)
@@ -113,8 +113,8 @@ public class AggregatorPipelineExtractorTest {
     Map<Aggregator<?, ?>, Collection<PTransform<?, ?>>> aggregatorSteps =
         extractor.getAggregatorSteps();
 
-    assertEquals(ImmutableSet.<PTransform<?, ?>>of(bound), aggregatorSteps.get(aggregatorOne));
-    assertEquals(ImmutableSet.<PTransform<?, ?>>of(bound), aggregatorSteps.get(aggregatorTwo));
+    assertEquals(ImmutableSet.<PTransform<?, ?>>of(parDo), aggregatorSteps.get(aggregatorOne));
+    assertEquals(ImmutableSet.<PTransform<?, ?>>of(parDo), aggregatorSteps.get(aggregatorTwo));
     assertEquals(2, aggregatorSteps.size());
   }
 
@@ -122,20 +122,20 @@ public class AggregatorPipelineExtractorTest {
   @Test
   public void testGetAggregatorStepsWithOneAggregatorInMultipleStepsAddsSteps() {
     @SuppressWarnings("rawtypes")
-    ParDo.Bound bound = mock(ParDo.Bound.class, "Bound");
+    ParDo.SingleOutput parDo = mock(ParDo.SingleOutput.class, "parDo");
     @SuppressWarnings("rawtypes")
-    ParDo.BoundMulti otherBound = mock(ParDo.BoundMulti.class, "otherBound");
+    ParDo.MultiOutput otherParDo = mock(ParDo.MultiOutput.class, "otherParDo");
     AggregatorProvidingDoFn<String, Math> fn = new AggregatorProvidingDoFn<>();
-    when(bound.getFn()).thenReturn(fn);
-    when(otherBound.getFn()).thenReturn(fn);
+    when(parDo.getFn()).thenReturn(fn);
+    when(otherParDo.getFn()).thenReturn(fn);
 
     Aggregator<Long, Long> aggregatorOne = fn.addAggregator(Sum.ofLongs());
     Aggregator<Double, Double> aggregatorTwo = fn.addAggregator(Min.ofDoubles());
 
     TransformHierarchy.Node transformNode = mock(TransformHierarchy.Node.class);
-    when(transformNode.getTransform()).thenReturn(bound);
+    when(transformNode.getTransform()).thenReturn(parDo);
     TransformHierarchy.Node otherTransformNode = mock(TransformHierarchy.Node.class);
-    when(otherTransformNode.getTransform()).thenReturn(otherBound);
+    when(otherTransformNode.getTransform()).thenReturn(otherParDo);
 
     doAnswer(new VisitNodesAnswer(ImmutableList.of(transformNode, otherTransformNode)))
         .when(p)
@@ -147,9 +147,9 @@ public class AggregatorPipelineExtractorTest {
         extractor.getAggregatorSteps();
 
     assertEquals(
-        ImmutableSet.<PTransform<?, ?>>of(bound, otherBound), aggregatorSteps.get(aggregatorOne));
+        ImmutableSet.<PTransform<?, ?>>of(parDo, otherParDo), aggregatorSteps.get(aggregatorOne));
     assertEquals(
-        ImmutableSet.<PTransform<?, ?>>of(bound, otherBound), aggregatorSteps.get(aggregatorTwo));
+        ImmutableSet.<PTransform<?, ?>>of(parDo, otherParDo), aggregatorSteps.get(aggregatorTwo));
     assertEquals(2, aggregatorSteps.size());
   }
 
@@ -157,25 +157,25 @@ public class AggregatorPipelineExtractorTest {
   @Test
   public void testGetAggregatorStepsWithDifferentStepsAddsSteps() {
     @SuppressWarnings("rawtypes")
-    ParDo.Bound bound = mock(ParDo.Bound.class, "Bound");
+    ParDo.SingleOutput parDo = mock(ParDo.SingleOutput.class, "parDo");
 
     AggregatorProvidingDoFn<ThreadGroup, Void> fn = new AggregatorProvidingDoFn<>();
     Aggregator<Long, Long> aggregatorOne = fn.addAggregator(Sum.ofLongs());
 
-    when(bound.getFn()).thenReturn(fn);
+    when(parDo.getFn()).thenReturn(fn);
 
     @SuppressWarnings("rawtypes")
-    ParDo.BoundMulti otherBound = mock(ParDo.BoundMulti.class, "otherBound");
+    ParDo.MultiOutput otherParDo = mock(ParDo.MultiOutput.class, "otherParDo");
 
     AggregatorProvidingDoFn<Long, Long> otherFn = new AggregatorProvidingDoFn<>();
     Aggregator<Double, Double> aggregatorTwo = otherFn.addAggregator(Sum.ofDoubles());
 
-    when(otherBound.getFn()).thenReturn(otherFn);
+    when(otherParDo.getFn()).thenReturn(otherFn);
 
     TransformHierarchy.Node transformNode = mock(TransformHierarchy.Node.class);
-    when(transformNode.getTransform()).thenReturn(bound);
+    when(transformNode.getTransform()).thenReturn(parDo);
     TransformHierarchy.Node otherTransformNode = mock(TransformHierarchy.Node.class);
-    when(otherTransformNode.getTransform()).thenReturn(otherBound);
+    when(otherTransformNode.getTransform()).thenReturn(otherParDo);
 
     doAnswer(new VisitNodesAnswer(ImmutableList.of(transformNode, otherTransformNode)))
         .when(p)
@@ -186,8 +186,8 @@ public class AggregatorPipelineExtractorTest {
     Map<Aggregator<?, ?>, Collection<PTransform<?, ?>>> aggregatorSteps =
         extractor.getAggregatorSteps();
 
-    assertEquals(ImmutableSet.<PTransform<?, ?>>of(bound), aggregatorSteps.get(aggregatorOne));
-    assertEquals(ImmutableSet.<PTransform<?, ?>>of(otherBound), aggregatorSteps.get(aggregatorTwo));
+    assertEquals(ImmutableSet.<PTransform<?, ?>>of(parDo), aggregatorSteps.get(aggregatorOne));
+    assertEquals(ImmutableSet.<PTransform<?, ?>>of(otherParDo), aggregatorSteps.get(aggregatorTwo));
     assertEquals(2, aggregatorSteps.size());
   }
 

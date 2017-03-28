@@ -58,11 +58,11 @@ public class PrimitiveParDoSingleFactoryTest implements Serializable {
 
   /**
    * A test that demonstrates that the replacement transform has the Display Data of the
-   * {@link ParDo.Bound} it replaces.
+   * {@link ParDo.SingleOutput} it replaces.
    */
   @Test
   public void getReplacementTransformPopulateDisplayData() {
-    ParDo.Bound<Integer, Long> originalTransform = ParDo.of(new ToLongFn());
+    ParDo.SingleOutput<Integer, Long> originalTransform = ParDo.of(new ToLongFn());
     DisplayData originalDisplayData = DisplayData.from(originalTransform);
 
     PTransform<PCollection<? extends Integer>, PCollection<Long>> replacement =
@@ -88,7 +88,7 @@ public class PrimitiveParDoSingleFactoryTest implements Serializable {
         pipeline
             .apply("StringSideInputVals", Create.of("foo", "bar", "baz"))
             .apply("SideStringsView", View.<String>asList());
-    ParDo.Bound<Integer, Long> originalTransform =
+    ParDo.SingleOutput<Integer, Long> originalTransform =
         ParDo.of(new ToLongFn()).withSideInputs(sideLong, sideStrings);
 
     PTransform<PCollection<? extends Integer>, PCollection<Long>> replacementTransform =
@@ -100,7 +100,7 @@ public class PrimitiveParDoSingleFactoryTest implements Serializable {
   @Test
   public void getReplacementTransformGetFn() {
     DoFn<Integer, Long> originalFn = new ToLongFn();
-    ParDo.Bound<Integer, Long> originalTransform = ParDo.of(originalFn);
+    ParDo.SingleOutput<Integer, Long> originalTransform = ParDo.of(originalFn);
     PTransform<PCollection<? extends Integer>, PCollection<Long>> replacementTransform =
         factory.getReplacementTransform(originalTransform);
     ParDoSingle<Integer, Long> parDoSingle = (ParDoSingle<Integer, Long>) replacementTransform;

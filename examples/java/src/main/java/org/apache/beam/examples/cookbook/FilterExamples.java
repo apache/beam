@@ -175,7 +175,6 @@ public class FilterExamples {
       // We'll only output readings with temperatures below this mean.
       PCollection<TableRow> filteredRows = monthFilteredRows
           .apply("ParseAndFilter", ParDo
-              .withSideInputs(globalMeanTemp)
               .of(new DoFn<TableRow, TableRow>() {
                 @ProcessElement
                 public void processElement(ProcessContext c) {
@@ -185,7 +184,7 @@ public class FilterExamples {
                     c.output(c.element());
                   }
                 }
-              }));
+              }).withSideInputs(globalMeanTemp));
 
       return filteredRows;
     }

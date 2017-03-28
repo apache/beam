@@ -82,14 +82,14 @@ import org.joda.time.Instant;
 @Experimental(Experimental.Kind.SPLITTABLE_DO_FN)
 public class SplittableParDo<InputT, OutputT, RestrictionT>
     extends PTransform<PCollection<InputT>, PCollectionTuple> {
-  private final ParDo.BoundMulti<InputT, OutputT> parDo;
+  private final ParDo.MultiOutput<InputT, OutputT> parDo;
 
   /**
    * Creates the transform for the given original multi-output {@link ParDo}.
    *
    * @param parDo The splittable {@link ParDo} transform.
    */
-  public SplittableParDo(ParDo.BoundMulti<InputT, OutputT> parDo) {
+  public SplittableParDo(ParDo.MultiOutput<InputT, OutputT> parDo) {
     checkNotNull(parDo, "parDo must not be null");
     this.parDo = parDo;
     checkArgument(
@@ -248,7 +248,7 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
               windowingStrategy,
               input.isBounded().and(signature.isBoundedPerElement()));
 
-      // Set output type descriptor similarly to how ParDo.BoundMulti does it.
+      // Set output type descriptor similarly to how ParDo.MultiOutput does it.
       outputs.get(mainOutputTag).setTypeDescriptor(fn.getOutputTypeDescriptor());
 
       return outputs;
@@ -260,7 +260,7 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
             input,
         TypedPValue<T> output)
         throws CannotProvideCoderException {
-      // Similar logic to ParDo.BoundMulti.getDefaultOutputCoder.
+      // Similar logic to ParDo.MultiOutput.getDefaultOutputCoder.
       @SuppressWarnings("unchecked")
       KeyedWorkItemCoder<String, ElementAndRestriction<InputT, RestrictionT>> kwiCoder =
           (KeyedWorkItemCoder) input.getCoder();

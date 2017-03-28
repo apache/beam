@@ -70,16 +70,16 @@ public class PTransformMatchers {
   }
 
   /**
-   * A {@link PTransformMatcher} that matches a {@link ParDo.Bound} containing a {@link DoFn} that
-   * is splittable, as signified by {@link ProcessElementMethod#isSplittable()}.
+   * A {@link PTransformMatcher} that matches a {@link ParDo.SingleOutput} containing a {@link DoFn}
+   * that is splittable, as signified by {@link ProcessElementMethod#isSplittable()}.
    */
   public static PTransformMatcher splittableParDoSingle() {
     return new PTransformMatcher() {
       @Override
       public boolean matches(AppliedPTransform<?, ?, ?> application) {
         PTransform<?, ?> transform = application.getTransform();
-        if (transform instanceof ParDo.Bound) {
-          DoFn<?, ?> fn = ((ParDo.Bound<?, ?>) transform).getFn();
+        if (transform instanceof ParDo.SingleOutput) {
+          DoFn<?, ?> fn = ((ParDo.SingleOutput<?, ?>) transform).getFn();
           DoFnSignature signature = DoFnSignatures.signatureForDoFn(fn);
           return signature.processElement().isSplittable();
         }
@@ -89,17 +89,17 @@ public class PTransformMatchers {
   }
 
   /**
-   * A {@link PTransformMatcher} that matches a {@link ParDo.Bound} containing a {@link DoFn} that
-   * uses state or timers, as specified by {@link DoFnSignature#usesState()} and
-   * {@link DoFnSignature#usesTimers()}.
+   * A {@link PTransformMatcher} that matches a {@link ParDo.SingleOutput} containing a {@link DoFn}
+   * that uses state or timers, as specified by {@link DoFnSignature#usesState()} and {@link
+   * DoFnSignature#usesTimers()}.
    */
   public static PTransformMatcher stateOrTimerParDoSingle() {
     return new PTransformMatcher() {
       @Override
       public boolean matches(AppliedPTransform<?, ?, ?> application) {
         PTransform<?, ?> transform = application.getTransform();
-        if (transform instanceof ParDo.Bound) {
-          DoFn<?, ?> fn = ((ParDo.Bound<?, ?>) transform).getFn();
+        if (transform instanceof ParDo.SingleOutput) {
+          DoFn<?, ?> fn = ((ParDo.SingleOutput<?, ?>) transform).getFn();
           DoFnSignature signature = DoFnSignatures.signatureForDoFn(fn);
           return signature.usesState() || signature.usesTimers();
         }
@@ -109,7 +109,7 @@ public class PTransformMatchers {
   }
 
   /**
-   * A {@link PTransformMatcher} that matches a {@link ParDo.BoundMulti} containing a {@link DoFn}
+   * A {@link PTransformMatcher} that matches a {@link ParDo.MultiOutput} containing a {@link DoFn}
    * that is splittable, as signified by {@link ProcessElementMethod#isSplittable()}.
    */
   public static PTransformMatcher splittableParDoMulti() {
@@ -117,8 +117,8 @@ public class PTransformMatchers {
       @Override
       public boolean matches(AppliedPTransform<?, ?, ?> application) {
         PTransform<?, ?> transform = application.getTransform();
-        if (transform instanceof ParDo.BoundMulti) {
-          DoFn<?, ?> fn = ((ParDo.BoundMulti<?, ?>) transform).getFn();
+        if (transform instanceof ParDo.MultiOutput) {
+          DoFn<?, ?> fn = ((ParDo.MultiOutput<?, ?>) transform).getFn();
           DoFnSignature signature = DoFnSignatures.signatureForDoFn(fn);
           return signature.processElement().isSplittable();
         }
@@ -128,7 +128,7 @@ public class PTransformMatchers {
   }
 
   /**
-   * A {@link PTransformMatcher} that matches a {@link ParDo.BoundMulti} containing a {@link DoFn}
+   * A {@link PTransformMatcher} that matches a {@link ParDo.MultiOutput} containing a {@link DoFn}
    * that uses state or timers, as specified by {@link DoFnSignature#usesState()} and
    * {@link DoFnSignature#usesTimers()}.
    */
@@ -137,8 +137,8 @@ public class PTransformMatchers {
       @Override
       public boolean matches(AppliedPTransform<?, ?, ?> application) {
         PTransform<?, ?> transform = application.getTransform();
-        if (transform instanceof ParDo.BoundMulti) {
-          DoFn<?, ?> fn = ((ParDo.BoundMulti<?, ?>) transform).getFn();
+        if (transform instanceof ParDo.MultiOutput) {
+          DoFn<?, ?> fn = ((ParDo.MultiOutput<?, ?>) transform).getFn();
           DoFnSignature signature = DoFnSignatures.signatureForDoFn(fn);
           return signature.usesState() || signature.usesTimers();
         }
@@ -148,18 +148,18 @@ public class PTransformMatchers {
   }
 
   /**
-   * A {@link PTransformMatcher} which matches a {@link ParDo.Bound} or {@link ParDo.BoundMulti}
-   * where the {@link DoFn} is of the provided type.
+   * A {@link PTransformMatcher} which matches a {@link ParDo.SingleOutput} or {@link
+   * ParDo.MultiOutput} where the {@link DoFn} is of the provided type.
    */
   public static PTransformMatcher parDoWithFnType(final Class<? extends DoFn> fnType) {
     return new PTransformMatcher() {
       @Override
       public boolean matches(AppliedPTransform<?, ?, ?> application) {
         DoFn<?, ?> fn;
-        if (application.getTransform() instanceof ParDo.Bound) {
-          fn = ((ParDo.Bound) application.getTransform()).getFn();
-        } else if (application.getTransform() instanceof ParDo.BoundMulti) {
-          fn = ((ParDo.BoundMulti) application.getTransform()).getFn();
+        if (application.getTransform() instanceof ParDo.SingleOutput) {
+          fn = ((ParDo.SingleOutput) application.getTransform()).getFn();
+        } else if (application.getTransform() instanceof ParDo.MultiOutput) {
+          fn = ((ParDo.MultiOutput) application.getTransform()).getFn();
         } else {
           return false;
         }
