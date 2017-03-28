@@ -15,22 +15,11 @@
  */
 package cz.seznam.euphoria.core.client.operator;
 
-import cz.seznam.euphoria.core.client.dataset.windowing.Window;
-import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
+import java.io.Serializable;
 
-/**
- * Operator aware of windows.
- *
- * @param <IN> the type of elements processed
- * @param <W> the type of windows handled
- */
-public interface WindowAware<IN, W extends Window> {
+@FunctionalInterface
+public interface ExtractEventTime<I> extends Serializable {
 
-  Windowing<IN, W> getWindowing();
-
-  /**
-   * @return optional function to extract even time from a given element
-   */
-  ExtractEventTime<IN> getEventTimeAssigner();
-
+  /** Extracts event time (in millis since epoch) of the given element. */
+  long extractTimestamp(I elem);
 }

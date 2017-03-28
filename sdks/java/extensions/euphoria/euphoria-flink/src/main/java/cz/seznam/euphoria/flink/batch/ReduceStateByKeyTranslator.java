@@ -21,6 +21,7 @@ import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.functional.CombinableReduceFunction;
 import cz.seznam.euphoria.core.client.functional.StateFactory;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
+import cz.seznam.euphoria.core.client.operator.ExtractEventTime;
 import cz.seznam.euphoria.core.client.operator.ReduceStateByKey;
 import cz.seznam.euphoria.core.client.operator.state.State;
 import cz.seznam.euphoria.core.client.operator.state.StorageProvider;
@@ -70,7 +71,7 @@ public class ReduceStateByKeyTranslator implements BatchOperatorTranslator<Reduc
     final UnaryFunction udfValue = origOperator.getValueExtractor();
 
     // ~ extract key/value + timestamp from input elements and assign windows
-    UnaryFunction<Object, Long> timeAssigner = origOperator.getEventTimeAssigner();
+    ExtractEventTime timeAssigner = origOperator.getEventTimeAssigner();
 
     // FIXME require keyExtractor to deliver `Comparable`s
     DataSet<BatchElement> wAssigned =
@@ -79,7 +80,7 @@ public class ReduceStateByKeyTranslator implements BatchOperatorTranslator<Reduc
 
               // assign timestamp if timeAssigner defined
               if (timeAssigner != null) {
-                wel.setTimestamp(timeAssigner.apply(wel.getElement()));
+                wel.setTimestamp(timeAssigner.extractTimestamp(wel.getElement()));
               }
               Set<Window> assigned = windowing.assignWindowsToElement(wel);
               for (Window wid : assigned) {

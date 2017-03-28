@@ -21,6 +21,7 @@ import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.functional.CombinableReduceFunction;
 import cz.seznam.euphoria.core.client.functional.StateFactory;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
+import cz.seznam.euphoria.core.client.operator.ExtractEventTime;
 import cz.seznam.euphoria.core.client.operator.ReduceStateByKey;
 import cz.seznam.euphoria.core.client.operator.state.State;
 import cz.seznam.euphoria.core.client.triggers.Trigger;
@@ -58,7 +59,7 @@ class ReduceStateByKeyTranslator implements SparkOperatorTranslator<ReduceStateB
 
     final UnaryFunction keyExtractor = operator.getKeyExtractor();
     final UnaryFunction valueExtractor = operator.getValueExtractor();
-    final UnaryFunction<?, Long> eventTimeAssigner = operator.getEventTimeAssigner();
+    final ExtractEventTime eventTimeAssigner = operator.getEventTimeAssigner();
     final Windowing windowing = operator.getWindowing() == null
             ? AttachedWindowing.INSTANCE
             : operator.getWindowing();
@@ -118,12 +119,12 @@ class ReduceStateByKeyTranslator implements SparkOperatorTranslator<ReduceStateB
     private final UnaryFunction valueExtractor;
     private final Windowing windowing;
     @Nullable
-    private final UnaryFunction eventTimeAssigner;
+    private final ExtractEventTime eventTimeAssigner;
 
     public CompositeKeyExtractor(UnaryFunction keyExtractor,
                                  UnaryFunction valueExtractor,
                                  Windowing windowing,
-                                 @Nullable UnaryFunction<?, Long> eventTimeAssigner) {
+                                 @Nullable ExtractEventTime eventTimeAssigner) {
       this.keyExtractor = keyExtractor;
       this.valueExtractor = valueExtractor;
       this.windowing = windowing;
@@ -134,7 +135,7 @@ class ReduceStateByKeyTranslator implements SparkOperatorTranslator<ReduceStateB
     @SuppressWarnings("unchecked")
     public Iterator<Tuple2<KeyedWindow, Object>> call(SparkElement wel) throws Exception {
       if (eventTimeAssigner != null) {
-        wel.setTimestamp((long) eventTimeAssigner.apply(wel.getElement()));
+        wel.setTimestamp(eventTimeAssigner.extractTimestamp(wel.getElement()));
       }
 
       Set<Window> windows = windowing.assignWindowsToElement(wel);

@@ -22,6 +22,7 @@ import cz.seznam.euphoria.core.client.dataset.windowing.TimedWindow;
 import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
+import cz.seznam.euphoria.core.client.operator.ExtractEventTime;
 import cz.seznam.euphoria.core.client.operator.ReduceByKey;
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.flink.FlinkOperator;
@@ -81,12 +82,12 @@ public class ReduceByKeyTranslator implements BatchOperatorTranslator<ReduceByKe
     {
       // FIXME require keyExtractor to deliver `Comparable`s
 
-      UnaryFunction<Object, Long> timeAssigner = origOperator.getEventTimeAssigner();
+      ExtractEventTime timeAssigner = origOperator.getEventTimeAssigner();
       FlatMapOperator<Object, BatchElement<Window, Pair>> wAssigned =
           input.flatMap((i, c) -> {
             BatchElement wel = (BatchElement) i;
             if (timeAssigner != null) {
-              long stamp = timeAssigner.apply(wel.getElement());
+              long stamp = timeAssigner.extractTimestamp(wel.getElement());
               wel.setTimestamp(stamp);
             }
             Set<Window> assigned = windowing.assignWindowsToElement(wel);
