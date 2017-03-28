@@ -198,14 +198,14 @@ public class FlattenTest implements Serializable {
 
     PCollection<String> output = p
         .apply(Create.of((Void) null).withCoder(VoidCoder.of()))
-        .apply(ParDo.withSideInputs(view).of(new DoFn<Void, String>() {
+        .apply(ParDo.of(new DoFn<Void, String>() {
                   @ProcessElement
                   public void processElement(ProcessContext c) {
                     for (String side : c.sideInput(view)) {
                       c.output(side);
                     }
                   }
-                }));
+                }).withSideInputs(view));
 
     PAssert.that(output).empty();
     p.run();

@@ -72,11 +72,10 @@ import org.apache.beam.sdk.testing.UsesTimersInParDo;
 import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.DoFn.OnTimer;
 import org.apache.beam.sdk.transforms.DoFn.ProcessElement;
-import org.apache.beam.sdk.transforms.ParDo.Bound;
+import org.apache.beam.sdk.transforms.ParDo.SingleOutput;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.DisplayData.Builder;
 import org.apache.beam.sdk.transforms.display.DisplayDataMatchers;
-import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
@@ -497,12 +496,13 @@ public class ParDoTest implements Serializable {
 
     PCollectionTuple outputs = pipeline
         .apply(Create.of(inputs))
-        .apply(ParDo.withOutputTags(mainOutputTag, TupleTagList.of(sideOutputTag))
+        .apply(ParDo
             .of(new DoFn<Integer, Void>(){
                 @ProcessElement
                 public void processElement(ProcessContext c) {
                   c.sideOutput(sideOutputTag, c.element());
-                }}));
+                }})
+            .withOutputTags(mainOutputTag, TupleTagList.of(sideOutputTag)));
 
     PAssert.that(outputs.get(mainOutputTag)).empty();
     PAssert.that(outputs.get(sideOutputTag)).containsInAnyOrder(inputs);
@@ -586,10 +586,11 @@ public class ParDoTest implements Serializable {
 
     PCollection<String> output = pipeline
         .apply(Create.of(inputs))
-        .apply(ParDo.withSideInputs(sideInput1, sideInputUnread, sideInput2)
+        .apply(ParDo
             .of(new TestDoFn(
                 Arrays.asList(sideInput1, sideInput2),
-                Arrays.<TupleTag<String>>asList())));
+                Arrays.<TupleTag<String>>asList()))
+            .withSideInputs(sideInput1, sideInputUnread, sideInput2));
 
     PAssert.that(output)
         .satisfies(ParDoTest.HasExpectedOutput
@@ -617,12 +618,13 @@ public class ParDoTest implements Serializable {
 
     PCollection<String> output = pipeline
         .apply(Create.of(inputs))
-        .apply(ParDo.withSideInputs(sideInput1)
-            .withSideInputs(sideInputUnread)
-            .withSideInputs(sideInput2)
+        .apply(ParDo
             .of(new TestDoFn(
                 Arrays.asList(sideInput1, sideInput2),
-                Arrays.<TupleTag<String>>asList())));
+                Arrays.<TupleTag<String>>asList()))
+            .withSideInputs(sideInput1)
+            .withSideInputs(sideInputUnread)
+            .withSideInputs(sideInput2));
 
     PAssert.that(output)
         .satisfies(ParDoTest.HasExpectedOutput
@@ -653,13 +655,14 @@ public class ParDoTest implements Serializable {
 
     PCollectionTuple outputs = pipeline
         .apply(Create.of(inputs))
-        .apply(ParDo.withSideInputs(sideInput1)
-            .withSideInputs(sideInputUnread)
-            .withSideInputs(sideInput2)
-            .withOutputTags(mainOutputTag, TupleTagList.of(sideOutputTag))
+        .apply(ParDo
             .of(new TestDoFn(
                 Arrays.asList(sideInput1, sideInput2),
-                Arrays.<TupleTag<String>>asList())));
+                Arrays.<TupleTag<String>>asList()))
+            .withSideInputs(sideInput1)
+            .withSideInputs(sideInputUnread)
+            .withSideInputs(sideInput2)
+            .withOutputTags(mainOutputTag, TupleTagList.of(sideOutputTag)));
 
     PAssert.that(outputs.get(mainOutputTag))
         .satisfies(ParDoTest.HasExpectedOutput
@@ -690,13 +693,14 @@ public class ParDoTest implements Serializable {
 
     PCollectionTuple outputs = pipeline
         .apply(Create.of(inputs))
-        .apply(ParDo.withSideInputs(sideInput1)
-            .withSideInputs(sideInputUnread)
-            .withSideInputs(sideInput2)
-            .withOutputTags(mainOutputTag, TupleTagList.of(sideOutputTag))
+        .apply(ParDo
             .of(new TestDoFn(
                 Arrays.asList(sideInput1, sideInput2),
-                Arrays.<TupleTag<String>>asList())));
+                Arrays.<TupleTag<String>>asList()))
+            .withSideInputs(sideInput1)
+            .withSideInputs(sideInputUnread)
+            .withSideInputs(sideInput2)
+            .withOutputTags(mainOutputTag, TupleTagList.of(sideOutputTag)));
 
     PAssert.that(outputs.get(mainOutputTag))
         .satisfies(ParDoTest.HasExpectedOutput
@@ -894,7 +898,7 @@ public class ParDoTest implements Serializable {
           }
         };
 
-    ParDo.BoundMulti<Long, Long> parDo =
+    ParDo.MultiOutput<Long, Long> parDo =
         ParDo.of(fn).withOutputTags(mainOut, TupleTagList.of(sideOutOne).and(sideOutTwo));
     PCollectionTuple firstApplication = longs.apply("first", parDo);
     PCollectionTuple secondApplication = longs.apply("second", parDo);
@@ -1157,7 +1161,7 @@ public class ParDoTest implements Serializable {
 
     final TupleTag<Integer> mainOutputTag = new TupleTag<Integer>("main");
     final TupleTag<TestDummy> sideOutputTag = new TupleTag<TestDummy>("unregisteredSide");
-    ParDo.BoundMulti<Integer, Integer> pardo = ParDo.of(new SideOutputDummyFn(sideOutputTag))
+    ParDo.MultiOutput<Integer, Integer> pardo = ParDo.of(new SideOutputDummyFn(sideOutputTag))
         .withOutputTags(mainOutputTag, TupleTagList.of(sideOutputTag));
     PCollectionTuple outputTuple = input.apply(pardo);
 
@@ -1201,7 +1205,6 @@ public class ParDoTest implements Serializable {
         .apply(Create.of(new TestDummy())
             .withCoder(TestDummyCoder.of()))
         .apply(ParDo
-            .withOutputTags(mainOutputTag, TupleTagList.of(sideOutputTag))
             .of(
                 new DoFn<TestDummy, TestDummy>() {
                   @ProcessElement
@@ -1211,7 +1214,8 @@ public class ParDoTest implements Serializable {
                     context.sideOutput(sideOutputTag, element);
                   }
                 })
-    );
+            .withOutputTags(mainOutputTag, TupleTagList.of(sideOutputTag))
+        );
 
     // Before fix, tuple.get(mainOutputTag).apply(...) would indirectly trigger
     // tuple.get(sideOutputTag).finishSpecifyingOutput(), which would crash
@@ -1263,14 +1267,15 @@ public class ParDoTest implements Serializable {
 
     PCollection<String> output =
         input
-        .apply(ParDo.withOutputTags(mainOutputTag, TupleTagList.of(sideOutputTag)).of(
+        .apply(ParDo.of(
             new DoFn<Integer, Integer>() {
               @ProcessElement
               public void processElement(ProcessContext c) {
                 c.sideOutputWithTimestamp(
                     sideOutputTag, c.element(), new Instant(c.element().longValue()));
               }
-            })).get(sideOutputTag)
+            }).withOutputTags(mainOutputTag, TupleTagList.of(sideOutputTag)))
+        .get(sideOutputTag)
         .apply(ParDo.of(new TestShiftTimestampDoFn<Integer>(Duration.ZERO, Duration.ZERO)))
         .apply(ParDo.of(new TestFormatTimestampDoFn<Integer>()));
 
@@ -1505,7 +1510,7 @@ public class ParDoTest implements Serializable {
       }
     };
 
-    Bound<String, String> parDo = ParDo.of(fn);
+    SingleOutput<String, String> parDo = ParDo.of(fn);
 
     DisplayData displayData = DisplayData.from(parDo);
     assertThat(displayData, hasDisplayItem(allOf(
@@ -1528,7 +1533,7 @@ public class ParDoTest implements Serializable {
       }
     };
 
-    Bound<String, String> parDo = ParDo.of(fn);
+    SingleOutput<String, String> parDo = ParDo.of(fn);
 
     DisplayData displayData = DisplayData.from(parDo);
     assertThat(displayData, includesDisplayDataFor("fn", fn));
@@ -2296,29 +2301,13 @@ public class ParDoTest implements Serializable {
       }
     };
 
-    ParDo.BoundMulti<String, String> parDo = ParDo
-            .withOutputTags(new TupleTag<String>(), TupleTagList.empty())
-            .of(fn);
+    ParDo.MultiOutput<String, String> parDo = ParDo
+            .of(fn)
+            .withOutputTags(new TupleTag<String>(), TupleTagList.empty());
 
     DisplayData displayData = DisplayData.from(parDo);
     assertThat(displayData, includesDisplayDataFor("fn", fn));
     assertThat(displayData, hasDisplayItem("fn", fn.getClass()));
-  }
-
-  private abstract static class SomeTracker implements RestrictionTracker<Object> {}
-  private static class TestSplittableDoFn extends DoFn<Integer, String> {
-    @ProcessElement
-    public void processElement(ProcessContext context, SomeTracker tracker) {}
-
-    @GetInitialRestriction
-    public Object getInitialRestriction(Integer element) {
-      return null;
-    }
-
-    @NewTracker
-    public SomeTracker newTracker(Object restriction) {
-      return null;
-    }
   }
 
   @Test

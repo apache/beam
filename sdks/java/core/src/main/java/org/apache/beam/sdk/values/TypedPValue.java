@@ -152,7 +152,7 @@ public abstract class TypedPValue<T> extends PValueBase implements PValue {
         // and provide a better error message if so. Unfortunately, this information is not
         // directly available from the TypeDescriptor, so infer based on the type of the PTransform
         // and the error message itself.
-        if (transform instanceof ParDo.BoundMulti
+        if (transform instanceof ParDo.MultiOutput
             && exc.getReason() == ReasonCode.TYPE_ERASURE) {
           inferFromTokenException = new CannotProvideCoderException(exc.getMessage()
               + " If this error occurs for a side output of the producing ParDo, verify that the "

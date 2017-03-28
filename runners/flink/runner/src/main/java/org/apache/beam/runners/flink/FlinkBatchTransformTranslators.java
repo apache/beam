@@ -112,7 +112,7 @@ class FlinkBatchTransformTranslators {
 
     TRANSLATORS.put(Window.Assign.class, new WindowAssignTranslatorBatch());
 
-    TRANSLATORS.put(ParDo.BoundMulti.class, new ParDoTranslatorBatch());
+    TRANSLATORS.put(ParDo.MultiOutput.class, new ParDoTranslatorBatch());
 
     TRANSLATORS.put(Read.Bounded.class, new ReadSourceTranslatorBatch());
   }
@@ -499,12 +499,12 @@ class FlinkBatchTransformTranslators {
 
   private static class ParDoTranslatorBatch<InputT, OutputT>
       implements FlinkBatchPipelineTranslator.BatchTransformTranslator<
-          ParDo.BoundMulti<InputT, OutputT>> {
+      ParDo.MultiOutput<InputT, OutputT>> {
 
     @Override
     @SuppressWarnings("unchecked")
     public void translateNode(
-        ParDo.BoundMulti<InputT, OutputT> transform,
+        ParDo.MultiOutput<InputT, OutputT> transform,
         FlinkBatchTranslationContext context) {
       DoFn<InputT, OutputT> doFn = transform.getFn();
       rejectSplittable(doFn);
