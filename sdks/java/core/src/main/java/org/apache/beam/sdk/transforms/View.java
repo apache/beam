@@ -19,8 +19,11 @@ package org.apache.beam.sdk.transforms;
 
 import java.util.List;
 import java.util.Map;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.runners.PipelineRunner;
 import org.apache.beam.sdk.runners.TransformHierarchy.Node;
+import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.PCollectionViews;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
@@ -336,12 +339,68 @@ public class View {
 
     @Override
     public PCollectionView<T> expand(PCollection<T> input) {
-      return input.apply(CreatePCollectionView.<T, T>of(PCollectionViews.singletonView(
-          input.getPipeline(),
-          input.getWindowingStrategy(),
-          hasDefault,
-          defaultValue,
-          input.getCoder())));
+      Combine.Globally<T, T> singletonCombine =
+          Combine.globally(new SingletonCombineFn<>(hasDefault, input.getCoder(), defaultValue));
+      if (!hasDefault) {
+        singletonCombine = singletonCombine.withoutDefaults();
+      }
+      return input.apply(singletonCombine.asSingletonView());
+    }
+  }
+
+  private static class SingletonCombineFn<T> extends Combine.BinaryCombineFn<T> {
+    private final boolean hasDefault;
+    private final Coder<T> valueCoder;
+    private final byte[] defaultValue;
+
+    private SingletonCombineFn(boolean hasDefault, Coder<T> coder, T defaultValue) {
+      this.hasDefault = hasDefault;
+      if (hasDefault) {
+        if (defaultValue == null) {
+          this.defaultValue = null;
+          this.valueCoder = coder;
+        } else {
+          this.valueCoder = coder;
+          try {
+            this.defaultValue = CoderUtils.encodeToByteArray(coder, defaultValue);
+          } catch (CoderException e) {
+            throw new IllegalArgumentException(
+                String.format(
+                    "Could not encode the default value %s with the provided coder %s",
+                    defaultValue, coder));
+          }
+        }
+      } else {
+        this.valueCoder = null;
+        this.defaultValue = null;
+      }
+    }
+
+    @Override
+    public T apply(T left, T right) {
+      throw new IllegalArgumentException(
+          "PCollection with more than one element "
+              + "accessed as a singleton view. Consider using Combine.globally().asSingleton() to "
+              + "combine the PCollection into a single value");
+    }
+
+    public T identity() {
+      if (hasDefault) {
+        if (defaultValue == null) {
+          return null;
+        }
+        try {
+          return CoderUtils.decodeFromByteArray(valueCoder, defaultValue);
+        } catch (CoderException e) {
+          throw new IllegalArgumentException(
+              String.format(
+                  "Could not decode the default value with the provided coder %s", valueCoder));
+        }
+      } else {
+        throw new IllegalArgumentException(
+            "Empty PCollection accessed as a singleton view. "
+                + "Consider setting withDefault to provide a default value");
+      }
     }
   }
 
