@@ -302,8 +302,10 @@ public class Join<LEFT, RIGHT, KEY, OUT, W extends Window>
     return output;
   }
 
+  @SuppressWarnings("unchecked")
   static final ListStorageDescriptor LEFT_STATE_DESCR =
           ListStorageDescriptor.of("left", (Class) Object.class);
+  @SuppressWarnings("unchecked")
   static final ListStorageDescriptor RIGHT_STATE_DESCR =
           ListStorageDescriptor.of("right", (Class) Object.class);
 
