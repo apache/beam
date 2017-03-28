@@ -70,6 +70,13 @@ class DataflowMetrics(MetricResults):
   def _get_metric_key(self, metric):
     """Populate the MetricKey object for a queried metric result."""
     try:
+      # If ValueError is thrown within this try-block, it is because of
+      # one of the following:
+      # 1. Unable to translate the step name. Only happening with improperly
+      #   formatted job graph (unlikely), or step name not bein the internal
+      #   step name (only happens for unstructured-named metrics).
+      # 2. Unable to unpack [step] or [namespace]; which should only happen
+      #   for unstructured names.
       [step] = [prop.value
                 for prop in metric.name.context.additionalProperties
                 if prop.key == 'step']
