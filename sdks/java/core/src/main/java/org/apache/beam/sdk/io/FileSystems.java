@@ -25,6 +25,7 @@ import com.google.common.base.Function;
 import com.google.common.base.Joiner;
 import com.google.common.base.Predicate;
 import com.google.common.collect.FluentIterable;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Multimap;
 import com.google.common.collect.Ordering;
@@ -45,7 +46,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 
 import org.apache.beam.sdk.io.fs.CreateOptions;
 import org.apache.beam.sdk.io.fs.CreateOptions.StandardCreateOptions;
@@ -56,6 +56,7 @@ import org.apache.beam.sdk.io.fs.MoveOptions;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
+import org.apache.beam.sdk.values.KV;
 
 /**
  * Clients facing {@link FileSystem} utility.
@@ -87,9 +88,9 @@ public class FileSystems {
    * <li>{@code spec} could be a glob or a uri. {@link #match} should be able to tell and
    * choose efficient implementations.
    * <li>The user-provided {@code spec} might refer to files or directories. It is common that
-   * users that wish to indicate a directory will omit the trailing {@code /}, such as in a spec of
-   * {@code "/tmp/dir"}. The {@link FileSystem} should be able to recognize a directory with
-   * the trailing {@code /} omitted, but should always return a correct {@link ResourceId}
+   * users that wish to indicate a directory will omit the trailing path delimiter, such as
+   * {@code "/tmp/dir"} in Linux. The {@link FileSystem} should be able to recognize a directory
+   * with the trailing path delimiter omitted, but should always return a correct {@link ResourceId}
    * (e.g., {@code "/tmp/dir/"} inside the returned {@link MatchResult}.
    * </ol>
    *
@@ -106,17 +107,7 @@ public class FileSystems {
    * metadata with {@link MatchResult#metadata()}.
    */
   public static List<MatchResult> match(List<String> specs) throws IOException {
-    checkArgument(!specs.isEmpty(), "Expect specs are not empty.");
-    Set<String> schemes = FluentIterable.from(specs)
-        .transform(new Function<String, String>() {
-          @Nullable
-          @Override
-          public String apply(@Nullable String spec) {
-            return parseScheme(spec);
-          }})
-        .toSet();
-    checkArgument(schemes.size() == 1, "Expect specs have the same scheme.");
-    return getFileSystemInternal(schemes.iterator().next()).match(specs);
+    return getFileSystemInternal(getOnlyScheme(specs)).match(specs);
   }
 
   /**
@@ -134,9 +125,8 @@ public class FileSystems {
     return match(FluentIterable
         .from(resourceIds)
         .transform(new Function<ResourceId, String>() {
-          @Nonnull
           @Override
-          public String apply(@Nonnull ResourceId resourceId) {
+          public String apply(ResourceId resourceId) {
           return resourceId.toString();
           }})
         .toList());
@@ -199,26 +189,16 @@ public class FileSystems {
       List<ResourceId> srcResourceIds,
       List<ResourceId> destResourceIds,
       MoveOptions... moveOptions) throws IOException {
-    checkArgument(
-        srcResourceIds.size() == destResourceIds.size(),
-        "Number of source resource ids %s must equal number of destination resource ids %s",
-        srcResourceIds.size(),
-        destResourceIds.size());
+    validateOnlyScheme(srcResourceIds, destResourceIds);
 
     List<ResourceId> srcToCopy;
     List<ResourceId> destToCopy;
     if (Sets.newHashSet(moveOptions).contains(
         MoveOptions.StandardMoveOptions.IGNORE_MISSING_FILES)) {
-      srcToCopy = new ArrayList<>();
-      destToCopy = new ArrayList<>();
-
-      List<MatchResult> matchResults = matchResources(srcResourceIds);
-      for (int i = 0; i < matchResults.size(); ++i) {
-        if (!matchResults.get(i).status().equals(Status.NOT_FOUND)) {
-          srcToCopy.add(srcResourceIds.get(i));
-          destToCopy.add(destResourceIds.get(i));
-        }
-      }
+      KV<List<ResourceId>, List<ResourceId>> existings =
+          filterMissingFiles(srcResourceIds, destResourceIds);
+      srcToCopy = existings.getKey();
+      destToCopy = existings.getValue();
     } else {
       srcToCopy = srcResourceIds;
       destToCopy = destResourceIds;
@@ -226,7 +206,8 @@ public class FileSystems {
     if (srcToCopy.isEmpty()) {
       return;
     }
-    getFileSystemInternal(srcToCopy.iterator().next().getScheme()).copy(srcToCopy, destToCopy);
+    getFileSystemInternal(Iterables.getOnlyElement(srcToCopy).getScheme())
+        .copy(srcToCopy, destToCopy);
   }
 
   /**
@@ -246,26 +227,16 @@ public class FileSystems {
       List<ResourceId> srcResourceIds,
       List<ResourceId> destResourceIds,
       MoveOptions... moveOptions) throws IOException {
-    checkArgument(
-        srcResourceIds.size() == destResourceIds.size(),
-        "Number of source resource ids %s must equal number of destination resource ids %s",
-        srcResourceIds.size(),
-        destResourceIds.size());
+    validateOnlyScheme(srcResourceIds, destResourceIds);
     List<ResourceId> srcToRename;
     List<ResourceId> destToRename;
 
     if (Sets.newHashSet(moveOptions).contains(
         MoveOptions.StandardMoveOptions.IGNORE_MISSING_FILES)) {
-      srcToRename = new ArrayList<>();
-      destToRename = new ArrayList<>();
-
-      List<MatchResult> matchResults = matchResources(srcResourceIds);
-      for (int i = 0; i < matchResults.size(); ++i) {
-        if (!matchResults.get(i).status().equals(Status.NOT_FOUND)) {
-          srcToRename.add(srcResourceIds.get(i));
-          destToRename.add(destResourceIds.get(i));
-        }
-      }
+      KV<List<ResourceId>, List<ResourceId>> existings =
+          filterMissingFiles(srcResourceIds, destResourceIds);
+      srcToRename = existings.getKey();
+      destToRename = existings.getValue();
     } else {
       srcToRename = srcResourceIds;
       destToRename = destResourceIds;
@@ -273,7 +244,7 @@ public class FileSystems {
     if (srcToRename.isEmpty()) {
       return;
     }
-    getFileSystemInternal(srcToRename.iterator().next().getScheme())
+    getFileSystemInternal(Iterables.getOnlyElement(srcToRename).getScheme())
         .rename(srcToRename, destToRename);
   }
 
@@ -295,9 +266,8 @@ public class FileSystems {
       resourceIdsToDelete = FluentIterable
           .from(matchResources(Lists.newArrayList(resourceIds)))
           .filter(new Predicate<MatchResult>() {
-            @Nonnull
             @Override
-            public boolean apply(@Nonnull MatchResult matchResult) {
+            public boolean apply(MatchResult matchResult) {
               return !matchResult.status().equals(MatchResult.Status.NOT_FOUND);
             }})
           .transformAndConcat(new Function<MatchResult, Iterable<Metadata>>() {
@@ -327,6 +297,60 @@ public class FileSystems {
     }
     getFileSystemInternal(resourceIdsToDelete.iterator().next().getScheme())
         .delete(resourceIdsToDelete);
+  }
+
+  private static KV<List<ResourceId>, List<ResourceId>> filterMissingFiles(
+      List<ResourceId> srcResourceIds, List<ResourceId> destResourceIds) throws IOException {
+    List<ResourceId> srcToHandle = new ArrayList<>();
+    List<ResourceId> destToHandle = new ArrayList<>();
+
+    List<MatchResult> matchResults = matchResources(srcResourceIds);
+    for (int i = 0; i < matchResults.size(); ++i) {
+      if (!matchResults.get(i).status().equals(Status.NOT_FOUND)) {
+        srcToHandle.add(srcResourceIds.get(i));
+        destToHandle.add(destResourceIds.get(i));
+      }
+    }
+    return KV.of(srcToHandle, destToHandle);
+  }
+
+  private static void validateOnlyScheme(
+      List<ResourceId> srcResourceIds, List<ResourceId> destResourceIds) {
+    checkArgument(
+        srcResourceIds.size() == destResourceIds.size(),
+        "Number of source resource ids %s must equal number of destination resource ids %s",
+        srcResourceIds.size(),
+        destResourceIds.size());
+    Set<String> schemes = FluentIterable.from(srcResourceIds)
+        .append(destResourceIds)
+        .transform(new Function<ResourceId, String>() {
+          @Override
+          public String apply(ResourceId resourceId) {
+            return resourceId.getScheme();
+          }})
+        .toSet();
+    checkArgument(
+        schemes.size() == 1,
+        String.format(
+            "Expect srcResourceIds and destResourceIds have the same scheme, but received %s.",
+            Joiner.on(", ").join(schemes)));
+  }
+
+  private static String getOnlyScheme(List<String> specs) {
+    checkArgument(!specs.isEmpty(), "Expect specs are not empty.");
+    Set<String> schemes = FluentIterable.from(specs)
+        .transform(new Function<String, String>() {
+          @Override
+          public String apply(String spec) {
+            return parseScheme(spec);
+          }})
+        .toSet();
+    checkArgument(
+        schemes.size() == 1,
+        String.format(
+            "Expect specs have the same scheme, but received %s.",
+            Joiner.on(", ").join(schemes)));
+    return Iterables.getOnlyElement(schemes);
   }
 
   private static String parseScheme(String spec) {
