@@ -32,7 +32,7 @@ spec:
     port: 9300
     protocol: TCP
 ---
-# To create Elasticsearch frontend cluster Kubernetes service. 
+# To create Elasticsearch frontend cluster Kubernetes service.
 # It sets up a load balancer on TCP port 9200 that distributes network traffic to the ES client nodes.
 apiVersion: v1
 kind: Service
@@ -85,9 +85,10 @@ spec:
           privileged: false
           capabilities:
             add:
-# IPC_LOCK capability is enabled to allow Elasticsearch to lock the heap in memory so it will not be swapped.            
+# IPC_LOCK capability is enabled to allow Elasticsearch to lock the heap in memory so it will not be swapped.
               - IPC_LOCK
-# SYS_RESOURCE capability is set to control and override various resource limits.              
+# SYS_RESOURCE is docker capability key to control and override the resource limits.
+# This could be needed to increase base limits.(e.g. File descriptor limit for elasticsearch)
               - SYS_RESOURCE
         image: quay.io/pires/docker-elasticsearch-kubernetes:5.2.2
         env:
@@ -125,7 +126,7 @@ spec:
               medium: ""
             name: "storage"
 ---
-# Kubernetes deployment script for Elasticsearch client nodes (aka load balancing proxies). 
+# Kubernetes deployment script for Elasticsearch client nodes (aka load balancing proxies).
 apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:
@@ -141,9 +142,9 @@ spec:
         component: elasticsearch
         role: client
       annotations:
-      # Elasticsearch uses a hybrid mmapfs / niofs directory by default to store its indices. 
+      # Elasticsearch uses a hybrid mmapfs / niofs directory by default to store its indices.
       # The default operating system limits on mmap counts is likely to be too low, which may result
-      # in out of memory exceptions. Therefore, the need to increase virtual memory 
+      # in out of memory exceptions. Therefore, the need to increase virtual memory
       # vm.max_map_count for large amount of data in the pod initialization annotation.
         pod.beta.kubernetes.io/init-containers: '[
           {
@@ -163,9 +164,10 @@ spec:
           privileged: false
           capabilities:
             add:
-# IPC_LOCK capability is enabled to allow Elasticsearch to lock the heap in memory so it will not be swapped. 
+# IPC_LOCK capability is enabled to allow Elasticsearch to lock the heap in memory so it will not be swapped.
               - IPC_LOCK
-# SYS_RESOURCE capability is set to control and override various resource limits.
+# SYS_RESOURCE is docker capability key to control and override the resource limits.
+# This could be needed to increase base limits.(e.g. File descriptor limit for elasticsearch)
               - SYS_RESOURCE
         image: quay.io/pires/docker-elasticsearch-kubernetes:5.2.2
         env:
@@ -236,9 +238,10 @@ spec:
           privileged: false
           capabilities:
             add:
-# IPC_LOCK capability is enabled to allow Elasticsearch to lock the heap in memory so it will not be swapped.            
+# IPC_LOCK capability is enabled to allow Elasticsearch to lock the heap in memory so it will not be swapped.
               - IPC_LOCK
-# SYS_RESOURCE capability is set to control and override various resource limits.              
+# SYS_RESOURCE is docker capability key to control and override the resource limits.
+# This could be needed to increase base limits.(e.g. File descriptor limit for elasticsearch)
               - SYS_RESOURCE
         image: quay.io/pires/docker-elasticsearch-kubernetes:5.2.2
         env:

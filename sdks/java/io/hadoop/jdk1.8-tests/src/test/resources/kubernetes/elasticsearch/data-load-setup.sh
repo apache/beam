@@ -14,7 +14,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-#!/bin/bash -e
+#!/bin/bash
+set -e
 
 # Install python
 sudo apt-get update

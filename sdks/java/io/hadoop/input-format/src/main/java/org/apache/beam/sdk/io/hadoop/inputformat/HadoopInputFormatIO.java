@@ -114,9 +114,7 @@ import org.slf4j.LoggerFactory;
  * the read transform match the output type of the translation.
  *
  * <p>You will need to set appropriate InputFormat key and value class (i.e. "key.class" and
- * "value.class") in Hadoop {@link Configuration}. Key or value object is cloned by encoding or
- * decoding it with the specified Coder. Based on the specified key or value class provided in
- * the {@link Configuration}, the coder is determined. If you set different InputFormat key or
+ * "value.class") in Hadoop {@link Configuration}. If you set different InputFormat key or
  * value class than InputFormat's actual key or value class then, it may result in an error like
  * "unexpected extra bytes after decoding" while the decoding process of key/value object happens.
  * Hence, it is important to set appropriate InputFormat key and value class.
@@ -394,6 +392,18 @@ public class HadoopInputFormatIO {
     private long boundedSourceEstimatedSize = 0;
     private transient InputFormat<?, ?> inputFormatObj;
     private transient TaskAttemptContext taskAttemptContext;
+    private static final Set<Class<?>> immutableTypes = new HashSet<Class<?>>(
+        Arrays.asList(
+            String.class,
+            Byte.class,
+            Short.class,
+            Integer.class,
+            Long.class,
+            Float.class,
+            Double.class,
+            Boolean.class,
+            BigInteger.class,
+            BigDecimal.class));
 
     HadoopInputFormatBoundedSource(
         SerializableConfiguration conf,
@@ -583,18 +593,6 @@ public class HadoopInputFormatIO {
       private AtomicDouble progressValue = new AtomicDouble();
       private transient InputFormat<T1, T2> inputFormatObj;
       private transient TaskAttemptContext taskAttemptContext;
-      Set<Class<?>> immutableTypes = new HashSet<Class<?>>(
-          Arrays.asList(
-              String.class,
-              Byte.class,
-              Short.class,
-              Integer.class,
-              Long.class,
-              Float.class,
-              Double.class,
-              Boolean.class,
-              BigInteger.class,
-              BigDecimal.class));
 
       private HadoopInputFormatReader(HadoopInputFormatBoundedSource<K, V> source,
           @Nullable SimpleFunction keyTranslationFunction,
@@ -732,6 +730,9 @@ public class HadoopInputFormatIO {
           progressValue.set(1.0);
         } else if (recordReader == null || recordsReturned == 0) {
           progressValue.set(0.0);
+        }
+        if (progressValue.get() == 0.0) {
+          return null;
         }
         return progressValue.doubleValue();
       }
