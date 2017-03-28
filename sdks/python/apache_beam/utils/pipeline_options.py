@@ -345,7 +345,7 @@ class WorkerOptions(PipelineOptions):
         choices=['NONE', 'THROUGHPUT_BASED'],
         default=None,  # Meaning unset, distinct from 'NONE' meaning don't scale
         help=
-        ('If and how to auotscale the workerpool.'))
+        ('If and how to autoscale the workerpool.'))
     parser.add_argument(
         '--worker_machine_type',
         dest='machine_type',
