@@ -64,8 +64,7 @@ class StreamWithDeDup<T> extends PTransform<PCollection<T>, WriteResult> {
 
     PCollection<KV<ShardedKey<String>, TableRowInfo>> tagged =
         input.apply(ParDo.of(new TagWithUniqueIdsAndTable<T>(
-            input.getPipeline().getOptions().as(BigQueryOptions.class), write.getTable(),
-            write.getTableRefFunction(), write.getFormatFunction())));
+            input.getPipeline().getOptions().as(BigQueryOptions.class), write)));
 
     // To prevent having the same TableRow processed more than once with regenerated
     // different unique ids, this implementation relies on "checkpointing", which is
@@ -85,6 +84,7 @@ class StreamWithDeDup<T> extends PTransform<PCollection<T>, WriteResult> {
                     write.getCreateDisposition(),
                     write.getTableDescription(),
                     write.getBigQueryServices())));
+
     return WriteResult.in(input.getPipeline());
   }
 }
