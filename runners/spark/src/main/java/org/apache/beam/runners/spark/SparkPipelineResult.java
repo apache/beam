@@ -37,11 +37,15 @@ import org.apache.spark.SparkException;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.streaming.api.java.JavaStreamingContext;
 import org.joda.time.Duration;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Represents a Spark pipeline execution result.
  */
 public abstract class SparkPipelineResult implements PipelineResult {
+
+  private static final Logger LOG = LoggerFactory.getLogger(SparkPipelineResult.class);
 
   protected final Future pipelineExecution;
   protected JavaSparkContext javaSparkContext;
@@ -107,7 +111,9 @@ public abstract class SparkPipelineResult implements PipelineResult {
       State finishState = awaitTermination(duration);
       offerNewState(finishState);
     } catch (final TimeoutException e) {
-      // ignore.
+      LOG.info("Execution did not complete before the timeout elapsed: " + duration, e);
+      // Return here to not stop SparkContext.
+      return state;
     } catch (final ExecutionException e) {
       offerNewState(PipelineResult.State.FAILED);
       throw beamExceptionFrom(e.getCause());
@@ -115,6 +121,8 @@ public abstract class SparkPipelineResult implements PipelineResult {
       offerNewState(PipelineResult.State.FAILED);
       throw beamExceptionFrom(e);
     }
+
+    stop();
 
     return state;
   }
@@ -188,10 +196,13 @@ public abstract class SparkPipelineResult implements PipelineResult {
     }
 
     @Override
-    protected State awaitTermination(final Duration duration) throws ExecutionException,
-        InterruptedException {
+    protected State awaitTermination(final Duration duration)
+        throws TimeoutException, ExecutionException, InterruptedException {
       pipelineExecution.get(); // execution is asynchronous anyway so no need to time-out.
-      javaStreamingContext.awaitTerminationOrTimeout(duration.getMillis());
+
+      if (!javaStreamingContext.awaitTerminationOrTimeout(duration.getMillis())) {
+        throw new TimeoutException();
+      }
 
       State terminationState;
       switch (javaStreamingContext.getState()) {
