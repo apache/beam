@@ -36,7 +36,6 @@ import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.when;
-
 import com.google.api.client.json.GenericJson;
 import com.google.api.client.util.Data;
 import com.google.api.services.bigquery.model.Dataset;
@@ -52,6 +51,7 @@ import com.google.api.services.bigquery.model.JobStatistics2;
 import com.google.api.services.bigquery.model.JobStatistics4;
 import com.google.api.services.bigquery.model.JobStatus;
 import com.google.api.services.bigquery.model.Table;
+import com.google.api.services.bigquery.model.TableDataInsertAllRequest;
 import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
@@ -631,20 +631,51 @@ public class BigQueryIOTest implements Serializable {
 
     @Override
     public long insertAll(
-        TableReference ref, List<TableRow> rowList, @Nullable List<String> insertIdList)
+        TableReference ref, Collection<TableDataInsertAllRequest> batches)
         throws IOException, InterruptedException {
       synchronized (tables) {
-        assertEquals(rowList.size(), insertIdList.size());
 
         long dataSize = 0;
-        TableContainer tableContainer = getTableContainer(
-            ref.getProjectId(), ref.getDatasetId(), ref.getTableId());
-        for (int i = 0; i < rowList.size(); ++i) {
-          tableContainer.addRow(rowList.get(i), insertIdList.get(i));
-          dataSize += rowList.get(i).toString().length();
+        for (TableDataInsertAllRequest batch : batches) {
+          List<TableDataInsertAllRequest.Rows> rows = batch.getRows();
+          TableContainer tableContainer = getTableContainer(
+              ref.getProjectId(), ref.getDatasetId(), ref.getTableId());
+          for (int i = 0; i < rows.size(); ++i) {
+            TableRow tableRow = new TableRow();
+            tableRow.setUnknownKeys(rows.get(i).getJson());
+            tableContainer.addRow(tableRow, rows.get(i).getInsertId());
+            dataSize += tableRow.toString().length();
+          }
         }
         return dataSize;
       }
+    }
+
+    @Override
+    public List<TableDataInsertAllRequest> makeInsertBatches(List<TableRow> rowList,
+        @Nullable List<String> insertIdList) {
+
+      if (insertIdList != null && rowList.size() != insertIdList.size()) {
+        throw new AssertionError("If insertIdList is not null it needs to have at least "
+            + "as many elements as rowList");
+      }
+
+      // This implementation puts everything in one batch
+      TableDataInsertAllRequest request = new TableDataInsertAllRequest();
+      request.setRows(new ArrayList<TableDataInsertAllRequest.Rows>());
+      ArrayList<TableDataInsertAllRequest> batches = new ArrayList<>();
+      batches.add(request);
+
+      for (int i = 0; i < rowList.size(); ++i) {
+        TableDataInsertAllRequest.Rows row = new TableDataInsertAllRequest.Rows();
+        row.setJson(rowList.get(i).getUnknownKeys());
+        if (insertIdList != null) {
+          row.setInsertId(insertIdList.get(i));
+        }
+        request.getRows().add(row);
+      }
+
+      return batches;
     }
 
     @Override
