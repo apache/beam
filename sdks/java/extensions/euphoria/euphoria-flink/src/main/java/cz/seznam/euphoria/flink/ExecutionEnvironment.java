@@ -19,6 +19,7 @@ import com.google.common.collect.Sets;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.windowing.Batch;
 import cz.seznam.euphoria.core.client.dataset.windowing.TimeInterval;
+import cz.seznam.euphoria.core.client.dataset.windowing.TimeSliding;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.util.Either;
 import cz.seznam.euphoria.core.client.util.Pair;
@@ -140,6 +141,7 @@ public class ExecutionEnvironment {
     // register all types of used windows
     ret.add(Batch.BatchWindow.class);
     ret.add(TimeInterval.class);
+    ret.add(TimeSliding.SlidingWindowSet.class);
 
     ret.add(Either.class);
     ret.add(Pair.class);
