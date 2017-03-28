@@ -52,6 +52,7 @@ TODO(silviuc): Should we allow several setup packages?
 TODO(silviuc): We should allow customizing the exact command for setup build.
 """
 
+import functools
 import glob
 import logging
 import os
@@ -95,12 +96,16 @@ def _dependency_file_copy(from_path, to_path):
       # Only target is a GCS file, read local file and upload.
       with open(from_path, 'rb') as f:
         with gcsio.GcsIO().open(to_path, mode='wb') as g:
-          g.write(f.read())
+          pfun = functools.partial(f.read, gcsio.WRITE_CHUNK_SIZE)
+          for chunk in iter(pfun, ''):
+            g.write(chunk)
     else:
       # Source is a GCS file but target is local file.
       with gcsio.GcsIO().open(from_path, mode='rb') as g:
         with open(to_path, 'wb') as f:
-          f.write(g.read())
+          pfun = functools.partial(g.read, gcsio.DEFAULT_READ_BUFFER_SIZE)
+          for chunk in iter(pfun, ''):
+            f.write(chunk)
   else:
     # Branch used only for unit tests and integration tests.
     # In such environments GCS support is not available.
