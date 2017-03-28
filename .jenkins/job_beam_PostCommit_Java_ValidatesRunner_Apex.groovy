@@ -18,9 +18,10 @@
 
 import common_job_properties
 
-// This job runs the suite of RunnableOnService tests against the Apex runner.
-mavenJob('beam_PostCommit_Java_RunnableOnService_Apex') {
-  description('Runs the RunnableOnService suite on the Apex runner.')
+// This job runs the suite of ValidatesRunner tests against the Apex runner.
+mavenJob('beam_PostCommit_Java_ValidatesRunner_Apex') {
+  description('Runs the ValidatesRunner suite on the Apex runner.')
+  previousNames('beam_PostCommit_Java_RunnableOnService_Apex')
 
   // Set common parameters.
   common_job_properties.setTopLevelMainJobProperties(delegate)
@@ -34,14 +35,14 @@ mavenJob('beam_PostCommit_Java_RunnableOnService_Apex') {
   // Allows triggering this build against pull requests.
   common_job_properties.enablePhraseTriggeringFromPullRequest(
     delegate,
-    'Apache Apex Runner RunnableOnService Tests',
-    'Run Apex RunnableOnService')
+    'Apache Apex Runner ValidatesRunner Tests',
+    'Run Apex ValidatesRunner')
 
   // Maven goals for this job.
   goals('''clean verify --projects runners/apex \
       --also-make \
       --batch-mode \
       --errors \
-      --activate-profiles runnable-on-service-tests \
-      --activate-profiles local-runnable-on-service-tests''')
+      --activate-profiles validates-runner-tests \
+      --activate-profiles local-validates-runner-tests''')
 }

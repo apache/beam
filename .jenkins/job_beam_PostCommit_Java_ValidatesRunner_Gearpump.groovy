@@ -18,28 +18,32 @@
 
 import common_job_properties
 
-// This job runs the suite of RunnableOnService tests against the Dataflow
+// This job runs the suite of ValidatesRunner tests against the Gearpump
 // runner.
-mavenJob('beam_PostCommit_Java_RunnableOnService_Dataflow') {
-  description('Runs the RunnableOnService suite on the Dataflow runner.')
+mavenJob('beam_PostCommit_Java_ValidatesRunner_Gearpump') {
+  description('Runs the ValidatesRunner suite on the Gearpump runner.')
 
-  previousNames('beam_PostCommit_RunnableOnService_GoogleCloudDataflow')
+  previousNames('beam_PostCommit_Java_RunnableOnService_Gearpump')
 
   // Set common parameters.
-  common_job_properties.setTopLevelMainJobProperties(delegate, 'master', 120)
+  common_job_properties.setTopLevelMainJobProperties(
+      delegate,
+      'gearpump-runner')
 
   // Set maven parameters.
   common_job_properties.setMavenConfig(delegate)
 
   // Sets that this is a PostCommit job.
-  common_job_properties.setPostCommit(delegate)
+  // 0 5 31 2 * will run on Feb 31 (i.e. never) according to job properties.
+  // In post-commit this job triggers only on SCM changes.
+  common_job_properties.setPostCommit(delegate, '0 5 31 2 *')
 
   // Allows triggering this build against pull requests.
   common_job_properties.enablePhraseTriggeringFromPullRequest(
     delegate,
-    'Google Cloud Dataflow Runner RunnableOnService Tests',
-    'Run Dataflow RunnableOnService')
+    'Apache Gearpump Runner ValidatesRunner Tests',
+    'Run Gearpump ValidatesRunner')
 
   // Maven goals for this job.
-  goals('-B -e clean verify -am -pl runners/google-cloud-dataflow-java -DforkCount=0 -DrunnableOnServicePipelineOptions=\'[ "--runner=org.apache.beam.runners.dataflow.testing.TestDataflowRunner", "--project=apache-beam-testing", "--tempRoot=gs://temp-storage-for-runnable-on-service-tests/" ]\'')
+  goals('-B -e clean verify -am -pl runners/gearpump -DforkCount=0 -DvalidatesRunnerPipelineOptions=\'[ "--runner=TestGearpumpRunner", "--streaming=false" ]\'')
 }
