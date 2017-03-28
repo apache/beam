@@ -38,7 +38,6 @@ import cz.seznam.euphoria.core.client.util.Pair;
 
 import javax.annotation.Nullable;
 import java.util.Arrays;
-import java.util.Iterator;
 import java.util.Objects;
 
 /**
@@ -269,7 +268,8 @@ public class ReduceByKey<
   @SuppressWarnings("unchecked")
   @Override
   public DAG<Operator<?, ?>> getBasicOps() {
-    CombinableReduceFunction<AddAll<OUT>> stateCombine = new AddAllStateCombiner();
+    CombinableReduceFunction<StateSupport.MergeFrom<OUT>> stateCombine =
+            new StateSupport.MergeFromStateCombiner();
     StateFactory stateFactory = isCombinable()
             ? new CombiningReduceState.Factory<>((CombinableReduceFunction) reducer)
             : new NonCombiningReduceState.Factory<>(reducer);
@@ -282,27 +282,10 @@ public class ReduceByKey<
     return DAG.of(reduceState);
   }
 
-  private interface AddAll<S> {
-    void addAll(S other);
-  }
-
-  private static class AddAllStateCombiner<T extends AddAll<T>>
-          implements CombinableReduceFunction<T> {
-    @Override
-    public T apply(Iterable<T> xs) {
-      final T first;
-      Iterator<T> x = xs.iterator();
-      first = x.next();
-      while (x.hasNext()) {
-        first.addAll(x.next());
-      }
-      return first;
-    }
-  }
 
   static class CombiningReduceState<E>
           extends State<E, E>
-          implements AddAll<CombiningReduceState<E>> {
+          implements StateSupport.MergeFrom<CombiningReduceState<E>> {
 
     static final class Factory<E> implements StateFactory<E, State<E, E>> {
       private final CombinableReduceFunction<E> r;
@@ -356,15 +339,14 @@ public class ReduceByKey<
     }
 
     @Override
-    public void addAll(CombiningReduceState<E> other) {
+    public void mergeFrom(CombiningReduceState<E> other) {
       this.storage.set(this.reducer.apply(Arrays.asList(this.storage.get(), other.storage.get())));
     }
   }
 
   private static class NonCombiningReduceState<VALUE, OUT>
           extends State<VALUE, OUT>
-          implements AddAll<NonCombiningReduceState<VALUE, OUT>> {
-
+          implements StateSupport.MergeFrom<NonCombiningReduceState<VALUE, OUT>> {
 
     static final class Factory<VALUE, OUT>
             implements StateFactory<OUT, NonCombiningReduceState<VALUE, OUT>> {
@@ -416,7 +398,7 @@ public class ReduceByKey<
     }
 
     @Override
-    public void addAll(NonCombiningReduceState<VALUE, OUT> other) {
+    public void mergeFrom(NonCombiningReduceState<VALUE, OUT> other) {
       this.reducibleValues.addAll(other.reducibleValues.get());
     }
   }
