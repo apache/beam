@@ -22,6 +22,8 @@ import java.io.Serializable;
 import java.util.Collections;
 import org.apache.beam.runners.spark.SparkPipelineOptions;
 import org.apache.beam.runners.spark.coders.CoderHelpers;
+import org.apache.beam.runners.spark.metrics.MetricsAccumulator;
+import org.apache.beam.runners.spark.metrics.SparkMetricsContainer;
 import org.apache.beam.runners.spark.stateful.StateSpecFunctions;
 import org.apache.beam.runners.spark.translation.SparkRuntimeContext;
 import org.apache.beam.runners.spark.translation.streaming.UnboundedDataset;
@@ -33,6 +35,7 @@ import org.apache.beam.sdk.io.UnboundedSource.CheckpointMark;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.spark.Accumulator;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext$;
 import org.apache.spark.api.java.function.FlatMapFunction;
@@ -62,7 +65,7 @@ import scala.runtime.BoxedUnit;
  * <li>Create a single-element (per-partition) stream, that contains the (partitioned)
  * {@link Source} and an optional {@link CheckpointMark} to start from.</li>
  * <li>Read from within a stateful operation {@link JavaPairInputDStream#mapWithState(StateSpec)}
- * using the {@link StateSpecFunctions#mapSourceFunction(SparkRuntimeContext)} mapping function,
+ * using the {@link StateSpecFunctions#mapSourceFunction} mapping function,
  * which manages the state of the CheckpointMark per partition.</li>
  * <li>Since the stateful operation is a map operation, the read iterator needs to be flattened,
  * while reporting the properties of the read (such as number of records) to the tracker.</li>
@@ -73,7 +76,8 @@ public class SparkUnboundedSource {
   public static <T, CheckpointMarkT extends CheckpointMark> UnboundedDataset<T> read(
       JavaStreamingContext jssc,
       SparkRuntimeContext rc,
-      UnboundedSource<T, CheckpointMarkT> source) {
+      UnboundedSource<T, CheckpointMarkT> source,
+      String stepName) {
 
     SparkPipelineOptions options = rc.getPipelineOptions().as(SparkPipelineOptions.class);
     Long maxRecordsPerBatch = options.getMaxRecordsPerBatch();
@@ -90,7 +94,7 @@ public class SparkUnboundedSource {
         Tuple2<Iterable<byte[]>, Metadata>> mapWithStateDStream =
         inputDStream.mapWithState(
             StateSpec
-                .function(StateSpecFunctions.<T, CheckpointMarkT>mapSourceFunction(rc))
+                .function(StateSpecFunctions.<T, CheckpointMarkT>mapSourceFunction(rc, stepName))
                 .numPartitions(sourceDStream.getNumPartitions()));
 
     // set checkpoint duration for read stream, if set.
@@ -106,8 +110,8 @@ public class SparkUnboundedSource {
           }
         });
 
-    // register the ReportingDStream op.
-    new ReportingDStream(metadataDStream.dstream(), id, getSourceName(source, id)).register();
+    // register ReadReportDStream to report information related to this read.
+    new ReadReportDStream(metadataDStream.dstream(), id, getSourceName(source, id)).register();
 
     // output the actual (deserialized) stream.
     WindowedValue.FullWindowedValueCoder<T> coder =
@@ -144,16 +148,20 @@ public class SparkUnboundedSource {
   }
 
   /**
-   * A DStream function that reports the properties of the read to the
+   * A DStream function for reporting information related to the read process.
+   *
+   * <p>Reports properties of the read to
    * {@link org.apache.spark.streaming.scheduler.InputInfoTracker}
-   * for RateControl purposes and visibility.
+   * for RateControl purposes and visibility.</p>
+   * <p>Updates {@link GlobalWatermarkHolder}.</p>
+   * <p>Updates {@link MetricsAccumulator} with metrics reported in the read.</p>
    */
-  private static class ReportingDStream extends DStream<BoxedUnit> {
+  private static class ReadReportDStream extends DStream<BoxedUnit> {
     private final DStream<Metadata> parent;
     private final int inputDStreamId;
     private final String sourceName;
 
-    ReportingDStream(
+    ReadReportDStream(
         DStream<Metadata> parent,
         int inputDStreamId,
         String sourceName) {
@@ -178,6 +186,7 @@ public class SparkUnboundedSource {
     public scala.Option<RDD<BoxedUnit>> compute(Time validTime) {
       // compute parent.
       scala.Option<RDD<Metadata>> parentRDDOpt = parent.getOrCompute(validTime);
+      final Accumulator<SparkMetricsContainer> metricsAccum = MetricsAccumulator.getInstance();
       long count = 0;
       SparkWatermarks sparkWatermark = null;
       Instant globalLowWatermarkForBatch = BoundedWindow.TIMESTAMP_MIN_VALUE;
@@ -195,6 +204,8 @@ public class SparkUnboundedSource {
           globalHighWatermarkForBatch =
               globalHighWatermarkForBatch.isBefore(partitionHighWatermark)
                   ? partitionHighWatermark : globalHighWatermarkForBatch;
+          // Update metrics reported in the read
+          metricsAccum.value().update(metadata.getMetricsContainer());
         }
 
         sparkWatermark =
@@ -233,23 +244,34 @@ public class SparkUnboundedSource {
     private final long numRecords;
     private final Instant lowWatermark;
     private final Instant highWatermark;
+    private final SparkMetricsContainer metricsContainer;
 
-    public Metadata(long numRecords, Instant lowWatermark, Instant highWatermark) {
+    public Metadata(
+        long numRecords,
+        Instant lowWatermark,
+        Instant highWatermark,
+        SparkMetricsContainer metricsContainer) {
       this.numRecords = numRecords;
+      this.metricsContainer = metricsContainer;
       this.lowWatermark = lowWatermark;
       this.highWatermark = highWatermark;
+      metricsContainer.materialize();
     }
 
-    public long getNumRecords() {
+    long getNumRecords() {
       return numRecords;
     }
 
-    public Instant getLowWatermark() {
+    Instant getLowWatermark() {
       return lowWatermark;
     }
 
-    public Instant getHighWatermark() {
+    Instant getHighWatermark() {
       return highWatermark;
+    }
+
+    SparkMetricsContainer getMetricsContainer() {
+      return metricsContainer;
     }
   }
 }
