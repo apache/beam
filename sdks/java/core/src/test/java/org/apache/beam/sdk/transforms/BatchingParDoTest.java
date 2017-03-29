@@ -107,8 +107,7 @@ public class BatchingParDoTest implements Serializable {
     return data;
   }
 
-  // timer is not supported by DoFnTester
-  @Ignore
+  @Ignore("timer is not supported by DoFnTester")
   @Test
   public void testUnderlyingDoFn() throws Exception {
     DoFnTester<KV<String, String>, KV<String, String>> fnTester =
