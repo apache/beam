@@ -52,7 +52,7 @@ public class WithTimestamps<T> extends PTransform<PCollection<T>, PCollection<T>
    *
    * <p>CAUTION: Use of {@link #withAllowedTimestampSkew(Duration)} permits elements to be emitted
    * behind the watermark. These elements are considered late, and if behind the {@link
-   * Window.Bound#withAllowedLateness(Duration) allowed lateness} of a downstream
+   * Window#withAllowedLateness(Duration) allowed lateness} of a downstream
    * {@link PCollection} may be silently dropped. See https://issues.apache.org/jira/browse/BEAM-644
    * for details on a replacement.
    *
@@ -90,7 +90,7 @@ public class WithTimestamps<T> extends PTransform<PCollection<T>, PCollection<T>
    * future. For infinite skew, use {@code new Duration(Long.MAX_VALUE)}.
    * @deprecated This method permits a to elements to be emitted behind the watermark. These
    *     elements are considered late, and if behind the
-   *     {@link Window.Bound#withAllowedLateness(Duration) allowed lateness} of a downstream
+   *     {@link Window#withAllowedLateness(Duration) allowed lateness} of a downstream
    *     {@link PCollection} may be silently dropped. See
    *     https://issues.apache.org/jira/browse/BEAM-644 for details on a replacement.
    */
@@ -106,7 +106,7 @@ public class WithTimestamps<T> extends PTransform<PCollection<T>, PCollection<T>
    * @see DoFn#getAllowedTimestampSkew()
    * @deprecated This method permits a to elements to be emitted behind the watermark. These
    *     elements are considered late, and if behind the
-   *     {@link Window.Bound#withAllowedLateness(Duration) allowed lateness} of a downstream
+   *     {@link Window#withAllowedLateness(Duration) allowed lateness} of a downstream
    *     {@link PCollection} may be silently dropped. See
    *     https://issues.apache.org/jira/browse/BEAM-644 for details on a replacement.
    */

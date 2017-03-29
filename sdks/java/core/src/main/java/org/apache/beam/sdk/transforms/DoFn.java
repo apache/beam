@@ -324,7 +324,7 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
    *
    * @deprecated This method permits a {@link DoFn} to emit elements behind the watermark. These
    *     elements are considered late, and if behind the
-   *     {@link Window.Bound#withAllowedLateness(Duration) allowed lateness} of a downstream
+   *     {@link Window#withAllowedLateness(Duration) allowed lateness} of a downstream
    *     {@link PCollection} may be silently dropped. See
    *     https://issues.apache.org/jira/browse/BEAM-644 for details on a replacement.
    *
