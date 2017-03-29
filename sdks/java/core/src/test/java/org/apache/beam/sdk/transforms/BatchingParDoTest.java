@@ -59,7 +59,7 @@ public class BatchingParDoTest implements Serializable {
   private static final int TIMESTAMP_INTERVAL = 1;
   private static final long WINDOW_DURATION = 5;
   private static final org.slf4j.Logger LOGGER = LoggerFactory.getLogger(BatchingParDoTest.class);
-  private static ArrayList<TimestampedValue<KV<String, String>>> data;
+  private transient ArrayList<TimestampedValue<KV<String, String>>> data = createTestData();
   private static SimpleFunction<Iterable<String>, Iterable<String>> perBatchFn;
   private static BatchingParDo<String, String, String> batchingParDo;
   private static Instant startInstant;
@@ -68,7 +68,6 @@ public class BatchingParDoTest implements Serializable {
   @BeforeClass
   public static void initialize() {
     startInstant = new Instant(0);
-    data = createTestData();
     perBatchFn =
         new SimpleFunction<Iterable<String>, Iterable<String>>() {
           @Override
