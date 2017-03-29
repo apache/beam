@@ -13,6 +13,10 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 
+<<<<<<< HEAD:sdks/java/io/jdbc/src/test/resources/kubernetes/postgres-service-public.yml
+=======
+# Script for Elasticsearch client service.
+>>>>>>> Added comments in the scripts:sdks/java/io/hadoop/jdk1.8-tests/src/test/resources/kubernetes/elasticsearch/es-service.yaml
 apiVersion: v1
 kind: Service
 metadata:
