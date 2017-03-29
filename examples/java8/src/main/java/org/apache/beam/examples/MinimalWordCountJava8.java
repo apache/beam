@@ -56,8 +56,9 @@ public class MinimalWordCountJava8 {
     Pipeline p = Pipeline.create(options);
 
     p.apply(TextIO.Read.from("gs://apache-beam-samples/shakespeare/*"))
-     .apply(FlatMapElements.via((String word) -> Arrays.asList(word.split("[^a-zA-Z']+")))
-         .withOutputType(TypeDescriptors.strings()))
+     .apply(FlatMapElements
+         .into(TypeDescriptors.strings())
+         .via((String word) -> Arrays.asList(word.split("[^a-zA-Z']+"))))
      .apply(Filter.by((String word) -> !word.isEmpty()))
      .apply(Count.<String>perElement())
      .apply(MapElements
