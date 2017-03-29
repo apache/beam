@@ -26,7 +26,7 @@ import org.joda.time.Instant;
  * A trigger which never fires.
  *
  * <p>Using this trigger will only produce output when the watermark passes the end of the
- * {@link BoundedWindow window} plus the {@link Window#withAllowedLateness allowed
+ * {@link BoundedWindow window} plus the {@link Window.Bound#withAllowedLateness allowed
  * lateness}.
  */
 public final class Never {

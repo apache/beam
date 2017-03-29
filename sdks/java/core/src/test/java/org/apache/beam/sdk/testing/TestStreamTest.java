@@ -146,7 +146,7 @@ public class TestStreamTest implements Serializable {
         .advanceWatermarkToInfinity();
 
     PCollection<Long> sum = p.apply(source)
-        .apply(Window.<Long>triggering(AfterWatermark.pastEndOfWindow()
+        .apply(Window.<Long>configure().triggering(AfterWatermark.pastEndOfWindow()
             .withEarlyFirings(AfterProcessingTime.pastFirstElementInPane()
                 .plusDelayOf(Duration.standardMinutes(5)))).accumulatingFiredPanes()
             .withAllowedLateness(Duration.ZERO))
@@ -272,14 +272,14 @@ public class TestStreamTest implements Serializable {
     PCollection<String> createStrings =
         p.apply("CreateStrings", stream)
             .apply("WindowStrings",
-                Window.<String>triggering(AfterPane.elementCountAtLeast(2))
+                Window.<String>configure().triggering(AfterPane.elementCountAtLeast(2))
                     .withAllowedLateness(Duration.ZERO)
                     .accumulatingFiredPanes());
     PAssert.that(createStrings).containsInAnyOrder("foo", "bar");
     PCollection<Integer> createInts =
         p.apply("CreateInts", other)
             .apply("WindowInts",
-                Window.<Integer>triggering(AfterPane.elementCountAtLeast(4))
+                Window.<Integer>configure().triggering(AfterPane.elementCountAtLeast(4))
                     .withAllowedLateness(Duration.ZERO)
                     .accumulatingFiredPanes());
     PAssert.that(createInts).containsInAnyOrder(1, 2, 3, 4);

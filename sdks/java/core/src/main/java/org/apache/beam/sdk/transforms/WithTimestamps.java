@@ -52,9 +52,9 @@ public class WithTimestamps<T> extends PTransform<PCollection<T>, PCollection<T>
    *
    * <p>CAUTION: Use of {@link #withAllowedTimestampSkew(Duration)} permits elements to be emitted
    * behind the watermark. These elements are considered late, and if behind the {@link
-   * Window#withAllowedLateness(Duration) allowed lateness} of a downstream {@link PCollection} may
-   * be silently dropped. See https://issues.apache.org/jira/browse/BEAM-644 for details on a
-   * replacement.
+   * Window.Bound#withAllowedLateness(Duration) allowed lateness} of a downstream
+   * {@link PCollection} may be silently dropped. See https://issues.apache.org/jira/browse/BEAM-644
+   * for details on a replacement.
    *
    * <p>Each output element will be in the same windows as the input element. If a new window based
    * on the new output timestamp is desired, apply a new instance of {@link Window#into(WindowFn)}.
@@ -90,7 +90,7 @@ public class WithTimestamps<T> extends PTransform<PCollection<T>, PCollection<T>
    * future. For infinite skew, use {@code new Duration(Long.MAX_VALUE)}.
    * @deprecated This method permits a to elements to be emitted behind the watermark. These
    *     elements are considered late, and if behind the
-   *     {@link Window#withAllowedLateness(Duration) allowed lateness} of a downstream
+   *     {@link Window.Bound#withAllowedLateness(Duration) allowed lateness} of a downstream
    *     {@link PCollection} may be silently dropped. See
    *     https://issues.apache.org/jira/browse/BEAM-644 for details on a replacement.
    */
@@ -106,7 +106,7 @@ public class WithTimestamps<T> extends PTransform<PCollection<T>, PCollection<T>
    * @see DoFn#getAllowedTimestampSkew()
    * @deprecated This method permits a to elements to be emitted behind the watermark. These
    *     elements are considered late, and if behind the
-   *     {@link Window#withAllowedLateness(Duration) allowed lateness} of a downstream
+   *     {@link Window.Bound#withAllowedLateness(Duration) allowed lateness} of a downstream
    *     {@link PCollection} may be silently dropped. See
    *     https://issues.apache.org/jira/browse/BEAM-644 for details on a replacement.
    */

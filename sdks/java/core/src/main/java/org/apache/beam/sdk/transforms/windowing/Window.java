@@ -170,62 +170,18 @@ public class Window {
    * properties can be set on it first.
    */
   public static <T> Bound<T> into(WindowFn<? super T, ?> fn) {
-    return Window.<T>configure().into(fn);
+    try {
+      fn.windowCoder().verifyDeterministic();
+    } catch (NonDeterministicException e) {
+      throw new IllegalArgumentException("Window coders must be deterministic.", e);
+    }
+    return Window.<T>configure().withWindowFn(fn);
   }
 
   /**
-   * Sets a non-default trigger for this {@code Window} {@code PTransform}.
-   * Elements that are assigned to a specific window will be output when
-   * the trigger fires.
-   *
-   * <p>Must also specify allowed lateness using {@link #withAllowedLateness} and accumulation
-   * mode using either {@link #discardingFiredPanes()} or {@link #accumulatingFiredPanes()}.
+   * Returns a new builder for a {@link Window} transform for setting windowing parameters other
+   * than the windowing function.
    */
-  @Experimental(Kind.TRIGGER)
-  public static <T> Bound<T> triggering(Trigger trigger) {
-    return Window.<T>configure().triggering(trigger);
-  }
-
-  /**
-   * Returns a new {@code Window} {@code PTransform} that uses the registered WindowFn and
-   * Triggering behavior, and that discards elements in a pane after they are triggered.
-   *
-   * <p>Does not modify this transform.  The resulting {@code PTransform} is sufficiently
-   * specified to be applied, but more properties can still be specified.
-   */
-  @Experimental(Kind.TRIGGER)
-  public static <T> Bound<T> discardingFiredPanes() {
-    return Window.<T>configure().discardingFiredPanes();
-  }
-
-  /**
-   * Returns a new {@code Window} {@code PTransform} that uses the registered WindowFn and
-   * Triggering behavior, and that accumulates elements in a pane after they are triggered.
-   *
-   * <p>Does not modify this transform.  The resulting {@code PTransform} is sufficiently
-   * specified to be applied, but more properties can still be specified.
-   */
-  @Experimental(Kind.TRIGGER)
-  public static <T> Bound<T> accumulatingFiredPanes() {
-    return Window.<T>configure().accumulatingFiredPanes();
-  }
-
-  /**
-   * Override the amount of lateness allowed for data elements in the output {@link PCollection},
-   * and downstream {@link PCollection PCollections} until explicitly set again. Like
-   * the other properties on this {@link Window} operation, this will be applied at
-   * the next {@link GroupByKey}. Any elements that are later than this as decided by
-   * the system-maintained watermark will be dropped.
-   *
-   * <p>This value also determines how long state will be kept around for old windows.
-   * Once no elements will be added to a window (because this duration has passed) any state
-   * associated with the window will be cleaned up.
-   */
-  @Experimental(Kind.TRIGGER)
-  public static <T> Bound<T> withAllowedLateness(Duration allowedLateness) {
-    return Window.<T>configure().withAllowedLateness(allowedLateness);
-  }
-
   public static <T> Bound<T> configure() {
     return new AutoValue_Window_Bound.Builder<T>().build();
   }
@@ -261,20 +217,7 @@ public class Window {
       abstract Bound<T> build();
     }
 
-    /**
-     * Returns a new {@code Window} {@code PTransform} that's like this
-     * transform but that will use the given {@link WindowFn}, and that has
-     * its input and output types bound.  Does not modify this transform.  The
-     * resulting {@code PTransform} is sufficiently specified to be applied,
-     * but more properties can still be specified.
-     */
-    private Bound<T> into(WindowFn<? super T, ?> windowFn) {
-      try {
-        windowFn.windowCoder().verifyDeterministic();
-      } catch (NonDeterministicException e) {
-        throw new IllegalArgumentException("Window coders must be deterministic.", e);
-      }
-
+    private Bound<T> withWindowFn(WindowFn<? super T, ?> windowFn) {
       return toBuilder().setWindowFn(windowFn).build();
     }
 
@@ -319,8 +262,9 @@ public class Window {
    }
 
     /**
-     * Override the amount of lateness allowed for data elements in the pipeline. Like
-     * the other properties on this {@link Window} operation, this will be applied at
+     * Override the amount of lateness allowed for data elements in the output {@link PCollection}
+     * and downstream {@link PCollection PCollections} until explicitly set again.
+     * Like the other properties on this {@link Window} operation, this will be applied at
      * the next {@link GroupByKey}. Any elements that are later than this as decided by
      * the system-maintained watermark will be dropped.
      *
