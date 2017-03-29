@@ -22,6 +22,7 @@ import cz.seznam.euphoria.core.client.dataset.windowing.TimeInterval;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.util.Either;
 import cz.seznam.euphoria.core.client.util.Pair;
+import cz.seznam.euphoria.core.client.util.Triple;
 import cz.seznam.euphoria.flink.batch.BatchElement;
 import cz.seznam.euphoria.flink.streaming.StreamingElement;
 import cz.seznam.euphoria.flink.streaming.windowing.KeyedMultiWindowedElement;
@@ -142,6 +143,7 @@ public class ExecutionEnvironment {
 
     ret.add(Either.class);
     ret.add(Pair.class);
+    ret.add(Triple.class);
     ret.add(StreamingElement.class);
     ret.add(BatchElement.class);
     ret.add(KeyedMultiWindowedElement.class);
