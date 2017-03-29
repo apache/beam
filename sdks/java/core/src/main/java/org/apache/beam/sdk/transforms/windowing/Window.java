@@ -169,7 +169,7 @@ public class Window {
    * properties can be set on it first.
    */
   public static <T> Bound<T> into(WindowFn<? super T, ?> fn) {
-    return new Bound().into(fn);
+    return new Bound<T>().into(fn);
   }
 
   /**
@@ -182,7 +182,7 @@ public class Window {
    */
   @Experimental(Kind.TRIGGER)
   public static <T> Bound<T> triggering(Trigger trigger) {
-    return new Bound().triggering(trigger);
+    return new Bound<T>().triggering(trigger);
   }
 
   /**
@@ -194,7 +194,7 @@ public class Window {
    */
   @Experimental(Kind.TRIGGER)
   public static <T> Bound<T> discardingFiredPanes() {
-    return new Bound().discardingFiredPanes();
+    return new Bound<T>().discardingFiredPanes();
   }
 
   /**
@@ -206,7 +206,7 @@ public class Window {
    */
   @Experimental(Kind.TRIGGER)
   public static <T> Bound<T> accumulatingFiredPanes() {
-    return new Bound().accumulatingFiredPanes();
+    return new Bound<T>().accumulatingFiredPanes();
   }
 
   /**
@@ -222,7 +222,7 @@ public class Window {
    */
   @Experimental(Kind.TRIGGER)
   public static <T> Bound<T> withAllowedLateness(Duration allowedLateness) {
-    return new Bound().withAllowedLateness(allowedLateness);
+    return new Bound<T>().withAllowedLateness(allowedLateness);
   }
 
   /**
@@ -231,7 +231,7 @@ public class Window {
    */
   @Experimental(Kind.OUTPUT_TIME)
   public static <T> Bound<T> withOutputTimeFn(OutputTimeFn<?> outputTimeFn) {
-    return new Bound().withOutputTimeFn(outputTimeFn);
+    return new Bound<T>().withOutputTimeFn(outputTimeFn);
   }
 
   /**
@@ -300,7 +300,7 @@ public class Window {
      */
     @Experimental(Kind.TRIGGER)
     public Bound<T> triggering(Trigger trigger) {
-      return new Bound<T>(
+      return new Bound<>(
           windowFn,
           trigger,
           mode,
@@ -318,7 +318,7 @@ public class Window {
     */
     @Experimental(Kind.TRIGGER)
    public Bound<T> discardingFiredPanes() {
-     return new Bound<T>(
+     return new Bound<>(
          windowFn,
          trigger,
          AccumulationMode.DISCARDING_FIRED_PANES,
@@ -336,7 +336,7 @@ public class Window {
     */
    @Experimental(Kind.TRIGGER)
    public Bound<T> accumulatingFiredPanes() {
-     return new Bound<T>(
+     return new Bound<>(
          windowFn,
          trigger,
          AccumulationMode.ACCUMULATING_FIRED_PANES,
@@ -360,7 +360,7 @@ public class Window {
      */
     @Experimental(Kind.TRIGGER)
     public Bound<T> withAllowedLateness(Duration allowedLateness) {
-      return new Bound<T>(
+      return new Bound<>(
           windowFn, trigger, mode, allowedLateness, closingBehavior, outputTimeFn);
     }
 
@@ -370,7 +370,7 @@ public class Window {
      */
     @Experimental(Kind.OUTPUT_TIME)
     public Bound<T> withOutputTimeFn(OutputTimeFn<?> outputTimeFn) {
-      return new Bound<T>(
+      return new Bound<>(
           windowFn, trigger, mode, allowedLateness, closingBehavior, outputTimeFn);
     }
 
@@ -386,7 +386,7 @@ public class Window {
      */
     @Experimental(Kind.TRIGGER)
     public Bound<T> withAllowedLateness(Duration allowedLateness, ClosingBehavior behavior) {
-      return new Bound<T>(windowFn, trigger, mode, allowedLateness, behavior, outputTimeFn);
+      return new Bound<>(windowFn, trigger, mode, allowedLateness, behavior, outputTimeFn);
     }
 
     /**
@@ -422,6 +422,7 @@ public class Window {
     /**
      * Get the {@link WindowFn} of this {@link Window.Bound Window PTransform}.
      */
+    @Nullable
     public WindowFn<? super T, ?> getWindowFn() {
       return windowFn;
     }
@@ -568,7 +569,7 @@ public class Window {
    * {@link org.apache.beam.sdk.transforms.GroupByKey}.
    */
   public static <T> Remerge<T> remerge() {
-    return new Remerge<T>();
+    return new Remerge<>();
   }
 
   /**
