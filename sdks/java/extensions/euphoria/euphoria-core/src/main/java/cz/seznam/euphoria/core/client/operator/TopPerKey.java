@@ -17,24 +17,22 @@ package cz.seznam.euphoria.core.client.operator;
 
 import cz.seznam.euphoria.core.annotation.operator.Derived;
 import cz.seznam.euphoria.core.annotation.operator.StateComplexity;
-import cz.seznam.euphoria.core.client.operator.state.State;
-import cz.seznam.euphoria.core.client.operator.state.StorageProvider;
-import cz.seznam.euphoria.core.client.operator.state.ValueStorage;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.partitioning.Partitioning;
-import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.dataset.windowing.Window;
+import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.flow.Flow;
-import cz.seznam.euphoria.core.client.functional.CombinableReduceFunction;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 import cz.seznam.euphoria.core.client.graph.DAG;
 import cz.seznam.euphoria.core.client.io.Context;
+import cz.seznam.euphoria.core.client.operator.state.State;
+import cz.seznam.euphoria.core.client.operator.state.StorageProvider;
+import cz.seznam.euphoria.core.client.operator.state.ValueStorage;
 import cz.seznam.euphoria.core.client.operator.state.ValueStorageDescriptor;
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.core.client.util.Triple;
 
 import javax.annotation.Nullable;
-import java.util.Iterator;
 
 import static java.util.Objects.requireNonNull;
 
@@ -49,44 +47,47 @@ public class TopPerKey<
     TopPerKey<IN, KEY, VALUE, SCORE, W>> {
   
   private static final class MaxScored<V, C extends Comparable<C>>
-      extends State<Pair<V, C>, Pair<V, C>> {
-    
+      extends State<Pair<V, C>, Pair<V, C>>
+      implements StateSupport.MergeFrom<MaxScored<V, C>> {
+
+    static final ValueStorageDescriptor<Pair> MAX_STATE_DESCR =
+            ValueStorageDescriptor.of("max", Pair.class, Pair.of(null, null));
+
     final ValueStorage<Pair<V, C>> curr;
 
     @SuppressWarnings("unchecked")
-    MaxScored(
-        Context<Pair<V, C>> context,
-        StorageProvider storageProvider) {
-
+    MaxScored(Context<Pair<V, C>> context, StorageProvider storageProvider) {
       super(context, storageProvider);
-      curr = (ValueStorage) storageProvider.getValueStorage(
-          ValueStorageDescriptor.of("max", Pair.class, Pair.of(null, null)));
-    }
-
-    void merge(MaxScored<V, C> other) {
-      if (other.curr.get().getFirst() != null) {
-        this.add(other.curr.get());
-      }
+      curr = (ValueStorage) storageProvider.getValueStorage(MAX_STATE_DESCR);
     }
 
     @Override
     public void add(Pair<V, C> element) {
-      if (curr.get().getFirst() == null
-          || element.getSecond().compareTo(curr.get().getSecond()) > 0) {
+      Pair<V, C> c = curr.get();
+      if (c.getFirst() == null || element.getSecond().compareTo(c.getSecond()) > 0) {
         curr.set(element);
       }
     }
 
     @Override
     public void flush() {
-      if (curr.get().getFirst() != null) {
-        getContext().collect(curr.get());
+      Pair<V, C> c = curr.get();
+      if (c.getFirst() != null) {
+        getContext().collect(c);
       }
     }
 
     @Override
     public void close() {
       curr.clear();
+    }
+
+    @Override
+    public void mergeFrom(MaxScored<V, C> other) {
+      Pair<V, C> o = other.curr.get();
+      if (o.getFirst() != null) {
+        this.add(o);
+      }
     }
   }
 
@@ -287,6 +288,8 @@ public class TopPerKey<
   public DAG<Operator<?, ?>> getBasicOps() {
     Flow flow = getFlow();
 
+    StateSupport.MergeFromStateCombiner<MaxScored<VALUE, SCORE>> stateCombiner
+            = new StateSupport.MergeFromStateCombiner<>();
     ReduceStateByKey<IN, IN, IN, KEY, Pair<VALUE, SCORE>, KEY, Pair<VALUE, SCORE>,
         MaxScored<VALUE, SCORE>, W>
         reduce =
@@ -296,14 +299,7 @@ public class TopPerKey<
             windowing,
             eventTimeAssigner,
             MaxScored::new,
-            (CombinableReduceFunction<MaxScored<VALUE, SCORE>>) states -> {
-              Iterator<MaxScored<VALUE, SCORE>> iter = states.iterator();
-              MaxScored<VALUE, SCORE> m = iter.next();
-              while (iter.hasNext()) {
-                m.merge(iter.next());
-              }
-              return m;
-            },
+            stateCombiner,
             partitioning);
 
     MapElements<Pair<KEY, Pair<VALUE, SCORE>>, Triple<KEY, VALUE, SCORE>>
