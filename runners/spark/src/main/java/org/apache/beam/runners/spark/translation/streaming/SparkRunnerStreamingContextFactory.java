@@ -98,7 +98,7 @@ public class SparkRunnerStreamingContextFactory {
     };
   }
 
-  private static void checkpoint(JavaStreamingContext jssc, CheckpointDir checkpointDir) {
+  private void checkpoint(JavaStreamingContext jssc, CheckpointDir checkpointDir) {
     Path rootCheckpointPath = checkpointDir.getRootCheckpointDir();
     Path sparkCheckpointPath = checkpointDir.getSparkCheckpointDir();
     Path beamCheckpointPath = checkpointDir.getBeamCheckpointDir();
