@@ -135,7 +135,8 @@ metadata:
     component: elasticsearch
     role: client
 spec:
-  replicas: 2
+  # The no. of replicas can be incremented based on the client usage using HTTP API.
+  replicas: 1
   template:
     metadata:
       labels:
