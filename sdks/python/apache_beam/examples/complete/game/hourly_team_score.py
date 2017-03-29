@@ -21,7 +21,7 @@ In addition to the concepts introduced in `user_score`, new concepts include:
 windowing and element timestamps; use of `Filter`.
 
 This pipeline processes data collected from gaming events in batch, building on
-user_score` but using fixed windows. It calculates the sum of scores per team,
+`user_score` but using fixed windows. It calculates the sum of scores per team,
 for each window, optionally allowing specification of two timestamps before and
 after which data is filtered out. This allows a model where late data collected
 after the intended analysis window can be included, and any late-arriving data
