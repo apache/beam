@@ -136,7 +136,8 @@ class FlinkBatchTransformTranslators {
 
       DataSource<WindowedValue<T>> dataSource = new DataSource<>(
           context.getExecutionEnvironment(),
-          new SourceInputFormat<>(source, context.getPipelineOptions()),
+          new SourceInputFormat<>(
+              context.getCurrentTransform().getFullName(), source, context.getPipelineOptions()),
           typeInformation,
           name);
 
