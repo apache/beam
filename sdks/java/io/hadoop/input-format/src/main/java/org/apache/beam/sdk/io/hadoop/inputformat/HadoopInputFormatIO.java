@@ -40,6 +40,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map.Entry;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicLong;
 
 import javax.annotation.Nullable;
 
@@ -588,7 +589,7 @@ public class HadoopInputFormatIO {
       private final SerializableSplit split;
       private RecordReader<T1, T2> recordReader;
       private volatile boolean doneReading = false;
-      private volatile long recordsReturned = 0L;
+      private AtomicLong recordsReturned = new AtomicLong();
       // Tracks the progress of the RecordReader.
       private AtomicDouble progressValue = new AtomicDouble();
       private transient InputFormat<T1, T2> inputFormatObj;
@@ -616,7 +617,7 @@ public class HadoopInputFormatIO {
       @Override
       public boolean start() throws IOException {
         try {
-          recordsReturned = 0;
+          recordsReturned.set(0L);
           recordReader =
               (RecordReader<T1, T2>) inputFormatObj.createRecordReader(split.getSplit(),
                   taskAttemptContext);
@@ -624,7 +625,7 @@ public class HadoopInputFormatIO {
             recordReader.initialize(split.getSplit(), taskAttemptContext);
             progressValue.set(getProgress());
             if (recordReader.nextKeyValue()) {
-              recordsReturned++;
+              recordsReturned.incrementAndGet();
               doneReading = false;
               return true;
             }
@@ -648,7 +649,7 @@ public class HadoopInputFormatIO {
         try {
           progressValue.set(getProgress());
           if (recordReader.nextKeyValue()) {
-            recordsReturned++;
+            recordsReturned.incrementAndGet();
             return true;
           }
           doneReading = true;
@@ -728,7 +729,7 @@ public class HadoopInputFormatIO {
       public Double getFractionConsumed() {
         if (doneReading) {
           progressValue.set(1.0);
-        } else if (recordReader == null || recordsReturned == 0) {
+        } else if (recordReader == null || recordsReturned.get() == 0L) {
           progressValue.set(0.0);
         }
         if (progressValue.get() == 0.0) {
