@@ -20,6 +20,7 @@ import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.functional.CombinableReduceFunction;
 import cz.seznam.euphoria.core.client.functional.StateFactory;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
+import cz.seznam.euphoria.core.client.operator.ExtractEventTime;
 import cz.seznam.euphoria.core.client.operator.ReduceStateByKey;
 import cz.seznam.euphoria.core.client.operator.state.State;
 import cz.seznam.euphoria.core.client.util.Pair;
@@ -77,7 +78,7 @@ class ReduceStateByKeyTranslator implements StreamingOperatorTranslator<ReduceSt
 
     final UnaryFunction keyExtractor = origOperator.getKeyExtractor();
     final UnaryFunction valueExtractor = origOperator.getValueExtractor();
-    final UnaryFunction eventTimeAssigner = origOperator.getEventTimeAssigner();
+    final ExtractEventTime eventTimeAssigner = origOperator.getEventTimeAssigner();
 
     if (eventTimeAssigner != null) {
       input = input.assignTimestampsAndWatermarks(
@@ -124,16 +125,17 @@ class ReduceStateByKeyTranslator implements StreamingOperatorTranslator<ReduceSt
   private static class EventTimeAssigner
           extends BoundedOutOfOrdernessTimestampExtractor<StreamingElement>
   {
-    private final UnaryFunction<Object, Long> eventTimeFn;
+    private final ExtractEventTime eventTimeFn;
 
-    EventTimeAssigner(Duration allowedLateness, UnaryFunction<Object, Long> eventTimeFn) {
+    EventTimeAssigner(Duration allowedLateness, ExtractEventTime eventTimeFn) {
       super(millisTime(allowedLateness.toMillis()));
       this.eventTimeFn = Objects.requireNonNull(eventTimeFn);
     }
 
+    @SuppressWarnings("unchecked")
     @Override
     public long extractTimestamp(StreamingElement element) {
-      return eventTimeFn.apply(element.getElement());
+      return eventTimeFn.extractTimestamp(element.getElement());
     }
 
     private static org.apache.flink.streaming.api.windowing.time.Time

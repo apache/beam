@@ -18,7 +18,6 @@ package cz.seznam.euphoria.core.client.operator;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 import cz.seznam.euphoria.core.client.flow.Flow;
-import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 
 import javax.annotation.Nullable;
 
@@ -32,12 +31,12 @@ public abstract class WindowWiseOperator<
   @Nullable
   protected Windowing<WIN, W> windowing;
   @Nullable
-  protected UnaryFunction<WIN, Long> eventTimeAssigner;
+  protected ExtractEventTime<WIN> eventTimeAssigner;
 
   public WindowWiseOperator(String name,
                             Flow flow,
                             @Nullable Windowing<WIN, W> windowing,
-                            @Nullable UnaryFunction<WIN, Long> eventTimeAssigner) {
+                            @Nullable ExtractEventTime<WIN> eventTimeAssigner) {
     super(name, flow);
     this.windowing = windowing;
     this.eventTimeAssigner = eventTimeAssigner;
@@ -51,7 +50,7 @@ public abstract class WindowWiseOperator<
 
   @Nullable
   @Override
-  public UnaryFunction<WIN, Long> getEventTimeAssigner() {
+  public ExtractEventTime<WIN> getEventTimeAssigner() {
     return eventTimeAssigner;
   }
 }

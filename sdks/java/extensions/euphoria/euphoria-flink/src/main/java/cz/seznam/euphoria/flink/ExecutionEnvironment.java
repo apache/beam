@@ -20,6 +20,7 @@ import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.windowing.Batch;
 import cz.seznam.euphoria.core.client.dataset.windowing.TimeInterval;
 import cz.seznam.euphoria.core.client.flow.Flow;
+import cz.seznam.euphoria.core.client.util.Either;
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.flink.batch.BatchElement;
 import cz.seznam.euphoria.flink.streaming.StreamingElement;
@@ -139,6 +140,7 @@ public class ExecutionEnvironment {
     ret.add(Batch.BatchWindow.class);
     ret.add(TimeInterval.class);
 
+    ret.add(Either.class);
     ret.add(Pair.class);
     ret.add(StreamingElement.class);
     ret.add(BatchElement.class);

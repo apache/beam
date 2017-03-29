@@ -255,10 +255,7 @@ public abstract class AbstractWindowOperator<I, KEY, WID extends Window>
       // at the end of time flush window immediately
       triggerResult = Trigger.TriggerResult.FLUSH_AND_PURGE;
     } else {
-      triggerResult = trigger.onTimer(
-              timer.getTimestamp(),
-              window,
-              triggerContext);
+      triggerResult = trigger.onTimer(timer.getTimestamp(), window, triggerContext);
     }
 
     MergingWindowSet<WID> mergingWindowSet = null;

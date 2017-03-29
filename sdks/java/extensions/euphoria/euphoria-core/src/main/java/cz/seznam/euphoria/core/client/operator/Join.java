@@ -36,7 +36,6 @@ import cz.seznam.euphoria.core.client.util.Pair;
 import javax.annotation.Nullable;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.Iterator;
 import java.util.Objects;
 
 /**
@@ -173,18 +172,17 @@ public class Join<LEFT, RIGHT, KEY, OUT, W extends Window>
     public <W extends Window>
     OutputBuilder<LEFT, RIGHT, KEY, OUT, W>
     windowBy(Windowing<Either<LEFT, RIGHT>, W> windowing,
-             UnaryFunction<LEFT, Long> leftEventTimeFn,
-             UnaryFunction<RIGHT, Long> rightEventTimeFn) {
+             ExtractEventTime<LEFT> leftEventTimeFn,
+             ExtractEventTime<RIGHT> rightEventTimeFn) {
 
-      UnaryFunction<Either<LEFT, RIGHT>, Long> eventTimeAssigner = null;
+      ExtractEventTime<Either<LEFT, RIGHT>> eventTimeAssigner = null;
 
       if (leftEventTimeFn != null || rightEventTimeFn != null) {
         Objects.requireNonNull(leftEventTimeFn);
         Objects.requireNonNull(rightEventTimeFn);
-
-        eventTimeAssigner = either -> either.isLeft() ?
-                leftEventTimeFn.apply(either.left()) :
-                rightEventTimeFn.apply(either.right());
+        eventTimeAssigner = either -> either.isLeft()
+                ? leftEventTimeFn.extractTimestamp(either.left())
+                : rightEventTimeFn.extractTimestamp(either.right());
       }
 
       return new OutputBuilder<>(name, left, right, leftKeyExtractor,
@@ -207,7 +205,7 @@ public class Join<LEFT, RIGHT, KEY, OUT, W extends Window>
     @Nullable
     private final Windowing<Either<LEFT, RIGHT>, W> windowing;
     @Nullable
-    private final UnaryFunction<Either<LEFT, RIGHT>, Long> eventTimeAssigner;
+    private final ExtractEventTime<Either<LEFT, RIGHT>> eventTimeAssigner;
 
     OutputBuilder(String name,
                   Dataset<LEFT> left,
@@ -218,7 +216,7 @@ public class Join<LEFT, RIGHT, KEY, OUT, W extends Window>
                   boolean outer,
                   PartitioningBuilder<KEY, ?> partitioning,
                   @Nullable Windowing<Either<LEFT, RIGHT>, W> windowing,
-                  @Nullable UnaryFunction<Either<LEFT, RIGHT>, Long> eventTimeAssigner) {
+                  @Nullable ExtractEventTime<Either<LEFT, RIGHT>> eventTimeAssigner) {
 
       super(partitioning);
 
@@ -268,7 +266,7 @@ public class Join<LEFT, RIGHT, KEY, OUT, W extends Window>
        Flow flow,
        Dataset<LEFT> left, Dataset<RIGHT> right,
        @Nullable Windowing<Either<LEFT, RIGHT>, W> windowing,
-       @Nullable UnaryFunction<Either<LEFT, RIGHT>, Long> eventTimeAssigner,
+       @Nullable ExtractEventTime<Either<LEFT, RIGHT>> eventTimeAssigner,
        Partitioning<KEY> partitioning,
        UnaryFunction<LEFT, KEY> leftKeyExtractor,
        UnaryFunction<RIGHT, KEY> rightKeyExtractor,
@@ -303,22 +301,26 @@ public class Join<LEFT, RIGHT, KEY, OUT, W extends Window>
     return output;
   }
 
-  // keeper of state for window
-  private class JoinState extends State<Either<LEFT, RIGHT>, OUT> {
+  @SuppressWarnings("unchecked")
+  static final ListStorageDescriptor LEFT_STATE_DESCR =
+          ListStorageDescriptor.of("left", (Class) Object.class);
+  @SuppressWarnings("unchecked")
+  static final ListStorageDescriptor RIGHT_STATE_DESCR =
+          ListStorageDescriptor.of("right", (Class) Object.class);
+
+  private class JoinState
+          extends State<Either<LEFT, RIGHT>, OUT>
+          implements StateSupport.MergeFrom<JoinState> {
 
     // store the elements in memory for this implementation
     final ListStorage<LEFT> leftElements;
     final ListStorage<RIGHT> rightElements;
 
     @SuppressWarnings("unchecked")
-    public JoinState(
-        Context<OUT> context,
-        StorageProvider storageProvider) {
+    public JoinState(Context<OUT> context, StorageProvider storageProvider) {
       super(context, storageProvider);
-      leftElements = storageProvider.getListStorage(
-          ListStorageDescriptor.of("left", (Class) Object.class));
-      rightElements = storageProvider.getListStorage(
-          ListStorageDescriptor.of("right", (Class) Object.class));
+      leftElements = storageProvider.getListStorage(LEFT_STATE_DESCR);
+      rightElements = storageProvider.getListStorage(RIGHT_STATE_DESCR);
     }
 
     @Override
@@ -349,16 +351,19 @@ public class Join<LEFT, RIGHT, KEY, OUT, W extends Window>
     }
 
     private void flushUnjoinedElems() {
-      boolean leftEmpty = !leftElements.get().iterator().hasNext();
-      boolean rightEmpty = !rightElements.get().iterator().hasNext();
+      Iterable<LEFT> lefts = leftElements.get();
+      Iterable<RIGHT> rights = rightElements.get();
+
+      boolean leftEmpty = !lefts.iterator().hasNext();
+      boolean rightEmpty = !rights.iterator().hasNext();
       if (leftEmpty ^ rightEmpty) {
         // if just a one collection is empty
         if (leftEmpty) {
-          for (RIGHT elem : rightElements.get()) {
+          for (RIGHT elem : rights) {
             functor.apply(null, elem, getContext());
           }
         } else {
-          for (LEFT elem : leftElements.get()) {
+          for (LEFT elem : lefts) {
             functor.apply(elem, null, getContext());
           }
         }
@@ -379,23 +384,23 @@ public class Join<LEFT, RIGHT, KEY, OUT, W extends Window>
       }
     }
 
-    JoinState merge(Iterator<JoinState> i) {
-      while (i.hasNext()) {
-        JoinState state = i.next();
-        for (LEFT l : state.leftElements.get()) {
-          for (RIGHT r : this.rightElements.get()) {
-            functor.apply(l, r, getContext());
-          }
+    @Override
+    public void mergeFrom(JoinState other) {
+      // TODO retrieving the actual list stored in the state is a costly operation
+      // ... optimize for it (avoid needlessly calling storage.get(..) multiple times)
+      // ... also avoid calling addAll or alternatively provide a more efficient impl
+      for (LEFT l : other.leftElements.get()) {
+        for (RIGHT r : this.rightElements.get()) {
+          functor.apply(l, r, getContext());
         }
-        for (RIGHT r : state.rightElements.get()) {
-          for (LEFT l : this.leftElements.get()) {
-            functor.apply(l, r, getContext());
-          }
-        }
-        this.leftElements.addAll(state.leftElements.get());
-        this.rightElements.addAll(state.rightElements.get());
       }
-      return this;
+      for (RIGHT r : other.rightElements.get()) {
+        for (LEFT l : this.leftElements.get()) {
+          functor.apply(l, r, getContext());
+        }
+      }
+      this.leftElements.addAll(other.leftElements.get());
+      this.rightElements.addAll(other.rightElements.get());
     }
   }
 
@@ -441,22 +446,12 @@ public class Join<LEFT, RIGHT, KEY, OUT, W extends Window>
               name,
               flow,
               union.output(),
-              keyExtractor::apply,
+              keyExtractor,
               e -> e,
               getWindowing(),
               getEventTimeAssigner(),
               JoinState::new,
-              (Iterable<JoinState> states) -> {
-                Iterator<JoinState> iter = states.iterator();
-                final JoinState first;
-                if (iter.hasNext()) {
-                  first = iter.next();
-                } else {
-                  // this is strange
-                  throw new IllegalStateException("Reducing empty states?");
-                }
-                return first.merge(iter);
-              },
+              new StateSupport.MergeFromStateCombiner<>(),
               partitioning
         );
 
