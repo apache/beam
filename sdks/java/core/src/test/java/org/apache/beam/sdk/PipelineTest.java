@@ -406,16 +406,10 @@ public class PipelineTest {
     class ReplacementOverrideFactory
         implements PTransformOverrideFactory<
             PCollection<String>, PCollection<Long>, OriginalTransform> {
-
       @Override
-      public PTransform<PCollection<String>, PCollection<Long>> getReplacementTransform(
-          OriginalTransform transform) {
-        return new ReplacementTransform();
-      }
-
-      @Override
-      public PCollection<String> getInput(Map<TupleTag<?>, PValue> inputs, Pipeline p) {
-        return originalInput;
+      public PTransformReplacement<PCollection<String>, PCollection<Long>> getReplacementTransform(
+          AppliedPTransform<PCollection<String>, PCollection<Long>, OriginalTransform> transform) {
+        return PTransformReplacement.of(originalInput, new ReplacementTransform());
       }
 
       @Override
@@ -464,14 +458,9 @@ public class PipelineTest {
   static class BoundedCountingInputOverride
       implements PTransformOverrideFactory<PBegin, PCollection<Long>, BoundedCountingInput> {
     @Override
-    public PTransform<PBegin, PCollection<Long>> getReplacementTransform(
-        BoundedCountingInput transform) {
-      return Create.of(0L);
-    }
-
-    @Override
-    public PBegin getInput(Map<TupleTag<?>, PValue> inputs, Pipeline p) {
-      return p.begin();
+    public PTransformReplacement<PBegin, PCollection<Long>> getReplacementTransform(
+        AppliedPTransform<PBegin, PCollection<Long>, BoundedCountingInput> transform) {
+      return PTransformReplacement.of(transform.getPipeline().begin(), Create.of(0L));
     }
 
     @Override
@@ -489,15 +478,11 @@ public class PipelineTest {
   }
   static class UnboundedCountingInputOverride
       implements PTransformOverrideFactory<PBegin, PCollection<Long>, UnboundedCountingInput> {
-    @Override
-    public PTransform<PBegin, PCollection<Long>> getReplacementTransform(
-        UnboundedCountingInput transform) {
-      return CountingInput.upTo(100L);
-    }
 
     @Override
-    public PBegin getInput(Map<TupleTag<?>, PValue> inputs, Pipeline p) {
-      return p.begin();
+    public PTransformReplacement<PBegin, PCollection<Long>> getReplacementTransform(
+        AppliedPTransform<PBegin, PCollection<Long>, UnboundedCountingInput> transform) {
+      return PTransformReplacement.of(transform.getPipeline().begin(), CountingInput.upTo(100L));
     }
 
     @Override
