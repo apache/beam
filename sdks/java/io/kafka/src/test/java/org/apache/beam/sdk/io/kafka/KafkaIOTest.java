@@ -295,6 +295,30 @@ public class KafkaIOTest {
   }
 
   @Test
+  public void testUnboundedSourceWithSingleTopic() {
+    // same as testUnboundedSource, but with single topic
+
+    int numElements = 1000;
+    String topic = "my_topic";
+
+    KafkaIO.Read<Integer, Long> reader = KafkaIO.<Integer, Long>read()
+        .withBootstrapServers("none")
+        .withTopic("my_topic")
+        .withConsumerFactoryFn(new ConsumerFactoryFn(
+            ImmutableList.of(topic), 10, numElements, OffsetResetStrategy.EARLIEST))
+        .withKeyCoder(BigEndianIntegerCoder.of())
+        .withValueCoder(BigEndianLongCoder.of())
+        .withMaxNumRecords(numElements);
+
+    PCollection<Long> input = p
+        .apply(reader.withoutMetadata())
+        .apply(Values.<Long>create());
+
+    addCountingAsserts(input, numElements);
+    p.run();
+  }
+
+  @Test
   @Category(NeedsRunner.class)
   public void testUnboundedSourceWithExplicitPartitions() {
     int numElements = 1000;
