@@ -30,6 +30,7 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.RunnableOnService;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestStream;
+import org.apache.beam.sdk.testing.UsesStatefulParDo;
 import org.apache.beam.sdk.testing.UsesTestStream;
 import org.apache.beam.sdk.testing.UsesTimersInParDo;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -142,7 +143,7 @@ public class BatchingParDoTest implements Serializable {
   }
 
   @Test
-  @Category({RunnableOnService.class, UsesTimersInParDo.class})
+  @Category({RunnableOnService.class, UsesTimersInParDo.class, UsesStatefulParDo.class})
   public void testInBatchMode() {
     PCollection<KV<String, String>> collection =
         pipeline
@@ -166,7 +167,7 @@ public class BatchingParDoTest implements Serializable {
   }
 
   @Test
-  @Category({RunnableOnService.class, UsesTimersInParDo.class, UsesTestStream.class})
+  @Category({RunnableOnService.class, UsesTimersInParDo.class, UsesTestStream.class, UsesStatefulParDo.class})
   public void testInStreamingMode() {
     TestStream.Builder<KV<String, String>> streamBuilder =
         TestStream.create(KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()))
