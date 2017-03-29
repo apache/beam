@@ -163,6 +163,7 @@
     <hadoop.common.version>2.7.0</hadoop.common.version>
     <guava.version>19.0</guava.version>
     <transport.netty4.client.version>5.0.0</transport.netty4.client.version>
+    <netty.transport.native.epoll.version>4.1.0.CR3</netty.transport.native.epoll.version>
     <elasticsearch.version>5.0.0</elasticsearch.version>
     <cassandra.driver.mapping.version>3.1.1</cassandra.driver.mapping.version>
     <cassandra.all.verison>3.9</cassandra.all.verison>
@@ -228,7 +229,7 @@
     <dependency>
       <groupId>io.netty</groupId>
       <artifactId>netty-transport-native-epoll</artifactId>
-      <version>4.1.0.CR3</version>
+      <version>${netty.transport.native.epoll.version}</version>
       <scope>test</scope>
     </dependency>
     <dependency>
