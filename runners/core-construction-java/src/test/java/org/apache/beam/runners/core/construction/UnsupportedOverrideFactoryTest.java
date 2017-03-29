@@ -19,9 +19,7 @@
 package org.apache.beam.runners.core.construction;
 
 import java.util.Collections;
-import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
@@ -47,14 +45,7 @@ public class UnsupportedOverrideFactoryTest {
   public void getReplacementTransformThrows() {
     thrown.expect(UnsupportedOperationException.class);
     thrown.expectMessage(message);
-    factory.getReplacementTransform(Create.empty(VoidCoder.of()));
-  }
-
-  @Test
-  public void getInputThrows() {
-    thrown.expect(UnsupportedOperationException.class);
-    thrown.expectMessage(message);
-    factory.getInput(Collections.<TupleTag<?>, PValue>emptyMap(), pipeline);
+    factory.getReplacementTransform(null);
   }
 
   @Test

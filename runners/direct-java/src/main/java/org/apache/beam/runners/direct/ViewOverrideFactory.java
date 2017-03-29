@@ -18,14 +18,14 @@
 
 package org.apache.beam.runners.direct;
 
-import com.google.common.collect.Iterables;
 import java.util.Collections;
 import java.util.Map;
 import org.apache.beam.runners.core.construction.ForwardingPTransform;
-import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.runners.core.construction.PTransformReplacements;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.runners.PTransformOverrideFactory;
+import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.Values;
@@ -43,15 +43,15 @@ import org.apache.beam.sdk.values.TupleTag;
 class ViewOverrideFactory<ElemT, ViewT>
     implements PTransformOverrideFactory<
         PCollection<ElemT>, PCollectionView<ViewT>, CreatePCollectionView<ElemT, ViewT>> {
-  @Override
-  public PTransform<PCollection<ElemT>, PCollectionView<ViewT>> getReplacementTransform(
-      CreatePCollectionView<ElemT, ViewT> transform) {
-    return new GroupAndWriteView<>(transform);
-  }
 
   @Override
-  public PCollection<ElemT> getInput(Map<TupleTag<?>, PValue> inputs, Pipeline p) {
-    return (PCollection<ElemT>) Iterables.getOnlyElement(inputs.values());
+  public PTransformReplacement<PCollection<ElemT>, PCollectionView<ViewT>> getReplacementTransform(
+      AppliedPTransform<
+              PCollection<ElemT>, PCollectionView<ViewT>, CreatePCollectionView<ElemT, ViewT>>
+          transform) {
+    return PTransformReplacement.of(
+        PTransformReplacements.getSingletonMainInput(transform),
+        new GroupAndWriteView<>(transform.getTransform()));
   }
 
   @Override

@@ -30,12 +30,13 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.beam.runners.direct.ViewOverrideFactory.WriteView;
 import org.apache.beam.sdk.Pipeline.PipelineVisitor;
+import org.apache.beam.sdk.runners.PTransformOverrideFactory.PTransformReplacement;
 import org.apache.beam.sdk.runners.TransformHierarchy.Node;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.View.CreatePCollectionView;
 import org.apache.beam.sdk.util.PCollectionViews;
@@ -62,9 +63,20 @@ public class ViewOverrideFactoryTest implements Serializable {
     PCollection<Integer> ints = p.apply("CreateContents", Create.of(1, 2, 3));
     final PCollectionView<List<Integer>> view =
         PCollectionViews.listView(ints, WindowingStrategy.globalDefault(), ints.getCoder());
-    PTransform<PCollection<Integer>, PCollectionView<List<Integer>>> replacementTransform =
-        factory.getReplacementTransform(CreatePCollectionView.<Integer, List<Integer>>of(view));
-    PCollectionView<List<Integer>> afterReplacement = ints.apply(replacementTransform);
+    PTransformReplacement<PCollection<Integer>, PCollectionView<List<Integer>>>
+        replacementTransform =
+            factory.getReplacementTransform(
+                AppliedPTransform
+                    .<PCollection<Integer>, PCollectionView<List<Integer>>,
+                        CreatePCollectionView<Integer, List<Integer>>>
+                        of(
+                            "foo",
+                            ints.expand(),
+                            view.expand(),
+                            CreatePCollectionView.<Integer, List<Integer>>of(view),
+                            p));
+    PCollectionView<List<Integer>> afterReplacement =
+        ints.apply(replacementTransform.getTransform());
     assertThat(
         "The CreatePCollectionView replacement should return the same View",
         afterReplacement,
@@ -92,9 +104,18 @@ public class ViewOverrideFactoryTest implements Serializable {
     final PCollection<Integer> ints = p.apply("CreateContents", Create.of(1, 2, 3));
     final PCollectionView<List<Integer>> view =
         PCollectionViews.listView(ints, WindowingStrategy.globalDefault(), ints.getCoder());
-    PTransform<PCollection<Integer>, PCollectionView<List<Integer>>> replacement =
-        factory.getReplacementTransform(CreatePCollectionView.<Integer, List<Integer>>of(view));
-    ints.apply(replacement);
+    PTransformReplacement<PCollection<Integer>, PCollectionView<List<Integer>>> replacement =
+        factory.getReplacementTransform(
+            AppliedPTransform
+                .<PCollection<Integer>, PCollectionView<List<Integer>>,
+                    CreatePCollectionView<Integer, List<Integer>>>
+                    of(
+                        "foo",
+                        ints.expand(),
+                        view.expand(),
+                        CreatePCollectionView.<Integer, List<Integer>>of(view),
+                        p));
+    ints.apply(replacement.getTransform());
     final AtomicBoolean writeViewVisited = new AtomicBoolean();
     p.traverseTopologically(
         new PipelineVisitor.Defaults() {
@@ -113,12 +134,5 @@ public class ViewOverrideFactoryTest implements Serializable {
         });
 
     assertThat(writeViewVisited.get(), is(true));
-  }
-
-  @Test
-  public void overrideFactoryGetInputSucceeds() {
-    ViewOverrideFactory<String, String> factory = new ViewOverrideFactory<>();
-    PCollection<String> input = p.apply(Create.of("foo", "bar"));
-    assertThat(factory.getInput(input.expand(), p), equalTo(input));
   }
 }

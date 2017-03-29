@@ -19,8 +19,8 @@
 package org.apache.beam.runners.core.construction;
 
 import java.util.Map;
-import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.runners.PTransformOverrideFactory;
+import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.Create.Values;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -57,13 +57,10 @@ public class PrimitiveCreate<T> extends PTransform<PBegin, PCollection<T>> {
   public static class Factory<T>
       implements PTransformOverrideFactory<PBegin, PCollection<T>, Values<T>> {
     @Override
-    public PTransform<PBegin, PCollection<T>> getReplacementTransform(Values<T> transform) {
-      return new PrimitiveCreate<>(transform);
-    }
-
-    @Override
-    public PBegin getInput(Map<TupleTag<?>, PValue> inputs, Pipeline p) {
-      return p.begin();
+    public PTransformReplacement<PBegin, PCollection<T>> getReplacementTransform(
+        AppliedPTransform<PBegin, PCollection<T>, Values<T>> transform) {
+      return PTransformReplacement.of(
+          transform.getPipeline().begin(), new PrimitiveCreate<T>(transform.getTransform()));
     }
 
     @Override
