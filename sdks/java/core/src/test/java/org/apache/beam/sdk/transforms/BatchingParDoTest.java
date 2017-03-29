@@ -61,7 +61,6 @@ public class BatchingParDoTest implements Serializable {
   private static final org.slf4j.Logger LOGGER = LoggerFactory.getLogger(BatchingParDoTest.class);
   private transient ArrayList<TimestampedValue<KV<String, String>>> data = createTestData();
   private static SimpleFunction<Iterable<String>, Iterable<String>> perBatchFn;
-  private static BatchingParDo<String, String, String> batchingParDo;
   private static Instant startInstant;
   @Rule public transient TestPipeline pipeline = TestPipeline.create();
 
@@ -79,7 +78,6 @@ public class BatchingParDoTest implements Serializable {
             return output;
           }
         };
-    batchingParDo = BatchingParDo.via(BATCH_SIZE, perBatchFn);
   }
 
   private static ArrayList<TimestampedValue<KV<String, String>>> createTestData() {
@@ -160,7 +158,7 @@ public class BatchingParDoTest implements Serializable {
                         c.output(c.element().getValue());
                       }
                     }))
-            .apply(batchingParDo)
+            .apply(BatchingParDo.<String, String, String>via(BATCH_SIZE, perBatchFn))
             .setCoder(KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()));
     PAssert.that(collection).satisfies(new CheckAllElementsProcessingFn());
     PAssert.thatSingleton(collection.apply("Count", Count.<KV<String, String>>globally()))
@@ -215,7 +213,7 @@ public class BatchingParDoTest implements Serializable {
 
     PCollection<KV<String, String>> outputCollection =
         inputCollection
-            .apply(batchingParDo)
+            .apply(BatchingParDo.<String, String, String>via(BATCH_SIZE, perBatchFn))
             .setCoder(KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()));
 
     PAssert.that("All elements have not been processed", outputCollection)
