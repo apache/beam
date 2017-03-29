@@ -15,14 +15,14 @@
 # limitations under the License.
 #
 
-""" First in a series of four pipelines that tell a story in a 'gaming' domain.
+"""First in a series of four pipelines that tell a story in a 'gaming' domain.
 Concepts: batch processing; reading input from Google Cloud Storage and writing
 output to BigQuery; using standalone DoFns; use of the sum by key transform.
 
 In this gaming scenario, many users play, as members of different teams, over
 the course of a day, and their actions are logged for processing. Some of the
 logged game events may be late-arriving, if users play on mobile devices and go
-transiently offline for a period.
+transiently offline for a period of time.
 
 This pipeline does batch processing of data collected from gaming events. It
 calculates the sum of scores per user, over an entire batch of gaming data
@@ -34,7 +34,7 @@ To execute this pipeline using the static example input data, specify the
 BigQuery dataset you specify must already exist.)
 
 Optionally include the `--input` argument to specify a batch input file. See the
-`--input` default value for example batch data file.
+`--input` default value for an example batch data file.
 """
 
 from __future__ import absolute_import
@@ -81,8 +81,8 @@ class ParseEventFn(beam.DoFn):
       logging.info('Parse error on %s.', element)
 
 
-@with_output_types(int)
 @with_input_types(ints=typehints.Iterable[int])
+@with_output_types(int)
 def sum_ints(ints):
   return sum(ints)
 
@@ -118,6 +118,18 @@ class WriteToBigQuery(beam.PTransform):
   """
 
   def __init__(self, table_name, dataset, field_info):
+    """Initializes the transform.
+
+    Args:
+      table_name: Name of the BigQuery table to use.
+      dataset: Name of the dataset to use.
+      field_info: List of tuples that holds information about output table field
+                  definitions. The tuples are in the
+                  (field_name, field_type, field_fn) format, where field_name is
+                  the name of the field, field_type is the  BigQuery type of the
+                  field and field_fn is a lambda function to generate the field
+                  value from the element.
+    """
     super(WriteToBigQuery, self).__init__()
     self.table_name = table_name
     self.dataset = dataset
@@ -125,12 +137,8 @@ class WriteToBigQuery(beam.PTransform):
 
   def get_schema(self):
     """Build the output table schema."""
-    schema = ""
-    for entry in self.field_info:
-      if schema:
-        schema += ', '
-      schema += '%s:%s' % (entry[0], entry[1])
-    return schema
+    return ', '.join(
+        '%s:%s' % (entry[0], entry[1]) for entry in self.field_info)
 
   def get_table(self, pipeline):
     """Utility to construct an output table reference."""

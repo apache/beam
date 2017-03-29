@@ -15,7 +15,7 @@
 # limitations under the License.
 #
 
-""" Second in a series of four pipelines that tell a story in a 'gaming' domain.
+"""Second in a series of four pipelines that tell a story in a 'gaming' domain.
 
 In addition to the concepts introduced in `user_score`, new concepts include:
 windowing and element timestamps; use of `Filter`.
@@ -93,8 +93,8 @@ class ParseEventFn(beam.DoFn):
       logging.info('Parse error on %s.', element)
 
 
-@with_output_types(int)
 @with_input_types(ints=typehints.Iterable[int])
+@with_output_types(int)
 def sum_ints(ints):
   return sum(ints)
 
@@ -135,6 +135,18 @@ class WriteWindowedToBigQuery(beam.PTransform):
   information.
   """
   def __init__(self, table_name, dataset, field_info):
+    """Initializes the transform.
+
+    Args:
+      table_name: Name of the BigQuery table to use.
+      dataset: Name of the dataset to use.
+      field_info: List of tuples that holds information about output table field
+                  definitions. The tuples are in the
+                  (field_name, field_type, field_fn) format, where field_name is
+                  the name of the field, field_type is the  BigQuery type of the
+                  field and field_fn is a lambda function to generate the field
+                  value from the element.
+    """
     super(WriteWindowedToBigQuery, self).__init__()
     self.table_name = table_name
     self.dataset = dataset
@@ -142,12 +154,8 @@ class WriteWindowedToBigQuery(beam.PTransform):
 
   def get_schema(self):
     """Build the output table schema."""
-    schema = ""
-    for entry in self.field_info:
-      if schema:
-        schema += ', '
-      schema += '%s:%s' % (entry[0], entry[1])
-    return schema
+    return ', '.join(
+        '%s:%s' % (entry[0], entry[1]) for entry in self.field_info)
 
   def get_table(self, pipeline):
     """Utility to construct an output table reference."""
@@ -213,9 +221,12 @@ class HourlyTeamScore(beam.PTransform):
             lambda element: element['timestamp'] < end_min_filter)
         # Add an element timestamp based on the event log, and apply fixed
         # windowing.
+        # Convert element['timestamp'] into seconds as expected by
+        # TimestampedValue.
         | 'AddEventTimestamps' >> beam.Map(
             lambda element: TimestampedValue(
-                element, element['timestamp'] / 1000))
+                element, element['timestamp'] / 1000.0))
+        # Convert window_duration into seconds as expected by FixedWindows.
         | 'FixedWindowsTeam' >> beam.WindowInto(FixedWindows(
             size=self.window_duration * 60))
         # Extract and sum teamname/score pairs from the event data.
@@ -250,17 +261,17 @@ def run(argv=None):
                       default='1970-01-01-00-00',
                       help='String representation of the first minute after '
                            'which to generate results in the format: '
-                           'yyyy-MM-dd-HH-mm . This time should be in PST. Any '
-                           'input data timestamped prior to that minute won\'t '
-                           'be included in the sums.')
+                           'yyyy-MM-dd-HH-mm . Any input data timestamped '
+                           'prior to that minute won\'t be included in the '
+                           'sums.')
   parser.add_argument('--stop_min',
                       dest='stop_min',
                       default='2100-01-01-00-00',
                       help='String representation of the first minute for '
                            'which to generate results in the format: '
-                           'yyyy-MM-dd-HH-mm . This time should be in PST. Any '
-                           'input data timestamped after to that minute won\'t '
-                           'be included in the sums.')
+                           'yyyy-MM-dd-HH-mm . Any input data timestamped '
+                           'after to that minute won\'t be included in the '
+                           'sums.')
 
   known_args, pipeline_args = parser.parse_known_args(argv)
 
