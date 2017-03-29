@@ -22,6 +22,8 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
+import org.apache.beam.runners.flink.metrics.FlinkMetricContainer;
+import org.apache.beam.runners.flink.metrics.ReaderInvocationUtil;
 import org.apache.beam.runners.flink.translation.types.CoderTypeInformation;
 import org.apache.beam.runners.flink.translation.utils.SerializedPipelineOptions;
 import org.apache.beam.sdk.coders.Coder;
@@ -64,6 +66,7 @@ public class UnboundedSourceWrapper<
 
   private static final Logger LOG = LoggerFactory.getLogger(UnboundedSourceWrapper.class);
 
+  private final String stepName;
   /**
    * Keep the options so that we can initialize the localReaders.
    */
@@ -131,9 +134,11 @@ public class UnboundedSourceWrapper<
 
   @SuppressWarnings("unchecked")
   public UnboundedSourceWrapper(
+      String stepName,
       PipelineOptions pipelineOptions,
       UnboundedSource<OutputT, CheckpointMarkT> source,
       int parallelism) throws Exception {
+    this.stepName = stepName;
     this.serializedOptions = new SerializedPipelineOptions(pipelineOptions);
 
     if (source.requiresDeduping()) {
@@ -209,6 +214,11 @@ public class UnboundedSourceWrapper<
 
     context = ctx;
 
+    FlinkMetricContainer metricContainer = new FlinkMetricContainer(stepName, getRuntimeContext());
+    ReaderInvocationUtil<OutputT, UnboundedSource.UnboundedReader<OutputT>> readerInvoker =
+        new ReaderInvocationUtil<>(serializedOptions.getPipelineOptions(), metricContainer);
+
+
     if (localReaders.size() == 0) {
       // do nothing, but still look busy ...
       // also, output a Long.MAX_VALUE watermark since we know that we're not
@@ -238,7 +248,7 @@ public class UnboundedSourceWrapper<
       // the easy case, we just read from one reader
       UnboundedSource.UnboundedReader<OutputT> reader = localReaders.get(0);
 
-      boolean dataAvailable = reader.start();
+      boolean dataAvailable = readerInvoker.invokeStart(reader);
       if (dataAvailable) {
         emitElement(ctx, reader);
       }
@@ -246,7 +256,7 @@ public class UnboundedSourceWrapper<
       setNextWatermarkTimer(this.runtimeContext);
 
       while (isRunning) {
-        dataAvailable = reader.advance();
+        dataAvailable = readerInvoker.invokeAdvance(reader);
 
         if (dataAvailable)  {
           emitElement(ctx, reader);
@@ -263,7 +273,7 @@ public class UnboundedSourceWrapper<
 
       // start each reader and emit data if immediately available
       for (UnboundedSource.UnboundedReader<OutputT> reader : localReaders) {
-        boolean dataAvailable = reader.start();
+        boolean dataAvailable = readerInvoker.invokeStart(reader);
         if (dataAvailable) {
           emitElement(ctx, reader);
         }
@@ -274,7 +284,7 @@ public class UnboundedSourceWrapper<
       boolean hadData = false;
       while (isRunning) {
         UnboundedSource.UnboundedReader<OutputT> reader = localReaders.get(currentReader);
-        boolean dataAvailable = reader.advance();
+        boolean dataAvailable = readerInvoker.invokeAdvance(reader);
 
         if (dataAvailable) {
           emitElement(ctx, reader);
