@@ -1073,8 +1073,7 @@ public abstract class NexmarkRunner<OptionT extends NexmarkOptions> {
       case BIGQUERY:
         // Multiple BigQuery backends to mimic what most customers do.
         PCollectionTuple res = formattedResults.apply(queryName + ".Partition",
-            ParDo.withOutputTags(MAIN, TupleTagList.of(SIDE))
-                 .of(new PartitionDoFn()));
+            ParDo.of(new PartitionDoFn()).withOutputTags(MAIN, TupleTagList.of(SIDE)));
         sinkResultsToBigQuery(res.get(MAIN), now, "main");
         sinkResultsToBigQuery(res.get(SIDE), now, "side");
         sinkResultsToBigQuery(formattedResults, now, "copy");

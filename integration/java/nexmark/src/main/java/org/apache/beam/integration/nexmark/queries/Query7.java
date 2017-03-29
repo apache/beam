@@ -70,18 +70,18 @@ public class Query7 extends NexmarkQuery {
 
     return slidingBids
         // Select all bids which have that maximum price (there may be more than one).
-        .apply(name + ".Select",
-            ParDo.withSideInputs(maxPriceView)
-                .of(new DoFn<Bid, Bid>() {
-                  @ProcessElement
-                  public void processElement(ProcessContext c) {
-                    long maxPrice = c.sideInput(maxPriceView);
-                    Bid bid = c.element();
-                    if (bid.price == maxPrice) {
-                      c.output(bid);
-                    }
+        .apply(name + ".Select", ParDo
+          .of(new DoFn<Bid, Bid>() {
+                @ProcessElement
+                public void processElement(ProcessContext c) {
+                  long maxPrice = c.sideInput(maxPriceView);
+                  Bid bid = c.element();
+                  if (bid.price == maxPrice) {
+                    c.output(bid);
                   }
-                }));
+                }
+              })
+          .withSideInputs(maxPriceView));
   }
 
   @Override
