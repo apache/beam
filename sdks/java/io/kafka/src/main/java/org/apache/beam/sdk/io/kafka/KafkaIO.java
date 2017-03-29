@@ -1032,7 +1032,11 @@ public class KafkaIO {
 
       synchronized long approxBacklogInBytes() {
         // Note that is an an estimate of uncompressed backlog.
-        return (long) (backlogMessageCount() * avgRecordSize);
+        long backlogMessageCount = backlogMessageCount();
+        if (backlogMessageCount == UnboundedReader.BACKLOG_UNKNOWN) {
+          return UnboundedReader.BACKLOG_UNKNOWN;
+        }
+        return (long) (backlogMessageCount * avgRecordSize);
       }
 
       synchronized long backlogMessageCount() {
@@ -1304,12 +1308,12 @@ public class KafkaIO {
     private void reportBacklog() {
       long splitBacklogBytes = getSplitBacklogBytes();
       if (splitBacklogBytes < 0) {
-        splitBacklogBytes = 0;
+        splitBacklogBytes = UnboundedReader.BACKLOG_UNKNOWN;
       }
       backlogBytesPerSplit.set(splitBacklogBytes);
       long splitBacklogMessages = getSplitBacklogMessageCount();
       if (splitBacklogMessages < 0) {
-        splitBacklogMessages = 0;
+        splitBacklogMessages = UnboundedReader.BACKLOG_UNKNOWN;
       }
       backlogMessagesPerSplit.set(splitBacklogMessages);
     }
@@ -1373,7 +1377,7 @@ public class KafkaIO {
       return backlogBytes;
     }
 
-    public long getSplitBacklogMessageCount() {
+    private long getSplitBacklogMessageCount() {
       long backlogCount = 0;
 
       for (PartitionState p : partitionStates) {
