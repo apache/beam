@@ -29,6 +29,7 @@ import org.apache.beam.sdk.util.TimeDomain;
 import org.apache.beam.sdk.util.Timer;
 import org.apache.beam.sdk.util.TimerSpec;
 import org.apache.beam.sdk.util.TimerSpecs;
+import org.apache.beam.sdk.util.state.AccumulatorCombiningState;
 import org.apache.beam.sdk.util.state.BagState;
 import org.apache.beam.sdk.util.state.StateSpec;
 import org.apache.beam.sdk.util.state.StateSpecs;
@@ -135,7 +136,7 @@ public class BatchingParDo<K, InputT, OutputT>
     private final StateSpec<Object, BagState<InputT>> batchSpec;
 
     @StateId(NUM_ELEMENTS_IN_BATCH_ID)
-    private final StateSpec<Object, ValueState<Long>> numElementsInBatchSpec;
+    private final StateSpec<Object, AccumulatorCombiningState<Long, Long, Long>> numElementsInBatchSpec;
 
     @StateId(KEY_ID)
     private final StateSpec<Object, ValueState<K>> keySpec;
@@ -152,7 +153,29 @@ public class BatchingParDo<K, InputT, OutputT>
       this.perBatchFn = perBatchFn;
       this.allowedLateness = allowedLateness;
       this.batchSpec = StateSpecs.bag(inputValueCoder);
-      this.numElementsInBatchSpec = StateSpecs.value(VarLongCoder.of());
+      this.numElementsInBatchSpec = StateSpecs.combiningValue(VarLongCoder.of(), new Combine.CombineFn<Long, Long, Long>() {
+
+        @Override public Long createAccumulator() {
+          return 0L;
+        }
+
+        @Override public Long addInput(Long accumulator, Long input) {
+          return accumulator + input;
+        }
+
+        @Override public Long mergeAccumulators(Iterable<Long> accumulators) {
+          long sum = 0L;
+          for (Long accumulator : accumulators){
+            sum += accumulator;
+          }
+          return sum;
+        }
+
+        @Override public Long extractOutput(Long accumulator) {
+          return accumulator;
+        }
+      });
+
       this.timerAlreadySetForWindow = StateSpecs.value(VarIntCoder.of());
       this.keySpec = StateSpecs.value(inputKeyCoder);
       // prefetch every 20% of batchSize elements. Do not prefetch if batchSize is too little
@@ -164,7 +187,7 @@ public class BatchingParDo<K, InputT, OutputT>
         @TimerId(END_OF_WINDOW_ID) Timer timer,
         @StateId(TIMER_ALREADY_SET_ID) ValueState<Integer> timerAlreadySetForWindow,
         @StateId(BATCH_ID) BagState<InputT> batch,
-        @StateId(NUM_ELEMENTS_IN_BATCH_ID) ValueState<Long> numElementsInBatch,
+        @StateId(NUM_ELEMENTS_IN_BATCH_ID) AccumulatorCombiningState<Long, Long, Long> numElementsInBatch,
         @StateId(KEY_ID) ValueState<K> key,
         ProcessContext c,
         BoundedWindow window) {
@@ -182,13 +205,18 @@ public class BatchingParDo<K, InputT, OutputT>
       key.write(c.element().getKey());
       batch.add(c.element().getValue());
       LOGGER.debug("*** BATCH *** Add element for window %s ", window.toString());
+/*
       Long num = numElementsInBatch.read();
       if (num == null) {
         num = 0L;
       }
       num++;
       numElementsInBatch.write(num);
-      if ((num > 0) && (num % prefetchFrequency == 0)) {
+*/
+      // blind add is supported with combiningState
+      numElementsInBatch.add(1L);
+      Long num = numElementsInBatch.read();
+      if (num % prefetchFrequency == 0) {
         //prefetch data and modify batch state (readLater() modifies this)
         batch.readLater();
       }
@@ -203,7 +231,7 @@ public class BatchingParDo<K, InputT, OutputT>
         OnTimerContext context,
         @StateId(KEY_ID) ValueState<K> key,
         @StateId(BATCH_ID) BagState<InputT> batch,
-        @StateId(NUM_ELEMENTS_IN_BATCH_ID) ValueState<Long> numElementsInBatch,
+        @StateId(NUM_ELEMENTS_IN_BATCH_ID) AccumulatorCombiningState<Long, Long, Long> numElementsInBatch,
         BoundedWindow window) {
       LOGGER.debug(
           "*** END OF WINDOW *** for timer timestamp %s in windows %s",
@@ -212,14 +240,14 @@ public class BatchingParDo<K, InputT, OutputT>
     }
 
     private void flushBatch(
-        Context c, ValueState<K> key, BagState<InputT> batch, ValueState<Long> numElementsInBatch) {
+        Context c, ValueState<K> key, BagState<InputT> batch, AccumulatorCombiningState<Long, Long, Long> numElementsInBatch) {
       Iterable<OutputT> batchOutput = perBatchFn.apply(batch.read());
       for (OutputT element : batchOutput) {
         c.output(KV.of(key.read(), element));
       }
       batch.clear();
       LOGGER.debug("*** BATCH *** clear");
-      numElementsInBatch.write(0L);
+      numElementsInBatch.clear();
     }
   }
 }
