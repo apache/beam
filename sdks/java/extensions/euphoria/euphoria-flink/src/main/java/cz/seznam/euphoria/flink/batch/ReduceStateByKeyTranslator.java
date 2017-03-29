@@ -82,7 +82,7 @@ public class ReduceStateByKeyTranslator implements BatchOperatorTranslator<Reduc
               if (timeAssigner != null) {
                 wel.setTimestamp(timeAssigner.extractTimestamp(wel.getElement()));
               }
-              Set<Window> assigned = windowing.assignWindowsToElement(wel);
+              Iterable<Window> assigned = windowing.assignWindowsToElement(wel);
               for (Window wid : assigned) {
                 Object el = wel.getElement();
                 c.collect(new BatchElement<>(

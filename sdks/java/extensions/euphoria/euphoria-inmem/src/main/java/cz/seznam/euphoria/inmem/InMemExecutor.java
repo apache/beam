@@ -712,7 +712,7 @@ public class InMemExecutor implements Executor {
                   (oldVal, newVal) -> oldVal < newVal ? newVal : oldVal);
               // determine partition
               Object key = keyExtractor.apply(datum.getElement());
-              final Set<Window> targetWindows;
+              final Iterable<Window> targetWindows;
               int windowShift = 0;
               if (allowWindowBasedShuffling) {
                 if (windowing.isPresent()) {
@@ -723,7 +723,7 @@ public class InMemExecutor implements Executor {
                   targetWindows = Collections.singleton(datum.getWindow());
                 }
 
-                if (!isMergingWindowing && targetWindows.size() == 1) {
+                if (!isMergingWindowing && Iterables.size(targetWindows) == 1) {
                   windowShift = new Random(
                       Iterables.getOnlyElement(targetWindows).hashCode()).nextInt();
                 }

@@ -128,8 +128,8 @@ class ReduceByKeyTranslator implements SparkOperatorTranslator<ReduceByKey> {
         wel.setTimestamp(eventTimeAssigner.extractTimestamp(wel.getElement()));
       }
 
-      Set<Window> windows = windowing.assignWindowsToElement(wel);
-      List<Tuple2<KeyedWindow, TimestampedElement>> out = new ArrayList<>(windows.size());
+      Iterable<Window> windows = windowing.assignWindowsToElement(wel);
+      List<Tuple2<KeyedWindow, TimestampedElement>> out = new ArrayList<>();
       for (Window wid : windows) {
         Object el = wel.getElement();
         long stamp = (wid instanceof TimedWindow)

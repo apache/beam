@@ -58,7 +58,6 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.stream.Collectors;
 
 import static java.util.Arrays.asList;
@@ -179,7 +178,7 @@ public class ReduceByKeyTest extends AbstractOperatorTest {
 
   static class TestWindowing implements Windowing<Integer, IntWindow> {
     @Override
-    public Set<IntWindow> assignWindowsToElement(WindowedElement<?, Integer> input) {
+    public Iterable<IntWindow> assignWindowsToElement(WindowedElement<?, Integer> input) {
       return Collections.singleton(new IntWindow(input.getElement() / 4));
     }
 
@@ -373,7 +372,7 @@ public class ReduceByKeyTest extends AbstractOperatorTest {
     }
 
     @Override
-    public Set<CWindow> assignWindowsToElement(WindowedElement<?, T> input) {
+    public Iterable<CWindow> assignWindowsToElement(WindowedElement<?, T> input) {
       return Sets.newHashSet(new CWindow(size));
     }
 
@@ -576,7 +575,7 @@ public class ReduceByKeyTest extends AbstractOperatorTest {
   public void testElementTimestamp() {
     class AssertingWindowing<T> implements Windowing<T, TimeInterval> {
       @Override
-      public Set<TimeInterval> assignWindowsToElement(WindowedElement<?, T> el) {
+      public Iterable<TimeInterval> assignWindowsToElement(WindowedElement<?, T> el) {
         // ~ we expect the 'element time' to be the end of the window which produced the
         // element in the preceding upstream (stateful and windowed) operator
         assertTrue(el.getTimestamp() == 15_000L - 1 || el.getTimestamp() == 25_000L - 1);

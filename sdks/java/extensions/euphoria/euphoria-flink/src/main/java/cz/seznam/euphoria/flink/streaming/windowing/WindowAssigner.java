@@ -23,7 +23,6 @@ import cz.seznam.euphoria.flink.streaming.StreamingElement;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
 import java.io.Serializable;
-import java.util.Set;
 import java.util.function.Function;
 
 /**
@@ -62,7 +61,7 @@ public class WindowAssigner<I, KEY, VALUE, W extends Window>
     }
     reuse.setTimestamp(record.getTimestamp());
     reuse.setStreamingElement(el);
-    Set windows = windowing.assignWindowsToElement(reuse);
+    Iterable windows = windowing.assignWindowsToElement(reuse);
 
     return new KeyedMultiWindowedElement<>(
             keyExtractor.apply(el.getElement()),

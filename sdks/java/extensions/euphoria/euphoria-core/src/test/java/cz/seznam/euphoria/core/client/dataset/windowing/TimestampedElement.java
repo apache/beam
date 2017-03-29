@@ -15,34 +15,26 @@
  */
 package cz.seznam.euphoria.core.client.dataset.windowing;
 
-import cz.seznam.euphoria.core.client.triggers.CountTrigger;
-import cz.seznam.euphoria.core.client.triggers.Trigger;
+class TimestampedElement<W extends Window, T> implements WindowedElement<W, T> {
 
-import static java.util.Collections.singleton;
+  private final long timestamp;
 
-/**
- * Count tumbling windowing.
- */
-public final class Count<T> implements Windowing<T, Batch.BatchWindow> {
-
-  private final int maxCount;
-
-  private Count(int maxCount) {
-    this.maxCount = maxCount;
+  public TimestampedElement(long timestamp) {
+    this.timestamp = timestamp;
   }
 
   @Override
-  public Iterable<Batch.BatchWindow> assignWindowsToElement(WindowedElement<?, T> el) {
-    return singleton(Batch.BatchWindow.get());
+  public W getWindow() {
+    throw new UnsupportedOperationException();
   }
 
   @Override
-  public Trigger<Batch.BatchWindow> getTrigger() {
-    return new CountTrigger<>(maxCount);
+  public long getTimestamp() {
+    return timestamp;
   }
 
-  public static <T> Count<T> of(int count) {
-    return new Count<>(count);
+  @Override
+  public T getElement() {
+    throw new UnsupportedOperationException();
   }
-  
 }
