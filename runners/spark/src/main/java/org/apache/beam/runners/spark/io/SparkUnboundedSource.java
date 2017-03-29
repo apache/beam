@@ -102,13 +102,7 @@ public class SparkUnboundedSource {
 
     // report the number of input elements for this InputDStream to the InputInfoTracker.
     int id = inputDStream.inputDStream().id();
-    JavaDStream<Metadata> metadataDStream = mapWithStateDStream.map(
-        new Function<Tuple2<Iterable<byte[]>, Metadata>, Metadata>() {
-          @Override
-          public Metadata call(Tuple2<Iterable<byte[]>, Metadata> t2) throws Exception {
-            return t2._2();
-          }
-        });
+    JavaDStream<Metadata> metadataDStream = mapWithStateDStream.map(new Tuple2MetadataFunction());
 
     // register ReadReportDStream to report information related to this read.
     new ReadReportDStream(metadataDStream.dstream(), id, getSourceName(source, id)).register();
@@ -118,13 +112,10 @@ public class SparkUnboundedSource {
         WindowedValue.FullWindowedValueCoder.of(
             source.getDefaultOutputCoder(),
             GlobalWindow.Coder.INSTANCE);
-    JavaDStream<WindowedValue<T>> readUnboundedStream = mapWithStateDStream.flatMap(
-        new FlatMapFunction<Tuple2<Iterable<byte[]>, Metadata>, byte[]>() {
-          @Override
-          public Iterable<byte[]> call(Tuple2<Iterable<byte[]>, Metadata> t2) throws Exception {
-            return t2._1();
-          }
-        }).map(CoderHelpers.fromByteFunction(coder));
+    JavaDStream<WindowedValue<T>> readUnboundedStream =
+        mapWithStateDStream
+            .flatMap(new Tuple2byteFlatMapFunction())
+            .map(CoderHelpers.fromByteFunction(coder));
     return new UnboundedDataset<>(readUnboundedStream, Collections.singletonList(id));
   }
 
@@ -272,6 +263,24 @@ public class SparkUnboundedSource {
 
     SparkMetricsContainer getMetricsContainer() {
       return metricsContainer;
+    }
+  }
+
+  private static class Tuple2MetadataFunction
+      implements Function<Tuple2<Iterable<byte[]>, Metadata>, Metadata> {
+
+    @Override
+    public Metadata call(Tuple2<Iterable<byte[]>, Metadata> t2) throws Exception {
+      return t2._2();
+    }
+  }
+
+  private static class Tuple2byteFlatMapFunction
+      implements FlatMapFunction<Tuple2<Iterable<byte[]>, Metadata>, byte[]> {
+
+    @Override
+    public Iterable<byte[]> call(Tuple2<Iterable<byte[]>, Metadata> t2) throws Exception {
+      return t2._1();
     }
   }
 }
