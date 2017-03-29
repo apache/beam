@@ -52,7 +52,6 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.DisplayDataEvaluator;
-import org.apache.beam.sdk.transforms.windowing.Window.Bound;
 import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.util.WindowingStrategy.AccumulationMode;
 import org.apache.beam.sdk.values.KV;
@@ -168,7 +167,7 @@ public class WindowTest implements Serializable {
 
   /**
    * With {@link #testWindowIntoNullWindowFnNoAssign()}, demonstrates that the expansions of the
-   * {@link Window.Bound} transform depends on if it actually assigns elements to windows.
+   * {@link Window} transform depends on if it actually assigns elements to windows.
    */
   @Test
   public void testWindowIntoWindowFnAssign() {
@@ -192,7 +191,7 @@ public class WindowTest implements Serializable {
 
   /**
    * With {@link #testWindowIntoWindowFnAssign()}, demonstrates that the expansions of the
-   * {@link Window.Bound} transform depends on if it actually assigns elements to windows.
+   * {@link Window} transform depends on if it actually assigns elements to windows.
    */
   @Test
   public void testWindowIntoNullWindowFnNoAssign() {
@@ -429,7 +428,7 @@ public class WindowTest implements Serializable {
     Window.ClosingBehavior closingBehavior = Window.ClosingBehavior.FIRE_IF_NON_EMPTY;
     OutputTimeFn<BoundedWindow> outputTimeFn = OutputTimeFns.outputAtEndOfWindow();
 
-    Window.Bound<?> window = Window
+    Window<?> window = Window
         .into(windowFn)
         .triggering(triggerBuilder)
         .accumulatingFiredPanes()
@@ -459,7 +458,7 @@ public class WindowTest implements Serializable {
     Window.ClosingBehavior closingBehavior = Window.ClosingBehavior.FIRE_IF_NON_EMPTY;
     OutputTimeFn<BoundedWindow> outputTimeFn = OutputTimeFns.outputAtEndOfWindow();
 
-    Window.Bound<?> window = Window
+    Window<?> window = Window
         .into(windowFn)
         .triggering(triggerBuilder)
         .accumulatingFiredPanes()
@@ -486,7 +485,7 @@ public class WindowTest implements Serializable {
   public void testAssignDisplayDataUnchanged() {
     FixedWindows windowFn = FixedWindows.of(Duration.standardHours(5));
 
-    Bound<Object> original = Window.into(windowFn);
+    Window<Object> original = Window.into(windowFn);
     WindowingStrategy<?, ?> updated = WindowingStrategy.globalDefault().withWindowFn(windowFn);
 
     DisplayData displayData = DisplayData.from(new Window.Assign<>(original, updated));
@@ -503,7 +502,7 @@ public class WindowTest implements Serializable {
 
   @Test
   public void testDisplayDataExcludesUnspecifiedProperties() {
-    Window.Bound<?> onlyHasAccumulationMode = Window.<Object>configure().discardingFiredPanes();
+    Window<?> onlyHasAccumulationMode = Window.<Object>configure().discardingFiredPanes();
     assertThat(DisplayData.from(onlyHasAccumulationMode), not(hasDisplayItem(hasKey(isOneOf(
         "windowFn",
         "trigger",
@@ -511,14 +510,14 @@ public class WindowTest implements Serializable {
         "allowedLateness",
         "closingBehavior")))));
 
-    Window.Bound<?> noAccumulationMode = Window.into(new GlobalWindows());
+    Window<?> noAccumulationMode = Window.into(new GlobalWindows());
     assertThat(DisplayData.from(noAccumulationMode),
         not(hasDisplayItem(hasKey("accumulationMode"))));
   }
 
   @Test
   public void testDisplayDataExcludesDefaults() {
-    Window.Bound<?> window = Window.into(new GlobalWindows())
+    Window<?> window = Window.into(new GlobalWindows())
         .triggering(DefaultTrigger.of())
         .withAllowedLateness(Duration.millis(BoundedWindow.TIMESTAMP_MAX_VALUE.getMillis()));
 

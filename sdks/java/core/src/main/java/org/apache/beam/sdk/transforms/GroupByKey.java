@@ -39,7 +39,7 @@ import org.apache.beam.sdk.values.PCollection.IsBounded;
  * each distinct key and window of the input {@code PCollection} to an
  * {@code Iterable} over all the values associated with that key in
  * the input per window.  Absent repeatedly-firing
- * {@link Window.Bound#triggering triggering}, each key in the output
+ * {@link Window#triggering triggering}, each key in the output
  * {@code PCollection} is unique within each window.
  *
  * <p>{@code GroupByKey} is analogous to converting a multi-map into
@@ -97,14 +97,14 @@ import org.apache.beam.sdk.values.PCollection.IsBounded;
  * for details on the estimation.
  *
  * <p>The timestamp for each emitted pane is determined by the
- * {@link Window.Bound#withOutputTimeFn windowing operation}.
+ * {@link Window#withOutputTimeFn windowing operation}.
  * The output {@code PCollection} will have the same {@link WindowFn}
  * as the input.
  *
  * <p>If the input {@code PCollection} contains late data (see
  * {@link org.apache.beam.sdk.io.PubsubIO.Read#timestampLabel}
  * for an example of how this can occur) or the
- * {@link Window.Bound#triggering requested TriggerFn} can fire before
+ * {@link Window#triggering requested TriggerFn} can fire before
  * the watermark, then there may be multiple elements
  * output by a {@code GroupByKey} that correspond to the same key and window.
  *
