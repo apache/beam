@@ -201,24 +201,24 @@ public class CopyOnAccessInMemoryStateInternalsTest {
     StateTag<Object, MapState<String, Integer>> valueTag =
         StateTags.map("foo", StringUtf8Coder.of(), VarIntCoder.of());
     MapState<String, Integer> underlyingValue = underlying.state(namespace, valueTag);
-    assertThat(underlyingValue.iterate(), emptyIterable());
+    assertThat(underlyingValue.entries().read(), emptyIterable());
 
     underlyingValue.put("hello", 1);
-    assertThat(underlyingValue.get("hello"), equalTo(1));
+    assertThat(underlyingValue.get("hello").read(), equalTo(1));
 
     CopyOnAccessInMemoryStateInternals<String> internals =
         CopyOnAccessInMemoryStateInternals.withUnderlying(key, underlying);
     MapState<String, Integer> copyOnAccessState = internals.state(namespace, valueTag);
-    assertThat(copyOnAccessState.get("hello"), equalTo(1));
+    assertThat(copyOnAccessState.get("hello").read(), equalTo(1));
 
     copyOnAccessState.put("world", 4);
-    assertThat(copyOnAccessState.get("hello"), equalTo(1));
-    assertThat(copyOnAccessState.get("world"), equalTo(4));
-    assertThat(underlyingValue.get("hello"), equalTo(1));
-    assertNull(underlyingValue.get("world"));
+    assertThat(copyOnAccessState.get("hello").read(), equalTo(1));
+    assertThat(copyOnAccessState.get("world").read(), equalTo(4));
+    assertThat(underlyingValue.get("hello").read(), equalTo(1));
+    assertNull(underlyingValue.get("world").read());
 
     MapState<String, Integer> reReadUnderlyingValue = underlying.state(namespace, valueTag);
-    assertThat(underlyingValue.iterate(), equalTo(reReadUnderlyingValue.iterate()));
+    assertThat(underlyingValue.entries().read(), equalTo(reReadUnderlyingValue.entries().read()));
   }
 
   @Test

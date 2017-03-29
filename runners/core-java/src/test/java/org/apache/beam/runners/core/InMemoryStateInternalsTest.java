@@ -17,7 +17,9 @@
  */
 package org.apache.beam.runners.core;
 
+import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.hasItems;
 import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -26,7 +28,6 @@ import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.Map;
 import java.util.Objects;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -112,10 +113,10 @@ public class InMemoryStateInternalsTest {
 
     assertThat(value.read(), Matchers.emptyIterable());
     value.add("hello");
-    assertThat(value.read(), Matchers.containsInAnyOrder("hello"));
+    assertThat(value.read(), containsInAnyOrder("hello"));
 
     value.add("world");
-    assertThat(value.read(), Matchers.containsInAnyOrder("hello", "world"));
+    assertThat(value.read(), containsInAnyOrder("hello", "world"));
 
     value.clear();
     assertThat(value.read(), Matchers.emptyIterable());
@@ -147,7 +148,7 @@ public class InMemoryStateInternalsTest {
     StateMerging.mergeBags(Arrays.asList(bag1, bag2), bag1);
 
     // Reading the merged bag gets both the contents
-    assertThat(bag1.read(), Matchers.containsInAnyOrder("Hello", "World", "!"));
+    assertThat(bag1.read(), containsInAnyOrder("Hello", "World", "!"));
     assertThat(bag2.read(), Matchers.emptyIterable());
   }
 
@@ -164,7 +165,7 @@ public class InMemoryStateInternalsTest {
     StateMerging.mergeBags(Arrays.asList(bag1, bag2, bag3), bag3);
 
     // Reading the merged bag gets both the contents
-    assertThat(bag3.read(), Matchers.containsInAnyOrder("Hello", "World", "!"));
+    assertThat(bag3.read(), containsInAnyOrder("Hello", "World", "!"));
     assertThat(bag1.read(), Matchers.emptyIterable());
     assertThat(bag2.read(), Matchers.emptyIterable());
   }
@@ -179,41 +180,32 @@ public class InMemoryStateInternalsTest {
 
     // empty
     assertThat(value.read(), Matchers.emptyIterable());
-    assertFalse(value.contains("A"));
-    assertFalse(value.containsAny(Collections.singletonList("A")));
+    assertFalse(value.contains("A").read());
 
     // add
     value.add("A");
     value.add("B");
     value.add("A");
-    assertFalse(value.addIfAbsent("B"));
-    assertThat(value.read(), Matchers.containsInAnyOrder("A", "B"));
+    assertFalse(value.addIfAbsent("B").read());
+    assertThat(value.read(), containsInAnyOrder("A", "B"));
 
     // remove
     value.remove("A");
-    assertThat(value.read(), Matchers.containsInAnyOrder("B"));
+    assertThat(value.read(), containsInAnyOrder("B"));
     value.remove("C");
-    assertThat(value.read(), Matchers.containsInAnyOrder("B"));
+    assertThat(value.read(), containsInAnyOrder("B"));
 
     // contains
-    assertFalse(value.contains("A"));
-    assertTrue(value.contains("B"));
+    assertFalse(value.contains("A").read());
+    assertTrue(value.contains("B").read());
     value.add("C");
     value.add("D");
 
-    // containsAny
-    assertTrue(value.containsAny(Arrays.asList("A", "C")));
-    assertFalse(value.containsAny(Arrays.asList("A", "E")));
-
-    // containsAll
-    assertTrue(value.containsAll(Arrays.asList("B", "C")));
-    assertFalse(value.containsAll(Arrays.asList("A", "B")));
-
     // readLater
-    assertThat(value.readLater().read(), Matchers.containsInAnyOrder("B", "C", "D"));
-    SetState<String> later = value.readLater(Arrays.asList("A", "C", "D"));
-    assertTrue(later.containsAll(Arrays.asList("C", "D")));
-    assertFalse(later.contains("A"));
+    assertThat(value.readLater().read(), containsInAnyOrder("B", "C", "D"));
+    SetState<String> later = value.readLater();
+    assertThat(later.read(), hasItems("C", "D"));
+    assertFalse(later.contains("A").read());
 
     // clear
     value.clear();
@@ -248,7 +240,7 @@ public class InMemoryStateInternalsTest {
     StateMerging.mergeSets(Arrays.asList(set1, set2), set1);
 
     // Reading the merged set gets both the contents
-    assertThat(set1.read(), Matchers.containsInAnyOrder("Hello", "World", "!"));
+    assertThat(set1.read(), containsInAnyOrder("Hello", "World", "!"));
     assertThat(set2.read(), Matchers.emptyIterable());
   }
 
@@ -266,7 +258,7 @@ public class InMemoryStateInternalsTest {
     StateMerging.mergeSets(Arrays.asList(set1, set2, set3), set3);
 
     // Reading the merged set gets both the contents
-    assertThat(set3.read(), Matchers.containsInAnyOrder("Hello", "World", "!"));
+    assertThat(set3.read(), containsInAnyOrder("Hello", "World", "!"));
     assertThat(set1.read(), Matchers.emptyIterable());
     assertThat(set2.read(), Matchers.emptyIterable());
   }
@@ -330,49 +322,46 @@ public class InMemoryStateInternalsTest {
     assertThat(value, not(equalTo(underTest.state(NAMESPACE_2, STRING_MAP_ADDR))));
 
     // put
-    assertThat(value.iterate(), Matchers.emptyIterable());
+    assertThat(value.entries().read(), Matchers.emptyIterable());
     value.put("A", 1);
     value.put("B", 2);
     value.put("A", 11);
-    assertThat(value.putIfAbsent("B", 22), equalTo(2));
-    assertThat(value.iterate(), Matchers.containsInAnyOrder(MapEntry.of("A", 11),
+    assertThat(value.putIfAbsent("B", 22).read(), equalTo(2));
+    assertThat(value.entries().read(), containsInAnyOrder(MapEntry.of("A", 11),
         MapEntry.of("B", 2)));
 
     // remove
     value.remove("A");
-    assertThat(value.iterate(), Matchers.containsInAnyOrder(MapEntry.of("B", 2)));
+    assertThat(value.entries().read(), containsInAnyOrder(MapEntry.of("B", 2)));
     value.remove("C");
-    assertThat(value.iterate(), Matchers.containsInAnyOrder(MapEntry.of("B", 2)));
+    assertThat(value.entries().read(), containsInAnyOrder(MapEntry.of("B", 2)));
 
     // get
-    assertNull(value.get("A"));
-    assertThat(value.get("B"), equalTo(2));
+    assertNull(value.get("A").read());
+    assertThat(value.get("B").read(), equalTo(2));
     value.put("C", 3);
     value.put("D", 4);
-    assertThat(value.get("C"), equalTo(3));
-    assertThat(value.get(Collections.singletonList("D")), Matchers.containsInAnyOrder(4));
-    assertThat(value.get(Arrays.asList("B", "C")), Matchers.containsInAnyOrder(2, 3));
+    assertThat(value.get("C").read(), equalTo(3));
 
     // iterate
     value.put("E", 5);
     value.remove("C");
-    assertThat(value.keys(), Matchers.containsInAnyOrder("B", "D", "E"));
-    assertThat(value.values(), Matchers.containsInAnyOrder(2, 4, 5));
-    assertThat(value.iterate(), Matchers.containsInAnyOrder(
-        MapEntry.of("B", 2), MapEntry.of("D", 4), MapEntry.of("E", 5)));
+    assertThat(value.keys().read(), containsInAnyOrder("B", "D", "E"));
+    assertThat(value.values().read(), containsInAnyOrder(2, 4, 5));
+    assertThat(
+        value.entries().read(),
+        containsInAnyOrder(MapEntry.of("B", 2), MapEntry.of("D", 4), MapEntry.of("E", 5)));
 
     // readLater
-    assertThat(value.getLater("B").get("B"), equalTo(2));
-    assertNull(value.getLater("A").get("A"));
-    MapState<String, Integer> later = value.getLater(Arrays.asList("C", "D"));
-    assertNull(later.get("C"));
-    assertThat(later.get("D"), equalTo(4));
-    assertThat(value.iterateLater().iterate(), Matchers.containsInAnyOrder(
-        MapEntry.of("B", 2), MapEntry.of("D", 4), MapEntry.of("E", 5)));
+    assertThat(value.get("B").readLater().read(), equalTo(2));
+    assertNull(value.get("A").readLater().read());
+    assertThat(
+        value.entries().readLater().read(),
+        containsInAnyOrder(MapEntry.of("B", 2), MapEntry.of("D", 4), MapEntry.of("E", 5)));
 
     // clear
     value.clear();
-    assertThat(value.iterate(), Matchers.emptyIterable());
+    assertThat(value.entries().read(), Matchers.emptyIterable());
     assertThat(underTest.state(NAMESPACE_1, STRING_MAP_ADDR), Matchers.sameInstance(value));
   }
 
