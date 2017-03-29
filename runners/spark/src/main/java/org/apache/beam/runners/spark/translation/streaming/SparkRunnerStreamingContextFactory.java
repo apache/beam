@@ -104,7 +104,8 @@ public class SparkRunnerStreamingContextFactory {
     Path beamCheckpointPath = checkpointDir.getBeamCheckpointDir();
 
     try {
-      FileSystem fileSystem = rootCheckpointPath.getFileSystem(jssc.sc().hadoopConfiguration());
+      FileSystem fileSystem =
+          rootCheckpointPath.getFileSystem(jssc.sparkContext().hadoopConfiguration());
       if (!fileSystem.exists(rootCheckpointPath)) {
         fileSystem.mkdirs(rootCheckpointPath);
       }
