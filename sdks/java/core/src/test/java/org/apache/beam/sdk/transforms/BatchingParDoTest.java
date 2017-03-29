@@ -144,7 +144,7 @@ public class BatchingParDoTest implements Serializable {
 
   @Test
   @Category({RunnableOnService.class, UsesTimersInParDo.class, UsesStatefulParDo.class})
-  public void testInBatchMode() {
+  public void testInGlobalWindow() {
     PCollection<KV<String, String>> collection =
         pipeline
             .apply("Input data", Create.of(data))
