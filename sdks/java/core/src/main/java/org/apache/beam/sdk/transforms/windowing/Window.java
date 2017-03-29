@@ -169,7 +169,7 @@ public class Window {
    * properties can be set on it first.
    */
   public static <T> Bound<T> into(WindowFn<? super T, ?> fn) {
-    return new Bound(null).into(fn);
+    return new Bound().into(fn);
   }
 
   /**
@@ -182,7 +182,7 @@ public class Window {
    */
   @Experimental(Kind.TRIGGER)
   public static <T> Bound<T> triggering(Trigger trigger) {
-    return new Bound(null).triggering(trigger);
+    return new Bound().triggering(trigger);
   }
 
   /**
@@ -194,7 +194,7 @@ public class Window {
    */
   @Experimental(Kind.TRIGGER)
   public static <T> Bound<T> discardingFiredPanes() {
-    return new Bound(null).discardingFiredPanes();
+    return new Bound().discardingFiredPanes();
   }
 
   /**
@@ -206,7 +206,7 @@ public class Window {
    */
   @Experimental(Kind.TRIGGER)
   public static <T> Bound<T> accumulatingFiredPanes() {
-    return new Bound(null).accumulatingFiredPanes();
+    return new Bound().accumulatingFiredPanes();
   }
 
   /**
@@ -222,7 +222,7 @@ public class Window {
    */
   @Experimental(Kind.TRIGGER)
   public static <T> Bound<T> withAllowedLateness(Duration allowedLateness) {
-    return new Bound(null).withAllowedLateness(allowedLateness);
+    return new Bound().withAllowedLateness(allowedLateness);
   }
 
   /**
@@ -231,7 +231,7 @@ public class Window {
    */
   @Experimental(Kind.OUTPUT_TIME)
   public static <T> Bound<T> withOutputTimeFn(OutputTimeFn<?> outputTimeFn) {
-    return new Bound(null).withOutputTimeFn(outputTimeFn);
+    return new Bound().withOutputTimeFn(outputTimeFn);
   }
 
   /**
@@ -251,14 +251,12 @@ public class Window {
     @Nullable private final OutputTimeFn<?> outputTimeFn;
 
     private Bound(
-        String name,
         @Nullable WindowFn<? super T, ?> windowFn,
         @Nullable Trigger trigger,
         @Nullable AccumulationMode mode,
         @Nullable Duration allowedLateness,
         ClosingBehavior behavior,
         @Nullable OutputTimeFn<?> outputTimeFn) {
-      super(name);
       this.windowFn = windowFn;
       this.trigger = trigger;
       this.mode = mode;
@@ -267,8 +265,8 @@ public class Window {
       this.outputTimeFn = outputTimeFn;
     }
 
-    private Bound(String name) {
-      this(name, null, null, null, null, null, null);
+    private Bound() {
+      this(null, null, null, null, null, null);
     }
 
     /**
@@ -286,7 +284,7 @@ public class Window {
       }
 
       return new Bound<>(
-          name, windowFn, trigger, mode, allowedLateness, closingBehavior, outputTimeFn);
+          windowFn, trigger, mode, allowedLateness, closingBehavior, outputTimeFn);
     }
 
     /**
@@ -303,7 +301,6 @@ public class Window {
     @Experimental(Kind.TRIGGER)
     public Bound<T> triggering(Trigger trigger) {
       return new Bound<T>(
-          name,
           windowFn,
           trigger,
           mode,
@@ -322,7 +319,6 @@ public class Window {
     @Experimental(Kind.TRIGGER)
    public Bound<T> discardingFiredPanes() {
      return new Bound<T>(
-         name,
          windowFn,
          trigger,
          AccumulationMode.DISCARDING_FIRED_PANES,
@@ -341,7 +337,6 @@ public class Window {
    @Experimental(Kind.TRIGGER)
    public Bound<T> accumulatingFiredPanes() {
      return new Bound<T>(
-         name,
          windowFn,
          trigger,
          AccumulationMode.ACCUMULATING_FIRED_PANES,
@@ -366,7 +361,7 @@ public class Window {
     @Experimental(Kind.TRIGGER)
     public Bound<T> withAllowedLateness(Duration allowedLateness) {
       return new Bound<T>(
-          name, windowFn, trigger, mode, allowedLateness, closingBehavior, outputTimeFn);
+          windowFn, trigger, mode, allowedLateness, closingBehavior, outputTimeFn);
     }
 
     /**
@@ -376,7 +371,7 @@ public class Window {
     @Experimental(Kind.OUTPUT_TIME)
     public Bound<T> withOutputTimeFn(OutputTimeFn<?> outputTimeFn) {
       return new Bound<T>(
-          name, windowFn, trigger, mode, allowedLateness, closingBehavior, outputTimeFn);
+          windowFn, trigger, mode, allowedLateness, closingBehavior, outputTimeFn);
     }
 
     /**
@@ -391,7 +386,7 @@ public class Window {
      */
     @Experimental(Kind.TRIGGER)
     public Bound<T> withAllowedLateness(Duration allowedLateness, ClosingBehavior behavior) {
-      return new Bound<T>(name, windowFn, trigger, mode, allowedLateness, behavior, outputTimeFn);
+      return new Bound<T>(windowFn, trigger, mode, allowedLateness, behavior, outputTimeFn);
     }
 
     /**
