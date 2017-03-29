@@ -518,7 +518,6 @@ public class BigQueryIOTest implements Serializable {
 
   /** A fake dataset service that can be serialized, for use in testReadFromTable. */
   private static class FakeDatasetService implements DatasetService, Serializable {
-
     @Override
     public Table getTable(TableReference tableRef)
         throws InterruptedException, IOException {
@@ -630,6 +629,7 @@ public class BigQueryIOTest implements Serializable {
         TableContainer tableContainer = getTableContainer(
             ref.getProjectId(), ref.getDatasetId(), ref.getTableId());
         for (int i = 0; i < rowList.size(); ++i) {
+          System.out.println("adding row " + rowList.get(i));
           tableContainer.addRow(rowList.get(i), insertIdList.get(i));
           dataSize += rowList.get(i).toString().length();
         }
@@ -1121,15 +1121,15 @@ public class BigQueryIOTest implements Serializable {
         }
     );
 
-    SerializableFunction<ValueInSingleWindow<Integer>, String> tableFunction =
-        new SerializableFunction<ValueInSingleWindow<Integer>, String>() {
+    SerializableFunction<ValueInSingleWindow<Integer>, TableDestination> tableFunction =
+        new SerializableFunction<ValueInSingleWindow<Integer>, TableDestination>() {
           @Override
-          public String apply(ValueInSingleWindow<Integer> input) {
+          public TableDestination apply(ValueInSingleWindow<Integer> input) {
             PartitionedGlobalWindow window = (PartitionedGlobalWindow) input.getWindow();
             // Check that we can access the element as well here.
             checkArgument(window.value.equals(Integer.toString(input.getValue() % 5)),
                 "Incorrect element");
-            return "project-id:dataset-id.table-id-" + window.value;
+            return new TableDestination("project-id:dataset-id.table-id-" + window.value, "");
           }
     };
 
@@ -1556,14 +1556,6 @@ public class BigQueryIOTest implements Serializable {
   @Test
   public void testWriteValidatesDatasetStreaming() throws Exception {
     testWriteValidatesDataset(true);
-  }
-
-  @Test
-  public void testStreamingWriteFnCreateNever() throws Exception {
-    StreamingWriteFn fn = new StreamingWriteFn(
-        null, CreateDisposition.CREATE_NEVER, null, new FakeBigQueryServices());
-    assertEquals(BigQueryHelpers.parseTableSpec("dataset.table"),
-        fn.getOrCreateTable(null, "dataset.table"));
   }
 
   @Test

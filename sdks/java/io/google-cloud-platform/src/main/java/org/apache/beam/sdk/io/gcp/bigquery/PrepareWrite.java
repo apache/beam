@@ -1,3 +1,20 @@
+/*
+* Licensed to the Apache Software Foundation (ASF) under one
+* or more contributor license agreements.  See the NOTICE file
+* distributed with this work for additional information
+* regarding copyright ownership.  The ASF licenses this file
+* to you under the Apache License, Version 2.0 (the
+* "License"); you may not use this file except in compliance
+* with the License.  You may obtain a copy of the License at
+*
+*     http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing, software
+* distributed under the License is distributed on an "AS IS" BASIS,
+* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+* See the License for the specific language governing permissions and
+* limitations under the License.
+*/
 package org.apache.beam.sdk.io.gcp.bigquery;
 
 import com.google.api.services.bigquery.model.TableReference;
@@ -6,8 +23,6 @@ import com.google.common.base.Strings;
 import java.io.IOException;
 import org.apache.beam.sdk.options.BigQueryOptions;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.KV;
@@ -15,44 +30,38 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
 
 /**
- * Prepare an input {@link PCollection<T>} for writing to BigQuery. Use the table-reference
+ * Prepare an input {@link PCollection} for writing to BigQuery. Use the table-reference
  * function to determine which tables each element is written to, and format the element into a
  * {@link TableRow} using the user-supplied format function.
  */
-public class PrepareWrite<T> extends PTransform<PCollection<T>, PCollection<KV<String, TableRow>>> {
-  private static final String NAME = "PrepareWrite";
-  private SerializableFunction<ValueInSingleWindow<T>, TableReference> tableRefFunction;
+public class PrepareWrite<T> extends DoFn<T, KV<TableDestination, TableRow>> {
+  private SerializableFunction<ValueInSingleWindow<T>, TableDestination> tableFunction;
   private SerializableFunction<T, TableRow> formatFunction;
 
-  public PrepareWrite(SerializableFunction<ValueInSingleWindow<T>, TableReference> tableRefFunction,
+  public PrepareWrite(SerializableFunction<ValueInSingleWindow<T>, TableDestination> tableFunction,
                       SerializableFunction<T, TableRow> formatFunction) {
-    super(NAME);
-    this.tableRefFunction = tableRefFunction;
+    this.tableFunction = tableFunction;
     this.formatFunction = formatFunction;
   }
 
-  @Override
-  public PCollection<KV<String, TableRow>> expand(PCollection<T> input) {
-    PCollection<KV<String, TableRow>> elementsByTable =
-        input.apply(ParDo.of(new DoFn<T, KV<String, TableRow>>() {
-      @ProcessElement
-      public void processElement(ProcessContext context, BoundedWindow window) throws IOException {
-        String tableSpec = tableSpecFromWindowedValue(
-            context.getPipelineOptions().as(BigQueryOptions.class),
-            ValueInSingleWindow.of(context.element(), context.timestamp(), window, context.pane()));
-        TableRow tableRow = formatFunction.apply(context.element());
-        context.output(KV.of(tableSpec, tableRow));
-      }
-    }));
-    return elementsByTable;
+  @ProcessElement
+  public void processElement(ProcessContext context, BoundedWindow window) throws IOException {
+    TableDestination tableDestination = tableSpecFromWindowedValue(
+        context.getPipelineOptions().as(BigQueryOptions.class),
+        ValueInSingleWindow.of(context.element(), context.timestamp(), window, context.pane()));
+    TableRow tableRow = formatFunction.apply(context.element());
+    context.output(KV.of(tableDestination, tableRow));
   }
 
-  private String tableSpecFromWindowedValue(BigQueryOptions options,
+  private TableDestination tableSpecFromWindowedValue(BigQueryOptions options,
                                             ValueInSingleWindow<T> value) {
-    TableReference table = tableRefFunction.apply(value);
-    if (Strings.isNullOrEmpty(table.getProjectId())) {
-      table.setProjectId(options.getProject());
+    TableDestination tableDestination = tableFunction.apply(value);
+    TableReference tableReference = tableDestination.getTableReference();
+    if (Strings.isNullOrEmpty(tableReference.getProjectId())) {
+      tableReference.setProjectId(options.getProject());
+      tableDestination = new TableDestination(tableReference,
+          tableDestination.getTableDescription());
     }
-    return BigQueryHelpers.toTableSpec(table);
+    return tableDestination;
   }
 }
