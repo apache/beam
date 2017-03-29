@@ -32,18 +32,19 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.spark.api.java.JavaSparkContext;
+import org.apache.spark.api.java.function.Function0;
 import org.apache.spark.streaming.Duration;
 import org.apache.spark.streaming.api.java.JavaStreamingContext;
-import org.apache.spark.streaming.api.java.JavaStreamingContextFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-
 /**
  * A {@link JavaStreamingContext} factory for resilience.
- * @see <a href="https://spark.apache.org/docs/1.6.3/streaming-programming-guide.html#how-to-configure-checkpointing">how-to-configure-checkpointing</a>
+ *
+ * @see <a
+ *     href="https://spark.apache.org/docs/1.6.3/streaming-programming-guide.html#how-to-configure-checkpointing">how-to-configure-checkpointing</a>
  */
-public class SparkRunnerStreamingContextFactory implements JavaStreamingContextFactory {
+public class SparkRunnerStreamingContextFactory {
   private static final Logger LOG =
       LoggerFactory.getLogger(SparkRunnerStreamingContextFactory.class);
 
@@ -52,48 +53,52 @@ public class SparkRunnerStreamingContextFactory implements JavaStreamingContextF
   private final CheckpointDir checkpointDir;
 
   public SparkRunnerStreamingContextFactory(
-      Pipeline pipeline,
-      SparkPipelineOptions options,
-      CheckpointDir checkpointDir) {
+      Pipeline pipeline, SparkPipelineOptions options, CheckpointDir checkpointDir) {
     this.pipeline = pipeline;
     this.options = options;
     this.checkpointDir = checkpointDir;
   }
 
-  private EvaluationContext ctxt;
+  public Function0<JavaStreamingContext> create() {
 
-  @Override
-  public JavaStreamingContext create() {
-    LOG.info("Creating a new Spark Streaming Context");
-    // validate unbounded read properties.
-    checkArgument(options.getMinReadTimeMillis() < options.getBatchIntervalMillis(),
-        "Minimum read time has to be less than batch time.");
-    checkArgument(options.getReadTimePercentage() > 0 && options.getReadTimePercentage() < 1,
-        "Read time percentage is bound to (0, 1).");
+    return new Function0<JavaStreamingContext>() {
 
-    SparkPipelineTranslator translator = new StreamingTransformTranslator.Translator(
-        new TransformTranslator.Translator());
-    Duration batchDuration = new Duration(options.getBatchIntervalMillis());
-    LOG.info("Setting Spark streaming batchDuration to {} msec", batchDuration.milliseconds());
+      @Override
+      public JavaStreamingContext call() throws Exception {
+        LOG.info("Creating a new Spark Streaming Context");
+        // validate unbounded read properties.
+        checkArgument(
+            options.getMinReadTimeMillis() < options.getBatchIntervalMillis(),
+            "Minimum read time has to be less than batch time.");
+        checkArgument(
+            options.getReadTimePercentage() > 0 && options.getReadTimePercentage() < 1,
+            "Read time percentage is bound to (0, 1).");
 
-    JavaSparkContext jsc = SparkContextFactory.getSparkContext(options);
-    JavaStreamingContext jssc = new JavaStreamingContext(jsc, batchDuration);
+        SparkPipelineTranslator translator =
+            new StreamingTransformTranslator.Translator(new TransformTranslator.Translator());
+        Duration batchDuration = new Duration(options.getBatchIntervalMillis());
+        LOG.info("Setting Spark streaming batchDuration to {} msec", batchDuration.milliseconds());
 
-    // We must first init accumulators since translators expect them to be instantiated.
-    SparkRunner.initAccumulators(options, jsc);
+        JavaSparkContext jsc = SparkContextFactory.getSparkContext(options);
+        JavaStreamingContext jssc = new JavaStreamingContext(jsc, batchDuration);
 
-    ctxt = new EvaluationContext(jsc, pipeline, jssc);
-    // update cache candidates
-    SparkRunner.updateCacheCandidates(pipeline, translator, ctxt);
-    pipeline.traverseTopologically(new SparkRunner.Evaluator(translator, ctxt));
-    ctxt.computeOutputs();
+        // We must first init accumulators since translators expect them to be instantiated.
+        SparkRunner.initAccumulators(options, jsc);
 
-    checkpoint(jssc);
+        EvaluationContext ctxt = new EvaluationContext(jsc, pipeline, jssc);
+        // update cache candidates
+        SparkRunner.updateCacheCandidates(pipeline, translator, ctxt);
+        pipeline.traverseTopologically(new SparkRunner.Evaluator(translator, ctxt));
+        ctxt.computeOutputs();
 
-    return jssc;
+        checkpoint(jssc, checkpointDir);
+
+        return jssc;
+      }
+    };
   }
 
-  private void checkpoint(JavaStreamingContext jssc) {
+  private static void checkpoint(JavaStreamingContext jssc, CheckpointDir checkpointDir) {
     Path rootCheckpointPath = checkpointDir.getRootCheckpointDir();
     Path sparkCheckpointPath = checkpointDir.getSparkCheckpointDir();
     Path beamCheckpointPath = checkpointDir.getBeamCheckpointDir();

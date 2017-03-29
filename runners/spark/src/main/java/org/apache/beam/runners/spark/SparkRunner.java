@@ -65,40 +65,32 @@ import org.apache.spark.streaming.api.java.JavaStreamingListenerWrapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-
 /**
- * The SparkRunner translate operations defined on a pipeline to a representation
- * executable by Spark, and then submitting the job to Spark to be executed. If we wanted to run
- * a Beam pipeline with the default options of a single threaded spark instance in local mode,
- * we would do the following:
+ * The SparkRunner translate operations defined on a pipeline to a representation executable by
+ * Spark, and then submitting the job to Spark to be executed. If we wanted to run a Beam pipeline
+ * with the default options of a single threaded spark instance in local mode, we would do the
+ * following:
  *
- * {@code
- * Pipeline p = [logic for pipeline creation]
- * SparkPipelineResult result = (SparkPipelineResult) p.run();
- * }
+ * <p>{@code Pipeline p = [logic for pipeline creation] SparkPipelineResult result =
+ * (SparkPipelineResult) p.run(); }
  *
  * <p>To create a pipeline runner to run against a different spark cluster, with a custom master url
  * we would do the following:
  *
- * {@code
- * Pipeline p = [logic for pipeline creation]
- * SparkPipelineOptions options = SparkPipelineOptionsFactory.create();
- * options.setSparkMaster("spark://host:port");
- * SparkPipelineResult result = (SparkPipelineResult) p.run();
- * }
+ * <p>{@code Pipeline p = [logic for pipeline creation] SparkPipelineOptions options =
+ * SparkPipelineOptionsFactory.create(); options.setSparkMaster("spark://host:port");
+ * SparkPipelineResult result = (SparkPipelineResult) p.run(); }
  */
 public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
 
   private static final Logger LOG = LoggerFactory.getLogger(SparkRunner.class);
 
-  /**
-   * Options used in this pipeline runner.
-   */
+  /** Options used in this pipeline runner. */
   private final SparkPipelineOptions mOptions;
 
   /**
-   * Creates and returns a new SparkRunner with default options. In particular, against a
-   * spark instance running in local mode.
+   * Creates and returns a new SparkRunner with default options. In particular, against a spark
+   * instance running in local mode.
    *
    * @return A pipeline runner with default options.
    */
@@ -156,11 +148,11 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
 
     if (mOptions.isStreaming()) {
       CheckpointDir checkpointDir = new CheckpointDir(mOptions.getCheckpointDir());
-      final SparkRunnerStreamingContextFactory contextFactory =
+      SparkRunnerStreamingContextFactory streamingContextFactory =
           new SparkRunnerStreamingContextFactory(pipeline, mOptions, checkpointDir);
       final JavaStreamingContext jssc =
-          JavaStreamingContext.getOrCreate(checkpointDir.getSparkCheckpointDir().toString(),
-              contextFactory);
+          JavaStreamingContext.getOrCreate(
+              checkpointDir.getSparkCheckpointDir().toString(), streamingContextFactory.create());
 
       // Checkpoint aggregator/metrics values
       jssc.addStreamingListener(
@@ -171,7 +163,7 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
               new MetricsAccumulator.AccumulatorCheckpointingSparkListener()));
 
       // register user-defined listeners.
-      for (JavaStreamingListener listener: mOptions.as(SparkContextOptions.class).getListeners()) {
+      for (JavaStreamingListener listener : mOptions.as(SparkContextOptions.class).getListeners()) {
         LOG.info("Registered listener {}." + listener.getClass().getSimpleName());
         jssc.addStreamingListener(new JavaStreamingListenerWrapper(listener));
       }
@@ -185,14 +177,16 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
       // but this is fine since it is idempotent).
       initAccumulators(mOptions, jssc.sparkContext());
 
-      startPipeline = executorService.submit(new Runnable() {
+      startPipeline =
+          executorService.submit(
+              new Runnable() {
 
-        @Override
-        public void run() {
-          LOG.info("Starting streaming pipeline execution.");
-          jssc.start();
-        }
-      });
+                @Override
+                public void run() {
+                  LOG.info("Starting streaming pipeline execution.");
+                  jssc.start();
+                }
+              });
 
       result = new SparkPipelineResult.StreamingMode(startPipeline, jssc);
     } else {
@@ -206,15 +200,17 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
 
       initAccumulators(mOptions, jsc);
 
-      startPipeline = executorService.submit(new Runnable() {
+      startPipeline =
+          executorService.submit(
+              new Runnable() {
 
-        @Override
-        public void run() {
-          pipeline.traverseTopologically(new Evaluator(translator, evaluationContext));
-          evaluationContext.computeOutputs();
-          LOG.info("Batch pipeline execution complete.");
-        }
-      });
+                @Override
+                public void run() {
+                  pipeline.traverseTopologically(new Evaluator(translator, evaluationContext));
+                  evaluationContext.computeOutputs();
+                  LOG.info("Batch pipeline execution complete.");
+                }
+              });
 
       result = new SparkPipelineResult.BatchMode(startPipeline, jsc);
     }
@@ -227,30 +223,28 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
   }
 
   private void registerMetricsSource(String appName) {
-      final MetricsSystem metricsSystem = SparkEnv$.MODULE$.get().metricsSystem();
-      final AggregatorMetricSource aggregatorMetricSource =
-          new AggregatorMetricSource(null, AggregatorsAccumulator.getInstance().value());
-      final SparkBeamMetricSource metricsSource = new SparkBeamMetricSource(null);
-      final CompositeSource compositeSource =
-          new CompositeSource(appName + ".Beam", metricsSource.metricRegistry(),
-              aggregatorMetricSource.metricRegistry());
-      // re-register the metrics in case of context re-use
-      metricsSystem.removeSource(compositeSource);
-      metricsSystem.registerSource(compositeSource);
+    final MetricsSystem metricsSystem = SparkEnv$.MODULE$.get().metricsSystem();
+    final AggregatorMetricSource aggregatorMetricSource =
+        new AggregatorMetricSource(null, AggregatorsAccumulator.getInstance().value());
+    final SparkBeamMetricSource metricsSource = new SparkBeamMetricSource(null);
+    final CompositeSource compositeSource =
+        new CompositeSource(
+            appName + ".Beam",
+            metricsSource.metricRegistry(),
+            aggregatorMetricSource.metricRegistry());
+    // re-register the metrics in case of context re-use
+    metricsSystem.removeSource(compositeSource);
+    metricsSystem.registerSource(compositeSource);
   }
 
-  /**
-   * Init Metrics/Aggregators accumulators. This method is idempotent.
-   */
+  /** Init Metrics/Aggregators accumulators. This method is idempotent. */
   public static void initAccumulators(SparkPipelineOptions opts, JavaSparkContext jsc) {
     // Init metrics accumulators
     MetricsAccumulator.init(opts, jsc);
     AggregatorsAccumulator.init(opts, jsc);
   }
 
-  /**
-   * Visit the pipeline to determine the translation mode (batch/streaming).
-   */
+  /** Visit the pipeline to determine the translation mode (batch/streaming). */
   private void detectTranslationMode(Pipeline pipeline) {
     TranslationModeDetector detector = new TranslationModeDetector();
     pipeline.traverseTopologically(detector);
@@ -260,20 +254,14 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
     }
   }
 
-  /**
-   * Evaluator that update/populate the cache candidates.
-   */
+  /** Evaluator that update/populate the cache candidates. */
   public static void updateCacheCandidates(
-      Pipeline pipeline,
-      SparkPipelineTranslator translator,
-      EvaluationContext evaluationContext) {
-     CacheVisitor cacheVisitor = new CacheVisitor(translator, evaluationContext);
-     pipeline.traverseTopologically(cacheVisitor);
+      Pipeline pipeline, SparkPipelineTranslator translator, EvaluationContext evaluationContext) {
+    CacheVisitor cacheVisitor = new CacheVisitor(translator, evaluationContext);
+    pipeline.traverseTopologically(cacheVisitor);
   }
 
-  /**
-   * The translation mode of the Beam Pipeline.
-   */
+  /** The translation mode of the Beam Pipeline. */
   enum TranslationMode {
     /** Uses the batch mode. */
     BATCH,
@@ -281,9 +269,7 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
     STREAMING
   }
 
-  /**
-   * Traverses the Pipeline to determine the {@link TranslationMode} for this pipeline.
-   */
+  /** Traverses the Pipeline to determine the {@link TranslationMode} for this pipeline. */
   private static class TranslationModeDetector extends Pipeline.PipelineVisitor.Defaults {
     private static final Logger LOG = LoggerFactory.getLogger(TranslationModeDetector.class);
     private static final Collection<Class<? extends PTransform>> UNBOUNDED_INPUTS =
@@ -315,14 +301,11 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
     }
   }
 
-  /**
-   * Traverses the pipeline to populate the candidates for caching.
-   */
+  /** Traverses the pipeline to populate the candidates for caching. */
   static class CacheVisitor extends Evaluator {
 
     protected CacheVisitor(
-        SparkPipelineTranslator translator,
-        EvaluationContext evaluationContext) {
+        SparkPipelineTranslator translator, EvaluationContext evaluationContext) {
       super(translator, evaluationContext);
     }
 
@@ -345,9 +328,7 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
     }
   }
 
-  /**
-   * Evaluator on the pipeline.
-   */
+  /** Evaluator on the pipeline. */
   @SuppressWarnings("WeakerAccess")
   public static class Evaluator extends Pipeline.PipelineVisitor.Defaults {
     private static final Logger LOG = LoggerFactory.getLogger(Evaluator.class);
@@ -399,7 +380,9 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
       }
       // defer if sideInputs are defined.
       if (hasSideInput) {
-        LOG.info("Deferring combine transformation {} for job {}", transform,
+        LOG.info(
+            "Deferring combine transformation {} for job {}",
+            transform,
             ctxt.getPipeline().getOptions().getJobName());
         return true;
       }
@@ -412,14 +395,14 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
       doVisitTransform(node);
     }
 
-    <TransformT extends PTransform<? super PInput, POutput>> void
-    doVisitTransform(TransformHierarchy.Node node) {
+    <TransformT extends PTransform<? super PInput, POutput>> void doVisitTransform(
+        TransformHierarchy.Node node) {
       @SuppressWarnings("unchecked")
       TransformT transform = (TransformT) node.getTransform();
       @SuppressWarnings("unchecked")
       Class<TransformT> transformClass = (Class<TransformT>) (Class<?>) transform.getClass();
-      @SuppressWarnings("unchecked") TransformEvaluator<TransformT> evaluator =
-          translate(node, transform, transformClass);
+      @SuppressWarnings("unchecked")
+      TransformEvaluator<TransformT> evaluator = translate(node, transform, transformClass);
       LOG.info("Evaluating {}", transform);
       AppliedPTransform<?, ?, ?> appliedTransform = node.toAppliedPTransform();
       ctxt.setCurrentTransform(appliedTransform);
@@ -432,7 +415,7 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
      * translate with the proper translator.
      */
     protected <TransformT extends PTransform<? super PInput, POutput>>
-    TransformEvaluator<TransformT> translate(
+        TransformEvaluator<TransformT> translate(
             TransformHierarchy.Node node, TransformT transform, Class<TransformT> transformClass) {
       //--- determine if node is bounded/unbounded.
       // usually, the input determines if the PCollection to apply the next transformation to
@@ -449,7 +432,7 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
       LOG.debug("Translating {} as {}", transform, isNodeBounded);
       return isNodeBounded.equals(PCollection.IsBounded.BOUNDED)
           ? translator.translateBounded(transformClass)
-              : translator.translateUnbounded(transformClass);
+          : translator.translateUnbounded(transformClass);
     }
 
     protected PCollection.IsBounded isBoundedCollection(Collection<TaggedPValue> pValues) {
@@ -458,7 +441,7 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
       // BOUNDED behaves as the Identity Element, BOUNDED + BOUNDED = BOUNDED
       // while BOUNDED + UNBOUNDED = UNBOUNDED.
       PCollection.IsBounded isBounded = PCollection.IsBounded.BOUNDED;
-      for (TaggedPValue pValue: pValues) {
+      for (TaggedPValue pValue : pValues) {
         if (pValue.getValue() instanceof PCollection) {
           isBounded = isBounded.and(((PCollection) pValue.getValue()).isBounded());
         } else {
