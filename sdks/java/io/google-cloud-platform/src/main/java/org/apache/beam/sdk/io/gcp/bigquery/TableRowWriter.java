@@ -48,6 +48,14 @@ class TableRowWriter {
   protected String mimeType = MimeTypes.TEXT;
   private CountingOutputStream out;
 
+  public class Result {
+    String filename;
+    long byteSize;
+    public Result(String filename, long byteSize) {
+      this.filename = filename;
+      this.byteSize = byteSize;
+    }
+  }
   TableRowWriter(String basename) {
     this.tempFilePrefix = basename;
   }
@@ -77,8 +85,8 @@ class TableRowWriter {
     out.write(NEWLINE);
   }
 
-  public final KV<String, Long> close() throws IOException {
+  public final Result close() throws IOException {
     channel.close();
-    return KV.of(fileName, out.getCount());
+    return new Result(fileName, out.getCount());
   }
 }

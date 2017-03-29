@@ -2078,26 +2078,27 @@ public class BigQueryIOTest implements Serializable {
       files.add(KV.of(fileName, fileSize));
     }
 
-    TupleTag<KV<Long, List<String>>> multiPartitionsTag =
-        new TupleTag<KV<Long, List<String>>>("multiPartitionsTag") {};
-    TupleTag<KV<Long, List<String>>> singlePartitionTag =
-        new TupleTag<KV<Long, List<String>>>("singlePartitionTag") {};
+    TupleTag<KV<KV<TableDestination, Integer>, List<String>>> multiPartitionsTag =
+        new TupleTag<KV<KV<TableDestination, Integer>, List<String>>>("multiPartitionsTag") {};
+    TupleTag<KV<KV<TableDestination, Integer>, List<String>>> singlePartitionTag =
+        new TupleTag<KV<KV<TableDestination, Integer>, List<String>>>("singlePartitionTag") {};
 
-    PCollection<KV<String, Long>> filesPCollection =
-        p.apply(Create.of(files).withType(new TypeDescriptor<KV<String, Long>>() {}));
-    PCollectionView<Iterable<KV<String, Long>>> filesView = PCollectionViews.iterableView(
-        filesPCollection,
+    PCollectionView<Iterable<WriteBundlesToFiles.Result>> resultsView =
+        PCollectionViews.iterableView(
+        p,
         WindowingStrategy.globalDefault(),
         KvCoder.of(StringUtf8Coder.of(), VarLongCoder.of()));
 
     WritePartition writePartition =
-        new WritePartition(filesView, multiPartitionsTag, singlePartitionTag);
+        new WritePartition(null, null, resultsView,
+            multiPartitionsTag, singlePartitionTag);
 
-    DoFnTester<String, KV<Long, List<String>>> tester = DoFnTester.of(writePartition);
-    tester.setSideInput(filesView, GlobalWindow.INSTANCE, files);
+    DoFnTester<String, KV<KV<TableDestination, Integer>, List<String>>> tester =
+        DoFnTester.of(writePartition);
+    tester.setSideInput(resultsView, GlobalWindow.INSTANCE, files);
     tester.processElement(testFolder.newFolder("BigQueryIOTest").getAbsolutePath());
 
-    List<KV<Long, List<String>>> partitions;
+    List<KV<KV<TableDestination, Integer>, List<String>>> partitions;
     if (expectedNumPartitions > 1) {
       partitions = tester.takeOutputElements(multiPartitionsTag);
     } else {

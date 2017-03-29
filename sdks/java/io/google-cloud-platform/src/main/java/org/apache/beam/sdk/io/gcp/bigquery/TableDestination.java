@@ -20,6 +20,8 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 
 import com.google.api.services.bigquery.model.TableReference;
 
+import java.util.Objects;
+
 /**
  * Encapsulates a BigQuery table destination.
  */
@@ -42,12 +44,25 @@ public class TableDestination {
     return tableSpec;
   }
 
-
   public TableReference getTableReference() {
     return BigQueryHelpers.parseTableSpec(tableSpec);
   }
 
   public String getTableDescription() {
     return tableDescription;
+  }
+
+  @Override
+  public boolean equals(Object o) {
+    if (!(o instanceof TableDestination)) {
+      return false;
+    }
+    TableDestination other = (TableDestination) o;
+    return tableSpec == other.tableSpec && tableDescription == other.tableDescription;
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(tableSpec, tableDescription);
   }
 }
