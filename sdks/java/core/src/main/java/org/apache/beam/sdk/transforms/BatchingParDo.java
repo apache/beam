@@ -17,8 +17,11 @@
  */
 package org.apache.beam.sdk.transforms;
 
+import static com.google.common.base.Preconditions.checkArgument;
+
 import com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -34,6 +37,7 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
+import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
@@ -89,6 +93,13 @@ public class BatchingParDo<K, InputT, OutputT>
   public PCollection<KV<K, OutputT>> expand(PCollection<KV<K, InputT>> input) {
     Duration allowedLateness = input.getWindowingStrategy().getAllowedLateness();
 
+    checkArgument(input.getCoder() instanceof KvCoder,
+        "coder specified in the input PCollection is not a KvCoder");
+    KvCoder inputCoder = (KvCoder)input.getCoder();
+    Coder<K> keyCoder = (Coder<K>)inputCoder.getCoderArguments().get(0);
+    Coder<InputT> valueCoder = (Coder<InputT>)inputCoder.getCoderArguments().get(1);
+
+
     PCollection<KV<K, OutputT>> output =
         input.apply(
             ParDo.of(
@@ -96,15 +107,15 @@ public class BatchingParDo<K, InputT, OutputT>
                     batchSize,
                     perBatchFn,
                     allowedLateness,
-                    (Coder<InputT>) input.getCoder().getCoderArguments().get(1),
-                    (Coder<K>) input.getCoder().getCoderArguments().get(0))));
+                    keyCoder,
+                    valueCoder)));
     return output;
   }
 
   @VisibleForTesting
   static class BatchingDoFn<K, InputT, OutputT> extends DoFn<KV<K, InputT>, KV<K, OutputT>> {
 
-    private static final org.slf4j.Logger LOGGER = LoggerFactory.getLogger(BatchingDoFn.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(BatchingDoFn.class);
     private static final String END_OF_WINDOW_ID = "endOFWindow";
     private static final String BATCH_ID = "batch";
     private static final String NUM_ELEMENTS_IN_BATCH_ID = "numElementsInBatch";
@@ -135,15 +146,15 @@ public class BatchingParDo<K, InputT, OutputT>
         long batchSize,
         SimpleFunction<? super Iterable<InputT>, ? extends Iterable<OutputT>> perBatchFn,
         Duration allowedLateness,
-        Coder<InputT> inputCoder,
-        Coder<K> keyCoder) {
+        Coder<K> inputKeyCoder,
+        Coder<InputT> inputValueCoder) {
       this.batchSize = batchSize;
       this.perBatchFn = perBatchFn;
       this.allowedLateness = allowedLateness;
-      this.batchSpec = StateSpecs.bag(inputCoder);
+      this.batchSpec = StateSpecs.bag(inputValueCoder);
       this.numElementsInBatchSpec = StateSpecs.value(VarLongCoder.of());
       this.timerAlreadySetForWindow = StateSpecs.value(VarIntCoder.of());
-      this.keySpec = StateSpecs.value(keyCoder);
+      this.keySpec = StateSpecs.value(inputKeyCoder);
       // prefetch every 20% of batchSize elements. Do not prefetch if batchSize is too little
       this.prefetchFrequency = ((batchSize / 5) <= 1) ? Long.MAX_VALUE : (batchSize / 5);
     }
