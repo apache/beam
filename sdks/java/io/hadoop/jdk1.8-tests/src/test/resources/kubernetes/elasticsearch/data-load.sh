@@ -14,8 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-#!/bin/bash
-set -e
+#!/bin/sh -e
 
 # Identify external IP
 external_ip="$(kubectl get svc elasticsearch -o jsonpath='{.status.loadBalancer.ingress[0].ip}')"
@@ -24,7 +23,7 @@ while [ -z "$external_ip" ]
 do
    sleep 10s
    external_ip="$(kubectl get svc elasticsearch -o jsonpath='{.status.loadBalancer.ingress[0].ip}')"
-   echo "."
+   echo ".................."
 done
 echo "External IP - $external_ip"
 echo

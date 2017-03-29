@@ -16,9 +16,9 @@
     limitations under the License.
 -->
 
-<!-- The HifIO tests for Cassandra and Elasticsearch both work only with
-  jdk1.8, but Beam's enforcer rules require jdk1.7 and jdk1.8 support. This
-  child module contains only those tests and overrides the enforcer rules to
+<!-- The HifIO tests for Cassandra and Elasticsearch both work only with 
+  jdk1.8, but Beam's enforcer rules require jdk1.7 and jdk1.8 support. This 
+  child module contains only those tests and overrides the enforcer rules to 
   allow 1.8 only behavior without making all of HifIO work only with jdk1.8. -->
 
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
@@ -34,42 +34,48 @@
   <name>Apache Beam :: SDKs :: Java :: IO :: Hadoop :: jdk1.8-tests</name>
 
   <build>
+    <pluginManagement>
+      <plugins>
+        <plugin>
+          <!-- Guava shading is required as Cassandra tests require version 
+            19 of Guava, by default project wide Guava shading may not suffice as it 
+            loads a different version of guava which will not work for Cassandra tests -->
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-shade-plugin</artifactId>
+          <executions>
+            <execution>
+              <phase>package</phase>
+              <goals>
+                <goal>shade</goal>
+              </goals>
+              <configuration>
+                <artifactSet>
+                  <includes>
+                    <include>com.google.guava:guava:19.0</include>
+                  </includes>
+                </artifactSet>
+                <relocations>
+                  <relocation>
+                    <pattern>com.google.common</pattern>
+                    <shadedPattern>org.apache.beam.sdk.io.hadoop.jdk1.8-tests.repackaged.com.google.common</shadedPattern>
+                  </relocation>
+                  <relocation>
+                    <pattern>com.google.thirdparty</pattern>
+                    <shadedPattern>org.apache.beam.sdk.io.hadoop.jdk1.8-tests.repackaged.com.google.thirdparty</shadedPattern>
+                  </relocation>
+                </relocations>
+                <transformers>
+                  <transformer
+                    implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer" />
+                </transformers>
+              </configuration>
+            </execution>
+          </executions>
+        </plugin>
+      </plugins>
+    </pluginManagement>
+
     <plugins>
-      <plugin>
-       <!-- Guava shading is required as Cassandra tests require version
-       19 of Guava, by default project wide Guava shading may not suffice as it
-       loads a different version of guava which will not work for Cassandra tests -->
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-shade-plugin</artifactId>
-        <executions>
-          <execution>
-            <phase>package</phase>
-            <goals>
-              <goal>shade</goal>
-            </goals>
-            <configuration>
-              <artifactSet>
-                <includes>
-                  <include>com.google.guava:guava:19.0</include>
-                </includes>
-              </artifactSet>
-              <relocations>
-                <relocation>
-                  <pattern>com.google.common</pattern>
-                  <shadedPattern>org.apache.beam.sdk.io.hadoop.jdk1.8-tests.repackaged.com.google.common</shadedPattern>
-                </relocation>
-               <relocation>
-                 <pattern>com.google.thirdparty</pattern>
-                 <shadedPattern>org.apache.beam.sdk.io.hadoop.jdk1.8-tests.repackaged.com.google.thirdparty</shadedPattern>
-                 </relocation>
-               </relocations>
-               <transformers>
-                 <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer" />
-               </transformers>
-            </configuration>
-          </execution>
-        </executions>
-      </plugin>
       <!-- Overridden enforcer plugin for JDK1.8 for running tests -->
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
@@ -86,7 +92,7 @@
                 <enforceBytecodeVersion>
                   <maxJdkVersion>1.8</maxJdkVersion>
                   <excludes>
-                    <!-- Supplied by the user JDK and compiled with matching
+                    <!-- Supplied by the user JDK and compiled with matching 
                       version. Is not shaded, so safe to ignore. -->
                     <exclude>jdk.tools:jdk.tools</exclude>
                   </excludes>
@@ -108,10 +114,10 @@
       </plugin>
     </plugins>
   </build>
-  <!--The dataflow-runner and spark-runner profiles support using those runners
-    during an integration test. These are not the long-term way we want to support
-    using runners in ITs (e.g. it is annoying to add to all IO modules.) We cannot
-    create a dependency IO -> Runners since the runners depend on IO (e.g. kafka
+  <!--The dataflow-runner and spark-runner profiles support using those runners 
+    during an integration test. These are not the long-term way we want to support 
+    using runners in ITs (e.g. it is annoying to add to all IO modules.) We cannot 
+    create a dependency IO -> Runners since the runners depend on IO (e.g. kafka 
     depends on spark.) -->
 
   <profiles>

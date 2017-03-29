@@ -14,8 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-#!/bin/bash
-set -e
+#!/bin/bash -e
 
 recordcount=1000
 # Identify the pod
@@ -24,7 +23,7 @@ running_seed="$(kubectl get pods -o json -l name=cassandra -o jsonpath='\
 {.items[0].metadata.name}')"
 echo "Detected Running Pod $running_seed"
 
-# After starting the service, it takes couple of minutes to generate the external IP for the
+# After starting the service, it takes couple of minutes to generate the external IP for the 
 # service. Hence, wait for sometime.
 
 # Identify external IP of the pod
@@ -34,7 +33,7 @@ while [ -z "$external_ip" ]
 do
    sleep 10s
    external_ip="$(kubectl get svc cassandra -o jsonpath='{.status.loadBalancer.ingress[0].ip}')"
-   echo "."
+   echo ".................."
 done
 echo "External IP - $external_ip"
 
@@ -60,7 +59,7 @@ cd ycsb-0.12.0
 
 echo "Starting to load data on ${external_ip}"
 echo "-----------------------------"
-# Record count set to 1000, change this value to load as per requirement.
+# Record count set to 1000, change this value to load as per requirement. 
 # dataintegrity flag is set to true to load deterministic data
 ./bin/ycsb load cassandra-cql -p hosts=${external_ip} -p dataintegrity=true -p recordcount=\
 ${recordcount} -p insertorder=ordered -p fieldlength=20 -P workloads/workloadd \
