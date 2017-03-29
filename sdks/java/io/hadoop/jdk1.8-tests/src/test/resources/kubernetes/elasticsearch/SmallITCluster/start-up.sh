@@ -14,7 +14,8 @@
 #    limitations under the License.
 #
 
-#!/bin/sh -e
+#!/bin/sh
+set -e
 
 # Create Elasticsearch services and deployments.
 kubectl create -f elasticsearch-svc-rc.yaml
