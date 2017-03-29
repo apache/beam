@@ -205,11 +205,11 @@ public class HIFIOElasticIT implements Serializable {
         org.elasticsearch.hadoop.mr.EsInputFormat.class, InputFormat.class);
     conf.setClass("key.class", Text.class, Object.class);
     conf.setClass("value.class", LinkedMapWritable.class, Object.class);
-    // Optimizations added to change the max docs per partition, scroll size and batch size of 
-    // bytes to improve the test time for large data 
+    // Optimizations added to change the max docs per partition, scroll size and batch size of
+    // bytes to improve the test time for large data
     conf.set("es.input.max.docs.per.partition", "50000");
     conf.set("es.scroll.size", "400");
-    conf.set("es.batch.size.bytes", "8mb"); 
+    conf.set("es.batch.size.bytes", "8mb");
     return conf;
   }
 }
