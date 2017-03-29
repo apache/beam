@@ -143,9 +143,9 @@ public class UserScoreTest implements Serializable {
     PCollection<KV<String, Integer>> extract = input
       .apply(ParDo.of(new ParseEventFn()))
       .apply(
-          MapElements.via((GameActionInfo gInfo) -> KV.of(gInfo.getUser(), gInfo.getScore()))
-          .withOutputType(
-              TypeDescriptors.kvs(TypeDescriptors.strings(), TypeDescriptors.integers())));
+          MapElements
+              .into(TypeDescriptors.kvs(TypeDescriptors.strings(), TypeDescriptors.integers()))
+              .via((GameActionInfo gInfo) -> KV.of(gInfo.getUser(), gInfo.getScore())));
 
     PAssert.that(extract).empty();
 

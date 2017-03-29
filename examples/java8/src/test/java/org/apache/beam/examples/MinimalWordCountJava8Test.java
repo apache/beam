@@ -68,8 +68,8 @@ public class MinimalWordCountJava8Test implements Serializable {
      .apply(Filter.by((String word) -> !word.isEmpty()))
      .apply(Count.<String>perElement())
      .apply(MapElements
-         .via((KV<String, Long> wordCount) -> wordCount.getKey() + ": " + wordCount.getValue())
-         .withOutputType(TypeDescriptors.strings()))
+         .into(TypeDescriptors.strings())
+         .via((KV<String, Long> wordCount) -> wordCount.getKey() + ": " + wordCount.getValue()))
      .apply(TextIO.Write.to("gs://your-output-bucket/and-output-prefix"));
   }
 
