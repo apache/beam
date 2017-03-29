@@ -18,17 +18,18 @@
 
 package org.apache.beam.sdk.io.gcp.bigquery;
 
+import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.coders.TableRowJsonCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
-import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.JsonSchemaToTableSchema;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write;
-import org.apache.beam.sdk.options.BigQueryOptions;
-import org.apache.beam.sdk.options.ValueProvider.NestedValueProvider;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.util.Reshuffle;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
@@ -37,11 +38,28 @@ import org.apache.beam.sdk.values.PCollection;
 * PTransform that performs streaming BigQuery write. To increase consistency,
 * it leverages BigQuery best effort de-dup mechanism.
  */
-class StreamWithDeDup<T> extends PTransform<PCollection<T>, WriteResult> {
-  private final Write<T> write;
+
+class StreamingInserts
+    extends PTransform<PCollection<KV<TableDestination, TableRow>>, WriteResult> {
+  private final Write<?> write;
+
+  private static class ConstantSchemaFunction implements
+      SerializableFunction<TableDestination, TableSchema> {
+    private final @Nullable String jsonSchema;
+
+    ConstantSchemaFunction(TableSchema schema) {
+      this.jsonSchema = BigQueryHelpers.toJsonString(schema);
+    }
+
+    @Override
+    @Nullable
+    public TableSchema apply(TableDestination table) {
+      return BigQueryHelpers.fromJsonString(jsonSchema, TableSchema.class);
+    }
+  }
 
   /** Constructor. */
-  StreamWithDeDup(Write<T> write) {
+  StreamingInserts(Write<?> write) {
     this.write = write;
   }
 
@@ -51,7 +69,12 @@ class StreamWithDeDup<T> extends PTransform<PCollection<T>, WriteResult> {
   }
 
   @Override
-  public WriteResult expand(PCollection<T> input) {
+  public WriteResult expand(PCollection<KV<TableDestination, TableRow>> input) {
+    // Since BigQueryIO.java does not yet have support for per-table schemas, inject a constant
+    // schema function here. If no schema is specified, this function will return null.
+    SerializableFunction<TableDestination, TableSchema> schemaFunction =
+        new ConstantSchemaFunction(write.getSchema());
+
     // A naive implementation would be to simply stream data directly to BigQuery.
     // However, this could occasionally lead to duplicated data, e.g., when
     // a VM that runs this code is restarted and the code is re-run.
@@ -61,29 +84,26 @@ class StreamWithDeDup<T> extends PTransform<PCollection<T>, WriteResult> {
 
     // To use this mechanism, each input TableRow is tagged with a generated
     // unique id, which is then passed to BigQuery and used to ignore duplicates.
-
-    PCollection<KV<ShardedKey<String>, TableRowInfo>> tagged =
-        input.apply(ParDo.of(new TagWithUniqueIdsAndTable<T>(
-            input.getPipeline().getOptions().as(BigQueryOptions.class), write)));
+    PCollection<KV<ShardedKey<String>, TableRowInfo>> tagged = input
+        .apply("CreateTables", ParDo.of(new CreateTables(write.getCreateDisposition(),
+            write.getBigQueryServices(), schemaFunction)))
+        // We create 50 keys per BigQuery table to generate output on. This is few enough that we
+        // get good batching into BigQuery's insert calls, and enough that we can max out the
+        // streaming insert quota.
+        .apply("ShardTableWrites", ParDo.of(new GenerateShardedTable(50)))
+        .setCoder(KvCoder.of(ShardedKeyCoder.of(StringUtf8Coder.of()), TableRowJsonCoder.of()))
+        .apply("TagWithUniqueIds", ParDo.of(new TagWithUniqueIds()));
 
     // To prevent having the same TableRow processed more than once with regenerated
     // different unique ids, this implementation relies on "checkpointing", which is
     // achieved as a side effect of having StreamingWriteFn immediately follow a GBK,
     // performed by Reshuffle.
-    NestedValueProvider<TableSchema, String> schema =
-        write.getJsonSchema() == null
-            ? null
-            : NestedValueProvider.of(write.getJsonSchema(), new JsonSchemaToTableSchema());
     tagged
         .setCoder(KvCoder.of(ShardedKeyCoder.of(StringUtf8Coder.of()), TableRowInfoCoder.of()))
         .apply(Reshuffle.<ShardedKey<String>, TableRowInfo>of())
-        .apply(
+        .apply("StreamingWrite",
             ParDo.of(
-                new StreamingWriteFn(
-                    schema,
-                    write.getCreateDisposition(),
-                    write.getTableDescription(),
-                    write.getBigQueryServices())));
+                new StreamingWriteFn(write.getBigQueryServices())));
 
     return WriteResult.in(input.getPipeline());
   }

@@ -19,6 +19,7 @@
 package org.apache.beam.sdk.io.gcp.bigquery;
 
 import com.google.api.services.bigquery.model.TableReference;
+import com.google.api.services.bigquery.model.TableRow;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
 import java.io.IOException;
@@ -42,26 +43,11 @@ import org.apache.beam.sdk.values.ValueInSingleWindow;
  * id is created by concatenating this randomUUID with a sequential number.
  */
 @VisibleForTesting
-class TagWithUniqueIdsAndTable<T>
-    extends DoFn<T, KV<ShardedKey<String>, TableRowInfo>> {
-  /** TableSpec to write to in the case of a single static destination. */
-  private ValueProvider<String> tableSpec = null;
-
-  private final Write<T, ?> write;
+class TagWithUniqueIds
+    extends DoFn<KV<ShardedKey<String>, TableRow>, KV<ShardedKey<String>, TableRowInfo>> {
 
   private transient String randomUUID;
   private transient long sequenceNo = 0L;
-
-  TagWithUniqueIdsAndTable(BigQueryOptions options,
-                           Write<T, ?> write) {
-    ValueProvider<TableReference> table = write.getTableWithDefaultProject(
-        options.as(BigQueryOptions.class));
-    if (table != null) {
-      this.tableSpec = NestedValueProvider.of(table, new TableRefToTableSpec());
-    }
-    this.write = write;
-  }
-
 
   @StartBundle
   public void startBundle(Context context) {
@@ -72,30 +58,14 @@ class TagWithUniqueIdsAndTable<T>
   @ProcessElement
   public void processElement(ProcessContext context, BoundedWindow window) throws IOException {
     String uniqueId = randomUUID + sequenceNo++;
-    ThreadLocalRandom randomGenerator = ThreadLocalRandom.current();
-      String tableSpec = tableSpecFromWindowedValue(
-          context.getPipelineOptions().as(BigQueryOptions.class),
-          ValueInSingleWindow.of(context.element(), context.timestamp(), window, context.pane()));
     // We output on keys 0-50 to ensure that there's enough batching for
     // BigQuery.
-    context.output(KV.of(ShardedKey.of(tableSpec, randomGenerator.nextInt(0, 50)),
-        new TableRowInfo(write.getFormatFunction().apply(context.element()), uniqueId)));
+    context.output(KV.of(context.element().getKey(),
+        new TableRowInfo(context.element().getValue(), uniqueId)));
   }
 
   @Override
   public void populateDisplayData(DisplayData.Builder builder) {
     super.populateDisplayData(builder);
-
-    builder.addIfNotNull(DisplayData.item("table", tableSpec));
-    builder.add(DisplayData.item("tableFn", write.getTableRefFunction().getClass())
-        .withLabel("Table Reference Function"));
   }
-
-  @VisibleForTesting
-  ValueProvider<String> getTableSpec() {
-    return tableSpec;
-  }
-
-
-
 }
