@@ -124,7 +124,7 @@ import org.slf4j.LoggerFactory;
  *  pipeline
  *    .apply(KafkaIO.<Long, String>read()
  *       .withBootstrapServers("broker_1:9092,broker_2:9092")
- *       .withTopic("my_topic")  // use withTopics(List<String>) to consume from multiple topics.
+ *       .withTopic("my_topic")  // use withTopics(List<String>) to read from multiple topics.
  *       // set a Coder for Key and Value
  *       .withKeyCoder(BigEndianLongCoder.of())
  *       .withValueCoder(StringUtf8Coder.of())
