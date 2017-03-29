@@ -417,7 +417,7 @@ public class NexmarkUtils {
   /**
    * Return a transform to pass-through events, but count them as they go by.
    */
-  public static ParDo.Bound<Event, Event> snoop(final String name) {
+  public static ParDo.SingleOutput<Event, Event> snoop(final String name) {
     return ParDo.of(new DoFn<Event, Event>() {
                   final Aggregator<Long, Long> eventCounter =
                       createAggregator("events", Sum.ofLongs());
@@ -451,7 +451,7 @@ public class NexmarkUtils {
   /**
    * Return a transform to count and discard each element.
    */
-  public static <T> ParDo.Bound<T, Void> devNull(String name) {
+  public static <T> ParDo.SingleOutput<T, Void> devNull(String name) {
     return ParDo.of(new DoFn<T, Void>() {
                   final Aggregator<Long, Long> discardCounter =
                       createAggregator("discarded", Sum.ofLongs());
@@ -466,7 +466,7 @@ public class NexmarkUtils {
   /**
    * Return a transform to log each element, passing it through unchanged.
    */
-  public static <T> ParDo.Bound<T, T> log(final String name) {
+  public static <T> ParDo.SingleOutput<T, T> log(final String name) {
     return ParDo.of(new DoFn<T, T>() {
                   @ProcessElement
                   public void processElement(ProcessContext c) {
@@ -479,7 +479,7 @@ public class NexmarkUtils {
   /**
    * Return a transform to format each element as a string.
    */
-  public static <T> ParDo.Bound<T, String> format(String name) {
+  public static <T> ParDo.SingleOutput<T, String> format(String name) {
     return ParDo.of(new DoFn<T, String>() {
                   final Aggregator<Long, Long> recordCounter =
                       createAggregator("records", Sum.ofLongs());
@@ -495,7 +495,7 @@ public class NexmarkUtils {
   /**
    * Return a transform to make explicit the timestamp of each element.
    */
-  public static <T> ParDo.Bound<T, TimestampedValue<T>> stamp(String name) {
+  public static <T> ParDo.SingleOutput<T, TimestampedValue<T>> stamp(String name) {
     return ParDo.of(new DoFn<T, TimestampedValue<T>>() {
                   @ProcessElement
                   public void processElement(ProcessContext c) {
@@ -548,7 +548,7 @@ public class NexmarkUtils {
   /**
    * Return a transform to keep the CPU busy for given milliseconds on every record.
    */
-  public static <T> ParDo.Bound<T, T> cpuDelay(String name, final long delayMs) {
+  public static <T> ParDo.SingleOutput<T, T> cpuDelay(String name, final long delayMs) {
     return ParDo.of(new DoFn<T, T>() {
                   @ProcessElement
                   public void processElement(ProcessContext c) {
@@ -580,7 +580,7 @@ public class NexmarkUtils {
   /**
    * Return a transform to write given number of bytes to durable store on every record.
    */
-  public static <T> ParDo.Bound<T, T> diskBusy(String name, final long bytes) {
+  public static <T> ParDo.SingleOutput<T, T> diskBusy(String name, final long bytes) {
     return ParDo.of(new DoFn<T, T>() {
                   @ProcessElement
                   public void processElement(ProcessContext c) {
@@ -608,7 +608,7 @@ public class NexmarkUtils {
   /**
    * Return a transform to cast each element to {@link KnownSize}.
    */
-  private static <T extends KnownSize> ParDo.Bound<T, KnownSize> castToKnownSize() {
+  private static <T extends KnownSize> ParDo.SingleOutput<T, KnownSize> castToKnownSize() {
     return ParDo.of(new DoFn<T, KnownSize>() {
                   @ProcessElement
                   public void processElement(ProcessContext c) {

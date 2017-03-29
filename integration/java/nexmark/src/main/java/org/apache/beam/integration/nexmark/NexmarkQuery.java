@@ -97,7 +97,7 @@ public abstract class NexmarkQuery
   };
 
   /** Transform to key each person by their id. */
-  protected static final ParDo.Bound<Person, KV<Long, Person>> PERSON_BY_ID =
+  protected static final ParDo.SingleOutput<Person, KV<Long, Person>> PERSON_BY_ID =
       ParDo.of(new DoFn<Person, KV<Long, Person>>() {
              @ProcessElement
              public void processElement(ProcessContext c) {
@@ -106,7 +106,7 @@ public abstract class NexmarkQuery
            });
 
   /** Transform to key each auction by its id. */
-  protected static final ParDo.Bound<Auction, KV<Long, Auction>> AUCTION_BY_ID =
+  protected static final ParDo.SingleOutput<Auction, KV<Long, Auction>> AUCTION_BY_ID =
       ParDo.of(new DoFn<Auction, KV<Long, Auction>>() {
              @ProcessElement
              public void processElement(ProcessContext c) {
@@ -115,7 +115,7 @@ public abstract class NexmarkQuery
            });
 
   /** Transform to key each auction by its seller id. */
-  protected static final ParDo.Bound<Auction, KV<Long, Auction>> AUCTION_BY_SELLER =
+  protected static final ParDo.SingleOutput<Auction, KV<Long, Auction>> AUCTION_BY_SELLER =
       ParDo.of(new DoFn<Auction, KV<Long, Auction>>() {
              @ProcessElement
              public void processElement(ProcessContext c) {
@@ -124,7 +124,7 @@ public abstract class NexmarkQuery
            });
 
   /** Transform to key each bid by it's auction id. */
-  protected static final ParDo.Bound<Bid, KV<Long, Bid>> BID_BY_AUCTION =
+  protected static final ParDo.SingleOutput<Bid, KV<Long, Bid>> BID_BY_AUCTION =
       ParDo.of(new DoFn<Bid, KV<Long, Bid>>() {
              @ProcessElement
              public void processElement(ProcessContext c) {
@@ -133,7 +133,7 @@ public abstract class NexmarkQuery
            });
 
   /** Transform to project the auction id from each bid. */
-  protected static final ParDo.Bound<Bid, Long> BID_TO_AUCTION =
+  protected static final ParDo.SingleOutput<Bid, Long> BID_TO_AUCTION =
       ParDo.of(new DoFn<Bid, Long>() {
              @ProcessElement
              public void processElement(ProcessContext c) {
@@ -142,7 +142,7 @@ public abstract class NexmarkQuery
            });
 
   /** Transform to project the price from each bid. */
-  protected static final ParDo.Bound<Bid, Long> BID_TO_PRICE =
+  protected static final ParDo.SingleOutput<Bid, Long> BID_TO_PRICE =
       ParDo.of(new DoFn<Bid, Long>() {
              @ProcessElement
              public void processElement(ProcessContext c) {
@@ -151,7 +151,7 @@ public abstract class NexmarkQuery
            });
 
   /** Transform to emit each event with the timestamp embedded within it. */
-  public static final ParDo.Bound<Event, Event> EVENT_TIMESTAMP_FROM_DATA =
+  public static final ParDo.SingleOutput<Event, Event> EVENT_TIMESTAMP_FROM_DATA =
       ParDo.of(new DoFn<Event, Event>() {
              @ProcessElement
              public void processElement(ProcessContext c) {
