@@ -228,7 +228,7 @@
     <dependency>
       <groupId>io.netty</groupId>
       <artifactId>netty-transport-native-epoll</artifactId>
-      <version>4.0.42.Final</version>
+      <version>4.1.0.CR3</version>
       <scope>test</scope>
     </dependency>
     <dependency>
