@@ -136,9 +136,9 @@ public class WindowTest implements Serializable {
     Repeatedly trigger = Repeatedly.forever(AfterPane.elementCountAtLeast(5));
     WindowingStrategy<?, ?> strategy = pipeline
       .apply(Create.of("hello", "world").withCoder(StringUtf8Coder.of()))
-      .apply("Mode", Window.<String>accumulatingFiredPanes())
-      .apply("Lateness", Window.<String>withAllowedLateness(Duration.standardDays(1)))
-      .apply("Trigger", Window.<String>triggering(trigger))
+      .apply("Mode", Window.<String>configure().accumulatingFiredPanes())
+      .apply("Lateness", Window.<String>configure().withAllowedLateness(Duration.standardDays(1)))
+      .apply("Trigger", Window.<String>configure().triggering(trigger))
       .apply("Window", Window.<String>into(fixed10))
       .getWindowingStrategy();
 
@@ -199,7 +199,7 @@ public class WindowTest implements Serializable {
     pipeline
         .apply(Create.of(1, 2, 3))
         .apply(
-            Window.<Integer>triggering(AfterWatermark.pastEndOfWindow())
+            Window.<Integer>configure().triggering(AfterWatermark.pastEndOfWindow())
                 .withAllowedLateness(Duration.ZERO)
                 .accumulatingFiredPanes());
 
@@ -247,7 +247,9 @@ public class WindowTest implements Serializable {
     thrown.expectMessage("requires that the accumulation mode");
     input.apply(
         "Triggering",
-        Window.<String>withAllowedLateness(Duration.standardDays(1)).triggering(trigger));
+        Window.<String>configure()
+            .withAllowedLateness(Duration.standardDays(1))
+            .triggering(trigger));
   }
 
   @Test
@@ -260,8 +262,8 @@ public class WindowTest implements Serializable {
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("allowed lateness");
     thrown.expectMessage("accumulation mode be specified");
-    input
-        .apply("Lateness", Window.<String>withAllowedLateness(Duration.standardDays(1)));
+    input.apply(
+        "Lateness", Window.<String>configure().withAllowedLateness(Duration.standardDays(1)));
   }
 
   @Test
@@ -273,9 +275,9 @@ public class WindowTest implements Serializable {
     thrown.expectMessage("requires that the allowed lateness");
     pipeline
       .apply(Create.of("hello", "world").withCoder(StringUtf8Coder.of()))
-      .apply("Mode", Window.<String>accumulatingFiredPanes())
+      .apply("Mode", Window.<String>configure().accumulatingFiredPanes())
       .apply("Window", Window.<String>into(fixed10))
-      .apply("Trigger", Window.<String>triggering(trigger));
+      .apply("Trigger", Window.<String>configure().triggering(trigger));
   }
 
   private static class WindowOddEvenBuckets extends NonMergingWindowFn<Long, IntervalWindow> {
@@ -353,7 +355,7 @@ public class WindowTest implements Serializable {
     PCollection<Boolean> updatedTrigger =
         upOne.apply(
             "UpdateWindowingStrategy",
-            Window.<Boolean>triggering(Never.ever())
+            Window.<Boolean>configure().triggering(Never.ever())
                 .withAllowedLateness(Duration.ZERO)
                 .accumulatingFiredPanes());
     pipeline.run();
@@ -501,7 +503,7 @@ public class WindowTest implements Serializable {
 
   @Test
   public void testDisplayDataExcludesUnspecifiedProperties() {
-    Window.Bound<?> onlyHasAccumulationMode = Window.discardingFiredPanes();
+    Window.Bound<?> onlyHasAccumulationMode = Window.<Object>configure().discardingFiredPanes();
     assertThat(DisplayData.from(onlyHasAccumulationMode), not(hasDisplayItem(hasKey(isOneOf(
         "windowFn",
         "trigger",

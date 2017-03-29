@@ -275,7 +275,7 @@ public class CreateStreamTest implements Serializable {
     PCollection<String> createStrings =
         p.apply("CreateStrings", source)
             .apply("WindowStrings",
-                Window.<String>triggering(AfterPane.elementCountAtLeast(2))
+                Window.<String>configure().triggering(AfterPane.elementCountAtLeast(2))
                     .withAllowedLateness(Duration.ZERO)
                     .accumulatingFiredPanes());
     PAssert.that(createStrings).containsInAnyOrder("foo", "bar");
@@ -283,7 +283,7 @@ public class CreateStreamTest implements Serializable {
     PCollection<Integer> createInts =
         p.apply("CreateInts", other)
             .apply("WindowInts",
-                Window.<Integer>triggering(AfterPane.elementCountAtLeast(4))
+                Window.<Integer>configure().triggering(AfterPane.elementCountAtLeast(4))
                     .withAllowedLateness(Duration.ZERO)
                     .accumulatingFiredPanes());
     PAssert.that(createInts).containsInAnyOrder(1, 2, 3, 4);

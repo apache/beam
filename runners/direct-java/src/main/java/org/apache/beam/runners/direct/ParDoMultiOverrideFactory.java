@@ -135,8 +135,8 @@ class ParDoMultiOverrideFactory<InputT, OutputT>
               //  - ensure this GBK holds to the minimum of those timestamps (via OutputTimeFn)
               //  - discard past panes as it is "just a stream" of elements
               .apply(
-                  Window.<KV<K, WindowedValue<KV<K, InputT>>>>triggering(
-                          Repeatedly.forever(AfterPane.elementCountAtLeast(1)))
+                  Window.<KV<K, WindowedValue<KV<K, InputT>>>>configure()
+                      .triggering(Repeatedly.forever(AfterPane.elementCountAtLeast(1)))
                       .discardingFiredPanes()
                       .withAllowedLateness(inputWindowingStrategy.getAllowedLateness())
                       .withOutputTimeFn(OutputTimeFns.outputAtEarliestInputTimestamp()))
