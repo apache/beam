@@ -27,6 +27,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -512,12 +513,14 @@ public class Pipeline {
   }
 
   /**
-   * Returns the configured {@link PipelineOptions}.
+   * Returns the {@link PipelineOptions} provided at the time this {@link Pipeline} was created.
    *
    * @deprecated see BEAM-818 Remove Pipeline.getPipelineOptions. Configuration should be explicitly
-   *     provided to a transform if it is required.
+   *     provided to a transform if it is required. This method will be removed within a Major
+   *     Version and should not be used.
    */
   @Deprecated
+  @Experimental
   public PipelineOptions getOptions() {
     return options;
   }
