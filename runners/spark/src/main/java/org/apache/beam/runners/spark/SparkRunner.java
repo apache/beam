@@ -152,7 +152,7 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
           new SparkRunnerStreamingContextFactory(pipeline, mOptions, checkpointDir);
       final JavaStreamingContext jssc =
           JavaStreamingContext.getOrCreate(
-              checkpointDir.getSparkCheckpointDir().toString(), streamingContextFactory.create());
+              checkpointDir.getSparkCheckpointDir().toString(), streamingContextFactory);
 
       // Checkpoint aggregator/metrics values
       jssc.addStreamingListener(
