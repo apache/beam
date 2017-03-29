@@ -58,8 +58,7 @@ class StatelessJavaSerializer extends Serializer {
   // Since Kryo uses reflection to sequentially look for constructor signatures, starting
   // with this particular signature spares exploring further ones, which involves
   // NoSuchMethodException(s) being thrown as part of the exploration process and may slow
-  // things down, see Kryo#newSerializer()
-  // https://github.com/EsotericSoftware/kryo/blob/kryo-2.21.x/src/com/esotericsoftware/kryo/Kryo.java#L319
+  // things down, see Kryo#newSerializer(), see https://goo.gl/Jn425G
   public StatelessJavaSerializer(final Kryo ignore1, final Class<?> ignore2) {}
 
   public StatelessJavaSerializer() {
