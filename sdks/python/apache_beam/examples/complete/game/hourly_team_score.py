@@ -143,7 +143,7 @@ class WriteWindowedToBigQuery(beam.PTransform):
       field_info: List of tuples that holds information about output table field
                   definitions. The tuples are in the
                   (field_name, field_type, field_fn) format, where field_name is
-                  the name of the field, field_type is the  BigQuery type of the
+                  the name of the field, field_type is the BigQuery type of the
                   field and field_fn is a lambda function to generate the field
                   value from the element.
     """
@@ -261,7 +261,7 @@ def run(argv=None):
                       default='1970-01-01-00-00',
                       help='String representation of the first minute after '
                            'which to generate results in the format: '
-                           'yyyy-MM-dd-HH-mm . Any input data timestamped '
+                           'yyyy-MM-dd-HH-mm. Any input data timestamped '
                            'prior to that minute won\'t be included in the '
                            'sums.')
   parser.add_argument('--stop_min',
@@ -269,7 +269,7 @@ def run(argv=None):
                       default='2100-01-01-00-00',
                       help='String representation of the first minute for '
                            'which to generate results in the format: '
-                           'yyyy-MM-dd-HH-mm . Any input data timestamped '
+                           'yyyy-MM-dd-HH-mm. Any input data timestamped '
                            'after to that minute won\'t be included in the '
                            'sums.')
 

@@ -126,7 +126,7 @@ class WriteToBigQuery(beam.PTransform):
       field_info: List of tuples that holds information about output table field
                   definitions. The tuples are in the
                   (field_name, field_type, field_fn) format, where field_name is
-                  the name of the field, field_type is the  BigQuery type of the
+                  the name of the field, field_type is the BigQuery type of the
                   field and field_fn is a lambda function to generate the field
                   value from the element.
     """
