@@ -48,9 +48,10 @@ public class SparkRunnerStreamingContextFactory implements Function0<JavaStreami
   private static final Logger LOG =
       LoggerFactory.getLogger(SparkRunnerStreamingContextFactory.class);
 
-  private final Pipeline pipeline;
-  private final SparkPipelineOptions options;
-  private final CheckpointDir checkpointDir;
+  // set members as transient to satisfy findbugs and since this only runs in driver.
+  private final transient Pipeline pipeline;
+  private final transient SparkPipelineOptions options;
+  private final transient CheckpointDir checkpointDir;
 
   public SparkRunnerStreamingContextFactory(
       Pipeline pipeline, SparkPipelineOptions options, CheckpointDir checkpointDir) {
