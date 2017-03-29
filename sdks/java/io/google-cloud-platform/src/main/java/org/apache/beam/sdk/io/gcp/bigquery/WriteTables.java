@@ -41,6 +41,7 @@ import org.apache.beam.sdk.options.BigQueryOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.util.FileIOChannelFactory;
 import org.apache.beam.sdk.util.GcsIOChannelFactory;
@@ -57,48 +58,45 @@ import org.slf4j.LoggerFactory;
 /**
  * Writes partitions to BigQuery tables.
  */
-class WriteTables extends DoFn<KV<Long, Iterable<List<String>>>, String> {
+class WriteTables extends DoFn<KV<KV<TableDestination, Integer>, Iterable<List<String>>>,
+    KV<TableDestination, String>> {
   private static final Logger LOG = LoggerFactory.getLogger(WriteTables.class);
 
   private final boolean singlePartition;
   private final BigQueryServices bqServices;
   private final PCollectionView<String> jobIdToken;
   private final String tempFilePrefix;
-  private final ValueProvider<String> jsonTableRef;
-  private final ValueProvider<String> jsonSchema;
   private final WriteDisposition writeDisposition;
   private final CreateDisposition createDisposition;
-  @Nullable
-  private final String tableDescription;
+  private final SerializableFunction<TableDestination, TableSchema> schemaFunction;
 
   public WriteTables(
       boolean singlePartition,
       BigQueryServices bqServices,
       PCollectionView<String> jobIdToken,
       String tempFilePrefix,
-      ValueProvider<String> jsonTableRef,
-      ValueProvider<String> jsonSchema,
       WriteDisposition writeDisposition,
       CreateDisposition createDisposition,
-      @Nullable String tableDescription) {
+      SerializableFunction<TableDestination, TableSchema> schemaFunction) {
     this.singlePartition = singlePartition;
     this.bqServices = bqServices;
     this.jobIdToken = jobIdToken;
     this.tempFilePrefix = tempFilePrefix;
-    this.jsonTableRef = jsonTableRef;
-    this.jsonSchema = jsonSchema;
     this.writeDisposition = writeDisposition;
     this.createDisposition = createDisposition;
-    this.tableDescription = tableDescription;
+    this.schemaFunction = schemaFunction;
   }
 
   @ProcessElement
   public void processElement(ProcessContext c) throws Exception {
-    List<String> partition = Lists.newArrayList(c.element().getValue()).get(0);
+    TableDestination tableDestination = c.element().getKey().getKey();
+    Integer partition = c.element().getKey().getValue();
+    List<String> partitionFiles = Lists.newArrayList(c.element().getValue()).get(0);
+    // Job ID must be different for each partition of each table.
     String jobIdPrefix = String.format(
-        c.sideInput(jobIdToken) + "_%05d", c.element().getKey());
-    TableReference ref = BigQueryHelpers.fromJsonString(jsonTableRef.get(),
-        TableReference.class);
+        c.sideInput(jobIdToken) + "0x%08x_%05d", tableDestination.hashCode(), partition);
+
+    TableReference ref = tableDestination.getTableReference();
     if (!singlePartition) {
       ref.setTableId(jobIdPrefix);
     }
@@ -108,15 +106,14 @@ class WriteTables extends DoFn<KV<Long, Iterable<List<String>>>, String> {
         bqServices.getDatasetService(c.getPipelineOptions().as(BigQueryOptions.class)),
         jobIdPrefix,
         ref,
-        BigQueryHelpers.fromJsonString(
-            jsonSchema == null ? null : jsonSchema.get(), TableSchema.class),
-        partition,
+        schemaFunction.apply(tableDestination),
+        partitionFiles,
         writeDisposition,
         createDisposition,
-        tableDescription);
-    c.output(BigQueryHelpers.toJsonString(ref));
+        tableDestination.getTableDescription());
+    c.output(KV.of(tableDestination, BigQueryHelpers.toJsonString(ref)));
 
-    removeTemporaryFiles(c.getPipelineOptions(), tempFilePrefix, partition);
+    removeTemporaryFiles(c.getPipelineOptions(), tempFilePrefix, partitionFiles);
   }
 
   private void load(
@@ -202,12 +199,6 @@ class WriteTables extends DoFn<KV<Long, Iterable<List<String>>>, String> {
 
     builder
         .addIfNotNull(DisplayData.item("tempFilePrefix", tempFilePrefix)
-            .withLabel("Temporary File Prefix"))
-        .addIfNotNull(DisplayData.item("jsonTableRef", jsonTableRef)
-            .withLabel("Table Reference"))
-        .addIfNotNull(DisplayData.item("jsonSchema", jsonSchema)
-            .withLabel("Table Schema"))
-        .addIfNotNull(DisplayData.item("tableDescription", tableDescription)
-            .withLabel("Table Description"));
+            .withLabel("Temporary File Prefix"));
   }
 }

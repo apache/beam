@@ -19,8 +19,11 @@
 package org.apache.beam.sdk.io.gcp.bigquery;
 
 import com.google.api.services.bigquery.model.TableRow;
+
+import java.util.Map;
 import java.util.UUID;
 
+import com.google.common.collect.Maps;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.KV;
@@ -31,25 +34,41 @@ import org.slf4j.LoggerFactory;
  * Writes each bundle of {@link TableRow} elements out to a separate file using
  * {@link TableRowWriter}.
  */
-class WriteBundles extends DoFn<TableRow, KV<String, Long>> {
-  private static final Logger LOG = LoggerFactory.getLogger(WriteBundles.class);
+class WriteBundlesToFiles extends DoFn<KV<TableDestination, TableRow>, WriteBundlesToFiles.Result> {
+  private static final Logger LOG = LoggerFactory.getLogger(WriteBundlesToFiles.class);
 
-  private transient TableRowWriter writer = null;
+  // Map from tablespec to a writer for that table.
+  private transient Map<TableDestination, TableRowWriter> writers;
   private final String tempFilePrefix;
 
-  WriteBundles(String tempFilePrefix) {
+  public static class Result {
+    public String filename;
+    public Long fileByteSize;
+    public TableDestination tableDestination;
+
+    public Result(String filename, Long fileByteSize, TableDestination tableDestination) {
+      this.filename = filename;
+      this.fileByteSize = fileByteSize;
+      this.tableDestination = tableDestination;
+    }
+  }
+  WriteBundlesToFiles(String tempFilePrefix) {
     this.tempFilePrefix = tempFilePrefix;
+    this.writers = Maps.newHashMap();
   }
 
   @ProcessElement
   public void processElement(ProcessContext c) throws Exception {
+    // ??? can we assume Java8?
+    TableRowWriter writer = writers.getOrDefault(c.element().getKey(), null);
     if (writer == null) {
       writer = new TableRowWriter(tempFilePrefix);
       writer.open(UUID.randomUUID().toString());
+      writers.put(c.element().getKey(), writer);
       LOG.debug("Done opening writer {}", writer);
     }
     try {
-      writer.write(c.element());
+      writer.write(c.element().getValue());
     } catch (Exception e) {
       // Discard write result and close the write.
       try {
@@ -65,10 +84,11 @@ class WriteBundles extends DoFn<TableRow, KV<String, Long>> {
 
   @FinishBundle
   public void finishBundle(Context c) throws Exception {
-    if (writer != null) {
-      c.output(writer.close());
-      writer = null;
+    for (Map.Entry<TableDestination, TableRowWriter> entry : writers.entrySet()) {
+      TableRowWriter.Result result = entry.getValue().close();
+      c.output(new Result(result.filename, result.byteSize, entry.getKey()));
     }
+    writers.clear();
   }
 
   @Override

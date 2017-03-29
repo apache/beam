@@ -18,27 +18,40 @@
 
 package org.apache.beam.sdk.io.gcp.bigquery;
 
+import com.google.api.services.bigquery.model.TableReference;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write;
+import org.apache.beam.sdk.io.gcp.bigquery.WriteBundlesToFiles.Result;
+import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 
 /**
- * Partitions temporary files based on number of files and file sizes.
+ * Partitions temporary files based on number of files and file sizes. Output key is a pair of
+ * tablespec and the list of files corresponding to each partition of that table.
  */
-class WritePartition extends DoFn<String, KV<Long, List<String>>> {
-  private final PCollectionView<Iterable<KV<String, Long>>> resultsView;
-  private TupleTag<KV<Long, List<String>>> multiPartitionsTag;
-  private TupleTag<KV<Long, List<String>>> singlePartitionTag;
+class WritePartition extends DoFn<String, KV<KV<TableDestination, Integer>, List<String>>> {
+  private final ValueProvider<TableReference> singletonOutputTable;
+  private final String singletonOutputTableDescription;
+  private final PCollectionView<Iterable<WriteBundlesToFiles.Result>> resultsView;
+  private TupleTag<KV<KV<TableDestination, Integer>, List<String>>> multiPartitionsTag;
+  private TupleTag<KV<KV<TableDestination, Integer>, List<String>>> singlePartitionTag;
 
   public WritePartition(
-      PCollectionView<Iterable<KV<String, Long>>> resultsView,
-      TupleTag<KV<Long, List<String>>> multiPartitionsTag,
-      TupleTag<KV<Long, List<String>>> singlePartitionTag) {
+      ValueProvider<TableReference> singletonOutputTable,
+      String singletonOutputTableDescription,
+      PCollectionView<Iterable<WriteBundlesToFiles.Result>> resultsView,
+      TupleTag<KV<KV<TableDestination, Integer>, List<String>>> multiPartitionsTag,
+      TupleTag<KV<KV<TableDestination, Integer>, List<String>>> singlePartitionTag) {
+    this.singletonOutputTable = singletonOutputTable;
+    this.singletonOutputTableDescription = singletonOutputTableDescription;
     this.resultsView = resultsView;
     this.multiPartitionsTag = multiPartitionsTag;
     this.singlePartitionTag = singlePartitionTag;
@@ -46,34 +59,62 @@ class WritePartition extends DoFn<String, KV<Long, List<String>>> {
 
   @ProcessElement
   public void processElement(ProcessContext c) throws Exception {
-    List<KV<String, Long>> results = Lists.newArrayList(c.sideInput(resultsView));
-    if (results.isEmpty()) {
-      TableRowWriter writer = new TableRowWriter(c.element());
-      writer.open(UUID.randomUUID().toString());
-      results.add(writer.close());
+    List<WriteBundlesToFiles.Result> results = Lists.newArrayList(c.sideInput(resultsView));
+
+    // If there are no elements to write _and_ the user specified a constant output table, then
+    // generate an empty table of that name.
+    if (results.isEmpty() && singletonOutputTable != null) {
+      TableReference singletonTable = singletonOutputTable.get();
+      if (singletonTable != null) {
+        TableRowWriter writer = new TableRowWriter(c.element());
+        writer.open(UUID.randomUUID().toString());
+        TableRowWriter.Result writerResult = writer.close();
+        results.add(new Result(writerResult.filename, writerResult.byteSize,
+            new TableDestination(singletonTable, singletonOutputTableDescription)));
+      }
     }
 
+
     long partitionId = 0;
-    int currNumFiles = 0;
-    long currSizeBytes = 0;
-    List<String> currResults = Lists.newArrayList();
+    Map<TableDestination, Integer> currNumFilesMap = Maps.newHashMap();
+    Map<TableDestination, Long> currSizeBytesMap = Maps.newHashMap();
+    Map<TableDestination, List<List<String>>> currResultsMap = Maps.newHashMap();
     for (int i = 0; i < results.size(); ++i) {
-      KV<String, Long> fileResult = results.get(i);
+      WriteBundlesToFiles.Result fileResult = results.get(i);
+      TableDestination tableDestination = fileResult.tableDestination;
+      // JAVA8
+      List<List<String>> partitions = currResultsMap.getOrDefault(tableDestination, null);
+      if (partitions == null) {
+        partitions = Lists.newArrayList();
+        partitions.add(Lists.<String>newArrayList());
+        currResultsMap.put(tableDestination, partitions);
+      }
+      int currNumFiles = currNumFilesMap.getOrDefault(tableDestination, 0);
+      long currSizeBytes = currSizeBytesMap.getOrDefault(tableDestination, 0L);
       if (currNumFiles + 1 > Write.MAX_NUM_FILES
-          || currSizeBytes + fileResult.getValue() > Write.MAX_SIZE_BYTES) {
-        c.output(multiPartitionsTag, KV.of(++partitionId, currResults));
-        currResults = Lists.newArrayList();
+          || currSizeBytes + fileResult.fileByteSize > Write.MAX_SIZE_BYTES) {
+        // Add a new partition for this table.
+        partitions.add(Lists.<String>newArrayList());
+      //  c.sideOutput(multiPartitionsTag, KV.of(++partitionId, currResults));
         currNumFiles = 0;
         currSizeBytes = 0;
+        currNumFilesMap.remove(tableDestination);
+        currSizeBytesMap.remove(tableDestination);
       }
-      ++currNumFiles;
-      currSizeBytes += fileResult.getValue();
-      currResults.add(fileResult.getKey());
+      currNumFilesMap.put(tableDestination, currNumFiles + 1);
+      currSizeBytesMap.put(tableDestination, currSizeBytes + fileResult.fileByteSize);
+      // Always add to the most recent partition for this table.
+      partitions.get(partitions.size() - 1).add(fileResult.filename);
     }
-    if (partitionId == 0) {
-      c.output(singlePartitionTag, KV.of(++partitionId, currResults));
-    } else {
-      c.output(multiPartitionsTag, KV.of(++partitionId, currResults));
+
+    for (Map.Entry<TableDestination, List<List<String>>> entry : currResultsMap.entrySet()) {
+      TableDestination tableDestination = entry.getKey();
+      List<List<String>> partitions = entry.getValue();
+      TupleTag<KV<KV<TableDestination, Integer>, List<String>>> outputTag =
+          (partitions.size() == 1) ? singlePartitionTag : multiPartitionsTag;
+      for (int i = 0; i < partitions.size(); ++i) {
+        c.output(outputTag, KV.of(KV.of(tableDestination, i + 1), partitions.get(i)));
+      }
     }
   }
 }
