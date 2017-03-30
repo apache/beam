@@ -17,6 +17,8 @@ type InputType int64
 // Key is of type beam.EncodedData
 type Key EncodedData
 
+// Underlying data type of the combiner needs to be serializable per Beam serialization rules.
+
 // Combine functions specify how to combine a collection of input values (InputType) into a single output
 // value (OutputType). This is done via one or more intermediate mutable accumulators (AccumulatorType).
 // A combiner can optionally use a key and/or contextual information (options and side inputs).
@@ -32,30 +34,26 @@ type Key EncodedData
 // In all functions, context.Context is optional, and would be the first argument.
 // A combine function must implement all methods below.
 
-// CreateAccumulator produces a fresh accumulator.
+// CreateAccumulator produces a fresh accumulator. mandatory iff args
 func (e ExampleCombineFn) CreateAccumulator( /* Key */ /* BeamTypes: O, side inputs */ ) AccumulatorType {
 	return 0
 }
 
-// AddInput updates the accumulator to include the supplied input
+// AddInput updates the accumulator to include the supplied input. mandatory
 func (e ExampleCombineFn) AddInput( /* Key */ InputType, AccumulatorType /* BeamTypes: O, side inputs */) {
 }
 
-// MergeAccumulators merges the accumulators, returning a single value holding the merged value.
-// TODO(wcn): Java signature is an iterable. Are we really merging so many accumulators? That seems
-// unlikely and unwieldy.
+// MergeAccumulators merges the accumulators, returning a single value holding the merged value. mandatory
 func (e ExampleCombineFn) MergeAccumulators( /* Key */ []AccumulatorType) AccumulatorType { return 0 }
 
-// Default returns the zero value of OutputType
-func (e ExampleCombineFn) Default() OutputType { return 0 }
-
-// ExtractOutput produces an output from the accumulator.
+// ExtractOutput produces an output from the accumulator. mandatory iff AccumulatorType != OutputType
 func (e ExampleCombineFn) ExtractOutput( /* Key */ AccumulatorType /* BeamTypes: O, side inputs */) OutputType {
 	return 0
 }
 
-// Compact  ...
+// Compact returns an accumulator that represents the same logical value as the input accumulator
+// but may have a more compact representation. For most combine functions, this method is not
+// needed, but should be implemented by combiners that (for example) buffer up elements and
+// combine them in batches. Compact is only called for combiners that are keyed. Implementing
+// it for a non-keyed combine function will result in pipeline construction failure.
 func (e ExampleCombineFn) Compact( /* Key */ AccumulatorType) AccumulatorType { return 0 }
-
-// Apply produces an output from a sequence of inputs.
-func (e ExampleCombineFn) Apply( /* Key */ chan<- InputType) OutputType { return 0 }
