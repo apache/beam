@@ -120,7 +120,6 @@ public class BatchingParDo<K, InputT, OutputT>
     private static final String END_OF_WINDOW_ID = "endOFWindow";
     private static final String BATCH_ID = "batch";
     private static final String NUM_ELEMENTS_IN_BATCH_ID = "numElementsInBatch";
-    private static final String TIMER_ALREADY_SET_ID = "timerAlreadySet";
     private static final String KEY_ID = "key";
     private final long batchSize;
     private final SimpleFunction<? super Iterable<InputT>, ? extends Iterable<OutputT>> perBatchFn;
@@ -128,9 +127,6 @@ public class BatchingParDo<K, InputT, OutputT>
 
     @TimerId(END_OF_WINDOW_ID)
     private final TimerSpec timer = TimerSpecs.timer(TimeDomain.EVENT_TIME);
-
-    @StateId(TIMER_ALREADY_SET_ID)
-    private final StateSpec<Object, ValueState<Integer>> timerAlreadySetForWindow;
 
     @StateId(BATCH_ID)
     private final StateSpec<Object, BagState<InputT>> batchSpec;
@@ -176,7 +172,6 @@ public class BatchingParDo<K, InputT, OutputT>
         }
       });
 
-      this.timerAlreadySetForWindow = StateSpecs.value(VarIntCoder.of());
       this.keySpec = StateSpecs.value(inputKeyCoder);
       // prefetch every 20% of batchSize elements. Do not prefetch if batchSize is too little
       this.prefetchFrequency = ((batchSize / 5) <= 1) ? Long.MAX_VALUE : (batchSize / 5);
@@ -185,34 +180,19 @@ public class BatchingParDo<K, InputT, OutputT>
     @ProcessElement
     public void processElement(
         @TimerId(END_OF_WINDOW_ID) Timer timer,
-        @StateId(TIMER_ALREADY_SET_ID) ValueState<Integer> timerAlreadySetForWindow,
         @StateId(BATCH_ID) BagState<InputT> batch,
         @StateId(NUM_ELEMENTS_IN_BATCH_ID) AccumulatorCombiningState<Long, Long, Long> numElementsInBatch,
         @StateId(KEY_ID) ValueState<K> key,
         ProcessContext c,
         BoundedWindow window) {
       Instant firingInstant = window.maxTimestamp().plus(allowedLateness);
-      // Timers are scoped to the window. A timer can be set only for a single time per scope.
-      // But prevent to set it at each element (set it once per window)
-      Integer isSet = timerAlreadySetForWindow.read();
-      if (isSet == null) {
         LOGGER.debug(
             "*** SET TIMER *** to point in time %s for window %s",
             firingInstant.toString(), window.toString());
         timer.set(firingInstant);
-        timerAlreadySetForWindow.write(1);
-      }
       key.write(c.element().getKey());
       batch.add(c.element().getValue());
       LOGGER.debug("*** BATCH *** Add element for window %s ", window.toString());
-/*
-      Long num = numElementsInBatch.read();
-      if (num == null) {
-        num = 0L;
-      }
-      num++;
-      numElementsInBatch.write(num);
-*/
       // blind add is supported with combiningState
       numElementsInBatch.add(1L);
       Long num = numElementsInBatch.read();
