@@ -17,19 +17,18 @@
  */
 package org.apache.beam.runners.flink;
 
-import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.runners.core.SplittableParDo;
+import java.util.List;
 import org.apache.beam.runners.core.construction.PTransformMatchers;
 import org.apache.beam.runners.core.construction.ReplacementOutputs;
 import org.apache.beam.runners.core.construction.SingleInputOutputOverrideFactory;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.runners.PTransformMatcher;
 import org.apache.beam.sdk.runners.PTransformOverride;
-import org.apache.beam.sdk.runners.PTransformOverrideFactory;
 import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -71,43 +70,48 @@ class FlinkStreamingPipelineTranslator extends FlinkPipelineTranslator {
 
   @Override
   public void translate(Pipeline pipeline) {
-    Map<PTransformMatcher, PTransformOverrideFactory> transformOverrides =
-        ImmutableMap.<PTransformMatcher, PTransformOverrideFactory>builder()
-            .put(
-                PTransformMatchers.splittableParDoMulti(), new SplittableParDoOverrideFactory())
-            .put(
-                PTransformMatchers.classEqualTo(View.AsIterable.class),
-                new ReflectiveOneToOneOverrideFactory(
-                    FlinkStreamingViewOverrides.StreamingViewAsIterable.class, flinkRunner))
-            .put(
-                PTransformMatchers.classEqualTo(View.AsList.class),
-                new ReflectiveOneToOneOverrideFactory(
-                    FlinkStreamingViewOverrides.StreamingViewAsList.class, flinkRunner))
-            .put(
-                PTransformMatchers.classEqualTo(View.AsMap.class),
-                new ReflectiveOneToOneOverrideFactory(
-                    FlinkStreamingViewOverrides.StreamingViewAsMap.class, flinkRunner))
-            .put(
-                PTransformMatchers.classEqualTo(View.AsMultimap.class),
-                new ReflectiveOneToOneOverrideFactory(
-                    FlinkStreamingViewOverrides.StreamingViewAsMultimap.class, flinkRunner))
-            .put(
-                PTransformMatchers.classEqualTo(View.AsSingleton.class),
-                new ReflectiveOneToOneOverrideFactory(
-                    FlinkStreamingViewOverrides.StreamingViewAsSingleton.class, flinkRunner))
+    List<PTransformOverride> transformOverrides =
+        ImmutableList.<PTransformOverride>builder()
+            .add(
+                PTransformOverride.of(
+                    PTransformMatchers.splittableParDoMulti(),
+                    new SplittableParDoOverrideFactory()))
+            .add(
+                PTransformOverride.of(
+                    PTransformMatchers.classEqualTo(View.AsIterable.class),
+                    new ReflectiveOneToOneOverrideFactory(
+                        FlinkStreamingViewOverrides.StreamingViewAsIterable.class, flinkRunner)))
+            .add(
+                PTransformOverride.of(
+                    PTransformMatchers.classEqualTo(View.AsList.class),
+                    new ReflectiveOneToOneOverrideFactory(
+                        FlinkStreamingViewOverrides.StreamingViewAsList.class, flinkRunner)))
+            .add(
+                PTransformOverride.of(
+                    PTransformMatchers.classEqualTo(View.AsMap.class),
+                    new ReflectiveOneToOneOverrideFactory(
+                        FlinkStreamingViewOverrides.StreamingViewAsMap.class, flinkRunner)))
+            .add(
+                PTransformOverride.of(
+                    PTransformMatchers.classEqualTo(View.AsMultimap.class),
+                    new ReflectiveOneToOneOverrideFactory(
+                        FlinkStreamingViewOverrides.StreamingViewAsMultimap.class, flinkRunner)))
+            .add(
+                PTransformOverride.of(
+                    PTransformMatchers.classEqualTo(View.AsSingleton.class),
+                    new ReflectiveOneToOneOverrideFactory(
+                        FlinkStreamingViewOverrides.StreamingViewAsSingleton.class, flinkRunner)))
             // this has to be last since the ViewAsSingleton override
             // can expand to a Combine.GloballyAsSingletonView
-            .put(
-                PTransformMatchers.classEqualTo(Combine.GloballyAsSingletonView.class),
-                new ReflectiveOneToOneOverrideFactory(
-                    FlinkStreamingViewOverrides.StreamingCombineGloballyAsSingletonView.class,
-                    flinkRunner))
-        .build();
+            .add(
+                PTransformOverride.of(
+                    PTransformMatchers.classEqualTo(Combine.GloballyAsSingletonView.class),
+                    new ReflectiveOneToOneOverrideFactory(
+                        FlinkStreamingViewOverrides.StreamingCombineGloballyAsSingletonView.class,
+                        flinkRunner)))
+            .build();
 
-    for (Map.Entry<PTransformMatcher, PTransformOverrideFactory> override :
-        transformOverrides.entrySet()) {
-      pipeline.replace(PTransformOverride.of(override.getKey(), override.getValue()));
-    }
+    pipeline.replaceAll(transformOverrides);
     super.translate(pipeline);
   }
 
