@@ -355,10 +355,14 @@ public abstract class FileBasedSource<T> extends OffsetBasedSource<T> {
         }
         List<? extends FileBasedSource<T>> splitResults =
             ImmutableList.copyOf(Iterables.concat(Futures.allAsList(futures).get()));
-        LOG.debug(
-            "Splitting the source based on file pattern {} took {} ms",
+        LOG.info(
+            "Splitting filepattern {} into bundles of size {} took {} ms "
+                + "and produced {} files and {} bundles",
             fileOrPatternSpec,
-            System.currentTimeMillis() - startTime);
+            desiredBundleSizeBytes,
+            System.currentTimeMillis() - startTime,
+            expandedFiles.size(),
+            splitResults.size());
         return splitResults;
       } finally {
         service.shutdown();
