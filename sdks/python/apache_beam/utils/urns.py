@@ -22,3 +22,5 @@ SLIDING_WINDOWS_FN = "beam:window_fn:sliding_windows:v0.1"
 SESSION_WINDOWS_FN = "beam:window_fn:session_windows:v0.1"
 
 PICKLED_CODER = "beam:coder:pickled_python:v0.1"
+
+PICKLED_TRANSFORM = "beam:ptransform:pickled_python:v0.1"

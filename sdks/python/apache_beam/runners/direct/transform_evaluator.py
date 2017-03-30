@@ -323,23 +323,12 @@ class _ParDoEvaluator(_TransformEvaluator):
     transform = self._applied_ptransform.transform
 
     self._tagged_receivers = _TaggedReceivers(self._evaluation_context)
-    if isinstance(self._applied_ptransform.parent.transform, core._MultiParDo):  # pylint: disable=protected-access
-      do_outputs_tuple = self._applied_ptransform.parent.outputs[0]
-      assert isinstance(do_outputs_tuple, pvalue.DoOutputsTuple)
-      main_output_pcollection = do_outputs_tuple[do_outputs_tuple._main_tag]  # pylint: disable=protected-access
-
-      for side_output_tag in transform.side_output_tags:
-        output_pcollection = do_outputs_tuple[side_output_tag]
-        self._tagged_receivers[side_output_tag] = (
-            self._evaluation_context.create_bundle(output_pcollection))
-        self._tagged_receivers[side_output_tag].tag = side_output_tag
-    else:
-      assert len(self._outputs) == 1
-      main_output_pcollection = list(self._outputs)[0]
-
-    self._tagged_receivers[None] = self._evaluation_context.create_bundle(
-        main_output_pcollection)
-    self._tagged_receivers[None].tag = None  # main_tag is None.
+    for side_output_tag in self._applied_ptransform.outputs:
+      output_pcollection = pvalue.PCollection(None, tag=side_output_tag)
+      output_pcollection.producer = self._applied_ptransform
+      self._tagged_receivers[side_output_tag] = (
+          self._evaluation_context.create_bundle(output_pcollection))
+      self._tagged_receivers[side_output_tag].tag = side_output_tag
 
     self._counter_factory = counters.CounterFactory()
 
