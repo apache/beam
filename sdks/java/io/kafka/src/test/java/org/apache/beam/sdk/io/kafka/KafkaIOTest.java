@@ -292,7 +292,6 @@ public class KafkaIOTest {
   }
 
   @Test
-  @Category(NeedsRunner.class)
   public void testUnboundedSourceWithSingleTopic() {
     // same as testUnboundedSource, but with single topic
 
