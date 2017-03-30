@@ -71,9 +71,12 @@ import org.apache.kafka.clients.consumer.MockConsumer;
 import org.apache.kafka.clients.consumer.OffsetResetStrategy;
 import org.apache.kafka.clients.producer.MockProducer;
 import org.apache.kafka.clients.producer.Producer;
+import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.PartitionInfo;
 import org.apache.kafka.common.TopicPartition;
+import org.apache.kafka.common.serialization.Serializer;
+import org.apache.kafka.common.utils.Utils;
 import org.hamcrest.collection.IsIterableContainingInAnyOrder;
 import org.joda.time.Instant;
 import org.junit.Rule;
@@ -728,8 +731,21 @@ public class KafkaIOTest {
   private static class ProducerFactoryFn
     implements SerializableFunction<Map<String, Object>, Producer<Integer, Long>> {
 
+    @SuppressWarnings("unchecked")
     @Override
     public Producer<Integer, Long> apply(Map<String, Object> config) {
+
+      // Make sure the config is correctly set up for serializers.
+      Utils.newInstance(
+          ((Class<?>) config.get(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG))
+              .asSubclass(Serializer.class)
+      ).configure(config, true);
+
+      Utils.newInstance(
+          ((Class<?>) config.get(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG))
+              .asSubclass(Serializer.class)
+      ).configure(config, false);
+
       return MOCK_PRODUCER;
     }
   }

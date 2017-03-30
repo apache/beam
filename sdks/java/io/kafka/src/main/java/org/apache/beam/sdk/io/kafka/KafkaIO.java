@@ -254,7 +254,6 @@ public class KafkaIO {
   public static <K, V> Write<K, V> write() {
     return new AutoValue_KafkaIO_Write.Builder<K, V>()
         .setProducerConfig(Write.DEFAULT_PRODUCER_PROPERTIES)
-        .setValueOnly(false)
         .build();
   }
 
@@ -1159,7 +1158,6 @@ public class KafkaIO {
     @Nullable abstract String getTopic();
     @Nullable abstract Coder<K> getKeyCoder();
     @Nullable abstract Coder<V> getValueCoder();
-    abstract boolean getValueOnly();
     abstract Map<String, Object> getProducerConfig();
     @Nullable
     abstract SerializableFunction<Map<String, Object>, Producer<K, V>> getProducerFactoryFn();
@@ -1171,7 +1169,6 @@ public class KafkaIO {
       abstract Builder<K, V> setTopic(String topic);
       abstract Builder<K, V> setKeyCoder(Coder<K> keyCoder);
       abstract Builder<K, V> setValueCoder(Coder<V> valueCoder);
-      abstract Builder<K, V> setValueOnly(boolean valueOnly);
       abstract Builder<K, V> setProducerConfig(Map<String, Object> producerConfig);
       abstract Builder<K, V> setProducerFactoryFn(
           SerializableFunction<Map<String, Object>, Producer<K, V>> fn);
@@ -1231,7 +1228,7 @@ public class KafkaIO {
      * collections of values rather thank {@link KV}s.
      */
     public PTransform<PCollection<V>, PDone> values() {
-      return new KafkaValueWrite<>(toBuilder().setValueOnly(true).build());
+      return new KafkaValueWrite<>(withKeyCoder(new NullOnlyCoder<K>()).toBuilder().build());
     }
 
     @Override
@@ -1245,9 +1242,7 @@ public class KafkaIO {
       checkNotNull(getProducerConfig().get(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG),
           "Kafka bootstrap servers should be set");
       checkNotNull(getTopic(), "Kafka topic should be set");
-      if (!getValueOnly()) {
-        checkNotNull(getKeyCoder(), "Key coder should be set");
-      }
+      checkNotNull(getKeyCoder(), "Key coder should be set");
       checkNotNull(getValueCoder(), "Value coder should be set");
     }
 
@@ -1376,7 +1371,7 @@ public class KafkaIO {
       // Set custom kafka serializers. We can not serialize user objects then pass the bytes to
       // producer. The key and value objects are used in kafka Partitioner interface.
       // This does not matter for default partitioner in Kafka as it uses just the serialized
-      // key bytes to pick a partition. But are making sure user's custom partitioner would work
+      // key bytes to pick a partition. But making sure user's custom partitioner would work
       // as expected.
 
       this.producerConfig = new HashMap<>(spec.getProducerConfig());
