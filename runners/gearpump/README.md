@@ -19,4 +19,43 @@
 
 ## Gearpump Beam Runner
 
-The Gearpump Beam runner allows users to execute pipelines written using the Apache Beam programming API with Apache Gearpump (incubating) as an execution engine. 
+The Gearpump Beam runner allows users to execute pipelines written using the Apache Beam programming API with Apache Gearpump (incubating) as an execution engine.
+
+##Getting Started
+
+The following shows how to run the WordCount example that is provided with the source code on Beam.
+
+###Installing Beam
+
+To get the latest version of Beam with Gearpump-Runner, first clone the Beam repository:
+
+```
+git clone https://github.com/apache/beam
+git checkout gearpump-runner
+```
+
+Then switch to the newly created directory and run Maven to build the Apache Beam:
+
+```
+cd beam
+mvn clean install -DskipTests
+```
+
+Now Apache Beam and the Gearpump Runner are installed in your local Maven repository.
+
+###Running Wordcount Example
+
+Download something to count:
+
+```
+curl http://www.gutenberg.org/cache/epub/1128/pg1128.txt > /tmp/kinglear.txt
+```
+
+Run the pipeline, using the Gearpump runner:
+
+```
+cd examples/java
+mvn exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount -Dexec.args="--inputFile=/tmp/kinglear.txt --output=/tmp/wordcounts.txt --runner=TestGearpumpRunner" -Pgearpump-runner
+```
+
+Once completed, check the output file /tmp/wordcounts.txt-00000-of-00001

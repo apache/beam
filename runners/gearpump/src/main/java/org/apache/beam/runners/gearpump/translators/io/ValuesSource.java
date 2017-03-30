@@ -110,8 +110,6 @@ public class ValuesSource<T> extends UnboundedSource<T, UnboundedSource.Checkpoi
       this.source = source;
     }
 
-
-
     @Override
     public boolean start() throws IOException {
       if (null == iterator) {

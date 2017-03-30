@@ -99,13 +99,11 @@
       <groupId>org.apache.gearpump</groupId>
       <artifactId>gearpump-streaming_2.11</artifactId>
       <version>${gearpump.version}</version>
-      <scope>provided</scope>
     </dependency>
     <dependency>
       <groupId>org.apache.gearpump</groupId>
       <artifactId>gearpump-core_2.11</artifactId>
       <version>${gearpump.version}</version>
-      <scope>provided</scope>
     </dependency>
     <dependency>
       <groupId>com.typesafe</groupId>

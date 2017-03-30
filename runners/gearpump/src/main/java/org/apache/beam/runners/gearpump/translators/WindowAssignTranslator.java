@@ -39,7 +39,7 @@ import org.joda.time.Instant;
  * {@link Window.Bound} is translated to Gearpump flatMap function.
  */
 @SuppressWarnings("unchecked")
-public class WindowAssignTranslator<T> implements  TransformTranslator<Window.Assign<T>> {
+public class WindowAssignTranslator<T> implements TransformTranslator<Window.Assign<T>> {
 
   private static final long serialVersionUID = -964887482120489061L;
 
