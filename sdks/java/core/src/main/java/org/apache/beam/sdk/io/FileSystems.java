@@ -206,7 +206,7 @@ public class FileSystems {
     if (srcToCopy.isEmpty()) {
       return;
     }
-    getFileSystemInternal(Iterables.getOnlyElement(srcToCopy).getScheme())
+    getFileSystemInternal(srcToCopy.iterator().next().getScheme())
         .copy(srcToCopy, destToCopy);
   }
 
@@ -244,7 +244,7 @@ public class FileSystems {
     if (srcToRename.isEmpty()) {
       return;
     }
-    getFileSystemInternal(Iterables.getOnlyElement(srcToRename).getScheme())
+    getFileSystemInternal(srcToRename.iterator().next().getScheme())
         .rename(srcToRename, destToRename);
   }
 
@@ -345,11 +345,6 @@ public class FileSystems {
             return parseScheme(spec);
           }})
         .toSet();
-    checkArgument(
-        schemes.size() == 1,
-        String.format(
-            "Expect specs have the same scheme, but received %s.",
-            Joiner.on(", ").join(schemes)));
     return Iterables.getOnlyElement(schemes);
   }
 
