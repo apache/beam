@@ -102,10 +102,10 @@ class ConsumerTrackingPipelineVisitorTest(unittest.TestCase):
     root_transforms = sorted(
         [t.transform for t in self.visitor.root_transforms])
     self.assertEqual(root_transforms, sorted([root_create]))
-    self.assertEqual(len(self.visitor.step_names), 4)
+    self.assertEqual(len(self.visitor.step_names), 3)
     self.assertEqual(len(self.visitor.views), 1)
     self.assertTrue(isinstance(self.visitor.views[0],
-                               pvalue.ListPCollectionView))
+                               pvalue.AsList))
 
   def test_co_group_by_key(self):
     emails = self.pipeline | 'email' >> Create([('joe', 'joe@example.com')])

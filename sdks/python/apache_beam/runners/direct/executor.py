@@ -76,6 +76,7 @@ class ExecutorService(object):
         return None
 
     def run(self):
+
       while not self.shutdown_requested:
         task = self._get_task_or_none()
         if task:
@@ -249,9 +250,9 @@ class _TimerCompletionCallback(_CompletionCallback):
 class TransformExecutor(ExecutorService.CallableTask):
   """TransformExecutor will evaluate a bundle using an applied ptransform.
 
-  A CallableTask responsible for constructing a TransformEvaluator andevaluating
-  it on some bundle of input, and registering the result using the completion
-  callback.
+  A CallableTask responsible for constructing a TransformEvaluator and
+  evaluating it on some bundle of input, and registering the result using the
+  completion callback.
   """
 
   def __init__(self, transform_evaluator_registry, evaluation_context,
