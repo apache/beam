@@ -233,7 +233,7 @@ public final class PaneInfo {
   }
 
   /**
-   * Return true if this is the last pane that will be produced in the associated window.
+   * Return timer in this pane.
    */
   public Timing getTiming() {
     return timing;
