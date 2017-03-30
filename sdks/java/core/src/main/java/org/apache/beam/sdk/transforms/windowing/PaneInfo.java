@@ -233,7 +233,7 @@ public final class PaneInfo {
   }
 
   /**
-   * Return timer in this pane.
+   * Return timer of this pane.
    */
   public Timing getTiming() {
     return timing;
