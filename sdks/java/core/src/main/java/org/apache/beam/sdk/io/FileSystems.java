@@ -126,7 +126,7 @@ public class FileSystems {
         .from(resourceIds)
         .transform(new Function<ResourceId, String>() {
           @Override
-          public String apply(ResourceId resourceId) {
+          public String apply(@Nonnull ResourceId resourceId) {
           return resourceId.toString();
           }})
         .toList());
@@ -267,7 +267,7 @@ public class FileSystems {
           .from(matchResources(Lists.newArrayList(resourceIds)))
           .filter(new Predicate<MatchResult>() {
             @Override
-            public boolean apply(MatchResult matchResult) {
+            public boolean apply(@Nonnull MatchResult matchResult) {
               return !matchResult.status().equals(MatchResult.Status.NOT_FOUND);
             }})
           .transformAndConcat(new Function<MatchResult, Iterable<Metadata>>() {
@@ -325,7 +325,7 @@ public class FileSystems {
         .append(destResourceIds)
         .transform(new Function<ResourceId, String>() {
           @Override
-          public String apply(ResourceId resourceId) {
+          public String apply(@Nonnull ResourceId resourceId) {
             return resourceId.getScheme();
           }})
         .toSet();
