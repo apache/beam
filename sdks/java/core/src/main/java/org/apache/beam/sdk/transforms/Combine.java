@@ -1601,7 +1601,7 @@ public class Combine {
       return combined.apply(
           CreatePCollectionView.<OutputT, OutputT>of(
               PCollectionViews.singletonView(
-                  input.getPipeline(),
+                  combined,
                   input.getWindowingStrategy(),
                   insertDefault,
                   insertDefault ? fn.defaultValue() : null,

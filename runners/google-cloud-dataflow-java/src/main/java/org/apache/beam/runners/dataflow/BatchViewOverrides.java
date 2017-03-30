@@ -214,7 +214,7 @@ class BatchViewOverrides {
       KvCoder<K, V> inputCoder = (KvCoder) input.getCoder();
       try {
         PCollectionView<Map<K, V>> view = PCollectionViews.mapView(
-            input.getPipeline(), input.getWindowingStrategy(), inputCoder);
+            input, input.getWindowingStrategy(), inputCoder);
         return BatchViewAsMultimap.applyForMapLike(runner, input, view, true /* unique keys */);
       } catch (NonDeterministicException e) {
         runner.recordViewUsesNonDeterministicKeyCoder(this);
@@ -701,7 +701,7 @@ class BatchViewOverrides {
       KvCoder<K, V> inputCoder = (KvCoder) input.getCoder();
       try {
         PCollectionView<Map<K, Iterable<V>>> view = PCollectionViews.multimapView(
-            input.getPipeline(), input.getWindowingStrategy(), inputCoder);
+            input, input.getWindowingStrategy(), inputCoder);
 
         return applyForMapLike(runner, input, view, false /* unique keys not expected */);
       } catch (NonDeterministicException e) {
@@ -959,7 +959,7 @@ class BatchViewOverrides {
       @SuppressWarnings({"rawtypes", "unchecked"})
       PCollectionView<ViewT> view =
           (PCollectionView<ViewT>) PCollectionViews.<FinalT, W>singletonView(
-              input.getPipeline(),
+              (PCollection) input,
               (WindowingStrategy) input.getWindowingStrategy(),
               hasDefault,
               defaultValue,
@@ -1092,7 +1092,7 @@ class BatchViewOverrides {
     @Override
     public PCollectionView<List<T>> expand(PCollection<T> input) {
       PCollectionView<List<T>> view = PCollectionViews.listView(
-          input.getPipeline(), input.getWindowingStrategy(), input.getCoder());
+          input, input.getWindowingStrategy(), input.getCoder());
       return applyForIterableLike(runner, input, view);
     }
 
@@ -1177,7 +1177,7 @@ class BatchViewOverrides {
     @Override
     public PCollectionView<Iterable<T>> expand(PCollection<T> input) {
       PCollectionView<Iterable<T>> view = PCollectionViews.iterableView(
-          input.getPipeline(), input.getWindowingStrategy(), input.getCoder());
+          input, input.getWindowingStrategy(), input.getCoder());
       return BatchViewAsList.applyForIterableLike(runner, input, view);
     }
   }
