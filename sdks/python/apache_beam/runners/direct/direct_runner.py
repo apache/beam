@@ -86,6 +86,10 @@ class DirectRunner(PipelineRunner):
                         evaluation_context)
     # Start the executor. This is a non-blocking call, it will start the
     # execution in background threads and return.
+
+    from apache_beam.utils.value_provider import RuntimeValueProvider
+    if pipeline.options:
+      RuntimeValueProvider.set_runtime_options(pipeline.options._options_id, {})
     executor.start(self.visitor.root_transforms)
     result = DirectPipelineResult(executor, evaluation_context)
 
