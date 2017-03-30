@@ -29,10 +29,12 @@ type Key EncodedData
 // KeyedContextualCombineFn (both)
 
 // Pipeline construction time will verify that the function signatures supplied are consistent
-// with one of the flavors above.
+// with one of the flavors above. If the signatures are not consistent, the pipeline will fail
+// in the construction phase.
 
 // In all functions, context.Context is optional, and would be the first argument.
-// A combine function must implement all methods below.
+// A combiner must provide the methods required based on their descriptions. If a method is missing,
+// the pipeline will fail in the construction phase.
 
 // CreateAccumulator produces a fresh accumulator. mandatory iff args
 func (e ExampleCombineFn) CreateAccumulator( /* Key */ /* BeamTypes: O, side inputs */ ) AccumulatorType {
