@@ -254,6 +254,7 @@ public class KafkaIO {
   public static <K, V> Write<K, V> write() {
     return new AutoValue_KafkaIO_Write.Builder<K, V>()
         .setProducerConfig(Write.DEFAULT_PRODUCER_PROPERTIES)
+        .setValueOnly(false)
         .build();
   }
 
