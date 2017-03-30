@@ -488,38 +488,14 @@ public class Window {
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
 
-      if (windowFn != null) {
-        builder
-            .add(DisplayData.item("windowFn", windowFn.getClass())
-              .withLabel("Windowing Function"))
-            .include("windowFn", windowFn);
-      }
-
-      if (allowedLateness != null) {
-        builder.addIfNotDefault(DisplayData.item("allowedLateness", allowedLateness)
-              .withLabel("Allowed Lateness"),
-            Duration.millis(BoundedWindow.TIMESTAMP_MAX_VALUE.getMillis()));
-      }
-
-      if (trigger != null && !(trigger instanceof DefaultTrigger)) {
-        builder.add(DisplayData.item("trigger", trigger.toString())
-          .withLabel("Trigger"));
-      }
-
-      if (mode != null) {
-        builder.add(DisplayData.item("accumulationMode", mode.toString())
-          .withLabel("Accumulation Mode"));
-      }
-
-      if (closingBehavior != null) {
-        builder.add(DisplayData.item("closingBehavior", closingBehavior.toString())
-          .withLabel("Window Closing Behavior"));
-      }
-
-      if (outputTimeFn != null) {
-        builder.add(DisplayData.item("outputTimeFn", outputTimeFn.getClass())
-          .withLabel("Output Time Function"));
-      }
+      populateWindowingStrategyDisplayData(
+          WindowingStrategy.of(windowFn)
+              .withAllowedLateness(allowedLateness)
+              .withClosingBehavior(closingBehavior)
+              .withTrigger(trigger)
+              .withOutputTimeFn(outputTimeFn)
+              .withMode(mode),
+          builder);
     }
 
     @Override
@@ -564,6 +540,52 @@ public class Window {
 
     public WindowFn<T, ?> getWindowFn() {
       return updatedStrategy.getWindowFn();
+    }
+
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      super.populateDisplayData(builder);
+      populateWindowingStrategyDisplayData(updatedStrategy, builder);
+    }
+  }
+
+  private static void populateWindowingStrategyDisplayData(
+      WindowingStrategy<?, ?> windowingStrategy, DisplayData.Builder builder) {
+
+    builder
+        .add(
+            DisplayData.item("windowFn", windowingStrategy.getWindowFn().getClass())
+                .withLabel("Windowing Function"))
+        .include("windowFn", windowingStrategy.getWindowFn());
+
+    if (windowingStrategy.isAllowedLatenessSpecified()) {
+      builder.addIfNotDefault(
+          DisplayData.item("allowedLateness", windowingStrategy.getAllowedLateness())
+              .withLabel("Allowed Lateness"),
+          Duration.millis(BoundedWindow.TIMESTAMP_MAX_VALUE.getMillis()));
+    }
+
+    if (windowingStrategy.isTriggerSpecified()
+        && !(windowingStrategy.getTrigger() instanceof DefaultTrigger)) {
+      builder.add(
+          DisplayData.item("trigger", windowingStrategy.getTrigger().toString())
+              .withLabel("Trigger"));
+    }
+
+    if (windowingStrategy.isModeSpecified()) {
+      builder.add(
+          DisplayData.item("accumulationMode", windowingStrategy.getMode().toString())
+              .withLabel("Accumulation Mode"));
+    }
+
+    builder.add(
+        DisplayData.item("closingBehavior", windowingStrategy.getClosingBehavior().toString())
+            .withLabel("Window Closing Behavior"));
+
+    if (windowingStrategy.isOutputTimeFnSpecified()) {
+      builder.add(
+          DisplayData.item("outputTimeFn", windowingStrategy.getOutputTimeFn().getClass())
+              .withLabel("Output Time Function"));
     }
   }
 
