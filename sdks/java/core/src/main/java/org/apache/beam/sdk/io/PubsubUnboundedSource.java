@@ -42,7 +42,9 @@ import java.util.NoSuchElementException;
 import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.Coder;
@@ -56,6 +58,7 @@ import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PubsubOptions;
 import org.apache.beam.sdk.options.ValueProvider;
+import org.apache.beam.sdk.runners.PipelineRunner;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -312,8 +315,14 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
           reader.ackBatch(batchSafeToAckIds);
         }
       } finally {
-        checkState(reader.numInFlightCheckpoints.decrementAndGet() >= 0,
+        int remainingInFlight = reader.numInFlightCheckpoints.decrementAndGet();
+        checkState(remainingInFlight >= 0,
                    "Miscounted in-flight checkpoints");
+        if (!reader.active.get() && remainingInFlight == 0) {
+          // The reader has been closed and it has no more outstanding checkpoints. The client
+          // must be closed so it doesn't leak
+          reader.closeClient();
+        }
         reader = null;
         safeToAckIds = null;
       }
@@ -398,10 +407,16 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
     private final SimpleFunction<PubsubIO.PubsubMessage, T> parseFn;
 
     /**
-     * Client on which to talk to Pubsub. Null if closed.
+     * Client on which to talk to Pubsub. Contains a null value if closed.
      */
-    @Nullable
-    private PubsubClient pubsubClient;
+    private AtomicReference<PubsubClient> pubsubClient;
+
+    /**
+     * The number of currently active calls to {@link #ackBatch(List)}. Batches can be ACKed from
+     * another thread when the {@link PipelineRunner} finalizes a checkpoint, and the client should
+     * not be closed while those calls are occurring.
+     */
+    private AtomicBoolean active = new AtomicBoolean();
 
     /**
      * Ack timeout, in ms, as set on subscription when we first start reading. Not
@@ -590,8 +605,9 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
       this.subscription = subscription;
       this.parseFn = parseFn;
       pubsubClient =
-          outer.outer.pubsubFactory.newClient(outer.outer.timestampLabel, outer.outer.idLabel,
-                                              options);
+          new AtomicReference<>(
+              outer.outer.pubsubFactory.newClient(
+                  outer.outer.timestampLabel, outer.outer.idLabel, options));
       ackTimeoutMs = -1;
       safeToAckIds = new HashSet<>();
       notYetRead = new ArrayDeque<>();
@@ -626,17 +642,17 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
 
     @VisibleForTesting
     PubsubClient getPubsubClient() {
-      return pubsubClient;
+      return pubsubClient.get();
     }
 
     /**
      * BLOCKING
      * ACK {@code ackIds} back to Pubsub.
-     * CAUTION: May be invoked from a separate checkpointing thread.
+     * CAUTION: May be invoked from a separate thread.
      * CAUTION: Retains {@code ackIds}.
      */
     void ackBatch(List<String> ackIds) throws IOException {
-      pubsubClient.acknowledge(subscription, ackIds);
+      pubsubClient.get().acknowledge(subscription, ackIds);
       ackedIds.add(ackIds);
     }
 
@@ -646,7 +662,7 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
      * with the given {@code ockIds}. Does not retain {@code ackIds}.
      */
     public void nackBatch(long nowMsSinceEpoch, List<String> ackIds) throws IOException {
-      pubsubClient.modifyAckDeadline(subscription, ackIds, 0);
+      pubsubClient.get().modifyAckDeadline(subscription, ackIds, 0);
       numNacked.add(nowMsSinceEpoch, ackIds.size());
     }
 
@@ -657,7 +673,7 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
      */
     private void extendBatch(long nowMsSinceEpoch, List<String> ackIds) throws IOException {
       int extensionSec = (ackTimeoutMs * ACK_EXTENSION_PCT) / (100 * 1000);
-      pubsubClient.modifyAckDeadline(subscription, ackIds, extensionSec);
+      pubsubClient.get().modifyAckDeadline(subscription, ackIds, extensionSec);
       numExtendedDeadlines.add(nowMsSinceEpoch, ackIds.size());
     }
 
@@ -792,9 +808,7 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
       // Pull the next batch.
       // BLOCKs until received.
       Collection<PubsubClient.IncomingMessage> receivedMessages =
-          pubsubClient.pull(requestTimeMsSinceEpoch,
-                            subscription,
-                            PULL_BATCH_SIZE, true);
+          pubsubClient.get().pull(requestTimeMsSinceEpoch, subscription, PULL_BATCH_SIZE, true);
       if (receivedMessages.isEmpty()) {
         // Nothing available yet. Try again later.
         return;
@@ -899,7 +913,7 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
     @Override
     public boolean start() throws IOException {
       // Determine the ack timeout.
-      ackTimeoutMs = pubsubClient.ackDeadlineSeconds(subscription) * 1000;
+      ackTimeoutMs = pubsubClient.get().ackDeadlineSeconds(subscription) * 1000;
       return advance();
     }
 
@@ -991,11 +1005,28 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
       return current.recordId.getBytes(Charsets.UTF_8);
     }
 
+    /**
+     * {@inheritDoc}.
+     *
+     * <p>Marks this {@link PubsubReader} as no longer active. The {@link PubsubClient}
+     * continue to exist and be active beyond the life of this call if there are any in-flight
+     * checkpoints. When no in-flight checkpoints remain, the reader will be closed.
+     */
     @Override
     public void close() throws IOException {
-      if (pubsubClient != null) {
-        pubsubClient.close();
-        pubsubClient = null;
+      active.set(false);
+      if (numInFlightCheckpoints.get() == 0) {
+        closeClient();
+      }
+    }
+
+    /**
+     * Close this reader's underlying {@link PubsubClient}.
+     */
+    private void closeClient() throws IOException {
+      PubsubClient client = pubsubClient.getAndSet(null);
+      if (client != null) {
+        client.close();
       }
     }
 
@@ -1006,7 +1037,7 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
 
     @Override
     public Instant getWatermark() {
-      if (pubsubClient.isEOF() && notYetRead.isEmpty()) {
+      if (pubsubClient.get().isEOF() && notYetRead.isEmpty()) {
         // For testing only: Advance the watermark to the end of time to signal
         // the test is complete.
         return BoundedWindow.TIMESTAMP_MAX_VALUE;
