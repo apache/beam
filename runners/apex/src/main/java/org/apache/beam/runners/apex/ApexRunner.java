@@ -242,7 +242,7 @@ public class ApexRunner extends PipelineRunner<ApexRunnerResult> {
           .apply(Combine.globally(transform.getCombineFn())
               .withoutDefaults().withFanout(transform.getFanout()));
 
-      PCollectionView<OutputT> view = PCollectionViews.singletonView(combined.getPipeline(),
+      PCollectionView<OutputT> view = PCollectionViews.singletonView(combined,
           combined.getWindowingStrategy(), transform.getInsertDefault(),
           transform.getInsertDefault() ? transform.getCombineFn().defaultValue() : null,
               combined.getCoder());
@@ -338,8 +338,8 @@ public class ApexRunner extends PipelineRunner<ApexRunnerResult> {
 
     @Override
     public PCollectionView<Iterable<T>> expand(PCollection<T> input) {
-      PCollectionView<Iterable<T>> view = PCollectionViews.iterableView(input.getPipeline(),
-          input.getWindowingStrategy(), input.getCoder());
+      PCollectionView<Iterable<T>> view =
+          PCollectionViews.iterableView(input, input.getWindowingStrategy(), input.getCoder());
 
       return input.apply(Combine.globally(new Concatenate<T>()).withoutDefaults())
           .apply(CreateApexPCollectionView.<T, Iterable<T>> of(view));

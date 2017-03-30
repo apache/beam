@@ -31,7 +31,6 @@ import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Objects;
 import javax.annotation.Nullable;
-import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.Coder;
@@ -60,13 +59,13 @@ public class PCollectionViews {
    * {@code defaultValue} for any empty windows.
    */
   public static <T, W extends BoundedWindow> PCollectionView<T> singletonView(
-      Pipeline pipeline,
+      PCollection<T> pCollection,
       WindowingStrategy<?, W> windowingStrategy,
       boolean hasDefault,
       @Nullable T defaultValue,
       Coder<T> valueCoder) {
      return new SimplePCollectionView<>(
-        pipeline,
+        pCollection,
         new SingletonViewFn<>(hasDefault, defaultValue, valueCoder),
         windowingStrategy,
         valueCoder);
@@ -77,11 +76,11 @@ public class PCollectionViews {
    * provided {@link Coder} and windowed using the provided {@link WindowingStrategy}.
    */
   public static <T, W extends BoundedWindow> PCollectionView<Iterable<T>> iterableView(
-      Pipeline pipeline,
+      PCollection<T> pCollection,
       WindowingStrategy<?, W> windowingStrategy,
       Coder<T> valueCoder) {
     return new SimplePCollectionView<>(
-        pipeline, new IterableViewFn<T>(), windowingStrategy, valueCoder);
+        pCollection, new IterableViewFn<T>(), windowingStrategy, valueCoder);
   }
 
   /**
@@ -89,11 +88,11 @@ public class PCollectionViews {
    * provided {@link Coder} and windowed using the provided {@link WindowingStrategy}.
    */
   public static <T, W extends BoundedWindow> PCollectionView<List<T>> listView(
-      Pipeline pipeline,
+      PCollection<T> pCollection,
       WindowingStrategy<?, W> windowingStrategy,
       Coder<T> valueCoder) {
      return new SimplePCollectionView<>(
-        pipeline, new ListViewFn<T>(), windowingStrategy, valueCoder);
+        pCollection, new ListViewFn<T>(), windowingStrategy, valueCoder);
   }
 
   /**
@@ -101,9 +100,11 @@ public class PCollectionViews {
    * provided {@link Coder} and windowed using the provided {@link WindowingStrategy}.
    */
   public static <K, V, W extends BoundedWindow> PCollectionView<Map<K, V>> mapView(
-      Pipeline pipeline, WindowingStrategy<?, W> windowingStrategy, Coder<KV<K, V>> valueCoder) {
+      PCollection<KV<K, V>> pCollection,
+      WindowingStrategy<?, W> windowingStrategy,
+      Coder<KV<K, V>> valueCoder) {
     return new SimplePCollectionView<>(
-        pipeline, new MapViewFn<K, V>(), windowingStrategy, valueCoder);
+        pCollection, new MapViewFn<K, V>(), windowingStrategy, valueCoder);
   }
 
   /**
@@ -111,11 +112,11 @@ public class PCollectionViews {
    * using the provided {@link Coder} and windowed using the provided {@link WindowingStrategy}.
    */
   public static <K, V, W extends BoundedWindow> PCollectionView<Map<K, Iterable<V>>> multimapView(
-      Pipeline pipeline,
+      PCollection<KV<K, V>> pCollection,
       WindowingStrategy<?, W> windowingStrategy,
       Coder<KV<K, V>> valueCoder) {
     return new SimplePCollectionView<>(
-        pipeline, new MultimapViewFn<K, V>(), windowingStrategy, valueCoder);
+        pCollection, new MultimapViewFn<K, V>(), windowingStrategy, valueCoder);
   }
 
   /**
@@ -301,6 +302,9 @@ public class PCollectionViews {
   private static class SimplePCollectionView<ElemT, ViewT, W extends BoundedWindow>
       extends PValueBase
       implements PCollectionView<ViewT> {
+    /** The {@link PCollection} this view was originally created from. */
+    private transient PCollection<ElemT> pCollection;
+
     /** A unique tag for the view, typed according to the elements underlying the view. */
     private TupleTag<Iterable<WindowedValue<ElemT>>> tag;
 
@@ -320,12 +324,13 @@ public class PCollectionViews {
      * boilerplate accessors.
      */
     private SimplePCollectionView(
-        Pipeline pipeline,
+        PCollection<ElemT> pCollection,
         TupleTag<Iterable<WindowedValue<ElemT>>> tag,
         ViewFn<Iterable<WindowedValue<ElemT>>, ViewT> viewFn,
         WindowingStrategy<?, W> windowingStrategy,
         Coder<ElemT> valueCoder) {
-      super(pipeline);
+      super(pCollection.getPipeline());
+      this.pCollection = pCollection;
       if (windowingStrategy.getWindowFn() instanceof InvalidWindows) {
         throw new IllegalArgumentException("WindowFn of PCollectionView cannot be InvalidWindows");
       }
@@ -342,12 +347,12 @@ public class PCollectionViews {
      * boilerplate accessors, with an auto-generated tag.
      */
     private SimplePCollectionView(
-        Pipeline pipeline,
+        PCollection<ElemT> pCollection,
         ViewFn<Iterable<WindowedValue<ElemT>>, ViewT> viewFn,
         WindowingStrategy<?, W> windowingStrategy,
         Coder<ElemT> valueCoder) {
       this(
-          pipeline,
+          pCollection,
           new TupleTag<Iterable<WindowedValue<ElemT>>>(),
           viewFn,
           windowingStrategy,
@@ -370,6 +375,11 @@ public class PCollectionViews {
       @SuppressWarnings({"rawtypes", "unchecked"})
       ViewFn<Iterable<WindowedValue<?>>, ViewT> untypedViewFn = (ViewFn) viewFn;
       return untypedViewFn;
+    }
+
+    @Override
+    public PCollection<?> getPCollection() {
+      return pCollection;
     }
 
     /**
