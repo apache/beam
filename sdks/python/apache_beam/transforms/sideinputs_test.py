@@ -186,8 +186,8 @@ class SideInputsTest(unittest.TestCase):
     main_input = pipeline | 'main input' >> beam.Create([1])
     side_list = pipeline | 'side list' >> beam.Create(a_list)
     side_pairs = pipeline | 'side pairs' >> beam.Create(some_pairs)
-    results = main_input | 'concatenate' >> beam.FlatMap(
-        lambda x, the_list, the_dict: [[x, the_list, the_dict]],
+    results = main_input | 'concatenate' >> beam.Map(
+        lambda x, the_list, the_dict: [x, the_list, the_dict],
         beam.pvalue.AsList(side_list), beam.pvalue.AsDict(side_pairs))
 
     def  matcher(expected_elem, expected_list, expected_pairs):
@@ -205,13 +205,13 @@ class SideInputsTest(unittest.TestCase):
   def test_as_singleton_without_unique_labels(self):
     # This should succeed as calling beam.pvalue.AsSingleton on the same
     # PCollection twice with the same defaults will return the same
-    # PCollectionView.
+    # view.
     a_list = [2]
     pipeline = self.create_pipeline()
     main_input = pipeline | 'main input' >> beam.Create([1])
     side_list = pipeline | 'side list' >> beam.Create(a_list)
-    results = main_input | beam.FlatMap(
-        lambda x, s1, s2: [[x, s1, s2]],
+    results = main_input | beam.Map(
+        lambda x, s1, s2: [x, s1, s2],
         beam.pvalue.AsSingleton(side_list), beam.pvalue.AsSingleton(side_list))
 
     def  matcher(expected_elem, expected_singleton):
@@ -226,34 +226,15 @@ class SideInputsTest(unittest.TestCase):
     pipeline.run()
 
   @attr('ValidatesRunner')
-  def test_as_singleton_with_different_defaults_without_unique_labels(self):
-    # This should fail as beam.pvalue.AsSingleton with distinct default values
-    # should beam.Create distinct PCollectionViews with the same full_label.
-    a_list = [2]
-    pipeline = self.create_pipeline()
-    main_input = pipeline | 'main input' >> beam.Create([1])
-    side_list = pipeline | 'side list' >> beam.Create(a_list)
-
-    with self.assertRaises(RuntimeError) as e:
-      _ = main_input | beam.FlatMap(
-          lambda x, s1, s2: [[x, s1, s2]],
-          beam.pvalue.AsSingleton(side_list),
-          beam.pvalue.AsSingleton(side_list, default_value=3))
-    self.assertTrue(
-        e.exception.message.startswith(
-            'Transform "ViewAsSingleton(side list.None)" does not have a '
-            'stable unique label.'))
-
-  @attr('ValidatesRunner')
-  def test_as_singleton_with_different_defaults_with_unique_labels(self):
+  def test_as_singleton_with_different_defaults(self):
     a_list = []
     pipeline = self.create_pipeline()
     main_input = pipeline | 'main input' >> beam.Create([1])
     side_list = pipeline | 'side list' >> beam.Create(a_list)
-    results = main_input | beam.FlatMap(
-        lambda x, s1, s2: [[x, s1, s2]],
-        beam.pvalue.AsSingleton(side_list, default_value=2, label='si1'),
-        beam.pvalue.AsSingleton(side_list, default_value=3, label='si2'))
+    results = main_input | beam.Map(
+        lambda x, s1, s2: [x, s1, s2],
+        beam.pvalue.AsSingleton(side_list, default_value=2),
+        beam.pvalue.AsSingleton(side_list, default_value=3))
 
     def  matcher(expected_elem, expected_singleton1, expected_singleton2):
       def match(actual):
@@ -267,15 +248,15 @@ class SideInputsTest(unittest.TestCase):
     pipeline.run()
 
   @attr('ValidatesRunner')
-  def test_as_list_without_unique_labels(self):
+  def test_as_list_twice(self):
     # This should succeed as calling beam.pvalue.AsList on the same
-    # PCollection twice will return the same PCollectionView.
+    # PCollection twice will return the same view.
     a_list = [1, 2, 3]
     pipeline = self.create_pipeline()
     main_input = pipeline | 'main input' >> beam.Create([1])
     side_list = pipeline | 'side list' >> beam.Create(a_list)
-    results = main_input | beam.FlatMap(
-        lambda x, ls1, ls2: [[x, ls1, ls2]],
+    results = main_input | beam.Map(
+        lambda x, ls1, ls2: [x, ls1, ls2],
         beam.pvalue.AsList(side_list), beam.pvalue.AsList(side_list))
 
     def  matcher(expected_elem, expected_list):
@@ -290,37 +271,15 @@ class SideInputsTest(unittest.TestCase):
     pipeline.run()
 
   @attr('ValidatesRunner')
-  def test_as_list_with_unique_labels(self):
-    a_list = [1, 2, 3]
-    pipeline = self.create_pipeline()
-    main_input = pipeline | 'main input' >> beam.Create([1])
-    side_list = pipeline | 'side list' >> beam.Create(a_list)
-    results = main_input | beam.FlatMap(
-        lambda x, ls1, ls2: [[x, ls1, ls2]],
-        beam.pvalue.AsList(side_list),
-        beam.pvalue.AsList(side_list, label='label'))
-
-    def  matcher(expected_elem, expected_list):
-      def match(actual):
-        [[actual_elem, actual_list1, actual_list2]] = actual
-        equal_to([expected_elem])([actual_elem])
-        equal_to(expected_list)(actual_list1)
-        equal_to(expected_list)(actual_list2)
-      return match
-
-    assert_that(results, matcher(1, [1, 2, 3]))
-    pipeline.run()
-
-  @attr('ValidatesRunner')
-  def test_as_dict_with_unique_labels(self):
+  def test_as_dict_twice(self):
     some_kvs = [('a', 1), ('b', 2)]
     pipeline = self.create_pipeline()
     main_input = pipeline | 'main input' >> beam.Create([1])
     side_kvs = pipeline | 'side kvs' >> beam.Create(some_kvs)
-    results = main_input | beam.FlatMap(
-        lambda x, dct1, dct2: [[x, dct1, dct2]],
+    results = main_input | beam.Map(
+        lambda x, dct1, dct2: [x, dct1, dct2],
         beam.pvalue.AsDict(side_kvs),
-        beam.pvalue.AsDict(side_kvs, label='label'))
+        beam.pvalue.AsDict(side_kvs))
 
     def  matcher(expected_elem, expected_kvs):
       def match(actual):
@@ -331,6 +290,20 @@ class SideInputsTest(unittest.TestCase):
       return match
 
     assert_that(results, matcher(1, some_kvs))
+    pipeline.run()
+
+  @attr('ValidatesRunner')
+  def test_flattened_side_input(self):
+    pipeline = self.create_pipeline()
+    main_input = pipeline | 'main input' >> beam.Create([None])
+    side_input = (
+      pipeline | 'side1' >> beam.Create(['a']),
+      pipeline | 'side2' >> beam.Create(['b'])) | beam.Flatten()
+    results = main_input | beam.FlatMap(
+        lambda _, ab: ab,
+        beam.pvalue.AsList(side_input))
+
+    assert_that(results, equal_to(['a', 'b']))
     pipeline.run()
 
 

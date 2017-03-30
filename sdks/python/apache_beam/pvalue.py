@@ -29,6 +29,8 @@ from __future__ import absolute_import
 import collections
 import itertools
 
+from apache_beam import typehints
+
 
 class PValue(object):
   """Base class for PCollection.
@@ -223,20 +225,14 @@ class SideOutputValue(object):
     self.value = value
 
 
-class PCollectionView(PValue):
-  """An immutable view of a PCollection that can be used as a side input."""
+class AsSideInput(object):
+  """Marker specifying that a PCollection will be used as a side input."""
 
-  def __init__(self, pipeline, window_mapping_fn):
-    """Initializes a PCollectionView. Do not call directly."""
-    super(PCollectionView, self).__init__(pipeline)
-    self._window_mapping_fn = window_mapping_fn
-
-  @property
-  def windowing(self):
-    if not hasattr(self, '_windowing'):
-      self._windowing = self.producer.transform.get_windowing(
-          self.producer.inputs)
-    return self._windowing
+  def __init__(self, pvalue):
+    from apache_beam.transforms import sideinputs
+    self.pvalue = pvalue
+    self._window_mapping_fn = sideinputs.default_window_mapping_fn(
+        pvalue.windowing.windowfn)
 
   def _view_options(self):
     """Internal options corresponding to specific view.
@@ -248,19 +244,41 @@ class PCollectionView(PValue):
     """
     return {'window_mapping_fn': self._window_mapping_fn}
 
+  @property
+  def element_type(self):
+    return typehints.Any
 
-class SingletonPCollectionView(PCollectionView):
-  """A PCollectionView that contains a single object."""
 
-  def __init__(self, pipeline, has_default, default_value,
-               window_mapping_fn):
-    super(SingletonPCollectionView, self).__init__(pipeline, window_mapping_fn)
-    self.has_default = has_default
+class AsSingleton(AsSideInput):
+  """Marker specifying that an entire PCollection is to be used as a side input.
+
+  When a PCollection is supplied as a side input to a PTransform, it is
+  necessary to indicate whether the entire PCollection should be made available
+  as a PTransform side argument (in the form of an iterable), or whether just
+  one value should be pulled from the PCollection and supplied as the side
+  argument (as an ordinary value).
+
+  Wrapping a PCollection side input argument to a PTransform in this container
+  (e.g., data.apply('label', MyPTransform(), AsSingleton(my_side_input) )
+  selects the latter behavor.
+
+  (Note: This marker is agnostic to whether the PValue it wraps is a
+  PCollection. Although PCollections are the only PValues available now, there
+  may be additional PValue types for which AsIter and AsSingleton are useful
+  markers.
+  """
+  _NO_DEFAULT = object()
+
+  def __init__(self, pvalue, default_value = _NO_DEFAULT):
+    super(AsSingleton, self).__init__(pvalue)
     self.default_value = default_value
 
+  def __repr__(self):
+    return 'AsSingleton(%s)' % self.pvalue
+
   def _view_options(self):
-    base = super(SingletonPCollectionView, self)._view_options()
-    if self.has_default:
+    base = super(AsSingleton, self)._view_options()
+    if self.default_value != AsSingleton._NO_DEFAULT:
       return dict(base, default=self.default_value)
     else:
       return base
@@ -277,182 +295,92 @@ class SingletonPCollectionView(PCollectionView):
           'PCollection with more than one element accessed as '
           'a singleton view.')
 
+  @property
+  def element_type(self):
+    return self.pvalue.element_type
 
-class IterablePCollectionView(PCollectionView):
-  """A PCollectionView that can be treated as an iterable."""
+
+class AsIter(AsSideInput):
+  """Marker specifying that an entire PCollection is to be used as a side input.
+
+  When a PCollection is supplied as a side input to a PTransform, it is
+  necessary to indicate whether the entire PCollection should be made available
+  as a PTransform side argument (in the form of an iterable), or whether just
+  one value should be pulled from the PCollection and supplied as the side
+  argument (as an ordinary value).
+
+  Wrapping a PCollection side input argument to a PTransform in this container
+  (e.g., data.apply('label', MyPTransform(), AsIter(my_side_input) ) selects the
+  former behavor.
+
+  (Note: This marker is agnostic to whether the PValue it wraps is a
+  PCollection. Although PCollection is the only PValue available now, there
+  may be additional PValue types for which AsIter and AsSingleton are useful
+  markers.
+  """
+
+  def __repr__(self):
+    return 'AsIter(%s)' % self.pvalue
 
   @staticmethod
   def _from_runtime_iterable(it, options):
     return it
 
+  @property
+  def element_type(self):
+    return typehints.Iterable[self.pvalue.element_type]
 
-class ListPCollectionView(PCollectionView):
-  """A PCollectionView that can be treated as a list."""
+
+class AsList(AsSideInput):
+  """Marker specifying that an entire PCollection is to be used as a side input.
+
+  Intended for use in side-argument specification---the same places where
+  AsSingleton and AsIter are used, but forces materialization of this
+  PCollection as a list.
+
+  Args:
+    pcoll: Input pcollection.
+    label: Label to be specified if several AsList's are used in the pipeline at
+      same depth level.
+
+  Returns:
+    An AsList-wrapper around a PCollection whose one element is a list
+    containing all elements in pcoll.
+  """
 
   @staticmethod
   def _from_runtime_iterable(it, options):
     return list(it)
 
 
-class DictPCollectionView(PCollectionView):
-  """A PCollectionView that can be treated as a dict."""
+class AsDict(AsSideInput):
+  """Marker specifying a PCollection to be used as an indexable side input.
+
+  Intended for use in side-argument specification---the same places where
+  AsSingleton and AsIter are used, but returns an interface that allows
+  key lookup.
+
+  Args:
+    pcoll: Input pcollection. All elements should be key-value pairs (i.e.
+       2-tuples) with unique keys.
+    label: Label to be specified if several AsDict's are used in the pipeline at
+      same depth level.
+
+  Returns:
+    An AsDict-wrapper around a PCollection whose one element is a dict with
+      entries for uniquely-keyed pairs in pcoll.
+  """
 
   @staticmethod
   def _from_runtime_iterable(it, options):
     return dict(it)
 
 
-def _get_cached_view(pipeline, key):
-  return pipeline._view_cache.get(key, None)  # pylint: disable=protected-access
-
-
-def _cache_view(pipeline, key, view):
-  pipeline._view_cache[key] = view  # pylint: disable=protected-access
-
-
-def _format_view_label(pcoll):
-  # The monitoring UI doesn't like '/' character in transform labels.
-  if not pcoll.producer:
-    return str(pcoll.tag)
-  return '%s.%s' % (pcoll.producer.full_label.replace('/', '|'),
-                    pcoll.tag)
-
-
-_SINGLETON_NO_DEFAULT = object()
-
-
-def AsSingleton(pcoll, default_value=_SINGLETON_NO_DEFAULT, label=None):  # pylint: disable=invalid-name
-  """Create a SingletonPCollectionView from the contents of input PCollection.
-
-  The input PCollection should contain at most one element (per window) and the
-  resulting PCollectionView can then be used as a side input to PTransforms. If
-  the PCollectionView is empty (for a given window), the side input value will
-  be the default_value, if specified; otherwise, it will be an EmptySideInput
-  object.
-
-  Args:
-    pcoll: Input pcollection.
-    default_value: Default value for the singleton view.
-    label: Label to be specified if several AsSingleton's with different
-      defaults for the same PCollection.
-
-  Returns:
-    A singleton PCollectionView containing the element as above.
-  """
-  label = label or _format_view_label(pcoll)
-  has_default = default_value is not _SINGLETON_NO_DEFAULT
-  if not has_default:
-    default_value = None
-
-  # Don't recreate the view if it was already created.
-  hashable_default_value = ('val', default_value)
-  if not isinstance(default_value, collections.Hashable):
-    # Massage default value to treat as hash key.
-    hashable_default_value = ('id', id(default_value))
-  cache_key = (pcoll, AsSingleton, has_default, hashable_default_value)
-  cached_view = _get_cached_view(pcoll.pipeline, cache_key)
-  if cached_view:
-    return cached_view
-
-  # Local import is required due to dependency loop; even though the
-  # implementation of this function requires concepts defined in modules that
-  # depend on pvalue, it lives in this module to reduce user workload.
-  from apache_beam.transforms import sideinputs  # pylint: disable=wrong-import-order, wrong-import-position
-  view = (pcoll | sideinputs.ViewAsSingleton(has_default, default_value,
-                                             label=label))
-  _cache_view(pcoll.pipeline, cache_key, view)
-  return view
-
-
-def AsIter(pcoll, label=None):  # pylint: disable=invalid-name
-  """Create an IterablePCollectionView from the elements of input PCollection.
-
-  The contents of the given PCollection will be available as an iterable in
-  PTransforms that use the returned PCollectionView as a side input.
-
-  Args:
-    pcoll: Input pcollection.
-    label: Label to be specified if several AsIter's for the same PCollection.
-
-  Returns:
-    An iterable PCollectionView containing the elements as above.
-  """
-  label = label or _format_view_label(pcoll)
-
-  # Don't recreate the view if it was already created.
-  cache_key = (pcoll, AsIter)
-  cached_view = _get_cached_view(pcoll.pipeline, cache_key)
-  if cached_view:
-    return cached_view
-
-  # Local import is required due to dependency loop; even though the
-  # implementation of this function requires concepts defined in modules that
-  # depend on pvalue, it lives in this module to reduce user workload.
-  from apache_beam.transforms import sideinputs  # pylint: disable=wrong-import-order, wrong-import-position
-  view = (pcoll | sideinputs.ViewAsIterable(label=label))
-  _cache_view(pcoll.pipeline, cache_key, view)
-  return view
-
-
-def AsList(pcoll, label=None):  # pylint: disable=invalid-name
-  """Create a ListPCollectionView from the elements of input PCollection.
-
-  The contents of the given PCollection will be available as a list-like object
-  in PTransforms that use the returned PCollectionView as a side input.
-
-  Args:
-    pcoll: Input pcollection.
-    label: Label to be specified if several AsList's for the same PCollection.
-
-  Returns:
-    A list PCollectionView containing the elements as above.
-  """
-  label = label or _format_view_label(pcoll)
-
-  # Don't recreate the view if it was already created.
-  cache_key = (pcoll, AsList)
-  cached_view = _get_cached_view(pcoll.pipeline, cache_key)
-  if cached_view:
-    return cached_view
-
-  # Local import is required due to dependency loop; even though the
-  # implementation of this function requires concepts defined in modules that
-  # depend on pvalue, it lives in this module to reduce user workload.
-  from apache_beam.transforms import sideinputs  # pylint: disable=wrong-import-order, wrong-import-position
-  view = (pcoll | sideinputs.ViewAsList(label=label))
-  _cache_view(pcoll.pipeline, cache_key, view)
-  return view
-
-
-def AsDict(pcoll, label=None):  # pylint: disable=invalid-name
-  """Create a DictPCollectionView from the elements of input PCollection.
-
-  The contents of the given PCollection whose elements are 2-tuples of key and
-  value will be available as a dict-like object in PTransforms that use the
-  returned PCollectionView as a side input.
-
-  Args:
-    pcoll: Input pcollection containing 2-tuples of key and value.
-    label: Label to be specified if several AsDict's for the same PCollection.
-
-  Returns:
-    A dict PCollectionView containing the dict as above.
-  """
-  label = label or _format_view_label(pcoll)
-
-  # Don't recreate the view if it was already created.
-  cache_key = (pcoll, AsDict)
-  cached_view = _get_cached_view(pcoll.pipeline, cache_key)
-  if cached_view:
-    return cached_view
-
-  # Local import is required due to dependency loop; even though the
-  # implementation of this function requires concepts defined in modules that
-  # depend on pvalue, it lives in this module to reduce user workload.
-  from apache_beam.transforms import sideinputs  # pylint: disable=wrong-import-order, wrong-import-position
-  view = (pcoll | sideinputs.ViewAsDict(label=label))
-  _cache_view(pcoll.pipeline, cache_key, view)
-  return view
+# For backwards compatibility with worker code.
+SingletonPCollectionView = AsSingleton
+IterablePCollectionView = AsIter
+ListPCollectionView = AsList
+DictPCollectionView = AsDict
 
 
 class EmptySideInput(object):

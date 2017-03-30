@@ -27,6 +27,11 @@ from apache_beam.transforms.ptransform import PTransform
 from apache_beam.transforms.util import assert_that, is_empty
 
 
+import faulthandler, signal
+faulthandler.register(signal.SIGINT)
+faulthandler.enable()
+
+
 class _TestSink(iobase.Sink):
   TEST_INIT_RESULT = 'test_init_result'
 
