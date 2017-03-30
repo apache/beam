@@ -24,10 +24,9 @@
     <relativePath>../pom.xml</relativePath>
   </parent>
   <packaging>pom</packaging>
-  <groupId>org.apache.beam</groupId>
-  <artifactId>beam-sdks-java-io-hadoop</artifactId>
+  <artifactId>beam-sdks-java-io-hadoop-parent</artifactId>
   <name>Apache Beam :: SDKs :: Java :: IO :: Hadoop</name>
-  <description>IO library to read data from data sources which implement Hadoop Input Format from Beam.</description>
+  <description>Parent for Beam SDK Hadoop IO which reads data from any source which implements Hadoop Input Format.</description>
 
   <modules>
     <module>jdk1.8-tests</module>
