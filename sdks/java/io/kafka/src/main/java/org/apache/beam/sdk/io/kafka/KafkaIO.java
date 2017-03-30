@@ -1250,11 +1250,12 @@ public class KafkaIO {
     private static final Map<String, Object> DEFAULT_PRODUCER_PROPERTIES =
         ImmutableMap.<String, Object>of(
             ProducerConfig.RETRIES_CONFIG, 3,
+            // See comment about custom serializers in KafkaWriter constructor.
             ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, CoderBasedKafkaSerializer.class,
             ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, CoderBasedKafkaSerializer.class);
 
     /**
-     * A set of properties that are not required or don't make sense for our consumer.
+     * A set of properties that are not required or don't make sense for our producer.
      */
     private static final Map<String, String> IGNORED_PRODUCER_PROPERTIES = ImmutableMap.of(
         ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, "Set keyCoder instead",
@@ -1368,11 +1369,13 @@ public class KafkaIO {
     KafkaWriter(Write<K, V> spec) {
       this.spec = spec;
 
-      // Set custom kafka serializers. We can not serialize user objects then pass the bytes to
-      // producer. The key and value objects are used in kafka Partitioner interface.
+      // Set custom kafka serializers. We do not want to serialize user objects then pass the bytes
+      // to producer since key and value objects are used in Kafka Partitioner interface.
       // This does not matter for default partitioner in Kafka as it uses just the serialized
-      // key bytes to pick a partition. But making sure user's custom partitioner would work
-      // as expected.
+      // key bytes to pick a partition. But we don't want to limit use of custom partitions.
+      // We pass key and values objects the user writes directly Kafka and user supplied
+      // coders to serialize them are invoked inside CoderBasedKafkaSerializer.
+      // Use case : write all the events for a single session to same Kafka partition.
 
       this.producerConfig = new HashMap<>(spec.getProducerConfig());
       this.producerConfig.put(configForKeySerializer(), spec.getKeyCoder());
