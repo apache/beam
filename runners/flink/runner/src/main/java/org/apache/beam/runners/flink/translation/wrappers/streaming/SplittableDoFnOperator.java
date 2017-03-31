@@ -17,6 +17,8 @@
  */
 package org.apache.beam.runners.flink.translation.wrappers.streaming;
 
+import static com.google.common.base.Preconditions.checkState;
+
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -47,10 +49,8 @@ import org.joda.time.Duration;
 import org.joda.time.Instant;
 
 /**
- * Flink operator for executing splittable {@link DoFn DoFns}.
- *
- * @param <InputT>
- * @param <OutputT>
+ * Flink operator for executing splittable {@link DoFn DoFns}. Specifically, for executing
+ * the {@code @ProcessElement} method of a splittable {@link DoFn}.
  */
 public class SplittableDoFnOperator<
     InputT, FnOutputT, OutputT, RestrictionT, TrackerT extends RestrictionTracker<RestrictionT>>
@@ -88,9 +88,7 @@ public class SplittableDoFnOperator<
   public void open() throws Exception {
     super.open();
 
-    if (!(doFn instanceof SplittableParDo.ProcessFn)) {
-      return;
-    }
+    checkState(doFn instanceof SplittableParDo.ProcessFn);
 
     StateInternalsFactory<String> stateInternalsFactory = new StateInternalsFactory<String>() {
       @Override

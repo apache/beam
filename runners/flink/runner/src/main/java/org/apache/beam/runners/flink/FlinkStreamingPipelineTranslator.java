@@ -239,9 +239,9 @@ class FlinkStreamingPipelineTranslator extends FlinkPipelineTranslator {
   }
 
   /**
-   * A {@link PTransformOverrideFactory} that provides overrides for applications of a {@link ParDo}
-   * in the direct runner. Currently overrides applications of <a
-   * href="https://s.apache.org/splittable-do-fn">Splittable DoFn</a>.
+   * A {@link PTransformOverrideFactory} that overrides a
+   * <a href="https://s.apache.org/splittable-do-fn">Splittable DoFn</a> with
+   * {@link SplittableParDo}.
    */
   static class SplittableParDoOverrideFactory<InputT, OutputT>
       implements PTransformOverrideFactory<

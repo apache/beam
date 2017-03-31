@@ -399,7 +399,7 @@ class FlinkStreamingTransformTranslators {
   /**
    * Helper for translating {@link ParDo.MultiOutput} and {@link SplittableParDo.ProcessElements}.
    */
-  static class ParDoTranslationHelper<InputT, OutputT> {
+  static class ParDoTranslationHelper {
 
     interface DoFnOperatorFactory<InputT, OutputT> {
       DoFnOperator<InputT, OutputT, RawUnionValue> createDoFnOperator(
@@ -415,8 +415,7 @@ class FlinkStreamingTransformTranslators {
           Map<Integer, PCollectionView<?>> transformedSideInputs);
     }
 
-    /* we have this as an extra method so that we can call from the SplittableDoFn translator */
-    void translateParDo(
+    static <InputT, OutputT> void translateParDo(
         String transformName,
         DoFn<InputT, OutputT> doFn,
         PCollection<InputT> input,
@@ -556,7 +555,7 @@ class FlinkStreamingTransformTranslators {
       }
     }
 
-    private Map<TupleTag<?>, Integer> transformTupleTagsToLabels(
+    private static Map<TupleTag<?>, Integer> transformTupleTagsToLabels(
         TupleTag<?> mainTag,
         List<TaggedPValue> allTaggedValues) {
 
@@ -571,7 +570,7 @@ class FlinkStreamingTransformTranslators {
       return tagToLabelMap;
     }
 
-    private UnionCoder createUnionCoder(Collection<TaggedPValue> taggedCollections) {
+    private static UnionCoder createUnionCoder(Collection<TaggedPValue> taggedCollections) {
       List<Coder<?>> outputCoders = Lists.newArrayList();
       for (TaggedPValue taggedColl : taggedCollections) {
         checkArgument(
@@ -599,7 +598,7 @@ class FlinkStreamingTransformTranslators {
         ParDo.MultiOutput<InputT, OutputT> transform,
         FlinkStreamingTranslationContext context) {
 
-      new ParDoTranslationHelper<InputT, OutputT>().translateParDo(
+      ParDoTranslationHelper.translateParDo(
           transform.getName(),
           transform.getFn(),
           (PCollection<InputT>) context.getInput(transform),
@@ -647,55 +646,52 @@ class FlinkStreamingTransformTranslators {
         SplittableParDo.ProcessElements<InputT, OutputT, RestrictionT, TrackerT> transform,
         FlinkStreamingTranslationContext context) {
 
-      new ParDoTranslationHelper<
-          KeyedWorkItem<String, ElementAndRestriction<InputT, RestrictionT>>,
-          OutputT>()
-          .translateParDo(
-              transform.getName(),
-              transform.newProcessFn(transform.getFn()),
-              (PCollection<KeyedWorkItem<String, ElementAndRestriction<InputT, RestrictionT>>>)
-                  context.getInput(transform),
-              transform.getSideInputs(),
-              context.getOutputs(transform),
-              transform.getMainOutputTag(),
-              transform.getSideOutputTags().getAll(),
-              context,
-              new ParDoTranslationHelper.DoFnOperatorFactory<
-                  KeyedWorkItem<String, ElementAndRestriction<InputT, RestrictionT>>, OutputT>() {
-                @Override
-                public DoFnOperator<
-                    KeyedWorkItem<String, ElementAndRestriction<InputT, RestrictionT>>,
-                    OutputT,
-                    RawUnionValue> createDoFnOperator(
-                        DoFn<
-                            KeyedWorkItem<String, ElementAndRestriction<InputT, RestrictionT>>,
-                            OutputT> doFn,
-                        List<PCollectionView<?>> sideInputs,
-                        TupleTag<OutputT> mainOutputTag,
-                        List<TupleTag<?>> sideOutputTags,
-                        FlinkStreamingTranslationContext context,
-                        WindowingStrategy<?, ?> windowingStrategy,
-                        Map<TupleTag<?>, Integer> tagsToLabels,
-                        Coder<
-                            WindowedValue<
-                                KeyedWorkItem<
-                                    String,
-                                    ElementAndRestriction<InputT, RestrictionT>>>> inputCoder,
-                        Coder keyCoder,
-                        Map<Integer, PCollectionView<?>> transformedSideInputs) {
-                  return new SplittableDoFnOperator<>(
-                      doFn,
-                      inputCoder,
-                      mainOutputTag,
-                      sideOutputTags,
-                      new DoFnOperator.MultiOutputOutputManagerFactory(tagsToLabels),
-                      windowingStrategy,
-                      transformedSideInputs,
-                      sideInputs,
-                      context.getPipelineOptions(),
-                      keyCoder);
-                }
-              });
+      ParDoTranslationHelper.translateParDo(
+          transform.getName(),
+          transform.newProcessFn(transform.getFn()),
+          (PCollection<KeyedWorkItem<String, ElementAndRestriction<InputT, RestrictionT>>>)
+              context.getInput(transform),
+          transform.getSideInputs(),
+          context.getOutputs(transform),
+          transform.getMainOutputTag(),
+          transform.getSideOutputTags().getAll(),
+          context,
+          new ParDoTranslationHelper.DoFnOperatorFactory<
+              KeyedWorkItem<String, ElementAndRestriction<InputT, RestrictionT>>, OutputT>() {
+            @Override
+            public DoFnOperator<
+                KeyedWorkItem<String, ElementAndRestriction<InputT, RestrictionT>>,
+                OutputT,
+                RawUnionValue> createDoFnOperator(
+                    DoFn<
+                        KeyedWorkItem<String, ElementAndRestriction<InputT, RestrictionT>>,
+                        OutputT> doFn,
+                    List<PCollectionView<?>> sideInputs,
+                    TupleTag<OutputT> mainOutputTag,
+                    List<TupleTag<?>> sideOutputTags,
+                    FlinkStreamingTranslationContext context,
+                    WindowingStrategy<?, ?> windowingStrategy,
+                    Map<TupleTag<?>, Integer> tagsToLabels,
+                    Coder<
+                        WindowedValue<
+                            KeyedWorkItem<
+                                String,
+                                ElementAndRestriction<InputT, RestrictionT>>>> inputCoder,
+                    Coder keyCoder,
+                    Map<Integer, PCollectionView<?>> transformedSideInputs) {
+              return new SplittableDoFnOperator<>(
+                  doFn,
+                  inputCoder,
+                  mainOutputTag,
+                  sideOutputTags,
+                  new DoFnOperator.MultiOutputOutputManagerFactory(tagsToLabels),
+                  windowingStrategy,
+                  transformedSideInputs,
+                  sideInputs,
+                  context.getPipelineOptions(),
+                  keyCoder);
+            }
+          });
     }
   }
 
@@ -801,7 +797,7 @@ class FlinkStreamingTransformTranslators {
 
       DataStream<WindowedValue<SingletonKeyedWorkItem<K, InputT>>> workItemStream =
           inputDataStream
-              .flatMap(new CombinePerKeyTranslator.ToKeyedWorkItem<K, InputT>())
+              .flatMap(new ToKeyedWorkItem<K, InputT>())
               .returns(workItemTypeInfo).name("ToKeyedWorkItem");
 
       KeyedStream<
@@ -985,30 +981,6 @@ class FlinkStreamingTransformTranslators {
         context.setOutputDataStream(context.getOutput(transform), outDataStream);
       }
     }
-
-    private static class ToKeyedWorkItem<K, InputT>
-        extends RichFlatMapFunction<
-          WindowedValue<KV<K, InputT>>,
-          WindowedValue<SingletonKeyedWorkItem<K, InputT>>> {
-
-      @Override
-      public void flatMap(
-          WindowedValue<KV<K, InputT>> inWithMultipleWindows,
-          Collector<WindowedValue<SingletonKeyedWorkItem<K, InputT>>> out) throws Exception {
-
-        // we need to wrap each one work item per window for now
-        // since otherwise the PushbackSideInputRunner will not correctly
-        // determine whether side inputs are ready
-        for (WindowedValue<KV<K, InputT>> in : inWithMultipleWindows.explodeWindows()) {
-          SingletonKeyedWorkItem<K, InputT> workItem =
-              new SingletonKeyedWorkItem<>(
-                  in.getValue().getKey(),
-                  in.withValue(in.getValue().getValue()));
-
-          out.collect(in.withValue(workItem));
-        }
-      }
-    }
   }
 
   private static class GBKIntoKeyedWorkItemsTranslator<K, InputT>
@@ -1060,30 +1032,6 @@ class FlinkStreamingTransformTranslators {
 
       context.setOutputDataStream(context.getOutput(transform), keyedWorkItemStream);
     }
-
-    private static class ToKeyedWorkItem<K, InputT>
-        extends RichFlatMapFunction<
-        WindowedValue<KV<K, InputT>>,
-        WindowedValue<SingletonKeyedWorkItem<K, InputT>>> {
-
-      @Override
-      public void flatMap(
-          WindowedValue<KV<K, InputT>> inWithMultipleWindows,
-          Collector<WindowedValue<SingletonKeyedWorkItem<K, InputT>>> out) throws Exception {
-
-        // we need to wrap each one work item per window for now
-        // since otherwise the PushbackSideInputRunner will not correctly
-        // determine whether side inputs are ready
-        for (WindowedValue<KV<K, InputT>> in : inWithMultipleWindows.explodeWindows()) {
-          SingletonKeyedWorkItem<K, InputT> workItem =
-              new SingletonKeyedWorkItem<>(
-                  in.getValue().getKey(),
-                  in.withValue(in.getValue().getValue()));
-
-          out.collect(in.withValue(workItem));
-        }
-      }
-    }
   }
 
   private static class FlattenPCollectionTranslator<T>
@@ -1129,4 +1077,31 @@ class FlinkStreamingTransformTranslators {
       }
     }
   }
+
+  private static class ToKeyedWorkItem<K, InputT>
+      extends RichFlatMapFunction<
+      WindowedValue<KV<K, InputT>>,
+      WindowedValue<SingletonKeyedWorkItem<K, InputT>>> {
+
+    @Override
+    public void flatMap(
+        WindowedValue<KV<K, InputT>> inWithMultipleWindows,
+        Collector<WindowedValue<SingletonKeyedWorkItem<K, InputT>>> out) throws Exception {
+
+      // we need to wrap each one work item per window for now
+      // since otherwise the PushbackSideInputRunner will not correctly
+      // determine whether side inputs are ready
+      //
+      // this is tracked as https://issues.apache.org/jira/browse/BEAM-1850
+      for (WindowedValue<KV<K, InputT>> in : inWithMultipleWindows.explodeWindows()) {
+        SingletonKeyedWorkItem<K, InputT> workItem =
+            new SingletonKeyedWorkItem<>(
+                in.getValue().getKey(),
+                in.withValue(in.getValue().getValue()));
+
+        out.collect(in.withValue(workItem));
+      }
+    }
+  }
+
 }
