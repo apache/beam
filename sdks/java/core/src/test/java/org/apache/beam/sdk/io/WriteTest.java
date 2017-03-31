@@ -43,7 +43,6 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicInteger;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.SerializableCoder;
@@ -630,11 +629,21 @@ public class WriteTest {
     }
 
     @Override
-    public final void open(String uId,
-                           @Nullable BoundedWindow window,
-                           @Nullable PaneInfo paneInfo,
-                           int shard,
-                           int nShards) throws Exception {
+    public final void openWindowed(String uId,
+                                   BoundedWindow window,
+                                   PaneInfo paneInfo,
+                                   int shard,
+                                   int nShards) throws Exception {
+      numShards.incrementAndGet();
+      this.uId = uId;
+      assertEquals(State.INITIAL, state);
+      state = State.OPENED;
+    }
+
+    @Override
+    public final void openUnwindowed(String uId,
+                                     int shard,
+                                     int nShards) throws Exception {
       numShards.incrementAndGet();
       this.uId = uId;
       assertEquals(State.INITIAL, state);

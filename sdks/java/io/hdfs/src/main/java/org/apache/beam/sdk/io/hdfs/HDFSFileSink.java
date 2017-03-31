@@ -394,16 +394,17 @@ public abstract class HDFSFileSink<T, K, V> extends Sink<T> {
     }
 
     @Override
+    public void openWindowed(final String uId,
+                             BoundedWindow window,
+                             PaneInfo paneInfo,
+                             int shard,
+                             int numShards) throws Exception {
+      throw new UnsupportedOperationException("Windowing support not implemented yet for"
+          + "HDFS. Window " + window);
+    }
 
-    public void open(final String uId,
-                     @Nullable BoundedWindow window,
-                     @Nullable PaneInfo paneInfo,
-                     int shard,
-                     int numShards) throws Exception {
-      if (window != null || paneInfo != null) {
-        throw new UnsupportedOperationException("Windowing support not implemented yet for"
-            + "HDFS. Window " + window);
-      }
+    @Override
+    public void openUnwindowed(final String uId, int shard, int numShards) throws Exception {
       UGIHelper.getBestUGI(writeOperation.sink.username()).doAs(
           new PrivilegedExceptionAction<Void>() {
             @Override

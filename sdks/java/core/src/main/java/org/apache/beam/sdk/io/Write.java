@@ -39,7 +39,6 @@ import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.DoFn.ProcessElement;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -256,11 +255,12 @@ public class Write<T> extends PTransform<PCollection<T>, PDone> {
         LOG.info("Opening writer for write operation {}", writeOperation);
         writer = writeOperation.createWriter(c.getPipelineOptions());
 
-        writer.open(UUID.randomUUID().toString(),
-            windowedWrites ? window : null,
-            windowedWrites ? c.pane() : null,
-            UNKNOWN_SHARDNUM,
-            UNKNOWN_NUMSHARDS);
+        if (windowedWrites) {
+          writer.openWindowed(UUID.randomUUID().toString(), window, c.pane(), UNKNOWN_SHARDNUM,
+              UNKNOWN_NUMSHARDS);
+        } else {
+          writer.openUnwindowed(UUID.randomUUID().toString(), UNKNOWN_SHARDNUM, UNKNOWN_NUMSHARDS);
+        }
         LOG.debug("Done opening writer {} for operation {}", writer, writeOperationView);
       }
       try {
@@ -322,11 +322,12 @@ public class Write<T> extends PTransform<PCollection<T>, PDone> {
       WriteOperation<T, WriteT> writeOperation = c.sideInput(writeOperationView);
       LOG.info("Opening writer for write operation {}", writeOperation);
       Writer<T, WriteT> writer = writeOperation.createWriter(c.getPipelineOptions());
-      writer.open(UUID.randomUUID().toString(),
-          windowedWrites ? window : null,
-          windowedWrites ? c.pane() : null,
-          windowedWrites ? c.element().getKey() : UNKNOWN_SHARDNUM,
-          windowedWrites ? numShards : UNKNOWN_NUMSHARDS);
+      if (windowedWrites) {
+        writer.openWindowed(UUID.randomUUID().toString(), window, c.pane(), c.element().getKey(),
+            numShards);
+      } else {
+        writer.openUnwindowed(UUID.randomUUID().toString(), UNKNOWN_SHARDNUM, UNKNOWN_NUMSHARDS);
+      }
       LOG.debug("Done opening writer {} for operation {}", writer, writeOperationView);
 
       try {
@@ -585,7 +586,7 @@ public class Write<T> extends PTransform<PCollection<T>, PDone> {
                         + " {}.", extraShardsNeeded, results.size(), minShardsNeeded);
                 for (int i = 0; i < extraShardsNeeded; ++i) {
                   Writer<T, WriteT> writer = writeOperation.createWriter(c.getPipelineOptions());
-                  writer.open(UUID.randomUUID().toString(), null, null, UNKNOWN_SHARDNUM,
+                  writer.openUnwindowed(UUID.randomUUID().toString(), UNKNOWN_SHARDNUM,
                       UNKNOWN_NUMSHARDS);
                   WriteT emptyWrite = writer.close();
                   results.add(emptyWrite);

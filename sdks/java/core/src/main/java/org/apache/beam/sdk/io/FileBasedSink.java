@@ -168,6 +168,9 @@ public abstract class FileBasedSink<T> extends Sink<T> {
     /**
      * Context used for generating a name based on shard numer, and num shards.
      * The policy must produce unique filenames for unique {@link Context} objects.
+     *
+     * <p>Be careful about adding fields to this as existing strategies will not notice the new
+     * fields, and may not produce unique filenames.
      */
     public static class Context {
       private int shardNumber;
@@ -192,29 +195,41 @@ public abstract class FileBasedSink<T> extends Sink<T> {
     /**
      * Context used for generating a name based on window, pane, shard numer, and num shards.
      * The policy must produce unique filenames for unique {@link WindowedContext} objects.
+     *
+     * <p>Be careful about adding fields to this as existing strategies will not notice the new
+     * fields, and may not produce unique filenames.
      */
-    public static class WindowedContext extends Context {
-      @Nullable private BoundedWindow window;
-      @Nullable private PaneInfo paneInfo;
+    public static class WindowedContext {
+      private int shardNumber;
+      private int numShards;
+      private BoundedWindow window;
+      private PaneInfo paneInfo;
 
       public WindowedContext(
           BoundedWindow window,
           PaneInfo paneInfo,
           int shardNumber,
           int numShards) {
-        super(shardNumber, numShards);
         this.window = window;
         this.paneInfo = paneInfo;
+        this.shardNumber = shardNumber;
+        this.numShards = numShards;
       }
 
-      @Nullable
       public BoundedWindow getWindow() {
         return window;
       }
 
-      @Nullable
       public PaneInfo getPaneInfo() {
         return paneInfo;
+      }
+
+      public int getShardNumber() {
+        return shardNumber;
+      }
+
+      public int getNumShards() {
+        return numShards;
       }
     }
 
@@ -781,11 +796,32 @@ public abstract class FileBasedSink<T> extends Sink<T> {
      * Opens the channel.
      */
     @Override
-    public final void open(String uId,
-                           @Nullable BoundedWindow window,
-                           @Nullable PaneInfo paneInfo,
-                           int shard,
-                           int numShards) throws Exception {
+    public final void openWindowed(String uId,
+                                   BoundedWindow window,
+                                   PaneInfo paneInfo,
+                                   int shard,
+                                   int numShards) throws Exception {
+      if (!getWriteOperation().windowedWrites) {
+        throw new IllegalStateException("openWindowed called a non-windowed sink.");
+      }
+      open(uId, window, paneInfo, shard, numShards);
+    }
+
+    @Override
+    public final void openUnwindowed(String uId,
+                                     int shard,
+                                     int numShards) throws Exception {
+      if (getWriteOperation().windowedWrites) {
+        throw new IllegalStateException("openUnwindowed called a windowed sink.");
+      }
+      open(uId, null, null, shard, numShards);
+    }
+
+    private void open(String uId,
+                      @Nullable BoundedWindow window,
+                      @Nullable PaneInfo paneInfo,
+                      int shard,
+                      int numShards) throws Exception {
       this.id = uId;
       this.window = window;
       this.paneInfo = paneInfo;

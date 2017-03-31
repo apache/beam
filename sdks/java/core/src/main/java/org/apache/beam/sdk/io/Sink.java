@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.io;
 
 import java.io.Serializable;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -251,11 +250,18 @@ public abstract class Sink<T> implements Serializable, HasDisplayData {
      * shard and numbShards are populated for the case of static sharding. In cases where the
      * runner is dynamically picking sharding, shard and numShards might both be set to -1.
      */
-    public abstract void open(String uId,
-                              @Nullable BoundedWindow window,
-                              @Nullable PaneInfo paneInfo,
-                              int shard,
-                              int numShards) throws Exception;
+    public abstract void openWindowed(String uId,
+                                      BoundedWindow window,
+                                      PaneInfo paneInfo,
+                                      int shard,
+                                      int numShards) throws Exception;
+
+    /**
+     * Perform bundle initialization for the case where the file is written unwindowed.
+     */
+    public abstract void openUnwindowed(String uId,
+                                        int shard,
+                                        int numShards) throws Exception;
 
     public abstract void cleanup() throws Exception;
 
