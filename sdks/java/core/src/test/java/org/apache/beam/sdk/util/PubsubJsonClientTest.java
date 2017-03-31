@@ -117,8 +117,10 @@ public class PubsubJsonClientTest {
     PubsubMessage expectedPubsubMessage = new PubsubMessage()
         .encodeData(DATA.getBytes())
         .setAttributes(
-            ImmutableMap.of(TIMESTAMP_LABEL, String.valueOf(MESSAGE_TIME),
-                            ID_LABEL, RECORD_ID, "k", "v"));
+            ImmutableMap.<String, String> builder()
+                    .put(TIMESTAMP_LABEL, String.valueOf(MESSAGE_TIME))
+                    .put(ID_LABEL, RECORD_ID)
+                    .put("k", "v").build());
     PublishRequest expectedRequest = new PublishRequest()
         .setMessages(ImmutableList.of(expectedPubsubMessage));
     PublishResponse expectedResponse = new PublishResponse()
