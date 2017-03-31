@@ -311,6 +311,12 @@ class Pipeline(object):
 
       def visit_transform(self, transform_node):
         if transform_node.side_inputs:
+          # No side inputs (yet).
+          Visitor.ok = False
+        try:
+          # Transforms must be picklable.
+          pickler.loads(pickler.dumps(transform_node.transform))
+        except Exception, ex:
           Visitor.ok = False
     self.visit(Visitor())
     return Visitor.ok
