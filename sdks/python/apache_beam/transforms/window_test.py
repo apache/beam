@@ -62,6 +62,12 @@ reify_windows = core.ParDo(ReifyWindowsFn())
 
 class WindowTest(unittest.TestCase):
 
+  def test_timestamped_value_cmp(self):
+    self.assertEqual(TimestampedValue('a', 2), TimestampedValue('a', 2))
+    self.assertEqual(TimestampedValue('a', 2), TimestampedValue('a', 2.0))
+    self.assertNotEqual(TimestampedValue('a', 2), TimestampedValue('a', 2.1))
+    self.assertNotEqual(TimestampedValue('a', 2), TimestampedValue('b', 2))
+
   def test_global_window(self):
     self.assertEqual(GlobalWindow(), GlobalWindow())
     self.assertNotEqual(GlobalWindow(),
