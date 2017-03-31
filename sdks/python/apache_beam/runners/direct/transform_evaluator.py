@@ -31,7 +31,6 @@ from apache_beam.runners.direct.watermark_manager import WatermarkManager
 from apache_beam.runners.direct.transform_result import TransformResult
 from apache_beam.runners.dataflow.native_io.iobase import _NativeWrite  # pylint: disable=protected-access
 from apache_beam.transforms import core
-from apache_beam.transforms import sideinputs
 from apache_beam.transforms.window import GlobalWindows
 from apache_beam.transforms.window import WindowedValue
 from apache_beam.typehints.typecheck import OutputCheckWrapperDoFn
@@ -54,7 +53,6 @@ class TransformEvaluatorRegistry(object):
         core.Flatten: _FlattenEvaluator,
         core.ParDo: _ParDoEvaluator,
         core.GroupByKeyOnly: _GroupByKeyOnlyEvaluator,
-        sideinputs.CreatePCollectionView: _CreatePCollectionViewEvaluator,
         _NativeWrite: _NativeWriteEvaluator,
     }
 
@@ -100,8 +98,7 @@ class TransformEvaluatorRegistry(object):
       True if executor should execute applied_ptransform serially.
     """
     return isinstance(applied_ptransform.transform,
-                      (core.GroupByKeyOnly, sideinputs.CreatePCollectionView,
-                       _NativeWrite))
+                      (core.GroupByKeyOnly, _NativeWrite))
 
 
 class _TransformEvaluator(object):
@@ -434,52 +431,6 @@ class _GroupByKeyOnlyEvaluator(_TransformEvaluator):
 
       self.state.completed = True
       state = self.state
-      hold = WatermarkManager.WATERMARK_POS_INF
-    else:
-      bundles = []
-      state = self.state
-      hold = WatermarkManager.WATERMARK_NEG_INF
-
-    return TransformResult(
-        self._applied_ptransform, bundles, state, None, None, hold)
-
-
-class _CreatePCollectionViewEvaluator(_TransformEvaluator):
-  """TransformEvaluator for CreatePCollectionView transform."""
-
-  def __init__(self, evaluation_context, applied_ptransform,
-               input_committed_bundle, side_inputs, scoped_metrics_container):
-    assert not side_inputs
-    super(_CreatePCollectionViewEvaluator, self).__init__(
-        evaluation_context, applied_ptransform, input_committed_bundle,
-        side_inputs, scoped_metrics_container)
-
-  @property
-  def _is_final_bundle(self):
-    return (self._execution_context.watermarks.input_watermark
-            == WatermarkManager.WATERMARK_POS_INF)
-
-  def start_bundle(self):
-    # state: [values]
-    self.state = (self._execution_context.existing_state
-                  if self._execution_context.existing_state else [])
-
-    assert len(self._outputs) == 1
-    self.output_pcollection = list(self._outputs)[0]
-
-  def process_element(self, element):
-    self.state.append(element)
-
-  def finish_bundle(self):
-    if self._is_final_bundle:
-      bundle = self._evaluation_context.create_bundle(self.output_pcollection)
-
-      view_result = self.state
-      for result in view_result:
-        bundle.output(result)
-
-      bundles = [bundle]
-      state = None
       hold = WatermarkManager.WATERMARK_POS_INF
     else:
       bundles = []
