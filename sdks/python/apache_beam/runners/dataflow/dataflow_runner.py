@@ -31,7 +31,7 @@ from apache_beam import coders
 from apache_beam import pvalue
 from apache_beam.internal import pickler
 from apache_beam.internal.gcp import json_value
-from apache_beam.pvalue import PCollectionView
+from apache_beam.pvalue import AsSideInput
 from apache_beam.runners.dataflow.dataflow_metrics import DataflowMetrics
 from apache_beam.runners.dataflow.internal import names
 from apache_beam.runners.dataflow.internal.clients import dataflow as dataflow_api
@@ -284,23 +284,26 @@ class DataflowRunner(PipelineRunner):
           PropertyNames.ENCODING: step.encoding,
           PropertyNames.OUTPUT_NAME: PropertyNames.OUT}])
 
-  def run_CreatePCollectionView(self, transform_node):
-    step = self._add_step(TransformNames.COLLECTION_TO_SINGLETON,
-                          transform_node.full_label, transform_node)
-    input_tag = transform_node.inputs[0].tag
-    input_step = self._cache.get_pvalue(transform_node.inputs[0])
+  def _add_singleton_step(self, label, full_label, tag, input_step):
+    """Creates a CollectionToSingleton step used to handle ParDo side inputs."""
+    # Import here to avoid adding the dependency for local running scenarios.
+    from google.cloud.dataflow.internal import apiclient
+    step = apiclient.Step(TransformNames.COLLECTION_TO_SINGLETON, label)
+    self.job.proto.steps.append(step.proto)
+    step.add_property(PropertyNames.USER_NAME, full_label)
     step.add_property(
         PropertyNames.PARALLEL_INPUT,
         {'@type': 'OutputReference',
          PropertyNames.STEP_NAME: input_step.proto.name,
-         PropertyNames.OUTPUT_NAME: input_step.get_output(input_tag)})
+         PropertyNames.OUTPUT_NAME: input_step.get_output(tag)})
     step.encoding = self._get_side_input_encoding(input_step.encoding)
     step.add_property(
         PropertyNames.OUTPUT_INFO,
         [{PropertyNames.USER_NAME: (
-            '%s.%s' % (transform_node.full_label, PropertyNames.OUT)),
+            '%s.%s' % (full_label, PropertyNames.OUTPUT)),
           PropertyNames.ENCODING: step.encoding,
-          PropertyNames.OUTPUT_NAME: PropertyNames.OUT}])
+          PropertyNames.OUTPUT_NAME: PropertyNames.OUTPUT}])
+    return step
 
   def run_Flatten(self, transform_node):
     step = self._add_step(TransformNames.FLATTEN,
@@ -375,8 +378,12 @@ class DataflowRunner(PipelineRunner):
       si_labels[side_pval] = self._cache.get_pvalue(side_pval).step_name
     lookup_label = lambda side_pval: si_labels[side_pval]
     for side_pval in transform_node.side_inputs:
-      assert isinstance(side_pval, PCollectionView)
-      si_label = lookup_label(side_pval)
+      assert isinstance(side_pval, AsSideInput)
+      si_label = self._get_unique_step_name()
+      si_full_label = '%s/%s' % (transform_node.full_label, si_label)
+      self._add_singleton_step(
+          si_label, si_full_label, side_pval.pvalue.tag,
+          self._cache.get_pvalue(side_pval.pvalue))
       si_dict[si_label] = {
           '@type': 'OutputReference',
           PropertyNames.STEP_NAME: si_label,

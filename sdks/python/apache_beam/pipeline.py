@@ -142,9 +142,6 @@ class Pipeline(object):
     # If a transform is applied and the full label is already in the set
     # then the transform will have to be cloned with a new label.
     self.applied_labels = set()
-    # Store cache of views created from PCollections.  For reference, see
-    # pvalue._cache_view().
-    self._view_cache = {}
 
   def _current_transform(self):
     """Returns the transform currently on the top of the stack."""
@@ -271,8 +268,8 @@ class Pipeline(object):
         result.producer = current
       # TODO(robertwb): Multi-input, multi-output inference.
       # TODO(robertwb): Ideally we'd do intersection here.
-      if (type_options is not None and type_options.pipeline_type_check and
-          isinstance(result, (pvalue.PCollection, pvalue.PCollectionView))
+      if (type_options is not None and type_options.pipeline_type_check
+          and isinstance(result, pvalue.PCollection)
           and not result.element_type):
         input_element_type = (
             inputs[0].element_type
@@ -416,7 +413,7 @@ class AppliedPTransform(object):
         if not isinstance(main_input, pvalue.PBegin):
           real_producer(main_input).refcounts[main_input.tag] += 1
       for side_input in self.side_inputs:
-        real_producer(side_input).refcounts[side_input.tag] += 1
+        real_producer(side_input.pvalue).refcounts[side_input.pvalue.tag] += 1
 
   def add_output(self, output, tag=None):
     if isinstance(output, pvalue.DoOutputsTuple):
@@ -456,7 +453,8 @@ class AppliedPTransform(object):
 
     # Visit side inputs.
     for pval in self.side_inputs:
-      if isinstance(pval, pvalue.PCollectionView) and pval not in visited:
+      if isinstance(pval, pvalue.AsSideInput) and pval.pvalue not in visited:
+        pval = pval.pvalue  # Unpack marker-object-wrapped pvalue.
         assert pval.producer is not None
         pval.producer.visit(visitor, pipeline, visited)
         # The value should be visited now since we visit outputs too.
