@@ -64,7 +64,6 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
-import org.apache.beam.sdk.util.GcsUtil.GcsUtilFactory;
 import org.apache.beam.sdk.util.IOChannelFactory;
 import org.apache.beam.sdk.util.IOChannelUtils;
 import org.apache.beam.sdk.util.Transport;
@@ -536,7 +535,7 @@ public class BigQueryIO {
                 }
               }
               if (extractFiles != null && !extractFiles.isEmpty()) {
-                new GcsUtilFactory().create(options).remove(extractFiles);
+                IOChannelUtils.getFactory(extractFiles.iterator().next()).remove(extractFiles);
               }
             }
           };
@@ -701,8 +700,8 @@ public class BigQueryIO {
     @AutoValue.Builder
     abstract static class Builder<T> {
       abstract Builder<T> setJsonTableRef(ValueProvider<String> jsonTableRef);
-      abstract Builder<T> setTableRefFunction(
-          SerializableFunction<ValueInSingleWindow<T>, TableReference> tableRefFunction);
+      abstract Builder<T> setTableFunction(
+          SerializableFunction<ValueInSingleWindow<T>, TableDestination> tableFunction);
       abstract Builder<T> setFormatFunction(
           SerializableFunction<T, TableRow> formatFunction);
       abstract Builder<T> setJsonSchema(ValueProvider<String> jsonSchema);
@@ -823,8 +822,7 @@ public class BigQueryIO {
      * {@link ValueInSingleWindow}, so can be determined by the value or by the window.
      */
     public Write<T> to(
-        SerializableFunction<ValueInSingleWindow<T>, String> tableSpecFunction) {
-      return toTableReference(new TranslateTableSpecFunction<T>(tableSpecFunction));
+        SerializableFunction<ValueInSingleWindow<T>, TableDestination> tableFunction) {
       ensureToNotCalledYet();
       return toBuilder().setTableFunction(tableFunction).build();
     }
@@ -834,7 +832,7 @@ public class BigQueryIO {
      * {@link TableReference} instead of a string table specification.
      */
     private Write<T> toTableReference(
-        SerializableFunction<ValueInSingleWindow<T>, TableReference> tableRefFunction) {
+        SerializableFunction<ValueInSingleWindow<T>, TableDestination> tableFunction) {
       ensureToNotCalledYet();
       return toBuilder().setTableFunction(tableFunction).build();
     }
@@ -984,8 +982,7 @@ public class BigQueryIO {
       if (input.isBounded() == IsBounded.UNBOUNDED) {
         return rowsWithDestination.apply(new StreamingInserts(this));
       } else {
-
-        return rowsWithDestination.apply(new BatchLoads<T>(this));
+        return rowsWithDestination.apply(new BatchLoads(this));
       }
     }
 

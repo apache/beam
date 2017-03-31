@@ -38,9 +38,8 @@ import org.apache.beam.sdk.values.PCollection;
 * PTransform that performs streaming BigQuery write. To increase consistency,
 * it leverages BigQuery best effort de-dup mechanism.
  */
-
-class StreamingInserts
-    extends PTransform<PCollection<KV<TableDestination, TableRow>>, WriteResult> {
+class StreamingInserts extends PTransform<PCollection<KV<TableDestination, TableRow>>,
+    WriteResult> {
   private final Write<?> write;
 
   private static class ConstantSchemaFunction implements

@@ -56,7 +56,7 @@ class ShardedKey<K> implements Serializable {
       return false;
     }
     ShardedKey<K> other = (ShardedKey<K>) o;
-    return (key == other.key) && (shardNumber == other.shardNumber);
+    return Objects.equals(key, other.key) && Objects.equals(shardNumber, other.shardNumber);
   }
 
   @Override

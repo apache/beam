@@ -64,7 +64,8 @@ public class TableDestination implements Serializable {
       return false;
     }
     TableDestination other = (TableDestination) o;
-    return (tableSpec == other.tableSpec) && (tableDescription == other.tableDescription);
+    return Objects.equals(this.tableSpec, other.tableSpec)
+        && Objects.equals(this.tableDescription, other.tableDescription);
   }
 
   @Override

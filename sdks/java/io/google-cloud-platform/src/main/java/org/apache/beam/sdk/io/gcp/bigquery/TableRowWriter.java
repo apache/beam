@@ -29,7 +29,6 @@ import org.apache.beam.sdk.coders.Coder.Context;
 import org.apache.beam.sdk.coders.TableRowJsonCoder;
 import org.apache.beam.sdk.util.IOChannelUtils;
 import org.apache.beam.sdk.util.MimeTypes;
-import org.apache.beam.sdk.values.KV;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -57,7 +56,7 @@ class TableRowWriter {
     }
   }
   TableRowWriter(String basename) {
-    this.tempFilePrefix = basename;
+      this.tempFilePrefix = basename;
   }
 
   public final void open(String uId) throws Exception {
