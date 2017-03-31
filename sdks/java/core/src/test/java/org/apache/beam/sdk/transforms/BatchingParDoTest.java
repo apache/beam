@@ -127,12 +127,12 @@ public class BatchingParDoTest implements Serializable {
             output.size());
         assertTrue(
             "All elements since last batch should have been processed",
-            checkAllElementsProcessing(output, Processing.PROCESSED));
+            checkElementsProcessing(output, Processing.PROCESSED));
       } else {
         // not end of batch
         assertTrue(
             "we should have processed no elements since last batch",
-            checkAllElementsProcessing(output, Processing.UNPROCESSED));
+            checkElementsProcessing(output, Processing.UNPROCESSED));
       }
     }
   }
@@ -219,7 +219,18 @@ public class BatchingParDoTest implements Serializable {
     pipeline.run().waitUntilFinish();
   }
 
-  private boolean checkAllElementsProcessing(
+  /**
+   * Checks that all elements have been processed or unprocessed by the user provided {@code perBatchFn}
+   * @param listToCheck the Iterable to check
+   * @param processing shall we test that elements have been {@code Processing.PROCESSED} or {@code Processing.UNPROCESSED} ?
+   * @return <ul>
+   *  <li> true if {@code processing ==  Processing.PROCESSED} and all the elements were processed </li>
+   *  <li> true if {@code processing ==  Processing.UNPROCESSED} and no element was processed</li>
+   *  <li> false otherwise</li>
+   * </ul>
+   *
+   */
+  private boolean checkElementsProcessing(
       Iterable<KV<String, String>> listToCheck, Processing processing) {
     for (KV<String, String> element : listToCheck) {
       if (processing == Processing.PROCESSED) {
@@ -246,7 +257,7 @@ public class BatchingParDoTest implements Serializable {
     public Void apply(Iterable<KV<String, String>> input) {
       assertTrue(
           "all elements of the collection have not been processed ",
-          checkAllElementsProcessing(input, Processing.PROCESSED));
+          checkElementsProcessing(input, Processing.PROCESSED));
       return null;
     }
   }
