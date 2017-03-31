@@ -97,7 +97,7 @@ import org.apache.beam.sdk.values.PCollection.IsBounded;
  * for details on the estimation.
  *
  * <p>The timestamp for each emitted pane is determined by the
- * {@link Window.Bound#withOutputTimeFn windowing operation}.
+ * {@link Window#withOutputTimeFn windowing operation}.
  * The output {@code PCollection} will have the same {@link WindowFn}
  * as the input.
  *

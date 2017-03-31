@@ -56,7 +56,7 @@ class ReshuffleOverrideFactory<K, V>
       // If the input has already had its windows merged, then the GBK that performed the merge
       // will have set originalStrategy.getWindowFn() to InvalidWindows, causing the GBK contained
       // here to fail. Instead, we install a valid WindowFn that leaves all windows unchanged.
-      Window.Bound<KV<K, V>> rewindow =
+      Window<KV<K, V>> rewindow =
           Window.<KV<K, V>>into(
               new IdentityWindowFn<>(
                   originalStrategy.getWindowFn().windowCoder()))

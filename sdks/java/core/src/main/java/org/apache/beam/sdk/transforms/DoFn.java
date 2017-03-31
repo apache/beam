@@ -279,8 +279,7 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
     /**
      * Returns the timestamp of the input element.
      *
-     * <p>See {@link org.apache.beam.sdk.transforms.windowing.Window}
-     * for more information.
+     * <p>See {@link Window} for more information.
      */
     public abstract Instant timestamp();
 
@@ -290,8 +289,7 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
      *
      * <p>Generally all data is in a single, uninteresting pane unless custom
      * triggering and/or late data has been explicitly requested.
-     * See {@link org.apache.beam.sdk.transforms.windowing.Window}
-     * for more information.
+     * See {@link Window} for more information.
      */
     public abstract PaneInfo pane();
   }
