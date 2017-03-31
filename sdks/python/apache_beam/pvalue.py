@@ -235,11 +235,11 @@ class AsSideInput(object):
   AsIter, etc.)
   """
 
-  def __init__(self, pvalue):
+  def __init__(self, pcoll):
     from apache_beam.transforms import sideinputs
-    self.pvalue = pvalue
+    self.pvalue = pcoll
     self._window_mapping_fn = sideinputs.default_window_mapping_fn(
-        pvalue.windowing.windowfn)
+        pcoll.windowing.windowfn)
 
   def _view_options(self):
     """Internal options corresponding to specific view.
@@ -274,8 +274,8 @@ class AsSingleton(AsSideInput):
   """
   _NO_DEFAULT = object()
 
-  def __init__(self, pvalue, default_value=_NO_DEFAULT):
-    super(AsSingleton, self).__init__(pvalue)
+  def __init__(self, pcoll, default_value=_NO_DEFAULT):
+    super(AsSingleton, self).__init__(pcoll)
     self.default_value = default_value
 
   def __repr__(self):
@@ -340,8 +340,6 @@ class AsList(AsSideInput):
 
   Args:
     pcoll: Input pcollection.
-    label: Label to be specified if several AsList's are used in the pipeline at
-      same depth level.
 
   Returns:
     An AsList-wrapper around a PCollection whose one element is a list
@@ -363,8 +361,6 @@ class AsDict(AsSideInput):
   Args:
     pcoll: Input pcollection. All elements should be key-value pairs (i.e.
        2-tuples) with unique keys.
-    label: Label to be specified if several AsDict's are used in the pipeline at
-      same depth level.
 
   Returns:
     An AsDict-wrapper around a PCollection whose one element is a dict with
