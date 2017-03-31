@@ -97,7 +97,9 @@ public class BatchingParDoTest implements Serializable {
 
               private boolean checkBatchSizes(Iterable<KV<String, Iterable<String>>> listToCheck) {
                 for (KV<String, Iterable<String>> element : listToCheck) {
-                  if (Iterables.size(element.getValue()) != BATCH_SIZE) return false;
+                  if (Iterables.size(element.getValue()) != BATCH_SIZE){
+                    return false;
+                  }
                 }
                 return true;
               }

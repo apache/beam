@@ -19,11 +19,10 @@ package org.apache.beam.sdk.transforms;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
-import avro.shaded.com.google.common.collect.Iterables;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.Iterables;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
-import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.TimeDomain;
@@ -65,20 +64,17 @@ import org.slf4j.LoggerFactory;
  * }));
  *  pipeline.run();
  * }</pre>
- *
  */
 public class BatchingParDo<K, InputT>
     extends PTransform<PCollection<KV<K, InputT>>, PCollection<KV<K, Iterable<InputT>>>> {
 
   private final long batchSize;
 
-  private BatchingParDo(
-      long batchSize) {
+  private BatchingParDo(long batchSize) {
     this.batchSize = batchSize;
   }
 
-  public static <K, InputT> BatchingParDo<K, InputT> via(
-      long batchSize) {
+  public static <K, InputT> BatchingParDo<K, InputT> via(long batchSize) {
     return new BatchingParDo<>(batchSize);
   }
 
@@ -86,21 +82,15 @@ public class BatchingParDo<K, InputT>
   public PCollection<KV<K, Iterable<InputT>>> expand(PCollection<KV<K, InputT>> input) {
     Duration allowedLateness = input.getWindowingStrategy().getAllowedLateness();
 
-    checkArgument(input.getCoder() instanceof KvCoder,
+    checkArgument(
+        input.getCoder() instanceof KvCoder,
         "coder specified in the input PCollection is not a KvCoder");
-    KvCoder inputCoder = (KvCoder)input.getCoder();
-    Coder<K> keyCoder = (Coder<K>)inputCoder.getCoderArguments().get(0);
-    Coder<InputT> valueCoder = (Coder<InputT>)inputCoder.getCoderArguments().get(1);
-
+    KvCoder inputCoder = (KvCoder) input.getCoder();
+    Coder<K> keyCoder = (Coder<K>) inputCoder.getCoderArguments().get(0);
+    Coder<InputT> valueCoder = (Coder<InputT>) inputCoder.getCoderArguments().get(1);
 
     PCollection<KV<K, Iterable<InputT>>> output =
-        input.apply(
-            ParDo.of(
-                new BatchingDoFn<>(
-                    batchSize,
-                    allowedLateness,
-                    keyCoder,
-                    valueCoder)));
+        input.apply(ParDo.of(new BatchingDoFn<>(batchSize, allowedLateness, keyCoder, valueCoder)));
     return output;
   }
 
@@ -122,7 +112,8 @@ public class BatchingParDo<K, InputT>
     private final StateSpec<Object, BagState<InputT>> batchSpec;
 
     @StateId(NUM_ELEMENTS_IN_BATCH_ID)
-    private final StateSpec<Object, AccumulatorCombiningState<Long, Long, Long>> numElementsInBatchSpec;
+    private final StateSpec<Object, AccumulatorCombiningState<Long, Long, Long>>
+        numElementsInBatchSpec;
 
     @StateId(KEY_ID)
     private final StateSpec<Object, ValueState<K>> keySpec;
@@ -137,28 +128,35 @@ public class BatchingParDo<K, InputT>
       this.batchSize = batchSize;
       this.allowedLateness = allowedLateness;
       this.batchSpec = StateSpecs.bag(inputValueCoder);
-      this.numElementsInBatchSpec = StateSpecs.combiningValue(VarLongCoder.of(), new Combine.CombineFn<Long, Long, Long>() {
+      this.numElementsInBatchSpec =
+          StateSpecs.combiningValue(
+              VarLongCoder.of(),
+              new Combine.CombineFn<Long, Long, Long>() {
 
-        @Override public Long createAccumulator() {
-          return 0L;
-        }
+                @Override
+                public Long createAccumulator() {
+                  return 0L;
+                }
 
-        @Override public Long addInput(Long accumulator, Long input) {
-          return accumulator + input;
-        }
+                @Override
+                public Long addInput(Long accumulator, Long input) {
+                  return accumulator + input;
+                }
 
-        @Override public Long mergeAccumulators(Iterable<Long> accumulators) {
-          long sum = 0L;
-          for (Long accumulator : accumulators){
-            sum += accumulator;
-          }
-          return sum;
-        }
+                @Override
+                public Long mergeAccumulators(Iterable<Long> accumulators) {
+                  long sum = 0L;
+                  for (Long accumulator : accumulators) {
+                    sum += accumulator;
+                  }
+                  return sum;
+                }
 
-        @Override public Long extractOutput(Long accumulator) {
-          return accumulator;
-        }
-      });
+                @Override
+                public Long extractOutput(Long accumulator) {
+                  return accumulator;
+                }
+              });
 
       this.keySpec = StateSpecs.value(inputKeyCoder);
       // prefetch every 20% of batchSize elements. Do not prefetch if batchSize is too little
@@ -169,15 +167,16 @@ public class BatchingParDo<K, InputT>
     public void processElement(
         @TimerId(END_OF_WINDOW_ID) Timer timer,
         @StateId(BATCH_ID) BagState<InputT> batch,
-        @StateId(NUM_ELEMENTS_IN_BATCH_ID) AccumulatorCombiningState<Long, Long, Long> numElementsInBatch,
+        @StateId(NUM_ELEMENTS_IN_BATCH_ID)
+            AccumulatorCombiningState<Long, Long, Long> numElementsInBatch,
         @StateId(KEY_ID) ValueState<K> key,
         ProcessContext c,
         BoundedWindow window) {
       Instant firingInstant = window.maxTimestamp().plus(allowedLateness);
-        LOGGER.debug(
-            "*** SET TIMER *** to point in time %s for window %s",
-            firingInstant.toString(), window.toString());
-        timer.set(firingInstant);
+      LOGGER.debug(
+          "*** SET TIMER *** to point in time %s for window %s",
+          firingInstant.toString(), window.toString());
+      timer.set(firingInstant);
       key.write(c.element().getKey());
       batch.add(c.element().getValue());
       LOGGER.debug("*** BATCH *** Add element for window %s ", window.toString());
@@ -199,7 +198,8 @@ public class BatchingParDo<K, InputT>
         OnTimerContext context,
         @StateId(KEY_ID) ValueState<K> key,
         @StateId(BATCH_ID) BagState<InputT> batch,
-        @StateId(NUM_ELEMENTS_IN_BATCH_ID) AccumulatorCombiningState<Long, Long, Long> numElementsInBatch,
+        @StateId(NUM_ELEMENTS_IN_BATCH_ID)
+            AccumulatorCombiningState<Long, Long, Long> numElementsInBatch,
         BoundedWindow window) {
       LOGGER.debug(
           "*** END OF WINDOW *** for timer timestamp %s in windows %s",
@@ -208,7 +208,10 @@ public class BatchingParDo<K, InputT>
     }
 
     private void flushBatch(
-        Context c, ValueState<K> key, BagState<InputT> batch, AccumulatorCombiningState<Long, Long, Long> numElementsInBatch) {
+        Context c,
+        ValueState<K> key,
+        BagState<InputT> batch,
+        AccumulatorCombiningState<Long, Long, Long> numElementsInBatch) {
       Iterable<InputT> values = batch.read();
       // when the timer fires, batch state might be empty
       if (Iterables.size(values) > 0) {
