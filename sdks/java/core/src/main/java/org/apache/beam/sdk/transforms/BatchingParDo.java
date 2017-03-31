@@ -19,6 +19,7 @@ package org.apache.beam.sdk.transforms;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
+import avro.shaded.com.google.common.collect.Iterables;
 import com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
@@ -45,53 +46,44 @@ import org.slf4j.LoggerFactory;
  * {@link PTransform} that allows to compute elements in batch of desired size. The input {@link
  * PCollection} needs to be a {@code PCollection<KV>}. Elements that must belong to the same batch
  * need to have the same key. Elements are added to a buffer. When the buffer reaches {@code
- * batchSize}, it is then processed through a user {@link SimpleFunction perBatchFn} function. The
- * output elements then are added to the output {@link PCollection}. Windows are preserved (batches
- * contain elements from the same window). Batching is done trans-bundles (batches may contain
- * elements from more than one bundle)
+ * batchSize}, it is then output to the output {@link PCollection}. Windows are preserved (batches
+ * contain elements from the same window). Batches may contain elements from more than one bundle
  *
  * <p>Example (batch call a webservice and get return codes)
  *
  * <pre>{@code
- * SimpleFunction<Iterable<String>, Iterable<String>> perBatchFn =
- * new SimpleFunction<Iterable<String>, Iterable<String>>() {
- *   {@literal @}Override
- *   public Iterable<String> apply(Iterable<String> input) {
- *     ArrayList<String> results = callWebService(input);
- *     return results;
- *     }
- *  };
- *  ...
  *  Pipeline pipeline = Pipeline.create(...);
- *  ...
+ *  ... // KV collection
  *  long batchSize = 100L;
- *  pipeline.apply(BatchingParDo.via(batchSize, perBatchFn))
- *          .setCoder(StringUtf8Coder.of());
+ *  pipeline.apply(BatchingParDo.<String, String>via(batchSize))
+ * .setCoder(KvCoder.of(StringUtf8Coder.of(), IterableCoder.of(StringUtf8Coder.of())))
+ * .apply(ParDo.of(new DoFn<KV<String, Iterable<String>>, KV<String, String>>() {
+ * {@literal @}ProcessElement
+ * public void processElement(ProcessContext c){
+ * c.output(KV.of(c.element().getKey(), callWebService(c.element().getValue())));
+ * }
+ * }));
  *  pipeline.run();
  * }</pre>
- * *
+ *
  */
-public class BatchingParDo<K, InputT, OutputT>
-    extends PTransform<PCollection<KV<K, InputT>>, PCollection<KV<K, OutputT>>> {
+public class BatchingParDo<K, InputT>
+    extends PTransform<PCollection<KV<K, InputT>>, PCollection<KV<K, Iterable<InputT>>>> {
 
   private final long batchSize;
-  private final SimpleFunction<? super Iterable<InputT>, ? extends Iterable<OutputT>> perBatchFn;
 
   private BatchingParDo(
-      long batchSize,
-      SimpleFunction<? super Iterable<InputT>, ? extends Iterable<OutputT>> perBatchFn) {
+      long batchSize) {
     this.batchSize = batchSize;
-    this.perBatchFn = perBatchFn;
   }
 
-  public static <K, InputT, OutputT> BatchingParDo<K, InputT, OutputT> via(
-      long batchSize,
-      SimpleFunction<? super Iterable<InputT>, ? extends Iterable<OutputT>> perBatchFn) {
-    return new BatchingParDo<>(batchSize, perBatchFn);
+  public static <K, InputT> BatchingParDo<K, InputT> via(
+      long batchSize) {
+    return new BatchingParDo<>(batchSize);
   }
 
   @Override
-  public PCollection<KV<K, OutputT>> expand(PCollection<KV<K, InputT>> input) {
+  public PCollection<KV<K, Iterable<InputT>>> expand(PCollection<KV<K, InputT>> input) {
     Duration allowedLateness = input.getWindowingStrategy().getAllowedLateness();
 
     checkArgument(input.getCoder() instanceof KvCoder,
@@ -101,12 +93,11 @@ public class BatchingParDo<K, InputT, OutputT>
     Coder<InputT> valueCoder = (Coder<InputT>)inputCoder.getCoderArguments().get(1);
 
 
-    PCollection<KV<K, OutputT>> output =
+    PCollection<KV<K, Iterable<InputT>>> output =
         input.apply(
             ParDo.of(
                 new BatchingDoFn<>(
                     batchSize,
-                    perBatchFn,
                     allowedLateness,
                     keyCoder,
                     valueCoder)));
@@ -114,7 +105,7 @@ public class BatchingParDo<K, InputT, OutputT>
   }
 
   @VisibleForTesting
-  static class BatchingDoFn<K, InputT, OutputT> extends DoFn<KV<K, InputT>, KV<K, OutputT>> {
+  static class BatchingDoFn<K, InputT> extends DoFn<KV<K, InputT>, KV<K, Iterable<InputT>>> {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(BatchingDoFn.class);
     private static final String END_OF_WINDOW_ID = "endOFWindow";
@@ -122,7 +113,6 @@ public class BatchingParDo<K, InputT, OutputT>
     private static final String NUM_ELEMENTS_IN_BATCH_ID = "numElementsInBatch";
     private static final String KEY_ID = "key";
     private final long batchSize;
-    private final SimpleFunction<? super Iterable<InputT>, ? extends Iterable<OutputT>> perBatchFn;
     private final Duration allowedLateness;
 
     @TimerId(END_OF_WINDOW_ID)
@@ -141,12 +131,10 @@ public class BatchingParDo<K, InputT, OutputT>
 
     BatchingDoFn(
         long batchSize,
-        SimpleFunction<? super Iterable<InputT>, ? extends Iterable<OutputT>> perBatchFn,
         Duration allowedLateness,
         Coder<K> inputKeyCoder,
         Coder<InputT> inputValueCoder) {
       this.batchSize = batchSize;
-      this.perBatchFn = perBatchFn;
       this.allowedLateness = allowedLateness;
       this.batchSpec = StateSpecs.bag(inputValueCoder);
       this.numElementsInBatchSpec = StateSpecs.combiningValue(VarLongCoder.of(), new Combine.CombineFn<Long, Long, Long>() {
@@ -221,9 +209,10 @@ public class BatchingParDo<K, InputT, OutputT>
 
     private void flushBatch(
         Context c, ValueState<K> key, BagState<InputT> batch, AccumulatorCombiningState<Long, Long, Long> numElementsInBatch) {
-      Iterable<OutputT> batchOutput = perBatchFn.apply(batch.read());
-      for (OutputT element : batchOutput) {
-        c.output(KV.of(key.read(), element));
+      Iterable<InputT> values = batch.read();
+      // when the timer fires, batch state might be empty
+      if (Iterables.size(values) > 0) {
+        c.output(KV.of(key.read(), values));
       }
       batch.clear();
       LOGGER.debug("*** BATCH *** clear");
