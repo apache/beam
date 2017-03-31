@@ -699,7 +699,6 @@ public class DataflowPipelineTranslator {
 
           private <ElemT, ViewT> void translateTyped(
               CreateDataflowView<ElemT, ViewT> transform, TranslationContext context) {
-            LOG.info("Translating transform {} for view {}", transform, transform.getView());
             StepTranslationContext stepContext =
                 context.addStep(transform, "CollectionToSingleton");
             PCollection<ElemT> input = context.getInput(transform);
