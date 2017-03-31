@@ -68,27 +68,27 @@ class _SideInputsContainer(object):
     for view in views:
       self._views[view] = _SideInputView(view)
 
-  def get_value_or_schedule_after_output(self, pcollection_view, task):
+  def get_value_or_schedule_after_output(self, side_input, task):
     with self._lock:
-      view = self._views[pcollection_view]
+      view = self._views[side_input]
       if not view.has_result:
         view.callable_queue.append(task)
         task.blocked = True
       return (view.has_result, view.value)
 
-  def add_values(self, pcollection_view, values):
+  def add_values(self, side_input, values):
     with self._lock:
-      view = self._views[pcollection_view]
+      view = self._views[side_input]
       assert not view.has_result
       view.elements.extend(values)
 
-  def finalize_value_and_get_tasks(self, pcollection_view):
+  def finalize_value_and_get_tasks(self, side_input):
     with self._lock:
-      view = self._views[pcollection_view]
+      view = self._views[side_input]
       assert not view.has_result
       assert view.value is None
       assert view.callable_queue is not None
-      view.value = self._pvalue_to_value(pcollection_view, view.elements)
+      view.value = self._pvalue_to_value(side_input, view.elements)
       view.elements = None
       result = tuple(view.callable_queue)
       for task in result:
@@ -291,7 +291,7 @@ class EvaluationContext(object):
     tw = self._watermark_manager.get_watermarks(transform)
     return tw.output_watermark == WatermarkManager.WATERMARK_POS_INF
 
-  def get_value_or_schedule_after_output(self, pcollection_view, task):
+  def get_value_or_schedule_after_output(self, side_input, task):
     assert isinstance(task, TransformExecutor)
     return self._side_inputs_container.get_value_or_schedule_after_output(
-        pcollection_view, task)
+        side_input, task)

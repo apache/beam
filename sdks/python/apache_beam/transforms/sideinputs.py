@@ -24,7 +24,6 @@ AsSingleton, AsIter, AsList and AsDict in apache_beam.pvalue.
 
 from __future__ import absolute_import
 
-from apache_beam import pvalue
 from apache_beam.transforms import window
 
 

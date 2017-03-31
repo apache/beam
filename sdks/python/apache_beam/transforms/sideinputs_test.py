@@ -297,8 +297,8 @@ class SideInputsTest(unittest.TestCase):
     pipeline = self.create_pipeline()
     main_input = pipeline | 'main input' >> beam.Create([None])
     side_input = (
-      pipeline | 'side1' >> beam.Create(['a']),
-      pipeline | 'side2' >> beam.Create(['b'])) | beam.Flatten()
+        pipeline | 'side1' >> beam.Create(['a']),
+        pipeline | 'side2' >> beam.Create(['b'])) | beam.Flatten()
     results = main_input | beam.FlatMap(
         lambda _, ab: ab,
         beam.pvalue.AsList(side_input))

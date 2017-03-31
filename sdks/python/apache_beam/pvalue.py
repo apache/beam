@@ -26,7 +26,6 @@ produced when the pipeline gets executed.
 
 from __future__ import absolute_import
 
-import collections
 import itertools
 
 from apache_beam import typehints
@@ -226,7 +225,15 @@ class SideOutputValue(object):
 
 
 class AsSideInput(object):
-  """Marker specifying that a PCollection will be used as a side input."""
+  """Marker specifying that a PCollection will be used as a side input.
+
+  When a PCollection is supplied as a side input to a PTransform, it is
+  necessary to indicate how the PCollection should be made available
+  as a PTransform side argument (e.g. in the form of an iterable, mapping,
+  or single value).  This class is the superclass of all the various
+  options, and should not be instantiated directly. (See instead AsSingleton,
+  AsIter, etc.)
+  """
 
   def __init__(self, pvalue):
     from apache_beam.transforms import sideinputs
@@ -262,14 +269,12 @@ class AsSingleton(AsSideInput):
   (e.g., data.apply('label', MyPTransform(), AsSingleton(my_side_input) )
   selects the latter behavor.
 
-  (Note: This marker is agnostic to whether the PValue it wraps is a
-  PCollection. Although PCollections are the only PValues available now, there
-  may be additional PValue types for which AsIter and AsSingleton are useful
-  markers.
+  The input PCollection must contain exactly one  value per window, unless a
+  default is given, in which case it may be empty.
   """
   _NO_DEFAULT = object()
 
-  def __init__(self, pvalue, default_value = _NO_DEFAULT):
+  def __init__(self, pvalue, default_value=_NO_DEFAULT):
     super(AsSingleton, self).__init__(pvalue)
     self.default_value = default_value
 
@@ -312,11 +317,6 @@ class AsIter(AsSideInput):
   Wrapping a PCollection side input argument to a PTransform in this container
   (e.g., data.apply('label', MyPTransform(), AsIter(my_side_input) ) selects the
   former behavor.
-
-  (Note: This marker is agnostic to whether the PValue it wraps is a
-  PCollection. Although PCollection is the only PValue available now, there
-  may be additional PValue types for which AsIter and AsSingleton are useful
-  markers.
   """
 
   def __repr__(self):

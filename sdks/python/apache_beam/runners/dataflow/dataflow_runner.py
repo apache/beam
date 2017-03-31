@@ -32,7 +32,6 @@ from apache_beam import pvalue
 from apache_beam.internal import pickler
 from apache_beam.internal.gcp import json_value
 from apache_beam.pvalue import AsSideInput
-from apache_beam.pvalue import AsSingleton
 from apache_beam.runners.dataflow.dataflow_metrics import DataflowMetrics
 from apache_beam.runners.dataflow.internal import names
 from apache_beam.runners.dataflow.internal.clients import dataflow as dataflow_api
@@ -288,7 +287,6 @@ class DataflowRunner(PipelineRunner):
   def _add_singleton_step(self, label, full_label, tag, input_step):
     """Creates a CollectionToSingleton step used to handle ParDo side inputs."""
     # Import here to avoid adding the dependency for local running scenarios.
-    # pylint: disable=g-import-not-at-top
     from google.cloud.dataflow.internal import apiclient
     step = apiclient.Step(TransformNames.COLLECTION_TO_SINGLETON, label)
     self.job.proto.steps.append(step.proto)
