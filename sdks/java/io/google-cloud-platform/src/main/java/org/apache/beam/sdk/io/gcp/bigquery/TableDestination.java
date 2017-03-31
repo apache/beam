@@ -20,12 +20,13 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 
 import com.google.api.services.bigquery.model.TableReference;
 
+import java.io.Serializable;
 import java.util.Objects;
 
 /**
  * Encapsulates a BigQuery table destination.
  */
-public class TableDestination {
+public class TableDestination implements Serializable {
   private final String tableSpec;
   private final String tableDescription;
 
@@ -53,12 +54,17 @@ public class TableDestination {
   }
 
   @Override
+  public String toString() {
+    return "tableSpec: " + tableSpec + " tableDescription: " + tableDescription;
+  }
+
+  @Override
   public boolean equals(Object o) {
     if (!(o instanceof TableDestination)) {
       return false;
     }
     TableDestination other = (TableDestination) o;
-    return tableSpec == other.tableSpec && tableDescription == other.tableDescription;
+    return (tableSpec == other.tableSpec) && (tableDescription == other.tableDescription);
   }
 
   @Override

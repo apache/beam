@@ -18,12 +18,12 @@
 
 package org.apache.beam.sdk.io.gcp.bigquery;
 
-import avro.shaded.com.google.common.collect.Maps;
 import com.google.api.services.bigquery.model.Job;
 import com.google.api.services.bigquery.model.JobConfigurationTableCopy;
 import com.google.api.services.bigquery.model.JobReference;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
@@ -36,7 +36,6 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.WriteDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.JobService;
 import org.apache.beam.sdk.options.BigQueryOptions;
-import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.PCollectionView;
@@ -53,23 +52,21 @@ class WriteRename extends DoFn<String, Void> {
   private final PCollectionView<String> jobIdToken;
   private final WriteDisposition writeDisposition;
   private final CreateDisposition createDisposition;
+  // Map from final destination to a list of temporary tables that need to be copied into it.
   private final PCollectionView<Map<TableDestination, Iterable<String>>> tempTablesView;
-  @Nullable
-  private final String tableDescription;
+
 
   public WriteRename(
       BigQueryServices bqServices,
       PCollectionView<String> jobIdToken,
       WriteDisposition writeDisposition,
       CreateDisposition createDisposition,
-      PCollectionView<Map<TableDestination, Iterable<String>>> tempTablesView,
-      @Nullable String tableDescription) {
+      PCollectionView<Map<TableDestination, Iterable<String>>> tempTablesView) {
     this.bqServices = bqServices;
     this.jobIdToken = jobIdToken;
     this.writeDisposition = writeDisposition;
     this.createDisposition = createDisposition;
     this.tempTablesView = tempTablesView;
-    this.tableDescription = tableDescription;
   }
 
   @ProcessElement
@@ -102,7 +99,7 @@ class WriteRename extends DoFn<String, Void> {
           tempTables,
           writeDisposition,
           createDisposition,
-          tableDescription);
+          finalTableDestination.getTableDescription());
 
       DatasetService tableService =
           bqServices.getDatasetService(c.getPipelineOptions().as(BigQueryOptions.class));

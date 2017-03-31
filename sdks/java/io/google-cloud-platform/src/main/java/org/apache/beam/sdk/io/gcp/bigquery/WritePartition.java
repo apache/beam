@@ -37,20 +37,20 @@ import org.apache.beam.sdk.values.TupleTag;
  * Partitions temporary files based on number of files and file sizes. Output key is a pair of
  * tablespec and the list of files corresponding to each partition of that table.
  */
-class WritePartition extends DoFn<String, KV<KV<TableDestination, Integer>, List<String>>> {
-  private final ValueProvider<TableReference> singletonOutputTable;
+class WritePartition extends DoFn<String, KV<ShardedKey<TableDestination>, List<String>>> {
+  private final ValueProvider<String> singletonOutputJsonTableRef;
   private final String singletonOutputTableDescription;
   private final PCollectionView<Iterable<WriteBundlesToFiles.Result>> resultsView;
-  private TupleTag<KV<KV<TableDestination, Integer>, List<String>>> multiPartitionsTag;
-  private TupleTag<KV<KV<TableDestination, Integer>, List<String>>> singlePartitionTag;
+  private TupleTag<KV<ShardedKey<TableDestination>, List<String>>> multiPartitionsTag;
+  private TupleTag<KV<ShardedKey<TableDestination>, List<String>>> singlePartitionTag;
 
   public WritePartition(
-      ValueProvider<TableReference> singletonOutputTable,
+      ValueProvider<String> singletonOutputJsonTableRef,
       String singletonOutputTableDescription,
       PCollectionView<Iterable<WriteBundlesToFiles.Result>> resultsView,
-      TupleTag<KV<KV<TableDestination, Integer>, List<String>>> multiPartitionsTag,
-      TupleTag<KV<KV<TableDestination, Integer>, List<String>>> singlePartitionTag) {
-    this.singletonOutputTable = singletonOutputTable;
+      TupleTag<KV<ShardedKey<TableDestination>, List<String>>> multiPartitionsTag,
+      TupleTag<KV<ShardedKey<TableDestination>, List<String>>> singlePartitionTag) {
+    this.singletonOutputJsonTableRef = singletonOutputJsonTableRef;
     this.singletonOutputTableDescription = singletonOutputTableDescription;
     this.resultsView = resultsView;
     this.multiPartitionsTag = multiPartitionsTag;
@@ -63,8 +63,9 @@ class WritePartition extends DoFn<String, KV<KV<TableDestination, Integer>, List
 
     // If there are no elements to write _and_ the user specified a constant output table, then
     // generate an empty table of that name.
-    if (results.isEmpty() && singletonOutputTable != null) {
-      TableReference singletonTable = singletonOutputTable.get();
+    if (results.isEmpty() && singletonOutputJsonTableRef != null) {
+      TableReference singletonTable = BigQueryHelpers.fromJsonString(
+          singletonOutputJsonTableRef.get(), TableReference.class);
       if (singletonTable != null) {
         TableRowWriter writer = new TableRowWriter(c.element());
         writer.open(UUID.randomUUID().toString());
@@ -82,8 +83,7 @@ class WritePartition extends DoFn<String, KV<KV<TableDestination, Integer>, List
     for (int i = 0; i < results.size(); ++i) {
       WriteBundlesToFiles.Result fileResult = results.get(i);
       TableDestination tableDestination = fileResult.tableDestination;
-      // JAVA8
-      List<List<String>> partitions = currResultsMap.getOrDefault(tableDestination, null);
+      List<List<String>> partitions = currResultsMap.get(tableDestination);
       if (partitions == null) {
         partitions = Lists.newArrayList();
         partitions.add(Lists.<String>newArrayList());
@@ -110,10 +110,10 @@ class WritePartition extends DoFn<String, KV<KV<TableDestination, Integer>, List
     for (Map.Entry<TableDestination, List<List<String>>> entry : currResultsMap.entrySet()) {
       TableDestination tableDestination = entry.getKey();
       List<List<String>> partitions = entry.getValue();
-      TupleTag<KV<KV<TableDestination, Integer>, List<String>>> outputTag =
+      TupleTag<KV<ShardedKey<TableDestination>, List<String>>> outputTag =
           (partitions.size() == 1) ? singlePartitionTag : multiPartitionsTag;
       for (int i = 0; i < partitions.size(); ++i) {
-        c.output(outputTag, KV.of(KV.of(tableDestination, i + 1), partitions.get(i)));
+        c.output(outputTag, KV.of(ShardedKey.of(tableDestination, i + 1), partitions.get(i)));
       }
     }
   }
