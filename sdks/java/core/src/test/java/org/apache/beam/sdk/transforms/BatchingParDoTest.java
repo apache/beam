@@ -59,7 +59,6 @@ public class BatchingParDoTest implements Serializable {
   private static final long NUM_ELEMENTS = 100;
   private static final int ALLOWED_LATENESS = 0;
   private static final int TIMESTAMP_INTERVAL = 1;
-  private static final long WINDOW_DURATION = 5;
   private static final Logger LOGGER = LoggerFactory.getLogger(BatchingParDoTest.class);
   private transient ArrayList<KV<String, String>> data = createTestData();
   private static SimpleFunction<Iterable<String>, Iterable<String>> perBatchFn;
@@ -163,10 +162,11 @@ public class BatchingParDoTest implements Serializable {
       streamBuilder = streamBuilder.addElements(TimestampedValue.of(element, startInstant.plus(Duration.standardSeconds(offset * TIMESTAMP_INTERVAL))));
       offset ++;
     }
+    final long windowDuration = 5;
     TestStream<KV<String, String>> stream =
         streamBuilder
-            .advanceWatermarkTo(startInstant.plus(Duration.standardSeconds(WINDOW_DURATION - 1)))
-            .advanceWatermarkTo(startInstant.plus(Duration.standardSeconds(WINDOW_DURATION + 1)))
+            .advanceWatermarkTo(startInstant.plus(Duration.standardSeconds(windowDuration - 1)))
+            .advanceWatermarkTo(startInstant.plus(Duration.standardSeconds(windowDuration + 1)))
             .advanceWatermarkTo(startInstant.plus(Duration.standardSeconds(NUM_ELEMENTS)))
             .advanceWatermarkToInfinity();
 
@@ -175,7 +175,7 @@ public class BatchingParDoTest implements Serializable {
             .apply(stream)
             .apply(
                 Window.<KV<String, String>>into(
-                    FixedWindows.of(Duration.standardSeconds(WINDOW_DURATION))));
+                    FixedWindows.of(Duration.standardSeconds(windowDuration))));
     inputCollection.apply(
         ParDo.of(
             new DoFn<KV<String, String>, Void>() {
@@ -197,7 +197,7 @@ public class BatchingParDoTest implements Serializable {
             "Count elements in windows before applying batchingParDo",
             Count.<String, String>perKey());
     PAssert.that("Wrong number of elements in windows before BatchingParDo", countInput)
-        .satisfies(new CheckValuesFn(WINDOW_DURATION));
+        .satisfies(new CheckValuesFn(windowDuration));
 
     PCollection<KV<String, String>> outputCollection =
         inputCollection
@@ -215,7 +215,7 @@ public class BatchingParDoTest implements Serializable {
             Count.<String, String>perKey());
 
     PAssert.that("Wrong number of elements in windows after BatchingParDo", countOutput)
-        .satisfies(new CheckValuesFn(WINDOW_DURATION));
+        .satisfies(new CheckValuesFn(windowDuration));
     pipeline.run().waitUntilFinish();
   }
 
