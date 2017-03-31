@@ -17,6 +17,9 @@
 
 """Provides TestStream for verifying streaming runner semantics."""
 
+from abc import ABCMeta
+from abc import abstractmethod
+
 from apache_beam import coders
 from apache_beam import pvalue
 from apache_beam.transforms import PTransform
@@ -26,12 +29,18 @@ from apache_beam.utils.windowed_value import WindowedValue
 
 
 class Event(object):
-  """Test stream event."""
+  """Test stream event to be emitted during execution of a TestStream."""
+
+  __metaclass__ = ABCMeta
 
   def __cmp__(self, other):
     if type(self) is not type(other):
       return cmp(type(self), type(other))
     return self._typed_cmp(other)
+
+  @abstractmethod
+  def _typed_cmp(self, other):
+    raise NotImplementedError
 
 
 class ElementEvent(Event):
@@ -103,6 +112,17 @@ class TestStream(PTransform):
     self.events.append(event)
 
   def add_elements(self, elements):
+    """Add elements to the TestStream.
+
+    Elements added to the TestStream will be produced during pipeline execution.
+    These elements can be TimestampedValue, WindowedValue or raw unwrapped
+    elements that are serializable using the TestStream's specified Coder.  When
+    a TimestampedValue or a WindowedValue element is used, the timestamp of the
+    TimestampedValue or WindowedValue will be the timestamp of the produced
+    element; otherwise, the current watermark timestamp will be used for that
+    element.  The windows of a given WindowedValue are ignored by the
+    TestStream.
+    """
     timestamped_values = []
     for element in elements:
       if isinstance(element, TimestampedValue):
@@ -119,13 +139,25 @@ class TestStream(PTransform):
     return self
 
   def advance_watermark_to(self, new_watermark):
+    """Advance the watermark to a given Unix timestamp.
+
+    The Unix timestamp value used must be later than the previous watermark
+    value and should be given as an int, float or utils.timestamp.Timestamp
+    object.
+    """
     self._add(WatermarkEvent(new_watermark))
     return self
 
   def advance_watermark_to_infinity(self):
+    """Advance the watermark to the end of time."""
     self.advance_watermark_to(timestamp.MAX_TIMESTAMP)
     return self
 
   def advance_processing_time(self, advance_by):
+    """Advance the current processing time by a given duration in seconds.
+
+    The duration must be a positive second duration and should be given as an
+    int, float or utils.timestamp.Duration object.
+    """
     self._add(ProcessingTimeEvent(advance_by))
     return self

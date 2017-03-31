@@ -75,7 +75,7 @@ class TestStreamTest(unittest.TestCase):
         'Element timestamp must be before timestamp.MAX_TIMESTAMP.')):
       _ = (TestStream()
            .add_elements([
-               TimestampedValue('a', timestamp.MAX_TIMESTAMP + 1)
+               TimestampedValue('a', timestamp.MAX_TIMESTAMP)
            ]))
 
 if __name__ == '__main__':
