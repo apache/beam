@@ -148,11 +148,15 @@ public class UnboundedFlinkSink<T> extends Sink<T> {
       public Writer<T, Object> createWriter(PipelineOptions options) throws Exception {
         return new Writer<T, Object>() {
           @Override
-          public void open(String uId,
-                                 @Nullable BoundedWindow window,
-                                 @Nullable PaneInfo paneInfo,
-                                 int shard,
-                                 int numShards) throws Exception {
+          public void openWindowed(String uId,
+                                   BoundedWindow window,
+                                   PaneInfo paneInfo,
+                                   int shard,
+                                   int numShards) throws Exception {
+          }
+
+          @Override
+          public void openUnwindowed(String uId, int shard, int numShards) throws Exception {
           }
 
           @Override
