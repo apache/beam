@@ -247,13 +247,9 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
     private PubsubReader<T> reader;
 
     /**
-     * If the checkpoint is for persisting: The ACK ids of messages which have been passed
-     * downstream since the last checkpoint.
-     * If the checkpoint is for restoring: {@literal null}.
-     * Not persisted in durable checkpoint.
+     * The ACK ids of messages which have been passed downstream since the last checkpoint.
      */
-    @Nullable
-    private List<String> safeToAckIds;
+    private final List<String> safeToAckIds;
 
     /**
      * If the checkpoint is for persisting: The ACK ids of messages which have been received
@@ -266,7 +262,7 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
     public PubsubCheckpoint(
         @Nullable String subscriptionPath,
         @Nullable PubsubReader<T> reader,
-        @Nullable List<String> safeToAckIds,
+        List<String> safeToAckIds,
         List<String> notYetReadIds) {
       this.subscriptionPath = subscriptionPath;
       this.reader = reader;
@@ -289,34 +285,17 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
      */
     @Override
     public void finalizeCheckpoint() throws IOException {
-      checkState(reader != null && safeToAckIds != null, "Cannot finalize a restored checkpoint");
+      if (reader == null) {
+        // There's no reader, so we can't ACK anything. Nothing to do.
+        return;
+      }
       // Even if the 'true' active reader has changed since the checkpoint was taken we are
       // fine:
       // - The underlying Pubsub topic will not have changed, so the following ACKs will still
       // go to the right place.
       // - We'll delete the ACK ids from the readers in-flight state, but that only effects
       // flow control and stats, neither of which are relevant anymore.
-      try {
-        int n = safeToAckIds.size();
-        List<String> batchSafeToAckIds = new ArrayList<>(Math.min(n, ACK_BATCH_SIZE));
-        for (String ackId : safeToAckIds) {
-          batchSafeToAckIds.add(ackId);
-          if (batchSafeToAckIds.size() >= ACK_BATCH_SIZE) {
-            reader.ackBatch(batchSafeToAckIds);
-            n -= batchSafeToAckIds.size();
-            // CAUTION: Don't reuse the same list since ackBatch holds on to it.
-            batchSafeToAckIds = new ArrayList<>(Math.min(n, ACK_BATCH_SIZE));
-          }
-        }
-        if (!batchSafeToAckIds.isEmpty()) {
-          reader.ackBatch(batchSafeToAckIds);
-        }
-      } finally {
-        checkState(reader.numInFlightCheckpoints.decrementAndGet() >= 0,
-                   "Miscounted in-flight checkpoints");
-        reader = null;
-        safeToAckIds = null;
-      }
+      ackSafe(reader);
     }
 
     /**
@@ -332,11 +311,38 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
 
     /**
      * BLOCKING
+     * NACK all messages which have been read from Pubsub but not passed downstream. This way Pubsub
+     * will send them again promptly. Then ACK all messages that are known to be passed downstream
+     * at the time this checkpoint was taken.
+     */
+    void onRestore(PubsubReader<T> reader) throws IOException {
+      nackAll(reader);
+      ackSafe(reader);
+    }
+
+    private void ackSafe(PubsubReader<T> reader) throws IOException {
+      int n = safeToAckIds.size();
+      List<String> batchSafeToAckIds = new ArrayList<>(Math.min(n, ACK_BATCH_SIZE));
+      for (String ackId : safeToAckIds) {
+        batchSafeToAckIds.add(ackId);
+        if (batchSafeToAckIds.size() >= ACK_BATCH_SIZE) {
+          reader.ackBatch(batchSafeToAckIds);
+          n -= batchSafeToAckIds.size();
+          // CAUTION: Don't reuse the same list since ackBatch holds on to it.
+          batchSafeToAckIds = new ArrayList<>(Math.min(n, ACK_BATCH_SIZE));
+        }
+      }
+      if (!batchSafeToAckIds.isEmpty()) {
+        reader.ackBatch(batchSafeToAckIds);
+      }
+    }
+
+    /**
+     * BLOCKING
      * NACK all messages which have been read from Pubsub but not passed downstream.
      * This way Pubsub will send them again promptly.
      */
-    public void nackAll(PubsubReader<T> reader) throws IOException {
-      checkState(this.reader == null, "Cannot nackAll on persisting checkpoint");
+    void nackAll(PubsubReader<T> reader) throws IOException {
       List<String> batchYetToAckIds =
           new ArrayList<>(Math.min(notYetReadIds.size(), ACK_BATCH_SIZE));
       for (String ackId : notYetReadIds) {
@@ -367,14 +373,16 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
           value.subscriptionPath,
           outStream,
           context.nested());
+      LIST_CODER.encode(value.safeToAckIds, outStream, context.nested());
       LIST_CODER.encode(value.notYetReadIds, outStream, context);
     }
 
     @Override
     public PubsubCheckpoint<T> decode(InputStream inStream, Context context) throws IOException {
       String path = SUBSCRIPTION_PATH_CODER.decode(inStream, context.nested());
+      List<String> safeToAckIds = LIST_CODER.decode(inStream, context);
       List<String> notYetReadIds = LIST_CODER.decode(inStream, context);
-      return new PubsubCheckpoint<>(path, null, null, notYetReadIds);
+      return new PubsubCheckpoint<>(path, null, safeToAckIds, notYetReadIds);
     }
   }
 
@@ -1128,8 +1136,8 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
       if (checkpoint != null) {
         // NACK all messages we may have lost.
         try {
-          // Will BLOCK until NACKed.
-          checkpoint.nackAll(reader);
+          // Will BLOCK until the state of the Checkpoint is sent to Pubsub.
+          checkpoint.onRestore(reader);
         } catch (IOException e) {
           LOG.error("Pubsub {} cannot have {} lost messages NACKed, ignoring: {}",
                     subscriptionPath, checkpoint.notYetReadIds.size(), e);
