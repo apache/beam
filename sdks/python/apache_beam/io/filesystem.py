@@ -24,7 +24,6 @@ import cStringIO
 import os
 import zlib
 
-
 DEFAULT_READ_BUFFER_SIZE = 16 * 1024 * 1024
 
 
@@ -79,7 +78,8 @@ class CompressionTypes(object):
 
 
 class CompressedFile(object):
-  """Somewhat limited file wrapper for easier handling of compressed files."""
+  """File wrapper for easier handling of compressed files."""
+  # XXX: This class is not thread safe in the read path.
 
   # The bit mask to use for the wbits parameters of the zlib compressor and
   # decompressor objects.
@@ -107,6 +107,7 @@ class CompressedFile(object):
       raise ValueError('File object must be at position 0 but was %d' %
                        self._file.tell())
     self._uncompressed_position = 0
+    self._uncompressed_size = None
 
     if self.readable():
       self._read_size = read_size
@@ -114,23 +115,29 @@ class CompressedFile(object):
       self._read_position = 0
       self._read_eof = False
 
-      if self._compression_type == CompressionTypes.BZIP2:
-        self._decompressor = bz2.BZ2Decompressor()
-      else:
-        assert self._compression_type == CompressionTypes.GZIP
-        self._decompressor = zlib.decompressobj(self._gzip_mask)
+      self._initialize_decompressor()
     else:
       self._decompressor = None
 
     if self.writeable():
-      if self._compression_type == CompressionTypes.BZIP2:
-        self._compressor = bz2.BZ2Compressor()
-      else:
-        assert self._compression_type == CompressionTypes.GZIP
-        self._compressor = zlib.compressobj(zlib.Z_DEFAULT_COMPRESSION,
-                                            zlib.DEFLATED, self._gzip_mask)
+      self._initialize_compressor()
     else:
       self._compressor = None
+
+  def _initialize_decompressor(self):
+    if self._compression_type == CompressionTypes.BZIP2:
+      self._decompressor = bz2.BZ2Decompressor()
+    else:
+      assert self._compression_type == CompressionTypes.GZIP
+      self._decompressor = zlib.decompressobj(self._gzip_mask)
+
+  def _initialize_compressor(self):
+    if self._compression_type == CompressionTypes.BZIP2:
+      self._compressor = bz2.BZ2Compressor()
+    else:
+      assert self._compression_type == CompressionTypes.GZIP
+      self._compressor = zlib.compressobj(zlib.Z_DEFAULT_COMPRESSION,
+                                          zlib.DEFLATED, self._gzip_mask)
 
   def readable(self):
     mode = self._file.mode
@@ -158,9 +165,7 @@ class CompressedFile(object):
       # but without dropping any previous held data.
       self._read_buffer.seek(self._read_position)
       data = self._read_buffer.read()
-      self._read_position = 0
-      self._read_buffer.seek(0)
-      self._read_buffer.truncate(0)
+      self._rewind_read_buffer()
       self._read_buffer.write(data)
 
     while not self._read_eof and (self._read_buffer.tell() - self._read_position
@@ -250,8 +255,73 @@ class CompressedFile(object):
 
   @property
   def seekable(self):
-    # TODO: Add support for seeking to a file position.
-    return False
+    return self._file.mode == 'r'
+
+  def _rewind_read_buffer(self):
+    self._read_position = 0
+    self._read_buffer.seek(0)
+    self._read_buffer.truncate(0)
+
+  def _rewind_file(self):
+    self._file.seek(0, os.SEEK_SET)
+    self._read_eof = False
+    self._uncompressed_position = 0
+
+  def _rewind(self):
+    self._rewind_read_buffer()
+    self._rewind_file()
+
+    # Re-initialize decompressor to clear any data buffered prior to rewind
+    self._initialize_decompressor()
+
+  def seek(self, offset, whence=os.SEEK_SET):
+    """Set the file's current offset.
+
+    Seeking behavior:
+      * seeking from the end (SEEK_END) the whole file is decompressed once to
+        determine it's size. Therefore it is preferred to use
+        SEEK_SET or SEEK_CUR to avoid the processing overhead
+      * seeking backwards from the current position rewinds the file to 0
+        and decompresses the chunks to the requested offset
+      * seeking is only supported in files opened for reading
+      * if the new offset is out of bound, it is adjusted to either 0 or EOF.
+
+    Args:
+      offset: seek offset as number.
+      whence: seek mode. Supported modes are os.SEEK_SET (absolute seek),
+        os.SEEK_CUR (seek relative to the current position), and os.SEEK_END
+        (seek relative to the end, offset should be negative).
+
+    Raises:
+      IOError: When this buffer is closed.
+      ValueError: When whence is invalid or the file is not seekable
+    """
+    if whence == os.SEEK_SET:
+      absolute_offset = offset
+    elif whence == os.SEEK_CUR:
+      absolute_offset = self._uncompressed_position + offset
+    elif whence == os.SEEK_END:
+      # Determine and cache the uncompressed size of the file
+      if not self._uncompressed_size:
+        while self.read(self._read_size):
+          pass
+        self._uncompressed_size = self._uncompressed_position
+      absolute_offset = self._uncompressed_size + offset
+    else:
+      raise ValueError("Whence mode %r is invalid." % whence)
+
+    # Determine how many bytes needs to be read before we reach
+    # the requested offset. Rewind if we already passed the position.
+    if offset < self._uncompressed_position:
+      self._rewind()
+    bytes_to_skip = absolute_offset - self._uncompressed_position
+
+    # Read until the desired position is reached or EOF occurs.
+    while bytes_to_skip:
+      data = self.read(min(self._read_size, bytes_to_skip))
+      if not data:
+        break
+      bytes_to_skip -= len(data)
 
   def tell(self):
     """Returns current position in uncompressed file."""
