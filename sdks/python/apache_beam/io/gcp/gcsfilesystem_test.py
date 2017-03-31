@@ -68,7 +68,8 @@ class GCSFileSystemTest(unittest.TestCase):
     file_system = gcsfilesystem.GCSFileSystem()
     with self.assertRaises(BeamIOError) as error:
       file_system.match(['gs://bucket/'])
-    self.assertEqual(error.exception.message, 'Match operation failed')
+    self.assertTrue(
+        error.exception.message.startswith('Match operation failed'))
     self.assertEqual(error.exception.exception_details, expected_results)
     gcsio_mock.size_of_files_in_glob.assert_called_once_with('gs://bucket/*')
 
@@ -148,7 +149,8 @@ class GCSFileSystemTest(unittest.TestCase):
     file_system = gcsfilesystem.GCSFileSystem()
     with self.assertRaises(BeamIOError) as error:
       file_system.copy(sources, destinations)
-    self.assertEqual(error.exception.message, 'Copy operation failed')
+    self.assertTrue(
+        error.exception.message.startswith('Copy operation failed'))
     self.assertEqual(error.exception.exception_details, expected_results)
 
     gcsio_mock.copy.assert_called_once_with(
@@ -240,7 +242,8 @@ class GCSFileSystemTest(unittest.TestCase):
     file_system = gcsfilesystem.GCSFileSystem()
     with self.assertRaises(BeamIOError) as error:
       file_system.rename(sources, destinations)
-    self.assertEqual(error.exception.message, 'Rename operation failed')
+    self.assertTrue(
+        error.exception.message.startswith('Rename operation failed'))
     self.assertEqual(error.exception.exception_details, expected_results)
 
     gcsio_mock.copy_batch.assert_called_once_with([
@@ -288,6 +291,7 @@ class GCSFileSystemTest(unittest.TestCase):
     file_system = gcsfilesystem.GCSFileSystem()
     with self.assertRaises(BeamIOError) as error:
       file_system.delete(files)
-    self.assertEqual(error.exception.message, 'Delete operation failed')
+    self.assertTrue(
+        error.exception.message.startswith('Delete operation failed'))
     self.assertEqual(error.exception.exception_details, expected_results)
     gcsio_mock.delete_batch.assert_called()
