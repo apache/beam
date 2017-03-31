@@ -49,6 +49,7 @@ import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Test Class for {@link BatchingParDo}. */
@@ -59,8 +60,8 @@ public class BatchingParDoTest implements Serializable {
   private static final int ALLOWED_LATENESS = 0;
   private static final int TIMESTAMP_INTERVAL = 1;
   private static final long WINDOW_DURATION = 5;
-  private static final org.slf4j.Logger LOGGER = LoggerFactory.getLogger(BatchingParDoTest.class);
-  private transient ArrayList<TimestampedValue<KV<String, String>>> data = createTestData();
+  private static final Logger LOGGER = LoggerFactory.getLogger(BatchingParDoTest.class);
+  private transient ArrayList<KV<String, String>> data = createTestData();
   private static SimpleFunction<Iterable<String>, Iterable<String>> perBatchFn;
   private static Instant startInstant;
   @Rule public transient TestPipeline pipeline = TestPipeline.create();
@@ -81,7 +82,7 @@ public class BatchingParDoTest implements Serializable {
         };
   }
 
-  private static ArrayList<TimestampedValue<KV<String, String>>> createTestData() {
+  private static ArrayList<KV<String, String>> createTestData() {
     String[] scientists = {
       "Einstein",
       "Darwin",
@@ -94,16 +95,11 @@ public class BatchingParDoTest implements Serializable {
       "Galilei",
       "Maxwell"
     };
-    ArrayList<TimestampedValue<KV<String, String>>> data = new ArrayList<>();
-    long offset = 0;
+    ArrayList<KV<String, String>> data = new ArrayList<>();
     for (int i = 0; i < NUM_ELEMENTS; i++) {
       int index = i % scientists.length;
-      TimestampedValue<KV<String, String>> element =
-          TimestampedValue.of(
-              KV.of("key", scientists[index]),
-              startInstant.plus(Duration.standardSeconds(offset * TIMESTAMP_INTERVAL)));
+      KV<String, String> element = KV.of("key", scientists[index]);
       data.add(element);
-      offset++;
     }
     return data;
   }
@@ -120,8 +116,8 @@ public class BatchingParDoTest implements Serializable {
                 StringUtf8Coder.of(),
                 StringUtf8Coder.of()));
     int nbElementsProcessed = 0;
-    for (TimestampedValue<KV<String, String>> element : data) {
-      fnTester.processElement(element.getValue());
+    for (KV<String, String> element : data) {
+      fnTester.processElement(element);
       nbElementsProcessed++;
       List<KV<String, String>> output = fnTester.takeOutputElements();
       // end of batch
@@ -148,16 +144,6 @@ public class BatchingParDoTest implements Serializable {
     PCollection<KV<String, String>> collection =
         pipeline
             .apply("Input data", Create.of(data))
-            // remove timestamps from dataset to be closer to users usecase
-            .apply(
-                "remove timestamps",
-                ParDo.of(
-                    new DoFn<TimestampedValue<KV<String, String>>, KV<String, String>>() {
-                      @ProcessElement
-                      public void processElement(ProcessContext c) {
-                        c.output(c.element().getValue());
-                      }
-                    }))
             .apply(BatchingParDo.<String, String, String>via(BATCH_SIZE, perBatchFn))
             .setCoder(KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()));
     PAssert.that(collection).satisfies(new CheckAllElementsProcessingFn());
@@ -172,8 +158,10 @@ public class BatchingParDoTest implements Serializable {
     TestStream.Builder<KV<String, String>> streamBuilder =
         TestStream.create(KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()))
             .advanceWatermarkTo(startInstant);
-    for (TimestampedValue<KV<String, String>> element : data) {
-      streamBuilder = streamBuilder.addElements(element);
+    long offset = 0L;
+    for (KV<String, String> element : data) {
+      streamBuilder = streamBuilder.addElements(TimestampedValue.of(element, startInstant.plus(Duration.standardSeconds(offset * TIMESTAMP_INTERVAL))));
+      offset ++;
     }
     TestStream<KV<String, String>> stream =
         streamBuilder
