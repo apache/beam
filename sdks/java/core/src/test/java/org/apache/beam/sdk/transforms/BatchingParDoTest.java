@@ -57,8 +57,8 @@ public class BatchingParDoTest implements Serializable {
   private static final long NUM_ELEMENTS = 10;
   private static final int ALLOWED_LATENESS = 0;
   private static final Logger LOGGER = LoggerFactory.getLogger(BatchingParDoTest.class);
-  private transient ArrayList<KV<String, String>> data = createTestData();
   @Rule public transient TestPipeline pipeline = TestPipeline.create();
+  private transient ArrayList<KV<String, String>> data = createTestData();
 
   private static ArrayList<KV<String, String>> createTestData() {
     String[] scientists = {
@@ -91,31 +91,37 @@ public class BatchingParDoTest implements Serializable {
             .apply(BatchingParDo.<String, String>via(BATCH_SIZE))
             //set output coder
             .setCoder(KvCoder.of(StringUtf8Coder.of(), IterableCoder.of(StringUtf8Coder.of())));
-    PAssert.that("Incorrect batch size in one ore more elements", collection).satisfies(
-        new SerializableFunction<Iterable<KV<String, Iterable<String>>>, Void>() {
+    PAssert.that("Incorrect batch size in one ore more elements", collection)
+        .satisfies(
+            new SerializableFunction<Iterable<KV<String, Iterable<String>>>, Void>() {
 
-          private boolean checkBatchSizes(
-              Iterable<KV<String, Iterable<String>>> listToCheck) {
-            for (KV<String, Iterable<String>> element : listToCheck) {
-              if (Iterables.size(element.getValue()) != BATCH_SIZE)
-                return false;
-            }
-            return true;
-          }
+              private boolean checkBatchSizes(Iterable<KV<String, Iterable<String>>> listToCheck) {
+                for (KV<String, Iterable<String>> element : listToCheck) {
+                  if (Iterables.size(element.getValue()) != BATCH_SIZE) return false;
+                }
+                return true;
+              }
 
-          @Override
-          public Void apply(Iterable<KV<String, Iterable<String>>> input) {
-            assertTrue(checkBatchSizes(input));
-            return null;
-          }
-        });
-    PAssert.thatSingleton("Incorrect collection size", collection.apply("Count", Count.<KV<String, Iterable<String>>>globally()))
+              @Override
+              public Void apply(Iterable<KV<String, Iterable<String>>> input) {
+                assertTrue(checkBatchSizes(input));
+                return null;
+              }
+            });
+    PAssert.thatSingleton(
+            "Incorrect collection size",
+            collection.apply("Count", Count.<KV<String, Iterable<String>>>globally()))
         .isEqualTo(NUM_ELEMENTS / BATCH_SIZE);
     pipeline.run();
   }
 
   @Test
-  @Category({RunnableOnService.class, UsesTimersInParDo.class, UsesTestStream.class, UsesStatefulParDo.class})
+  @Category({
+    RunnableOnService.class,
+    UsesTimersInParDo.class,
+    UsesTestStream.class,
+    UsesStatefulParDo.class
+  })
   public void testInStreamingMode() {
     int timestampInterval = 1;
     Instant startInstant = new Instant(0L);
@@ -124,8 +130,12 @@ public class BatchingParDoTest implements Serializable {
             .advanceWatermarkTo(startInstant);
     long offset = 0L;
     for (KV<String, String> element : data) {
-      streamBuilder = streamBuilder.addElements(TimestampedValue.of(element, startInstant.plus(Duration.standardSeconds(offset * timestampInterval))));
-      offset ++;
+      streamBuilder =
+          streamBuilder.addElements(
+              TimestampedValue.of(
+                  element,
+                  startInstant.plus(Duration.standardSeconds(offset * timestampInterval))));
+      offset++;
     }
     final long windowDuration = 6;
     TestStream<KV<String, String>> stream =
@@ -140,7 +150,8 @@ public class BatchingParDoTest implements Serializable {
             .apply(stream)
             .apply(
                 Window.<KV<String, String>>into(
-                    FixedWindows.of(Duration.standardSeconds(windowDuration))).withAllowedLateness(Duration.millis(ALLOWED_LATENESS)));
+                        FixedWindows.of(Duration.standardSeconds(windowDuration)))
+                    .withAllowedLateness(Duration.millis(ALLOWED_LATENESS)));
     inputCollection.apply(
         ParDo.of(
             new DoFn<KV<String, String>, Void>() {
@@ -168,44 +179,52 @@ public class BatchingParDoTest implements Serializable {
             Count.<String, Iterable<String>>perKey());
 
     PAssert.that("Wrong number of elements in windows after BatchingParDo", countOutput)
-        .satisfies(new SerializableFunction<Iterable<KV<String, Long>>, Void>() {
+        .satisfies(
+            new SerializableFunction<Iterable<KV<String, Long>>, Void>() {
 
-          @Override public Void apply(Iterable<KV<String, Long>> input) {
-            Iterator<KV<String, Long>> inputIterator = input.iterator();
-            // first element
-            long count0 = inputIterator.next().getValue();
-            // window duration is 6 and batch size is 5, so there should be 2 elements in the window (flush because batchSize reached and for end of window reached)
-            assertEquals("Wrong number of elements in first window", 2, count0);
-            // second element
-            long count1 = inputIterator.next().getValue();
-            // collection is 10 elements, there is only 4 elements left, so there should be only one element in the window (flush because end of window/collection reached)
-            assertEquals("Wrong number of elements in second window", 1, count1);
-            // third element
-            return null;
-          }
-        });
+              @Override
+              public Void apply(Iterable<KV<String, Long>> input) {
+                Iterator<KV<String, Long>> inputIterator = input.iterator();
+                // first element
+                long count0 = inputIterator.next().getValue();
+                // window duration is 6 and batch size is 5, so there should be 2 elements in the
+                // window (flush because batchSize reached and for end of window reached)
+                assertEquals("Wrong number of elements in first window", 2, count0);
+                // second element
+                long count1 = inputIterator.next().getValue();
+                // collection is 10 elements, there is only 4 elements left, so there should be only
+                // one element in the window (flush because end of window/collection reached)
+                assertEquals("Wrong number of elements in second window", 1, count1);
+                // third element
+                return null;
+              }
+            });
 
     PAssert.that("Incorrect output collection after BatchingParDo", outputCollection)
-        .satisfies(new SerializableFunction<Iterable<KV<String, Iterable<String>>>, Void>() {
+        .satisfies(
+            new SerializableFunction<Iterable<KV<String, Iterable<String>>>, Void>() {
 
-          @Override public Void apply(Iterable<KV<String, Iterable<String>>> input) {
-            Iterator<KV<String, Iterable<String>>> inputIterator = input.iterator();
-            // first element
-            int size0 = Iterables.size(inputIterator.next().getValue());
-            // window duration is 6 and batch size is 5, so output batch size should de 5 (flush because of batchSize reached)
-            assertEquals("Wrong first element batch Size", 5, size0);
-            // second element
-            int size1 = Iterables.size(inputIterator.next().getValue());
-            // there is only one element left in the window so batch size should be 1 (flush because of end of window reached)
-            assertEquals("Wrong second element batch Size", 1, size1);
-            // third element
-            int size2 = Iterables.size(inputIterator.next().getValue());
-            // collection is 10 elements, there is only 4 left, so batch size should be 4 (flush because end of collection reached)
-            assertEquals("Wrong third element batch Size", 4, size2);
-            return null;
-          }
-        });
+              @Override
+              public Void apply(Iterable<KV<String, Iterable<String>>> input) {
+                Iterator<KV<String, Iterable<String>>> inputIterator = input.iterator();
+                // first element
+                int size0 = Iterables.size(inputIterator.next().getValue());
+                // window duration is 6 and batch size is 5, so output batch size should de 5
+                // (flush because of batchSize reached)
+                assertEquals("Wrong first element batch Size", 5, size0);
+                // second element
+                int size1 = Iterables.size(inputIterator.next().getValue());
+                // there is only one element left in the window so batch size should be 1
+                // (flush because of end of window reached)
+                assertEquals("Wrong second element batch Size", 1, size1);
+                // third element
+                int size2 = Iterables.size(inputIterator.next().getValue());
+                // collection is 10 elements, there is only 4 left, so batch size should be 4
+                // (flush because end of collection reached)
+                assertEquals("Wrong third element batch Size", 4, size2);
+                return null;
+              }
+            });
     pipeline.run().waitUntilFinish();
   }
-
 }
