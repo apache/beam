@@ -18,6 +18,7 @@
 """End-to-end test for the wordcount example."""
 
 import logging
+import time
 import unittest
 
 from hamcrest.core.core.allof import all_of
@@ -31,6 +32,9 @@ from apache_beam.tests.pipeline_verifiers import FileChecksumMatcher
 
 class WordCountIT(unittest.TestCase):
 
+  # Enable nose tests running in parallel
+  _multiprocess_can_split_ = True
+
   # The default checksum is a SHA-1 hash generated from a sorted list of
   # lines read from expected output.
   DEFAULT_CHECKSUM = '33535a832b7db6d78389759577d4ff495980b9c0'
@@ -41,7 +45,7 @@ class WordCountIT(unittest.TestCase):
 
     # Set extra options to the pipeline for test purpose
     output = '/'.join([test_pipeline.get_option('output'),
-                       test_pipeline.get_option('job_name'),
+                       str(int(time.time())),
                        'results'])
     arg_sleep_secs = test_pipeline.get_option('sleep_secs')
     sleep_secs = int(arg_sleep_secs) if arg_sleep_secs is not None else None
