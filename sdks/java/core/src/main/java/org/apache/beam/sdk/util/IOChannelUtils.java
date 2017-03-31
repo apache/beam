@@ -28,6 +28,7 @@ import com.google.common.collect.Sets;
 import com.google.common.collect.TreeMultimap;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.WritableByteChannel;
 import java.text.DecimalFormat;
 import java.util.Arrays;
@@ -191,6 +192,14 @@ public class IOChannelUtils {
   public static WritableByteChannel create(String filename, String mimeType)
       throws IOException {
     return getFactory(filename).create(filename, mimeType);
+  }
+
+  /**
+   * Creates a read channel for the given filename.
+   */
+  public static ReadableByteChannel open(String filename)
+      throws IOException {
+    return getFactory(filename).open(filename);
   }
 
   /**

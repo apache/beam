@@ -26,6 +26,10 @@ import java.util.List;
 import java.util.Map;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.coders.ListCoder;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.WriteDisposition;
 import org.apache.beam.sdk.options.BigQueryOptions;
@@ -61,16 +65,17 @@ class BatchLoads<T> extends
   private static class ConstantSchemaFunction implements
       SerializableFunction<TableDestination, TableSchema> {
     private final @Nullable
-    String jsonSchema;
+    ValueProvider<String> jsonSchema;
 
-    ConstantSchemaFunction(TableSchema schema) {
-      this.jsonSchema = BigQueryHelpers.toJsonString(schema);
+    ConstantSchemaFunction(ValueProvider<String> jsonSchema) {
+      this.jsonSchema = jsonSchema;
     }
 
     @Override
     @Nullable
     public TableSchema apply(TableDestination table) {
-      return BigQueryHelpers.fromJsonString(jsonSchema, TableSchema.class);
+      return BigQueryHelpers.fromJsonString(
+          jsonSchema == null ? null : jsonSchema.get(), TableSchema.class);
     }
   }
 
@@ -114,7 +119,7 @@ class BatchLoads<T> extends
         .apply(View.<String>asSingleton());
 
     PCollection<KV<TableDestination, TableRow>> inputInGlobalWindow =
-        input.apply(
+        input.apply("rewindowIntoGlobal",
             Window.<KV<TableDestination, TableRow>>into(new GlobalWindows())
                 .triggering(DefaultTrigger.of())
                 .discardingFiredPanes());
@@ -122,12 +127,13 @@ class BatchLoads<T> extends
     // PCollection of filename, file byte size, and table destination.
     PCollection<WriteBundlesToFiles.Result> results = inputInGlobalWindow
         .apply("WriteBundlesToFiles",
-            ParDo.of(new WriteBundlesToFiles(tempFilePrefix)));
+            ParDo.of(new WriteBundlesToFiles(tempFilePrefix)))
+        .setCoder(WriteBundlesToFiles.ResultCoder.of());
 
-    TupleTag<KV<KV<TableDestination, Integer>, List<String>>> multiPartitionsTag =
-        new TupleTag<KV<KV<TableDestination, Integer>, List<String>>>("multiPartitionsTag") {};
-    TupleTag<KV<KV<TableDestination, Integer>, List<String>>> singlePartitionTag =
-        new TupleTag<KV<KV<TableDestination, Integer>, List<String>>>("singlePartitionTag") {};
+    TupleTag<KV<ShardedKey<TableDestination>, List<String>>> multiPartitionsTag =
+        new TupleTag<KV<ShardedKey<TableDestination>, List<String>>>("multiPartitionsTag") {};
+    TupleTag<KV<ShardedKey<TableDestination>, List<String>>> singlePartitionTag =
+        new TupleTag<KV<ShardedKey<TableDestination>, List<String>>>("singlePartitionTag") {};
 
     // Turn the list of files and record counts in a PCollectionView that can be used as a
     // side input.
@@ -136,9 +142,9 @@ class BatchLoads<T> extends
     // This transform will look at the set of files written for each table, and if any table has
     // too many files or bytes, will partition that table's files into multiple partitions for
     // loading.
-    PCollectionTuple partitions = singleton.apply(ParDo
-        .of(new WritePartition(
-            write.getTable(),
+    PCollectionTuple partitions = singleton.apply("WritePartition",
+        ParDo.of(new WritePartition(
+            write.getJsonTableRef(),
             write.getTableDescription(),
             resultsView,
             multiPartitionsTag,
@@ -148,17 +154,22 @@ class BatchLoads<T> extends
 
     // Since BigQueryIO.java does not yet have support for per-table schemas, inject a constant
     // schema function here. If no schema is specified, this function will return null.
+    // TODO: Turn this into a side-input instead.
     SerializableFunction<TableDestination, TableSchema> schemaFunction =
-        new ConstantSchemaFunction(write.getSchema());
+        new ConstantSchemaFunction(write.getJsonSchema());
 
+    Coder<KV<ShardedKey<TableDestination>, List<String>>> partitionsCoder =
+        KvCoder.of(ShardedKeyCoder.of(TableDestinationCoder.of()),
+            ListCoder.of(StringUtf8Coder.of()));
     // If WriteBundlesToFiles produced more than MAX_NUM_FILES files or MAX_SIZE_BYTES bytes, then
     // the import needs to be split into multiple partitions, and those partitions will be
     // specified in multiPartitionsTag.
     PCollection<KV<TableDestination, String>> tempTables = partitions.get(multiPartitionsTag)
+        .setCoder(partitionsCoder)
         // What's this GroupByKey for? Is this so we have a deterministic temp tables? If so, maybe
         // Reshuffle is better here.
         .apply("MultiPartitionsGroupByKey",
-            GroupByKey.<KV<TableDestination, Integer>, List<String>>create())
+            GroupByKey.<ShardedKey<TableDestination>, List<String>>create())
         .apply("MultiPartitionsWriteTables", ParDo.of(new WriteTables(
             false,
             write.getBigQueryServices(),
@@ -174,20 +185,20 @@ class BatchLoads<T> extends
     PCollectionView<Map<TableDestination, Iterable<String>>> tempTablesView = tempTables
         .apply("TempTablesView", View.<TableDestination, String>asMultimap());
 
-    singleton.apply(ParDo
+    singleton.apply("WriteRename", ParDo
         .of(new WriteRename(
             write.getBigQueryServices(),
             jobIdTokenView,
             write.getWriteDisposition(),
             write.getCreateDisposition(),
-            tempTablesView,
-            write.getTableDescription()))
+            tempTablesView))
         .withSideInputs(tempTablesView, jobIdTokenView));
 
     // Write single partition to final table
     partitions.get(singlePartitionTag)
+        .setCoder(partitionsCoder)
         .apply("SinglePartitionGroupByKey",
-            GroupByKey.<KV<TableDestination, Integer>, List<String>>create())
+            GroupByKey.<ShardedKey<TableDestination>, List<String>>create())
         .apply("SinglePartitionWriteTables", ParDo.of(new WriteTables(
             true,
             write.getBigQueryServices(),
