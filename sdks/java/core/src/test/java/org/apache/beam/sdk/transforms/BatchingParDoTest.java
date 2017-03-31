@@ -196,8 +196,18 @@ public class BatchingParDoTest implements Serializable {
         inputCollection.apply(
             "Count elements in windows before applying batchingParDo",
             Count.<String, String>perKey());
+    SerializableFunction<Iterable<KV<String, Long>>, Void> checkValuesFn =  new SerializableFunction<Iterable<KV<String, Long>>, Void> () {
+      private long num = windowDuration;
+      @Override
+      public Void apply(Iterable<KV<String, Long>> input) {
+        for (KV<String, Long> element : input) {
+          assertThat(element.getValue(), Matchers.equalTo(num));
+        }
+        return null;
+      }
+    };
     PAssert.that("Wrong number of elements in windows before BatchingParDo", countInput)
-        .satisfies(new CheckValuesFn(windowDuration));
+        .satisfies(checkValuesFn);
 
     PCollection<KV<String, String>> outputCollection =
         inputCollection
@@ -215,7 +225,7 @@ public class BatchingParDoTest implements Serializable {
             Count.<String, String>perKey());
 
     PAssert.that("Wrong number of elements in windows after BatchingParDo", countOutput)
-        .satisfies(new CheckValuesFn(windowDuration));
+        .satisfies(checkValuesFn);
     pipeline.run().waitUntilFinish();
   }
 
@@ -262,19 +272,4 @@ public class BatchingParDoTest implements Serializable {
     }
   }
 
-  private class CheckValuesFn implements SerializableFunction<Iterable<KV<String, Long>>, Void> {
-    private long num;
-
-    private CheckValuesFn(long num) {
-      this.num = num;
-    }
-
-    @Override
-    public Void apply(Iterable<KV<String, Long>> input) {
-      for (KV<String, Long> element : input) {
-        assertThat(element.getValue(), Matchers.equalTo(num));
-      }
-      return null;
-    }
-  }
 }
