@@ -99,8 +99,9 @@ import org.apache.beam.sdk.values.PDone;
  * {@link AvroIO.Write.Bound#withWindowedWrites()} will cause windowing and triggering to be
  * preserved. When producing windowed writes, the number of output shards must be set explicitly
  * using {@link AvroIO.Write.Bound#withNumShards(int)}; some runners may set this for you to a
- * runner-chosen value, so you may need not set it yourself. A {@link FilenamePolicy} must be
- * set, and unique windows and triggers must produce unique filenames.
+ * runner-chosen value, so you may need not set it yourself. A
+ * {@link FileBasedSink.FilenamePolicy} must be set, and unique windows and triggers must produce
+ * unique filenames.
  *
  * <p>It is required to specify {@link AvroIO.Write#withSchema}. To
  * write specific records, such as Avro-generated classes, provide an

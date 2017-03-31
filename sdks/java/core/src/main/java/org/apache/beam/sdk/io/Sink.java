@@ -65,11 +65,12 @@ import org.apache.beam.sdk.values.PCollection;
  * operation corresponds to. See below for more information about these methods and restrictions on
  * their implementation.
  *
- * <li>{@link Writer}: A Writer writes a bundle of records. Writer defines four methods:
- * {@link Writer#open}, which is called once at the start of writing a bundle; {@link Writer#write},
- * which writes a single record from the bundle; {@link Writer#close}, which is called once at the
- * end of writing a bundle; and {@link Writer#getWriteOperation}, which returns the write operation
- * that the writer belongs to.
+ * <li>{@link Writer}: A Writer writes a bundle of records. Writer defines several methods:
+ * {@link Writer#openWindowed} and {@link Writer#openUnwindowed}, which are called once at the
+ * start of writing a bundle, depending on whether windowed or unwindowed output is requested.
+ * {@link Writer#write}, which writes a single record from the bundle; {@link Writer#close},
+ * which is called once at the end of writing a bundle; and {@link Writer#getWriteOperation},
+ * which returns the write operation that the writer belongs to.
  * </ul>
  *
  * <h2>WriteOperation</h2>
@@ -97,9 +98,10 @@ import org.apache.beam.sdk.values.PCollection;
  *
  * <p>In order to ensure fault-tolerance, a bundle may be executed multiple times (e.g., in the
  * event of failure/retry or for redundancy). However, exactly one of these executions will have its
- * result passed to the WriteOperation's finalize method. Each call to {@link Writer#open} is passed
- * a unique <i>bundle id</i> when it is called by the Write transform, so even redundant or retried
- * bundles will have a unique way of identifying their output.
+ * result passed to the WriteOperation's finalize method. Each call to {@link Writer#openWindowed}
+ * or {@link Writer#openUnwindowed} is passed a unique <i>bundle id</i> when it is called by the
+ * Write transform, so even redundant or retried bundles will have a unique way of identifying
+ * their output.
  *
  * <p>The bundle id should be used to guarantee that a bundle's output is unique. This uniqueness
  * guarantee is important; if a bundle is to be output to a file, for example, the name of the file
@@ -207,7 +209,7 @@ public abstract class Sink<T> implements Serializable, HasDisplayData {
      * Creates a new {@link Sink.Writer} to write a bundle of the input to the sink.
      *
      * <p>The bundle id that the writer will use to uniquely identify its output will be passed to
-     * {@link Writer#open}.
+     * {@link Writer#openWindowed} or {@link Writer#openUnwindowed}.
      *
      * <p>Must not mutate the state of the WriteOperation.
      */
@@ -225,9 +227,10 @@ public abstract class Sink<T> implements Serializable, HasDisplayData {
   }
 
   /**
-   * A Writer writes a bundle of elements from a PCollection to a sink. {@link Writer#open} is
-   * called before writing begins and {@link Writer#close} is called after all elements in the
-   * bundle have been written. {@link Writer#write} writes an element to the sink.
+   * A Writer writes a bundle of elements from a PCollection to a sink.
+   * {@link Writer#openWindowed} or {@link Writer#openUnwindowed} is called before writing begins
+   * and {@link Writer#close} is called after all elements in the bundle have been written.
+   * {@link Writer#write} writes an element to the sink.
    *
    * <p>Note that any access to static members or methods of a Writer must be thread-safe, as
    * multiple instances of a Writer may be instantiated in different threads on the same worker.
