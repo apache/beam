@@ -124,7 +124,7 @@ import org.slf4j.LoggerFactory;
  *  pipeline
  *    .apply(KafkaIO.<Long, String>read()
  *       .withBootstrapServers("broker_1:9092,broker_2:9092")
- *       .withTopics(ImmutableList.of("topic_a", "topic_b"))
+ *       .withTopic("my_topic")  // use withTopics(List<String>) to read from multiple topics.
  *       // set a Coder for Key and Value
  *       .withKeyCoder(BigEndianLongCoder.of())
  *       .withValueCoder(StringUtf8Coder.of())
@@ -305,6 +305,15 @@ public class KafkaIO {
       return updateConsumerProperties(
           ImmutableMap.<String, Object>of(
               ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers));
+    }
+
+    /**
+     * Returns a new {@link Read} that reads from the topic.
+     * See {@link UnboundedKafkaSource#generateInitialSplits(int, PipelineOptions)} for description
+     * of how the partitions are distributed among the splits.
+     */
+    public Read<K, V> withTopic(String topic) {
+      return withTopics(ImmutableList.of(topic));
     }
 
     /**
