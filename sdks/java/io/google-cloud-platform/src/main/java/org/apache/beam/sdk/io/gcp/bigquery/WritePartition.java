@@ -89,8 +89,8 @@ class WritePartition extends DoFn<String, KV<ShardedKey<TableDestination>, List<
         partitions.add(Lists.<String>newArrayList());
         currResultsMap.put(tableDestination, partitions);
       }
-      int currNumFiles = currNumFilesMap.getOrDefault(tableDestination, 0);
-      long currSizeBytes = currSizeBytesMap.getOrDefault(tableDestination, 0L);
+      int currNumFiles = getOrDefault(currNumFilesMap, tableDestination, 0);
+      long currSizeBytes = getOrDefault(currSizeBytesMap, tableDestination, 0L);
       if (currNumFiles + 1 > Write.MAX_NUM_FILES
           || currSizeBytes + fileResult.fileByteSize > Write.MAX_SIZE_BYTES) {
         // Add a new partition for this table.
@@ -115,6 +115,15 @@ class WritePartition extends DoFn<String, KV<ShardedKey<TableDestination>, List<
       for (int i = 0; i < partitions.size(); ++i) {
         c.output(outputTag, KV.of(ShardedKey.of(tableDestination, i + 1), partitions.get(i)));
       }
+    }
+  }
+
+  private <T> T getOrDefault(Map<TableDestination, T> map, TableDestination tableDestination,
+                     T defaultValue) {
+    if (map.containsKey(tableDestination)) {
+      return map.get(tableDestination);
+    } else {
+      return defaultValue;
     }
   }
 }

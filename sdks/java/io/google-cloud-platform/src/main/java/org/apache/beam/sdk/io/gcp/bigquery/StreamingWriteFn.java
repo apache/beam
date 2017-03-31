@@ -98,7 +98,6 @@ class StreamingWriteFn
   private void flushRows(TableReference tableReference,
       List<TableRow> tableRows, List<String> uniqueIds, BigQueryOptions options)
           throws InterruptedException {
-    System.out.println("FlUSHING ROWS " + tableRows.size());
     if (!tableRows.isEmpty()) {
       try {
         long totalBytes = bqServices.getDatasetService(options).insertAll(

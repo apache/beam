@@ -19,19 +19,16 @@
 package org.apache.beam.sdk.io.gcp.bigquery;
 
 import com.google.api.services.bigquery.model.TableRow;
-
+import com.google.common.collect.Maps;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.Serializable;
 import java.util.Map;
 import java.util.UUID;
-
-import com.google.common.collect.Maps;
 import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
-import org.apache.beam.sdk.coders.TableRowJsonCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.display.DisplayData;
@@ -50,6 +47,10 @@ class WriteBundlesToFiles extends DoFn<KV<TableDestination, TableRow>, WriteBund
   private transient Map<TableDestination, TableRowWriter> writers;
   private final String tempFilePrefix;
 
+  /**
+   * The result of the {@link WriteBundlesToFiles} transform. Corresponds to a single output file,
+   * and encapsulates the table it is destined to as well as the file byte size.
+   */
   public static class Result implements Serializable {
     public String filename;
     public Long fileByteSize;
@@ -62,6 +63,9 @@ class WriteBundlesToFiles extends DoFn<KV<TableDestination, TableRow>, WriteBund
     }
   }
 
+  /**
+   * a coder for the {@link Result} class.
+   */
   public static class ResultCoder extends AtomicCoder<Result> {
     private static final ResultCoder INSTANCE = new ResultCoder();
 
