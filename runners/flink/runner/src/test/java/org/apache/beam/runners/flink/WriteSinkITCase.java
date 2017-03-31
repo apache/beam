@@ -150,11 +150,16 @@ public class WriteSinkITCase extends JavaProgramTestBase {
         private PrintWriter internalWriter;
 
         @Override
-        public final void open(String uId,
-                               @Nullable BoundedWindow window,
-                               @Nullable PaneInfo paneInfo,
-                               int shard,
-                               int numShards) throws Exception {
+        public final void openWindowed(String uId,
+                                       BoundedWindow window,
+                                       PaneInfo paneInfo,
+                                       int shard,
+                                       int numShards) throws Exception {
+          throw new UnsupportedOperationException("Windowed writes not supported.");
+        }
+
+        @Override
+        public final void openUnwindowed(String uId, int shard, int numShards) throws Exception {
           Path path = new Path(resultPath + "/" + uId);
           FileSystem.get(new URI("file:///")).create(path, false);
           internalWriter = new PrintWriter(new File(path.toUri()));
