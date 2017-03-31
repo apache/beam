@@ -26,7 +26,7 @@ import cz.seznam.euphoria.core.client.operator.state.ValueStorageDescriptor;
 public class PeriodicTimeTrigger implements Trigger<TimeInterval> {
 
   /** Next fire stamp (when merging the lowest timestamp is taken) */
-  private final ValueStorageDescriptor<Long> fireTimeDescriptor =
+  private static final ValueStorageDescriptor<Long> FIRE_TIME_DESCR =
           ValueStorageDescriptor.of("fire-time", Long.class, Long.MAX_VALUE, Math::min);
 
   private final long interval;
@@ -37,7 +37,7 @@ public class PeriodicTimeTrigger implements Trigger<TimeInterval> {
 
   @Override
   public TriggerResult onElement(long time, TimeInterval window, TriggerContext ctx) {
-    ValueStorage<Long> fireStamp = ctx.getValueStorage(fireTimeDescriptor);
+    ValueStorage<Long> fireStamp = ctx.getValueStorage(FIRE_TIME_DESCR);
 
     if (fireStamp.get() == Long.MAX_VALUE) {
       // register first timer aligned with window start
@@ -53,7 +53,7 @@ public class PeriodicTimeTrigger implements Trigger<TimeInterval> {
 
   @Override
   public TriggerResult onTimer(long time, TimeInterval window, TriggerContext ctx) {
-    ValueStorage<Long> fireStamp = ctx.getValueStorage(fireTimeDescriptor);
+    ValueStorage<Long> fireStamp = ctx.getValueStorage(FIRE_TIME_DESCR);
 
     if (fireStamp.get() == time) {
       long nextTimestamp = time + interval;
@@ -70,16 +70,16 @@ public class PeriodicTimeTrigger implements Trigger<TimeInterval> {
 
   @Override
   public void onClear(TimeInterval window, TriggerContext ctx) {
-    ValueStorage<Long> fireStamp = ctx.getValueStorage(fireTimeDescriptor);
+    ValueStorage<Long> fireStamp = ctx.getValueStorage(FIRE_TIME_DESCR);
     ctx.deleteTimer(fireStamp.get(), window);
     fireStamp.clear();
   }
 
   @Override
   public TriggerResult onMerge(TimeInterval window, TriggerContext.TriggerMergeContext ctx) {
-    ctx.mergeStoredState(fireTimeDescriptor);
+    ctx.mergeStoredState(FIRE_TIME_DESCR);
     // register timer according to merged state
-    ValueStorage<Long> fireStamp = ctx.getValueStorage(fireTimeDescriptor);
+    ValueStorage<Long> fireStamp = ctx.getValueStorage(FIRE_TIME_DESCR);
     ctx.registerTimer(fireStamp.get(), window);
 
     return TriggerResult.NOOP;

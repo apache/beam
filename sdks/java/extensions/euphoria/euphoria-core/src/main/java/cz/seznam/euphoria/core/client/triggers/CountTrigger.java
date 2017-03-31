@@ -24,7 +24,7 @@ import cz.seznam.euphoria.core.client.operator.state.ValueStorageDescriptor;
  */
 public class CountTrigger<W extends Window> implements Trigger<W> {
 
-  private final ValueStorageDescriptor<Long> countDesc =
+  private static final ValueStorageDescriptor<Long> COUNT_DESCR =
           ValueStorageDescriptor.of("count", Long.class, 0L, (x, y) -> x + y );
 
   private final long maxCount;
@@ -35,7 +35,7 @@ public class CountTrigger<W extends Window> implements Trigger<W> {
 
   @Override
   public TriggerResult onElement(long time, W window, TriggerContext ctx) {
-    ValueStorage<Long> count = ctx.getValueStorage(countDesc);
+    ValueStorage<Long> count = ctx.getValueStorage(COUNT_DESCR);
 
     count.set(count.get() + 1L);
 
@@ -53,13 +53,13 @@ public class CountTrigger<W extends Window> implements Trigger<W> {
 
   @Override
   public void onClear(W window, TriggerContext ctx) {
-    ctx.getValueStorage(countDesc).clear();
+    ctx.getValueStorage(COUNT_DESCR).clear();
   }
 
   @Override
   public TriggerResult onMerge(W window, TriggerContext.TriggerMergeContext ctx) {
-    ctx.mergeStoredState(countDesc);
-    ValueStorage<Long> count = ctx.getValueStorage(countDesc);
+    ctx.mergeStoredState(COUNT_DESCR);
+    ValueStorage<Long> count = ctx.getValueStorage(COUNT_DESCR);
 
     if (count.get() >= maxCount) {
       count.clear();
