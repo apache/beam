@@ -58,7 +58,6 @@ import org.apache.beam.sdk.util.state.ValueState;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
-
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -85,20 +84,22 @@ public class DoFnOperatorTest {
   private WindowingStrategy<Object, IntervalWindow> windowingStrategy1 =
       WindowingStrategy.of(FixedWindows.of(new Duration(WINDOW_MSECS_1)));
 
-  private PCollectionView<Iterable<String>> view1 = PCollectionViewTesting.testingView(
-      new TupleTag<Iterable<WindowedValue<String>>>() {},
-      new PCollectionViewTesting.IdentityViewFn<String>(),
-      StringUtf8Coder.of(),
-      windowingStrategy1);
+  private PCollectionView<Iterable<String>> view1 =
+      PCollectionViewTesting.testingView(
+          new TupleTag<Iterable<WindowedValue<String>>>() {},
+          new PCollectionViewTesting.IdentityViewFn<String>(),
+          StringUtf8Coder.of(),
+          windowingStrategy1);
 
   private WindowingStrategy<Object, IntervalWindow> windowingStrategy2 =
       WindowingStrategy.of(FixedWindows.of(new Duration(WINDOW_MSECS_2)));
 
-  private PCollectionView<Iterable<String>> view2 = PCollectionViewTesting.testingView(
-      new TupleTag<Iterable<WindowedValue<String>>>() {},
-      new PCollectionViewTesting.IdentityViewFn<String>(),
-      StringUtf8Coder.of(),
-      windowingStrategy2);
+  private PCollectionView<Iterable<String>> view2 =
+      PCollectionViewTesting.testingView(
+          new TupleTag<Iterable<WindowedValue<String>>>() {},
+          new PCollectionViewTesting.IdentityViewFn<String>(),
+          StringUtf8Coder.of(),
+          windowingStrategy2);
 
   @Test
   @SuppressWarnings("unchecked")

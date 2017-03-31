@@ -170,13 +170,14 @@ public class WriteWithShardingFactoryTest {
 
   @Test
   public void keyBasedOnCountFnFewElementsExtraShards() throws Exception {
+    long countValue = (long) WriteWithShardingFactory.MIN_SHARDS_FOR_LOG + 3;
+    PCollection<Long> inputCount = p.apply(Create.of(countValue));
     PCollectionView<Long> elementCountView =
         PCollectionViews.singletonView(
-            p, WindowingStrategy.globalDefault(), true, 0L, VarLongCoder.of());
+            inputCount, WindowingStrategy.globalDefault(), true, 0L, VarLongCoder.of());
     CalculateShardsFn fn = new CalculateShardsFn(3);
     DoFnTester<Long, Integer> fnTester = DoFnTester.of(fn);
 
-    long countValue = (long) WriteWithShardingFactory.MIN_SHARDS_FOR_LOG + 3;
     fnTester.setSideInput(elementCountView, GlobalWindow.INSTANCE, countValue);
 
     List<Integer> kvs = fnTester.processBundle(10L);

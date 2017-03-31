@@ -63,7 +63,8 @@ public class ViewEvaluatorFactoryTest {
     PCollection<String> input = p.apply(Create.of("foo", "bar"));
     CreatePCollectionView<String, Iterable<String>> createView =
         CreatePCollectionView.of(
-            PCollectionViews.iterableView(p, input.getWindowingStrategy(), StringUtf8Coder.of()));
+            PCollectionViews.iterableView(
+                input, input.getWindowingStrategy(), StringUtf8Coder.of()));
     PCollection<Iterable<String>> concat =
         input.apply(WithKeys.<Void, String>of((Void) null))
             .setCoder(KvCoder.of(VoidCoder.of(), StringUtf8Coder.of()))
