@@ -269,8 +269,9 @@ class FileMetadata(object):
   """
   def __init__(self, path, size_in_bytes):
     assert isinstance(path, basestring) and path, "Path should be a string"
-    assert isinstance(size_in_bytes, int) and size_in_bytes >= 0, \
-        "Size of bytes should be greater than equal to zero"
+    assert isinstance(size_in_bytes, (int, long)) and size_in_bytes >= 0, \
+        "Invalid value for size_in_bytes should %s (of type %s)" % (
+            size_in_bytes, type(size_in_bytes))
     self.path = path
     self.size_in_bytes = size_in_bytes
 
@@ -312,7 +313,8 @@ class BeamIOError(IOError):
         may have failed anywhere so the user should use match to determine
         the current state of the system.
     """
-    super(BeamIOError, self).__init__(msg)
+    message = "%s with exceptions %s" % (msg, exception_details)
+    super(BeamIOError, self).__init__(message)
     self.exception_details = exception_details
 
 
