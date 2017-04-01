@@ -45,8 +45,6 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
 import java.io.OutputStream;
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -1085,6 +1083,8 @@ public class ParDoTest implements Serializable {
   private static class MyIntegerCoder extends CustomCoder<MyInteger> {
     private static final MyIntegerCoder INSTANCE = new MyIntegerCoder();
 
+    private final VarIntCoder delegate = VarIntCoder.of();
+
     public static MyIntegerCoder of() {
       return INSTANCE;
     }
@@ -1092,19 +1092,13 @@ public class ParDoTest implements Serializable {
     @Override
     public void encode(MyInteger value, OutputStream outStream, Context context)
         throws CoderException, IOException {
-      ObjectOutputStream objectOutputStream = new ObjectOutputStream(outStream);
-      objectOutputStream.writeInt(value.getValue());
-      objectOutputStream.flush();
+      delegate.encode(value.getValue(), outStream, context);
     }
 
     @Override
     public MyInteger decode(InputStream inStream, Context context) throws CoderException,
         IOException {
-      if (inStream.available() > 0) {
-        int value = new ObjectInputStream(inStream).readInt();
-        return new MyInteger(value);
-      }
-      return null;
+      return new MyInteger(delegate.decode(inStream, context));
     }
   }
 
