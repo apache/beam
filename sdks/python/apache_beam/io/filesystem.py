@@ -23,6 +23,10 @@ import bz2
 import cStringIO
 import os
 import zlib
+import logging
+import time
+
+logger = logging.getLogger(__name__)
 
 DEFAULT_READ_BUFFER_SIZE = 16 * 1024 * 1024
 
@@ -165,7 +169,7 @@ class CompressedFile(object):
       # but without dropping any previous held data.
       self._read_buffer.seek(self._read_position)
       data = self._read_buffer.read()
-      self._rewind_read_buffer()
+      self._clear_read_buffer()
       self._read_buffer.write(data)
 
     while not self._read_eof and (self._read_buffer.tell() - self._read_position
@@ -257,18 +261,25 @@ class CompressedFile(object):
   def seekable(self):
     return self._file.mode == 'r'
 
-  def _rewind_read_buffer(self):
+  def _clear_read_buffer(self):
+    """Clears the read buffer by removing all the contents and
+    resetting _read_position to 0"""
     self._read_position = 0
     self._read_buffer.seek(0)
     self._read_buffer.truncate(0)
 
   def _rewind_file(self):
+    """Seeks to the beginning of the input file. Input file's EOF marker
+    is cleared and _uncompressed_position is reset to zero"""
     self._file.seek(0, os.SEEK_SET)
     self._read_eof = False
     self._uncompressed_position = 0
 
   def _rewind(self):
-    self._rewind_read_buffer()
+    """Seeks to the beginning of the input file and resets the internal read
+    buffer. The decompressor object is re-initialized to ensure that no data
+    left in it's buffer."""
+    self._clear_read_buffer()
     self._rewind_file()
 
     # Re-initialize decompressor to clear any data buffered prior to rewind
@@ -287,7 +298,7 @@ class CompressedFile(object):
       * if the new offset is out of bound, it is adjusted to either 0 or EOF.
 
     Args:
-      offset: seek offset as number.
+      offset: seek offset in the uncompressed content represented as number
       whence: seek mode. Supported modes are os.SEEK_SET (absolute seek),
         os.SEEK_CUR (seek relative to the current position), and os.SEEK_END
         (seek relative to the end, offset should be negative).
@@ -303,8 +314,15 @@ class CompressedFile(object):
     elif whence == os.SEEK_END:
       # Determine and cache the uncompressed size of the file
       if not self._uncompressed_size:
+        logger.warn("Seeking relative from end of file is requested. "
+                    "Need to decompress the whole file once to determine "
+                    "its size. This might take a while...")
+        uncompress_start_time = time.time()
         while self.read(self._read_size):
           pass
+        uncompress_end_time = time.time()
+        logger.warn("Full file decompression for seek from end took %.2f secs",
+                    (uncompress_end_time - uncompress_start_time))
         self._uncompressed_size = self._uncompressed_position
       absolute_offset = self._uncompressed_size + offset
     else:
@@ -312,7 +330,7 @@ class CompressedFile(object):
 
     # Determine how many bytes needs to be read before we reach
     # the requested offset. Rewind if we already passed the position.
-    if offset < self._uncompressed_position:
+    if absolute_offset < self._uncompressed_position:
       self._rewind()
     bytes_to_skip = absolute_offset - self._uncompressed_position
 

@@ -111,21 +111,24 @@ atomized in instants hammered around the
                                    read_size=self.read_block_size)
     reference_fd = StringIO(self.content)
 
-    random_position = randint(0, len(self.content) - 1)
-    compressed_fd.seek(random_position, os.SEEK_SET)
-    reference_fd.seek(random_position, os.SEEK_SET)
+    # Note: content (readline) check must come before position (tell) check
+    # because cStringIO's tell() reports out of bound positions (if we seek
+    # beyond the file) up until a real read occurs.
+    # _CompressedFile.tell() always stays within the bounds of the
+    # uncompressed content.
+    for seek_position in (-1, 0, 1,
+                          len(self.content)-1, len(self.content),
+                          len(self.content) + 1):
+      compressed_fd.seek(seek_position, os.SEEK_SET)
+      reference_fd.seek(seek_position, os.SEEK_SET)
 
-    expected_position = random_position
-    uncompressed_position = compressed_fd.tell()
-    reference_position = reference_fd.tell()
+      uncompressed_line = compressed_fd.readline()
+      reference_line = reference_fd.readline()
+      self.assertEqual(uncompressed_line, reference_line)
 
-    self.assertEqual(uncompressed_position, expected_position)
-    self.assertEqual(reference_position, expected_position)
-
-    uncompressed_line = compressed_fd.readline()
-    reference_line = reference_fd.readline()
-
-    self.assertEqual(uncompressed_line, reference_line)
+      uncompressed_position = compressed_fd.tell()
+      reference_position = reference_fd.tell()
+      self.assertEqual(uncompressed_position, reference_position)
 
   @parameterized.expand([CompressionTypes.BZIP2, CompressionTypes.GZIP])
   def test_seek_cur(self, compression_type):
@@ -135,33 +138,22 @@ atomized in instants hammered around the
                                    read_size=self.read_block_size)
     reference_fd = StringIO(self.content)
 
-    # skip to the middle without seeking
-    mid_point = len(self.content) / 2
-    _ = compressed_fd.read(mid_point)
-    _ = reference_fd.read(mid_point)
+    # Test out of bound, inbound seeking in both directions
+    for seek_position in (-1, 0, 1,
+                          len(self.content) / 2,
+                          len(self.content) / 2,
+                          -1 * len(self.content) / 2):
+      compressed_fd.seek(seek_position, os.SEEK_CUR)
+      reference_fd.seek(seek_position, os.SEEK_CUR)
 
-    expected_position = mid_point
-    uncompressed_position = compressed_fd.tell()
-    reference_position = reference_fd.tell()
+      uncompressed_line = compressed_fd.readline()
+      expected_line = reference_fd.readline()
+      self.assertEqual(uncompressed_line, expected_line)
 
-    self.assertEqual(uncompressed_position, expected_position)
-    self.assertEqual(reference_position, expected_position)
+      reference_position = reference_fd.tell()
+      uncompressed_position = compressed_fd.tell()
+      self.assertEqual(uncompressed_position, reference_position)
 
-    seek_position = randint(-1 * mid_point, mid_point)
-    compressed_fd.seek(seek_position, os.SEEK_CUR)
-    reference_fd.seek(seek_position, os.SEEK_CUR)
-
-    expected_position = mid_point + seek_position
-    reference_position = reference_fd.tell()
-    uncompressed_position = compressed_fd.tell()
-
-    self.assertEqual(uncompressed_position, expected_position)
-    self.assertEqual(reference_position, expected_position)
-
-    uncompressed_line = compressed_fd.readline()
-    expected_line = reference_fd.readline()
-
-    self.assertEqual(uncompressed_line, expected_line)
 
   @parameterized.expand([CompressionTypes.BZIP2, CompressionTypes.GZIP])
   def test_read_from_end_returns_no_data(self, compression_type):
