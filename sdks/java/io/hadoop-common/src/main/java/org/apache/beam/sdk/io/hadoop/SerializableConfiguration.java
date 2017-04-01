@@ -74,7 +74,7 @@ public class SerializableConfiguration implements Externalizable {
     if (conf == null) {
       return Job.getInstance();
     } else {
-      Job job = Job.getInstance();
+      Job job = Job.getInstance(new Configuration(false));
       for (Map.Entry<String, String> entry : conf.get()) {
         job.getConfiguration().set(entry.getKey(), entry.getValue());
       }
