@@ -311,6 +311,12 @@ class Pipeline(object):
 
       def visit_transform(self, transform_node):
         if transform_node.side_inputs:
+          # No side inputs (yet).
+          Visitor.ok = False
+        try:
+          # Transforms must be picklable.
+          pickler.loads(pickler.dumps(transform_node.transform))
+        except Exception:
           Visitor.ok = False
     self.visit(Visitor())
     return Visitor.ok
@@ -494,6 +500,10 @@ class AppliedPTransform(object):
     return {str(ix): input for ix, input in enumerate(self.inputs)
             if isinstance(input, pvalue.PCollection)}
 
+  def named_outputs(self):
+    return {str(tag): output for tag, output in self.outputs.items()
+            if isinstance(output, pvalue.PCollection)}
+
   def to_runner_api(self, context):
     from apache_beam.runners.api import beam_runner_api_pb2
     return beam_runner_api_pb2.PTransform(
@@ -507,7 +517,7 @@ class AppliedPTransform(object):
         inputs={tag: context.pcollections.get_id(pc)
                 for tag, pc in self.named_inputs().items()},
         outputs={str(tag): context.pcollections.get_id(out)
-                 for tag, out in self.outputs.items()},
+                 for tag, out in self.named_outputs().items()},
         # TODO(BEAM-115): display_data
         display_data=None)
 
