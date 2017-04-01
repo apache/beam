@@ -20,7 +20,6 @@
 
 import logging
 
-from apache_beam import pvalue
 from apache_beam.transforms import ptransform
 from apache_beam.transforms.display import HasDisplayData
 
@@ -313,4 +312,4 @@ class _NativeWrite(ptransform.PTransform):
 
   def expand(self, pcoll):
     self._check_pcollection(pcoll)
-    return pvalue.PValue(pcoll.pipeline)
+    return None
