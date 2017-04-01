@@ -316,7 +316,7 @@ class Pipeline(object):
         try:
           # Transforms must be picklable.
           pickler.loads(pickler.dumps(transform_node.transform))
-        except Exception, ex:
+        except Exception:
           Visitor.ok = False
     self.visit(Visitor())
     return Visitor.ok
