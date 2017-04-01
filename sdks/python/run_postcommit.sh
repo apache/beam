@@ -91,6 +91,7 @@ echo ">>> RUNNING TEST DATAFLOW RUNNER it tests"
 python setup.py nosetests \
   -a IT \
   --processes=4 \
+  --process-timeout=600 \
   --test-pipeline-options=" \
     --runner=TestDataflowRunner \
     --project=$PROJECT \

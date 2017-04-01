@@ -31,6 +31,9 @@ from apache_beam.tests.pipeline_verifiers import FileChecksumMatcher
 
 class WordCountIT(unittest.TestCase):
 
+  # Enable nose tests running in parallel
+  _multiprocess_can_split_ = True
+
   # The default checksum is a SHA-1 hash generated from a sorted list of
   # lines read from expected output.
   DEFAULT_CHECKSUM = '33535a832b7db6d78389759577d4ff495980b9c0'
