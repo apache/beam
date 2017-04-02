@@ -157,7 +157,7 @@ public class SparkUnboundedSource {
   private static class ReadReportDStream extends DStream<BoxedUnit> {
 
     private static final String READ_DURATION_MILLIS = "readDurationMillis";
-    private static final String NAMESPACE = "io";
+    private static final String NAMESPACE = "spark-runner.io";
 
     private final DStream<Metadata> parent;
     private final int inputDStreamId;
