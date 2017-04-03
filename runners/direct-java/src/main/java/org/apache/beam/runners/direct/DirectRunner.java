@@ -57,7 +57,6 @@ import org.apache.beam.sdk.transforms.View.CreatePCollectionView;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -420,11 +419,6 @@ public class DirectRunner extends PipelineRunner<DirectPipelineResult> {
      * <p>If the pipeline terminates abnormally by throwing an exception, this will rethrow the
      * exception. Future calls to {@link #getState()} will return
      * {@link org.apache.beam.sdk.PipelineResult.State#FAILED}.
-     *
-     * <p>NOTE: if the {@link Pipeline} contains an {@link IsBounded#UNBOUNDED unbounded}
-     * {@link PCollection}, and the {@link PipelineRunner} was created with
-     * {@link DirectOptions#isShutdownUnboundedProducersWithMaxWatermark()} set to false,
-     * this method will never return.
      *
      * <p>See also {@link PipelineExecutor#waitUntilFinish(Duration)}.
      */
