@@ -831,7 +831,7 @@ class BatchViewOverrides {
 
       return Pipeline.applyTransform(outputs,
           Flatten.<IsmRecord<WindowedValue<V>>>pCollections())
-          .apply(CreatePCollectionView.<IsmRecord<WindowedValue<V>>,
+          .apply(CreateDataflowView.<IsmRecord<WindowedValue<V>>,
               ViewT>of(view));
     }
 
@@ -975,7 +975,7 @@ class BatchViewOverrides {
 
       runner.addPCollectionRequiringIndexedFormat(reifiedPerWindowAndSorted);
       return reifiedPerWindowAndSorted.apply(
-          CreatePCollectionView.<IsmRecord<WindowedValue<FinalT>>, ViewT>of(view));
+          CreateDataflowView.<IsmRecord<WindowedValue<FinalT>>, ViewT>of(view));
     }
 
     @Override
@@ -1119,7 +1119,7 @@ class BatchViewOverrides {
 
         runner.addPCollectionRequiringIndexedFormat(reifiedPerWindowAndSorted);
         return reifiedPerWindowAndSorted.apply(
-            CreatePCollectionView.<IsmRecord<WindowedValue<T>>, ViewT>of(view));
+            CreateDataflowView.<IsmRecord<WindowedValue<T>>, ViewT>of(view));
       }
 
       PCollection<IsmRecord<WindowedValue<T>>> reifiedPerWindowAndSorted = input
@@ -1129,7 +1129,7 @@ class BatchViewOverrides {
 
       runner.addPCollectionRequiringIndexedFormat(reifiedPerWindowAndSorted);
       return reifiedPerWindowAndSorted.apply(
-          CreatePCollectionView.<IsmRecord<WindowedValue<T>>, ViewT>of(view));
+          CreateDataflowView.<IsmRecord<WindowedValue<T>>, ViewT>of(view));
     }
 
     @Override
