@@ -59,13 +59,14 @@ public class WriteWindowedToBigQuery<T>
 
   @Override
   public PDone expand(PCollection<T> teamAndScore) {
-    return teamAndScore
+    teamAndScore
       .apply("ConvertToRow", ParDo.of(new BuildRowFn()))
       .apply(BigQueryIO.writeTableRows()
                 .to(getTable(teamAndScore.getPipeline(), tableName))
                 .withSchema(getSchema())
                 .withCreateDisposition(CreateDisposition.CREATE_IF_NEEDED)
                 .withWriteDisposition(WriteDisposition.WRITE_APPEND));
+    return PDone.in(teamAndScore.getPipeline());
   }
 
 }
