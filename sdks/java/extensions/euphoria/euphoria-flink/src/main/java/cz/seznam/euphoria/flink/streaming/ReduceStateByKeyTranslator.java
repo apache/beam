@@ -47,14 +47,20 @@ import java.util.Objects;
 
 class ReduceStateByKeyTranslator implements StreamingOperatorTranslator<ReduceStateByKey> {
 
-  static String CFG_VALUE_OF_AFTER_SHUFFLE_KEY = "euphoria.flink.streaming.windowing.only.after.shuffle";
-  static boolean CFG_VALUE_OF_AFTER_SHUFFLE_DEFAULT = false;
+  static final String CFG_VALUE_OF_AFTER_SHUFFLE_KEY = "euphoria.flink.streaming.windowing.only.after.shuffle";
+  static final boolean CFG_VALUE_OF_AFTER_SHUFFLE_DEFAULT = false;
 
-  private boolean valueOfAfterShuffle = true;
+  static final String CFG_DESCRIPTORS_CACHE_SIZE_MAX_KEY = "euphoria.flink.streaming.descriptors.cache.max.size";
+  static final int CFG_DESCRIPTORS_CACHE_MAX_SIZE_DEFAULT = 1000;
+
+  private boolean valueOfAfterShuffle;
+  private int descriptorsCacheMaxSize;
 
   public ReduceStateByKeyTranslator(Settings settings) {
     this.valueOfAfterShuffle =
             settings.getBoolean(CFG_VALUE_OF_AFTER_SHUFFLE_KEY, CFG_VALUE_OF_AFTER_SHUFFLE_DEFAULT);
+    this.descriptorsCacheMaxSize =
+            settings.getInt(CFG_DESCRIPTORS_CACHE_SIZE_MAX_KEY, CFG_DESCRIPTORS_CACHE_MAX_SIZE_DEFAULT);
   }
 
   @Override
@@ -91,7 +97,9 @@ class ReduceStateByKeyTranslator implements StreamingOperatorTranslator<ReduceSt
     if (valueOfAfterShuffle) {
       reduced = input.keyBy(new UnaryFunctionKeyExtractor(keyExtractor))
                      .transform(operator.getName(), TypeInformation.of(StreamingElement.class),
-                                new StreamingElementWindowOperator(elMapper, windowing, stateFactory, stateCombiner, context.isLocalMode()))
+                                new StreamingElementWindowOperator(
+                                        elMapper, windowing, stateFactory, stateCombiner,
+                                        context.isLocalMode(), descriptorsCacheMaxSize))
                      .setParallelism(operator.getParallelism());
     } else {
       // assign windows
@@ -104,7 +112,9 @@ class ReduceStateByKeyTranslator implements StreamingOperatorTranslator<ReduceSt
               .setParallelism(input.getParallelism());
       reduced = (DataStream) windowed.keyBy(new KeyedMultiWindowedElementKeyExtractor())
               .transform(operator.getName(), TypeInformation.of(StreamingElement.class),
-                      new KeyedMultiWindowedElementWindowOperator<>(windowing, stateFactory, stateCombiner, context.isLocalMode()))
+                      new KeyedMultiWindowedElementWindowOperator<>(
+                              windowing, stateFactory, stateCombiner,
+                              context.isLocalMode(), descriptorsCacheMaxSize))
               .setParallelism(operator.getParallelism());
     }
 
