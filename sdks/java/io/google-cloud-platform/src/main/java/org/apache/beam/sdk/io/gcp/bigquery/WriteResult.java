@@ -28,11 +28,11 @@ import org.apache.beam.sdk.values.TaggedPValue;
 /**
  * The result of a {@link BigQueryIO.Write} transform.
  */
-public class WriteResult extends POutputValueBase {
+final class WriteResult extends POutputValueBase {
   /**
    * Creates a {@link WriteResult} in the given {@link Pipeline}.
    */
-  public static WriteResult in(Pipeline pipeline) {
+  static WriteResult in(Pipeline pipeline) {
     return new WriteResult(pipeline);
   }
 
