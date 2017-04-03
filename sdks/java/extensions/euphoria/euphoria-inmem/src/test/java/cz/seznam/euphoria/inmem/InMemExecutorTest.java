@@ -58,6 +58,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -276,7 +277,7 @@ public class InMemExecutorTest {
         Context<Integer> c,
         StorageProvider storageProvider) {
       
-      super(c, storageProvider);
+      super(c);
       data = storageProvider.getListStorage(
           ListStorageDescriptor.of("data", Integer.class));
     }
@@ -297,16 +298,12 @@ public class InMemExecutorTest {
     }
 
     static SortState combine(Iterable<SortState> others) {
-      SortState ret = null;
-      for (SortState s : others) {
-        if (ret == null) {
-          ret = new SortState(
-              s.getContext(),
-              s.getStorageProvider());
-        }
-        ret.data.addAll(s.data.get());
+      Iterator<SortState> iter = others.iterator();
+      SortState target = iter.next();
+      while (iter.hasNext()) {
+        target.data.addAll(iter.next().data.get());
       }
-      return ret;
+      return target;
     }
 
     @Override

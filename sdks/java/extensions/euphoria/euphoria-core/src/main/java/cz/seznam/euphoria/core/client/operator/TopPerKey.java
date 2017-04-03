@@ -57,7 +57,7 @@ public class TopPerKey<
 
     @SuppressWarnings("unchecked")
     MaxScored(Context<Pair<V, C>> context, StorageProvider storageProvider) {
-      super(context, storageProvider);
+      super(context);
       curr = (ValueStorage) storageProvider.getValueStorage(MAX_STATE_DESCR);
     }
 
