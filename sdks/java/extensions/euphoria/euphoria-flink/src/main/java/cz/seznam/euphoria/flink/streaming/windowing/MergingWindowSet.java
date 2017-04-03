@@ -153,7 +153,7 @@ class MergingWindowSet<W extends Window> {
 
       callback.merge(mergeResult,
               mergedWindows,
-              mapping.get(mergeResult),
+              mergedStateWindow,
               mergedStateWindows);
     }
 
