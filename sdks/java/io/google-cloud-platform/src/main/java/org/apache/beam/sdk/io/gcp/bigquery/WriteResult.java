@@ -17,12 +17,10 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
-import com.google.api.services.bigquery.model.TableRow;
 import java.util.Collections;
 import java.util.List;
 
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.POutputValueBase;
 import org.apache.beam.sdk.values.TaggedPValue;
 
@@ -40,19 +38,7 @@ public class WriteResult extends POutputValueBase {
 
   @Override
   public List<TaggedPValue> expand() {
-    //
     return Collections.emptyList();
-  }
-
-  /**
-   * Returns a {@link PCollection} of inserts that permanently failed when attempting to insert into
-   * BigQuery. This can be used for example to write these rows out to an alternate sink. This wil
-   * only be set if the user has specified a failed-row policy on {@link BigQueryIO.Write}.
-   *
-   * <p>This functionality is not yet implemented.
-   */
-  public PCollection<TableRow> getFailedRows() {
-    throw new UnsupportedOperationException("Failed row support not yet implemented.");
   }
 
   private WriteResult(Pipeline pipeline) {
