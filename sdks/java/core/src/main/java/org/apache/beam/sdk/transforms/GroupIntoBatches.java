@@ -29,8 +29,8 @@ import org.apache.beam.sdk.util.TimeDomain;
 import org.apache.beam.sdk.util.Timer;
 import org.apache.beam.sdk.util.TimerSpec;
 import org.apache.beam.sdk.util.TimerSpecs;
-import org.apache.beam.sdk.util.state.AccumulatorCombiningState;
 import org.apache.beam.sdk.util.state.BagState;
+import org.apache.beam.sdk.util.state.CombiningState;
 import org.apache.beam.sdk.util.state.StateSpec;
 import org.apache.beam.sdk.util.state.StateSpecs;
 import org.apache.beam.sdk.util.state.ValueState;
@@ -115,7 +115,7 @@ public class GroupIntoBatches<K, InputT>
     private final StateSpec<Object, BagState<InputT>> batchSpec;
 
     @StateId(NUM_ELEMENTS_IN_BATCH_ID)
-    private final StateSpec<Object, AccumulatorCombiningState<Long, Long, Long>>
+    private final StateSpec<Object, CombiningState<Long, Long, Long>>
         numElementsInBatchSpec;
 
     @StateId(KEY_ID)
@@ -171,7 +171,7 @@ public class GroupIntoBatches<K, InputT>
         @TimerId(END_OF_WINDOW_ID) Timer timer,
         @StateId(BATCH_ID) BagState<InputT> batch,
         @StateId(NUM_ELEMENTS_IN_BATCH_ID)
-            AccumulatorCombiningState<Long, Long, Long> numElementsInBatch,
+            CombiningState<Long, Long, Long> numElementsInBatch,
         @StateId(KEY_ID) ValueState<K> key,
         ProcessContext c,
         BoundedWindow window) {
@@ -203,7 +203,7 @@ public class GroupIntoBatches<K, InputT>
         @StateId(KEY_ID) ValueState<K> key,
         @StateId(BATCH_ID) BagState<InputT> batch,
         @StateId(NUM_ELEMENTS_IN_BATCH_ID)
-            AccumulatorCombiningState<Long, Long, Long> numElementsInBatch,
+            CombiningState<Long, Long, Long> numElementsInBatch,
         BoundedWindow window) {
       LOGGER.debug(
           "*** END OF WINDOW *** for timer timestamp {} in windows {}",
@@ -215,7 +215,7 @@ public class GroupIntoBatches<K, InputT>
         Context c,
         ValueState<K> key,
         BagState<InputT> batch,
-        AccumulatorCombiningState<Long, Long, Long> numElementsInBatch) {
+        CombiningState<Long, Long, Long> numElementsInBatch) {
       Iterable<InputT> values = batch.read();
       // when the timer fires, batch state might be empty
       if (Iterables.size(values) > 0) {

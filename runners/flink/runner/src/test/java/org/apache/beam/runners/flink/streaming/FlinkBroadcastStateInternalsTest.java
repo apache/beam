@@ -32,8 +32,8 @@ import org.apache.beam.runners.flink.translation.wrappers.streaming.state.FlinkB
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.transforms.Sum;
-import org.apache.beam.sdk.util.state.AccumulatorCombiningState;
 import org.apache.beam.sdk.util.state.BagState;
+import org.apache.beam.sdk.util.state.CombiningState;
 import org.apache.beam.sdk.util.state.GroupingState;
 import org.apache.beam.sdk.util.state.ReadableState;
 import org.apache.beam.sdk.util.state.ValueState;
@@ -58,7 +58,7 @@ public class FlinkBroadcastStateInternalsTest {
 
   private static final StateTag<Object, ValueState<String>> STRING_VALUE_ADDR =
       StateTags.value("stringValue", StringUtf8Coder.of());
-  private static final StateTag<Object, AccumulatorCombiningState<Integer, int[], Integer>>
+  private static final StateTag<Object, CombiningState<Integer, int[], Integer>>
       SUM_INTEGER_ADDR = StateTags.combiningValueFromInputInternal(
           "sumInteger", VarIntCoder.of(), Sum.ofIntegers());
   private static final StateTag<Object, BagState<String>> STRING_BAG_ADDR =
@@ -202,9 +202,9 @@ public class FlinkBroadcastStateInternalsTest {
 
   @Test
   public void testMergeCombiningValueIntoSource() throws Exception {
-    AccumulatorCombiningState<Integer, int[], Integer> value1 =
+    CombiningState<Integer, int[], Integer> value1 =
         underTest.state(NAMESPACE_1, SUM_INTEGER_ADDR);
-    AccumulatorCombiningState<Integer, int[], Integer> value2 =
+    CombiningState<Integer, int[], Integer> value2 =
         underTest.state(NAMESPACE_2, SUM_INTEGER_ADDR);
 
     value1.add(5);
@@ -223,11 +223,11 @@ public class FlinkBroadcastStateInternalsTest {
 
   @Test
   public void testMergeCombiningValueIntoNewNamespace() throws Exception {
-    AccumulatorCombiningState<Integer, int[], Integer> value1 =
+    CombiningState<Integer, int[], Integer> value1 =
         underTest.state(NAMESPACE_1, SUM_INTEGER_ADDR);
-    AccumulatorCombiningState<Integer, int[], Integer> value2 =
+    CombiningState<Integer, int[], Integer> value2 =
         underTest.state(NAMESPACE_2, SUM_INTEGER_ADDR);
-    AccumulatorCombiningState<Integer, int[], Integer> value3 =
+    CombiningState<Integer, int[], Integer> value3 =
         underTest.state(NAMESPACE_3, SUM_INTEGER_ADDR);
 
     value1.add(5);

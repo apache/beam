@@ -27,7 +27,7 @@ import org.apache.beam.sdk.transforms.Combine.CombineFn;
  * @param <AccumT> the type of accumulator
  * @param <OutputT> the type of value extracted from the state
  */
-public interface AccumulatorCombiningState<InputT, AccumT, OutputT>
+public interface CombiningState<InputT, AccumT, OutputT>
     extends GroupingState<InputT, OutputT> {
 
   /**
@@ -49,5 +49,5 @@ public interface AccumulatorCombiningState<InputT, AccumT, OutputT>
   AccumT mergeAccumulators(Iterable<AccumT> accumulators);
 
   @Override
-  AccumulatorCombiningState<InputT, AccumT, OutputT> readLater();
+  CombiningState<InputT, AccumT, OutputT> readLater();
 }

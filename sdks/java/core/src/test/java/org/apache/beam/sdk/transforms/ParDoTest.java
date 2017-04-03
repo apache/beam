@@ -77,6 +77,7 @@ import org.apache.beam.sdk.testing.UsesTimersInParDo;
 import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.DoFn.OnTimer;
 import org.apache.beam.sdk.transforms.DoFn.ProcessElement;
+import org.apache.beam.sdk.transforms.Mean.CountSum;
 import org.apache.beam.sdk.transforms.ParDo.SingleOutput;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.DisplayData.Builder;
@@ -92,8 +93,8 @@ import org.apache.beam.sdk.util.Timer;
 import org.apache.beam.sdk.util.TimerSpec;
 import org.apache.beam.sdk.util.TimerSpecs;
 import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
-import org.apache.beam.sdk.util.state.AccumulatorCombiningState;
 import org.apache.beam.sdk.util.state.BagState;
+import org.apache.beam.sdk.util.state.CombiningState;
 import org.apache.beam.sdk.util.state.MapState;
 import org.apache.beam.sdk.util.state.SetState;
 import org.apache.beam.sdk.util.state.StateSpec;
@@ -2085,7 +2086,7 @@ public class ParDoTest implements Serializable {
           private final StateSpec<Object, SetState<Integer>> setState =
               StateSpecs.set(VarIntCoder.of());
           @StateId(countStateId)
-          private final StateSpec<Object, AccumulatorCombiningState<Integer, int[], Integer>>
+          private final StateSpec<Object, CombiningState<Integer, int[], Integer>>
               countState = StateSpecs.combiningValueFromInputInternal(VarIntCoder.of(),
               Sum.ofIntegers());
 
@@ -2093,7 +2094,7 @@ public class ParDoTest implements Serializable {
           public void processElement(
               ProcessContext c,
               @StateId(stateId) SetState<Integer> state,
-              @StateId(countStateId) AccumulatorCombiningState<Integer, int[], Integer>
+              @StateId(countStateId) CombiningState<Integer, int[], Integer>
                   count) {
             state.add(c.element().getValue());
             count.add(1);
@@ -2129,7 +2130,7 @@ public class ParDoTest implements Serializable {
           private final StateSpec<Object, SetState<MyInteger>> setState = StateSpecs.set();
 
           @StateId(countStateId)
-          private final StateSpec<Object, AccumulatorCombiningState<Integer, int[], Integer>>
+          private final StateSpec<Object, CombiningState<Integer, int[], Integer>>
               countState = StateSpecs.combiningValueFromInputInternal(VarIntCoder.of(),
               Sum.ofIntegers());
 
@@ -2137,7 +2138,7 @@ public class ParDoTest implements Serializable {
           public void processElement(
               ProcessContext c,
               @StateId(stateId) SetState<MyInteger> state,
-              @StateId(countStateId) AccumulatorCombiningState<Integer, int[], Integer> count) {
+              @StateId(countStateId) CombiningState<Integer, int[], Integer> count) {
             state.add(new MyInteger(c.element().getValue()));
             count.add(1);
             if (count.read() >= 4) {
@@ -2172,7 +2173,7 @@ public class ParDoTest implements Serializable {
           private final StateSpec<Object, SetState<MyInteger>> setState = StateSpecs.set();
 
           @StateId(countStateId)
-          private final StateSpec<Object, AccumulatorCombiningState<Integer, int[], Integer>>
+          private final StateSpec<Object, CombiningState<Integer, int[], Integer>>
               countState = StateSpecs.combiningValueFromInputInternal(VarIntCoder.of(),
               Sum.ofIntegers());
 
@@ -2180,7 +2181,7 @@ public class ParDoTest implements Serializable {
           public void processElement(
               ProcessContext c,
               @StateId(stateId) SetState<MyInteger> state,
-              @StateId(countStateId) AccumulatorCombiningState<Integer, int[], Integer> count) {
+              @StateId(countStateId) CombiningState<Integer, int[], Integer> count) {
             state.add(new MyInteger(c.element().getValue()));
             count.add(1);
             if (count.read() >= 4) {
@@ -2214,14 +2215,14 @@ public class ParDoTest implements Serializable {
           private final StateSpec<Object, MapState<String, Integer>> mapState =
               StateSpecs.map(StringUtf8Coder.of(), VarIntCoder.of());
           @StateId(countStateId)
-          private final StateSpec<Object, AccumulatorCombiningState<Integer, int[], Integer>>
+          private final StateSpec<Object, CombiningState<Integer, int[], Integer>>
               countState = StateSpecs.combiningValueFromInputInternal(VarIntCoder.of(),
               Sum.ofIntegers());
 
           @ProcessElement
           public void processElement(
               ProcessContext c, @StateId(stateId) MapState<String, Integer> state,
-              @StateId(countStateId) AccumulatorCombiningState<Integer, int[], Integer>
+              @StateId(countStateId) CombiningState<Integer, int[], Integer>
                   count) {
             KV<String, Integer> value = c.element().getValue();
             state.put(value.getKey(), value.getValue());
@@ -2260,14 +2261,14 @@ public class ParDoTest implements Serializable {
           @StateId(stateId)
           private final StateSpec<Object, MapState<String, MyInteger>> mapState = StateSpecs.map();
           @StateId(countStateId)
-          private final StateSpec<Object, AccumulatorCombiningState<Integer, int[], Integer>>
+          private final StateSpec<Object, CombiningState<Integer, int[], Integer>>
               countState = StateSpecs.combiningValueFromInputInternal(VarIntCoder.of(),
               Sum.ofIntegers());
 
           @ProcessElement
           public void processElement(
               ProcessContext c, @StateId(stateId) MapState<String, MyInteger> state,
-              @StateId(countStateId) AccumulatorCombiningState<Integer, int[], Integer>
+              @StateId(countStateId) CombiningState<Integer, int[], Integer>
                   count) {
             KV<String, Integer> value = c.element().getValue();
             state.put(value.getKey(), new MyInteger(value.getValue()));
@@ -2306,14 +2307,14 @@ public class ParDoTest implements Serializable {
           @StateId(stateId)
           private final StateSpec<Object, MapState<String, MyInteger>> mapState = StateSpecs.map();
           @StateId(countStateId)
-          private final StateSpec<Object, AccumulatorCombiningState<Integer, int[], Integer>>
+          private final StateSpec<Object, CombiningState<Integer, int[], Integer>>
               countState = StateSpecs.combiningValueFromInputInternal(VarIntCoder.of(),
               Sum.ofIntegers());
 
           @ProcessElement
           public void processElement(
               ProcessContext c, @StateId(stateId) MapState<String, MyInteger> state,
-              @StateId(countStateId) AccumulatorCombiningState<Integer, int[], Integer>
+              @StateId(countStateId) CombiningState<Integer, int[], Integer>
                   count) {
             KV<String, Integer> value = c.element().getValue();
             state.put(value.getKey(), new MyInteger(value.getValue()));
@@ -2351,7 +2352,7 @@ public class ParDoTest implements Serializable {
 
           @StateId(stateId)
           private final StateSpec<
-                  Object, AccumulatorCombiningState<Double, Mean.CountSum<Double>, Double>>
+                  Object, CombiningState<Double, CountSum<Double>, Double>>
               combiningState =
                   StateSpecs.combiningValue(new Mean.CountSumCoder<Double>(), Mean.<Double>of());
 
@@ -2359,7 +2360,7 @@ public class ParDoTest implements Serializable {
           public void processElement(
               ProcessContext c,
               @StateId(stateId)
-                  AccumulatorCombiningState<Double, Mean.CountSum<Double>, Double> state) {
+                  CombiningState<Double, CountSum<Double>, Double> state) {
             state.add(c.element().getValue());
             Double currentValue = state.read();
             if (Math.abs(currentValue - 0.5) < EPSILON) {
@@ -2391,7 +2392,7 @@ public class ParDoTest implements Serializable {
 
           @StateId(stateId)
           private final StateSpec<
-              Object, AccumulatorCombiningState<Integer, MyInteger, Integer>>
+              Object, CombiningState<Integer, MyInteger, Integer>>
               combiningState =
               StateSpecs.combiningValue(new Combine.CombineFn<Integer, MyInteger, Integer>() {
                 @Override
@@ -2423,7 +2424,7 @@ public class ParDoTest implements Serializable {
           public void processElement(
               ProcessContext c,
               @StateId(stateId)
-                  AccumulatorCombiningState<Integer, MyInteger, Integer> state) {
+                  CombiningState<Integer, MyInteger, Integer> state) {
             state.add(c.element().getValue());
             Integer currentValue = state.read();
             if (currentValue == EXPECTED_SUM) {
@@ -2453,7 +2454,7 @@ public class ParDoTest implements Serializable {
 
           @StateId(stateId)
           private final StateSpec<
-              Object, AccumulatorCombiningState<Integer, MyInteger, Integer>>
+              Object, CombiningState<Integer, MyInteger, Integer>>
               combiningState =
               StateSpecs.combiningValue(new Combine.CombineFn<Integer, MyInteger, Integer>() {
                 @Override
@@ -2485,7 +2486,7 @@ public class ParDoTest implements Serializable {
           public void processElement(
               ProcessContext c,
               @StateId(stateId)
-                  AccumulatorCombiningState<Integer, MyInteger, Integer> state) {
+                  CombiningState<Integer, MyInteger, Integer> state) {
             state.add(c.element().getValue());
             Integer currentValue = state.read();
             if (currentValue == EXPECTED_SUM) {

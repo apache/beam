@@ -45,8 +45,8 @@ import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.OutputTimeFn;
 import org.apache.beam.sdk.transforms.windowing.OutputTimeFns;
-import org.apache.beam.sdk.util.state.AccumulatorCombiningState;
 import org.apache.beam.sdk.util.state.BagState;
+import org.apache.beam.sdk.util.state.CombiningState;
 import org.apache.beam.sdk.util.state.GroupingState;
 import org.apache.beam.sdk.util.state.MapState;
 import org.apache.beam.sdk.util.state.SetState;
@@ -229,7 +229,7 @@ public class CopyOnAccessInMemoryStateInternalsTest {
 
     StateNamespace namespace = new StateNamespaceForTest("foo");
     CoderRegistry reg = pipeline.getCoderRegistry();
-    StateTag<Object, AccumulatorCombiningState<Long, long[], Long>> stateTag =
+    StateTag<Object, CombiningState<Long, long[], Long>> stateTag =
         StateTags.combiningValue("summer",
             sumLongFn.getAccumulatorCoder(reg, reg.getDefaultCoder(Long.class)), sumLongFn);
     GroupingState<Long, Long> underlyingValue = underlying.state(namespace, stateTag);
@@ -259,7 +259,7 @@ public class CopyOnAccessInMemoryStateInternalsTest {
 
     StateNamespace namespace = new StateNamespaceForTest("foo");
     CoderRegistry reg = pipeline.getCoderRegistry();
-    StateTag<String, AccumulatorCombiningState<Long, long[], Long>> stateTag =
+    StateTag<String, CombiningState<Long, long[], Long>> stateTag =
         StateTags.keyedCombiningValue(
             "summer",
             sumLongFn.getAccumulatorCoder(
