@@ -68,7 +68,6 @@ import org.apache.beam.runners.dataflow.DataflowPipelineTranslator.JobSpecificat
 import org.apache.beam.runners.dataflow.StreamingViewOverrides.StreamingCreatePCollectionViewFactory;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineDebugOptions;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
-import org.apache.beam.runners.dataflow.options.DataflowPipelineWorkerPoolOptions;
 import org.apache.beam.runners.dataflow.util.DataflowTemplateJob;
 import org.apache.beam.runners.dataflow.util.DataflowTransport;
 import org.apache.beam.runners.dataflow.util.MonitoringUtil;
@@ -543,9 +542,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
 
     // Set the Docker container image that executes Dataflow worker harness, residing in Google
     // Container Registry. Translator is guaranteed to create a worker pool prior to this point.
-    String workerHarnessContainerImage =
-        options.as(DataflowPipelineWorkerPoolOptions.class)
-        .getWorkerHarnessContainerImage();
+    String workerHarnessContainerImage = getContainerImageForJob(options);
     for (WorkerPool workerPool : newJob.getEnvironment().getWorkerPools()) {
       workerPool.setWorkerHarnessContainerImage(workerHarnessContainerImage);
     }
@@ -1341,4 +1338,17 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     }
   }
 
+  @VisibleForTesting
+  static String getContainerImageForJob(DataflowPipelineOptions options) {
+    String workerHarnessContainerImage = options.getWorkerHarnessContainerImage();
+    if (!workerHarnessContainerImage.contains("IMAGE")) {
+      return workerHarnessContainerImage;
+    } else if (hasExperiment(options, "beam_fn_api")) {
+      return workerHarnessContainerImage.replace("IMAGE", "java");
+    } else if (options.isStreaming()) {
+      return workerHarnessContainerImage.replace("IMAGE", "beam-java-streaming");
+    } else {
+      return workerHarnessContainerImage.replace("IMAGE", "beam-java-batch");
+    }
+  }
 }

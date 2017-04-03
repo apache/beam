@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.dataflow;
 
+import static org.apache.beam.runners.dataflow.DataflowRunner.getContainerImageForJob;
 import static org.hamcrest.Matchers.both;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
@@ -71,6 +72,7 @@ import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.testing.ExpectedLogs;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.testing.TestPipelineOptions;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.util.GcsUtil;
@@ -1102,5 +1104,29 @@ public class DataflowRunnerTest {
     assertFalse(DataflowRunner.hasExperiment(options, "baz"));
     assertFalse(DataflowRunner.hasExperiment(options, "ba"));
     assertFalse(DataflowRunner.hasExperiment(options, "BAR"));
+  }
+
+  @Test
+  public void testWorkerHarnessContainerImage() {
+    DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
+
+    // default image set
+    options.setWorkerHarnessContainerImage("some-container");
+    assertThat(getContainerImageForJob(options), equalTo("some-container"));
+
+    // batch, legacy
+    options.setWorkerHarnessContainerImage("gcr.io/IMAGE/foo");
+    options.setExperiments(null);
+    options.setStreaming(false);
+    assertThat(
+        getContainerImageForJob(options), equalTo("gcr.io/beam-java-batch/foo"));
+    // streaming, legacy
+    options.setStreaming(true);
+    assertThat(
+        getContainerImageForJob(options), equalTo("gcr.io/beam-java-streaming/foo"));
+    // streaming, fnapi
+    options.setExperiments(ImmutableList.of("experiment1", "beam_fn_api"));
+    assertThat(
+        getContainerImageForJob(options), equalTo("gcr.io/java/foo"));
   }
 }
