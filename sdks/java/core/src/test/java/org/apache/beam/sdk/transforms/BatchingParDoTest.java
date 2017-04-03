@@ -27,8 +27,8 @@ import java.util.Iterator;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
-import org.apache.beam.sdk.testing.RunnableOnService;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.testing.UsesStatefulParDo;
@@ -83,7 +83,7 @@ public class BatchingParDoTest implements Serializable {
   }
 
   @Test
-  @Category({RunnableOnService.class, UsesTimersInParDo.class, UsesStatefulParDo.class})
+  @Category({NeedsRunner.class, UsesTimersInParDo.class, UsesStatefulParDo.class})
   public void testInGlobalWindow() {
     PCollection<KV<String, Iterable<String>>> collection =
         pipeline
@@ -119,7 +119,7 @@ public class BatchingParDoTest implements Serializable {
 
   @Test
   @Category({
-    RunnableOnService.class,
+    NeedsRunner.class,
     UsesTimersInParDo.class,
     UsesTestStream.class,
     UsesStatefulParDo.class
