@@ -77,6 +77,9 @@ public abstract class AbstractWindowOperator<I, KEY, WID extends Window>
   /** True when executor is running in local test (mode) */
   private final boolean localMode;
 
+  // see {@link WindowedStorageProvider}
+  private final int descriptorsCacheMaxSize;
+
   private transient InternalTimerService<WID> timerService;
 
   // tracks existing windows to flush them in case of end of stream is reached
@@ -93,12 +96,14 @@ public abstract class AbstractWindowOperator<I, KEY, WID extends Window>
   public AbstractWindowOperator(Windowing<?, WID> windowing,
                                 StateFactory<?, State> stateFactory,
                                 CombinableReduceFunction<State> stateCombiner,
-                                boolean localMode) {
+                                boolean localMode,
+                                int descriptorsCacheMaxSize) {
     this.windowing = Objects.requireNonNull(windowing);
     this.trigger = windowing.getTrigger();
     this.stateFactory = Objects.requireNonNull(stateFactory);
     this.stateCombiner = Objects.requireNonNull(stateCombiner);
     this.localMode = localMode;
+    this.descriptorsCacheMaxSize = descriptorsCacheMaxSize;
   }
 
   @Override
@@ -117,7 +122,7 @@ public abstract class AbstractWindowOperator<I, KEY, WID extends Window>
     this.triggerContext = new TriggerContextAdapter();
     this.outputContext = new OutputContext();
     this.storageProvider = new WindowedStorageProvider<>(
-            getKeyedStateBackend(), windowSerializer);
+            getKeyedStateBackend(), windowSerializer, descriptorsCacheMaxSize);
 
     if (windowing instanceof MergingWindowing) {
       TupleSerializer<Tuple2<WID, WID>> tupleSerializer =
