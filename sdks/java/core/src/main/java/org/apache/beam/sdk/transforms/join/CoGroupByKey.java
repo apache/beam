@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.transforms.join;
 
+import com.google.common.annotations.VisibleForTesting;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.beam.sdk.coders.Coder;
@@ -77,10 +78,14 @@ public class CoGroupByKey<K> extends
                PCollection<KV<K, CoGbkResult>>> {
 
   /**
-   *  options to filter output results.
+   *  Filter options apply to the output collection of {@code CoGroupByKey} transform.
+   *
+   *  <p>By default, it's set to {@code NONE} and no filter is applied. With {@code INNER_JOIN},
+   *  a transform {@link InnerJoinFilter} is applied to the output
+   *  {@code PCollection<KV<K, CoGbkResult>>}.
    *
    */
-  public enum FilterOption {
+  @VisibleForTesting enum FilterOption {
     NONE,
     INNER_JOIN //similar as INNER_JOIN in SQL
   }
@@ -96,7 +101,24 @@ public class CoGroupByKey<K> extends
   }
 
   /**
-   * Add a {@link FilterOption#INNER_JOIN} to output {@code PCollection} of {@code CoGroupByKey}.
+   * Add a {@link FilterOption#INNER_JOIN} filter to the output {@code PCollection}
+   * of {@code CoGroupByKey}.
+   *
+   *<p>This filter verifies values of each input {@code TupleTag} in {@code CoGbkResult}. Only
+   *when none is empty, this element is emitted. For example, given the results as below
+   *<pre>{@code
+   * user1, [[], [order1, order2]]
+   * user2, [[address2], [order3]]
+   * user3, [[address3], []]
+   *}
+   *</pre>
+   *
+   *<p>The output after {@code withInnerFilter} is
+   *<pre>{@code
+   * user2, [[address2], [order3]]
+   *}
+   *</pre>
+   *
    * @return
    */
   public CoGroupByKey<K> withInnerFilter() {
@@ -199,13 +221,11 @@ public class CoGroupByKey<K> extends
    */
   private static class InnerJoinFilter<K>
       extends PTransform<PCollection<KV<K, CoGbkResult>>, PCollection<KV<K, CoGbkResult>>> {
-    private static final long serialVersionUID = 5338015894726734137L;
 
     @Override
     public PCollection<KV<K, CoGbkResult>> expand(PCollection<KV<K, CoGbkResult>> input) {
       return input.apply("InnerJoinFilter",
           ParDo.of(new DoFn<KV<K, CoGbkResult>, KV<K, CoGbkResult>>() {
-            private static final long serialVersionUID = -2025094423705642840L;
 
             @ProcessElement
             public void processElement(ProcessContext c) {
