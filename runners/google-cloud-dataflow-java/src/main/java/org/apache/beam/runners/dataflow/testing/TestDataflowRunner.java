@@ -34,7 +34,6 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import javax.annotation.Nullable;
-import javax.xml.crypto.Data;
 import org.apache.beam.runners.dataflow.DataflowClient;
 import org.apache.beam.runners.dataflow.DataflowPipelineJob;
 import org.apache.beam.runners.dataflow.DataflowRunner;
@@ -187,7 +186,7 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   void updatePAssertCount(Pipeline pipeline) {
     DataflowPipelineOptions options = pipeline.getOptions().as(DataflowPipelineOptions.class);
     if (DataflowRunner.hasExperiment(options, "beam_fn_api")) {
-      // TODO(BEAM-1866): FnAPI does not support metrics, so expect 0 assertions.
+      // TODO[BEAM-1866]: FnAPI does not support metrics, so expect 0 assertions.
       expectedNumberOfAssertions = 0;
     } else {
       expectedNumberOfAssertions = PAssert.countAsserts(pipeline);
