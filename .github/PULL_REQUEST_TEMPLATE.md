@@ -8,6 +8,6 @@ quickly and easily:
  - [ ] Replace `<Jira issue #>` in the title with the actual Jira issue
        number, if there is one.
  - [ ] If this contribution is large, please file an Apache
-       [Individual Contributor License Agreement](https://www.apache.org/licenses/icla.txt).
+       [Individual Contributor License Agreement](https://www.apache.org/licenses/icla.pdf).
 
 ---
