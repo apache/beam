@@ -243,8 +243,12 @@ public abstract class AbstractWindowOperator<I, KEY, WID extends Window>
         if (triggerResult.isPurge()) {
           windowState.close();
           trigger.onClear(window, triggerContext);
+
+          if (localMode) {
+            // un-register the cleanup timer for each window since we just discarded it
+            endOfStreamTimerService.deleteEventTimeTimer(window, Long.MAX_VALUE);
+          }
         }
-//        processTriggerResult(window, triggerResult, null);
       }
     }
   }
