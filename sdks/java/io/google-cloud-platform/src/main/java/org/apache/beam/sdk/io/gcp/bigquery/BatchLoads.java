@@ -18,7 +18,6 @@
 
 package org.apache.beam.sdk.io.gcp.bigquery;
 
-import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
 import java.io.IOException;
@@ -35,7 +34,6 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.WriteDisposition;
 import org.apache.beam.sdk.options.BigQueryOptions;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -47,6 +45,7 @@ import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.util.IOChannelFactory;
 import org.apache.beam.sdk.util.IOChannelUtils;
+import org.apache.beam.sdk.util.Reshuffle;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
@@ -54,17 +53,13 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 
-
-/**
- * PTransform that uses BigQuery batch-load jobs to write a PCollection to BigQuery.
- */
+/** PTransform that uses BigQuery batch-load jobs to write a PCollection to BigQuery. */
 class BatchLoads extends PTransform<PCollection<KV<TableDestination, TableRow>>, WriteResult> {
   BigQueryIO.Write<?> write;
 
-  private static class ConstantSchemaFunction implements
-      SerializableFunction<TableDestination, TableSchema> {
-    private final @Nullable
-    ValueProvider<String> jsonSchema;
+  private static class ConstantSchemaFunction
+      implements SerializableFunction<TableDestination, TableSchema> {
+    private final @Nullable ValueProvider<String> jsonSchema;
 
     ConstantSchemaFunction(ValueProvider<String> jsonSchema) {
       this.jsonSchema = jsonSchema;
@@ -86,7 +81,6 @@ class BatchLoads extends PTransform<PCollection<KV<TableDestination, TableRow>>,
   public WriteResult expand(PCollection<KV<TableDestination, TableRow>> input) {
     Pipeline p = input.getPipeline();
     BigQueryOptions options = p.getOptions().as(BigQueryOptions.class);
-    ValueProvider<TableReference> table = write.getTableWithDefaultProject(options);
 
     final String stepUuid = BigQueryHelpers.randomUUIDString();
 
@@ -94,40 +88,41 @@ class BatchLoads extends PTransform<PCollection<KV<TableDestination, TableRow>>,
     String tempFilePrefix;
     try {
       IOChannelFactory factory = IOChannelUtils.getFactory(tempLocation);
-      tempFilePrefix = factory.resolve(
-          factory.resolve(tempLocation, "BigQueryWriteTemp"),
-          stepUuid);
+      tempFilePrefix =
+          factory.resolve(factory.resolve(tempLocation, "BigQueryWriteTemp"), stepUuid);
     } catch (IOException e) {
       throw new RuntimeException(
-          String.format("Failed to resolve BigQuery temp location in %s", tempLocation),
-          e);
+          String.format("Failed to resolve BigQuery temp location in %s", tempLocation), e);
     }
 
     // Create a singleton job ID token at execution time. This will be used as the base for all
     // load jobs issued from this instance of the transfomr.
     PCollection<String> singleton = p.apply("Create", Create.of(tempFilePrefix));
-    PCollectionView<String> jobIdTokenView = p
-        .apply("TriggerIdCreation", Create.of("ignored"))
-        .apply("CreateJobId", MapElements.via(
-            new SimpleFunction<String, String>() {
-              @Override
-              public String apply(String input) {
-                return stepUuid;
-              }
-            }))
-        .apply(View.<String>asSingleton());
+    PCollectionView<String> jobIdTokenView =
+        p.apply("TriggerIdCreation", Create.of("ignored"))
+            .apply(
+                "CreateJobId",
+                MapElements.via(
+                    new SimpleFunction<String, String>() {
+                      @Override
+                      public String apply(String input) {
+                        return stepUuid;
+                      }
+                    }))
+            .apply(View.<String>asSingleton());
 
     PCollection<KV<TableDestination, TableRow>> inputInGlobalWindow =
-        input.apply("rewindowIntoGlobal",
+        input.apply(
+            "rewindowIntoGlobal",
             Window.<KV<TableDestination, TableRow>>into(new GlobalWindows())
                 .triggering(DefaultTrigger.of())
                 .discardingFiredPanes());
 
     // PCollection of filename, file byte size, and table destination.
-    PCollection<WriteBundlesToFiles.Result> results = inputInGlobalWindow
-        .apply("WriteBundlesToFiles",
-            ParDo.of(new WriteBundlesToFiles(tempFilePrefix)))
-        .setCoder(WriteBundlesToFiles.ResultCoder.of());
+    PCollection<WriteBundlesToFiles.Result> results =
+        inputInGlobalWindow
+            .apply("WriteBundlesToFiles", ParDo.of(new WriteBundlesToFiles(tempFilePrefix)))
+            .setCoder(WriteBundlesToFiles.ResultCoder.of());
 
     TupleTag<KV<ShardedKey<TableDestination>, List<String>>> multiPartitionsTag =
         new TupleTag<KV<ShardedKey<TableDestination>, List<String>>>("multiPartitionsTag") {};
@@ -136,20 +131,23 @@ class BatchLoads extends PTransform<PCollection<KV<TableDestination, TableRow>>,
 
     // Turn the list of files and record counts in a PCollectionView that can be used as a
     // side input.
-    PCollectionView<Iterable<WriteBundlesToFiles.Result>> resultsView = results
-        .apply("ResultsView", View.<WriteBundlesToFiles.Result>asIterable());
+    PCollectionView<Iterable<WriteBundlesToFiles.Result>> resultsView =
+        results.apply("ResultsView", View.<WriteBundlesToFiles.Result>asIterable());
     // This transform will look at the set of files written for each table, and if any table has
     // too many files or bytes, will partition that table's files into multiple partitions for
     // loading.
-    PCollectionTuple partitions = singleton.apply("WritePartition",
-        ParDo.of(new WritePartition(
-            write.getJsonTableRef(),
-            write.getTableDescription(),
-            resultsView,
-            multiPartitionsTag,
-            singlePartitionTag))
-        .withSideInputs(resultsView)
-        .withOutputTags(multiPartitionsTag, TupleTagList.of(singlePartitionTag)));
+    PCollectionTuple partitions =
+        singleton.apply(
+            "WritePartition",
+            ParDo.of(
+                    new WritePartition(
+                        write.getJsonTableRef(),
+                        write.getTableDescription(),
+                        resultsView,
+                        multiPartitionsTag,
+                        singlePartitionTag))
+                .withSideInputs(resultsView)
+                .withOutputTags(multiPartitionsTag, TupleTagList.of(singlePartitionTag)));
 
     // Since BigQueryIO.java does not yet have support for per-table schemas, inject a constant
     // schema function here. If no schema is specified, this function will return null.
@@ -158,55 +156,69 @@ class BatchLoads extends PTransform<PCollection<KV<TableDestination, TableRow>>,
         new ConstantSchemaFunction(write.getJsonSchema());
 
     Coder<KV<ShardedKey<TableDestination>, List<String>>> partitionsCoder =
-        KvCoder.of(ShardedKeyCoder.of(TableDestinationCoder.of()),
-            ListCoder.of(StringUtf8Coder.of()));
+        KvCoder.of(
+            ShardedKeyCoder.of(TableDestinationCoder.of()), ListCoder.of(StringUtf8Coder.of()));
     // If WriteBundlesToFiles produced more than MAX_NUM_FILES files or MAX_SIZE_BYTES bytes, then
     // the import needs to be split into multiple partitions, and those partitions will be
     // specified in multiPartitionsTag.
-    PCollection<KV<TableDestination, String>> tempTables = partitions.get(multiPartitionsTag)
-        .setCoder(partitionsCoder)
-        // What's this GroupByKey for? Is this so we have a deterministic temp tables? If so, maybe
-        // Reshuffle is better here.
-        .apply("MultiPartitionsGroupByKey",
-            GroupByKey.<ShardedKey<TableDestination>, List<String>>create())
-        .apply("MultiPartitionsWriteTables", ParDo.of(new WriteTables(
-            false,
-            write.getBigQueryServices(),
-            jobIdTokenView,
-            tempFilePrefix,
-            WriteDisposition.WRITE_EMPTY,
-            CreateDisposition.CREATE_IF_NEEDED,
-            schemaFunction))
-            .withSideInputs(jobIdTokenView));
+    PCollection<KV<TableDestination, String>> tempTables =
+        partitions
+            .get(multiPartitionsTag)
+            .setCoder(partitionsCoder)
+            // Reshuffle will distribute this among multiple workers, and also guard against
+            // reexecution of the WritePartitions step once WriteTables has begun.
+            .apply(
+                "MultiPartitionsReshuffle",
+                Reshuffle.<ShardedKey<TableDestination>, List<String>>of())
+            .apply(
+                "MultiPartitionsWriteTables",
+                ParDo.of(
+                        new WriteTables(
+                            false,
+                            write.getBigQueryServices(),
+                            jobIdTokenView,
+                            tempFilePrefix,
+                            WriteDisposition.WRITE_EMPTY,
+                            CreateDisposition.CREATE_IF_NEEDED,
+                            schemaFunction))
+                    .withSideInputs(jobIdTokenView));
 
     // This view maps each final table destination to the set of temporary partitioned tables
     // the PCollection was loaded into.
-    PCollectionView<Map<TableDestination, Iterable<String>>> tempTablesView = tempTables
-        .apply("TempTablesView", View.<TableDestination, String>asMultimap());
+    PCollectionView<Map<TableDestination, Iterable<String>>> tempTablesView =
+        tempTables.apply("TempTablesView", View.<TableDestination, String>asMultimap());
 
-    singleton.apply("WriteRename", ParDo
-        .of(new WriteRename(
-            write.getBigQueryServices(),
-            jobIdTokenView,
-            write.getWriteDisposition(),
-            write.getCreateDisposition(),
-            tempTablesView))
-        .withSideInputs(tempTablesView, jobIdTokenView));
+    singleton.apply(
+        "WriteRename",
+        ParDo.of(
+                new WriteRename(
+                    write.getBigQueryServices(),
+                    jobIdTokenView,
+                    write.getWriteDisposition(),
+                    write.getCreateDisposition(),
+                    tempTablesView))
+            .withSideInputs(tempTablesView, jobIdTokenView));
 
     // Write single partition to final table
-    partitions.get(singlePartitionTag)
+    partitions
+        .get(singlePartitionTag)
         .setCoder(partitionsCoder)
-        .apply("SinglePartitionGroupByKey",
-            GroupByKey.<ShardedKey<TableDestination>, List<String>>create())
-        .apply("SinglePartitionWriteTables", ParDo.of(new WriteTables(
-            true,
-            write.getBigQueryServices(),
-            jobIdTokenView,
-            tempFilePrefix,
-            write.getWriteDisposition(),
-            write.getCreateDisposition(),
-            schemaFunction))
-            .withSideInputs(jobIdTokenView));
+        // Reshuffle will distribute this among multiple workers, and also guard against
+        // reexecution of the WritePartitions step once WriteTables has begun.
+        .apply(
+            "SinglePartitionsReshuffle", Reshuffle.<ShardedKey<TableDestination>, List<String>>of())
+        .apply(
+            "SinglePartitionWriteTables",
+            ParDo.of(
+                    new WriteTables(
+                        true,
+                        write.getBigQueryServices(),
+                        jobIdTokenView,
+                        tempFilePrefix,
+                        write.getWriteDisposition(),
+                        write.getCreateDisposition(),
+                        schemaFunction))
+                .withSideInputs(jobIdTokenView));
 
     return WriteResult.in(input.getPipeline());
   }

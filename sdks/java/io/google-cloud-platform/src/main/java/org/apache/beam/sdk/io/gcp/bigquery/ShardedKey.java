@@ -25,6 +25,7 @@ import java.util.Objects;
  * A key and a shard number.
  */
 class ShardedKey<K> implements Serializable {
+  private static final long serialVersionUID = 1L;
   private final K key;
   private final int shardNumber;
 

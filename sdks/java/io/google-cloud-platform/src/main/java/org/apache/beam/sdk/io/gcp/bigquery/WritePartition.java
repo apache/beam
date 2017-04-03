@@ -44,7 +44,65 @@ class WritePartition extends DoFn<String, KV<ShardedKey<TableDestination>, List<
   private TupleTag<KV<ShardedKey<TableDestination>, List<String>>> multiPartitionsTag;
   private TupleTag<KV<ShardedKey<TableDestination>, List<String>>> singlePartitionTag;
 
-  public WritePartition(
+  private static class PartitionData {
+    private int numFiles = 0;
+    private long byteSize = 0;
+    private List<String> filenames = Lists.newArrayList();
+
+    int getNumFiles() {
+      return numFiles;
+    }
+
+    void addFiles(int numFiles) {
+      this.numFiles += numFiles;
+    }
+
+    long getByteSize() {
+      return byteSize;
+    }
+
+    void addBytes(long numBytes) {
+      this.byteSize += numBytes;
+    }
+
+    List<String> getFilenames() {
+      return  filenames;
+    }
+
+    void addFilename(String filename) {
+      filenames.add(filename);
+    }
+
+    // Check to see whether we can add to this partition without exceeding the maximum partition
+    // size.
+    boolean canAccept(int numFiles, long numBytes) {
+      return this.numFiles + numFiles <= Write.MAX_NUM_FILES
+          && this.byteSize + numBytes <= Write.MAX_SIZE_BYTES;
+    }
+  }
+
+  private static class DestinationData {
+    private List<PartitionData> partitions = Lists.newArrayList();
+
+    DestinationData() {
+      // Always start out with a single empty partition.
+      partitions.add(new PartitionData());
+    }
+
+    List<PartitionData> getPartitions() {
+      return partitions;
+    }
+
+    PartitionData getLatestPartition() {
+      return partitions.get(partitions.size() - 1);
+    }
+
+    void addPartition(PartitionData partition) {
+       partitions.add(partition);
+    }
+  }
+
+  WritePartition(
       ValueProvider<String> singletonOutputJsonTableRef,
       String singletonOutputTableDescription,
       PCollectionView<Iterable<WriteBundlesToFiles.Result>> resultsView,
@@ -76,54 +134,41 @@ class WritePartition extends DoFn<String, KV<ShardedKey<TableDestination>, List<
     }
 
 
-    long partitionId = 0;
-    Map<TableDestination, Integer> currNumFilesMap = Maps.newHashMap();
-    Map<TableDestination, Long> currSizeBytesMap = Maps.newHashMap();
-    Map<TableDestination, List<List<String>>> currResultsMap = Maps.newHashMap();
-    for (int i = 0; i < results.size(); ++i) {
-      WriteBundlesToFiles.Result fileResult = results.get(i);
+    Map<TableDestination, DestinationData> currentResults = Maps.newHashMap();
+    for (WriteBundlesToFiles.Result fileResult : results) {
       TableDestination tableDestination = fileResult.tableDestination;
-      List<List<String>> partitions = currResultsMap.get(tableDestination);
-      if (partitions == null) {
-        partitions = Lists.newArrayList();
-        partitions.add(Lists.<String>newArrayList());
-        currResultsMap.put(tableDestination, partitions);
+      DestinationData destinationData = currentResults.get(tableDestination);
+      if (destinationData == null) {
+        destinationData = new DestinationData();
+        currentResults.put(tableDestination, destinationData);
       }
-      int currNumFiles = getOrDefault(currNumFilesMap, tableDestination, 0);
-      long currSizeBytes = getOrDefault(currSizeBytesMap, tableDestination, 0L);
-      if (currNumFiles + 1 > Write.MAX_NUM_FILES
-          || currSizeBytes + fileResult.fileByteSize > Write.MAX_SIZE_BYTES) {
-        // Add a new partition for this table.
-        partitions.add(Lists.<String>newArrayList());
-      //  c.sideOutput(multiPartitionsTag, KV.of(++partitionId, currResults));
-        currNumFiles = 0;
-        currSizeBytes = 0;
-        currNumFilesMap.remove(tableDestination);
-        currSizeBytesMap.remove(tableDestination);
+
+      PartitionData latestPartition = destinationData.getLatestPartition();
+      if (!latestPartition.canAccept(1, fileResult.fileByteSize)) {
+        // Too much data, roll over to a new partition.
+        latestPartition = new PartitionData();
+        destinationData.addPartition(latestPartition);
       }
-      currNumFilesMap.put(tableDestination, currNumFiles + 1);
-      currSizeBytesMap.put(tableDestination, currSizeBytes + fileResult.fileByteSize);
-      // Always add to the most recent partition for this table.
-      partitions.get(partitions.size() - 1).add(fileResult.filename);
+      latestPartition.addFilename(fileResult.filename);
+      latestPartition.addFiles(1);
+      latestPartition.addBytes(fileResult.fileByteSize);
     }
 
-    for (Map.Entry<TableDestination, List<List<String>>> entry : currResultsMap.entrySet()) {
+    // Now that we've figured out which tables and partitions to write out, emit this information
+    // to the next stage.
+    for (Map.Entry<TableDestination, DestinationData> entry : currentResults.entrySet()) {
       TableDestination tableDestination = entry.getKey();
-      List<List<String>> partitions = entry.getValue();
+      DestinationData destinationData = entry.getValue();
+      // In the fast-path case where we only output one table, the transform loads it directly
+      // to the final table. In this case, we output on a special TupleTag so the enclosing
+      // transform knows to skip the rename step.
       TupleTag<KV<ShardedKey<TableDestination>, List<String>>> outputTag =
-          (partitions.size() == 1) ? singlePartitionTag : multiPartitionsTag;
-      for (int i = 0; i < partitions.size(); ++i) {
-        c.output(outputTag, KV.of(ShardedKey.of(tableDestination, i + 1), partitions.get(i)));
+          (destinationData.getPartitions().size() == 1) ? singlePartitionTag : multiPartitionsTag;
+      for (int i = 0; i < destinationData.getPartitions().size(); ++i) {
+        PartitionData partitionData = destinationData.getPartitions().get(i);
+        c.output(outputTag, KV.of(ShardedKey.of(tableDestination, i + 1),
+            partitionData.getFilenames()));
       }
-    }
-  }
-
-  private <T> T getOrDefault(Map<TableDestination, T> map, TableDestination tableDestination,
-                     T defaultValue) {
-    if (map.containsKey(tableDestination)) {
-      return map.get(tableDestination);
-    } else {
-      return defaultValue;
     }
   }
 }

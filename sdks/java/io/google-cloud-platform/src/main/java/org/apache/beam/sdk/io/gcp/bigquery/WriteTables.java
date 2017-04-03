@@ -57,11 +57,15 @@ import org.slf4j.LoggerFactory;
 /**
  * Writes partitions to BigQuery tables.
  *
- * <p>The input is a list of files corresponding to a partition of a table. These files are
+ * <p>The input is a list of files corresponding to each partition of a table. These files are
  * load into a temporary table (or into the final table if there is only one partition). The output
- * is a {@link KV} mapping the final table to the temporary tables for each partition of that table.
+ * is a {@link KV} mapping each final table to a list of the temporary tables containing its data.
+ *
+ * <p>In the case where all the data in the files fit into a single load job, this transform loads
+ * the data directly into the final table, skipping temporary tables. In this case, the output
+ * {@link KV} maps the final table to itself.
  */
-class WriteTables extends DoFn<KV<ShardedKey<TableDestination>, Iterable<List<String>>>,
+class WriteTables extends DoFn<KV<ShardedKey<TableDestination>, List<String>>,
     KV<TableDestination, String>> {
   private static final Logger LOG = LoggerFactory.getLogger(WriteTables.class);
 
@@ -94,10 +98,9 @@ class WriteTables extends DoFn<KV<ShardedKey<TableDestination>, Iterable<List<St
   public void processElement(ProcessContext c) throws Exception {
     TableDestination tableDestination = c.element().getKey().getKey();
     Integer partition = c.element().getKey().getShardNumber();
-    List<String> partitionFiles = Lists.newArrayList(c.element().getValue()).get(0);
-    // Job ID must be different for each partition of each table.
-    String jobIdPrefix = String.format(
-        c.sideInput(jobIdToken) + "_0x%08x_%05d", tableDestination.hashCode(), partition);
+    List<String> partitionFiles = Lists.newArrayList(c.element().getValue());
+    String jobIdPrefix = BigQueryHelpers.createJobId(
+        c.sideInput(jobIdToken), tableDestination, partition);
 
     TableReference ref = tableDestination.getTableReference();
     if (!singlePartition) {
