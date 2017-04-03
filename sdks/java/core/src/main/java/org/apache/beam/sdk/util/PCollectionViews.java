@@ -31,7 +31,6 @@ import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Objects;
 import javax.annotation.Nullable;
-import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.Coder;
@@ -60,19 +59,16 @@ public class PCollectionViews {
    * {@code defaultValue} for any empty windows.
    */
   public static <T, W extends BoundedWindow> PCollectionView<T> singletonView(
-      Pipeline pipeline,
+      PCollection<T> pCollection,
       WindowingStrategy<?, W> windowingStrategy,
       boolean hasDefault,
       @Nullable T defaultValue,
       Coder<T> valueCoder) {
-    // TODO: as soon as runners are ported off the indicator classes,
-    // return new SimplePCollectionView<>(
-    //    pipeline,
-    //    new SingletonViewFn<K, V>(hasDefault, defaultValue, valueCoder),
-    //    windowingStrategy,
-    //    valueCoder);
-    return new SingletonPCollectionView<>(
-        pipeline, windowingStrategy, hasDefault, defaultValue, valueCoder);
+     return new SimplePCollectionView<>(
+        pCollection,
+        new SingletonViewFn<>(hasDefault, defaultValue, valueCoder),
+        windowingStrategy,
+        valueCoder);
   }
 
   /**
@@ -80,13 +76,11 @@ public class PCollectionViews {
    * provided {@link Coder} and windowed using the provided {@link WindowingStrategy}.
    */
   public static <T, W extends BoundedWindow> PCollectionView<Iterable<T>> iterableView(
-      Pipeline pipeline,
+      PCollection<T> pCollection,
       WindowingStrategy<?, W> windowingStrategy,
       Coder<T> valueCoder) {
-    // TODO: as soon as runners are ported off the indicator classes,
-    // return new SimplePCollectionView<>(
-    //    pipeline, new IterableViewFn<T>(), windowingStrategy, valueCoder);
-    return new IterablePCollectionView<>(pipeline, windowingStrategy, valueCoder);
+    return new SimplePCollectionView<>(
+        pCollection, new IterableViewFn<T>(), windowingStrategy, valueCoder);
   }
 
   /**
@@ -94,13 +88,11 @@ public class PCollectionViews {
    * provided {@link Coder} and windowed using the provided {@link WindowingStrategy}.
    */
   public static <T, W extends BoundedWindow> PCollectionView<List<T>> listView(
-      Pipeline pipeline,
+      PCollection<T> pCollection,
       WindowingStrategy<?, W> windowingStrategy,
       Coder<T> valueCoder) {
-    // TODO: as soon as runners are ported off the indicator classes,
-    // return new SimplePCollectionView<>(
-    //    pipeline, new ListViewFn<T>(), windowingStrategy, valueCoder);
-    return new ListPCollectionView<>(pipeline, windowingStrategy, valueCoder);
+     return new SimplePCollectionView<>(
+        pCollection, new ListViewFn<T>(), windowingStrategy, valueCoder);
   }
 
   /**
@@ -108,13 +100,11 @@ public class PCollectionViews {
    * provided {@link Coder} and windowed using the provided {@link WindowingStrategy}.
    */
   public static <K, V, W extends BoundedWindow> PCollectionView<Map<K, V>> mapView(
-      Pipeline pipeline,
+      PCollection<KV<K, V>> pCollection,
       WindowingStrategy<?, W> windowingStrategy,
       Coder<KV<K, V>> valueCoder) {
-    // TODO: as soon as runners are ported off the indicator classes,
-    // return new SimplePCollectionView<>(
-    //    pipeline, new MapViewFn<K, V>(), windowingStrategy, valueCoder);
-    return new MapPCollectionView<>(pipeline, windowingStrategy, valueCoder);
+    return new SimplePCollectionView<>(
+        pCollection, new MapViewFn<K, V>(), windowingStrategy, valueCoder);
   }
 
   /**
@@ -122,107 +112,12 @@ public class PCollectionViews {
    * using the provided {@link Coder} and windowed using the provided {@link WindowingStrategy}.
    */
   public static <K, V, W extends BoundedWindow> PCollectionView<Map<K, Iterable<V>>> multimapView(
-      Pipeline pipeline,
+      PCollection<KV<K, V>> pCollection,
       WindowingStrategy<?, W> windowingStrategy,
       Coder<KV<K, V>> valueCoder) {
-    // TODO: as soon as runners are ported off the indicator classes,
-    // return new SimplePCollectionView<>(
-    //    pipeline, new MultimapViewFn<K, V>(), windowingStrategy, valueCoder);
-    return new MultimapPCollectionView<>(pipeline, windowingStrategy, valueCoder);
+    return new SimplePCollectionView<>(
+        pCollection, new MultimapViewFn<K, V>(), windowingStrategy, valueCoder);
   }
-
-  /**
-   * A public indicator class that this view is a singleton view.
-   *
-   * @deprecated Runners should not inspect the {@link PCollectionView} subclass, as it is an
-   * implementation detail. To specialize a side input, a runner should inspect the
-   * language-independent metadata of the {@link ViewFn}.
-   */
-  @Deprecated
-  public static class SingletonPCollectionView<T, W extends BoundedWindow>
-      extends SimplePCollectionView<T, T, W> {
-    public SingletonPCollectionView(
-        Pipeline pipeline,
-        WindowingStrategy<?, W> windowingStrategy,
-        boolean hasDefault,
-        T defaultValue,
-        Coder<T> valueCoder) {
-      super(
-          pipeline,
-          new SingletonViewFn<>(hasDefault, defaultValue, valueCoder),
-          windowingStrategy,
-          valueCoder);
-    }
-
-    public T getDefaultValue() {
-      return ((SingletonViewFn<T>) viewFn).getDefaultValue();
-    }
-  }
-
-  /**
-   * A public indicator class that this view is an iterable view.
-   *
-   * @deprecated Runners should not inspect the {@link PCollectionView} subclass, as it is an
-   * implementation detail. To specialize a side input, a runner should inspect the
-   * language-independent metadata of the {@link ViewFn}.
-   */
-  @Deprecated
-  public static class IterablePCollectionView<ElemT, W extends BoundedWindow>
-      extends SimplePCollectionView<ElemT, Iterable<ElemT>, W> {
-    public IterablePCollectionView(
-        Pipeline pipeline, WindowingStrategy<?, W> windowingStrategy, Coder<ElemT> valueCoder) {
-      super(pipeline, new IterableViewFn<ElemT>(), windowingStrategy, valueCoder);
-    }
-  }
-
-  /**
-   * A public indicator class that this view is a list view.
-   *
-   * @deprecated Runners should not inspect the {@link PCollectionView} subclass, as it is an
-   * implementation detail. To specialize a side input, a runner should inspect the
-   * language-independent metadata of the {@link ViewFn}.
-   */
-  @Deprecated
-  public static class ListPCollectionView<ElemT, W extends BoundedWindow>
-      extends SimplePCollectionView<ElemT, List<ElemT>, W> {
-    public ListPCollectionView(
-        Pipeline pipeline, WindowingStrategy<?, W> windowingStrategy, Coder<ElemT> valueCoder) {
-      super(pipeline, new ListViewFn<ElemT>(), windowingStrategy, valueCoder);
-    }
-  }
-
-  /**
-   * A public indicator class that this view is a map view.
-   *
-   * @deprecated Runners should not inspect the {@link PCollectionView} subclass, as it is an
-   * implementation detail. To specialize a side input, a runner should inspect the
-   * language-independent metadata of the {@link ViewFn}.
-   */
-  @Deprecated
-  public static class MapPCollectionView<K, V, W extends BoundedWindow>
-      extends SimplePCollectionView<KV<K, V>, Map<K, V>, W> {
-    public MapPCollectionView(
-        Pipeline pipeline, WindowingStrategy<?, W> windowingStrategy, Coder<KV<K, V>> valueCoder) {
-      super(pipeline, new MapViewFn<K, V>(), windowingStrategy, valueCoder);
-    }
-  }
-
-  /**
-   * A public indicator class that this view is a multimap view.
-   *
-   * @deprecated Runners should not inspect the {@link PCollectionView} subclass, as it is an
-   * implementation detail. To specialize a side input, a runner should inspect the
-   * language-independent metadata of the {@link ViewFn}.
-   */
-  @Deprecated
-  public static class MultimapPCollectionView<K, V, W extends BoundedWindow>
-      extends SimplePCollectionView<KV<K, V>, Map<K, Iterable<V>>, W> {
-    public MultimapPCollectionView(
-        Pipeline pipeline, WindowingStrategy<?, W> windowingStrategy, Coder<KV<K, V>> valueCoder) {
-      super(pipeline, new MultimapViewFn<K, V>(), windowingStrategy, valueCoder);
-    }
-  }
-
 
   /**
    * Implementation of conversion of singleton {@code Iterable<WindowedValue<T>>} to {@code T}.
@@ -401,12 +296,15 @@ public class PCollectionViews {
   }
 
   /**
-   * A base class for {@link PCollectionView} implementations, with additional type parameters
+   * A class for {@link PCollectionView} implementations, with additional type parameters
    * that are not visible at pipeline assembly time when the view is used as a side input.
    */
   private static class SimplePCollectionView<ElemT, ViewT, W extends BoundedWindow>
       extends PValueBase
       implements PCollectionView<ViewT> {
+    /** The {@link PCollection} this view was originally created from. */
+    private transient PCollection<ElemT> pCollection;
+
     /** A unique tag for the view, typed according to the elements underlying the view. */
     private TupleTag<Iterable<WindowedValue<ElemT>>> tag;
 
@@ -418,25 +316,21 @@ public class PCollectionViews {
 
     /**
      * The typed {@link ViewFn} for this view.
-     *
-     * @deprecated Access to this variable from subclasses is temporary, for migrating away
-     * from language-specific inspections.
      */
-    @Deprecated
-    protected ViewFn<Iterable<WindowedValue<ElemT>>, ViewT> viewFn;
+    private ViewFn<Iterable<WindowedValue<ElemT>>, ViewT> viewFn;
 
     /**
      * Call this constructor to initialize the fields for which this base class provides
      * boilerplate accessors.
      */
-    // TODO: make private as soon as runners are ported off indicator subclasses
-    protected SimplePCollectionView(
-        Pipeline pipeline,
+    private SimplePCollectionView(
+        PCollection<ElemT> pCollection,
         TupleTag<Iterable<WindowedValue<ElemT>>> tag,
         ViewFn<Iterable<WindowedValue<ElemT>>, ViewT> viewFn,
         WindowingStrategy<?, W> windowingStrategy,
         Coder<ElemT> valueCoder) {
-      super(pipeline);
+      super(pCollection.getPipeline());
+      this.pCollection = pCollection;
       if (windowingStrategy.getWindowFn() instanceof InvalidWindows) {
         throw new IllegalArgumentException("WindowFn of PCollectionView cannot be InvalidWindows");
       }
@@ -452,14 +346,13 @@ public class PCollectionViews {
      * Call this constructor to initialize the fields for which this base class provides
      * boilerplate accessors, with an auto-generated tag.
      */
-    // TODO: make private as soon as runners are ported off indicator subclasses
-    protected SimplePCollectionView(
-        Pipeline pipeline,
+    private SimplePCollectionView(
+        PCollection<ElemT> pCollection,
         ViewFn<Iterable<WindowedValue<ElemT>>, ViewT> viewFn,
         WindowingStrategy<?, W> windowingStrategy,
         Coder<ElemT> valueCoder) {
       this(
-          pipeline,
+          pCollection,
           new TupleTag<Iterable<WindowedValue<ElemT>>>(),
           viewFn,
           windowingStrategy,
@@ -482,6 +375,11 @@ public class PCollectionViews {
       @SuppressWarnings({"rawtypes", "unchecked"})
       ViewFn<Iterable<WindowedValue<?>>, ViewT> untypedViewFn = (ViewFn) viewFn;
       return untypedViewFn;
+    }
+
+    @Override
+    public PCollection<?> getPCollection() {
+      return pCollection;
     }
 
     /**

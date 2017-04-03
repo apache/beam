@@ -20,32 +20,25 @@ package org.apache.beam.runners.direct;
 import com.google.common.collect.Iterables;
 import java.util.ArrayList;
 import java.util.List;
-import org.apache.beam.runners.core.construction.ForwardingPTransform;
-import org.apache.beam.runners.core.construction.SingleInputOutputOverrideFactory;
 import org.apache.beam.runners.direct.CommittedResult.OutputType;
 import org.apache.beam.runners.direct.DirectRunner.PCollectionViewWriter;
 import org.apache.beam.runners.direct.StepTransformResult.Builder;
-import org.apache.beam.sdk.coders.KvCoder;
-import org.apache.beam.sdk.coders.VoidCoder;
+import org.apache.beam.runners.direct.ViewOverrideFactory.WriteView;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
-import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.transforms.View.CreatePCollectionView;
-import org.apache.beam.sdk.transforms.WithKeys;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 
 /**
- * The {@link DirectRunner} {@link TransformEvaluatorFactory} for the
- * {@link CreatePCollectionView} primitive {@link PTransform}.
+ * The {@link DirectRunner} {@link TransformEvaluatorFactory} for the {@link CreatePCollectionView}
+ * primitive {@link PTransform}.
  *
  * <p>The {@link ViewEvaluatorFactory} produces {@link TransformEvaluator TransformEvaluators} for
- * the {@link WriteView} {@link PTransform}, which is part of the
- * {@link DirectCreatePCollectionView} composite transform. This transform is an override for the
- * {@link CreatePCollectionView} transform that applies windowing and triggers before the view is
- * written.
+ * the {@link WriteView} {@link PTransform}, which is part of the {@link DirectRunner} override.
+ * This transform is an override for the {@link CreatePCollectionView} transform that applies
+ * windowing and triggers before the view is written.
  */
 class ViewEvaluatorFactory implements TransformEvaluatorFactory {
   private final EvaluationContext context;
@@ -91,67 +84,9 @@ class ViewEvaluatorFactory implements TransformEvaluatorFactory {
         if (!elements.isEmpty()) {
           resultBuilder = resultBuilder.withAdditionalOutput(OutputType.PCOLLECTION_VIEW);
         }
-        return resultBuilder
-            .build();
+        return resultBuilder.build();
       }
     };
   }
 
-  public static class ViewOverrideFactory<ElemT, ViewT>
-      extends SingleInputOutputOverrideFactory<
-                PCollection<ElemT>, PCollectionView<ViewT>, CreatePCollectionView<ElemT, ViewT>> {
-    @Override
-    public PTransform<PCollection<ElemT>, PCollectionView<ViewT>> getReplacementTransform(
-        CreatePCollectionView<ElemT, ViewT> transform) {
-      return new DirectCreatePCollectionView<>(transform);
-    }
-  }
-
-  /**
-   * An in-process override for {@link CreatePCollectionView}.
-   */
-  private static class DirectCreatePCollectionView<ElemT, ViewT>
-      extends ForwardingPTransform<PCollection<ElemT>, PCollectionView<ViewT>> {
-    private final CreatePCollectionView<ElemT, ViewT> og;
-
-    private DirectCreatePCollectionView(CreatePCollectionView<ElemT, ViewT> og) {
-      this.og = og;
-    }
-
-    @Override
-    public PCollectionView<ViewT> expand(PCollection<ElemT> input) {
-      return input.apply(WithKeys.<Void, ElemT>of((Void) null))
-          .setCoder(KvCoder.of(VoidCoder.of(), input.getCoder()))
-          .apply(GroupByKey.<Void, ElemT>create())
-          .apply(Values.<Iterable<ElemT>>create())
-          .apply(new WriteView<ElemT, ViewT>(og));
-    }
-
-    @Override
-    protected PTransform<PCollection<ElemT>, PCollectionView<ViewT>> delegate() {
-      return og;
-    }
-  }
-
-  /**
-   * An in-process implementation of the {@link CreatePCollectionView} primitive.
-   *
-   * <p>This implementation requires the input {@link PCollection} to be an iterable
-   * of {@code WindowedValue<ElemT>}, which is provided
-   * to {@link PCollectionView#getViewFn()} for conversion to {@link ViewT}.
-   */
-  public static final class WriteView<ElemT, ViewT>
-      extends PTransform<PCollection<Iterable<ElemT>>, PCollectionView<ViewT>> {
-    private final CreatePCollectionView<ElemT, ViewT> og;
-
-    WriteView(CreatePCollectionView<ElemT, ViewT> og) {
-      this.og = og;
-    }
-
-    @Override
-    @SuppressWarnings("deprecation")
-    public PCollectionView<ViewT> expand(PCollection<Iterable<ElemT>> input) {
-      return og.getView();
-    }
-  }
 }

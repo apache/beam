@@ -74,7 +74,8 @@ class LocalFileSystemTest(unittest.TestCase):
     # Match files with None so that it throws an exception
     with self.assertRaises(BeamIOError) as error:
       self.fs.match([None])
-    self.assertEqual(error.exception.message, 'Match operation failed')
+    self.assertTrue(
+        error.exception.message.startswith('Match operation failed'))
     self.assertEqual(error.exception.exception_details.keys(), [None])
 
   def test_match_directory(self):
@@ -108,7 +109,8 @@ class LocalFileSystemTest(unittest.TestCase):
     path2 = os.path.join(self.tmpdir, 'f2')
     with self.assertRaises(BeamIOError) as error:
       self.fs.copy([path1], [path2])
-    self.assertEqual(error.exception.message, 'Copy operation failed')
+    self.assertTrue(
+        error.exception.message.startswith('Copy operation failed'))
     self.assertEqual(error.exception.exception_details.keys(), [(path1, path2)])
 
   def test_copy_directory(self):
@@ -140,7 +142,8 @@ class LocalFileSystemTest(unittest.TestCase):
     path2 = os.path.join(self.tmpdir, 'f2')
     with self.assertRaises(BeamIOError) as error:
       self.fs.rename([path1], [path2])
-    self.assertEqual(error.exception.message, 'Rename operation failed')
+    self.assertTrue(
+        error.exception.message.startswith('Rename operation failed'))
     self.assertEqual(error.exception.exception_details.keys(), [(path1, path2)])
 
   def test_rename_directory(self):
@@ -181,5 +184,6 @@ class LocalFileSystemTest(unittest.TestCase):
     path1 = os.path.join(self.tmpdir, 'f1')
     with self.assertRaises(BeamIOError) as error:
       self.fs.delete([path1])
-    self.assertEqual(error.exception.message, 'Delete operation failed')
+    self.assertTrue(
+        error.exception.message.startswith('Delete operation failed'))
     self.assertEqual(error.exception.exception_details.keys(), [path1])

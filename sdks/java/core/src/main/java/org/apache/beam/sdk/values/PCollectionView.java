@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.values;
 
 import java.io.Serializable;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.View;
@@ -43,6 +44,14 @@ import org.apache.beam.sdk.util.WindowingStrategy;
  * @param <T> the type of the value(s) accessible via this {@link PCollectionView}
  */
 public interface PCollectionView<T> extends PValue, Serializable {
+  /**
+   * Gets the {@link PCollection} this {@link PCollectionView} was created from.
+   *
+   * <p>The {@link PCollection} may not be available in all contexts.
+   */
+  @Nullable
+  PCollection<?> getPCollection();
+
   /**
    * @deprecated this method will be removed entirely. The {@link PCollection} underlying a side
    *     input, is part of the side input's specification with a {@link ParDo} transform, which will

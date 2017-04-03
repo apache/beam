@@ -222,7 +222,7 @@ class PValueCache(object):
     return len(self._cache)
 
   def to_cache_key(self, transform, tag):
-    return str((id(transform), tag))
+    return transform.full_label, tag
 
   def _ensure_pvalue_has_real_producer(self, pvalue):
     """Ensure the passed-in PValue has the real_producer attribute.

@@ -32,6 +32,7 @@ import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowingStrategy;
+import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PValueBase;
 import org.apache.beam.sdk.values.TupleTag;
@@ -140,12 +141,9 @@ public final class PCollectionViewTesting {
   public static <ElemT, ViewT> PCollectionView<ViewT> testingView(
       TupleTag<Iterable<WindowedValue<ElemT>>> tag,
       ViewFn<Iterable<WindowedValue<ElemT>>, ViewT> viewFn,
-      Coder<ElemT> elemCoder) {
-    return testingView(
-        tag,
-        viewFn,
-        elemCoder,
-        DEFAULT_WINDOWING_STRATEGY);
+      Coder<ElemT> elemCoder,
+      WindowingStrategy<?, ?> windowingStrategy) {
+    return testingView(null, tag, viewFn, elemCoder, windowingStrategy);
   }
 
   /**
@@ -168,11 +166,13 @@ public final class PCollectionViewTesting {
    * values provided to the view during execution, results are unpredictable.
    */
   public static <ElemT, ViewT> PCollectionView<ViewT> testingView(
+      PCollection<ElemT> pCollection,
       TupleTag<Iterable<WindowedValue<ElemT>>> tag,
       ViewFn<Iterable<WindowedValue<ElemT>>, ViewT> viewFn,
       Coder<ElemT> elemCoder,
       WindowingStrategy<?, ?> windowingStrategy) {
     return new PCollectionViewFromParts<>(
+        pCollection,
         tag,
         viewFn,
         windowingStrategy,
@@ -223,20 +223,28 @@ public final class PCollectionViewTesting {
   private static class PCollectionViewFromParts<ElemT, ViewT>
       extends PValueBase
       implements PCollectionView<ViewT> {
+    private PCollection<ElemT> pCollection;
     private TupleTag<Iterable<WindowedValue<ElemT>>> tag;
     private ViewFn<Iterable<WindowedValue<ElemT>>, ViewT> viewFn;
     private WindowingStrategy<?, ?> windowingStrategy;
     private Coder<Iterable<WindowedValue<ElemT>>> coder;
 
     public PCollectionViewFromParts(
+        PCollection<ElemT> pCollection,
         TupleTag<Iterable<WindowedValue<ElemT>>> tag,
         ViewFn<Iterable<WindowedValue<ElemT>>, ViewT> viewFn,
         WindowingStrategy<?, ?> windowingStrategy,
         Coder<Iterable<WindowedValue<ElemT>>> coder) {
+      this.pCollection = pCollection;
       this.tag = tag;
       this.viewFn = viewFn;
       this.windowingStrategy = windowingStrategy;
       this.coder = coder;
+    }
+
+    @Override
+    public PCollection<?> getPCollection() {
+      return pCollection;
     }
 
     @SuppressWarnings({"unchecked", "rawtypes"})

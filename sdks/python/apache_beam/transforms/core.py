@@ -879,7 +879,7 @@ class CombineGlobally(PTransform):
           else CombineFn.from_callable(self.fn))
       default_value = combine_fn.apply([], *self.args, **self.kwargs)
     else:
-      default_value = pvalue._SINGLETON_NO_DEFAULT  # pylint: disable=protected-access
+      default_value = pvalue.AsSingleton._NO_DEFAULT  # pylint: disable=protected-access
     view = pvalue.AsSingleton(combined, default_value=default_value)
     if self.as_view:
       return view

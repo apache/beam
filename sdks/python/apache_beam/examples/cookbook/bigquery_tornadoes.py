@@ -54,7 +54,7 @@ def count_tornadoes(input_data):
   """
 
   return (input_data
-          | 'months with tornatoes' >> beam.FlatMap(
+          | 'months with tornadoes' >> beam.FlatMap(
               lambda row: [(int(row['month']), 1)] if row['tornado'] else [])
           | 'monthly count' >> beam.CombinePerKey(sum)
           | 'format' >> beam.Map(
