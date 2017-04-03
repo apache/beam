@@ -2087,7 +2087,7 @@ public class ParDoTest implements Serializable {
               StateSpecs.set(VarIntCoder.of());
           @StateId(countStateId)
           private final StateSpec<Object, CombiningState<Integer, int[], Integer>>
-              countState = StateSpecs.combiningValueFromInputInternal(VarIntCoder.of(),
+              countState = StateSpecs.combiningFromInputInternal(VarIntCoder.of(),
               Sum.ofIntegers());
 
           @ProcessElement
@@ -2131,7 +2131,7 @@ public class ParDoTest implements Serializable {
 
           @StateId(countStateId)
           private final StateSpec<Object, CombiningState<Integer, int[], Integer>>
-              countState = StateSpecs.combiningValueFromInputInternal(VarIntCoder.of(),
+              countState = StateSpecs.combiningFromInputInternal(VarIntCoder.of(),
               Sum.ofIntegers());
 
           @ProcessElement
@@ -2174,7 +2174,7 @@ public class ParDoTest implements Serializable {
 
           @StateId(countStateId)
           private final StateSpec<Object, CombiningState<Integer, int[], Integer>>
-              countState = StateSpecs.combiningValueFromInputInternal(VarIntCoder.of(),
+              countState = StateSpecs.combiningFromInputInternal(VarIntCoder.of(),
               Sum.ofIntegers());
 
           @ProcessElement
@@ -2216,7 +2216,7 @@ public class ParDoTest implements Serializable {
               StateSpecs.map(StringUtf8Coder.of(), VarIntCoder.of());
           @StateId(countStateId)
           private final StateSpec<Object, CombiningState<Integer, int[], Integer>>
-              countState = StateSpecs.combiningValueFromInputInternal(VarIntCoder.of(),
+              countState = StateSpecs.combiningFromInputInternal(VarIntCoder.of(),
               Sum.ofIntegers());
 
           @ProcessElement
@@ -2262,7 +2262,7 @@ public class ParDoTest implements Serializable {
           private final StateSpec<Object, MapState<String, MyInteger>> mapState = StateSpecs.map();
           @StateId(countStateId)
           private final StateSpec<Object, CombiningState<Integer, int[], Integer>>
-              countState = StateSpecs.combiningValueFromInputInternal(VarIntCoder.of(),
+              countState = StateSpecs.combiningFromInputInternal(VarIntCoder.of(),
               Sum.ofIntegers());
 
           @ProcessElement
@@ -2308,7 +2308,7 @@ public class ParDoTest implements Serializable {
           private final StateSpec<Object, MapState<String, MyInteger>> mapState = StateSpecs.map();
           @StateId(countStateId)
           private final StateSpec<Object, CombiningState<Integer, int[], Integer>>
-              countState = StateSpecs.combiningValueFromInputInternal(VarIntCoder.of(),
+              countState = StateSpecs.combiningFromInputInternal(VarIntCoder.of(),
               Sum.ofIntegers());
 
           @ProcessElement
@@ -2354,7 +2354,7 @@ public class ParDoTest implements Serializable {
           private final StateSpec<
                   Object, CombiningState<Double, CountSum<Double>, Double>>
               combiningState =
-                  StateSpecs.combiningValue(new Mean.CountSumCoder<Double>(), Mean.<Double>of());
+                  StateSpecs.combining(new Mean.CountSumCoder<Double>(), Mean.<Double>of());
 
           @ProcessElement
           public void processElement(
@@ -2394,7 +2394,7 @@ public class ParDoTest implements Serializable {
           private final StateSpec<
               Object, CombiningState<Integer, MyInteger, Integer>>
               combiningState =
-              StateSpecs.combiningValue(new Combine.CombineFn<Integer, MyInteger, Integer>() {
+              StateSpecs.combining(new Combine.CombineFn<Integer, MyInteger, Integer>() {
                 @Override
                 public MyInteger createAccumulator() {
                   return new MyInteger(0);
@@ -2456,7 +2456,7 @@ public class ParDoTest implements Serializable {
           private final StateSpec<
               Object, CombiningState<Integer, MyInteger, Integer>>
               combiningState =
-              StateSpecs.combiningValue(new Combine.CombineFn<Integer, MyInteger, Integer>() {
+              StateSpecs.combining(new Combine.CombineFn<Integer, MyInteger, Integer>() {
                 @Override
                 public MyInteger createAccumulator() {
                   return new MyInteger(0);

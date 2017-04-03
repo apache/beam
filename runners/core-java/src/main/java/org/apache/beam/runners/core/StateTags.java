@@ -84,7 +84,7 @@ public class StateTags {
 
       @Override
       public <InputT, AccumT, OutputT>
-      CombiningState<InputT, AccumT, OutputT> bindCombiningValue(
+      CombiningState<InputT, AccumT, OutputT> bindCombining(
               String id,
               StateSpec<? super K, CombiningState<InputT, AccumT, OutputT>> spec,
               Coder<AccumT> accumCoder,
@@ -94,7 +94,7 @@ public class StateTags {
 
       @Override
       public <InputT, AccumT, OutputT>
-      CombiningState<InputT, AccumT, OutputT> bindKeyedCombiningValue(
+      CombiningState<InputT, AccumT, OutputT> bindKeyedCombining(
               String id,
               StateSpec<? super K, CombiningState<InputT, AccumT, OutputT>> spec,
               Coder<AccumT> accumCoder,
@@ -104,7 +104,7 @@ public class StateTags {
 
       @Override
       public <InputT, AccumT, OutputT>
-      CombiningState<InputT, AccumT, OutputT> bindKeyedCombiningValueWithContext(
+      CombiningState<InputT, AccumT, OutputT> bindKeyedCombiningWithContext(
               String id,
               StateSpec<? super K, CombiningState<InputT, AccumT, OutputT>> spec,
               Coder<AccumT> accumCoder,
@@ -162,7 +162,7 @@ public class StateTags {
     combiningValue(
       String id, Coder<AccumT> accumCoder, CombineFn<InputT, AccumT, OutputT> combineFn) {
     return new SimpleStateTag<>(
-        new StructuredId(id), StateSpecs.combiningValue(accumCoder, combineFn));
+        new StructuredId(id), StateSpecs.combining(accumCoder, combineFn));
   }
 
   /**
@@ -174,7 +174,7 @@ public class StateTags {
       keyedCombiningValue(String id, Coder<AccumT> accumCoder,
           KeyedCombineFn<K, InputT, AccumT, OutputT> combineFn) {
     return new SimpleStateTag<>(
-        new StructuredId(id), StateSpecs.keyedCombiningValue(accumCoder, combineFn));
+        new StructuredId(id), StateSpecs.keyedCombining(accumCoder, combineFn));
   }
 
   /**
@@ -188,7 +188,7 @@ public class StateTags {
           Coder<AccumT> accumCoder,
           KeyedCombineFnWithContext<K, InputT, AccumT, OutputT> combineFn) {
     return new SimpleStateTag<>(
-        new StructuredId(id), StateSpecs.keyedCombiningValueWithContext(accumCoder, combineFn));
+        new StructuredId(id), StateSpecs.keyedCombiningWithContext(accumCoder, combineFn));
   }
 
   /**
@@ -203,7 +203,7 @@ public class StateTags {
       combiningValueFromInputInternal(
           String id, Coder<InputT> inputCoder, CombineFn<InputT, AccumT, OutputT> combineFn) {
     return new SimpleStateTag<>(
-        new StructuredId(id), StateSpecs.combiningValueFromInputInternal(inputCoder, combineFn));
+        new StructuredId(id), StateSpecs.combiningFromInputInternal(inputCoder, combineFn));
   }
 
   /**

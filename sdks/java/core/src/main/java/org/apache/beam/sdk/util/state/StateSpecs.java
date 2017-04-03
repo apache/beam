@@ -62,9 +62,9 @@ public class StateSpecs {
    * {@code InputT}s into a single {@code OutputT}.
    */
   public static <InputT, AccumT, OutputT>
-  StateSpec<Object, CombiningState<InputT, AccumT, OutputT>> combiningValue(
+  StateSpec<Object, CombiningState<InputT, AccumT, OutputT>> combining(
       CombineFn<InputT, AccumT, OutputT> combineFn) {
-    return new CombiningValueStateSpec<InputT, AccumT, OutputT>(null, combineFn);
+    return new CombiningStateSpec<InputT, AccumT, OutputT>(null, combineFn);
   }
 
   /**
@@ -72,12 +72,12 @@ public class StateSpecs {
    * {@code InputT}s into a single {@code OutputT}.
    */
   public static <InputT, AccumT, OutputT>
-      StateSpec<Object, CombiningState<InputT, AccumT, OutputT>> combiningValue(
+      StateSpec<Object, CombiningState<InputT, AccumT, OutputT>> combining(
           Coder<AccumT> accumCoder, CombineFn<InputT, AccumT, OutputT> combineFn) {
     checkArgument(accumCoder != null,
         "accumCoder should not be null. "
-            + "Consider using combiningValue(CombineFn<> combineFn) instead.");
-    return combiningValueInternal(accumCoder, combineFn);
+            + "Consider using combining(CombineFn<> combineFn) instead.");
+    return combiningInternal(accumCoder, combineFn);
   }
 
   /**
@@ -85,9 +85,9 @@ public class StateSpecs {
    * multiple {@code InputT}s into a single {@code OutputT}.
    */
   public static <K, InputT, AccumT, OutputT>
-  StateSpec<K, CombiningState<InputT, AccumT, OutputT>> keyedCombiningValue(
+  StateSpec<K, CombiningState<InputT, AccumT, OutputT>> keyedCombining(
       KeyedCombineFn<K, InputT, AccumT, OutputT> combineFn) {
-    return new KeyedCombiningValueStateSpec<K, InputT, AccumT, OutputT>(null, combineFn);
+    return new KeyedCombiningStateSpec<K, InputT, AccumT, OutputT>(null, combineFn);
   }
 
   /**
@@ -95,12 +95,12 @@ public class StateSpecs {
    * multiple {@code InputT}s into a single {@code OutputT}.
    */
   public static <K, InputT, AccumT, OutputT>
-      StateSpec<K, CombiningState<InputT, AccumT, OutputT>> keyedCombiningValue(
+      StateSpec<K, CombiningState<InputT, AccumT, OutputT>> keyedCombining(
           Coder<AccumT> accumCoder, KeyedCombineFn<K, InputT, AccumT, OutputT> combineFn) {
     checkArgument(accumCoder != null,
         "accumCoder should not be null. "
-            + "Consider using keyedCombiningValue(KeyedCombineFn<> combineFn) instead.");
-    return keyedCombiningValueInternal(accumCoder, combineFn);
+            + "Consider using keyedCombining(KeyedCombineFn<> combineFn) instead.");
+    return keyedCombiningInternal(accumCoder, combineFn);
   }
 
   /**
@@ -109,8 +109,8 @@ public class StateSpecs {
    */
   public static <K, InputT, AccumT, OutputT>
   StateSpec<K, CombiningState<InputT, AccumT, OutputT>>
-  keyedCombiningValueWithContext(KeyedCombineFnWithContext<K, InputT, AccumT, OutputT> combineFn) {
-    return new KeyedCombiningValueWithContextStateSpec<K, InputT, AccumT, OutputT>(null, combineFn);
+  keyedCombiningWithContext(KeyedCombineFnWithContext<K, InputT, AccumT, OutputT> combineFn) {
+    return new KeyedCombiningWithContextStateSpec<K, InputT, AccumT, OutputT>(null, combineFn);
   }
 
   /**
@@ -119,13 +119,13 @@ public class StateSpecs {
    */
   public static <K, InputT, AccumT, OutputT>
       StateSpec<K, CombiningState<InputT, AccumT, OutputT>>
-          keyedCombiningValueWithContext(
+  keyedCombiningWithContext(
               Coder<AccumT> accumCoder,
               KeyedCombineFnWithContext<K, InputT, AccumT, OutputT> combineFn) {
     checkArgument(accumCoder != null,
         "accumCoder should not be null. Consider using "
-            + "keyedCombiningValueWithContext(KeyedCombineFnWithContext<> combineFn) instead.");
-    return new KeyedCombiningValueWithContextStateSpec<K, InputT, AccumT, OutputT>(
+            + "keyedCombiningWithContext(KeyedCombineFnWithContext<> combineFn) instead.");
+    return new KeyedCombiningWithContextStateSpec<K, InputT, AccumT, OutputT>(
         accumCoder, combineFn);
   }
 
@@ -138,11 +138,11 @@ public class StateSpecs {
    */
   public static <InputT, AccumT, OutputT>
       StateSpec<Object, CombiningState<InputT, AccumT, OutputT>>
-          combiningValueFromInputInternal(
+  combiningFromInputInternal(
               Coder<InputT> inputCoder, CombineFn<InputT, AccumT, OutputT> combineFn) {
     try {
       Coder<AccumT> accumCoder = combineFn.getAccumulatorCoder(STANDARD_REGISTRY, inputCoder);
-      return combiningValueInternal(accumCoder, combineFn);
+      return combiningInternal(accumCoder, combineFn);
     } catch (CannotProvideCoderException e) {
       throw new IllegalArgumentException(
           "Unable to determine accumulator coder for "
@@ -154,15 +154,15 @@ public class StateSpecs {
   }
 
   private static <InputT, AccumT, OutputT>
-      StateSpec<Object, CombiningState<InputT, AccumT, OutputT>> combiningValueInternal(
+      StateSpec<Object, CombiningState<InputT, AccumT, OutputT>> combiningInternal(
           Coder<AccumT> accumCoder, CombineFn<InputT, AccumT, OutputT> combineFn) {
-    return new CombiningValueStateSpec<InputT, AccumT, OutputT>(accumCoder, combineFn);
+    return new CombiningStateSpec<InputT, AccumT, OutputT>(accumCoder, combineFn);
   }
 
   private static <K, InputT, AccumT, OutputT>
-      StateSpec<K, CombiningState<InputT, AccumT, OutputT>> keyedCombiningValueInternal(
+      StateSpec<K, CombiningState<InputT, AccumT, OutputT>> keyedCombiningInternal(
           Coder<AccumT> accumCoder, KeyedCombineFn<K, InputT, AccumT, OutputT> combineFn) {
-    return new KeyedCombiningValueStateSpec<K, InputT, AccumT, OutputT>(accumCoder, combineFn);
+    return new KeyedCombiningStateSpec<K, InputT, AccumT, OutputT>(accumCoder, combineFn);
   }
 
   /**
@@ -220,17 +220,17 @@ public class StateSpecs {
   public static <K, InputT, AccumT, OutputT>
       StateSpec<Object, BagState<AccumT>> convertToBagSpecInternal(
           StateSpec<? super K, CombiningState<InputT, AccumT, OutputT>> combiningSpec) {
-    if (combiningSpec instanceof KeyedCombiningValueStateSpec) {
+    if (combiningSpec instanceof KeyedCombiningStateSpec) {
       // Checked above; conversion to a bag spec depends on the provided spec being one of those
       // created via the factory methods in this class.
       @SuppressWarnings("unchecked")
-      KeyedCombiningValueStateSpec<K, InputT, AccumT, OutputT> typedSpec =
-          (KeyedCombiningValueStateSpec<K, InputT, AccumT, OutputT>) combiningSpec;
+      KeyedCombiningStateSpec<K, InputT, AccumT, OutputT> typedSpec =
+          (KeyedCombiningStateSpec<K, InputT, AccumT, OutputT>) combiningSpec;
       return typedSpec.asBagSpec();
-    } else if (combiningSpec instanceof KeyedCombiningValueWithContextStateSpec) {
+    } else if (combiningSpec instanceof KeyedCombiningWithContextStateSpec) {
       @SuppressWarnings("unchecked")
-      KeyedCombiningValueWithContextStateSpec<K, InputT, AccumT, OutputT> typedSpec =
-          (KeyedCombiningValueWithContextStateSpec<K, InputT, AccumT, OutputT>) combiningSpec;
+      KeyedCombiningWithContextStateSpec<K, InputT, AccumT, OutputT> typedSpec =
+          (KeyedCombiningWithContextStateSpec<K, InputT, AccumT, OutputT>) combiningSpec;
       return typedSpec.asBagSpec();
     } else {
       throw new IllegalArgumentException("Unexpected StateSpec " + combiningSpec);
@@ -300,15 +300,15 @@ public class StateSpecs {
    *
    * <p>Includes the {@link CombineFn} and the coder for the accumulator type.
    */
-  private static class CombiningValueStateSpec<InputT, AccumT, OutputT>
-      extends KeyedCombiningValueStateSpec<Object, InputT, AccumT, OutputT>
+  private static class CombiningStateSpec<InputT, AccumT, OutputT>
+      extends KeyedCombiningStateSpec<Object, InputT, AccumT, OutputT>
       implements StateSpec<Object, CombiningState<InputT, AccumT, OutputT>> {
 
     @Nullable
     private Coder<AccumT> accumCoder;
     private final CombineFn<InputT, AccumT, OutputT> combineFn;
 
-    private CombiningValueStateSpec(
+    private CombiningStateSpec(
         @Nullable Coder<AccumT> accumCoder,
         CombineFn<InputT, AccumT, OutputT> combineFn) {
       super(accumCoder, combineFn.asKeyedFn());
@@ -338,14 +338,14 @@ public class StateSpecs {
    *
    * <p>Includes the {@link KeyedCombineFnWithContext} and the coder for the accumulator type.
    */
-  private static class KeyedCombiningValueWithContextStateSpec<K, InputT, AccumT, OutputT>
+  private static class KeyedCombiningWithContextStateSpec<K, InputT, AccumT, OutputT>
       implements StateSpec<K, CombiningState<InputT, AccumT, OutputT>> {
 
     @Nullable
     private Coder<AccumT> accumCoder;
     private final KeyedCombineFnWithContext<K, InputT, AccumT, OutputT> combineFn;
 
-    protected KeyedCombiningValueWithContextStateSpec(
+    protected KeyedCombiningWithContextStateSpec(
         @Nullable Coder<AccumT> accumCoder,
         KeyedCombineFnWithContext<K, InputT, AccumT, OutputT> combineFn) {
       this.combineFn = combineFn;
@@ -355,7 +355,7 @@ public class StateSpecs {
     @Override
     public CombiningState<InputT, AccumT, OutputT> bind(
         String id, StateBinder<? extends K> visitor) {
-      return visitor.bindKeyedCombiningValueWithContext(id, this, accumCoder, combineFn);
+      return visitor.bindKeyedCombiningWithContext(id, this, accumCoder, combineFn);
     }
 
     @SuppressWarnings("unchecked")
@@ -371,9 +371,9 @@ public class StateSpecs {
     @Override public void finishSpecifying() {
       if (accumCoder == null) {
         throw new IllegalStateException("Unable to infer a coder for"
-            + " KeyedCombiningValueWithContextState and no Coder was specified."
+            + " KeyedCombiningWithContextState and no Coder was specified."
             + " Please set a coder by either invoking"
-            + " StateSpecs.keyedCombiningValue(Coder<AccumT> accumCoder,"
+            + " StateSpecs.keyedCombining(Coder<AccumT> accumCoder,"
             + " KeyedCombineFn<K, InputT, AccumT, OutputT> combineFn)"
             + " or by registering the coder in the Pipeline's CoderRegistry.");
       }
@@ -385,12 +385,12 @@ public class StateSpecs {
         return true;
       }
 
-      if (!(obj instanceof KeyedCombiningValueWithContextStateSpec)) {
+      if (!(obj instanceof KeyedCombiningWithContextStateSpec)) {
         return false;
       }
 
-      KeyedCombiningValueWithContextStateSpec<?, ?, ?, ?> that =
-          (KeyedCombiningValueWithContextStateSpec<?, ?, ?, ?>) obj;
+      KeyedCombiningWithContextStateSpec<?, ?, ?, ?> that =
+          (KeyedCombiningWithContextStateSpec<?, ?, ?, ?>) obj;
       return Objects.equals(this.accumCoder, that.accumCoder);
     }
 
@@ -409,14 +409,14 @@ public class StateSpecs {
    *
    * <p>Includes the {@link KeyedCombineFn} and the coder for the accumulator type.
    */
-  private static class KeyedCombiningValueStateSpec<K, InputT, AccumT, OutputT>
+  private static class KeyedCombiningStateSpec<K, InputT, AccumT, OutputT>
       implements StateSpec<K, CombiningState<InputT, AccumT, OutputT>> {
 
     @Nullable
     private Coder<AccumT> accumCoder;
     private final KeyedCombineFn<K, InputT, AccumT, OutputT> keyedCombineFn;
 
-    protected KeyedCombiningValueStateSpec(
+    protected KeyedCombiningStateSpec(
         @Nullable Coder<AccumT> accumCoder,
         KeyedCombineFn<K, InputT, AccumT, OutputT> keyedCombineFn) {
       this.keyedCombineFn = keyedCombineFn;
@@ -430,7 +430,7 @@ public class StateSpecs {
     @Override
     public CombiningState<InputT, AccumT, OutputT> bind(
         String id, StateBinder<? extends K> visitor) {
-      return visitor.bindKeyedCombiningValue(id, this, getAccumCoder(), keyedCombineFn);
+      return visitor.bindKeyedCombining(id, this, getAccumCoder(), keyedCombineFn);
     }
 
     @SuppressWarnings("unchecked")
@@ -447,7 +447,7 @@ public class StateSpecs {
       if (getAccumCoder() == null) {
         throw new IllegalStateException("Unable to infer a coder for GroupingState and no"
             + " Coder was specified. Please set a coder by either invoking"
-            + " StateSpecs.combiningValue(Coder<AccumT> accumCoder,"
+            + " StateSpecs.combining(Coder<AccumT> accumCoder,"
             + " CombineFn<InputT, AccumT, OutputT> combineFn)"
             + " or by registering the coder in the Pipeline's CoderRegistry.");
       }
@@ -459,12 +459,12 @@ public class StateSpecs {
         return true;
       }
 
-      if (!(obj instanceof CombiningValueStateSpec)) {
+      if (!(obj instanceof CombiningStateSpec)) {
         return false;
       }
 
-      KeyedCombiningValueStateSpec<?, ?, ?, ?> that =
-          (KeyedCombiningValueStateSpec<?, ?, ?, ?>) obj;
+      KeyedCombiningStateSpec<?, ?, ?, ?> that =
+          (KeyedCombiningStateSpec<?, ?, ?, ?>) obj;
       return Objects.equals(this.accumCoder, that.accumCoder);
     }
 

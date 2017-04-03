@@ -132,7 +132,7 @@ public class GroupIntoBatches<K, InputT>
       this.allowedLateness = allowedLateness;
       this.batchSpec = StateSpecs.bag(inputValueCoder);
       this.numElementsInBatchSpec =
-          StateSpecs.combiningValue(
+          StateSpecs.combining(
               VarLongCoder.of(),
               new Combine.CombineFn<Long, Long, Long>() {
 
