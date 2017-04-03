@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package cz.seznam.euphoria.core.client.functional;
+package cz.seznam.euphoria.hadoop.input;
 
 import java.io.Serializable;
 
