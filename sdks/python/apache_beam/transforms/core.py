@@ -1088,7 +1088,6 @@ class GroupByKey(PTransform):
     # This code path is only used in the local direct runner.  For Dataflow
     # runner execution, the GroupByKey transform is expanded on the service.
     input_type = pcoll.element_type
-
     if input_type is not None:
       # Initialize type-hints used below to enforce type-checking and to pass
       # downstream to further PTransforms.
@@ -1373,10 +1372,103 @@ class Create(PTransform):
   def expand(self, pbegin):
     assert isinstance(pbegin, pvalue.PBegin)
     self.pipeline = pbegin.pipeline
-    return pvalue.PCollection(self.pipeline)
+    ouput_type = (self.get_type_hints().simple_output_type(self.label) or
+                  self.infer_output_type(None))
+    coder = typecoders.registry.get_coder(ouput_type)
+    source = self._create_source(self.value, coder)
+    return pbegin.pipeline | Read(source).with_output_types(ouput_type)
 
   def get_windowing(self, unused_inputs):
     return Windowing(GlobalWindows())
+
+  @staticmethod
+  def _create_source(values, coder, is_serialized=False):
+    from apache_beam import io
+
+    class _CreateSource(io.iobase.BoundedSource):
+      def __init__(self, values, coder, is_serialized=False):
+        self._coder = coder
+        self._serialized_values = []
+        self._total_size = 0
+        if is_serialized:
+          self._serialized_values = values
+        else:
+          for value in values:
+            serialized_value = self._coder.encode(value)
+            self._serialized_values.append(serialized_value)
+
+        for serialized_value in self._serialized_values:
+          self._total_size += len(serialized_value)
+
+      def read(self, range_tracker):
+        start_position = range_tracker.start_position()
+        current_position = start_position
+
+        def split_points_unclaimed(stop_position):
+          if current_position >= stop_position:
+            return 0
+          else:
+            return stop_position - current_position - 1
+
+        range_tracker.set_split_points_unclaimed_callback(
+            split_points_unclaimed)
+        element_iter = iter(self._serialized_values[start_position:])
+        for i in range(start_position, range_tracker.stop_position()):
+          if not range_tracker.try_claim(i):
+            return
+          current_position = i
+          yield self._coder.decode(next(element_iter))
+
+      def split(self, desired_bundle_size, start_position=None,
+                stop_position=None):
+        from apache_beam import io
+
+        if len(self._serialized_values) < 2:
+          yield io.iobase.SourceBundle(
+              weight=0, source=self, start_position=0,
+              stop_position=len(self._serialized_values))
+        else:
+          if start_position is None:
+            start_position = 0
+          if stop_position is None:
+            stop_position = len(self._serialized_values)
+
+          avg_size_per_value = self._total_size / len(self._serialized_values)
+          num_values_per_split = max(desired_bundle_size / avg_size_per_value,
+                                     1)
+
+          start = start_position
+          while start < stop_position:
+            end = min(start + num_values_per_split, stop_position)
+            remaining = stop_position - end
+            # Avoid having a too small bundle at the end.
+            if remaining < (num_values_per_split / 4):
+              end = stop_position
+
+            sub_source = Create._create_source(
+                self._serialized_values[start:end], self._coder,
+                is_serialized=True)
+
+            yield io.iobase.SourceBundle(weight=(end - start),
+                                         source=sub_source,
+                                         start_position=0,
+                                         stop_position=(end - start))
+
+            start = end
+
+      def get_range_tracker(self, start_position, stop_position):
+        if start_position is None:
+          start_position = 0
+        if stop_position is None:
+          stop_position = len(self._serialized_values)
+
+        from apache_beam import io
+        return io.OffsetRangeTracker(start_position, stop_position)
+
+      def estimate_size(self):
+        return self._total_size
+
+    return _CreateSource(values, coder, is_serialized)
 
 
 def Read(*args, **kwargs):
