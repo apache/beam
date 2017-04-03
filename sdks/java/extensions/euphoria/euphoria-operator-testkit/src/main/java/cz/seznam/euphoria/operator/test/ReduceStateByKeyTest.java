@@ -83,11 +83,8 @@ public class ReduceStateByKeyTest extends AbstractOperatorTest {
 
     final ListStorage<Integer> data;
 
-    SortState(        
-        Context<Integer> c,
-        StorageProvider storageProvider) {
-
-      super(c, storageProvider);
+    SortState(Context<Integer> c, StorageProvider storageProvider) {
+      super(c);
       this.data = storageProvider.getListStorage(
           ListStorageDescriptor.of("data", Integer.class));
     }
@@ -112,16 +109,12 @@ public class ReduceStateByKeyTest extends AbstractOperatorTest {
     }
 
     static SortState combine(Iterable<SortState> states) {
-      SortState ret = null;
-      for (SortState state : states) {
-        if (ret == null) {
-          ret = new SortState(
-              state.getContext(),
-              state.getStorageProvider());
-        }
-        ret.data.addAll(state.data.get());
+      Iterator<SortState> iter = states.iterator();
+      SortState target = iter.next();
+      while (iter.hasNext()) {
+        target.data.addAll(iter.next().data.get());
       }
-      return ret;
+      return target;
     }
 
   }
@@ -249,7 +242,7 @@ public class ReduceStateByKeyTest extends AbstractOperatorTest {
     final ValueStorage<Long> count;
     CountState(Context<Long> context, StorageProvider storageProvider)
     {
-      super(context, storageProvider);
+      super(context);
       this.count = storageProvider.getValueStorage(
           ValueStorageDescriptor.of("count-state", Long.class, 0L));
     }
@@ -351,7 +344,7 @@ public class ReduceStateByKeyTest extends AbstractOperatorTest {
     AccState(Context<VALUE> context,
              StorageProvider storageProvider)
     {
-      super(context, storageProvider);
+      super(context);
       vals = storageProvider.getListStorage(
           ListStorageDescriptor.of("vals", (Class) Object.class));
     }

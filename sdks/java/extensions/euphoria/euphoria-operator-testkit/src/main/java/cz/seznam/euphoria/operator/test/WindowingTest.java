@@ -208,7 +208,7 @@ public class WindowingTest extends AbstractOperatorTest {
     private final ValueStorage<Object> storage;
 
     public DistinctState(Context<Object> context, StorageProvider storageProvider) {
-      super(context, storageProvider);
+      super(context);
       this.storage = storageProvider.getValueStorage(
               ValueStorageDescriptor.of("element", Object.class, null));
     }

@@ -29,6 +29,7 @@ import cz.seznam.euphoria.core.client.util.Pair;
 import org.junit.Test;
 
 import java.time.Duration;
+import java.util.Iterator;
 
 import static org.junit.Assert.*;
 
@@ -155,7 +156,7 @@ public class ReduceStateByKeyTest {
     protected WordCountState(
         Context<Long> context,
         StorageProvider storageProvider) {
-      super(context, storageProvider);
+      super(context);
       sum = storageProvider.getValueStorage(ValueStorageDescriptor.of(
           "sum", Long.class, 0L));
     }
@@ -171,17 +172,12 @@ public class ReduceStateByKeyTest {
     }
 
     static WordCountState combine(Iterable<WordCountState> others) {
-      WordCountState state = null;
-      for (WordCountState s : others) {
-        if (state == null) {
-          state = new WordCountState(
-              s.getContext(),
-              s.getStorageProvider());
-        }
-        state.add(s.sum.get());
+      Iterator<WordCountState> iter = others.iterator();
+      WordCountState target = iter.next();
+      while (iter.hasNext()) {
+        target.add(iter.next().sum.get());
       }
-
-      return state;
+      return target;
     }
 
     @Override

@@ -51,7 +51,7 @@ public class RSBKWindowingTest {
     AccState(Context<VALUE> context,
              StorageProvider storageProvider)
     {
-      super(context, storageProvider);
+      super(context);
       reducableValues = storageProvider.getListStorage(
           ListStorageDescriptor.of("vals", (Class) Object.class));
     }
