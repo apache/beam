@@ -16,7 +16,6 @@
 package cz.seznam.euphoria.hadoop.input;
 
 import com.google.common.collect.Sets;
-import cz.seznam.euphoria.core.client.functional.Supplier;
 import cz.seznam.euphoria.core.client.io.DataSource;
 import cz.seznam.euphoria.core.client.io.Partition;
 import cz.seznam.euphoria.core.client.io.Reader;
