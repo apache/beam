@@ -163,7 +163,10 @@
   </li>
   <li><a href="#get-apache-beam" id="markdown-toc-get-apache-beam">Get Apache Beam</a>    <ul>
       <li><a href="#create-and-activate-a-virtual-environment" id="markdown-toc-create-and-activate-a-virtual-environment">Create and activate a virtual environment</a></li>
-      <li><a href="#download-and-install" id="markdown-toc-download-and-install">Download and install</a></li>
+      <li><a href="#download-and-install" id="markdown-toc-download-and-install">Download and install</a>        <ul>
+          <li><a href="#extra-requirements" id="markdown-toc-extra-requirements">Extra Requirements</a></li>
+        </ul>
+      </li>
     </ul>
   </li>
   <li><a href="#execute-a-pipeline-locally" id="markdown-toc-execute-a-pipeline-locally">Execute a pipeline locally</a></li>
@@ -226,6 +229,38 @@ environment’s directories.</p>
 <div class="highlighter-rouge"><pre class="highlight"><code>pip install apache-beam
 </code></pre>
 </div>
+
+<h4 id="extra-requirements">Extra Requirements</h4>
+
+<p>The above installation will not install all the extra dependencies for using features like the Google Cloud Dataflow runner. Information on what extra packages are required for different features are highlighted below. It is possible to install multitple extra requirements using something like <code class="highlighter-rouge">pip install apache-beam[feature1, feature2]</code>.</p>
+
+<ul>
+  <li><strong>Google Cloud Platform</strong>
+    <ul>
+      <li>Installation Command: <code class="highlighter-rouge">pip install apache-beam[gcp]</code></li>
+      <li>Required for:
+        <ul>
+          <li>Google Cloud Dataflow Runner</li>
+          <li>GCS IO</li>
+          <li>Datastore IO</li>
+          <li>BigQuery IO</li>
+        </ul>
+      </li>
+    </ul>
+  </li>
+  <li><strong>Tests</strong>
+    <ul>
+      <li>Installation Command: <code class="highlighter-rouge">pip install apache-beam[test]</code></li>
+      <li>Required for developing on beam and running unittests</li>
+    </ul>
+  </li>
+  <li><strong>Docs</strong>
+    <ul>
+      <li>Installation Command: <code class="highlighter-rouge">pip install apache-beam[docs]</code></li>
+      <li>Generating API documentation using Sphinx</li>
+    </ul>
+  </li>
+</ul>
 
 <h2 id="execute-a-pipeline-locally">Execute a pipeline locally</h2>
 
