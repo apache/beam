@@ -23,9 +23,9 @@ import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.functional.CombinableReduceFunction;
-import cz.seznam.euphoria.core.client.operator.state.StateFactory;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 import cz.seznam.euphoria.core.client.operator.state.State;
+import cz.seznam.euphoria.core.client.operator.state.StateFactory;
 import cz.seznam.euphoria.core.client.util.Pair;
 
 import javax.annotation.Nullable;
@@ -109,7 +109,7 @@ public class ReduceStateByKey<
     }
     public <OUT, STATE extends State<VALUE, OUT>> DatasetBuilder4<
             IN, KEY, VALUE, OUT, STATE> stateFactory(
-            StateFactory<OUT, STATE> stateFactory) {
+            StateFactory<VALUE, OUT, STATE> stateFactory) {
       return new DatasetBuilder4<>(
           name, input, keyExtractor, valueExtractor, stateFactory);
     }
@@ -120,12 +120,12 @@ public class ReduceStateByKey<
     private final Dataset<IN> input;
     private final UnaryFunction<IN, KEY> keyExtractor;
     private final UnaryFunction<IN, VALUE> valueExtractor;
-    private final StateFactory<OUT, STATE> stateFactory;
+    private final StateFactory<VALUE, OUT, STATE> stateFactory;
     DatasetBuilder4(String name,
                     Dataset<IN> input,
                     UnaryFunction<IN, KEY> keyExtractor,
                     UnaryFunction<IN, VALUE> valueExtractor,
-                    StateFactory<OUT, STATE> stateFactory)
+                    StateFactory<VALUE, OUT, STATE> stateFactory)
     {
       this.name = Objects.requireNonNull(name);
       this.input = Objects.requireNonNull(input);
@@ -148,14 +148,14 @@ public class ReduceStateByKey<
     private final Dataset<IN> input;
     private final UnaryFunction<IN, KEY> keyExtractor;
     private final UnaryFunction<IN, VALUE> valueExtractor;
-    private final StateFactory<OUT, STATE> stateFactory;
+    private final StateFactory<VALUE, OUT, STATE> stateFactory;
     private final CombinableReduceFunction<STATE> stateCombiner;
 
     DatasetBuilder5(String name,
                     Dataset<IN> input,
                     UnaryFunction<IN, KEY> keyExtractor,
                     UnaryFunction<IN, VALUE> valueExtractor,
-                    StateFactory<OUT, STATE> stateFactory,
+                    StateFactory<VALUE, OUT, STATE> stateFactory,
                     CombinableReduceFunction<STATE> stateCombiner) {
       // initialize default partitioning according to input
       super(new DefaultPartitioning<>(input.getNumPartitions()));
@@ -199,7 +199,7 @@ public class ReduceStateByKey<
     private final Dataset<IN> input;
     private final UnaryFunction<IN, KEY> keyExtractor;
     private final UnaryFunction<IN, VALUE> valueExtractor;
-    private final StateFactory<OUT, STATE> stateFactory;
+    private final StateFactory<VALUE, OUT, STATE> stateFactory;
     private final CombinableReduceFunction<STATE> stateCombiner;
     @Nullable
     private final Windowing<WIN, W> windowing;
@@ -210,7 +210,7 @@ public class ReduceStateByKey<
                     Dataset<IN> input,
                     UnaryFunction<IN, KEY> keyExtractor,
                     UnaryFunction<IN, VALUE> valueExtractor,
-                    StateFactory<OUT, STATE> stateFactory,
+                    StateFactory<VALUE, OUT, STATE> stateFactory,
                     CombinableReduceFunction<STATE> stateCombiner,
                     @Nullable Windowing<WIN, W> windowing,
                     @Nullable ExtractEventTime<WIN> eventTimeAssigner,
@@ -253,7 +253,7 @@ public class ReduceStateByKey<
     return new OfBuilder(name);
   }
 
-  private final StateFactory<OUT, STATE> stateFactory;
+  private final StateFactory<VALUE, OUT, STATE> stateFactory;
   private final UnaryFunction<KIN, VALUE> valueExtractor;
   private final CombinableReduceFunction<STATE> stateCombiner;
 
@@ -264,7 +264,7 @@ public class ReduceStateByKey<
                    UnaryFunction<KIN, VALUE> valueExtractor,
                    @Nullable Windowing<WIN, W> windowing,
                    @Nullable ExtractEventTime<WIN> eventTimeAssigner,
-                   StateFactory<OUT, STATE> stateFactory,
+                   StateFactory<VALUE, OUT, STATE> stateFactory,
                    CombinableReduceFunction<STATE> stateCombiner,
                    Partitioning<KEY> partitioning)
   {
@@ -274,7 +274,7 @@ public class ReduceStateByKey<
     this.stateCombiner = stateCombiner;
   }
 
-  public StateFactory<OUT, STATE> getStateFactory() {
+  public StateFactory<VALUE, OUT, STATE> getStateFactory() {
     return stateFactory;
   }
 

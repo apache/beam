@@ -38,8 +38,8 @@ public class StreamingElementWindowOperator<KEY, WID extends Window>
   public StreamingElementWindowOperator(
           WindowAssigner<?, KEY, ?, WID> windowAssigner,
           Windowing<?, WID> windowing,
-          StateFactory<?, State> stateFactory,
-          CombinableReduceFunction<State> stateCombiner,
+          StateFactory<?, ?, State<?, ?>> stateFactory,
+          CombinableReduceFunction<State<?, ?>> stateCombiner,
           boolean localMode,
           int descriptorsCacheMaxSize) {
     super(windowing, stateFactory, stateCombiner, localMode, descriptorsCacheMaxSize);
