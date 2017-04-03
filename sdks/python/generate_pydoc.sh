@@ -39,7 +39,7 @@ excluded_internal_clients=(
     apache_beam/examples/complete/juliaset/setup.py)
 
 python $(type -p sphinx-apidoc) -f -o target/docs/source apache_beam \
-    "${excluded_internal_clients[@]}"
+    "${excluded_internal_clients[@]}" "*_test.py"
 
 # Remove Cython modules from doc template; they won't load
 sed -i -e '/.. automodule:: apache_beam.coders.stream/d' \
