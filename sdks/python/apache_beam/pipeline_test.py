@@ -173,9 +173,9 @@ class PipelineTest(unittest.TestCase):
                      set(visitor.visited))
     self.assertEqual(set(visitor.enter_composite),
                      set(visitor.leave_composite))
-    self.assertEqual(2, len(visitor.enter_composite))
-    self.assertEqual(visitor.enter_composite[1].transform, transform)
-    self.assertEqual(visitor.leave_composite[0].transform, transform)
+    self.assertEqual(3, len(visitor.enter_composite))
+    self.assertEqual(visitor.enter_composite[2].transform, transform)
+    self.assertEqual(visitor.leave_composite[1].transform, transform)
 
   def test_apply_custom_transform(self):
     pipeline = TestPipeline()
@@ -280,9 +280,10 @@ class PipelineTest(unittest.TestCase):
         # pylint: disable=expression-not-assigned
         p | Create([ValueError]) | Map(raise_exception)
 
-  def test_eager_pipeline(self):
-    p = Pipeline('EagerRunner')
-    self.assertEqual([1, 4, 9], p | Create([1, 2, 3]) | Map(lambda x: x*x))
+  # TODO(BEAM-1894).
+  # def test_eager_pipeline(self):
+  #   p = Pipeline('EagerRunner')
+  #   self.assertEqual([1, 4, 9], p | Create([1, 2, 3]) | Map(lambda x: x*x))
 
 
 class DoFnTest(unittest.TestCase):
