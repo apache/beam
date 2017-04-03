@@ -398,7 +398,7 @@ class ReduceStateByKeyReducer implements Runnable {
     final Collector<Datum> stateOutput;
     final BlockingQueue<Datum> rawOutput;
     final TriggerScheduler<Window, Object> triggering;
-    final StateFactory<Object, State> stateFactory;
+    final StateFactory<Object, Object, State<Object, Object>> stateFactory;
     final CombinableReduceFunction<State> stateCombiner;
 
     final ProcessingStats stats = new ProcessingStats(this);
@@ -409,7 +409,7 @@ class ReduceStateByKeyReducer implements Runnable {
     private ProcessingState(
         BlockingQueue<Datum> output,
         TriggerScheduler<Window, Object> triggering,
-        StateFactory<Object, State> stateFactory,
+        StateFactory<Object, Object, State<Object, Object>> stateFactory,
         CombinableReduceFunction<State> stateCombiner,
         StorageProvider storageProvider) {
 
@@ -484,7 +484,7 @@ class ReduceStateByKeyReducer implements Runnable {
       State state = wRegistry.getWindowState(kw);
       if (state == null) {
         // ~ if no such window yet ... set it up
-        state = stateFactory.apply(
+        state = stateFactory.createState(
                 new KeyedElementCollector(
                     stateOutput, kw.window(), kw.key(),
                     processing.triggering::getCurrentTimestamp),

@@ -302,7 +302,7 @@ public class ReduceStateByKeyTest extends AbstractOperatorTest {
         return ReduceStateByKey.of(input)
             .keyBy(e -> e.getFirst().charAt(0) - '0')
             .valueBy(Pair::getFirst)
-            .stateFactory((StateFactory<Long, CountState>) CountState::new)
+            .stateFactory((StateFactory<String, Long, CountState>) CountState::new)
             .combineStateBy(CountState::combine)
             // FIXME .timedBy(Pair::getSecond) and make the assertion in the validation phase stronger
             .windowBy(Count.of(3))
@@ -405,7 +405,7 @@ public class ReduceStateByKeyTest extends AbstractOperatorTest {
             ReduceStateByKey.of(input)
                 .keyBy(e -> e.getFirst().charAt(0) - '0')
                 .valueBy(Pair::getFirst)
-                .stateFactory((StateFactory<String, AccState<String>>) AccState::new)
+                .stateFactory((StateFactory<String, String, AccState<String>>) AccState::new)
                 .combineStateBy(AccState::combine)
                 .windowBy(Time.of(Duration.ofSeconds(5)),
                         (Pair<String, Integer> e) -> e.getSecond() * 1_000L)
@@ -466,7 +466,7 @@ public class ReduceStateByKeyTest extends AbstractOperatorTest {
             ReduceStateByKey.of(input)
                 .keyBy(e -> e.getFirst().charAt(0) - '0')
                 .valueBy(e -> e.getFirst().substring(2))
-                .stateFactory((StateFactory<String, AccState<String>>) AccState::new)
+                .stateFactory((StateFactory<String, String, AccState<String>>) AccState::new)
                 .combineStateBy(AccState::combine)
                 .windowBy(TimeSliding.of(Duration.ofSeconds(10), Duration.ofSeconds(5)),
                         (Pair<String, Integer> e) -> e.getSecond() * 1_000L)
@@ -545,7 +545,7 @@ public class ReduceStateByKeyTest extends AbstractOperatorTest {
             ReduceStateByKey.of(input)
                 .keyBy(e -> e.getFirst().charAt(0) - '0')
                 .valueBy(Pair::getFirst)
-                .stateFactory((StateFactory<String, AccState<String>>) AccState::new)
+                .stateFactory((StateFactory<String, String, AccState<String>>) AccState::new)
                 .combineStateBy(AccState::combine)
                 .windowBy(Session.of(Duration.ofSeconds(5)),
                         (Pair<String, Integer> e) -> e.getSecond() * 1_000L)
