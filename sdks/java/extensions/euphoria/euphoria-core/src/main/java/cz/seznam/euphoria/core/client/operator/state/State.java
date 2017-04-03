@@ -26,8 +26,6 @@ public abstract class State<IN, OUT> implements Closeable {
 
   /** Collector of output of this state. */
   private final Context<OUT> context;
-  /** Provider of state storage. */
-  private final StorageProvider storageProvider;
 
   /**
    * Add element to this state.
@@ -42,20 +40,13 @@ public abstract class State<IN, OUT> implements Closeable {
    */
   public abstract void flush();
 
-  protected State(
-      Context<OUT> context,
-      StorageProvider storageProvider) {
+  protected State(Context<OUT> context) {
     
     this.context = context;
-    this.storageProvider = storageProvider;
   }
 
   public Context<OUT> getContext() {
     return context;
-  }
-
-  public StorageProvider getStorageProvider() {
-    return storageProvider;
   }
 
   /**

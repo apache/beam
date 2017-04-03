@@ -310,7 +310,7 @@ public class ReduceByKey<
     CombiningReduceState(Context<E> context,
                          StorageProvider storageProvider,
                          CombinableReduceFunction<E> reducer) {
-      super(context, storageProvider);
+      super(context);
       this.reducer = Objects.requireNonNull(reducer);
 
       @SuppressWarnings("unchecked")
@@ -373,7 +373,7 @@ public class ReduceByKey<
     NonCombiningReduceState(Context<OUT> context,
                             StorageProvider storageProvider,
                             ReduceFunction<VALUE, OUT> reducer) {
-      super(context, storageProvider);
+      super(context);
       this.reducer = Objects.requireNonNull(reducer);
 
       @SuppressWarnings("unchecked")

@@ -56,6 +56,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -539,7 +540,7 @@ public class ReduceByKeyTest extends AbstractOperatorTest {
     private final ValueStorage<Integer> sum;
 
     SumState(Context<Integer> context, StorageProvider storageProvider) {
-      super(context, storageProvider);
+      super(context);
       sum = storageProvider.getValueStorage(
           ValueStorageDescriptor.of("sum-state", Integer.class, 0));
     }
@@ -560,12 +561,10 @@ public class ReduceByKeyTest extends AbstractOperatorTest {
     }
 
     static SumState combine(Iterable<SumState> states) {
-      SumState target = null;
-      for (SumState state : states) {
-        if (target == null) {
-          target = new SumState(state.getContext(), state.getStorageProvider());
-        }
-        target.add(state.sum.get());
+      Iterator<SumState> iter = states.iterator();
+      SumState target = iter.next();
+      while (iter.hasNext()) {
+        target.add(iter.next().sum.get());
       }
       return target;
     }
