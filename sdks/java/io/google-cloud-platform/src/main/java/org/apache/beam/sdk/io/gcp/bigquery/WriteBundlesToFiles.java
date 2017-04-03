@@ -51,10 +51,11 @@ class WriteBundlesToFiles extends DoFn<KV<TableDestination, TableRow>, WriteBund
    * The result of the {@link WriteBundlesToFiles} transform. Corresponds to a single output file,
    * and encapsulates the table it is destined to as well as the file byte size.
    */
-  public static class Result implements Serializable {
-    public String filename;
-    public Long fileByteSize;
-    public TableDestination tableDestination;
+  public static final class Result implements Serializable {
+    private static final long serialVersionUID = 1L;
+    public final String filename;
+    public final Long fileByteSize;
+    public final TableDestination tableDestination;
 
     public Result(String filename, Long fileByteSize, TableDestination tableDestination) {
       this.filename = filename;
@@ -68,6 +69,9 @@ class WriteBundlesToFiles extends DoFn<KV<TableDestination, TableRow>, WriteBund
    */
   public static class ResultCoder extends AtomicCoder<Result> {
     private static final ResultCoder INSTANCE = new ResultCoder();
+    private static final StringUtf8Coder stringCoder = StringUtf8Coder.of();
+    private static final VarLongCoder longCoder = VarLongCoder.of();
+    private static final TableDestinationCoder tableDestinationCoder = TableDestinationCoder.of();
 
     public static ResultCoder of() {
       return INSTANCE;
@@ -87,18 +91,15 @@ class WriteBundlesToFiles extends DoFn<KV<TableDestination, TableRow>, WriteBund
     @Override
     public Result decode(InputStream inStream, Context context)
         throws IOException {
-      return new Result(stringCoder.decode(inStream, context.nested()),
-          longCoder.decode(inStream, context.nested()),
-          tableDestinationCoder.decode(inStream, context.nested()));
+      String filename = stringCoder.decode(inStream, context.nested());
+      long fileByteSize = longCoder.decode(inStream, context.nested());
+      TableDestination tableDestination = tableDestinationCoder.decode(inStream, context.nested());
+      return new Result(filename, fileByteSize, tableDestination);
     }
 
     @Override
     public void verifyDeterministic() throws NonDeterministicException {
     }
-
-    StringUtf8Coder stringCoder = StringUtf8Coder.of();
-    VarLongCoder longCoder = VarLongCoder.of();
-    TableDestinationCoder tableDestinationCoder = TableDestinationCoder.of();
   }
 
   WriteBundlesToFiles(String tempFilePrefix) {
@@ -107,6 +108,8 @@ class WriteBundlesToFiles extends DoFn<KV<TableDestination, TableRow>, WriteBund
 
   @StartBundle
   public void startBundle(Context c) {
+    // This must be done each bundle, as by default the {@link DoFn} might be reused between
+    // bundles.
     this.writers = Maps.newHashMap();
   }
 

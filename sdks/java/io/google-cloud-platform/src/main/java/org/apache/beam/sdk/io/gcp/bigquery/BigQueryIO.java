@@ -61,7 +61,6 @@ import org.apache.beam.sdk.options.ValueProvider.NestedValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.runners.PipelineRunner;
 import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.util.IOChannelFactory;
@@ -445,7 +444,8 @@ public class BigQueryIO {
       // Note that a table or query check can fail if the table or dataset are created by
       // earlier stages of the pipeline or if a query depends on earlier stages of a pipeline.
       // For these cases the withoutValidation method can be used to disable the check.
-      if (getValidate() && table != null) {
+      if (getValidate() && table != null && table.isAccessible() && table.get().getProjectId()
+          != null) {
         checkState(table.isAccessible(), "Cannot call validate if table is dynamically set.");
         // Check for source table presence for early failure notification.
         DatasetService datasetService = getBigQueryServices().getDatasetService(bqOptions);
@@ -650,6 +650,7 @@ public class BigQueryIO {
   public static <T> Write<T> write() {
     return new AutoValue_BigQueryIO_Write.Builder<T>()
         .setValidate(true)
+        .setTableDescription("")
         .setBigQueryServices(new BigQueryServicesImpl())
         .setCreateDisposition(Write.CreateDisposition.CREATE_IF_NEEDED)
         .setWriteDisposition(Write.WriteDisposition.WRITE_EMPTY)
@@ -690,7 +691,8 @@ public class BigQueryIO {
     @Nullable abstract ValueProvider<String> getJsonSchema();
     abstract CreateDisposition getCreateDisposition();
     abstract WriteDisposition getWriteDisposition();
-    @Nullable abstract String getTableDescription();
+    /** Table description. Default is empty. */
+    abstract String getTableDescription();
     /** An option to indicate if table validation is desired. Default is true. */
     abstract boolean getValidate();
     abstract BigQueryServices getBigQueryServices();
@@ -805,9 +807,6 @@ public class BigQueryIO {
     public Write<T> to(ValueProvider<String> tableSpec) {
       ensureToNotCalledYet();
       String tableDescription = getTableDescription();
-      if (tableDescription == null) {
-        tableDescription = "";
-      }
       return toBuilder()
           .setJsonTableRef(
               NestedValueProvider.of(
@@ -911,7 +910,7 @@ public class BigQueryIO {
     public void validate(PCollection<T> input) {
       BigQueryOptions options = input.getPipeline().getOptions().as(BigQueryOptions.class);
 
-      // Exactly one of the table and table reference can be configured.
+      // We must have a destination to write to!
       checkState(getTableFunction() != null,
           "must set the table reference of a BigQueryIO.Write transform");
 
@@ -972,8 +971,8 @@ public class BigQueryIO {
     @Override
     public WriteResult expand(PCollection<T> input) {
       PCollection<KV<TableDestination, TableRow>> rowsWithDestination =
-          input.apply("PrepareWrite", ParDo.of(
-              new PrepareWrite<T>(getTableFunction(), getFormatFunction())))
+          input.apply("PrepareWrite", new PrepareWrite<T>(
+              getTableFunction(), getFormatFunction()))
               .setCoder(KvCoder.of(TableDestinationCoder.of(), TableRowJsonCoder.of()));
 
 
@@ -1013,8 +1012,8 @@ public class BigQueryIO {
             .withLabel("Table WriteDisposition"))
           .addIfNotDefault(DisplayData.item("validation", getValidate())
             .withLabel("Validation Enabled"), true)
-          .addIfNotNull(DisplayData.item("tableDescription", getTableDescription())
-            .withLabel("Table Description"));
+          .addIfNotDefault(DisplayData.item("tableDescription", getTableDescription())
+            .withLabel("Table Description"), "");
     }
 
     /** Returns the table schema. */

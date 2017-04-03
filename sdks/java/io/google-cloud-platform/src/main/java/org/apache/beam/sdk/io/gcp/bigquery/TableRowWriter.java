@@ -32,9 +32,7 @@ import org.apache.beam.sdk.util.MimeTypes;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * Writes {@TableRow} objects out to a file. Used when doing batch load jobs into BigQuery.
- */
+/** Writes {@TableRow} objects out to a file. Used when doing batch load jobs into BigQuery. */
 class TableRowWriter {
   private static final Logger LOG = LoggerFactory.getLogger(BigQueryIO.class);
 
@@ -47,16 +45,18 @@ class TableRowWriter {
   protected String mimeType = MimeTypes.TEXT;
   private CountingOutputStream out;
 
-  public class Result {
-    String filename;
-    long byteSize;
+  public static final class Result {
+    final String filename;
+    final long byteSize;
+
     public Result(String filename, long byteSize) {
       this.filename = filename;
       this.byteSize = byteSize;
     }
   }
+
   TableRowWriter(String basename) {
-      this.tempFilePrefix = basename;
+    this.tempFilePrefix = basename;
   }
 
   public final void open(String uId) throws Exception {

@@ -39,8 +39,7 @@ class GenerateShardedTable extends DoFn<KV<TableDestination, TableRow>,
   @ProcessElement
   public void processElement(ProcessContext context, BoundedWindow window) throws IOException {
     ThreadLocalRandom randomGenerator = ThreadLocalRandom.current();
-    // We output on keys 0-50 to ensure that there's enough batching for
-    // BigQuery.
+    // We output on keys 0-numShards.
     String tableSpec = context.element().getKey().getTableSpec();
     context.output(KV.of(ShardedKey.of(tableSpec, randomGenerator.nextInt(0, numShards)),
         context.element().getValue()));

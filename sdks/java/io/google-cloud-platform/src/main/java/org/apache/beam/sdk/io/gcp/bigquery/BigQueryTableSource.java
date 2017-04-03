@@ -109,8 +109,8 @@ class BigQueryTableSource extends BigQuerySourceBase {
   @Override
   public synchronized long getEstimatedSizeBytes(PipelineOptions options) throws Exception {
     if (tableSizeBytes.get() == null) {
-      TableReference table = BigQueryIO.JSON_FACTORY.fromString(jsonTable.get(),
-          TableReference.class);
+      TableReference table = setDefaultProjectIfAbsent(options.as(BigQueryOptions.class),
+          BigQueryIO.JSON_FACTORY.fromString(jsonTable.get(), TableReference.class));
 
       Long numBytes = bqServices.getDatasetService(options.as(BigQueryOptions.class))
           .getTable(table).getNumBytes();

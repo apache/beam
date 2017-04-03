@@ -89,8 +89,9 @@ class WriteRename extends DoFn<String, Void> {
       }
 
       // Make sure each destination table gets a unique job id.
-      String jobIdPrefix = String.format(
-          c.sideInput(jobIdToken) + "0x%08x", finalTableDestination.hashCode());
+      String jobIdPrefix = BigQueryHelpers.createJobId(
+          c.sideInput(jobIdToken), finalTableDestination, -1);
+
       copy(
           bqServices.getJobService(c.getPipelineOptions().as(BigQueryOptions.class)),
           bqServices.getDatasetService(c.getPipelineOptions().as(BigQueryOptions.class)),

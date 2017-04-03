@@ -26,6 +26,7 @@ import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableSchema;
 import com.google.cloud.hadoop.util.ApiErrorExtractor;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.hash.Hashing;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -231,6 +232,18 @@ public class BigQueryHelpers {
             String.format(UNABLE_TO_CONFIRM_PRESENCE_OF_RESOURCE_ERROR, "table",
                 toTableSpec(table)), e);
       }
+    }
+  }
+
+  // Create a unique job id for a table load.
+  static String createJobId(String prefix, TableDestination tableDestination, int partition) {
+    // Job ID must be different for each partition of each table.
+    String destinationHash =
+        Hashing.murmur3_128().hashUnencodedChars(tableDestination.toString()).toString();
+    if (partition >= 0) {
+      return String.format("%s_%s_%05d", prefix, destinationHash, partition);
+    } else {
+      return String.format("%s_%s", prefix, destinationHash);
     }
   }
 

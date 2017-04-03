@@ -27,6 +27,7 @@ import java.util.Objects;
  * Encapsulates a BigQuery table destination.
  */
 public class TableDestination implements Serializable {
+  private static final long serialVersionUID = 1L;
   private final String tableSpec;
   private final String tableDescription;
 

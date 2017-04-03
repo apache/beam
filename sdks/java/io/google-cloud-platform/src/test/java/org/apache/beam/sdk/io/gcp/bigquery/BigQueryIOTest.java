@@ -71,6 +71,7 @@ import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.Coder.Context;
 import org.apache.beam.sdk.coders.CoderException;
+import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.TableRowJsonCoder;
@@ -122,7 +123,6 @@ import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
-import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
@@ -607,13 +607,11 @@ public class BigQueryIOTest implements Serializable {
   }
 
   @Test
-  @Category(NeedsRunner.class)
   public void testStreamingWriteWithDynamicTables() throws Exception {
     testWriteWithDynamicTables(true);
   }
 
   @Test
-  @Category(NeedsRunner.class)
   public void testBatchWriteWithDynamicTables() throws Exception {
     testWriteWithDynamicTables(false);
   }
@@ -842,7 +840,7 @@ public class BigQueryIOTest implements Serializable {
             BigQueryIO.writeTableRows().to("foo.com:project:somedataset.sometable");
     checkWriteObject(
         write, "foo.com:project", "somedataset", "sometable",
-        null, CreateDisposition.CREATE_IF_NEEDED, WriteDisposition.WRITE_EMPTY, null);
+        null, CreateDisposition.CREATE_IF_NEEDED, WriteDisposition.WRITE_EMPTY, "");
   }
 
   @Test
@@ -894,7 +892,7 @@ public class BigQueryIOTest implements Serializable {
         null,
         CreateDisposition.CREATE_IF_NEEDED,
         WriteDisposition.WRITE_EMPTY,
-        null,
+        "",
         false);
   }
 
@@ -905,7 +903,7 @@ public class BigQueryIOTest implements Serializable {
     checkWriteObject(
         write, null, "somedataset", "sometable",
         null, CreateDisposition.CREATE_IF_NEEDED, WriteDisposition.WRITE_EMPTY,
-        null);
+        "");
   }
 
   @Test
@@ -917,7 +915,7 @@ public class BigQueryIOTest implements Serializable {
     BigQueryIO.Write<TableRow> write = BigQueryIO.writeTableRows().to(table);
     checkWriteObject(
         write, "foo.com:project", "somedataset", "sometable",
-        null, CreateDisposition.CREATE_IF_NEEDED, WriteDisposition.WRITE_EMPTY, null);
+        null, CreateDisposition.CREATE_IF_NEEDED, WriteDisposition.WRITE_EMPTY, "");
   }
 
   @Test
@@ -927,7 +925,7 @@ public class BigQueryIOTest implements Serializable {
         BigQueryIO.<TableRow>write().to("foo.com:project:somedataset.sometable").withSchema(schema);
     checkWriteObject(
         write, "foo.com:project", "somedataset", "sometable",
-        schema, CreateDisposition.CREATE_IF_NEEDED, WriteDisposition.WRITE_EMPTY, null);
+        schema, CreateDisposition.CREATE_IF_NEEDED, WriteDisposition.WRITE_EMPTY, "");
   }
 
   @Test
@@ -937,7 +935,7 @@ public class BigQueryIOTest implements Serializable {
         .withCreateDisposition(CreateDisposition.CREATE_NEVER);
     checkWriteObject(
         write, "foo.com:project", "somedataset", "sometable",
-        null, CreateDisposition.CREATE_NEVER, WriteDisposition.WRITE_EMPTY, null);
+        null, CreateDisposition.CREATE_NEVER, WriteDisposition.WRITE_EMPTY, "");
   }
 
   @Test
@@ -947,7 +945,7 @@ public class BigQueryIOTest implements Serializable {
         .withCreateDisposition(CreateDisposition.CREATE_IF_NEEDED);
     checkWriteObject(
         write, "foo.com:project", "somedataset", "sometable",
-        null, CreateDisposition.CREATE_IF_NEEDED, WriteDisposition.WRITE_EMPTY, null);
+        null, CreateDisposition.CREATE_IF_NEEDED, WriteDisposition.WRITE_EMPTY, "");
   }
 
   @Test
@@ -957,7 +955,7 @@ public class BigQueryIOTest implements Serializable {
         .withWriteDisposition(WriteDisposition.WRITE_TRUNCATE);
     checkWriteObject(
         write, "foo.com:project", "somedataset", "sometable",
-        null, CreateDisposition.CREATE_IF_NEEDED, WriteDisposition.WRITE_TRUNCATE, null);
+        null, CreateDisposition.CREATE_IF_NEEDED, WriteDisposition.WRITE_TRUNCATE, "");
   }
 
   @Test
@@ -967,7 +965,7 @@ public class BigQueryIOTest implements Serializable {
         .withWriteDisposition(WriteDisposition.WRITE_APPEND);
     checkWriteObject(
         write, "foo.com:project", "somedataset", "sometable",
-        null, CreateDisposition.CREATE_IF_NEEDED, WriteDisposition.WRITE_APPEND, null);
+        null, CreateDisposition.CREATE_IF_NEEDED, WriteDisposition.WRITE_APPEND, "");
   }
 
   @Test
@@ -977,7 +975,7 @@ public class BigQueryIOTest implements Serializable {
         .withWriteDisposition(WriteDisposition.WRITE_EMPTY);
     checkWriteObject(
         write, "foo.com:project", "somedataset", "sometable",
-        null, CreateDisposition.CREATE_IF_NEEDED, WriteDisposition.WRITE_EMPTY, null);
+        null, CreateDisposition.CREATE_IF_NEEDED, WriteDisposition.WRITE_EMPTY, "");
   }
 
   @Test
@@ -1359,7 +1357,6 @@ public class BigQueryIOTest implements Serializable {
     SourceTestUtils.assertSplitAtFractionBehavior(
         bqSource, 2, 0.3, ExpectedSplitOutcome.MUST_BE_CONSISTENT_IF_SUCCEEDS, options);
 
-
     List<? extends BoundedSource<TableRow>> sources = bqSource.split(100, options);
     assertEquals(2, sources.size());
     BoundedSource<TableRow> actual = sources.get(0);
@@ -1626,9 +1623,11 @@ public class BigQueryIOTest implements Serializable {
     TupleTag<KV<ShardedKey<TableDestination>, List<String>>> singlePartitionTag =
         new TupleTag<KV<ShardedKey<TableDestination>, List<String>>>("singlePartitionTag") {};
 
+    PCollection<WriteBundlesToFiles.Result> filesPCollection =
+        p.apply(Create.of(files).withType(new TypeDescriptor<WriteBundlesToFiles.Result>() {}));
     PCollectionView<Iterable<WriteBundlesToFiles.Result>> resultsView =
         PCollectionViews.iterableView(
-        p,
+        filesPCollection,
         WindowingStrategy.globalDefault(),
         WriteBundlesToFiles.ResultCoder.of());
 
@@ -1699,14 +1698,12 @@ public class BigQueryIOTest implements Serializable {
 
     Path baseDir = Files.createTempDirectory(tempFolder, "testWriteTables");
 
-    List<KV<ShardedKey<TableDestination>, Iterable<List<String>>>> partitions =
-        Lists.newArrayList();
+    List<KV<ShardedKey<TableDestination>, List<String>>> partitions = Lists.newArrayList();
     for (int i = 0; i < numTables; ++i) {
       String tableName = String.format("project-id:dataset-id.table%05d", i);
       TableDestination tableDestination = new TableDestination(tableName, tableName);
       for (int j = 0; j < numPartitions; ++j) {
-        String tempTableId = String.format(
-            jobIdToken + "_0x%08x_%05d", tableDestination.hashCode(), j);
+        String tempTableId = BigQueryHelpers.createJobId(jobIdToken, tableDestination, j);
         List<String> filesPerPartition = Lists.newArrayList();
         for (int k = 0; k < numFilesPerPartition; ++k) {
           String filename = Paths.get(baseDir.toString(),
@@ -1721,7 +1718,7 @@ public class BigQueryIOTest implements Serializable {
           filesPerPartition.add(filename);
         }
         partitions.add(KV.of(ShardedKey.of(tableDestination, j),
-            (Iterable<List<String>>) Collections.singleton(filesPerPartition)));
+            filesPerPartition));
 
         List<String> expectedTables = expectedTempTables.get(tableDestination);
         if (expectedTables == null) {
@@ -1735,11 +1732,6 @@ public class BigQueryIOTest implements Serializable {
       }
     }
 
-    PCollection<String> expectedTempTablesPCollection = p.apply(Create.of(expectedTempTables));
-    PCollectionView<Iterable<String>> tempTablesView = PCollectionViews.iterableView(
-        expectedTempTablesPCollection,
-        WindowingStrategy.globalDefault(),
-        StringUtf8Coder.of());
     PCollection<String> jobIdTokenCollection = p.apply("CreateJobId", Create.of("jobId"));
     PCollectionView<String> jobIdTokenView =
         jobIdTokenCollection.apply(View.<String>asSingleton());
@@ -1753,10 +1745,10 @@ public class BigQueryIOTest implements Serializable {
         CreateDisposition.CREATE_IF_NEEDED,
         null);
 
-    DoFnTester<KV<ShardedKey<TableDestination>, Iterable<List<String>>>,
+    DoFnTester<KV<ShardedKey<TableDestination>, List<String>>,
         KV<TableDestination, String>> tester = DoFnTester.of(writeTables);
     tester.setSideInput(jobIdTokenView, GlobalWindow.INSTANCE, jobIdToken);
-    for (KV<ShardedKey<TableDestination>, Iterable<List<String>>> partition : partitions) {
+    for (KV<ShardedKey<TableDestination>, List<String>> partition : partitions) {
       tester.processElement(partition);
     }
 
@@ -1848,11 +1840,27 @@ public class BigQueryIOTest implements Serializable {
       }
     }
 
+    PCollection<KV<TableDestination, String>> tempTablesPCollection =
+        p.apply(Create.of(tempTables)
+            .withCoder(KvCoder.of(TableDestinationCoder.of(),
+                IterableCoder.of(StringUtf8Coder.of()))))
+            .apply(ParDo.of(new DoFn<KV<TableDestination, Iterable<String>>,
+                KV<TableDestination, String>>() {
+              @ProcessElement
+              public void processElement(ProcessContext c) {
+                TableDestination tableDestination = c.element().getKey();
+                for (String tempTable : c.element().getValue()) {
+                  c.output(KV.of(tableDestination, tempTable));
+                }
+              }
+            }));
+
     PCollectionView<Map<TableDestination, Iterable<String>>> tempTablesView =
         PCollectionViews.multimapView(
-        p,
+            tempTablesPCollection,
         WindowingStrategy.globalDefault(),
-        KvCoder.of(TableDestinationCoder.of(), StringUtf8Coder.of()));
+        KvCoder.of(TableDestinationCoder.of(),
+            StringUtf8Coder.of()));
 
     PCollection<String> jobIdTokenCollection = p.apply("CreateJobId", Create.of("jobId"));
     PCollectionView<String> jobIdTokenView =
