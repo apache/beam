@@ -139,7 +139,7 @@ class MergingWindowSet<W extends Window> {
 
       // Compute the state windows that we are merging
       List<W> mergedStateWindows = new ArrayList<>();
-      for (W mergedWindow: mergedWindows) {
+      for (W mergedWindow : mergedWindows) {
         W res = this.mapping.remove(mergedWindow);
         if (res != null) {
           mergedStateWindows.add(res);

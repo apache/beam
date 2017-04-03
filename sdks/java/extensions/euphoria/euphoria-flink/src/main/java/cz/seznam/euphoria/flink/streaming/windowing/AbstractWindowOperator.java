@@ -328,6 +328,7 @@ public abstract class AbstractWindowOperator<I, KEY, WID extends Window>
 
   @SuppressWarnings("unchecked")
   private State getWindowState(WID window) {
+    storageProvider.setWindow(window);
     return stateFactory.apply(outputContext, storageProvider);
   }
 
