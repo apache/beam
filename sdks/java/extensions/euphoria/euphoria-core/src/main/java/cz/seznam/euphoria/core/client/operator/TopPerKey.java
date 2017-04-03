@@ -26,6 +26,7 @@ import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 import cz.seznam.euphoria.core.client.graph.DAG;
 import cz.seznam.euphoria.core.client.io.Context;
 import cz.seznam.euphoria.core.client.operator.state.State;
+import cz.seznam.euphoria.core.client.operator.state.StateFactory;
 import cz.seznam.euphoria.core.client.operator.state.StorageProvider;
 import cz.seznam.euphoria.core.client.operator.state.ValueStorage;
 import cz.seznam.euphoria.core.client.operator.state.ValueStorageDescriptor;
@@ -294,13 +295,13 @@ public class TopPerKey<
         MaxScored<VALUE, SCORE>, W>
         reduce =
         new ReduceStateByKey<>(getName() + "::ReduceStateByKey", flow, input,
-            keyExtractor,
-            e -> Pair.of(valueFn.apply(e), scoreFn.apply(e)),
-            windowing,
-            eventTimeAssigner,
-            MaxScored::new,
-            stateCombiner,
-            partitioning);
+                keyExtractor,
+                e -> Pair.of(valueFn.apply(e), scoreFn.apply(e)),
+                windowing,
+                eventTimeAssigner,
+                (StateFactory<Pair<VALUE, SCORE>, Pair<VALUE, SCORE>, MaxScored<VALUE, SCORE>>) MaxScored::new,
+                stateCombiner,
+                partitioning);
 
     MapElements<Pair<KEY, Pair<VALUE, SCORE>>, Triple<KEY, VALUE, SCORE>>
         format =

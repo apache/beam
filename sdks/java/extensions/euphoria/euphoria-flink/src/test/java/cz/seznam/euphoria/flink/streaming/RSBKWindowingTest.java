@@ -111,8 +111,7 @@ public class RSBKWindowingTest {
         ReduceStateByKey.of(f.createInput(source))
         .keyBy(Pair::getFirst)
         .valueBy(e -> e)
-        .stateFactory((StateFactory<Pair<String, Integer>, AccState<Pair<String,
-            Integer>>>) AccState::new)
+        .stateFactory((StateFactory<Pair<String, Integer>, Pair<String, Integer>, AccState<Pair<String, Integer>>>) AccState::new)
         .combineStateBy(AccState::combine)
         .windowBy(Time.of(Duration.ofMillis(5)),
             // ~ event time
@@ -163,7 +162,7 @@ public class RSBKWindowingTest {
         ReduceStateByKey.of(f.createInput(source))
             .keyBy(Pair::getFirst)
             .valueBy(e -> e)
-            .stateFactory((StateFactory<Pair<String, Integer>, AccState<Pair<String, Integer>>>) AccState::new)
+            .stateFactory((StateFactory<Pair<String, Integer>, Pair<String, Integer>, AccState<Pair<String, Integer>>>) AccState::new)
             .combineStateBy(AccState::combine)
             .windowBy(Time.of(Duration.ofMillis(5)),
                 // ~ event time
@@ -178,8 +177,7 @@ public class RSBKWindowingTest {
         ReduceStateByKey.of(secondStep)
         .keyBy(Pair::getFirst)
         .valueBy(e -> e)
-        .stateFactory((StateFactory<Pair<String, Integer>, AccState<Pair<String,
-            Integer>>>) AccState::new)
+        .stateFactory((StateFactory<Pair<String, Integer>, Pair<String, Integer>, AccState<Pair<String, Integer>>>) AccState::new)
         .combineStateBy(AccState::combine)
         .windowBy(Time.of(Duration.ofMillis(5)),
             // ~ event time

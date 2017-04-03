@@ -128,8 +128,8 @@ public class ReduceStateByKeyTranslator implements BatchOperatorTranslator<Reduc
           implements GroupReduceFunction<BatchElement<?, Pair>, BatchElement<?, Pair>>,
           ResultTypeQueryable<BatchElement<?, Pair>>
   {
-    private final StateFactory<?, State> stateFactory;
-    private final CombinableReduceFunction<State> stateCombiner;
+    private final StateFactory<?, ?, State<?, ?>> stateFactory;
+    private final CombinableReduceFunction<State<?, ?>> stateCombiner;
     private final StorageProvider stateStorageProvider;
     private final Windowing windowing;
     private final Trigger trigger;
@@ -152,7 +152,7 @@ public class ReduceStateByKeyTranslator implements BatchOperatorTranslator<Reduc
     public void reduce(Iterable<BatchElement<?, Pair>> values,
                        org.apache.flink.util.Collector<BatchElement<?, Pair>> out)
     {
-      GroupReducer reducer = new GroupReducer<>(
+      GroupReducer reducer = new GroupReducer(
               stateFactory,
               BatchElement::new,
               stateCombiner,

@@ -19,11 +19,11 @@ import cz.seznam.euphoria.core.client.dataset.windowing.MergingWindowing;
 import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.functional.CombinableReduceFunction;
-import cz.seznam.euphoria.core.client.operator.state.StateFactory;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 import cz.seznam.euphoria.core.client.operator.ExtractEventTime;
 import cz.seznam.euphoria.core.client.operator.ReduceStateByKey;
 import cz.seznam.euphoria.core.client.operator.state.State;
+import cz.seznam.euphoria.core.client.operator.state.StateFactory;
 import cz.seznam.euphoria.core.client.triggers.Trigger;
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.core.executor.greduce.GroupReducer;
@@ -53,8 +53,8 @@ class ReduceStateByKeyTranslator implements SparkOperatorTranslator<ReduceStateB
 
     final JavaRDD<SparkElement> input = (JavaRDD) context.getSingleInput(operator);
 
-    StateFactory<?, State> stateFactory = operator.getStateFactory();
-    CombinableReduceFunction<State> stateCombiner = operator.getStateCombiner();
+    StateFactory<?, ?, State<?, ?>> stateFactory = operator.getStateFactory();
+    CombinableReduceFunction<State<?, ?>> stateCombiner = operator.getStateCombiner();
 
     final UnaryFunction keyExtractor = operator.getKeyExtractor();
     final UnaryFunction valueExtractor = operator.getValueExtractor();
@@ -155,16 +155,16 @@ class ReduceStateByKeyTranslator implements SparkOperatorTranslator<ReduceStateB
 
     private final Windowing windowing;
     private final Trigger trigger;
-    private final StateFactory<?, State> stateFactory;
-    private final CombinableReduceFunction<State> stateCombiner;
+    private final StateFactory<?, ?, State<?, ?>> stateFactory;
+    private final CombinableReduceFunction<State<?, ?>> stateCombiner;
     private final SparkStorageProvider storageProvider;
 
     // mapping of [Key -> GroupReducer]
     private transient Map<Object, GroupReducer> activeReducers;
 
     public StateReducer(Windowing windowing,
-                        StateFactory<?, State> stateFactory,
-                        CombinableReduceFunction<State> stateCombiner) {
+                        StateFactory<?, ?, State<?, ?>> stateFactory,
+                        CombinableReduceFunction<State<?, ?>> stateCombiner) {
       this.windowing = windowing;
       this.trigger = windowing.getTrigger();
       this.stateFactory = stateFactory;
@@ -195,7 +195,7 @@ class ReduceStateByKeyTranslator implements SparkOperatorTranslator<ReduceStateB
 
           GroupReducer reducer = activeReducers.get(kw.key());
           if (reducer == null) {
-            reducer = new GroupReducer<>(stateFactory,
+            reducer = new GroupReducer(stateFactory,
                     SparkElement::new,
                     stateCombiner,
                     storageProvider,

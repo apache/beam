@@ -22,12 +22,12 @@ import cz.seznam.euphoria.core.client.dataset.windowing.WindowedElement;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.functional.BinaryFunction;
 import cz.seznam.euphoria.core.client.functional.CombinableReduceFunction;
-import cz.seznam.euphoria.core.client.operator.state.StateFactory;
 import cz.seznam.euphoria.core.client.io.Context;
 import cz.seznam.euphoria.core.client.operator.state.ListStorage;
 import cz.seznam.euphoria.core.client.operator.state.ListStorageDescriptor;
 import cz.seznam.euphoria.core.client.operator.state.MergingStorageDescriptor;
 import cz.seznam.euphoria.core.client.operator.state.State;
+import cz.seznam.euphoria.core.client.operator.state.StateFactory;
 import cz.seznam.euphoria.core.client.operator.state.Storage;
 import cz.seznam.euphoria.core.client.operator.state.StorageDescriptor;
 import cz.seznam.euphoria.core.client.operator.state.StorageProvider;
@@ -68,7 +68,7 @@ public class GroupReducer<WID extends Window, KEY, I> {
     WindowedElement<W, T> create(W window, long timestamp, T element);
   }
 
-  private final StateFactory<?, State> stateFactory;
+  private final StateFactory<I, ?, State<I, ?>> stateFactory;
   private final WindowedElementFactory<WID, Object> elementFactory;
   private final CombinableReduceFunction<State> stateCombiner;
   private final StorageProvider stateStorageProvider;
@@ -82,7 +82,7 @@ public class GroupReducer<WID extends Window, KEY, I> {
   final HashMap<WID, State> states = new HashMap<>();
   KEY key;
 
-  public GroupReducer(StateFactory<?, State> stateFactory,
+  public GroupReducer(StateFactory<I, ?, State<I, ?>> stateFactory,
                       WindowedElementFactory<WID, Object> elementFactory,
                       CombinableReduceFunction<State> stateCombiner,
                       StorageProvider stateStorageProvider,
@@ -123,7 +123,7 @@ public class GroupReducer<WID extends Window, KEY, I> {
     {
       State state = states.get(window);
       if (state == null) {
-        state = stateFactory.apply(
+        state = stateFactory.createState(
             new ElementCollectContext(collector, window), stateStorageProvider);
         states.put(window, state);
       }
