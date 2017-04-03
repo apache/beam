@@ -49,11 +49,27 @@ class WindowedStorageProvider<WID extends Window> implements StorageProvider {
 
   private final IdentityHashMap<StorageDescriptor, StateDescriptor>
           storageToStateDescriptors = new IdentityHashMap<>();
+  private final int descriptorsCacheMaxSize;
 
-  public WindowedStorageProvider(KeyedStateBackend keyedStateBackend,
-                                 TypeSerializer<WID> windowSerializer) {
+  /*
+   * @descriptorsCacheMaxSize:
+   *
+   * The maximum size of the storage-to-state descriptor "cache". If we
+   * exceed this value we are either running a program with this many or
+   * more logical states or - rather more likely - the user's operators
+   * are unnecessarily re-creating descriptor objects again and again,
+   * which is something they want to avoid.
+   *
+   * TODO we should avoid the need for this cache in future by having user
+   * code asking for the storage through an already "resolved descriptor"
+   * such that the translation is not necessary at all when processing elements.
+   */
+  WindowedStorageProvider(KeyedStateBackend keyedStateBackend,
+                          TypeSerializer<WID> windowSerializer,
+                          int descriptorsCacheMaxSize) {
     this.keyedStateBackend = keyedStateBackend;
     this.windowSerializer = windowSerializer;
+    this.descriptorsCacheMaxSize = descriptorsCacheMaxSize;
   }
 
   public void setWindow(Window window) {
@@ -68,6 +84,7 @@ class WindowedStorageProvider<WID extends Window> implements StorageProvider {
         ReducingStateDescriptor<T> flinkDescriptor =
                 (ReducingStateDescriptor) storageToStateDescriptors.computeIfAbsent(
                         descriptor, k -> Descriptors.from((ValueStorageDescriptor.MergingValueStorageDescriptor<T>) k));
+        validateStateDescriptorSize();
 
         return new FlinkReducingValueStorage<>((ReducingState)
                 keyedStateBackend.getPartitionedState(window, windowSerializer, flinkDescriptor),
@@ -77,6 +94,8 @@ class WindowedStorageProvider<WID extends Window> implements StorageProvider {
         ValueStateDescriptor<T> flinkDescriptor =
                 (ValueStateDescriptor<T>) storageToStateDescriptors.computeIfAbsent(
                         descriptor, k -> Descriptors.from((ValueStorageDescriptor<T>) k));
+        validateStateDescriptorSize();
+
         return new FlinkValueStorage<>((ValueState)
                 keyedStateBackend.getPartitionedState(window, windowSerializer, flinkDescriptor),
                 window);
@@ -93,11 +112,21 @@ class WindowedStorageProvider<WID extends Window> implements StorageProvider {
       ListStateDescriptor<T> flinkDescriptor =
               (ListStateDescriptor<T>) storageToStateDescriptors.computeIfAbsent(
                       descriptor, k -> Descriptors.from((ListStorageDescriptor<T>) k));
+      validateStateDescriptorSize();
+
       return new FlinkListStorage<>((ListState)
               keyedStateBackend.getPartitionedState(window, windowSerializer, flinkDescriptor),
               window);
     } catch (Exception e) {
       throw new RuntimeException(e);
+    }
+  }
+
+  private void validateStateDescriptorSize() {
+    if (storageToStateDescriptors.size() > descriptorsCacheMaxSize) {
+      throw new IllegalStateException(
+          "Too many state descriptors! Likely some of the storage descriptors" +
+          " are not declared as 'static final' and are generated for each element!");
     }
   }
 }
