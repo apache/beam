@@ -30,6 +30,7 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.WriteDisposition;
+import org.apache.beam.sdk.io.gcp.bigquery.WriteResult;
 import org.apache.beam.sdk.options.GcpOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -119,12 +120,13 @@ public class WriteToBigQuery<InputT>
 
   @Override
   public PDone expand(PCollection<InputT> teamAndScore) {
-    return teamAndScore
+    teamAndScore
       .apply("ConvertToRow", ParDo.of(new BuildRowFn()))
       .apply(BigQueryIO.writeTableRows().to(getTable(teamAndScore.getPipeline(), tableName))
           .withSchema(getSchema())
           .withCreateDisposition(CreateDisposition.CREATE_IF_NEEDED)
           .withWriteDisposition(WriteDisposition.WRITE_APPEND));
+    return PDone.in(teamAndScore.getPipeline());
   }
 
   /** Utility to construct an output table reference. */
