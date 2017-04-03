@@ -20,8 +20,8 @@ set -e
 recordcount=1000
 # Identify the pod
 cassandra_pods="kubectl get pods -l name=cassandra"
-running_seed="$(kubectl get pods -o json -l name=cassandra -o jsonpath='\
-{.items[0].metadata.name}')"
+running_seed="$(kubectl get pods -o json -l name=cassandra -o jsonpath=\
+'{.items[0].metadata.name}')"
 echo "Detected Running Pod $running_seed"
 
 # After starting the service, it takes couple of minutes to generate the external IP for the

@@ -168,7 +168,6 @@
     <elasticsearch.version>5.0.0</elasticsearch.version>
     <cassandra.driver.mapping.version>3.1.1</cassandra.driver.mapping.version>
     <cassandra.all.verison>3.9</cassandra.all.verison>
-    <cassandra.unit.verison>3.1.1.0</cassandra.unit.verison>
     <cassandra.driver.core.version>3.1.1</cassandra.driver.core.version>
     <commons.io.version>2.4</commons.io.version>
   </properties>
@@ -257,9 +256,8 @@
       <scope>test</scope>
     </dependency>
     <dependency>
-      <groupId>org.cassandraunit</groupId>
-      <artifactId>cassandra-unit</artifactId>
-      <version>${cassandra.unit.verison}</version>
+      <groupId>org.hamcrest</groupId>
+      <artifactId>hamcrest-all</artifactId>
       <scope>test</scope>
     </dependency>
     <dependency>
