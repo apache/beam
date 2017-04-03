@@ -33,8 +33,9 @@ public class KeyedMultiWindowedElementWindowOperator<KEY, WID extends Window>
             Windowing<?, WID> windowing,
             StateFactory<?, State> stateFactory,
             CombinableReduceFunction<State> stateCombiner,
-            boolean localMode) {
-        super(windowing, stateFactory, stateCombiner, localMode);
+            boolean localMode,
+            int descriptorsCacheMaxSize) {
+        super(windowing, stateFactory, stateCombiner, localMode, descriptorsCacheMaxSize);
     }
 
     @Override

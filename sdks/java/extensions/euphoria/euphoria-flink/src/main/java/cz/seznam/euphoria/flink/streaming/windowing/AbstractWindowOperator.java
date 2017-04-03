@@ -15,9 +15,7 @@
  */
 package cz.seznam.euphoria.flink.streaming.windowing;
 
-import com.google.common.collect.HashBasedTable;
 import com.google.common.collect.Lists;
-import com.google.common.collect.Table;
 import cz.seznam.euphoria.core.client.dataset.windowing.MergingWindowing;
 import cz.seznam.euphoria.core.client.dataset.windowing.TimedWindow;
 import cz.seznam.euphoria.core.client.dataset.windowing.Window;
@@ -79,6 +77,9 @@ public abstract class AbstractWindowOperator<I, KEY, WID extends Window>
   /** True when executor is running in local test (mode) */
   private final boolean localMode;
 
+  // see {@link WindowedStorageProvider}
+  private final int descriptorsCacheMaxSize;
+
   private transient InternalTimerService<WID> timerService;
 
   // tracks existing windows to flush them in case of end of stream is reached
@@ -92,18 +93,17 @@ public abstract class AbstractWindowOperator<I, KEY, WID extends Window>
 
   private transient TypeSerializer<WID> windowSerializer;
 
-  // cached window states by key+window
-  private transient Table<KEY, WID, State> windowStates;
-
   public AbstractWindowOperator(Windowing<?, WID> windowing,
                                 StateFactory<?, State> stateFactory,
                                 CombinableReduceFunction<State> stateCombiner,
-                                boolean localMode) {
+                                boolean localMode,
+                                int descriptorsCacheMaxSize) {
     this.windowing = Objects.requireNonNull(windowing);
     this.trigger = windowing.getTrigger();
     this.stateFactory = Objects.requireNonNull(stateFactory);
     this.stateCombiner = Objects.requireNonNull(stateCombiner);
     this.localMode = localMode;
+    this.descriptorsCacheMaxSize = descriptorsCacheMaxSize;
   }
 
   @Override
@@ -122,9 +122,7 @@ public abstract class AbstractWindowOperator<I, KEY, WID extends Window>
     this.triggerContext = new TriggerContextAdapter();
     this.outputContext = new OutputContext();
     this.storageProvider = new WindowedStorageProvider<>(
-            getKeyedStateBackend(), windowSerializer);
-
-    this.windowStates = HashBasedTable.create();
+            getKeyedStateBackend(), windowSerializer, descriptorsCacheMaxSize);
 
     if (windowing instanceof MergingWindowing) {
       TupleSerializer<Tuple2<WID, WID>> tupleSerializer =
@@ -173,6 +171,7 @@ public abstract class AbstractWindowOperator<I, KEY, WID extends Window>
                   triggerContext.setWindow(mergeResult);
 
                   processTriggerResult(mergeResult,
+                          null,
                           triggerContext.onMerge(mergedWindows),
                           mergingWindowSet);
 
@@ -197,7 +196,6 @@ public abstract class AbstractWindowOperator<I, KEY, WID extends Window>
                   // remove merged window states
                   mergedStateWindows.forEach(sw -> {
                     getWindowState(sw).close();
-                    removeState(sw);
                   });
         });
 
@@ -215,9 +213,10 @@ public abstract class AbstractWindowOperator<I, KEY, WID extends Window>
 
         WID stateWindow = mergingWindowSet.getStateWindow(currentWindow);
         setupEnvironment(getCurrentKey(), stateWindow);
-        getWindowState(stateWindow).add(element.getValue());
+        State stateWindowState = getWindowState(stateWindow);
+        stateWindowState.add(element.getValue());
 
-        processTriggerResult(currentWindow, triggerResult, mergingWindowSet);
+        processTriggerResult(currentWindow, stateWindowState, triggerResult, mergingWindowSet);
       }
       mergingWindowSet.persist();
 
@@ -230,7 +229,8 @@ public abstract class AbstractWindowOperator<I, KEY, WID extends Window>
           endOfStreamTimerService.registerEventTimeTimer(window, Long.MAX_VALUE);
         }
 
-        getWindowState(window).add(element.getValue());
+        State windowState = getWindowState(window);
+        windowState.add(element.getValue());
 
         // process trigger
         Trigger.TriggerResult triggerResult = trigger.onElement(
@@ -238,7 +238,7 @@ public abstract class AbstractWindowOperator<I, KEY, WID extends Window>
                 window,
                 triggerContext);
 
-        processTriggerResult(window, triggerResult, null);
+        processTriggerResult(window, windowState, triggerResult, null);
       }
     }
   }
@@ -263,7 +263,7 @@ public abstract class AbstractWindowOperator<I, KEY, WID extends Window>
       mergingWindowSet = getMergingWindowSet();
     }
 
-    processTriggerResult(window, triggerResult, mergingWindowSet);
+    processTriggerResult(window, null, triggerResult, mergingWindowSet);
 
     if (mergingWindowSet != null) {
       mergingWindowSet.persist();
@@ -291,45 +291,38 @@ public abstract class AbstractWindowOperator<I, KEY, WID extends Window>
   }
 
   private void processTriggerResult(WID window,
+                                    // ~ @windowState the state of `window` to
+                                    // use; if `null` the state will be fetched
+                                    @Nullable  State windowState,
                                     Trigger.TriggerResult tr,
                                     @Nullable MergingWindowSet<WID> mergingWindowSet) {
 
     if (tr.isFlush() || tr.isPurge()) {
-      WID stateWindow = window;
-      State windowState;
-
-      if (windowing instanceof MergingWindowing) {
-        Objects.requireNonNull(mergingWindowSet);
-        stateWindow = mergingWindowSet.getStateWindow(window);
-        windowState = getWindowState(stateWindow);
-      } else {
-        windowState = getWindowState(window);
+      if (windowState == null) {
+        if (windowing instanceof MergingWindowing) {
+          Objects.requireNonNull(mergingWindowSet);
+          windowState = getWindowState(mergingWindowSet.getStateWindow(window));
+        } else {
+          windowState = getWindowState(window);
+        }
       }
 
-      if (tr.isFlush() || tr.isPurge()) {
-        if (tr.isFlush()) {
-          windowState.flush();
-        }
+      if (tr.isFlush()) {
+        windowState.flush();
+      }
 
-        if (tr.isPurge()) {
-          windowState.close();
-          trigger.onClear(window, triggerContext);
-          removeWindow(window, mergingWindowSet);
-          removeState(stateWindow);
-        }
+      if (tr.isPurge()) {
+        windowState.close();
+        trigger.onClear(window, triggerContext);
+        removeWindow(window, mergingWindowSet);
       }
     }
   }
 
   @SuppressWarnings("unchecked")
   private State getWindowState(WID window) {
-    State windowState = windowStates.get(getCurrentKey(), window);
-    if (windowState == null) {
-      windowState = stateFactory.apply(outputContext, storageProvider);
-      windowStates.put((KEY) getCurrentKey(), window, windowState);
-    }
-
-    return windowState;
+    storageProvider.setWindow(window);
+    return stateFactory.apply(outputContext, storageProvider);
   }
 
   private MergingWindowSet<WID> getMergingWindowSet()  {
@@ -355,10 +348,6 @@ public abstract class AbstractWindowOperator<I, KEY, WID extends Window>
     } catch (Exception e) {
       throw new RuntimeException(e);
     }
-  }
-
-  private void removeState(WID stateWindow) {
-    windowStates.remove(getCurrentKey(), stateWindow);
   }
 
   // -------------------
