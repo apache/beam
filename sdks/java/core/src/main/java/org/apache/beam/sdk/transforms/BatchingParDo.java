@@ -42,10 +42,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * {@link PTransform} that allows to compute elements in batch of desired size. The input {@link
- * PCollection} needs to be a {@code PCollection<KV>}. Elements that must belong to the same batch
- * need to have the same key. Elements are added to a buffer. When the buffer reaches {@code
- * batchSize}, it is then output to the output {@link PCollection}. Windows are preserved (batches
+ * A {@link PTransform} that batches inputs to a desired batch size. Batches will contain only elements of a single key.
+ * Elements are buffered until there are {@code batchSize} elements buffered, at which point they are output to the output {@link PCollection"}. Windows are preserved (batches
  * contain elements from the same window). Batches may contain elements from more than one bundle
  *
  * <p>Example (batch call a webservice and get return codes)
@@ -173,13 +171,14 @@ public class BatchingParDo<K, InputT>
         ProcessContext c,
         BoundedWindow window) {
       Instant firingInstant = window.maxTimestamp().plus(allowedLateness);
+
       LOGGER.debug(
-          "*** SET TIMER *** to point in time %s for window %s",
+          "*** SET TIMER *** to point in time {} for window {}",
           firingInstant.toString(), window.toString());
       timer.set(firingInstant);
       key.write(c.element().getKey());
       batch.add(c.element().getValue());
-      LOGGER.debug("*** BATCH *** Add element for window %s ", window.toString());
+      LOGGER.debug("*** BATCH *** Add element for window {} ", window.toString());
       // blind add is supported with combiningState
       numElementsInBatch.add(1L);
       Long num = numElementsInBatch.read();
@@ -188,7 +187,7 @@ public class BatchingParDo<K, InputT>
         batch.readLater();
       }
       if (num >= batchSize) {
-        LOGGER.debug("*** END OF BATCH *** for window %s", window.toString());
+        LOGGER.debug("*** END OF BATCH *** for window {}", window.toString());
         flushBatch(c, key, batch, numElementsInBatch);
       }
     }
@@ -202,7 +201,7 @@ public class BatchingParDo<K, InputT>
             AccumulatorCombiningState<Long, Long, Long> numElementsInBatch,
         BoundedWindow window) {
       LOGGER.debug(
-          "*** END OF WINDOW *** for timer timestamp %s in windows %s",
+          "*** END OF WINDOW *** for timer timestamp {} in windows {}",
           context.timestamp(), window.toString());
       flushBatch(context, key, batch, numElementsInBatch);
     }

@@ -160,7 +160,7 @@ public class BatchingParDoTest implements Serializable {
               @ProcessElement
               public void processElement(ProcessContext c, BoundedWindow window) {
                 LOGGER.debug(
-                    "*** ELEMENT: (%s,%s) *** with timestamp %s in window %s",
+                    "*** ELEMENT: ({},{}) *** with timestamp %s in window %s",
                     c.element().getKey(),
                     c.element().getValue(),
                     c.timestamp().toString(),
