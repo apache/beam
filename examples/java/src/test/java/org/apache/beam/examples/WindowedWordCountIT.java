@@ -215,7 +215,8 @@ public class WindowedWordCountIT {
         return actualCounts.equals(expectedWordCounts);
       } catch (Exception e) {
         throw new RuntimeException(
-            String.format("Failed to read from sharded output: %s", outputFiles));
+            String.format("Failed to read from sharded output: %s due to exception",
+                outputFiles, e));
       }
     }
 
