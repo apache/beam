@@ -309,6 +309,13 @@ public interface NexmarkOptions extends PubsubOptions {
 
   void setFanout(Integer fanout);
 
+  @Description("Maximum waiting time to clean personState in query3 "
+      + "(ie maximum waiting of the auctions related to person in state in seconds in event time).")
+  @Nullable
+  Integer getMaxAuctionsWaitingTime();
+
+  void setMaxAuctionsWaitingTime(Integer fanout);
+
   @Description("Length of occasional delay to impose on events (in seconds).")
   @Nullable
   Long getOccasionalDelaySec();

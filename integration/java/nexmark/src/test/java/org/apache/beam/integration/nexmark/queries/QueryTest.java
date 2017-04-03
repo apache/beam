@@ -25,10 +25,13 @@ import org.apache.beam.integration.nexmark.model.KnownSize;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.testing.UsesStatefulParDo;
+import org.apache.beam.sdk.testing.UsesTimersInParDo;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
@@ -95,6 +98,7 @@ public class QueryTest {
   }
 
   @Test
+  @Category({UsesStatefulParDo.class, UsesTimersInParDo.class})
   public void query7MatchesModel() {
     queryMatchesModel("Query7Test", new Query7(CONFIG), new Query7Model(CONFIG));
   }

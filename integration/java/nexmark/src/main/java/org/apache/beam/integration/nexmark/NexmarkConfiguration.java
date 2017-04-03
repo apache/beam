@@ -195,6 +195,13 @@ public class NexmarkConfiguration implements Serializable {
   public int fanout = 5;
 
   /**
+   * Maximum waiting time to clean personState in query3
+   * (ie maximum waiting of the auctions related to person in state in seconds in event time).
+   */
+  @JsonProperty
+  public int maxAuctionsWaitingTime = 600;
+
+  /**
    * Length of occasional delay to impose on events (in seconds).
    */
   @JsonProperty
@@ -322,6 +329,9 @@ public class NexmarkConfiguration implements Serializable {
     if (options.getFanout() != null) {
       fanout = options.getFanout();
     }
+    if (options.getMaxAuctionsWaitingTime() != null) {
+      fanout = options.getMaxAuctionsWaitingTime();
+    }
     if (options.getOccasionalDelaySec() != null) {
       occasionalDelaySec = options.getOccasionalDelaySec();
     }
@@ -376,6 +386,7 @@ public class NexmarkConfiguration implements Serializable {
     result.diskBusyBytes = diskBusyBytes;
     result.auctionSkip = auctionSkip;
     result.fanout = fanout;
+    result.maxAuctionsWaitingTime = maxAuctionsWaitingTime;
     result.occasionalDelaySec = occasionalDelaySec;
     result.probDelayedEvent = probDelayedEvent;
     result.maxLogEvents = maxLogEvents;
@@ -479,6 +490,9 @@ public class NexmarkConfiguration implements Serializable {
     if (fanout != DEFAULT.fanout) {
       sb.append(String.format("; fanout:%d", fanout));
     }
+    if (maxAuctionsWaitingTime != DEFAULT.maxAuctionsWaitingTime) {
+      sb.append(String.format("; maxAuctionsWaitingTime:%d", fanout));
+    }
     if (occasionalDelaySec != DEFAULT.occasionalDelaySec) {
       sb.append(String.format("; occasionalDelaySec:%d", occasionalDelaySec));
     }
@@ -527,7 +541,7 @@ public class NexmarkConfiguration implements Serializable {
         ratePeriodSec, preloadSeconds, isRateLimited, useWallclockEventTime, avgPersonByteSize,
         avgAuctionByteSize, avgBidByteSize, hotAuctionRatio, hotSellersRatio, hotBiddersRatio,
         windowSizeSec, windowPeriodSec, watermarkHoldbackSec, numInFlightAuctions, numActivePeople,
-        coderStrategy, cpuDelayMs, diskBusyBytes, auctionSkip, fanout,
+        coderStrategy, cpuDelayMs, diskBusyBytes, auctionSkip, fanout, maxAuctionsWaitingTime,
         occasionalDelaySec, probDelayedEvent, maxLogEvents, usePubsubPublishTime,
         outOfOrderGroupSize);
   }
@@ -569,6 +583,9 @@ public class NexmarkConfiguration implements Serializable {
       return false;
     }
     if (fanout != other.fanout) {
+      return false;
+    }
+    if (maxAuctionsWaitingTime != other.maxAuctionsWaitingTime) {
       return false;
     }
     if (firstEventRate != other.firstEventRate) {
