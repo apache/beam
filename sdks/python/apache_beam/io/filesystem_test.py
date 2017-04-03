@@ -23,7 +23,6 @@ import unittest
 import tempfile
 import bz2
 import gzip
-from random import randint
 from StringIO import StringIO
 
 from parameterized import parameterized
@@ -153,7 +152,6 @@ atomized in instants hammered around the
       reference_position = reference_fd.tell()
       uncompressed_position = compressed_fd.tell()
       self.assertEqual(uncompressed_position, reference_position)
-
 
   @parameterized.expand([CompressionTypes.BZIP2, CompressionTypes.GZIP])
   def test_read_from_end_returns_no_data(self, compression_type):
