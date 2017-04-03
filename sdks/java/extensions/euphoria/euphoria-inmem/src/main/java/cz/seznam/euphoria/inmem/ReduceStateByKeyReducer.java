@@ -21,7 +21,7 @@ import cz.seznam.euphoria.core.client.dataset.windowing.WindowedElement;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.functional.BinaryFunction;
 import cz.seznam.euphoria.core.client.functional.CombinableReduceFunction;
-import cz.seznam.euphoria.core.client.functional.StateFactory;
+import cz.seznam.euphoria.core.client.operator.state.StateFactory;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 import cz.seznam.euphoria.core.client.operator.ReduceStateByKey;
 import cz.seznam.euphoria.core.client.operator.state.ListStorage;
