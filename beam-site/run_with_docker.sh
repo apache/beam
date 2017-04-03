@@ -39,6 +39,9 @@ fi
 
 case "$1" in
   server)
+    _runner "bundle exec jekyll server --force_polling --watch -H 0.0.0.0 -P 4000";
+    ;;
+  server_incremental)
     _runner "bundle exec jekyll server --force_polling --watch -H 0.0.0.0 -P 4000 --incremental";
     ;;
   test)
