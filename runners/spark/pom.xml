@@ -55,9 +55,9 @@
     </profile>
 
     <profile>
-      <!-- This profile adds execution of RunnableOnService integration tests
+      <!-- This profile adds execution of ValidatesRunner integration tests
            against a local Spark endpoint. -->
-      <id>local-runnable-on-service-tests</id>
+      <id>local-validates-runner-tests</id>
       <activation><activeByDefault>false</activeByDefault></activation>
       <build>
         <plugins>
@@ -66,13 +66,16 @@
             <artifactId>maven-surefire-plugin</artifactId>
             <executions>
               <execution>
-                <id>runnable-on-service-tests</id>
+                <id>validates-runner-tests</id>
                 <phase>integration-test</phase>
                 <goals>
                   <goal>test</goal>
                 </goals>
                 <configuration>
-                  <groups>org.apache.beam.sdk.testing.RunnableOnService</groups>
+                  <groups>
+                    org.apache.beam.sdk.testing.ValidatesRunner,
+                    org.apache.beam.runners.spark.UsesCheckpointRecovery
+                  </groups>
                   <excludedGroups>
                     org.apache.beam.sdk.testing.UsesStatefulParDo,
                     org.apache.beam.sdk.testing.UsesTimersInParDo,
@@ -300,7 +303,7 @@
       <scope>test</scope>
     </dependency>
 
-    <!-- Depend on test jar to scan for RunnableOnService tests -->
+    <!-- Depend on test jar to scan for ValidatesRunner tests -->
     <dependency>
       <groupId>org.apache.beam</groupId>
       <artifactId>beam-sdks-java-core</artifactId>
@@ -349,6 +352,9 @@
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-surefire-plugin</artifactId>
           <configuration>
+            <excludedGroups>
+              org.apache.beam.runners.spark.UsesCheckpointRecovery
+            </excludedGroups>
             <forkCount>1</forkCount>
             <reuseForks>false</reuseForks>
             <systemPropertyVariables>

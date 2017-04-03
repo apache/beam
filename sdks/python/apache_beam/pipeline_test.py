@@ -24,6 +24,7 @@ import unittest
 # TODO(BEAM-1555): Test is failing on the service, with FakeSource.
 # from nose.plugins.attrib import attr
 
+import apache_beam as beam
 from apache_beam.metrics import Metrics
 from apache_beam.pipeline import Pipeline
 from apache_beam.pipeline import PipelineOptions
@@ -252,7 +253,7 @@ class PipelineTest(unittest.TestCase):
 
     # Consumed memory should not be proportional to the number of maps.
     memory_threshold = (
-        get_memory_usage_in_bytes() + (3 * len_elements * num_elements))
+        get_memory_usage_in_bytes() + (5 * len_elements * num_elements))
 
     # Plus small additional slack for memory fluctuations during the test.
     memory_threshold += 10 * (2 ** 20)
@@ -437,6 +438,21 @@ class PipelineOptionsTest(unittest.TestCase):
              'display_data']),
         set([attr for attr in dir(options.view_as(Eggs))
              if not attr.startswith('_')]))
+
+
+class RunnerApiTest(unittest.TestCase):
+
+  def test_simple(self):
+    """Tests serializing, deserializing, and running a simple pipeline.
+
+    More extensive tests are done at pipeline.run for each suitable test.
+    """
+    p = beam.Pipeline()
+    p | beam.Create([None]) | beam.Map(lambda x: x)  # pylint: disable=expression-not-assigned
+    proto = p.to_runner_api()
+
+    p2 = Pipeline.from_runner_api(proto, p.runner, p.options)
+    p2.run()
 
 
 if __name__ == '__main__':

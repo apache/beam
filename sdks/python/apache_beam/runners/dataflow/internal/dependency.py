@@ -52,6 +52,7 @@ TODO(silviuc): Should we allow several setup packages?
 TODO(silviuc): We should allow customizing the exact command for setup build.
 """
 
+import functools
 import glob
 import logging
 import os
@@ -72,7 +73,7 @@ from apache_beam.utils.pipeline_options import SetupOptions
 
 # Update this version to the next version whenever there is a change that will
 # require changes to the execution environment.
-BEAM_CONTAINER_VERSION = 'beam-0.6.0-20170223'
+BEAM_CONTAINER_VERSION = 'beam-0.7.0-20170316'
 
 # Standard file names used for staging files.
 WORKFLOW_TARBALL_FILE = 'workflow.tar.gz'
@@ -87,9 +88,24 @@ def _dependency_file_copy(from_path, to_path):
   """Copies a local file to a GCS file or vice versa."""
   logging.info('file copy from %s to %s.', from_path, to_path)
   if from_path.startswith('gs://') or to_path.startswith('gs://'):
-    command_args = ['gsutil', '-m', '-q', 'cp', from_path, to_path]
-    logging.info('Executing command: %s', command_args)
-    processes.check_call(command_args)
+    from apache_beam.io.gcp import gcsio
+    if from_path.startswith('gs://') and to_path.startswith('gs://'):
+      # Both files are GCS files so copy.
+      gcsio.GcsIO().copy(from_path, to_path)
+    elif to_path.startswith('gs://'):
+      # Only target is a GCS file, read local file and upload.
+      with open(from_path, 'rb') as f:
+        with gcsio.GcsIO().open(to_path, mode='wb') as g:
+          pfun = functools.partial(f.read, gcsio.WRITE_CHUNK_SIZE)
+          for chunk in iter(pfun, ''):
+            g.write(chunk)
+    else:
+      # Source is a GCS file but target is local file.
+      with gcsio.GcsIO().open(from_path, mode='rb') as g:
+        with open(to_path, 'wb') as f:
+          pfun = functools.partial(g.read, gcsio.DEFAULT_READ_BUFFER_SIZE)
+          for chunk in iter(pfun, ''):
+            f.write(chunk)
   else:
     # Branch used only for unit tests and integration tests.
     # In such environments GCS support is not available.

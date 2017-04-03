@@ -18,6 +18,7 @@
 Tests corresponding to the DataflowRunner implementation of MetricsResult,
 the DataflowMetrics class.
 """
+import types
 import unittest
 
 import mock
@@ -42,6 +43,37 @@ class DictToObject(object):
 
 
 class TestDataflowMetrics(unittest.TestCase):
+
+  STRUCTURED_COUNTER_LIST = {"metrics": [
+      {"name": {"context":
+                {"additionalProperties": [
+                    {"key": "namespace",
+                     "value": "__main__.WordExtractingDoFn"},
+                    {"key": "step",
+                     "value": "s2"},
+                    {"key": "tentative",
+                     "value": "true"}]
+                },
+                "name": "word_lengths",
+                "origin": "user"
+               },
+       "scalar": {"integer_value": 109475},
+       "updateTime": "2017-03-22T18:47:06.402Z"
+      },
+      {"name": {"context":
+                {"additionalProperties": [
+                    {"key": "namespace",
+                     "value": "__main__.WordExtractingDoFn"},
+                    {"key": "step",
+                     "value": "s2"}]
+                },
+                "name": "word_lengths",
+                "origin": "user"
+               },
+       "scalar": {"integer_value": 109475},
+       "updateTime": "2017-03-22T18:47:06.402Z"
+      },
+  ]}
 
   BASIC_COUNTER_LIST = {"metrics": [
       {"name": {"context":
@@ -71,18 +103,19 @@ class TestDataflowMetrics(unittest.TestCase):
                      "value": "user-split-split/__main__.WordExtractingDoFn/"
                               "words_TentativeAggregateValue"},
                     {"key": "step", "value": "split"}]},
-                "name": "split/__main__.WordExtractingDoFn/words",
+                "name": "longstepname/split/__main__.WordExtractingDoFn/words",
                 "origin": "user"},
        "scalar": {"integer_value": 26181},
        "updateTime": "2017-02-23T01:13:36.659Z"},
       {"name": {"context":
                 {"additionalProperties": [
                     {"key": "original_name",
-                     "value": "user-split-split/__main__.WordExtractingDoFn/"
+                     "value": "user-split-longstepname/split/"
+                              "__main__.WordExtractingDoFn/"
                               "words_TentativeAggregateValue"},
                     {"key": "step", "value": "split"},
                     {"key": "tentative", "value": "true"}]},
-                "name": "split/__main__.WordExtractingDoFn/words",
+                "name": "longstepname/split/__main__.WordExtractingDoFn/words",
                 "origin": "user"},
        "scalar": {"integer_value": 26185},
        "updateTime": "2017-02-23T01:13:36.659Z"},
@@ -100,9 +133,12 @@ class TestDataflowMetrics(unittest.TestCase):
        "updateTime": "2017-02-23T01:13:36.659Z"}
   ]}
 
-  def setup_mock_client_result(self):
+  def setup_mock_client_result(self, counter_list=None):
+    if counter_list is None:
+      counter_list = self.BASIC_COUNTER_LIST
+
     mock_client = mock.Mock()
-    mock_query_result = DictToObject(self.BASIC_COUNTER_LIST)
+    mock_query_result = DictToObject(counter_list)
     mock_client.get_job_metrics.return_value = mock_query_result
     mock_job_result = mock.Mock()
     mock_job_result.job_id.return_value = 1
@@ -125,6 +161,21 @@ class TestDataflowMetrics(unittest.TestCase):
     dm.query()
     self.assertTrue(dm._cached_metrics)
 
+  def test_query_structured_counters(self):
+    mock_client, mock_job_result = self.setup_mock_client_result(
+        self.STRUCTURED_COUNTER_LIST)
+    dm = dataflow_metrics.DataflowMetrics(mock_client, mock_job_result)
+    dm._translate_step_name = types.MethodType(lambda self, x: 'split', dm)
+    query_result = dm.query()
+    expected_counters = [
+        MetricResult(
+            MetricKey('split',
+                      MetricName('__main__.WordExtractingDoFn',
+                                 'word_lengths')),
+            109475, 109475),
+        ]
+    self.assertEqual(query_result['counters'], expected_counters)
+
   def test_query_counters(self):
     mock_client, mock_job_result = self.setup_mock_client_result()
     dm = dataflow_metrics.DataflowMetrics(mock_client, mock_job_result)
@@ -135,7 +186,7 @@ class TestDataflowMetrics(unittest.TestCase):
                       MetricName('__main__.WordExtractingDoFn', 'empty_lines')),
             1080, 1080),
         MetricResult(
-            MetricKey('split',
+            MetricKey('longstepname/split',
                       MetricName('__main__.WordExtractingDoFn', 'words')),
             26181, 26185),
         ]

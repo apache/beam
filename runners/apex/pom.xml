@@ -42,7 +42,7 @@
 
   <profiles>
     <profile>
-      <id>local-runnable-on-service-tests</id>
+      <id>local-validates-runner-tests</id>
       <activation><activeByDefault>false</activeByDefault></activation>
       <properties>
         <skipIntegrationTests>false</skipIntegrationTests>
@@ -130,7 +130,7 @@
       <scope>test</scope>
     </dependency>
 
-    <!-- Depend on test jar to scan for RunnableOnService tests -->
+    <!-- Depend on test jar to scan for ValidatesRunner tests -->
     <dependency>
       <groupId>org.apache.beam</groupId>
       <artifactId>beam-sdks-java-core</artifactId>
@@ -200,13 +200,13 @@
         </configuration>
         <executions>
           <execution>
-            <id>runnable-on-service-tests</id>
+            <id>validates-runner-tests</id>
             <phase>integration-test</phase>
             <goals>
               <goal>test</goal>
             </goals>
             <configuration>
-              <groups>org.apache.beam.sdk.testing.RunnableOnService</groups>
+              <groups>org.apache.beam.sdk.testing.ValidatesRunner</groups>
               <excludedGroups>
                 org.apache.beam.sdk.testing.FlattenWithHeterogeneousCoders,
                 org.apache.beam.sdk.testing.UsesStatefulParDo,

@@ -56,12 +56,12 @@
     </profile>
 
     <!-- A profile that adds an integration test phase if and only if
-         the runnableOnServicePipelineOptions maven property has been set.
+         the validatesRunnerPipelineOptions maven property has been set.
          It should be set to a valid PipelineOptions JSON string. -->
     <profile>
-      <id>runnable-on-service-tests</id>
+      <id>validates-runner-tests</id>
       <activation>
-        <property><name>runnableOnServicePipelineOptions</name></property>
+        <property><name>validatesRunnerPipelineOptions</name></property>
       </activation>
       <build>
         <pluginManagement>
@@ -71,20 +71,20 @@
               <artifactId>maven-surefire-plugin</artifactId>
               <executions>
                 <execution>
-                  <id>runnable-on-service-tests</id>
+                  <id>validates-runner-tests</id>
                   <phase>integration-test</phase>
                   <goals>
                     <goal>test</goal>
                   </goals>
                   <configuration>
-                    <groups>org.apache.beam.sdk.testing.RunnableOnService</groups>
+                    <groups>org.apache.beam.sdk.testing.ValidatesRunner</groups>
                     <parallel>all</parallel>
                     <threadCount>4</threadCount>
                     <dependenciesToScan>
                       <dependency>org.apache.beam:beam-sdks-java-core</dependency>
                     </dependenciesToScan>
                     <systemPropertyVariables>
-                      <beamTestPipelineOptions>${runnableOnServicePipelineOptions}</beamTestPipelineOptions>
+                      <beamTestPipelineOptions>${validatesRunnerPipelineOptions}</beamTestPipelineOptions>
                     </systemPropertyVariables>
                   </configuration>
                 </execution>

@@ -52,14 +52,17 @@ public class EmptyFlattenAsCreateFactory<T>
   @Override
   public PTransform<PCollectionList<T>, PCollection<T>> getReplacementTransform(
       Flatten.PCollections<T> transform) {
-    return (PTransform) Create.empty(VoidCoder.of());
+    return new CreateEmptyFromList<>();
   }
 
   @Override
   public PCollectionList<T> getInput(
       List<TaggedPValue> inputs, Pipeline p) {
     checkArgument(
-        inputs.isEmpty(), "Must have an empty input to use %s", getClass().getSimpleName());
+        inputs.isEmpty(),
+        "Unexpected nonempty input %s for %s",
+        inputs,
+        getClass().getSimpleName());
     return PCollectionList.empty(p);
   }
 
@@ -67,5 +70,13 @@ public class EmptyFlattenAsCreateFactory<T>
   public Map<PValue, ReplacementOutput> mapOutputs(
       List<TaggedPValue> outputs, PCollection<T> newOutput) {
     return ReplacementOutputs.singleton(outputs, newOutput);
+  }
+
+  private static class CreateEmptyFromList<T>
+      extends PTransform<PCollectionList<T>, PCollection<T>> {
+    @Override
+    public PCollection<T> expand(PCollectionList<T> input) {
+      return (PCollection) input.getPipeline().apply(Create.empty(VoidCoder.of()));
+    }
   }
 }

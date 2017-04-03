@@ -19,10 +19,12 @@ package org.apache.beam.sdk.io.kafka;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.List;
+
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.KvCoder;
@@ -66,6 +68,7 @@ public class KafkaRecordCoder<K, V> extends StandardCoder<KafkaRecord<K, V>> {
     stringCoder.encode(value.getTopic(), outStream, nested);
     intCoder.encode(value.getPartition(), outStream, nested);
     longCoder.encode(value.getOffset(), outStream, nested);
+    longCoder.encode(value.getTimestamp(), outStream, nested);
     kvCoder.encode(value.getKV(), outStream, context);
   }
 
@@ -76,6 +79,7 @@ public class KafkaRecordCoder<K, V> extends StandardCoder<KafkaRecord<K, V>> {
     return new KafkaRecord<K, V>(
         stringCoder.decode(inStream, nested),
         intCoder.decode(inStream, nested),
+        longCoder.decode(inStream, nested),
         longCoder.decode(inStream, nested),
         kvCoder.decode(inStream, context));
   }
@@ -106,6 +110,7 @@ public class KafkaRecordCoder<K, V> extends StandardCoder<KafkaRecord<K, V>> {
           value.getTopic(),
           value.getPartition(),
           value.getOffset(),
+          value.getTimestamp(),
           (KV<Object, Object>) kvCoder.structuralValue(value.getKV()));
     }
   }

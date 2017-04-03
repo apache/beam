@@ -29,6 +29,7 @@ import apache_beam as beam
 from apache_beam.io import filebasedsource
 from apache_beam.io import fileio
 from apache_beam.io import iobase
+from apache_beam.io.filesystem import CompressionTypes
 from apache_beam.io.iobase import Read
 from apache_beam.transforms import PTransform
 
@@ -354,7 +355,7 @@ class _AvroSink(fileio.FileSink):
         mime_type=mime_type,
         # Compression happens at the block level using the supplied codec, and
         # not at the file level.
-        compression_type=fileio.CompressionTypes.UNCOMPRESSED)
+        compression_type=CompressionTypes.UNCOMPRESSED)
     self._schema = schema
     self._codec = codec
 

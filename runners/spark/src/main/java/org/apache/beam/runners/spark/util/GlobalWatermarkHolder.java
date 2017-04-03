@@ -131,7 +131,7 @@ public class GlobalWatermarkHolder {
         if (broadcast != null) {
           // for now this is blocking, we could make this asynchronous
           // but it could slow down WM propagation.
-          broadcast.unpersist(true);
+          broadcast.destroy();
         }
         broadcast = jsc.broadcast(newBroadcast);
       }

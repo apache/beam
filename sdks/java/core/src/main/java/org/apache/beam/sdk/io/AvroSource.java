@@ -109,7 +109,7 @@ import org.apache.commons.compress.utils.CountingInputStream;
  * than the end offset of the source.
  *
  * <p>To use XZ-encoded Avro files, please include an explicit dependency on {@code xz-1.5.jar},
- * which has been marked as optional in the Maven {@code sdk/pom.xml} for Google Cloud Dataflow:
+ * which has been marked as optional in the Maven {@code sdk/pom.xml}.
  *
  * <pre>{@code
  * <dependency>
@@ -122,7 +122,7 @@ import org.apache.commons.compress.utils.CountingInputStream;
  * <h3>Permissions</h3>
  *
  * <p>Permission requirements depend on the {@link PipelineRunner} that is used to execute the
- * Dataflow job. Please refer to the documentation of corresponding {@link PipelineRunner}s for
+ * pipeline. Please refer to the documentation of corresponding {@link PipelineRunner}s for
  * more details.
  *
  * @param <T> The type of records to be read from the source.

@@ -25,6 +25,7 @@ from apache_beam import coders
 from apache_beam.io import filebasedsource
 from apache_beam.io import fileio
 from apache_beam.io import iobase
+from apache_beam.io.filesystem import CompressionTypes
 from apache_beam.io.iobase import Read
 from apache_beam.io.iobase import Write
 from apache_beam.transforms import PTransform
@@ -271,7 +272,7 @@ class _TextSink(fileio.FileSink):
                num_shards=0,
                shard_name_template=None,
                coder=coders.ToStringCoder(),
-               compression_type=fileio.CompressionTypes.AUTO,
+               compression_type=CompressionTypes.AUTO,
                header=None):
     """Initialize a _TextSink.
 
@@ -355,7 +356,7 @@ class ReadFromText(PTransform):
       self,
       file_pattern=None,
       min_bundle_size=0,
-      compression_type=fileio.CompressionTypes.AUTO,
+      compression_type=CompressionTypes.AUTO,
       strip_trailing_newlines=True,
       coder=coders.StrUtf8Coder(),
       validate=True,
@@ -404,7 +405,7 @@ class WriteToText(PTransform):
                num_shards=0,
                shard_name_template=None,
                coder=coders.ToStringCoder(),
-               compression_type=fileio.CompressionTypes.AUTO,
+               compression_type=CompressionTypes.AUTO,
                header=None):
     """Initialize a WriteToText PTransform.
 

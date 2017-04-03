@@ -20,8 +20,8 @@ package org.apache.beam.sdk.transforms;
 import java.io.Serializable;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.testing.PAssert;
-import org.apache.beam.sdk.testing.RunnableOnService;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.values.PCollection;
 import org.junit.Rule;
 import org.junit.Test;
@@ -44,7 +44,7 @@ public class FilterJava8Test implements Serializable {
   public transient ExpectedException thrown = ExpectedException.none();
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testIdentityFilterByPredicate() {
 
     PCollection<Integer> output = pipeline
@@ -67,7 +67,7 @@ public class FilterJava8Test implements Serializable {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testFilterByPredicate() {
 
     PCollection<Integer> output = pipeline
@@ -95,7 +95,7 @@ public class FilterJava8Test implements Serializable {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testFilterByMethodReference() {
 
     PCollection<Integer> output = pipeline

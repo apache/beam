@@ -132,7 +132,7 @@ import org.slf4j.LoggerFactory;
  *         .withQuery(query));
  * } </pre>
  *
- * <p><b>Note:</b> Normally, a Cloud Dataflow job will read from Cloud Datastore in parallel across
+ * <p><b>Note:</b> A runner may read from Cloud Datastore in parallel across
  * many workers. However, when the {@link Query} is configured with a limit using
  * {@link com.google.datastore.v1.Query.Builder#setLimit(Int32Value)} or if the Query contains
  * inequality filters like {@code GREATER_THAN, LESS_THAN} etc., then all returned results
@@ -182,7 +182,7 @@ import org.slf4j.LoggerFactory;
  *
  * <h3>Permissions</h3>
  * Permission requirements depend on the {@code PipelineRunner} that is used to execute the
- * Dataflow job. Please refer to the documentation of corresponding {@code PipelineRunner}s for
+ * pipeline. Please refer to the documentation of corresponding {@code PipelineRunner}s for
  * more details.
  *
  * <p>Please see <a href="https://cloud.google.com/datastore/docs/activate">Cloud Datastore Sign Up
@@ -793,6 +793,10 @@ public class DatastoreV1 {
       public void populateDisplayData(DisplayData.Builder builder) {
         super.populateDisplayData(builder);
         builder.include("options", options);
+        if (numSplits > 0) {
+          builder.add(DisplayData.item("numQuerySplits", numSplits)
+              .withLabel("Requested number of Query splits"));
+        }
       }
     }
 

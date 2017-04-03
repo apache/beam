@@ -31,10 +31,11 @@ import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.testing.PAssert;
-import org.apache.beam.sdk.testing.RunnableOnService;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.testing.UsesSplittableParDo;
+import org.apache.beam.sdk.testing.UsesTestStream;
+import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.DoFn.BoundedPerElement;
 import org.apache.beam.sdk.transforms.splittabledofn.OffsetRange;
 import org.apache.beam.sdk.transforms.splittabledofn.OffsetRangeTracker;
@@ -105,7 +106,7 @@ public class SplittableDoFnTest {
   public final transient TestPipeline p = TestPipeline.create();
 
   @Test
-  @Category({RunnableOnService.class, UsesSplittableParDo.class})
+  @Category({ValidatesRunner.class, UsesSplittableParDo.class})
   public void testPairWithIndexBasic() {
 
     PCollection<KV<String, Integer>> res =
@@ -129,7 +130,7 @@ public class SplittableDoFnTest {
   }
 
   @Test
-  @Category({RunnableOnService.class, UsesSplittableParDo.class})
+  @Category({ValidatesRunner.class, UsesSplittableParDo.class})
   public void testPairWithIndexWindowedTimestamped() {
     // Tests that Splittable DoFn correctly propagates windowing strategy, windows and timestamps
     // of elements in the input collection.
@@ -227,7 +228,7 @@ public class SplittableDoFnTest {
   }
 
   @Test
-  @Category({RunnableOnService.class, UsesSplittableParDo.class})
+  @Category({ValidatesRunner.class, UsesSplittableParDo.class})
   public void testOutputAfterCheckpoint() throws Exception {
     PCollection<Integer> outputs = p.apply(Create.of("foo"))
         .apply(ParDo.of(new SDFWithMultipleOutputsPerBlock()));
@@ -266,7 +267,7 @@ public class SplittableDoFnTest {
   }
 
   @Test
-  @Category({RunnableOnService.class, UsesSplittableParDo.class})
+  @Category({ValidatesRunner.class, UsesSplittableParDo.class})
   public void testSideInputsAndOutputs() throws Exception {
 
     PCollectionView<String> sideInput =
@@ -292,7 +293,7 @@ public class SplittableDoFnTest {
   }
 
   @Test
-  @Category({RunnableOnService.class, UsesSplittableParDo.class})
+  @Category({ValidatesRunner.class, UsesSplittableParDo.class, UsesTestStream.class})
   public void testLateData() throws Exception {
 
     Instant base = Instant.now();
@@ -387,7 +388,7 @@ public class SplittableDoFnTest {
   }
 
   @Test
-  @Category({RunnableOnService.class, UsesSplittableParDo.class})
+  @Category({ValidatesRunner.class, UsesSplittableParDo.class})
   public void testLifecycleMethods() throws Exception {
 
     PCollection<String> res =

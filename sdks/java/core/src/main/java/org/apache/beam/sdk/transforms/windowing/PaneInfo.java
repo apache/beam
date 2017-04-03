@@ -72,7 +72,7 @@ public final class PaneInfo {
    * <li>We'll call a pipeline 'simple' if it does not use
    * {@link DoFn.Context#outputWithTimestamp} in
    * any {@link DoFn}, and it uses the same
-   * {@link org.apache.beam.sdk.transforms.windowing.Window.Bound#withAllowedLateness}
+   * {@link org.apache.beam.sdk.transforms.windowing.Window#withAllowedLateness}
    * argument value on all windows (or uses the default of {@link org.joda.time.Duration#ZERO}).
    * <li>We'll call an element 'locally late', from the point of view of a computation on a
    * worker, if the element's timestamp is before the input watermark for that computation
@@ -233,7 +233,7 @@ public final class PaneInfo {
   }
 
   /**
-   * Return true if this is the last pane that will be produced in the associated window.
+   * Return the timing of this pane.
    */
   public Timing getTiming() {
     return timing;

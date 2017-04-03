@@ -37,7 +37,7 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** A {@link TransformEvaluatorFactory} for {@link ParDo.BoundMulti}. */
+/** A {@link TransformEvaluatorFactory} for {@link ParDo.MultiOutput}. */
 final class ParDoEvaluatorFactory<InputT, OutputT> implements TransformEvaluatorFactory {
 
   private static final Logger LOG = LoggerFactory.getLogger(ParDoEvaluatorFactory.class);
@@ -62,13 +62,13 @@ final class ParDoEvaluatorFactory<InputT, OutputT> implements TransformEvaluator
       AppliedPTransform<?, ?, ?> application, CommittedBundle<?> inputBundle) throws Exception {
 
     @SuppressWarnings("unchecked")
-    AppliedPTransform<PCollection<InputT>, PCollectionTuple, ParDo.BoundMulti<InputT, OutputT>>
+    AppliedPTransform<PCollection<InputT>, PCollectionTuple, ParDo.MultiOutput<InputT, OutputT>>
         parDoApplication =
             (AppliedPTransform<
-                    PCollection<InputT>, PCollectionTuple, ParDo.BoundMulti<InputT, OutputT>>)
+                    PCollection<InputT>, PCollectionTuple, ParDo.MultiOutput<InputT, OutputT>>)
                 application;
 
-    ParDo.BoundMulti<InputT, OutputT> transform = parDoApplication.getTransform();
+    ParDo.MultiOutput<InputT, OutputT> transform = parDoApplication.getTransform();
     final DoFn<InputT, OutputT> doFn = transform.getFn();
 
     @SuppressWarnings({"unchecked", "rawtypes"})

@@ -54,6 +54,17 @@ import java.io.ObjectStreamClass;
  * </p>
  */
 class StatelessJavaSerializer extends Serializer {
+
+  // Since Kryo uses reflection to sequentially look for constructor signatures, starting
+  // with this particular signature spares exploring further ones, which involves
+  // NoSuchMethodException(s) being thrown as part of the exploration process and may slow
+  // things down, see Kryo#newSerializer(), see https://goo.gl/Jn425G
+  public StatelessJavaSerializer(final Kryo ignore1, final Class<?> ignore2) {}
+
+  public StatelessJavaSerializer() {
+    this(null, null);
+  }
+
   @SuppressWarnings("unchecked")
   public void write(Kryo kryo, Output output, Object object) {
     try {

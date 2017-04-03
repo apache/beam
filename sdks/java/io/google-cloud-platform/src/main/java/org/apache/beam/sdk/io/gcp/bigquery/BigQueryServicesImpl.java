@@ -444,7 +444,7 @@ class BigQueryServicesImpl implements BigQueryServices {
     @Override
     public void createTable(Table table) throws InterruptedException, IOException {
       LOG.info("Trying to create BigQuery table: {}",
-          BigQueryIO.toTableSpec(table.getTableReference()));
+          BigQueryHelpers.toTableSpec(table.getTableReference()));
       BackOff backoff =
               new ExponentialBackOff.Builder()
                       .setMaxElapsedTimeMillis(RETRY_CREATE_TABLE_DURATION_MILLIS)

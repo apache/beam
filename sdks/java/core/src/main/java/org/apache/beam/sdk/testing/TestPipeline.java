@@ -59,7 +59,7 @@ import org.junit.runners.model.Statement;
  * locally or against a remote pipeline runner.
  *
  * <p>It is recommended to tag hand-selected tests for this purpose using the {@link
- * RunnableOnService} {@link Category} annotation, as each test run against a pipeline runner will
+ * ValidatesRunner} {@link Category} annotation, as each test run against a pipeline runner will
  * utilize resources of that pipeline runner.
  *
  * <p>In order to run tests on a pipeline runner, the following conditions must be met:
@@ -274,7 +274,7 @@ public class TestPipeline extends Pipeline implements TestRule {
               "The test was annotated with a [@%s] / [@%s] while the runner "
                   + "was set to [%s]. Please re-check your configuration.",
               NeedsRunner.class.getSimpleName(),
-              RunnableOnService.class.getSimpleName(),
+              ValidatesRunner.class.getSimpleName(),
               CrashingRunner.class.getSimpleName());
 
           enableAbandonedNodeEnforcement(annotatedWithNeedsRunner || !crashingRunner);
@@ -299,7 +299,7 @@ public class TestPipeline extends Pipeline implements TestRule {
     checkState(
         enforcement.isPresent(),
         "Is your TestPipeline declaration missing a @Rule annotation? Usage: "
-        + "@Rule public final transient TestPipeline pipeline = TestPipeline.Create();");
+        + "@Rule public final transient TestPipeline pipeline = TestPipeline.create();");
 
     try {
       return super.run();
@@ -324,7 +324,7 @@ public class TestPipeline extends Pipeline implements TestRule {
    * <li>Addition of PTransforms after the pipeline has already run.
    * </ul>
    * Abandoned node detection is automatically enabled when a real pipeline runner (i.e. not a
-   * {@link CrashingRunner}) and/or a {@link NeedsRunner} or a {@link RunnableOnService} annotation
+   * {@link CrashingRunner}) and/or a {@link NeedsRunner} or a {@link ValidatesRunner} annotation
    * are detected.
    */
   public TestPipeline enableAbandonedNodeEnforcement(final boolean enable) {

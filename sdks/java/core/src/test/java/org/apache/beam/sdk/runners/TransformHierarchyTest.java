@@ -46,8 +46,8 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.ParDo.Bound;
-import org.apache.beam.sdk.transforms.ParDo.BoundMulti;
+import org.apache.beam.sdk.transforms.ParDo.MultiOutput;
+import org.apache.beam.sdk.transforms.ParDo.SingleOutput;
 import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
@@ -245,7 +245,7 @@ public class TransformHierarchyTest implements Serializable {
 
   @Test
   public void replaceWithCompositeSucceeds() {
-    final ParDo.Bound<Long, Long> originalParDo =
+    final SingleOutput<Long, Long> originalParDo =
         ParDo.of(
             new DoFn<Long, Long>() {
               @ProcessElement
@@ -268,7 +268,7 @@ public class TransformHierarchyTest implements Serializable {
     hierarchy.popNode();
 
     final TupleTag<Long> longs = new TupleTag<>();
-    final ParDo.BoundMulti<Long, Long> replacementParDo =
+    final MultiOutput<Long, Long> replacementParDo =
         ParDo.of(
                 new DoFn<Long, Long>() {
                   @ProcessElement
@@ -324,7 +324,7 @@ public class TransformHierarchyTest implements Serializable {
         PCollection.createPrimitiveOutputInternal(
             pipeline, WindowingStrategy.globalDefault(), IsBounded.BOUNDED);
 
-    ParDo.Bound<Long, Long> pardo =
+    SingleOutput<Long, Long> pardo =
         ParDo.of(
             new DoFn<Long, Long>() {
               @ProcessElement
@@ -408,7 +408,7 @@ public class TransformHierarchyTest implements Serializable {
   @Test
   public void visitAfterReplace() {
     Node root = hierarchy.getCurrent();
-    final Bound<Long, Long> originalParDo =
+    final SingleOutput<Long, Long> originalParDo =
         ParDo.of(
             new DoFn<Long, Long>() {
               @ProcessElement
@@ -431,7 +431,7 @@ public class TransformHierarchyTest implements Serializable {
     hierarchy.popNode();
 
     final TupleTag<Long> longs = new TupleTag<>();
-    final BoundMulti<Long, Long> replacementParDo =
+    final MultiOutput<Long, Long> replacementParDo =
         ParDo.of(
                 new DoFn<Long, Long>() {
                   @ProcessElement

@@ -22,6 +22,7 @@ import static com.google.common.base.Preconditions.checkState;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import java.io.IOException;
 import java.io.InputStream;
@@ -30,6 +31,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
@@ -51,6 +53,7 @@ import org.apache.beam.sdk.transforms.CombineWithContext.CombineFnWithContext;
 import org.apache.beam.sdk.transforms.CombineWithContext.Context;
 import org.apache.beam.sdk.transforms.CombineWithContext.KeyedCombineFnWithContext;
 import org.apache.beam.sdk.transforms.CombineWithContext.RequiresContextInternal;
+import org.apache.beam.sdk.transforms.View.CreatePCollectionView;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.DisplayData.Builder;
 import org.apache.beam.sdk.transforms.display.HasDisplayData;
@@ -60,6 +63,7 @@ import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.util.AppliedCombineFn;
 import org.apache.beam.sdk.util.NameUtils;
 import org.apache.beam.sdk.util.NameUtils.NameOverride;
+import org.apache.beam.sdk.util.PCollectionViews;
 import org.apache.beam.sdk.util.PropertyNames;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.util.WindowingStrategy;
@@ -68,6 +72,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.TypeDescriptor;
@@ -76,7 +81,7 @@ import org.apache.beam.sdk.values.TypeDescriptor;
  * {@code PTransform}s for combining {@code PCollection} elements
  * globally and per-key.
  *
- * <p>See the <a href="https://cloud.google.com/dataflow/model/combine">documentation</a>
+ * <p>See the <a href="https://beam.apache.org/documentation/programming-guide/#transforms-combine">documentation</a>
  * for how to use the operations in this class.
  */
 public class Combine {
@@ -1431,6 +1436,20 @@ public class Combine {
     }
 
     /**
+     * Returns the side inputs of this {@link Combine}, tagged with the tag of the
+     * {@link PCollectionView}. The values of the returned map will be equal to the result of
+     * {@link #getSideInputs()}.
+     */
+    @Override
+    public Map<TupleTag<?>, PValue> getAdditionalInputs() {
+      ImmutableMap.Builder<TupleTag<?>, PValue> additionalInputs = ImmutableMap.builder();
+      for (PCollectionView<?> sideInput : sideInputs) {
+        additionalInputs.put(sideInput.getTagInternal(), sideInput);
+      }
+      return additionalInputs.build();
+    }
+
+    /**
      * Returns whether or not this transformation applies a default value.
      */
     public boolean isInsertDefault() {
@@ -1484,7 +1503,7 @@ public class Combine {
       final OutputT defaultValue = fn.defaultValue();
       PCollection<OutputT> defaultIfEmpty = maybeEmpty.getPipeline()
           .apply("CreateVoid", Create.of((Void) null).withCoder(VoidCoder.of()))
-          .apply("ProduceDefault", ParDo.withSideInputs(maybeEmptyView).of(
+          .apply("ProduceDefault", ParDo.of(
               new DoFn<Void, OutputT>() {
                 @ProcessElement
                 public void processElement(ProcessContext c) {
@@ -1493,7 +1512,7 @@ public class Combine {
                     c.output(defaultValue);
                   }
                 }
-              }))
+              }).withSideInputs(maybeEmptyView))
           .setCoder(maybeEmpty.getCoder())
           .setWindowingStrategyInternal(maybeEmpty.getWindowingStrategy());
 
@@ -1577,17 +1596,16 @@ public class Combine {
 
     @Override
     public PCollectionView<OutputT> expand(PCollection<InputT> input) {
-      Globally<InputT, OutputT> combineGlobally =
-          Combine.<InputT, OutputT>globally(fn).withoutDefaults().withFanout(fanout);
-      if (insertDefault) {
-        return input
-            .apply(combineGlobally)
-            .apply(View.<OutputT>asSingleton().withDefaultValue(fn.defaultValue()));
-      } else {
-        return input
-            .apply(combineGlobally)
-            .apply(View.<OutputT>asSingleton());
-      }
+      PCollection<OutputT> combined =
+          input.apply(Combine.<InputT, OutputT>globally(fn).withoutDefaults().withFanout(fanout));
+      return combined.apply(
+          CreatePCollectionView.<OutputT, OutputT>of(
+              PCollectionViews.singletonView(
+                  combined,
+                  input.getWindowingStrategy(),
+                  insertDefault,
+                  insertDefault ? fn.defaultValue() : null,
+                  combined.getCoder())));
     }
 
     public int getFanout() {
@@ -1871,6 +1889,20 @@ public class Combine {
      */
     public List<PCollectionView<?>> getSideInputs() {
       return sideInputs;
+    }
+
+    /**
+     * Returns the side inputs of this {@link Combine}, tagged with the tag of the
+     * {@link PCollectionView}. The values of the returned map will be equal to the result of
+     * {@link #getSideInputs()}.
+     */
+    @Override
+    public Map<TupleTag<?>, PValue> getAdditionalInputs() {
+      ImmutableMap.Builder<TupleTag<?>, PValue> additionalInputs = ImmutableMap.builder();
+      for (PCollectionView<?> sideInput : sideInputs) {
+        additionalInputs.put(sideInput.getTagInternal(), sideInput);
+      }
+      return additionalInputs.build();
     }
 
     @Override

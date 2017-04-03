@@ -246,6 +246,11 @@ class TimestampedValue(object):
     self.value = value
     self.timestamp = Timestamp.of(timestamp)
 
+  def __cmp__(self, other):
+    if type(self) is not type(other):
+      return cmp(type(self), type(other))
+    return cmp((self.value, self.timestamp), (other.value, other.timestamp))
+
 
 class GlobalWindow(BoundedWindow):
   """The default window into which all data is placed (via GlobalWindows)."""

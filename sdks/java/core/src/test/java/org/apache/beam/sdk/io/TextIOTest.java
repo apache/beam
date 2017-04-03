@@ -88,10 +88,10 @@ import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
-import org.apache.beam.sdk.testing.RunnableOnService;
 import org.apache.beam.sdk.testing.SourceTestUtils;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestPipelineOptions;
+import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.DisplayDataEvaluator;
@@ -118,7 +118,7 @@ import org.mockito.stubbing.Answer;
 /**
  * Tests for TextIO Read and Write transforms.
  */
-// TODO: Change the tests to use RunnableOnService instead of NeedsRunner
+// TODO: Change the tests to use ValidatesRunner instead of NeedsRunner
 @RunWith(JUnit4.class)
 @SuppressWarnings("unchecked")
 public class TextIOTest {
@@ -206,7 +206,7 @@ public class TextIOTest {
   }
 
   @AfterClass
-  public static void testdownClass() throws IOException {
+  public static void teardownClass() throws IOException {
     Files.walkFileTree(tempFolder, new SimpleFileVisitor<Path>() {
       @Override
       public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
@@ -281,7 +281,7 @@ public class TextIOTest {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testPrimitiveReadDisplayData() {
     DisplayDataEvaluator evaluator = DisplayDataEvaluator.create();
 
@@ -546,8 +546,8 @@ public class TextIOTest {
   }
 
   @Test
-  @Category(RunnableOnService.class)
-  @Ignore("[BEAM-436] DirectRunner RunnableOnService tempLocation configuration insufficient")
+  @Category(ValidatesRunner.class)
+  @Ignore("[BEAM-436] DirectRunner ValidatesRunner tempLocation configuration insufficient")
   public void testPrimitiveWriteDisplayData() throws IOException {
     PipelineOptions options = DisplayDataEvaluator.getDefaultOptions();
     String tempRoot = options.as(TestPipelineOptions.class).getTempRoot();

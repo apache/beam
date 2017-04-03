@@ -69,6 +69,7 @@ class common_job_properties {
         branch('${sha1}')
         extensions {
           cleanAfterCheckout()
+          pruneBranches()
         }
       }
     }
@@ -205,7 +206,8 @@ class common_job_properties {
   static void setPostCommit(context,
                             String buildSchedule = '0 */6 * * *',
                             boolean triggerEveryPush = true,
-                            String notifyAddress = 'commits@beam.apache.org') {
+                            String notifyAddress = 'commits@beam.apache.org',
+                            boolean emailIndividuals = true) {
     // Set build triggers
     context.triggers {
       // By default runs every 6 hours.
@@ -217,7 +219,43 @@ class common_job_properties {
 
     context.publishers {
       // Notify an email address for each failed build (defaults to commits@).
-      mailer(notifyAddress, false, true)
+      mailer(notifyAddress, false, emailIndividuals)
+    }
+  }
+
+  // Configures the argument list for performance tests, adding the standard
+  // performance test job arguments.
+  private static def genPerformanceArgs(def argMap) {
+    def standard_args = [
+      project: 'apache-beam-testing',
+      dpb_log_level: 'INFO',
+      maven_binary: '/home/jenkins/tools/maven/latest/bin/mvn',
+      bigquery_table: 'beam_performance.pkb_results',
+      // Publishes results with official tag, for use in dashboards.
+      official: 'true'
+    ]
+    // Note: in case of key collision, keys present in ArgMap win.
+    def joined_args = standard_args.plus(argMap)
+    def argList = []
+    joined_args.each({
+        // FYI: Replacement only works with double quotes.
+        key, value -> argList.add("--$key=$value")
+    })
+    return argList.join(' ')
+  }
+
+  // Adds the standard performance test job steps.
+  static def buildPerformanceTest(def context, def argMap) {
+    def pkbArgs = genPerformanceArgs(argMap)
+    context.steps {
+        // Clean up environment.
+        shell('rm -rf PerfKitBenchmarker')
+        // Clone appropriate perfkit branch
+        shell('git clone https://github.com/GoogleCloudPlatform/PerfKitBenchmarker.git')
+        // Install job requirements.
+        shell('pip install --user -r PerfKitBenchmarker/requirements.txt')
+        // Launch performance test.
+        shell("python PerfKitBenchmarker/pkb.py $pkbArgs")
     }
   }
 }

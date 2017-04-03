@@ -106,7 +106,7 @@ def str_compare(s1, s2):
 def get_datastore(project):
   """Returns a Cloud Datastore client."""
   credentials = auth.get_service_credentials()
-  return Datastore(project, credentials)
+  return Datastore(project, credentials, host='batch-datastore.googleapis.com')
 
 
 def make_request(project, namespace, query):

@@ -43,6 +43,7 @@ import org.apache.beam.sdk.transforms.display.HasDisplayData;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
+import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.util.TimeDomain;
 import org.apache.beam.sdk.util.Timer;
 import org.apache.beam.sdk.util.TimerSpec;
@@ -159,7 +160,7 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
      * <p>Once passed to {@code sideOutput} the element should not be modified
      * in any way.
      *
-     * <p>The caller of {@code ParDo} uses {@link ParDo#withOutputTags} to
+     * <p>The caller of {@code ParDo} uses {@link ParDo.SingleOutput#withOutputTags} to
      * specify the tags of side outputs that it consumes. Non-consumed side
      * outputs, e.g., outputs for monitoring purposes only, don't necessarily
      * need to be specified.
@@ -178,7 +179,7 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
      * <p><i>Note:</i> A splittable {@link DoFn} is not allowed to output from
      * {@link StartBundle} or {@link FinishBundle} methods.
      *
-     * @see ParDo#withOutputTags
+     * @see ParDo.SingleOutput#withOutputTags
      */
     public abstract <T> void sideOutput(TupleTag<T> tag, T output);
 
@@ -205,7 +206,7 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
      * <p><i>Note:</i> A splittable {@link DoFn} is not allowed to output from
      * {@link StartBundle} or {@link FinishBundle} methods.
      *
-     * @see ParDo#withOutputTags
+     * @see ParDo.SingleOutput#withOutputTags
      */
     public abstract <T> void sideOutputWithTimestamp(
         TupleTag<T> tag, T output, Instant timestamp);
@@ -271,15 +272,14 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
      * Returns the value of the side input.
      *
      * @throws IllegalArgumentException if this is not a side input
-     * @see ParDo#withSideInputs
+     * @see ParDo.SingleOutput#withSideInputs
      */
     public abstract <T> T sideInput(PCollectionView<T> view);
 
     /**
      * Returns the timestamp of the input element.
      *
-     * <p>See {@link org.apache.beam.sdk.transforms.windowing.Window}
-     * for more information.
+     * <p>See {@link Window} for more information.
      */
     public abstract Instant timestamp();
 
@@ -289,8 +289,7 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
      *
      * <p>Generally all data is in a single, uninteresting pane unless custom
      * triggering and/or late data has been explicitly requested.
-     * See {@link org.apache.beam.sdk.transforms.windowing.Window}
-     * for more information.
+     * See {@link Window} for more information.
      */
     public abstract PaneInfo pane();
   }
@@ -317,14 +316,20 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
   }
 
   /**
-   * Returns the allowed timestamp skew duration, which is the maximum
-   * duration that timestamps can be shifted backward in
-   * {@link DoFn.Context#outputWithTimestamp}.
+   * Returns the allowed timestamp skew duration, which is the maximum duration that timestamps can
+   * be shifted backward in {@link DoFn.Context#outputWithTimestamp}.
    *
-   * <p>The default value is {@code Duration.ZERO}, in which case
-   * timestamps can only be shifted forward to future.  For infinite
-   * skew, return {@code Duration.millis(Long.MAX_VALUE)}.
+   * <p>The default value is {@code Duration.ZERO}, in which case timestamps can only be shifted
+   * forward to future. For infinite skew, return {@code Duration.millis(Long.MAX_VALUE)}.
+   *
+   * @deprecated This method permits a {@link DoFn} to emit elements behind the watermark. These
+   *     elements are considered late, and if behind the
+   *     {@link Window#withAllowedLateness(Duration) allowed lateness} of a downstream
+   *     {@link PCollection} may be silently dropped. See
+   *     https://issues.apache.org/jira/browse/BEAM-644 for details on a replacement.
+   *
    */
+  @Deprecated
   public Duration getAllowedTimestampSkew() {
     return Duration.ZERO;
   }
@@ -377,9 +382,6 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
   /**
    * Annotation for declaring and dereferencing state cells.
    *
-   * <p><i>Not currently supported by any runner. When ready, the feature will work as described
-   * here.</i>
-   *
    * <p>To declare a state cell, create a field of type {@link StateSpec} annotated with a {@link
    * StateId}. To use the cell during processing, add a parameter of the appropriate {@link State}
    * subclass to your {@link ProcessElement @ProcessElement} or {@link OnTimer @OnTimer} method, and
@@ -420,9 +422,6 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
 
   /**
    * Annotation for declaring and dereferencing timers.
-   *
-   * <p><i>Not currently supported by any runner. When ready, the feature will work as described
-   * here.</i>
    *
    * <p>To declare a timer, create a field of type {@link TimerSpec} annotated with a {@link
    * TimerId}. To use the cell during processing, add a parameter of the type {@link Timer} to your
@@ -467,9 +466,6 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
 
   /**
    * Annotation for registering a callback for a timer.
-   *
-   * <p><i>Not currently supported by any runner. When ready, the feature will work as described
-   * here.</i>
    *
    * <p>See the javadoc for {@link TimerId} for use in a full example.
    *

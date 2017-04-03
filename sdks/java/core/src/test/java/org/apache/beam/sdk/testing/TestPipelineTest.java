@@ -271,21 +271,21 @@ public class TestPipelineTest implements Serializable {
       @Rule
       public final transient RuleChain chain = RuleChain.outerRule(exception).around(pipeline);
 
-      @Category(RunnableOnService.class)
+      @Category(ValidatesRunner.class)
       @Test
       public void testNormalFlow() throws Exception {
         addTransform(pCollection(pipeline));
         pipeline.run();
       }
 
-      @Category(RunnableOnService.class)
+      @Category(ValidatesRunner.class)
       @Test
       public void testMissingRun() throws Exception {
         exception.expect(TestPipeline.PipelineRunMissingException.class);
         addTransform(pCollection(pipeline));
       }
 
-      @Category(RunnableOnService.class)
+      @Category(ValidatesRunner.class)
       @Test
       public void testMissingRunWithDisabledEnforcement() throws Exception {
         pipeline.enableAbandonedNodeEnforcement(false);
@@ -294,7 +294,7 @@ public class TestPipelineTest implements Serializable {
         // disable abandoned node detection
       }
 
-      @Category(RunnableOnService.class)
+      @Category(ValidatesRunner.class)
       @Test
       public void testMissingRunAutoAdd() throws Exception {
         pipeline.enableAutoRunIfMissing(true);
@@ -303,9 +303,9 @@ public class TestPipelineTest implements Serializable {
         // have the pipeline.run() auto-added
       }
 
-      @Category(RunnableOnService.class)
+      @Category(ValidatesRunner.class)
       @Test
-      public void testDanglingPTransformRunnableOnService() throws Exception {
+      public void testDanglingPTransformValidatesRunner() throws Exception {
         final PCollection<String> pCollection = pCollection(pipeline);
         PAssert.that(pCollection).containsInAnyOrder(WHATEVER);
         pipeline.run().waitUntilFinish();
@@ -329,9 +329,9 @@ public class TestPipelineTest implements Serializable {
         addTransform(pCollection);
       }
 
-      @Category(RunnableOnService.class)
+      @Category(ValidatesRunner.class)
       @Test
-      public void testDanglingPAssertRunnableOnService() throws Exception {
+      public void testDanglingPAssertValidatesRunner() throws Exception {
         final PCollection<String> pCollection = pCollection(pipeline);
         PAssert.that(pCollection).containsInAnyOrder(WHATEVER);
         pipeline.run().waitUntilFinish();
@@ -344,11 +344,11 @@ public class TestPipelineTest implements Serializable {
 
       /**
        * Tests that a {@link TestPipeline} rule behaves as expected when there is no pipeline usage
-       * within a test that has a {@link RunnableOnService} annotation.
+       * within a test that has a {@link ValidatesRunner} annotation.
        */
-      @Category(RunnableOnService.class)
+      @Category(ValidatesRunner.class)
       @Test
-      public void testNoTestPipelineUsedRunnableOnService() {}
+      public void testNoTestPipelineUsedValidatesRunner() {}
 
       /**
        * Tests that a {@link TestPipeline} rule behaves as expected when there is no pipeline usage
@@ -381,7 +381,7 @@ public class TestPipelineTest implements Serializable {
         addTransform(pCollection(pipeline));
 
         // pipeline.run() is missing, BUT:
-        // 1. Neither @RunnableOnService nor @NeedsRunner are present, AND
+        // 1. Neither @ValidatesRunner nor @NeedsRunner are present, AND
         // 2. The runner class is CrashingRunner.class
         // (1) + (2) => we assume this pipeline was never meant to be run, so no exception is
         // thrown on account of the missing run / dangling nodes.

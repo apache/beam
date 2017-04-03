@@ -59,7 +59,7 @@ class FlinkStreamingViewOverrides {
     public PCollectionView<Map<K, V>> expand(PCollection<KV<K, V>> input) {
       PCollectionView<Map<K, V>> view =
           PCollectionViews.mapView(
-              input.getPipeline(),
+              input,
               input.getWindowingStrategy(),
               input.getCoder());
 
@@ -104,7 +104,7 @@ class FlinkStreamingViewOverrides {
     public PCollectionView<Map<K, Iterable<V>>> expand(PCollection<KV<K, V>> input) {
       PCollectionView<Map<K, Iterable<V>>> view =
           PCollectionViews.multimapView(
-              input.getPipeline(),
+              input,
               input.getWindowingStrategy(),
               input.getCoder());
 
@@ -144,7 +144,7 @@ class FlinkStreamingViewOverrides {
     public PCollectionView<List<T>> expand(PCollection<T> input) {
       PCollectionView<List<T>> view =
           PCollectionViews.listView(
-              input.getPipeline(),
+              input,
               input.getWindowingStrategy(),
               input.getCoder());
 
@@ -175,7 +175,7 @@ class FlinkStreamingViewOverrides {
     public PCollectionView<Iterable<T>> expand(PCollection<T> input) {
       PCollectionView<Iterable<T>> view =
           PCollectionViews.iterableView(
-              input.getPipeline(),
+              input,
               input.getWindowingStrategy(),
               input.getCoder());
 
@@ -272,7 +272,7 @@ class FlinkStreamingViewOverrides {
               .withFanout(transform.getFanout()));
 
       PCollectionView<OutputT> view = PCollectionViews.singletonView(
-          combined.getPipeline(),
+          combined,
           combined.getWindowingStrategy(),
           transform.getInsertDefault(),
           transform.getInsertDefault()

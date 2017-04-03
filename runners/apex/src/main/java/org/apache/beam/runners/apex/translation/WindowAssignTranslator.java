@@ -35,7 +35,7 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 
 /**
- * {@link Window.Bound} is translated to {link ApexParDoOperator} that wraps an {@link
+ * {@link Window} is translated to {link ApexParDoOperator} that wraps an {@link
  * AssignWindowsDoFn}.
  */
 class WindowAssignTranslator<T> implements TransformTranslator<Window.Assign<T>> {

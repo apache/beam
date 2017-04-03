@@ -87,7 +87,7 @@ public class BatchStatefulParDoOverridesTest implements Serializable {
     DummyStatefulDoFn fn = new DummyStatefulDoFn();
     pipeline
         .apply(Create.of(KV.of(1, 2)))
-        .apply(ParDo.withOutputTags(mainOutputTag, TupleTagList.empty()).of(fn));
+        .apply(ParDo.of(fn).withOutputTags(mainOutputTag, TupleTagList.empty()));
 
     DataflowRunner runner = DataflowRunner.fromOptions(options);
     runner.replaceTransforms(pipeline);

@@ -19,15 +19,15 @@
 package org.apache.beam.runners.spark.metrics;
 
 import com.google.common.base.Function;
-import com.google.common.base.Objects;
 import com.google.common.base.Predicate;
 import com.google.common.collect.FluentIterable;
-import java.util.Set;
 import org.apache.beam.sdk.metrics.DistributionData;
 import org.apache.beam.sdk.metrics.DistributionResult;
+import org.apache.beam.sdk.metrics.GaugeData;
+import org.apache.beam.sdk.metrics.GaugeResult;
+import org.apache.beam.sdk.metrics.MetricFiltering;
 import org.apache.beam.sdk.metrics.MetricKey;
 import org.apache.beam.sdk.metrics.MetricName;
-import org.apache.beam.sdk.metrics.MetricNameFilter;
 import org.apache.beam.sdk.metrics.MetricQueryResults;
 import org.apache.beam.sdk.metrics.MetricResult;
 import org.apache.beam.sdk.metrics.MetricResults;
@@ -72,47 +72,23 @@ public class SparkMetricResults extends MetricResults {
               .toList();
     }
 
+    @Override
+    public Iterable<MetricResult<GaugeResult>> gauges() {
+      return
+          FluentIterable
+              .from(SparkMetricsContainer.getGauges())
+              .filter(matchesFilter(filter))
+              .transform(TO_GAUGE_RESULT)
+              .toList();
+    }
+
     private Predicate<MetricUpdate<?>> matchesFilter(final MetricsFilter filter) {
       return new Predicate<MetricUpdate<?>>() {
         @Override
         public boolean apply(MetricUpdate<?> metricResult) {
-          return matches(filter, metricResult.getKey());
+          return MetricFiltering.matches(filter, metricResult.getKey());
         }
       };
-    }
-
-    private boolean matches(MetricsFilter filter, MetricKey key) {
-      return matchesName(key.metricName(), filter.names())
-          && matchesScope(key.stepName(), filter.steps());
-    }
-
-    private boolean matchesName(MetricName metricName, Set<MetricNameFilter> nameFilters) {
-      if (nameFilters.isEmpty()) {
-        return true;
-      }
-
-      for (MetricNameFilter nameFilter : nameFilters) {
-        if ((nameFilter.getName() == null || nameFilter.getName().equals(metricName.name()))
-            && Objects.equal(metricName.namespace(), nameFilter.getNamespace())) {
-          return true;
-        }
-      }
-
-      return false;
-    }
-
-    private boolean matchesScope(String actualScope, Set<String> scopes) {
-      if (scopes.isEmpty() || scopes.contains(actualScope)) {
-        return true;
-      }
-
-      for (String scope : scopes) {
-        if (actualScope.startsWith(scope)) {
-          return true;
-        }
-      }
-
-      return false;
     }
   }
 
@@ -140,6 +116,21 @@ public class SparkMetricResults extends MetricResults {
             MetricKey key = metricResult.getKey();
             return new SparkMetricResult<>(key.metricName(), key.stepName(),
                 metricResult.getUpdate());
+          } else {
+            return null;
+          }
+        }
+      };
+
+  private static final Function<MetricUpdate<GaugeData>, MetricResult<GaugeResult>>
+      TO_GAUGE_RESULT =
+      new Function<MetricUpdate<GaugeData>, MetricResult<GaugeResult>>() {
+        @Override
+        public MetricResult<GaugeResult> apply(MetricUpdate<GaugeData> metricResult) {
+          if (metricResult != null) {
+            MetricKey key = metricResult.getKey();
+            return new SparkMetricResult<>(key.metricName(), key.stepName(),
+                metricResult.getUpdate().extractResult());
           } else {
             return null;
           }

@@ -118,8 +118,8 @@ public class WriteTest {
           };
 
   private static class WindowAndReshuffle<T> extends PTransform<PCollection<T>, PCollection<T>> {
-    private final Window.Bound<T> window;
-    public WindowAndReshuffle(Window.Bound<T> window) {
+    private final Window<T> window;
+    public WindowAndReshuffle(Window<T> window) {
       this.window = window;
     }
 

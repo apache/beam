@@ -112,8 +112,7 @@ class FlinkBatchTransformTranslators {
 
     TRANSLATORS.put(Window.Assign.class, new WindowAssignTranslatorBatch());
 
-    TRANSLATORS.put(ParDo.Bound.class, new ParDoBoundTranslatorBatch());
-    TRANSLATORS.put(ParDo.BoundMulti.class, new ParDoBoundMultiTranslatorBatch());
+    TRANSLATORS.put(ParDo.MultiOutput.class, new ParDoTranslatorBatch());
 
     TRANSLATORS.put(Read.Bounded.class, new ReadSourceTranslatorBatch());
   }
@@ -498,87 +497,14 @@ class FlinkBatchTransformTranslators {
     }
   }
 
-  private static class ParDoBoundTranslatorBatch<InputT, OutputT>
+  private static class ParDoTranslatorBatch<InputT, OutputT>
       implements FlinkBatchPipelineTranslator.BatchTransformTranslator<
-          ParDo.Bound<InputT, OutputT>> {
+      ParDo.MultiOutput<InputT, OutputT>> {
 
     @Override
     @SuppressWarnings("unchecked")
     public void translateNode(
-        ParDo.Bound<InputT, OutputT> transform,
-
-        FlinkBatchTranslationContext context) {
-      DoFn<InputT, OutputT> doFn = transform.getFn();
-      rejectSplittable(doFn);
-
-      DataSet<WindowedValue<InputT>> inputDataSet =
-          context.getInputDataSet(context.getInput(transform));
-
-      TypeInformation<WindowedValue<OutputT>> typeInformation =
-          context.getTypeInfo(context.getOutput(transform));
-
-      List<PCollectionView<?>> sideInputs = transform.getSideInputs();
-
-      // construct a map from side input to WindowingStrategy so that
-      // the DoFn runner can map main-input windows to side input windows
-      Map<PCollectionView<?>, WindowingStrategy<?, ?>> sideInputStrategies = new HashMap<>();
-      for (PCollectionView<?> sideInput: sideInputs) {
-        sideInputStrategies.put(sideInput, sideInput.getWindowingStrategyInternal());
-      }
-
-      WindowingStrategy<?, ?> windowingStrategy =
-          context.getOutput(transform).getWindowingStrategy();
-
-      SingleInputUdfOperator<WindowedValue<InputT>, WindowedValue<OutputT>, ?> outputDataSet;
-      DoFnSignature signature = DoFnSignatures.getSignature(transform.getFn().getClass());
-      if (signature.stateDeclarations().size() > 0
-          || signature.timerDeclarations().size() > 0) {
-
-        // Based on the fact that the signature is stateful, DoFnSignatures ensures
-        // that it is also keyed
-        KvCoder<?, InputT> inputCoder =
-            (KvCoder<?, InputT>) context.getInput(transform).getCoder();
-
-        FlinkStatefulDoFnFunction<?, ?, OutputT> doFnWrapper = new FlinkStatefulDoFnFunction<>(
-            (DoFn) doFn, windowingStrategy, sideInputStrategies, context.getPipelineOptions(),
-            null, new TupleTag<OutputT>()
-        );
-
-        Grouping<WindowedValue<InputT>> grouping =
-            inputDataSet.groupBy(new KvKeySelector(inputCoder.getKeyCoder()));
-
-        outputDataSet = new GroupReduceOperator(
-            grouping, typeInformation, doFnWrapper, transform.getName());
-
-      } else {
-        FlinkDoFnFunction<InputT, OutputT> doFnWrapper =
-            new FlinkDoFnFunction<>(
-                doFn,
-                windowingStrategy,
-                sideInputStrategies,
-                context.getPipelineOptions(),
-                null, new TupleTag<OutputT>());
-
-        outputDataSet = new MapPartitionOperator<>(inputDataSet, typeInformation, doFnWrapper,
-            transform.getName());
-
-      }
-
-      transformSideInputs(sideInputs, outputDataSet, context);
-
-      context.setOutputDataSet(context.getOutput(transform), outputDataSet);
-
-    }
-  }
-
-  private static class ParDoBoundMultiTranslatorBatch<InputT, OutputT>
-      implements FlinkBatchPipelineTranslator.BatchTransformTranslator<
-          ParDo.BoundMulti<InputT, OutputT>> {
-
-    @Override
-    @SuppressWarnings("unchecked")
-    public void translateNode(
-        ParDo.BoundMulti<InputT, OutputT> transform,
+        ParDo.MultiOutput<InputT, OutputT> transform,
         FlinkBatchTranslationContext context) {
       DoFn<InputT, OutputT> doFn = transform.getFn();
       rejectSplittable(doFn);

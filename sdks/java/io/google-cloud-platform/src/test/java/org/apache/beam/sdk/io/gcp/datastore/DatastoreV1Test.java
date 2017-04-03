@@ -87,8 +87,8 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
-import org.apache.beam.sdk.testing.RunnableOnService;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.DoFnTester;
 import org.apache.beam.sdk.transforms.DoFnTester.CloningBehavior;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -272,23 +272,19 @@ public class DatastoreV1Test {
   @Test
   public void testSourcePrimitiveDisplayData() {
     DisplayDataEvaluator evaluator = DisplayDataEvaluator.create();
-    PTransform<PBegin, PCollection<Entity>> read = DatastoreIO.v1().read().withProjectId(
-        "myProject").withQuery(Query.newBuilder().build());
+    int numSplits = 98;
+    PTransform<PBegin, PCollection<Entity>> read =
+        DatastoreIO.v1().read()
+            .withProjectId(PROJECT_ID)
+            .withQuery(Query.newBuilder().build())
+            .withNumQuerySplits(numSplits);
 
+    String assertMessage = "DatastoreIO read should include the '%s' in its primitive display data";
     Set<DisplayData> displayData = evaluator.displayDataForPrimitiveSourceTransforms(read);
-    assertThat("DatastoreIO read should include the project in its primitive display data",
-        displayData, hasItem(hasDisplayItem("projectId")));
-  }
-
-  @Test
-  public void testSourcePrimitiveDisplayDataWithGqlQuery() {
-    DisplayDataEvaluator evaluator = DisplayDataEvaluator.create();
-    PTransform<PBegin, PCollection<Entity>> read = DatastoreIO.v1().read().withProjectId(
-        "myProject").withLiteralGqlQuery(GQL_QUERY);
-
-    Set<DisplayData> displayData = evaluator.displayDataForPrimitiveSourceTransforms(read);
-    assertThat("DatastoreIO read should include the project in its primitive display data",
-        displayData, hasItem(hasDisplayItem("projectId")));
+    assertThat(String.format(assertMessage, "project id"),
+        displayData, hasItem(hasDisplayItem("projectId", PROJECT_ID)));
+    assertThat(String.format(assertMessage, "number of query splits"),
+        displayData, hasItem(hasDisplayItem("numQuerySplits", numSplits)));
   }
 
   @Test
@@ -429,7 +425,7 @@ public class DatastoreV1Test {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testWritePrimitiveDisplayData() {
     DisplayDataEvaluator evaluator = DisplayDataEvaluator.create();
     PTransform<PCollection<Entity>, ?> write =
@@ -443,7 +439,7 @@ public class DatastoreV1Test {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testDeleteEntityPrimitiveDisplayData() {
     DisplayDataEvaluator evaluator = DisplayDataEvaluator.create();
     PTransform<PCollection<Entity>, ?> write =
@@ -457,7 +453,7 @@ public class DatastoreV1Test {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testDeleteKeyPrimitiveDisplayData() {
     DisplayDataEvaluator evaluator = DisplayDataEvaluator.create();
     PTransform<PCollection<Key>, ?> write =

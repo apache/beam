@@ -24,6 +24,7 @@ import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertThat;
 
 import com.google.common.base.MoreObjects;
+import com.google.common.collect.ImmutableList;
 import java.io.Serializable;
 import java.util.Collections;
 import org.apache.beam.sdk.coders.VarIntCoder;
@@ -91,7 +92,7 @@ public class PTransformMatchersTest implements Serializable {
 
   @Test
   public void classEqualToMatchesSameClass() {
-    PTransformMatcher matcher = PTransformMatchers.classEqualTo(ParDo.Bound.class);
+    PTransformMatcher matcher = PTransformMatchers.classEqualTo(ParDo.SingleOutput.class);
     AppliedPTransform<?, ?, ?> application =
         getAppliedTransform(
             ParDo.of(
@@ -126,7 +127,7 @@ public class PTransformMatchersTest implements Serializable {
 
   @Test
   public void classEqualToDoesNotMatchUnrelatedClass() {
-    PTransformMatcher matcher = PTransformMatchers.classEqualTo(ParDo.Bound.class);
+    PTransformMatcher matcher = PTransformMatchers.classEqualTo(ParDo.SingleOutput.class);
     AppliedPTransform<?, ?, ?> application =
         getAppliedTransform(Window.<KV<String, Integer>>into(new GlobalWindows()));
 
@@ -191,7 +192,7 @@ public class PTransformMatchersTest implements Serializable {
       };
 
   /**
-   * Demonstrates that a {@link ParDo.Bound} does not match any ParDo matcher.
+   * Demonstrates that a {@link ParDo.SingleOutput} does not match any ParDo matcher.
    */
   @Test
   public void parDoSingle() {
@@ -383,6 +384,72 @@ public class PTransformMatchersTest implements Serializable {
                     p);
 
     assertThat(PTransformMatchers.emptyFlatten().matches(application), is(false));
+  }
+
+  @Test
+  public void flattenWithDuplicateInputsWithoutDuplicates() {
+    AppliedPTransform application =
+        AppliedPTransform
+            .<PCollectionList<Object>, PCollection<Object>, Flatten.PCollections<Object>>
+                of(
+                "Flatten",
+                Collections.singletonList(
+                    TaggedPValue.of(
+                        new TupleTag<Object>(),
+                        PCollection.createPrimitiveOutputInternal(
+                            p, WindowingStrategy.globalDefault(), IsBounded.BOUNDED))),
+                Collections.singletonList(
+                    TaggedPValue.of(
+                        new TupleTag<Object>(),
+                        PCollection.createPrimitiveOutputInternal(
+                            p, WindowingStrategy.globalDefault(), IsBounded.BOUNDED))),
+                Flatten.pCollections(),
+                p);
+
+    assertThat(PTransformMatchers.flattenWithDuplicateInputs().matches(application), is(false));
+  }
+
+  @Test
+  public void flattenWithDuplicateInputsWithDuplicates() {
+    PCollection<Object> duplicate = PCollection.createPrimitiveOutputInternal(p,
+        WindowingStrategy.globalDefault(),
+        IsBounded.BOUNDED);
+    AppliedPTransform application =
+        AppliedPTransform
+            .<PCollectionList<Object>, PCollection<Object>, Flatten.PCollections<Object>>of(
+                "Flatten",
+                ImmutableList.of(
+                    TaggedPValue.of(new TupleTag<Object>(), duplicate),
+                    TaggedPValue.of(new TupleTag<Object>(), duplicate)),
+                Collections.singletonList(
+                    TaggedPValue.of(
+                        new TupleTag<Object>(),
+                        PCollection.createPrimitiveOutputInternal(
+                            p, WindowingStrategy.globalDefault(), IsBounded.BOUNDED))),
+                Flatten.pCollections(),
+                p);
+
+    assertThat(PTransformMatchers.flattenWithDuplicateInputs().matches(application), is(true));
+  }
+
+  @Test
+  public void flattenWithDuplicateInputsNonFlatten() {
+    AppliedPTransform application =
+        AppliedPTransform
+            .<PCollection<Iterable<Object>>, PCollection<Object>, Flatten.Iterables<Object>>
+                of(
+                "EmptyFlatten",
+                Collections.<TaggedPValue>emptyList(),
+                Collections.singletonList(
+                    TaggedPValue.of(
+                        new TupleTag<Object>(),
+                        PCollection.createPrimitiveOutputInternal(
+                            p, WindowingStrategy.globalDefault(), IsBounded.BOUNDED))),
+                Flatten.iterables() /* This isn't actually possible to construct,
+                                 * but for the sake of example */,
+                p);
+
+    assertThat(PTransformMatchers.flattenWithDuplicateInputs().matches(application), is(false));
   }
 
   @Test

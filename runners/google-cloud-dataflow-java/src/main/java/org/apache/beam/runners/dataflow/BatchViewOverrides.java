@@ -42,6 +42,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import org.apache.beam.runners.core.construction.SingleInputOutputOverrideFactory;
 import org.apache.beam.runners.dataflow.internal.IsmFormat;
 import org.apache.beam.runners.dataflow.internal.IsmFormat.IsmRecord;
 import org.apache.beam.runners.dataflow.internal.IsmFormat.IsmRecordCoder;
@@ -58,12 +59,16 @@ import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.coders.StandardCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
+import org.apache.beam.sdk.transforms.Combine;
+import org.apache.beam.sdk.transforms.Combine.GloballyAsSingletonView;
+import org.apache.beam.sdk.transforms.CombineFnBase.GlobalCombineFn;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.View;
+import org.apache.beam.sdk.transforms.View.AsSingleton;
 import org.apache.beam.sdk.transforms.View.CreatePCollectionView;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
@@ -209,7 +214,7 @@ class BatchViewOverrides {
       KvCoder<K, V> inputCoder = (KvCoder) input.getCoder();
       try {
         PCollectionView<Map<K, V>> view = PCollectionViews.mapView(
-            input.getPipeline(), input.getWindowingStrategy(), inputCoder);
+            input, input.getWindowingStrategy(), inputCoder);
         return BatchViewAsMultimap.applyForMapLike(runner, input, view, true /* unique keys */);
       } catch (NonDeterministicException e) {
         runner.recordViewUsesNonDeterministicKeyCoder(this);
@@ -696,7 +701,7 @@ class BatchViewOverrides {
       KvCoder<K, V> inputCoder = (KvCoder) input.getCoder();
       try {
         PCollectionView<Map<K, Iterable<V>>> view = PCollectionViews.multimapView(
-            input.getPipeline(), input.getWindowingStrategy(), inputCoder);
+            input, input.getWindowingStrategy(), inputCoder);
 
         return applyForMapLike(runner, input, view, false /* unique keys not expected */);
       } catch (NonDeterministicException e) {
@@ -826,7 +831,7 @@ class BatchViewOverrides {
 
       return Pipeline.applyTransform(outputs,
           Flatten.<IsmRecord<WindowedValue<V>>>pCollections())
-          .apply(CreatePCollectionView.<IsmRecord<WindowedValue<V>>,
+          .apply(CreateDataflowView.<IsmRecord<WindowedValue<V>>,
               ViewT>of(view));
     }
 
@@ -954,7 +959,7 @@ class BatchViewOverrides {
       @SuppressWarnings({"rawtypes", "unchecked"})
       PCollectionView<ViewT> view =
           (PCollectionView<ViewT>) PCollectionViews.<FinalT, W>singletonView(
-              input.getPipeline(),
+              (PCollection) input,
               (WindowingStrategy) input.getWindowingStrategy(),
               hasDefault,
               defaultValue,
@@ -970,7 +975,7 @@ class BatchViewOverrides {
 
       runner.addPCollectionRequiringIndexedFormat(reifiedPerWindowAndSorted);
       return reifiedPerWindowAndSorted.apply(
-          CreatePCollectionView.<IsmRecord<WindowedValue<FinalT>>, ViewT>of(view));
+          CreateDataflowView.<IsmRecord<WindowedValue<FinalT>>, ViewT>of(view));
     }
 
     @Override
@@ -1087,7 +1092,7 @@ class BatchViewOverrides {
     @Override
     public PCollectionView<List<T>> expand(PCollection<T> input) {
       PCollectionView<List<T>> view = PCollectionViews.listView(
-          input.getPipeline(), input.getWindowingStrategy(), input.getCoder());
+          input, input.getWindowingStrategy(), input.getCoder());
       return applyForIterableLike(runner, input, view);
     }
 
@@ -1114,7 +1119,7 @@ class BatchViewOverrides {
 
         runner.addPCollectionRequiringIndexedFormat(reifiedPerWindowAndSorted);
         return reifiedPerWindowAndSorted.apply(
-            CreatePCollectionView.<IsmRecord<WindowedValue<T>>, ViewT>of(view));
+            CreateDataflowView.<IsmRecord<WindowedValue<T>>, ViewT>of(view));
       }
 
       PCollection<IsmRecord<WindowedValue<T>>> reifiedPerWindowAndSorted = input
@@ -1124,7 +1129,7 @@ class BatchViewOverrides {
 
       runner.addPCollectionRequiringIndexedFormat(reifiedPerWindowAndSorted);
       return reifiedPerWindowAndSorted.apply(
-          CreatePCollectionView.<IsmRecord<WindowedValue<T>>, ViewT>of(view));
+          CreateDataflowView.<IsmRecord<WindowedValue<T>>, ViewT>of(view));
     }
 
     @Override
@@ -1172,7 +1177,7 @@ class BatchViewOverrides {
     @Override
     public PCollectionView<Iterable<T>> expand(PCollection<T> input) {
       PCollectionView<Iterable<T>> view = PCollectionViews.iterableView(
-          input.getPipeline(), input.getWindowingStrategy(), input.getCoder());
+          input, input.getWindowingStrategy(), input.getCoder());
       return BatchViewAsList.applyForIterableLike(runner, input, view);
     }
   }
@@ -1388,4 +1393,51 @@ class BatchViewOverrides {
     }
   }
 
+  static class BatchCombineGloballyAsSingletonViewFactory<ElemT, ViewT>
+      extends SingleInputOutputOverrideFactory<
+          PCollection<ElemT>, PCollectionView<ViewT>,
+          Combine.GloballyAsSingletonView<ElemT, ViewT>> {
+    private final DataflowRunner runner;
+
+    BatchCombineGloballyAsSingletonViewFactory(DataflowRunner runner) {
+      this.runner = runner;
+    }
+
+    @Override
+    public PTransform<PCollection<ElemT>, PCollectionView<ViewT>> getReplacementTransform(
+        final GloballyAsSingletonView<ElemT, ViewT> transform) {
+      return new BatchCombineGloballyAsSingletonView<>(
+          runner, transform.getCombineFn(), transform.getFanout(), transform.getInsertDefault());
+    }
+
+    private static class BatchCombineGloballyAsSingletonView<ElemT, ViewT>
+        extends PTransform<PCollection<ElemT>, PCollectionView<ViewT>> {
+      private final DataflowRunner runner;
+      private final GlobalCombineFn<? super ElemT, ?, ViewT> combineFn;
+      private final int fanout;
+      private final boolean insertDefault;
+
+      BatchCombineGloballyAsSingletonView(
+          DataflowRunner runner,
+          GlobalCombineFn<? super ElemT, ?, ViewT> combineFn,
+          int fanout,
+          boolean insertDefault) {
+        this.runner = runner;
+        this.combineFn = combineFn;
+        this.fanout = fanout;
+        this.insertDefault = insertDefault;
+      }
+
+      @Override
+      public PCollectionView<ViewT> expand(PCollection<ElemT> input) {
+        PCollection<ViewT> combined =
+            input.apply(Combine.globally(combineFn).withoutDefaults().withFanout(fanout));
+        AsSingleton<ViewT> viewAsSingleton = View.asSingleton();
+        if (insertDefault) {
+          viewAsSingleton.withDefaultValue(combineFn.defaultValue());
+        }
+        return combined.apply(new BatchViewAsSingleton<>(runner, viewAsSingleton));
+      }
+    }
+  }
 }

@@ -27,8 +27,8 @@ import static org.junit.Assert.assertThat;
 import java.util.Set;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
-import org.apache.beam.sdk.testing.RunnableOnService;
 import org.apache.beam.sdk.testing.UsesUnboundedPCollections;
+import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.DisplayDataEvaluator;
 import org.joda.time.Duration;
@@ -150,7 +150,7 @@ public class PubsubIOTest {
   }
 
   @Test
-  @Category({RunnableOnService.class, UsesUnboundedPCollections.class})
+  @Category({ValidatesRunner.class, UsesUnboundedPCollections.class})
   public void testPrimitiveReadDisplayData() {
     DisplayDataEvaluator evaluator = DisplayDataEvaluator.create();
     Set<DisplayData> displayData;
@@ -185,7 +185,7 @@ public class PubsubIOTest {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testPrimitiveWriteDisplayData() {
     DisplayDataEvaluator evaluator = DisplayDataEvaluator.create();
     PubsubIO.Write<?> write = PubsubIO.<String>write().topic("projects/project/topics/topic");
