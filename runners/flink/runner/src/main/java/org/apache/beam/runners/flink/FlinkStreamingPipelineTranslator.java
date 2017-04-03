@@ -22,17 +22,18 @@ import com.google.common.collect.Iterables;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.runners.core.SplittableParDo;
-import java.util.List;
 import org.apache.beam.runners.core.construction.PTransformMatchers;
 import org.apache.beam.runners.core.construction.ReplacementOutputs;
 import org.apache.beam.runners.core.construction.SingleInputOutputOverrideFactory;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.runners.PTransformOverride;
+import org.apache.beam.sdk.runners.PTransformOverrideFactory;
 import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.ParDo.MultiOutput;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.util.InstanceBuilder;
 import org.apache.beam.sdk.values.PCollection;
@@ -249,7 +250,7 @@ class FlinkStreamingPipelineTranslator extends FlinkPipelineTranslator {
    */
   static class SplittableParDoOverrideFactory<InputT, OutputT>
       implements PTransformOverrideFactory<
-      PCollection<? extends InputT>, PCollectionTuple, ParDo.MultiOutput<InputT, OutputT>> {
+            PCollection<? extends InputT>, PCollectionTuple, MultiOutput<InputT, OutputT>> {
     @Override
     @SuppressWarnings("unchecked")
     public PTransform<PCollection<? extends InputT>, PCollectionTuple> getReplacementTransform(
