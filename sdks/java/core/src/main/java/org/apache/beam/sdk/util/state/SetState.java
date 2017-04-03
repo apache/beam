@@ -23,7 +23,7 @@ package org.apache.beam.sdk.util.state;
  *
  * @param <T> The type of elements in the set.
  */
-public interface SetState<T> extends CombiningState<T, Iterable<T>> {
+public interface SetState<T> extends GroupingState<T, Iterable<T>> {
   /**
    * Returns true if this set contains the specified element.
    */

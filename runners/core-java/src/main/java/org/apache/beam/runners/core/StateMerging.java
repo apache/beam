@@ -26,7 +26,7 @@ import java.util.Map;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.state.AccumulatorCombiningState;
 import org.apache.beam.sdk.util.state.BagState;
-import org.apache.beam.sdk.util.state.CombiningState;
+import org.apache.beam.sdk.util.state.GroupingState;
 import org.apache.beam.sdk.util.state.ReadableState;
 import org.apache.beam.sdk.util.state.SetState;
 import org.apache.beam.sdk.util.state.State;
@@ -159,7 +159,7 @@ public class StateMerging {
    * Prefetch all combining value state for {@code address} across all merging windows in {@code
    * context}.
    */
-  public static <K, StateT extends CombiningState<?, ?>, W extends BoundedWindow> void
+  public static <K, StateT extends GroupingState<?, ?>, W extends BoundedWindow> void
       prefetchCombiningValues(MergingStateAccessor<K, W> context,
           StateTag<? super K, StateT> address) {
     for (StateT state : context.accessInEachMergingWindow(address).values()) {

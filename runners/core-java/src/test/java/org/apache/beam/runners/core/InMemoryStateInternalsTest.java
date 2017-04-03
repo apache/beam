@@ -37,7 +37,7 @@ import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.OutputTimeFns;
 import org.apache.beam.sdk.util.state.AccumulatorCombiningState;
 import org.apache.beam.sdk.util.state.BagState;
-import org.apache.beam.sdk.util.state.CombiningState;
+import org.apache.beam.sdk.util.state.GroupingState;
 import org.apache.beam.sdk.util.state.MapState;
 import org.apache.beam.sdk.util.state.ReadableState;
 import org.apache.beam.sdk.util.state.SetState;
@@ -378,7 +378,7 @@ public class InMemoryStateInternalsTest {
 
   @Test
   public void testCombiningValue() throws Exception {
-    CombiningState<Integer, Integer> value = underTest.state(NAMESPACE_1, SUM_INTEGER_ADDR);
+    GroupingState<Integer, Integer> value = underTest.state(NAMESPACE_1, SUM_INTEGER_ADDR);
 
     // State instances are cached, but depend on the namespace.
     assertEquals(value, underTest.state(NAMESPACE_1, SUM_INTEGER_ADDR));
@@ -398,7 +398,7 @@ public class InMemoryStateInternalsTest {
 
   @Test
   public void testCombiningIsEmpty() throws Exception {
-    CombiningState<Integer, Integer> value = underTest.state(NAMESPACE_1, SUM_INTEGER_ADDR);
+    GroupingState<Integer, Integer> value = underTest.state(NAMESPACE_1, SUM_INTEGER_ADDR);
 
     assertThat(value.isEmpty().read(), Matchers.is(true));
     ReadableState<Boolean> readFuture = value.isEmpty();

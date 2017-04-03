@@ -21,14 +21,14 @@ import org.apache.beam.sdk.transforms.Combine.CombineFn;
 
 /**
  * State for a single value that is managed by a {@link CombineFn}. This is an internal extension
- * to {@link CombiningState} that includes the {@code AccumT} type.
+ * to {@link GroupingState} that includes the {@code AccumT} type.
  *
  * @param <InputT> the type of values added to the state
  * @param <AccumT> the type of accumulator
  * @param <OutputT> the type of value extracted from the state
  */
 public interface AccumulatorCombiningState<InputT, AccumT, OutputT>
-    extends CombiningState<InputT, OutputT> {
+    extends GroupingState<InputT, OutputT> {
 
   /**
    * Read the merged accumulator for this combining value. It is implied that reading the

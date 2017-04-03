@@ -47,7 +47,7 @@ import org.apache.beam.sdk.transforms.windowing.OutputTimeFn;
 import org.apache.beam.sdk.transforms.windowing.OutputTimeFns;
 import org.apache.beam.sdk.util.state.AccumulatorCombiningState;
 import org.apache.beam.sdk.util.state.BagState;
-import org.apache.beam.sdk.util.state.CombiningState;
+import org.apache.beam.sdk.util.state.GroupingState;
 import org.apache.beam.sdk.util.state.MapState;
 import org.apache.beam.sdk.util.state.SetState;
 import org.apache.beam.sdk.util.state.ValueState;
@@ -232,7 +232,7 @@ public class CopyOnAccessInMemoryStateInternalsTest {
     StateTag<Object, AccumulatorCombiningState<Long, long[], Long>> stateTag =
         StateTags.combiningValue("summer",
             sumLongFn.getAccumulatorCoder(reg, reg.getDefaultCoder(Long.class)), sumLongFn);
-    CombiningState<Long, Long> underlyingValue = underlying.state(namespace, stateTag);
+    GroupingState<Long, Long> underlyingValue = underlying.state(namespace, stateTag);
     assertThat(underlyingValue.read(), equalTo(0L));
 
     underlyingValue.add(1L);
@@ -240,14 +240,14 @@ public class CopyOnAccessInMemoryStateInternalsTest {
 
     CopyOnAccessInMemoryStateInternals<String> internals =
         CopyOnAccessInMemoryStateInternals.withUnderlying(key, underlying);
-    CombiningState<Long, Long> copyOnAccessState = internals.state(namespace, stateTag);
+    GroupingState<Long, Long> copyOnAccessState = internals.state(namespace, stateTag);
     assertThat(copyOnAccessState.read(), equalTo(1L));
 
     copyOnAccessState.add(4L);
     assertThat(copyOnAccessState.read(), equalTo(5L));
     assertThat(underlyingValue.read(), equalTo(1L));
 
-    CombiningState<Long, Long> reReadUnderlyingValue = underlying.state(namespace, stateTag);
+    GroupingState<Long, Long> reReadUnderlyingValue = underlying.state(namespace, stateTag);
     assertThat(underlyingValue.read(), equalTo(reReadUnderlyingValue.read()));
   }
 
@@ -265,7 +265,7 @@ public class CopyOnAccessInMemoryStateInternalsTest {
             sumLongFn.getAccumulatorCoder(
                 reg, StringUtf8Coder.of(), reg.getDefaultCoder(Long.class)),
             sumLongFn);
-    CombiningState<Long, Long> underlyingValue = underlying.state(namespace, stateTag);
+    GroupingState<Long, Long> underlyingValue = underlying.state(namespace, stateTag);
     assertThat(underlyingValue.read(), equalTo(0L));
 
     underlyingValue.add(1L);
@@ -273,14 +273,14 @@ public class CopyOnAccessInMemoryStateInternalsTest {
 
     CopyOnAccessInMemoryStateInternals<String> internals =
         CopyOnAccessInMemoryStateInternals.withUnderlying(key, underlying);
-    CombiningState<Long, Long> copyOnAccessState = internals.state(namespace, stateTag);
+    GroupingState<Long, Long> copyOnAccessState = internals.state(namespace, stateTag);
     assertThat(copyOnAccessState.read(), equalTo(1L));
 
     copyOnAccessState.add(4L);
     assertThat(copyOnAccessState.read(), equalTo(5L));
     assertThat(underlyingValue.read(), equalTo(1L));
 
-    CombiningState<Long, Long> reReadUnderlyingValue = underlying.state(namespace, stateTag);
+    GroupingState<Long, Long> reReadUnderlyingValue = underlying.state(namespace, stateTag);
     assertThat(underlyingValue.read(), equalTo(reReadUnderlyingValue.read()));
   }
 

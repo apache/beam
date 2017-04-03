@@ -26,7 +26,7 @@ import org.apache.beam.sdk.transforms.Combine.CombineFn;
  * @param <InputT> the type of values added to the state
  * @param <OutputT> the type of value extracted from the state
  */
-public interface CombiningState<InputT, OutputT> extends ReadableState<OutputT>, State {
+public interface GroupingState<InputT, OutputT> extends ReadableState<OutputT>, State {
   /**
    * Add a value to the buffer.
    */
@@ -38,5 +38,5 @@ public interface CombiningState<InputT, OutputT> extends ReadableState<OutputT>,
   ReadableState<Boolean> isEmpty();
 
   @Override
-  CombiningState<InputT, OutputT> readLater();
+  GroupingState<InputT, OutputT> readLater();
 }

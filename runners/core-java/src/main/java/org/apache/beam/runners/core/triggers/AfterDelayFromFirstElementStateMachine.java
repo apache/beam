@@ -35,7 +35,7 @@ import org.apache.beam.sdk.transforms.Min;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.util.TimeDomain;
 import org.apache.beam.sdk.util.state.AccumulatorCombiningState;
-import org.apache.beam.sdk.util.state.CombiningState;
+import org.apache.beam.sdk.util.state.GroupingState;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.joda.time.format.PeriodFormat;
@@ -169,7 +169,7 @@ public abstract class AfterDelayFromFirstElementStateMachine extends OnceTrigger
 
   @Override
   public void onElement(OnElementContext c) throws Exception {
-    CombiningState<Instant, Instant> delayUntilState = c.state().access(DELAYED_UNTIL_TAG);
+    GroupingState<Instant, Instant> delayUntilState = c.state().access(DELAYED_UNTIL_TAG);
     Instant oldDelayUntil = delayUntilState.read();
 
     // Since processing time can only advance, resulting in target wake-up times we would

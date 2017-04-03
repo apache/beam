@@ -34,7 +34,7 @@ import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.util.state.AccumulatorCombiningState;
 import org.apache.beam.sdk.util.state.BagState;
-import org.apache.beam.sdk.util.state.CombiningState;
+import org.apache.beam.sdk.util.state.GroupingState;
 import org.apache.beam.sdk.util.state.ReadableState;
 import org.apache.beam.sdk.util.state.ValueState;
 import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
@@ -169,7 +169,7 @@ public class FlinkBroadcastStateInternalsTest {
 
   @Test
   public void testCombiningValue() throws Exception {
-    CombiningState<Integer, Integer> value = underTest.state(NAMESPACE_1, SUM_INTEGER_ADDR);
+    GroupingState<Integer, Integer> value = underTest.state(NAMESPACE_1, SUM_INTEGER_ADDR);
 
     // State instances are cached, but depend on the namespace.
     assertEquals(value, underTest.state(NAMESPACE_1, SUM_INTEGER_ADDR));
@@ -189,7 +189,7 @@ public class FlinkBroadcastStateInternalsTest {
 
   @Test
   public void testCombiningIsEmpty() throws Exception {
-    CombiningState<Integer, Integer> value = underTest.state(NAMESPACE_1, SUM_INTEGER_ADDR);
+    GroupingState<Integer, Integer> value = underTest.state(NAMESPACE_1, SUM_INTEGER_ADDR);
 
     assertThat(value.isEmpty().read(), Matchers.is(true));
     ReadableState<Boolean> readFuture = value.isEmpty();

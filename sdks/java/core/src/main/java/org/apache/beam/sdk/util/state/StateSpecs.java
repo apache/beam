@@ -445,7 +445,7 @@ public class StateSpecs {
 
     @Override public void finishSpecifying() {
       if (getAccumCoder() == null) {
-        throw new IllegalStateException("Unable to infer a coder for CombiningState and no"
+        throw new IllegalStateException("Unable to infer a coder for GroupingState and no"
             + " Coder was specified. Please set a coder by either invoking"
             + " StateSpecs.combiningValue(Coder<AccumT> accumCoder,"
             + " CombineFn<InputT, AccumT, OutputT> combineFn)"
