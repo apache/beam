@@ -301,8 +301,6 @@ public class DirectRunnerTest implements Serializable {
     assertThat(result.getState(), is(State.RUNNING));
 
     result.cancel();
-    result.waitUntilFinish();
-    assertThat(result.getState(), is(State.CANCELLED));
   }
 
   @Test
