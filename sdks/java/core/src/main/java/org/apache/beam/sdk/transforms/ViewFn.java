@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.transforms;
 
 import java.io.Serializable;
+import org.apache.beam.sdk.runners.PipelineRunner;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 
@@ -37,6 +38,11 @@ import org.apache.beam.sdk.values.PCollectionView;
  *        {@code <ViewT>} the type of the value(s) accessible via this {@link PCollectionView}
  */
 public abstract class ViewFn<PrimitiveViewT, ViewT> implements Serializable {
+  /**
+   * Gets the materialization of this {@link ViewFn}.
+   */
+  public abstract Materialization<PrimitiveViewT> getMaterialization();
+
   /**
    * A function to adapt a primitive view type to a desired view type.
    */

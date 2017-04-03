@@ -35,6 +35,8 @@ import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.IterableCoder;
+import org.apache.beam.sdk.transforms.Materialization;
+import org.apache.beam.sdk.transforms.Materializations;
 import org.apache.beam.sdk.transforms.ViewFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.InvalidWindows;
@@ -175,6 +177,11 @@ public class PCollectionViews {
     }
 
     @Override
+    public Materialization<Iterable<WindowedValue<T>>> getMaterialization() {
+      return Materializations.iterable();
+    }
+
+    @Override
     public T apply(Iterable<WindowedValue<T>> contents) {
       try {
         return Iterables.getOnlyElement(contents).getValue();
@@ -202,6 +209,10 @@ public class PCollectionViews {
   @Experimental(Kind.CORE_RUNNERS_ONLY)
   public static class IterableViewFn<T>
       extends ViewFn<Iterable<WindowedValue<T>>, Iterable<T>> {
+    @Override
+    public Materialization<Iterable<WindowedValue<T>>> getMaterialization() {
+      return Materializations.iterable();
+    }
 
     @Override
     public Iterable<T> apply(Iterable<WindowedValue<T>> contents) {
@@ -230,6 +241,11 @@ public class PCollectionViews {
   @Experimental(Kind.CORE_RUNNERS_ONLY)
   public static class ListViewFn<T> extends ViewFn<Iterable<WindowedValue<T>>, List<T>> {
     @Override
+    public Materialization<Iterable<WindowedValue<T>>> getMaterialization() {
+      return Materializations.iterable();
+    }
+
+    @Override
     public List<T> apply(Iterable<WindowedValue<T>> contents) {
       return ImmutableList.copyOf(
           Iterables.transform(contents, new Function<WindowedValue<T>, T>() {
@@ -253,6 +269,10 @@ public class PCollectionViews {
   @Experimental(Kind.CORE_RUNNERS_ONLY)
   public static class MultimapViewFn<K, V>
       extends ViewFn<Iterable<WindowedValue<KV<K, V>>>, Map<K, Iterable<V>>> {
+    @Override
+    public Materialization<Iterable<WindowedValue<KV<K, V>>>> getMaterialization() {
+      return Materializations.iterable();
+    }
 
     @Override
     public Map<K, Iterable<V>> apply(Iterable<WindowedValue<KV<K, V>>> elements) {
@@ -278,6 +298,11 @@ public class PCollectionViews {
   @Deprecated
   @Experimental(Kind.CORE_RUNNERS_ONLY)
   public static class MapViewFn<K, V> extends ViewFn<Iterable<WindowedValue<KV<K, V>>>, Map<K, V>> {
+    @Override
+    public Materialization<Iterable<WindowedValue<KV<K, V>>>> getMaterialization() {
+      return Materializations.iterable();
+    }
+
     /**
      * Input iterable must actually be {@code Iterable<WindowedValue<KV<K, V>>>}.
      */
