@@ -73,8 +73,8 @@ class ReduceStateByKeyTranslator implements StreamingOperatorTranslator<ReduceSt
 
     ReduceStateByKey origOperator = operator.getOriginalOperator();
 
-    StateFactory<?, State> stateFactory = origOperator.getStateFactory();
-    CombinableReduceFunction stateCombiner = origOperator.getStateCombiner();
+    StateFactory<?, ?, State<?, ?>> stateFactory = origOperator.getStateFactory();
+    CombinableReduceFunction<State<?, ?>> stateCombiner = origOperator.getStateCombiner();
 
     Windowing windowing = origOperator.getWindowing();
     if (windowing == null) {
