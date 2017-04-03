@@ -33,6 +33,7 @@ from apache_beam.runners.runner import PipelineRunner
 from apache_beam.runners.runner import PipelineState
 from apache_beam.runners.runner import PValueCache
 from apache_beam.utils.pipeline_options import DirectOptions
+from apache_beam.utils.value_provider import RuntimeValueProvider
 
 
 class DirectRunner(PipelineRunner):
@@ -87,7 +88,6 @@ class DirectRunner(PipelineRunner):
     # Start the executor. This is a non-blocking call, it will start the
     # execution in background threads and return.
 
-    from apache_beam.utils.value_provider import RuntimeValueProvider
     if pipeline.options:
       RuntimeValueProvider.set_runtime_options(pipeline.options._options_id, {})
     executor.start(self.visitor.root_transforms)

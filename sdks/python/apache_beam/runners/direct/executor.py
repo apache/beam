@@ -270,7 +270,6 @@ class TransformExecutor(ExecutorService.CallableTask):
 
   def __call__(self):
     self._call_count += 1
-
     assert self._call_count <= (1 + len(self._applied_transform.side_inputs))
     metrics_container = MetricsContainer(self._applied_transform.full_label)
     scoped_metrics_container = ScopedMetricsContainer(metrics_container)

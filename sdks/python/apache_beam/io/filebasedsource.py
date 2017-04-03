@@ -86,10 +86,11 @@ class FileBasedSource(iobase.BoundedSource):
     if isinstance(file_pattern, basestring):
       file_pattern = StaticValueProvider(str, file_pattern)
     self._pattern = file_pattern
-    try:
+    if file_pattern.is_accessible():
       self._file_system = get_filesystem(file_pattern.get())
-    except RuntimeError:
+    else:
       self._file_system = None
+
     self._concat_source = None
     self._min_bundle_size = min_bundle_size
     if not CompressionTypes.is_valid_compression_type(compression_type):
@@ -163,6 +164,8 @@ class FileBasedSource(iobase.BoundedSource):
     """Validate if there are actual files in the specified glob pattern
     """
     pattern = self._pattern.get()
+    if self._file_system is None:
+      self._file_system = get_filesystem(pattern)
 
     # Limit the responses as we only want to check if something exists
     match_result = self._file_system.match([pattern], limits=[1])[0]
@@ -180,6 +183,8 @@ class FileBasedSource(iobase.BoundedSource):
   @check_accessible(['_pattern'])
   def estimate_size(self):
     pattern = self._pattern.get()
+    if self._file_system is None:
+      self._file_system = get_filesystem(pattern)
     match_result = self._file_system.match([pattern])[0]
     return sum([f.size_in_bytes for f in match_result.metadata_list])
 

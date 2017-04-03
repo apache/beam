@@ -184,9 +184,9 @@ class FileSink(iobase.Sink):
     self.shard_name_format = self._template_to_format(shard_name_template)
     self.compression_type = compression_type
     self.mime_type = mime_type
-    try:
+    if file_path_prefix.is_accessible():
       self._file_system = get_filesystem(file_path_prefix.get())
-    except RuntimeError:
+    else:
       self._file_system = None
 
   def display_data(self):
@@ -208,7 +208,7 @@ class FileSink(iobase.Sink):
     ``close``.
     """
     if self._file_system is None:
-      self._file_system = get_filesystem(self._pattern)
+      self._file_system = get_filesystem(temp_path)
     return self._file_system.create(temp_path, self.mime_type,
                                     self.compression_type)
 
@@ -242,7 +242,7 @@ class FileSink(iobase.Sink):
     tmp_dir = file_path_prefix + file_name_suffix + time.strftime(
         '-temp-%Y-%m-%d_%H-%M-%S')
     if self._file_system is None:
-      self._file_system = get_filesystem(self._pattern)
+      self._file_system = get_filesystem(file_path_prefix)
     self._file_system.mkdirs(tmp_dir)
     return tmp_dir
 
@@ -296,7 +296,7 @@ class FileSink(iobase.Sink):
       source_files, destination_files = batch
       exceptions = []
       if self._file_system is None:
-        self._file_system = get_filesystem(self._pattern)
+        self._file_system = get_filesystem(source_files)
       try:
         self._file_system.rename(source_files, destination_files)
         return exceptions
