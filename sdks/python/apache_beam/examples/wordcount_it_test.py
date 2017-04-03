@@ -18,6 +18,7 @@
 """End-to-end test for the wordcount example."""
 
 import logging
+import time
 import unittest
 
 from hamcrest.core.core.allof import all_of
@@ -44,7 +45,7 @@ class WordCountIT(unittest.TestCase):
 
     # Set extra options to the pipeline for test purpose
     output = '/'.join([test_pipeline.get_option('output'),
-                       test_pipeline.get_option('job_name'),
+                       str(int(time.time())),
                        'results'])
     arg_sleep_secs = test_pipeline.get_option('sleep_secs')
     sleep_secs = int(arg_sleep_secs) if arg_sleep_secs is not None else None
