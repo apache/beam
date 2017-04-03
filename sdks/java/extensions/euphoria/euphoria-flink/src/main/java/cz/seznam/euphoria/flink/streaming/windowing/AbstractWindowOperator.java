@@ -171,6 +171,7 @@ public abstract class AbstractWindowOperator<I, KEY, WID extends Window>
                   triggerContext.setWindow(mergeResult);
 
                   processTriggerResult(mergeResult,
+                          null,
                           triggerContext.onMerge(mergedWindows),
                           mergingWindowSet);
 
@@ -212,9 +213,10 @@ public abstract class AbstractWindowOperator<I, KEY, WID extends Window>
 
         WID stateWindow = mergingWindowSet.getStateWindow(currentWindow);
         setupEnvironment(getCurrentKey(), stateWindow);
-        getWindowState(stateWindow).add(element.getValue());
+        State stateWindowState = getWindowState(stateWindow);
+        stateWindowState.add(element.getValue());
 
-        processTriggerResult(currentWindow, triggerResult, mergingWindowSet);
+        processTriggerResult(currentWindow, stateWindowState, triggerResult, mergingWindowSet);
       }
       mergingWindowSet.persist();
 
@@ -236,19 +238,7 @@ public abstract class AbstractWindowOperator<I, KEY, WID extends Window>
                 window,
                 triggerContext);
 
-        // inlining: processTriggerResult(window, triggerResult, null);
-        if (triggerResult.isFlush()) {
-          windowState.flush();
-        }
-        if (triggerResult.isPurge()) {
-          windowState.close();
-          trigger.onClear(window, triggerContext);
-
-          if (localMode) {
-            // un-register the cleanup timer for each window since we just discarded it
-            endOfStreamTimerService.deleteEventTimeTimer(window, Long.MAX_VALUE);
-          }
-        }
+        processTriggerResult(window, windowState, triggerResult, null);
       }
     }
   }
@@ -273,7 +263,7 @@ public abstract class AbstractWindowOperator<I, KEY, WID extends Window>
       mergingWindowSet = getMergingWindowSet();
     }
 
-    processTriggerResult(window, triggerResult, mergingWindowSet);
+    processTriggerResult(window, null, triggerResult, mergingWindowSet);
 
     if (mergingWindowSet != null) {
       mergingWindowSet.persist();
@@ -301,17 +291,20 @@ public abstract class AbstractWindowOperator<I, KEY, WID extends Window>
   }
 
   private void processTriggerResult(WID window,
+                                    // ~ @windowState the state of `window` to
+                                    // use; if `null` the state will be fetched
+                                    @Nullable  State windowState,
                                     Trigger.TriggerResult tr,
                                     @Nullable MergingWindowSet<WID> mergingWindowSet) {
 
     if (tr.isFlush() || tr.isPurge()) {
-      State windowState;
-
-      if (windowing instanceof MergingWindowing) {
-        Objects.requireNonNull(mergingWindowSet);
-        windowState = getWindowState(mergingWindowSet.getStateWindow(window));
-      } else {
-        windowState = getWindowState(window);
+      if (windowState == null) {
+        if (windowing instanceof MergingWindowing) {
+          Objects.requireNonNull(mergingWindowSet);
+          windowState = getWindowState(mergingWindowSet.getStateWindow(window));
+        } else {
+          windowState = getWindowState(window);
+        }
       }
 
       if (tr.isFlush()) {
