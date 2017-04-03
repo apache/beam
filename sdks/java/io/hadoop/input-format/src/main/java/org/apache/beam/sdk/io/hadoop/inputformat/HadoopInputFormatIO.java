@@ -728,9 +728,9 @@ public class HadoopInputFormatIO {
       @Override
       public Double getFractionConsumed() {
         if (doneReading) {
-          progressValue.set(1.0);
+          return 1.0;
         } else if (recordReader == null || recordsReturned.get() == 0L) {
-          progressValue.set(0.0);
+          return 0.0;
         }
         if (progressValue.get() == 0.0) {
           return null;

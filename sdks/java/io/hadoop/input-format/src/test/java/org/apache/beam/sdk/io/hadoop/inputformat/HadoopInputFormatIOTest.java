@@ -518,7 +518,7 @@ public class HadoopInputFormatIOTest {
       BoundedReader<KV<Text, Employee>> reader = source.createReader(p.getOptions());
       float recordsRead = 0;
       // When start is not called, getFractionConsumed() should return 0.
-      assertEquals(null, reader.getFractionConsumed());
+      assertEquals(Double.valueOf(0), reader.getFractionConsumed());
       boolean start = reader.start();
       assertEquals(true, start);
       if (start) {
