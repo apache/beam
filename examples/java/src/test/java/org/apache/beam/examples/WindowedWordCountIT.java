@@ -66,7 +66,7 @@ public class WindowedWordCountIT {
   @Rule public TestName testName = new TestName();
 
   private static final String DEFAULT_INPUT =
-      "gs://apache-beam-samples/shakespeare/winterstale-personae";
+      "gs://apache-beam-samples/shakespeare/sonnets.txt";
   static final int MAX_READ_RETRIES = 4;
   static final Duration DEFAULT_SLEEP_DURATION = Duration.standardSeconds(10L);
   static final FluentBackoff BACK_OFF_FACTORY =
