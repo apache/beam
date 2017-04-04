@@ -26,6 +26,7 @@ import org.apache.flink.api.java.CollectionEnvironment;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.streaming.api.TimeCharacteristic;
+import org.apache.flink.streaming.api.environment.CheckpointConfig.ExternalizedCheckpointCleanup;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -227,6 +228,13 @@ class FlinkPipelineExecutionEnvironment {
         throw new IllegalArgumentException("The checkpoint interval must be positive");
       }
       flinkStreamEnv.enableCheckpointing(checkpointInterval);
+      boolean externalizedCheckpoint = options.isExternalizedCheckpointsEnabled();
+      boolean retainOnCancellation = options.getRetainOnCancellation();
+      if (externalizedCheckpoint) {
+        flinkStreamEnv.getCheckpointConfig().enableExternalizedCheckpoints(
+            retainOnCancellation ? ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION
+                : ExternalizedCheckpointCleanup.DELETE_ON_CANCELLATION);
+      }
     }
 
     // State backend

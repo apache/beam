@@ -98,4 +98,18 @@ public interface FlinkPipelineOptions
   AbstractStateBackend getStateBackend();
   void setStateBackend(AbstractStateBackend stateBackend);
 
+  /**
+   *Enables or Disables externalized checkpoints.
+   */
+  @Description("Enables or disables externalized checkpoints. "
+      + "Works in conjunction with CheckpointingInterval")
+  @Default.Boolean(false)
+  Boolean isExternalizedCheckpointsEnabled();
+  void setExternalizedCheckpointsEnabled(Boolean extCheckpoints);
+
+  @Description("Sets the behavior of externalized checkpoints on Cancellation.")
+  @Default.Boolean(false)
+  Boolean getRetainOnCancellation();
+  void setRetainOnCancellation(Boolean retainOnCancellation);
+
 }
