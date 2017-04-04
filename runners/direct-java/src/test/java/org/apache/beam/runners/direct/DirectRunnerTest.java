@@ -278,29 +278,27 @@ public class DirectRunnerTest implements Serializable {
   }
 
   @Test
-  public void waitUntilFinishTimeout() throws Exception {
+  public void testWaitUntilFinishTimeout() throws Exception {
     DirectOptions options = PipelineOptionsFactory.as(DirectOptions.class);
     options.setBlockOnRun(false);
     options.setRunner(DirectRunner.class);
     Pipeline p = Pipeline.create(options);
-    p.apply(Create.of(1L))
-        .apply(
-            ParDo.of(
-                new DoFn<Long, Long>() {
-                  @ProcessElement
-                  public void hang(ProcessContext context) throws InterruptedException {
-                    // Hangs "forever"
-                    Thread.sleep(Long.MAX_VALUE);
-                  }
-                }));
+    p
+      .apply(Create.of(1L))
+      .apply(ParDo.of(
+          new DoFn<Long, Long>() {
+            @ProcessElement
+            public void hang(ProcessContext context) throws InterruptedException {
+              // Hangs "forever"
+              Thread.sleep(Long.MAX_VALUE);
+            }
+          }));
     PipelineResult result = p.run();
     // The pipeline should never complete;
     assertThat(result.getState(), is(State.RUNNING));
     // Must time out, otherwise this test will never complete
     result.waitUntilFinish(Duration.millis(1L));
     assertThat(result.getState(), is(State.RUNNING));
-
-    result.cancel();
   }
 
   @Test
