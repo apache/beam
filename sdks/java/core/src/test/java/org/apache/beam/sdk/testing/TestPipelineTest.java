@@ -162,23 +162,6 @@ public class TestPipelineTest implements Serializable {
     }
 
     @Test
-    public void testMatcherSerializationDeserialization() {
-      TestPipelineOptions opts = PipelineOptionsFactory.as(TestPipelineOptions.class);
-      SerializableMatcher<PipelineResult> m1 = new TestMatcher();
-      SerializableMatcher<PipelineResult> m2 = new TestMatcher();
-
-      opts.setOnCreateMatcher(m1);
-      opts.setOnSuccessMatcher(m2);
-
-      String[] arr = TestPipeline.convertToArgs(opts);
-      TestPipelineOptions newOpts =
-          PipelineOptionsFactory.fromArgs(arr).as(TestPipelineOptions.class);
-
-      assertEquals(m1, newOpts.getOnCreateMatcher());
-      assertEquals(m2, newOpts.getOnSuccessMatcher());
-    }
-
-    @Test
     public void testRunWithDummyEnvironmentVariableFails() {
       System.getProperties()
           .setProperty(TestPipeline.PROPERTY_USE_DEFAULT_DUMMY_RUNNER, Boolean.toString(true));
