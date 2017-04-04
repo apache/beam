@@ -472,7 +472,8 @@ public class HadoopInputFormatIOTest {
    */
   @Test
   public void testReadersStartWhenZeroRecords() throws Exception {
-    InputFormat<Text, Employee> mockInputFormat = Mockito.mock(EmployeeInputFormat.class);
+
+    InputFormat mockInputFormat = Mockito.mock(EmployeeInputFormat.class);
     EmployeeRecordReader mockReader = Mockito.mock(EmployeeRecordReader.class);
     Mockito.when(
         mockInputFormat.createRecordReader(Mockito.any(InputSplit.class),
@@ -487,9 +488,10 @@ public class HadoopInputFormatIOTest {
             null, // No key translation required.
             null, // No value translation required.
             new SerializableSplit(mockInputSplit));
-    BoundedReader<KV<Text, Employee>> boundedReader = boundedSource.createReader(p.getOptions());
-    assertEquals(false, boundedReader.start());
-    assertEquals(Double.valueOf(1), boundedReader.getFractionConsumed());
+    boundedSource.setInputFormatObj(mockInputFormat);
+    BoundedReader<KV<Text, Employee>> reader = boundedSource.createReader(p.getOptions());
+    assertEquals(false, reader.start());
+    assertEquals(Double.valueOf(1), reader.getFractionConsumed());
   }
 
   /**
@@ -546,6 +548,33 @@ public class HadoopInputFormatIOTest {
     assertThat(bundleRecords, containsInAnyOrder(referenceRecords.toArray()));
   }
 
+/**
+   * This test validates the method getFractionConsumed()- when a bad progress value is returned by
+   * the inputformat.
+   */
+  @Test
+  public void testGetFractionConsumedForBadProgressValue() throws Exception {
+    InputFormat<Text, Employee> mockInputFormat = Mockito.mock(EmployeeInputFormat.class);
+    EmployeeRecordReader mockReader = Mockito.mock(EmployeeRecordReader.class);
+    Mockito.when(
+        mockInputFormat.createRecordReader(Mockito.any(InputSplit.class),
+            Mockito.any(TaskAttemptContext.class))).thenReturn(mockReader);
+    Mockito.when(mockReader.nextKeyValue()).thenReturn(true);
+    Mockito.when(mockReader.getProgress()).thenReturn(2.0F);
+    InputSplit mockInputSplit = Mockito.mock(NewObjectsEmployeeInputSplit.class);
+    HadoopInputFormatBoundedSource<Text, Employee> boundedSource =
+        new HadoopInputFormatBoundedSource<Text, Employee>(
+            serConf,
+            WritableCoder.of(Text.class),
+            AvroCoder.of(Employee.class),
+            null, // No key translation required.
+            null, // No value translation required.
+            new SerializableSplit(mockInputSplit));
+    boundedSource.setInputFormatObj(mockInputFormat);
+    BoundedReader<KV<Text, Employee>> boundedReader = boundedSource.createReader(p.getOptions());
+    assertEquals(true, boundedReader.start());
+    assertEquals(null, boundedReader.getFractionConsumed());
+  }
   /**
    * This test validates that reader and its parent source reads the same records.
    */
