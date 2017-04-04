@@ -58,7 +58,6 @@ import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PubsubOptions;
 import org.apache.beam.sdk.options.ValueProvider;
-import org.apache.beam.sdk.runners.PipelineRunner;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -318,11 +317,7 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
         int remainingInFlight = reader.numInFlightCheckpoints.decrementAndGet();
         checkState(remainingInFlight >= 0,
                    "Miscounted in-flight checkpoints");
-        if (!reader.active.get() && remainingInFlight == 0) {
-          // The reader has been closed and it has no more outstanding checkpoints. The client
-          // must be closed so it doesn't leak
-          reader.closeClient();
-        }
+        reader.maybeCloseClient();
         reader = null;
         safeToAckIds = null;
       }
@@ -407,16 +402,15 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
     private final SimpleFunction<PubsubIO.PubsubMessage, T> parseFn;
 
     /**
-     * Client on which to talk to Pubsub. Contains a null value if closed.
+     * Client on which to talk to Pubsub. Contains a null value if the client has been closed.
      */
     private AtomicReference<PubsubClient> pubsubClient;
 
     /**
-     * The number of currently active calls to {@link #ackBatch(List)}. Batches can be ACKed from
-     * another thread when the {@link PipelineRunner} finalizes a checkpoint, and the client should
-     * not be closed while those calls are occurring.
+     * The closed state of this {@link PubsubReader}. If true, the reader has not yet been closed,
+     * and it will have a non-null value within {@link #pubsubClient}.
      */
-    private AtomicBoolean active = new AtomicBoolean();
+    private AtomicBoolean active = new AtomicBoolean(true);
 
     /**
      * Ack timeout, in ms, as set on subscription when we first start reading. Not
@@ -646,10 +640,12 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
     }
 
     /**
-     * BLOCKING
-     * ACK {@code ackIds} back to Pubsub.
-     * CAUTION: May be invoked from a separate thread.
-     * CAUTION: Retains {@code ackIds}.
+     * Acks the provided {@code ackIds} back to Pubsub, blocking until all of the messages are
+     * ACKed.
+     *
+     * <p>CAUTION: May be invoked from a separate thread.
+     *
+     * <p>CAUTION: Retains {@code ackIds}.
      */
     void ackBatch(List<String> ackIds) throws IOException {
       pubsubClient.get().acknowledge(subscription, ackIds);
@@ -1015,18 +1011,21 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
     @Override
     public void close() throws IOException {
       active.set(false);
-      if (numInFlightCheckpoints.get() == 0) {
-        closeClient();
-      }
+      maybeCloseClient();
     }
 
     /**
-     * Close this reader's underlying {@link PubsubClient}.
+     * Close this reader's underlying {@link PubsubClient} if the reader has been closed and there
+     * are no outstanding checkpoints.
      */
-    private void closeClient() throws IOException {
-      PubsubClient client = pubsubClient.getAndSet(null);
-      if (client != null) {
-        client.close();
+    private void maybeCloseClient() throws IOException {
+      if (!active.get() && numInFlightCheckpoints.get() == 0) {
+        // The reader has been closed and it has no more outstanding checkpoints. The client
+        // must be closed so it doesn't leak
+        PubsubClient client = pubsubClient.getAndSet(null);
+        if (client != null) {
+          client.close();
+        }
       }
     }
 
