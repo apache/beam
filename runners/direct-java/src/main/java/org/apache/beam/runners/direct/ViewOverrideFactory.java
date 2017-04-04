@@ -20,7 +20,6 @@ package org.apache.beam.runners.direct;
 
 import com.google.common.collect.Iterables;
 import java.util.Collections;
-import java.util.List;
 import java.util.Map;
 import org.apache.beam.runners.core.construction.ForwardingPTransform;
 import org.apache.beam.sdk.Pipeline;
@@ -35,7 +34,7 @@ import org.apache.beam.sdk.transforms.WithKeys;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PValue;
-import org.apache.beam.sdk.values.TaggedPValue;
+import org.apache.beam.sdk.values.TupleTag;
 
 /**
  * A {@link PTransformOverrideFactory} that provides overrides for the {@link CreatePCollectionView}
@@ -51,13 +50,13 @@ class ViewOverrideFactory<ElemT, ViewT>
   }
 
   @Override
-  public PCollection<ElemT> getInput(List<TaggedPValue> inputs, Pipeline p) {
-    return (PCollection<ElemT>) Iterables.getOnlyElement(inputs).getValue();
+  public PCollection<ElemT> getInput(Map<TupleTag<?>, PValue> inputs, Pipeline p) {
+    return (PCollection<ElemT>) Iterables.getOnlyElement(inputs.values());
   }
 
   @Override
   public Map<PValue, ReplacementOutput> mapOutputs(
-      List<TaggedPValue> outputs, PCollectionView<ViewT> newOutput) {
+      Map<TupleTag<?>, PValue> outputs, PCollectionView<ViewT> newOutput) {
     return Collections.emptyMap();
   }
 

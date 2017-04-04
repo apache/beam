@@ -20,7 +20,6 @@ package org.apache.beam.runners.core.construction;
 
 import static org.junit.Assert.assertThat;
 
-import com.google.common.collect.Iterables;
 import java.io.Serializable;
 import java.util.Map;
 import org.apache.beam.sdk.runners.PTransformOverrideFactory.ReplacementOutput;
@@ -32,6 +31,7 @@ import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.PValue;
+import org.apache.beam.sdk.values.TaggedPValue;
 import org.hamcrest.Matchers;
 import org.junit.Rule;
 import org.junit.Test;
@@ -97,8 +97,8 @@ public class SingleInputOutputOverrideFactoryTest implements Serializable {
         Matchers.<PValue, ReplacementOutput>hasEntry(
             reappliedOutput,
             ReplacementOutput.of(
-                Iterables.getOnlyElement(output.expand()),
-                Iterables.getOnlyElement(reappliedOutput.expand()))));
+                TaggedPValue.ofExpandedValue(output),
+                TaggedPValue.ofExpandedValue(reappliedOutput))));
   }
 
   @Test

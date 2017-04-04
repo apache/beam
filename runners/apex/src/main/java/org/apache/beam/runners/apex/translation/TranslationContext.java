@@ -42,7 +42,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.PValue;
-import org.apache.beam.sdk.values.TaggedPValue;
+import org.apache.beam.sdk.values.TupleTag;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 
@@ -85,20 +85,20 @@ class TranslationContext {
     return getCurrentTransform().getFullName();
   }
 
-  public List<TaggedPValue> getInputs() {
+  public Map<TupleTag<?>, PValue> getInputs() {
     return getCurrentTransform().getInputs();
   }
 
   public <InputT extends PValue> InputT getInput() {
-    return (InputT) Iterables.getOnlyElement(getCurrentTransform().getInputs()).getValue();
+    return (InputT) Iterables.getOnlyElement(getCurrentTransform().getInputs().values());
   }
 
-  public List<TaggedPValue> getOutputs() {
+  public Map<TupleTag<?>, PValue> getOutputs() {
     return getCurrentTransform().getOutputs();
   }
 
   public <OutputT extends PValue> OutputT getOutput() {
-    return (OutputT) Iterables.getOnlyElement(getCurrentTransform().getOutputs()).getValue();
+    return (OutputT) Iterables.getOnlyElement(getCurrentTransform().getOutputs().values());
   }
 
   private AppliedPTransform<?, ?, ?> getCurrentTransform() {
