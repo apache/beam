@@ -182,11 +182,6 @@ public abstract class AbstractWindowOperator<I, KEY, WID extends Window>
                     removeWindow(merged, null);
                   }
 
-                  // FIXME This implementation relies on fact that
-                  // stateCombiner function is actually "fold left".
-                  // That means the result state will end up in the
-                  // first state given to the combiner function.
-
                   // merge all mergedStateWindows into stateResultWindow
                   {
                     List<State> states = new ArrayList<>();
