@@ -408,7 +408,10 @@ public class DataflowPipelineTranslator {
       PTransform<?, ?> transform = node.getTransform();
       TransformTranslator translator = getTransformTranslator(transform.getClass());
       checkState(
-          translator != null, "no translator registered for primitive transform %s", transform);
+          translator != null,
+          "no translator registered for primitive transform %s at node %s",
+          transform,
+          node.getFullName());
       LOG.debug("Translating {}", transform);
       currentTransform = node.toAppliedPTransform();
       translator.translate(transform, this);
