@@ -369,7 +369,10 @@ public class DataflowPipelineJob implements PipelineResult {
         } catch (IOException e) {
           State state = getState();
           if (state.isTerminal()) {
-            LOG.warn("Job is already terminated. State is {}", state);
+            LOG.warn("Cancel failed because job is already terminated. State is {}", state);
+            return state;
+          } else if (e.getMessage().contains("has terminated")) {
+            LOG.warn("Cancel failed because job is already terminated.", e);
             return state;
           } else {
             String errorMsg = String.format(
