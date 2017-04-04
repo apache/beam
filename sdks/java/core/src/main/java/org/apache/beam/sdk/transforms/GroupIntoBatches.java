@@ -44,9 +44,12 @@ import org.slf4j.LoggerFactory;
 /**
  * A {@link PTransform} that batches inputs to a desired batch size. Batches will contain only
  * elements of a single key.
- * Elements are buffered until there are {@code batchSize} elements buffered, at which point
- * they are output to the output {@link PCollection"}. Windows are preserved (batches
- * contain elements from the same window). Batches may contain elements from more than one bundle
+ *
+ * <p>Elements are buffered until there are {@code batchSize} elements
+ * buffered, at which point they are output to the output {@link PCollection}.
+ *
+ * <p>Windows are preserved (batches contain elements from the same window).
+ * Batches may contain elements from more than one bundle
  *
  * <p>Example (batch call a webservice and get return codes)
  *
@@ -94,7 +97,8 @@ public class GroupIntoBatches<K, InputT>
   }
 
   @VisibleForTesting
-  static class GroupIntoBatchesDoFn<K, InputT> extends DoFn<KV<K, InputT>, KV<K, Iterable<InputT>>> {
+  static class GroupIntoBatchesDoFn<K, InputT>
+      extends DoFn<KV<K, InputT>, KV<K, Iterable<InputT>>> {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(GroupIntoBatchesDoFn.class);
     private static final String END_OF_WINDOW_ID = "endOFWindow";
