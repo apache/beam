@@ -157,7 +157,6 @@ class ValueProviderTests(unittest.TestCase):
 
     opt1 = Opt1()
     opt2 = Opt2()
-
     self.assertFalse(opt1.arg1.is_accessible())
     self.assertFalse(opt2.arg2.is_accessible())
     RuntimeValueProvider.set_runtime_options(

@@ -201,6 +201,7 @@ class FileSink(iobase.Sink):
                                             self.file_name_suffix),
                             label='File Pattern')}
 
+  @check_accessible(['file_path_prefix'])
   def open(self, temp_path):
     """Opens ``temp_path``, returning an opaque file handle object.
 
@@ -208,7 +209,7 @@ class FileSink(iobase.Sink):
     ``close``.
     """
     if self._file_system is None:
-      self._file_system = get_filesystem(temp_path)
+      self._file_system = get_filesystem(self.file_path_prefix.get())
     return self._file_system.create(temp_path, self.mime_type,
                                     self.compression_type)
 
@@ -296,7 +297,7 @@ class FileSink(iobase.Sink):
       source_files, destination_files = batch
       exceptions = []
       if self._file_system is None:
-        self._file_system = get_filesystem(source_files)
+        self._file_system = get_filesystem(file_path_prefix)
       try:
         self._file_system.rename(source_files, destination_files)
         return exceptions

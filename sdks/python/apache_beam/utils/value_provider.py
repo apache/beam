@@ -80,6 +80,11 @@ class RuntimeValueProvider(ValueProvider):
     assert options_id not in RuntimeValueProvider.runtime_options_map
     RuntimeValueProvider.runtime_options_map[options_id] = pipeline_options
 
+  @classmethod
+  def unset_runtime_options(cls, options_id):
+    assert options_id in RuntimeValueProvider.runtime_options_map
+    del RuntimeValueProvider.runtime_options_map[options_id]
+
   def __str__(self):
     return '%s(option: %s, type: %s, default_value: %s)' % (
         self.__class__.__name__,

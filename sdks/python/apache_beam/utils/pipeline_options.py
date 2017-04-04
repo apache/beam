@@ -124,7 +124,7 @@ class PipelineOptions(HasDisplayData):
   """
   _options_id_generator = itertools.count(1)
 
-  def __init__(self, flags=None, **kwargs):
+  def __init__(self, flags=None, options_id=None, **kwargs):
     """Initialize an options class.
 
     The initializer will traverse all subclasses, add all their argparse
@@ -141,7 +141,8 @@ class PipelineOptions(HasDisplayData):
     """
     self._flags = flags
     self._all_options = kwargs
-    self._options_id = PipelineOptions._options_id_generator.next()
+    self._options_id = (
+        options_id or PipelineOptions._options_id_generator.next())
     parser = BeamArgumentParser(self._options_id)
 
     for cls in type(self).mro():
@@ -219,7 +220,7 @@ class PipelineOptions(HasDisplayData):
     return self.get_all_options(True)
 
   def view_as(self, cls):
-    view = cls(self._flags)
+    view = cls(self._flags, options_id=self._options_id)
     view._all_options = self._all_options
     return view
 

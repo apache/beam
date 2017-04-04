@@ -99,6 +99,9 @@ class DirectRunner(PipelineRunner):
       result.wait_until_finish()
       self._cache.finalize()
 
+      if pipeline.options:
+        RuntimeValueProvider.unset_runtime_options(pipeline.options._options_id)
+
     return result
 
   @property
