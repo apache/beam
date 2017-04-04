@@ -36,7 +36,7 @@ import org.apache.beam.sdk.util.PropertyNames;
 import org.apache.beam.sdk.util.WindowedValue;
 
 /**
- * Singleton keyed word iteam coder.
+ * Singleton keyed work item coder.
  * @param <K>
  * @param <ElemT>
  */

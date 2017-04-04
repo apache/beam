@@ -67,8 +67,6 @@ import org.apache.hadoop.conf.Configuration;
  * A {@link PipelineRunner} that translates the
  * pipeline to an Apex DAG and executes it on an Apex cluster.
  *
- * <p>Currently execution is always in embedded mode,
- * launch on Hadoop cluster will be added in subsequent iteration.
  */
 @SuppressWarnings({"rawtypes", "unchecked"})
 public class ApexRunner extends PipelineRunner<ApexRunnerResult> {
