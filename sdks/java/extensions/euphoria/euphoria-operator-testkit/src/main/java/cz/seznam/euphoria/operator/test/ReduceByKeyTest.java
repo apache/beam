@@ -56,7 +56,6 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -560,13 +559,10 @@ public class ReduceByKeyTest extends AbstractOperatorTest {
       sum.clear();
     }
 
-    static SumState combine(Iterable<SumState> states) {
-      Iterator<SumState> iter = states.iterator();
-      SumState target = iter.next();
-      while (iter.hasNext()) {
-        target.add(iter.next().sum.get());
+    static void combine(SumState target, Iterable<SumState> others) {
+      for (SumState other : others) {
+        target.add(other.sum.get());
       }
-      return target;
     }
   }
 
@@ -633,7 +629,7 @@ public class ReduceByKeyTest extends AbstractOperatorTest {
                 .keyBy(Pair::getFirst)
                 .valueBy(Pair::getSecond)
                 .stateFactory(SumState::new)
-                .combineStateBy(SumState::combine)
+                .mergeStatesBy(SumState::combine)
                 .windowBy(new AssertingWindowing<>())
                 .output();
         return FlatMap.of(output)
