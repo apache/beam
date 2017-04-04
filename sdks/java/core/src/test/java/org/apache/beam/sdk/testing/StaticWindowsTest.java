@@ -70,8 +70,12 @@ public class StaticWindowsTest {
     WindowFn<Object, BoundedWindow> fn =
         StaticWindows.of(IntervalWindow.getCoder(), ImmutableList.of(first, second));
 
-    assertThat(fn.getSideInputWindow(first), Matchers.<BoundedWindow>equalTo(first));
-    assertThat(fn.getSideInputWindow(second), Matchers.<BoundedWindow>equalTo(second));
+    assertThat(
+        fn.getDefaultWindowMappingFn().getSideInputWindow(first),
+        Matchers.<BoundedWindow>equalTo(first));
+    assertThat(
+        fn.getDefaultWindowMappingFn().getSideInputWindow(second),
+        Matchers.<BoundedWindow>equalTo(second));
   }
 
   @Test
@@ -80,7 +84,7 @@ public class StaticWindowsTest {
         StaticWindows.of(IntervalWindow.getCoder(), ImmutableList.of(second));
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("contains");
-    fn.getSideInputWindow(first);
+    fn.getDefaultWindowMappingFn().getSideInputWindow(first);
   }
 
   @Test
