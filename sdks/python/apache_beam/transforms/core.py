@@ -1088,7 +1088,6 @@ class GroupByKey(PTransform):
     # This code path is only used in the local direct runner.  For Dataflow
     # runner execution, the GroupByKey transform is expanded on the service.
     input_type = pcoll.element_type
-
     if input_type is not None:
       # Initialize type-hints used below to enforce type-checking and to pass
       # downstream to further PTransforms.
@@ -1375,7 +1374,8 @@ class Create(PTransform):
     self.pipeline = pbegin.pipeline
     coder = typecoders.registry.get_coder(self.infer_output_type(None))
     source = self._create_source(self.value, coder)
-    return pbegin.pipeline | Read(source)
+    return (pbegin.pipeline
+            | Read(source).with_output_types(self.infer_output_type(None)))
 
   def get_windowing(self, unused_inputs):
     return Windowing(GlobalWindows())
