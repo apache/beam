@@ -70,7 +70,7 @@ public class WriteOneFilePerWindow extends PTransform<PCollection<String>, PDone
       return StaticValueProvider.of(output);
     }
 
-    public String filenamePrefixForWindow(IntervalWindow window) {
+    public String   filenamePrefixForWindow(IntervalWindow window) {
       return String.format(
           "%s-%s-%s", output, formatter.print(window.start()), formatter.print(window.end()));
     }

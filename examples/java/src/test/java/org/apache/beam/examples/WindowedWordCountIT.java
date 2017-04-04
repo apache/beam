@@ -143,7 +143,7 @@ public class WindowedWordCountIT {
           new NumberedShardedFile(
               filenamePolicy.filenamePrefixForWindow(
                   new IntervalWindow(
-                      windowStart, windowStart.plus(Duration.standardMinutes(10))))));
+                      windowStart, windowStart.plus(Duration.standardMinutes(10)))) + "*"));
     }
 
     ShardedFile inputFile = new ExplicitShardedFile(Collections.singleton(options.getInputFile()));
@@ -215,8 +215,8 @@ public class WindowedWordCountIT {
         return actualCounts.equals(expectedWordCounts);
       } catch (Exception e) {
         throw new RuntimeException(
-            String.format("Failed to read from sharded output: %s due to exception %s",
-                outputFiles, e));
+            String.format("Failed to read from sharded output: %s due to exception",
+                outputFiles), e);
       }
     }
 
