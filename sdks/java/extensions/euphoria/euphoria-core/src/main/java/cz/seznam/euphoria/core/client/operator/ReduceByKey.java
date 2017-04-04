@@ -268,8 +268,8 @@ public class ReduceByKey<
   @SuppressWarnings("unchecked")
   @Override
   public DAG<Operator<?, ?>> getBasicOps() {
-    CombinableReduceFunction<StateSupport.MergeFrom<OUT>> stateCombine =
-            new StateSupport.MergeFromStateCombiner();
+    StateSupport.MergeFromStateMerger stateCombine =
+            new StateSupport.MergeFromStateMerger<>();
     StateFactory stateFactory = isCombinable()
             ? new CombiningReduceState.Factory<>((CombinableReduceFunction) reducer)
             : new NonCombiningReduceState.Factory<>(reducer);
@@ -340,7 +340,7 @@ public class ReduceByKey<
 
     @Override
     public void mergeFrom(CombiningReduceState<E> other) {
-      this.storage.set(this.reducer.apply(Arrays.asList(this.storage.get(), other.storage.get())));
+      this.add(other.storage.get());
     }
   }
 

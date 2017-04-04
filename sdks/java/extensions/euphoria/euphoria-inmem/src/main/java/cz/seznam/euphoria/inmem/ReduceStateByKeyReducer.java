@@ -20,14 +20,14 @@ import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 import cz.seznam.euphoria.core.client.dataset.windowing.WindowedElement;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.functional.BinaryFunction;
-import cz.seznam.euphoria.core.client.functional.CombinableReduceFunction;
-import cz.seznam.euphoria.core.client.operator.state.StateFactory;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 import cz.seznam.euphoria.core.client.operator.ReduceStateByKey;
 import cz.seznam.euphoria.core.client.operator.state.ListStorage;
 import cz.seznam.euphoria.core.client.operator.state.ListStorageDescriptor;
 import cz.seznam.euphoria.core.client.operator.state.MergingStorageDescriptor;
 import cz.seznam.euphoria.core.client.operator.state.State;
+import cz.seznam.euphoria.core.client.operator.state.StateFactory;
+import cz.seznam.euphoria.core.client.operator.state.StateMerger;
 import cz.seznam.euphoria.core.client.operator.state.Storage;
 import cz.seznam.euphoria.core.client.operator.state.StorageDescriptor;
 import cz.seznam.euphoria.core.client.operator.state.StorageProvider;
@@ -398,8 +398,8 @@ class ReduceStateByKeyReducer implements Runnable {
     final Collector<Datum> stateOutput;
     final BlockingQueue<Datum> rawOutput;
     final TriggerScheduler<Window, Object> triggering;
-    final StateFactory<Object, Object, State<Object, Object>> stateFactory;
-    final CombinableReduceFunction<State> stateCombiner;
+    final StateFactory stateFactory;
+    final StateMerger stateMerger;
 
     final ProcessingStats stats = new ProcessingStats(this);
 
@@ -407,11 +407,11 @@ class ReduceStateByKeyReducer implements Runnable {
     private Map<Window, Long> flushedWindows = new HashMap<>();
 
     private ProcessingState(
-        BlockingQueue<Datum> output,
-        TriggerScheduler<Window, Object> triggering,
-        StateFactory<Object, Object, State<Object, Object>> stateFactory,
-        CombinableReduceFunction<State> stateCombiner,
-        StorageProvider storageProvider) {
+            BlockingQueue<Datum> output,
+            TriggerScheduler<Window, Object> triggering,
+            StateFactory stateFactory,
+            StateMerger stateMerger,
+            StorageProvider storageProvider) {
 
       this.triggerStorage = new ScopedStorage(storageProvider);
       this.storageProvider = storageProvider;
@@ -419,7 +419,7 @@ class ReduceStateByKeyReducer implements Runnable {
       this.rawOutput = output;
       this.triggering = requireNonNull(triggering);
       this.stateFactory = requireNonNull(stateFactory);
-      this.stateCombiner = requireNonNull(stateCombiner);
+      this.stateMerger = requireNonNull(stateMerger);
     }
 
     Map<Window, Long> takeFlushedWindows() {
@@ -480,6 +480,7 @@ class ReduceStateByKeyReducer implements Runnable {
       wRegistry.windows.clear();
     }
 
+    @SuppressWarnings("unchecked")
     State getWindowStateForUpdate(KeyedWindow<?, ?> kw) {
       State state = wRegistry.getWindowState(kw);
       if (state == null) {
@@ -507,39 +508,36 @@ class ReduceStateByKeyReducer implements Runnable {
 
     // ~ merges window states for sources and places it on 'target'
     // ~ returns a list of windows which were merged and actually removed
+    @SuppressWarnings("unchecked")
     Set<KeyedWindow<Window, Object>>
     mergeWindowStates(Collection<Window> sources, KeyedWindow<Window, Object> target) {
-      // ~ first find the states to be merged
-      List<Pair<Window, State>> combine = new ArrayList<>(sources.size() + 1);
+      // ~ first find the states to be merged into `target`
+      List<Pair<Window, State>> merge = new ArrayList<>(sources.size());
       for (Window source : sources) {
-        State state;
-        if (source.equals(target.window())) {
-          state = wRegistry.getWindowState(target);
-        } else {
-          state = wRegistry.removeWindowState(new KeyedWindow<>(source, target.key()));
-        }
-        if (state != null) {
-          combine.add(Pair.of(source, state));
+        if (!source.equals(target.window())) {
+          State state = wRegistry.removeWindowState(new KeyedWindow<>(source, target.key()));
+          if (state != null) {
+            merge.add(Pair.of(source, state));
+          }
         }
       }
       // ~ prepare for the state merge
-      List<State> statesToCombine = new ArrayList<>(combine.size());
+      List<State<?, ?>> statesToMerge = new ArrayList<>(merge.size());
       // ~ if any of the states emits any data during the merge, we'll make
       // sure it happens in the scope of the merge target window
-      for (Pair<Window, State> c : combine) {
-        State s = c.getSecond();
-        statesToCombine.add(s);
+      for (Pair<Window, State> m : merge) {
+        State s = m.getSecond();
+        statesToMerge.add(s);
         ((KeyedElementCollector) s.getContext()).setWindow(target.window());
       }
       // ~ now merge the state and re-assign it to the merge-window
-      if (!statesToCombine.isEmpty()) {
-        State newTargetState = stateCombiner.apply(statesToCombine);
-        wRegistry.setWindowState(target, newTargetState);
+      if (!statesToMerge.isEmpty()) {
+        State targetState = getWindowStateForUpdate(target);
+        stateMerger.merge(targetState, statesToMerge);
       }
       // ~ finally return a list of windows which were actually merged and removed
-      return combine.stream()
+      return merge.stream()
           .map(Pair::getFirst)
-          .filter(w -> !w.equals(target.window()))
           .map(w -> new KeyedWindow<>(w, target.key()))
           .collect(toSet());
     }
@@ -626,7 +624,7 @@ class ReduceStateByKeyReducer implements Runnable {
     this.processing = new ProcessingState(
         output, scheduler,
         requireNonNull(operator.getStateFactory()),
-        requireNonNull(operator.getStateCombiner()),
+        requireNonNull(operator.getStateMerger()),
         storageProvider);
   }
 

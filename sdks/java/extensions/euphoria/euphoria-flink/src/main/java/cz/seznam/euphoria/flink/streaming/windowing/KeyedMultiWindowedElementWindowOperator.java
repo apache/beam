@@ -17,9 +17,9 @@ package cz.seznam.euphoria.flink.streaming.windowing;
 
 import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
-import cz.seznam.euphoria.core.client.functional.CombinableReduceFunction;
-import cz.seznam.euphoria.core.client.operator.state.StateFactory;
 import cz.seznam.euphoria.core.client.operator.state.State;
+import cz.seznam.euphoria.core.client.operator.state.StateFactory;
+import cz.seznam.euphoria.core.client.operator.state.StateMerger;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
 /**
@@ -32,7 +32,7 @@ public class KeyedMultiWindowedElementWindowOperator<KEY, WID extends Window>
     public KeyedMultiWindowedElementWindowOperator(
             Windowing<?, WID> windowing,
             StateFactory<?, ?, State<?, ?>> stateFactory,
-            CombinableReduceFunction<State<?, ?>> stateCombiner,
+            StateMerger<?, ?, State<?, ?>> stateCombiner,
             boolean localMode,
             int descriptorsCacheMaxSize) {
         super(windowing, stateFactory, stateCombiner, localMode, descriptorsCacheMaxSize);
