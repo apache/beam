@@ -24,6 +24,8 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import org.apache.beam.runners.core.ElementAndRestriction;
 import org.apache.beam.runners.core.KeyedWorkItem;
 import org.apache.beam.runners.core.KeyedWorkItems;
@@ -56,6 +58,8 @@ public class SplittableDoFnOperator<
     InputT, FnOutputT, OutputT, RestrictionT, TrackerT extends RestrictionTracker<RestrictionT>>
     extends DoFnOperator<
     KeyedWorkItem<String, ElementAndRestriction<InputT, RestrictionT>>, FnOutputT, OutputT> {
+
+  private transient ScheduledExecutorService executorService;
 
   public SplittableDoFnOperator(
       DoFn<KeyedWorkItem<String, ElementAndRestriction<InputT, RestrictionT>>, FnOutputT> doFn,
@@ -108,6 +112,8 @@ public class SplittableDoFnOperator<
       }
     };
 
+    executorService = Executors.newSingleThreadScheduledExecutor(Executors.defaultThreadFactory());
+
     ((SplittableParDo.ProcessFn) doFn).setStateInternalsFactory(stateInternalsFactory);
     ((SplittableParDo.ProcessFn) doFn).setTimerInternalsFactory(timerInternalsFactory);
     ((SplittableParDo.ProcessFn) doFn).setProcessElementInvoker(
@@ -137,7 +143,7 @@ public class SplittableDoFnOperator<
               }
             },
             sideInputReader,
-            Executors.newSingleThreadScheduledExecutor(Executors.defaultThreadFactory()),
+            executorService,
             10000,
             Duration.standardSeconds(10)));
   }
@@ -149,4 +155,24 @@ public class SplittableDoFnOperator<
             (String) stateInternals.getKey(),
             Collections.singletonList(timer.getNamespace()))));
   }
+
+  @Override
+  public void close() throws Exception {
+    super.close();
+
+    executorService.shutdown();
+
+    long shutdownTimeout = Duration.standardSeconds(10).getMillis();
+    try {
+      if (!executorService.awaitTermination(shutdownTimeout, TimeUnit.MILLISECONDS)) {
+        LOG.debug("The scheduled executor service did not properly terminate. Shutting "
+            + "it down now.");
+        executorService.shutdownNow();
+      }
+    } catch (InterruptedException e) {
+      LOG.debug("Could not properly await the termination of the scheduled executor service.", e);
+      executorService.shutdownNow();
+    }
+  }
+
 }
