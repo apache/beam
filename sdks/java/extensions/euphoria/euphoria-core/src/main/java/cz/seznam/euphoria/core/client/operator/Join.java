@@ -451,7 +451,7 @@ public class Join<LEFT, RIGHT, KEY, OUT, W extends Window>
               getWindowing(),
               getEventTimeAssigner(),
               JoinState::new,
-              new StateSupport.MergeFromStateCombiner<>(),
+              new StateSupport.MergeFromStateMerger<>(),
               partitioning
         );
 

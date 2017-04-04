@@ -58,7 +58,6 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -297,13 +296,10 @@ public class InMemExecutorTest {
       }
     }
 
-    static SortState combine(Iterable<SortState> others) {
-      Iterator<SortState> iter = others.iterator();
-      SortState target = iter.next();
-      while (iter.hasNext()) {
-        target.data.addAll(iter.next().data.get());
+    static void combine(SortState target, Iterable<SortState> others) {
+      for (SortState other : others) {
+        target.data.addAll(other.data.get());
       }
-      return target;
     }
 
     @Override
@@ -412,7 +408,7 @@ public class InMemExecutorTest {
         .keyBy(i -> i % 10)
         .valueBy(e -> e)
         .stateFactory(SortState::new)
-        .combineStateBy(SortState::combine)
+        .mergeStatesBy(SortState::combine)
         .windowBy(windowing)
         .output();
 

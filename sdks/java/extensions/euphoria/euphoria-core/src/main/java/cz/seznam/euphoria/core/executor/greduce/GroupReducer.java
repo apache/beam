@@ -21,13 +21,13 @@ import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 import cz.seznam.euphoria.core.client.dataset.windowing.WindowedElement;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.functional.BinaryFunction;
-import cz.seznam.euphoria.core.client.functional.CombinableReduceFunction;
 import cz.seznam.euphoria.core.client.io.Context;
 import cz.seznam.euphoria.core.client.operator.state.ListStorage;
 import cz.seznam.euphoria.core.client.operator.state.ListStorageDescriptor;
 import cz.seznam.euphoria.core.client.operator.state.MergingStorageDescriptor;
 import cz.seznam.euphoria.core.client.operator.state.State;
 import cz.seznam.euphoria.core.client.operator.state.StateFactory;
+import cz.seznam.euphoria.core.client.operator.state.StateMerger;
 import cz.seznam.euphoria.core.client.operator.state.Storage;
 import cz.seznam.euphoria.core.client.operator.state.StorageDescriptor;
 import cz.seznam.euphoria.core.client.operator.state.StorageProvider;
@@ -69,8 +69,8 @@ public class GroupReducer<WID extends Window, KEY, I> {
   }
 
   private final StateFactory<I, ?, State<I, ?>> stateFactory;
+  private final StateMerger<I, ?, State<I, ?>> stateCombiner;
   private final WindowedElementFactory<WID, Object> elementFactory;
-  private final CombinableReduceFunction<State> stateCombiner;
   private final StorageProvider stateStorageProvider;
   private final Collector<WindowedElement<?, Pair<KEY, ?>>> collector;
   private final Windowing windowing;
@@ -83,9 +83,9 @@ public class GroupReducer<WID extends Window, KEY, I> {
   KEY key;
 
   public GroupReducer(StateFactory<I, ?, State<I, ?>> stateFactory,
-                      WindowedElementFactory<WID, Object> elementFactory,
-                      CombinableReduceFunction<State> stateCombiner,
+                      StateMerger<I, ?, State<I, ?>> stateCombiner,
                       StorageProvider stateStorageProvider,
+                      WindowedElementFactory<WID, Object> elementFactory,
                       Windowing windowing,
                       Trigger trigger,
                       Collector<WindowedElement<?, Pair<KEY, ?>>> collector) {
@@ -119,15 +119,9 @@ public class GroupReducer<WID extends Window, KEY, I> {
       windowTr = Trigger.TriggerResult.merge(windowTr, r.getSecond());
     }
 
-    // ~ get the target window's state
+    // ~ add the value to the target window state
     {
-      State state = states.get(window);
-      if (state == null) {
-        state = stateFactory.createState(
-            new ElementCollectContext(collector, window), stateStorageProvider);
-        states.put(window, state);
-      }
-      // ~ add the value to the target window state
+      State state = getStateForUpdate(window);
       state.add(elem.getElement().getSecond());
     }
 
@@ -138,6 +132,14 @@ public class GroupReducer<WID extends Window, KEY, I> {
           windowTr, trigger.onElement(elem.getTimestamp(), window, trgCtx));
       processTriggerResult(window, trgCtx, windowTr);
     }
+  }
+
+  @SuppressWarnings("unchecked")
+  private State getStateForUpdate(WID window) {
+    return states.computeIfAbsent(window, w -> {
+      ElementCollectContext col = new ElementCollectContext(collector, w);
+      return stateFactory.createState(col, stateStorageProvider);
+    });
   }
 
   public void close() {
@@ -183,6 +185,18 @@ public class GroupReducer<WID extends Window, KEY, I> {
         newWindow = target;
       }
 
+      // ~ as of now on, we can assume `sources` do _not_ contain `target`;
+      // this implies:
+      //  a) the target window's state will not be merged into itself
+      //  b) the target window's triggers will not be merged into itself
+      //  c) the target window's trigger #onClear won't be called
+      sources.remove(target);
+
+      // XXX only if sources non empty!
+
+      // ~ make sure to create the target state if necessary
+      State targetState = getStateForUpdate(target);
+
       // ~ merge the (window) states
       {
         // ~ first make sure that if any state emits data, it does so for target window
@@ -191,9 +205,7 @@ public class GroupReducer<WID extends Window, KEY, I> {
           ((ElementCollectContext) state.getContext()).window = target;
         }
         // ~ now merge the state
-        State newState = stateCombiner.apply(sourceStates);
-        // ~ and store the new state for the target window
-        states.put(target, newState);
+        stateCombiner.merge(targetState, (List) sourceStates);
       }
 
       // ~ merge trigger states
@@ -204,10 +216,9 @@ public class GroupReducer<WID extends Window, KEY, I> {
       }
       // ~ clear the trigger states of the merged windows
       for (WID source : sources) {
-        if (source.equals(newWindow) || source.equals(target)) {
-          continue;
+        if (!source.equals(newWindow)) {
+          trigger.onClear(source, new ElementTriggerContext(source));
         }
-        trigger.onClear(source, new ElementTriggerContext(source));
       }
     }
 
@@ -322,6 +333,7 @@ public class GroupReducer<WID extends Window, KEY, I> {
 
     private Collection<? extends Window> sources;
 
+    // ~ `trgt` is assumed _not_ to be contained in `srcs`
     MergingTriggerContext(Collection<? extends Window> srcs, Window trgt) {
       super(trgt);
       this.sources = srcs;
@@ -349,10 +361,6 @@ public class GroupReducer<WID extends Window, KEY, I> {
 
       // merge all existing (non null) trigger states
       for (Window w : sources) {
-        // ~ avoid accumulating the state of the target window twice
-        if (w.equals(this.window)) {
-          continue;
-        }
         Storage s = triggerStorage.getStorage(w, descriptor);
         if (s != null) {
           mergeFn.apply(merged, s);
