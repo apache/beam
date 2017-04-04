@@ -54,7 +54,7 @@ import org.slf4j.LoggerFactory;
  *  Pipeline pipeline = Pipeline.create(...);
  *  ... // KV collection
  *  long batchSize = 100L;
- *  pipeline.apply(BatchingParDo.<String, String>via(batchSize))
+ *  pipeline.apply(GroupIntoBatches.<String, String>ofSize(batchSize))
  * .setCoder(KvCoder.of(StringUtf8Coder.of(), IterableCoder.of(StringUtf8Coder.of())))
  * .apply(ParDo.of(new DoFn<KV<String, Iterable<String>>, KV<String, String>>() {
  * {@literal @}ProcessElement
@@ -65,17 +65,17 @@ import org.slf4j.LoggerFactory;
  *  pipeline.run();
  * }</pre>
  */
-public class BatchingParDo<K, InputT>
+public class GroupIntoBatches<K, InputT>
     extends PTransform<PCollection<KV<K, InputT>>, PCollection<KV<K, Iterable<InputT>>>> {
 
   private final long batchSize;
 
-  private BatchingParDo(long batchSize) {
+  private GroupIntoBatches(long batchSize) {
     this.batchSize = batchSize;
   }
 
-  public static <K, InputT> BatchingParDo<K, InputT> via(long batchSize) {
-    return new BatchingParDo<>(batchSize);
+  public static <K, InputT> GroupIntoBatches<K, InputT> ofSize(long batchSize) {
+    return new GroupIntoBatches<>(batchSize);
   }
 
   @Override
@@ -89,15 +89,14 @@ public class BatchingParDo<K, InputT>
     Coder<K> keyCoder = (Coder<K>) inputCoder.getCoderArguments().get(0);
     Coder<InputT> valueCoder = (Coder<InputT>) inputCoder.getCoderArguments().get(1);
 
-    PCollection<KV<K, Iterable<InputT>>> output =
-        input.apply(ParDo.of(new BatchingDoFn<>(batchSize, allowedLateness, keyCoder, valueCoder)));
-    return output;
+    return input.apply(
+        ParDo.of(new GroupIntoBatchesDoFn<>(batchSize, allowedLateness, keyCoder, valueCoder)));
   }
 
   @VisibleForTesting
-  static class BatchingDoFn<K, InputT> extends DoFn<KV<K, InputT>, KV<K, Iterable<InputT>>> {
+  static class GroupIntoBatchesDoFn<K, InputT> extends DoFn<KV<K, InputT>, KV<K, Iterable<InputT>>> {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(BatchingDoFn.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(GroupIntoBatchesDoFn.class);
     private static final String END_OF_WINDOW_ID = "endOFWindow";
     private static final String BATCH_ID = "batch";
     private static final String NUM_ELEMENTS_IN_BATCH_ID = "numElementsInBatch";
@@ -120,7 +119,7 @@ public class BatchingParDo<K, InputT>
 
     private final long prefetchFrequency;
 
-    BatchingDoFn(
+    GroupIntoBatchesDoFn(
         long batchSize,
         Duration allowedLateness,
         Coder<K> inputKeyCoder,
@@ -172,12 +171,12 @@ public class BatchingParDo<K, InputT>
         @StateId(KEY_ID) ValueState<K> key,
         ProcessContext c,
         BoundedWindow window) {
-      Instant firingInstant = window.maxTimestamp().plus(allowedLateness);
+      Instant windowExpires = window.maxTimestamp().plus(allowedLateness);
 
       LOGGER.debug(
           "*** SET TIMER *** to point in time {} for window {}",
-          firingInstant.toString(), window.toString());
-      timer.set(firingInstant);
+          windowExpires.toString(), window.toString());
+      timer.set(windowExpires);
       key.write(c.element().getKey());
       batch.add(c.element().getValue());
       LOGGER.debug("*** BATCH *** Add element for window {} ", window.toString());

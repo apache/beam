@@ -50,13 +50,13 @@ import org.junit.runners.JUnit4;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** Test Class for {@link BatchingParDo}. */
+/** Test Class for {@link GroupIntoBatches}. */
 @RunWith(JUnit4.class)
-public class BatchingParDoTest implements Serializable {
+public class GroupIntoBatchesTest implements Serializable {
   private static final int BATCH_SIZE = 5;
   private static final long NUM_ELEMENTS = 10;
   private static final int ALLOWED_LATENESS = 0;
-  private static final Logger LOGGER = LoggerFactory.getLogger(BatchingParDoTest.class);
+  private static final Logger LOGGER = LoggerFactory.getLogger(GroupIntoBatchesTest.class);
   @Rule public transient TestPipeline pipeline = TestPipeline.create();
   private transient ArrayList<KV<String, String>> data = createTestData();
 
@@ -88,7 +88,7 @@ public class BatchingParDoTest implements Serializable {
     PCollection<KV<String, Iterable<String>>> collection =
         pipeline
             .apply("Input data", Create.of(data))
-            .apply(BatchingParDo.<String, String>via(BATCH_SIZE))
+            .apply(GroupIntoBatches.<String, String>ofSize(BATCH_SIZE))
             //set output coder
             .setCoder(KvCoder.of(StringUtf8Coder.of(), IterableCoder.of(StringUtf8Coder.of())));
     PAssert.that("Incorrect batch size in one ore more elements", collection)
@@ -170,17 +170,17 @@ public class BatchingParDoTest implements Serializable {
 
     PCollection<KV<String, Iterable<String>>> outputCollection =
         inputCollection
-            .apply(BatchingParDo.<String, String>via(BATCH_SIZE))
+            .apply(GroupIntoBatches.<String, String>ofSize(BATCH_SIZE))
             .setCoder(KvCoder.of(StringUtf8Coder.of(), IterableCoder.of(StringUtf8Coder.of())));
 
     // elements have the same key and collection is divided into windows,
     // so Count.perKey values are the number of elements in windows
     PCollection<KV<String, Long>> countOutput =
         outputCollection.apply(
-            "Count elements in windows after applying batchingParDo",
+            "Count elements in windows after applying GroupIntoBatches",
             Count.<String, Iterable<String>>perKey());
 
-    PAssert.that("Wrong number of elements in windows after BatchingParDo", countOutput)
+    PAssert.that("Wrong number of elements in windows after GroupIntoBatches", countOutput)
         .satisfies(
             new SerializableFunction<Iterable<KV<String, Long>>, Void>() {
 
@@ -202,7 +202,7 @@ public class BatchingParDoTest implements Serializable {
               }
             });
 
-    PAssert.that("Incorrect output collection after BatchingParDo", outputCollection)
+    PAssert.that("Incorrect output collection after GroupIntoBatches", outputCollection)
         .satisfies(
             new SerializableFunction<Iterable<KV<String, Iterable<String>>>, Void>() {
 
