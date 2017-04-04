@@ -99,6 +99,8 @@ class DirectRunner(PipelineRunner):
       result.wait_until_finish()
       self._cache.finalize()
 
+      # Unset runtime options after the pipeline finishes.
+      # TODO: Move this to a post finish hook and clean for all cases.
       if pipeline.options:
         RuntimeValueProvider.unset_runtime_options(pipeline.options._options_id)
 

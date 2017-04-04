@@ -53,6 +53,7 @@ class RuntimeValueProvider(ValueProvider):
   runtime_options_map = {}
 
   def __init__(self, option_name, value_type, default_value, options_id):
+    assert options_id is not None
     self.option_name = option_name
     self.default_value = default_value
     self.value_type = value_type
