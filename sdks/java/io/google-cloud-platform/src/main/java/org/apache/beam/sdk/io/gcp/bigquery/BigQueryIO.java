@@ -174,7 +174,7 @@ import org.slf4j.LoggerFactory;
  *         }));
  * }</pre>
  *
- * Note that this also allows the table to be a function of the element as well as the current
+ * <p>Note that this also allows the table to be a function of the element as well as the current
  * pane, in the case of triggered windows. In this case it might be convenient to call
  * {@link BigQueryIO#write()} directly instead of using the {@link BigQueryIO#writeTableRows()}
  * helper. This will allow the mapping function to access the element of the user-defined type.
