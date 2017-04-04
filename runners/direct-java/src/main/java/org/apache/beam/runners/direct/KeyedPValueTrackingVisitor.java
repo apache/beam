@@ -21,7 +21,7 @@ import static com.google.common.base.Preconditions.checkState;
 
 import com.google.common.collect.ImmutableSet;
 import java.util.HashSet;
-import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import org.apache.beam.runners.core.SplittableParDo;
 import org.apache.beam.runners.direct.DirectGroupByKey.DirectGroupAlsoByWindow;
@@ -32,7 +32,7 @@ import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PValue;
-import org.apache.beam.sdk.values.TaggedPValue;
+import org.apache.beam.sdk.values.TupleTag;
 
 /**
  * A pipeline visitor that tracks all keyed {@link PValue PValues}. A {@link PValue} is keyed if it
@@ -83,9 +83,9 @@ class KeyedPValueTrackingVisitor implements PipelineVisitor {
     if (node.isRootNode()) {
       finalized = true;
     } else if (PRODUCES_KEYED_OUTPUTS.contains(node.getTransform().getClass())) {
-      List<TaggedPValue> outputs = node.getOutputs();
-      for (TaggedPValue output : outputs) {
-        keyedValues.add(output.getValue());
+      Map<TupleTag<?>, PValue> outputs = node.getOutputs();
+      for (PValue output : outputs.values()) {
+        keyedValues.add(output);
       }
     }
   }
@@ -96,8 +96,8 @@ class KeyedPValueTrackingVisitor implements PipelineVisitor {
   @Override
   public void visitValue(PValue value, TransformHierarchy.Node producer) {
     boolean inputsAreKeyed = true;
-    for (TaggedPValue input : producer.getInputs()) {
-      inputsAreKeyed = inputsAreKeyed && keyedValues.contains(input.getValue());
+    for (PValue input : producer.getInputs().values()) {
+      inputsAreKeyed = inputsAreKeyed && keyedValues.contains(input);
     }
     if (PRODUCES_KEYED_OUTPUTS.contains(producer.getTransform().getClass())
         || (isKeyPreserving(producer.getTransform()) && inputsAreKeyed)) {

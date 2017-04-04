@@ -19,7 +19,6 @@ package org.apache.beam.runners.flink;
 
 import com.google.common.collect.Iterables;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import org.apache.beam.runners.flink.translation.types.CoderTypeInformation;
 import org.apache.beam.sdk.coders.Coder;
@@ -31,7 +30,7 @@ import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PValue;
-import org.apache.beam.sdk.values.TaggedPValue;
+import org.apache.beam.sdk.values.TupleTag;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
@@ -134,21 +133,21 @@ class FlinkBatchTranslationContext {
     return new CoderTypeInformation<>(windowedValueCoder);
   }
 
-  List<TaggedPValue> getInputs(PTransform<?, ?> transform) {
+  Map<TupleTag<?>, PValue> getInputs(PTransform<?, ?> transform) {
     return currentTransform.getInputs();
   }
 
   @SuppressWarnings("unchecked")
   <T extends PValue> T getInput(PTransform<T, ?> transform) {
-    return (T) Iterables.getOnlyElement(currentTransform.getInputs()).getValue();
+    return (T) Iterables.getOnlyElement(currentTransform.getInputs().values());
   }
 
-  List<TaggedPValue> getOutputs(PTransform<?, ?> transform) {
+  Map<TupleTag<?>, PValue> getOutputs(PTransform<?, ?> transform) {
     return currentTransform.getOutputs();
   }
 
   @SuppressWarnings("unchecked")
   <T extends PValue> T getOutput(PTransform<?, T> transform) {
-    return (T) Iterables.getOnlyElement(currentTransform.getOutputs()).getValue();
+    return (T) Iterables.getOnlyElement(currentTransform.getOutputs().values());
   }
 }

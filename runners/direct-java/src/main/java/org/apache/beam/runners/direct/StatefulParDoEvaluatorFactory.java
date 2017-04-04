@@ -27,6 +27,7 @@ import com.google.common.collect.Lists;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Map.Entry;
 import org.apache.beam.runners.core.KeyedWorkItem;
 import org.apache.beam.runners.core.KeyedWorkItems;
 import org.apache.beam.runners.core.StateNamespace;
@@ -52,7 +53,7 @@ import org.apache.beam.sdk.util.state.StateSpec;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
-import org.apache.beam.sdk.values.TaggedPValue;
+import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 
 /** A {@link TransformEvaluatorFactory} for stateful {@link ParDo}. */
@@ -139,8 +140,9 @@ final class StatefulParDoEvaluatorFactory<K, InputT, OutputT> implements Transfo
       String stepName = evaluationContext.getStepName(transformOutputWindow.getTransform());
 
       Map<TupleTag<?>, PCollection<?>> taggedValues = new HashMap<>();
-      for (TaggedPValue pv : transformOutputWindow.getTransform().getOutputs()) {
-        taggedValues.put(pv.getTag(), (PCollection<?>) pv.getValue());
+      for (Entry<TupleTag<?>, PValue> pv :
+          transformOutputWindow.getTransform().getOutputs().entrySet()) {
+        taggedValues.put(pv.getKey(), (PCollection<?>) pv.getValue());
       }
       PCollection<?> pc =
           taggedValues

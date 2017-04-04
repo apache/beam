@@ -19,7 +19,6 @@
 package org.apache.beam.runners.core.construction;
 
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.runners.PTransformOverrideFactory;
@@ -31,7 +30,7 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.PValue;
-import org.apache.beam.sdk.values.TaggedPValue;
+import org.apache.beam.sdk.values.TupleTag;
 
 /**
  * A {@link PTransformOverrideFactory} that will apply a flatten where no element appears in the
@@ -46,6 +45,7 @@ public class DeduplicatedFlattenFactory<T>
   }
 
   private DeduplicatedFlattenFactory() {}
+
   @Override
   public PTransform<PCollectionList<T>, PCollection<T>> getReplacementTransform(
       PCollections<T> transform) {
@@ -75,12 +75,16 @@ public class DeduplicatedFlattenFactory<T>
     };
   }
 
+  /**
+   * {@inheritDoc}.
+   *
+   * <p>The input {@link PCollectionList} that is constructed will have the same values in the same
+   */
   @Override
-  public PCollectionList<T> getInput(
-      List<TaggedPValue> inputs, Pipeline p) {
+  public PCollectionList<T> getInput(Map<TupleTag<?>, PValue> inputs, Pipeline p) {
     PCollectionList<T> pCollections = PCollectionList.empty(p);
-    for (TaggedPValue input : inputs) {
-      PCollection<T> pcollection = (PCollection<T>) input.getValue();
+    for (PValue input : inputs.values()) {
+      PCollection<T> pcollection = (PCollection<T>) input;
       pCollections = pCollections.and(pcollection);
     }
     return pCollections;
@@ -88,7 +92,7 @@ public class DeduplicatedFlattenFactory<T>
 
   @Override
   public Map<PValue, ReplacementOutput> mapOutputs(
-      List<TaggedPValue> outputs, PCollection<T> newOutput) {
+      Map<TupleTag<?>, PValue> outputs, PCollection<T> newOutput) {
     return ReplacementOutputs.singleton(outputs, newOutput);
   }
 

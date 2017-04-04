@@ -162,7 +162,7 @@ public class ParDoEvaluatorTest {
         evaluationContext,
         stepContext,
         transform,
-        ((PCollection<?>) Iterables.getOnlyElement(transform.getInputs()).getValue())
+        ((PCollection<?>) Iterables.getOnlyElement(transform.getInputs().values()))
             .getWindowingStrategy(),
         fn,
         null /* key */,

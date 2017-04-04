@@ -40,8 +40,9 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.TaggedPValue;
+import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TimestampedValue;
+import org.apache.beam.sdk.values.TupleTag;
 import org.hamcrest.Matchers;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -183,7 +184,7 @@ public class TestStreamEvaluatorFactoryTest {
   @Test
   public void overrideFactoryGetInputSucceeds() {
     DirectTestStreamFactory<?> factory = new DirectTestStreamFactory<>(runner);
-    PBegin begin = factory.getInput(Collections.<TaggedPValue>emptyList(), p);
+    PBegin begin = factory.getInput(Collections.<TupleTag<?>, PValue>emptyMap(), p);
     assertThat(begin.getPipeline(), Matchers.<Pipeline>equalTo(p));
   }
 }

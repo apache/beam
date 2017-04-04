@@ -18,7 +18,7 @@
 package org.apache.beam.sdk.values;
 
 import java.util.Collections;
-import java.util.List;
+import java.util.Map;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -133,8 +133,8 @@ public abstract class PValueBase extends POutputValueBase implements PValue {
   }
 
   @Override
-  public final List<TaggedPValue> expand() {
-    return Collections.singletonList(TaggedPValue.of(tag, this));
+  public final Map<TupleTag<?>, PValue> expand() {
+    return Collections.<TupleTag<?>, PValue>singletonMap(tag, this);
   }
 
   @Override

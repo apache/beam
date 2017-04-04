@@ -18,7 +18,6 @@
 
 package org.apache.beam.runners.core.construction;
 
-import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.runners.PTransformOverrideFactory;
@@ -26,7 +25,7 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.PValue;
-import org.apache.beam.sdk.values.TaggedPValue;
+import org.apache.beam.sdk.values.TupleTag;
 
 /**
  * A {@link PTransformOverrideFactory} that throws an exception when a call to
@@ -60,12 +59,13 @@ public final class UnsupportedOverrideFactory<
   }
 
   @Override
-  public InputT getInput(List<TaggedPValue> inputs, Pipeline p) {
+  public InputT getInput(Map<TupleTag<?>, PValue> inputs, Pipeline p) {
     throw new UnsupportedOperationException(message);
   }
 
   @Override
-  public Map<PValue, ReplacementOutput> mapOutputs(List<TaggedPValue> outputs, OutputT newOutput) {
+  public Map<PValue, ReplacementOutput> mapOutputs(
+      Map<TupleTag<?>, PValue> outputs, OutputT newOutput) {
     throw new UnsupportedOperationException(message);
   }
 }

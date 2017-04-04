@@ -127,7 +127,7 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.PValue;
-import org.apache.beam.sdk.values.TaggedPValue;
+import org.apache.beam.sdk.values.TupleTag;
 import org.joda.time.DateTimeUtils;
 import org.joda.time.DateTimeZone;
 import org.joda.time.format.DateTimeFormat;
@@ -450,13 +450,13 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     }
 
     @Override
-    public PBegin getInput(List<TaggedPValue> inputs, Pipeline p) {
+    public PBegin getInput(Map<TupleTag<?>, PValue> inputs, Pipeline p) {
       return p.begin();
     }
 
     @Override
     public Map<PValue, ReplacementOutput> mapOutputs(
-        List<TaggedPValue> outputs, PCollection<T> newOutput) {
+        Map<TupleTag<?>, PValue> outputs, PCollection<T> newOutput) {
       return ReplacementOutputs.singleton(outputs, newOutput);
     }
   }
@@ -760,7 +760,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
               if (node.getTransform() instanceof View.AsMap
                   || node.getTransform() instanceof View.AsMultimap) {
                 PCollection<KV<?, ?>> input =
-                    (PCollection<KV<?, ?>>) Iterables.getOnlyElement(node.getInputs()).getValue();
+                    (PCollection<KV<?, ?>>) Iterables.getOnlyElement(node.getInputs().values());
                 KvCoder<?, ?> inputCoder = (KvCoder) input.getCoder();
                 try {
                   inputCoder.getKeyCoder().verifyDeterministic();
@@ -825,13 +825,13 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     }
 
     @Override
-    public PCollection<T> getInput(List<TaggedPValue> inputs, Pipeline p) {
-      return (PCollection<T>) Iterables.getOnlyElement(inputs).getValue();
+    public PCollection<T> getInput(Map<TupleTag<?>, PValue> inputs, Pipeline p) {
+      return (PCollection<T>) Iterables.getOnlyElement(inputs.values());
     }
 
     @Override
     public Map<PValue, ReplacementOutput> mapOutputs(
-        List<TaggedPValue> outputs, PDone newOutput) {
+        Map<TupleTag<?>, PValue> outputs, PDone newOutput) {
       return Collections.emptyMap();
     }
   }
@@ -1317,13 +1317,13 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
 
     @Override
     public PCollection<KV<K, Iterable<InputT>>> getInput(
-        List<TaggedPValue> inputs, Pipeline p) {
-      return (PCollection<KV<K, Iterable<InputT>>>) Iterables.getOnlyElement(inputs).getValue();
+        Map<TupleTag<?>, PValue> inputs, Pipeline p) {
+      return (PCollection<KV<K, Iterable<InputT>>>) Iterables.getOnlyElement(inputs.values());
     }
 
     @Override
     public Map<PValue, ReplacementOutput> mapOutputs(
-        List<TaggedPValue> outputs, PCollection<KV<K, OutputT>> newOutput) {
+        Map<TupleTag<?>, PValue> outputs, PCollection<KV<K, OutputT>> newOutput) {
       return ReplacementOutputs.singleton(outputs, newOutput);
     }
   }
@@ -1343,12 +1343,13 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     }
 
     @Override
-    public PCollection<T> getInput(List<TaggedPValue> inputs, Pipeline p) {
-      return (PCollection<T>) Iterables.getOnlyElement(inputs).getValue();
+    public PCollection<T> getInput(Map<TupleTag<?>, PValue> inputs, Pipeline p) {
+      return (PCollection<T>) Iterables.getOnlyElement(inputs.values());
     }
 
     @Override
-    public Map<PValue, ReplacementOutput> mapOutputs(List<TaggedPValue> outputs, PDone newOutput) {
+    public Map<PValue, ReplacementOutput> mapOutputs(
+        Map<TupleTag<?>, PValue> outputs, PDone newOutput) {
       return Collections.emptyMap();
     }
   }

@@ -20,7 +20,6 @@ package org.apache.beam.runners.dataflow;
 import static com.google.common.base.Preconditions.checkState;
 
 import com.google.common.collect.Iterables;
-import java.util.List;
 import java.util.Map;
 import org.apache.beam.runners.core.construction.ReplacementOutputs;
 import org.apache.beam.runners.dataflow.BatchViewOverrides.GroupByKeyAndSortValuesOnly;
@@ -42,7 +41,7 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PValue;
-import org.apache.beam.sdk.values.TaggedPValue;
+import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.joda.time.Instant;
 
@@ -93,13 +92,13 @@ public class BatchStatefulParDoOverrides {
     }
 
     @Override
-    public PCollection<KV<K, InputT>> getInput(List<TaggedPValue> inputs, Pipeline p) {
-      return (PCollection<KV<K, InputT>>) Iterables.getOnlyElement(inputs).getValue();
+    public PCollection<KV<K, InputT>> getInput(Map<TupleTag<?>, PValue> inputs, Pipeline p) {
+      return (PCollection<KV<K, InputT>>) Iterables.getOnlyElement(inputs.values());
     }
 
     @Override
     public Map<PValue, ReplacementOutput> mapOutputs(
-        List<TaggedPValue> outputs, PCollection<OutputT> newOutput) {
+        Map<TupleTag<?>, PValue> outputs, PCollection<OutputT> newOutput) {
       return ReplacementOutputs.singleton(outputs, newOutput);
     }
   }
@@ -116,13 +115,13 @@ public class BatchStatefulParDoOverrides {
     }
 
     @Override
-    public PCollection<KV<K, InputT>> getInput(List<TaggedPValue> inputs, Pipeline p) {
-      return (PCollection<KV<K, InputT>>) Iterables.getOnlyElement(inputs).getValue();
+    public PCollection<KV<K, InputT>> getInput(Map<TupleTag<?>, PValue> inputs, Pipeline p) {
+      return (PCollection<KV<K, InputT>>) Iterables.getOnlyElement(inputs.values());
     }
 
     @Override
     public Map<PValue, ReplacementOutput> mapOutputs(
-        List<TaggedPValue> outputs, PCollectionTuple newOutput) {
+        Map<TupleTag<?>, PValue> outputs, PCollectionTuple newOutput) {
       return ReplacementOutputs.tagged(outputs, newOutput);
     }
   }

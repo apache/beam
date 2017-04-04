@@ -34,7 +34,6 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.PValue;
-import org.apache.beam.sdk.values.TaggedPValue;
 
 /**
  * Tracks the {@link AppliedPTransform AppliedPTransforms} that consume each {@link PValue} in the
@@ -83,8 +82,8 @@ class DirectGraphVisitor extends PipelineVisitor.Defaults {
     if (node.getInputs().isEmpty()) {
       rootTransforms.add(appliedTransform);
     } else {
-      for (TaggedPValue value : node.getInputs()) {
-        primitiveConsumers.put(value.getValue(), appliedTransform);
+      for (PValue value : node.getInputs().values()) {
+        primitiveConsumers.put(value, appliedTransform);
       }
     }
   }

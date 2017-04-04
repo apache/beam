@@ -17,11 +17,9 @@
  */
 package org.apache.beam.sdk.values;
 
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import java.util.Collections;
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import org.apache.beam.sdk.Pipeline;
@@ -234,12 +232,8 @@ public class PCollectionTuple implements PInput, POutput {
   }
 
   @Override
-  public List<TaggedPValue> expand() {
-    ImmutableList.Builder<TaggedPValue> values = ImmutableList.builder();
-    for (Map.Entry<TupleTag<?>, PCollection<?>> entry : pcollectionMap.entrySet()) {
-      values.add(TaggedPValue.of(entry.getKey(), entry.getValue()));
-    }
-    return values.build();
+  public Map<TupleTag<?>, PValue> expand() {
+    return ImmutableMap.<TupleTag<?>, PValue>copyOf(pcollectionMap);
   }
 
   @Override

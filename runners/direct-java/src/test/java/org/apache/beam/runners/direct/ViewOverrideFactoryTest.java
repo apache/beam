@@ -107,7 +107,7 @@ public class ViewOverrideFactoryTest implements Serializable {
                   is(false));
               PCollectionView replacementView = ((WriteView) node.getTransform()).getView();
               assertThat(replacementView, Matchers.<PCollectionView>theInstance(view));
-              assertThat(node.getInputs(), hasSize(1));
+              assertThat(node.getInputs().entrySet(), hasSize(1));
             }
           }
         });
