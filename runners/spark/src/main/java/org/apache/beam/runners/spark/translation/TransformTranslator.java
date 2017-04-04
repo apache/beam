@@ -20,10 +20,6 @@ package org.apache.beam.runners.spark.translation;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
-import static org.apache.beam.runners.spark.io.hadoop.ShardNameBuilder.getOutputDirectory;
-import static org.apache.beam.runners.spark.io.hadoop.ShardNameBuilder.getOutputFilePrefix;
-import static org.apache.beam.runners.spark.io.hadoop.ShardNameBuilder.getOutputFileTemplate;
-import static org.apache.beam.runners.spark.io.hadoop.ShardNameBuilder.replaceShardCount;
 import static org.apache.beam.runners.spark.translation.TranslationUtils.rejectSplittable;
 import static org.apache.beam.runners.spark.translation.TranslationUtils.rejectStateAndTimers;
 
@@ -31,22 +27,14 @@ import com.google.common.base.Optional;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import org.apache.avro.mapred.AvroKey;
-import org.apache.avro.mapreduce.AvroJob;
-import org.apache.avro.mapreduce.AvroKeyInputFormat;
 import org.apache.beam.runners.core.SystemReduceFn;
 import org.apache.beam.runners.spark.aggregators.AggregatorsAccumulator;
 import org.apache.beam.runners.spark.aggregators.NamedAggregators;
 import org.apache.beam.runners.spark.coders.CoderHelpers;
 import org.apache.beam.runners.spark.io.SourceRDD;
-import org.apache.beam.runners.spark.io.hadoop.HadoopIO;
-import org.apache.beam.runners.spark.io.hadoop.ShardNameTemplateHelper;
-import org.apache.beam.runners.spark.io.hadoop.TemplatedAvroKeyOutputFormat;
-import org.apache.beam.runners.spark.io.hadoop.TemplatedTextOutputFormat;
 import org.apache.beam.runners.spark.metrics.MetricsAccumulator;
 import org.apache.beam.runners.spark.metrics.SparkMetricsContainer;
 import org.apache.beam.runners.spark.util.SideInputBroadcast;
@@ -54,9 +42,7 @@ import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
-import org.apache.beam.sdk.io.AvroIO;
 import org.apache.beam.sdk.io.Read;
-import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.CombineWithContext;
 import org.apache.beam.sdk.transforms.Create;
@@ -78,18 +64,11 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TaggedPValue;
 import org.apache.beam.sdk.values.TupleTag;
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.io.NullWritable;
-import org.apache.hadoop.io.Text;
-import org.apache.hadoop.mapreduce.Job;
-import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 import org.apache.spark.Accumulator;
 import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.api.java.function.Function;
-import org.apache.spark.api.java.function.PairFunction;
-import scala.Tuple2;
 
 
 /**
@@ -427,119 +406,6 @@ public final class TransformTranslator {
     };
   }
 
-
-  private static <T> TransformEvaluator<TextIO.Read.Bound> readText() {
-    return new TransformEvaluator<TextIO.Read.Bound>() {
-      @Override
-      public void evaluate(TextIO.Read.Bound transform, EvaluationContext context) {
-        String pattern = transform.getFilepattern();
-        JavaRDD<WindowedValue<String>> rdd = context.getSparkContext().textFile(pattern)
-            .map(WindowingHelpers.<String>windowFunction());
-        context.putDataset(transform, new BoundedDataset<>(rdd));
-      }
-
-      @Override
-      public String toNativeString() {
-        return "sparkContext.textFile(...)";
-      }
-    };
-  }
-
-  private static <T> TransformEvaluator<TextIO.Write.Bound> writeText() {
-    return new TransformEvaluator<TextIO.Write.Bound>() {
-      @Override
-      public void evaluate(TextIO.Write.Bound transform, EvaluationContext context) {
-        @SuppressWarnings("unchecked")
-        JavaPairRDD<T, Void> last =
-            ((BoundedDataset<T>) context.borrowDataset(transform)).getRDD()
-            .map(WindowingHelpers.<T>unwindowFunction())
-            .mapToPair(new PairFunction<T, T,
-                    Void>() {
-              @Override
-              public Tuple2<T, Void> call(T t) throws Exception {
-                return new Tuple2<>(t, null);
-              }
-            });
-        ShardTemplateInformation shardTemplateInfo =
-            new ShardTemplateInformation(transform.getNumShards(),
-                transform.getShardTemplate(), transform.getFilenamePrefix(),
-                transform.getFilenameSuffix());
-        writeHadoopFile(last, new Configuration(), shardTemplateInfo, Text.class,
-            NullWritable.class, TemplatedTextOutputFormat.class);
-      }
-
-      @Override
-      public String toNativeString() {
-        return "saveAsNewAPIHadoopFile(...)";
-      }
-    };
-  }
-
-  private static <T> TransformEvaluator<AvroIO.Read.Bound<T>> readAvro() {
-    return new TransformEvaluator<AvroIO.Read.Bound<T>>() {
-      @Override
-      public void evaluate(AvroIO.Read.Bound<T> transform, EvaluationContext context) {
-        String pattern = transform.getFilepattern();
-        JavaSparkContext jsc = context.getSparkContext();
-        @SuppressWarnings("unchecked")
-        JavaRDD<AvroKey<T>> avroFile = (JavaRDD<AvroKey<T>>) (JavaRDD<?>)
-            jsc.newAPIHadoopFile(pattern,
-                                 AvroKeyInputFormat.class,
-                                 AvroKey.class, NullWritable.class,
-                                 new Configuration()).keys();
-        JavaRDD<WindowedValue<T>> rdd = avroFile.map(
-            new Function<AvroKey<T>, T>() {
-              @Override
-              public T call(AvroKey<T> key) {
-                return key.datum();
-              }
-            }).map(WindowingHelpers.<T>windowFunction());
-        context.putDataset(transform, new BoundedDataset<>(rdd));
-      }
-
-      @Override
-      public String toNativeString() {
-        return "sparkContext.newAPIHadoopFile(...)";
-      }
-    };
-  }
-
-  private static <T> TransformEvaluator<AvroIO.Write.Bound<T>> writeAvro() {
-    return new TransformEvaluator<AvroIO.Write.Bound<T>>() {
-      @Override
-      public void evaluate(AvroIO.Write.Bound<T> transform, EvaluationContext context) {
-        Job job;
-        try {
-          job = Job.getInstance();
-        } catch (IOException e) {
-          throw new IllegalStateException(e);
-        }
-        AvroJob.setOutputKeySchema(job, transform.getSchema());
-        @SuppressWarnings("unchecked")
-        JavaPairRDD<AvroKey<T>, NullWritable> last =
-            ((BoundedDataset<T>) context.borrowDataset(transform)).getRDD()
-            .map(WindowingHelpers.<T>unwindowFunction())
-            .mapToPair(new PairFunction<T, AvroKey<T>, NullWritable>() {
-              @Override
-              public Tuple2<AvroKey<T>, NullWritable> call(T t) throws Exception {
-                return new Tuple2<>(new AvroKey<>(t), NullWritable.get());
-              }
-            });
-        ShardTemplateInformation shardTemplateInfo =
-            new ShardTemplateInformation(transform.getNumShards(),
-            transform.getShardTemplate(), transform.getFilenamePrefix(),
-            transform.getFilenameSuffix());
-        writeHadoopFile(last, job.getConfiguration(), shardTemplateInfo,
-            AvroKey.class, NullWritable.class, TemplatedAvroKeyOutputFormat.class);
-      }
-
-      @Override
-      public String toNativeString() {
-        return "mapToPair(<objectToAvroKeyFn>).saveAsNewAPIHadoopFile(...)";
-      }
-    };
-  }
-
   private static <T> TransformEvaluator<Read.Bounded<T>> readBounded() {
     return new TransformEvaluator<Read.Bounded<T>>() {
       @Override
@@ -559,121 +425,6 @@ public final class TransformTranslator {
         return "sparkContext.<readFrom(<source>)>()";
       }
     };
-  }
-
-  private static <K, V> TransformEvaluator<HadoopIO.Read.Bound<K, V>> readHadoop() {
-    return new TransformEvaluator<HadoopIO.Read.Bound<K, V>>() {
-      @Override
-      public void evaluate(HadoopIO.Read.Bound<K, V> transform, EvaluationContext context) {
-        String pattern = transform.getFilepattern();
-        JavaSparkContext jsc = context.getSparkContext();
-        @SuppressWarnings("unchecked")
-        JavaPairRDD<K, V> file = jsc.newAPIHadoopFile(pattern,
-            transform.getFormatClass(),
-            transform.getKeyClass(), transform.getValueClass(),
-            new Configuration());
-        JavaRDD<WindowedValue<KV<K, V>>> rdd =
-            file.map(new Function<Tuple2<K, V>, KV<K, V>>() {
-          @Override
-          public KV<K, V> call(Tuple2<K, V> t2) throws Exception {
-            return KV.of(t2._1(), t2._2());
-          }
-        }).map(WindowingHelpers.<KV<K, V>>windowFunction());
-        context.putDataset(transform, new BoundedDataset<>(rdd));
-      }
-
-      @Override
-      public String toNativeString() {
-        return "sparkContext.newAPIHadoopFile(...)";
-      }
-    };
-  }
-
-  private static <K, V> TransformEvaluator<HadoopIO.Write.Bound<K, V>> writeHadoop() {
-    return new TransformEvaluator<HadoopIO.Write.Bound<K, V>>() {
-      @Override
-      public void evaluate(HadoopIO.Write.Bound<K, V> transform, EvaluationContext context) {
-        @SuppressWarnings("unchecked")
-        JavaPairRDD<K, V> last = ((BoundedDataset<KV<K, V>>) context.borrowDataset(transform))
-            .getRDD()
-            .map(WindowingHelpers.<KV<K, V>>unwindowFunction())
-            .mapToPair(new PairFunction<KV<K, V>, K, V>() {
-              @Override
-              public Tuple2<K, V> call(KV<K, V> t) throws Exception {
-                return new Tuple2<>(t.getKey(), t.getValue());
-              }
-            });
-        ShardTemplateInformation shardTemplateInfo =
-            new ShardTemplateInformation(transform.getNumShards(),
-                transform.getShardTemplate(), transform.getFilenamePrefix(),
-                transform.getFilenameSuffix());
-        Configuration conf = new Configuration();
-        for (Map.Entry<String, String> e : transform.getConfigurationProperties().entrySet()) {
-          conf.set(e.getKey(), e.getValue());
-        }
-        writeHadoopFile(last, conf, shardTemplateInfo,
-            transform.getKeyClass(), transform.getValueClass(), transform.getFormatClass());
-      }
-
-      @Override
-      public String toNativeString() {
-        return "saveAsNewAPIHadoopFile(...)";
-      }
-    };
-  }
-
-  private static final class ShardTemplateInformation {
-    private final int numShards;
-    private final String shardTemplate;
-    private final String filenamePrefix;
-    private final String filenameSuffix;
-
-    private ShardTemplateInformation(int numShards, String shardTemplate, String
-        filenamePrefix, String filenameSuffix) {
-      this.numShards = numShards;
-      this.shardTemplate = shardTemplate;
-      this.filenamePrefix = filenamePrefix;
-      this.filenameSuffix = filenameSuffix;
-    }
-
-    int getNumShards() {
-      return numShards;
-    }
-
-    String getShardTemplate() {
-      return shardTemplate;
-    }
-
-    String getFilenamePrefix() {
-      return filenamePrefix;
-    }
-
-    String getFilenameSuffix() {
-      return filenameSuffix;
-    }
-  }
-
-  private static <K, V> void writeHadoopFile(JavaPairRDD<K, V> rdd, Configuration conf,
-      ShardTemplateInformation shardTemplateInfo, Class<?> keyClass, Class<?> valueClass,
-      Class<? extends FileOutputFormat> formatClass) {
-    int numShards = shardTemplateInfo.getNumShards();
-    String shardTemplate = shardTemplateInfo.getShardTemplate();
-    String filenamePrefix = shardTemplateInfo.getFilenamePrefix();
-    String filenameSuffix = shardTemplateInfo.getFilenameSuffix();
-    if (numShards != 0) {
-      // number of shards was set explicitly, so repartition
-      rdd = rdd.repartition(numShards);
-    }
-    int actualNumShards = rdd.partitions().size();
-    String template = replaceShardCount(shardTemplate, actualNumShards);
-    String outputDir = getOutputDirectory(filenamePrefix, template);
-    String filePrefix = getOutputFilePrefix(filenamePrefix, template);
-    String fileTemplate = getOutputFileTemplate(filenamePrefix, template);
-
-    conf.set(ShardNameTemplateHelper.OUTPUT_FILE_PREFIX, filePrefix);
-    conf.set(ShardNameTemplateHelper.OUTPUT_FILE_TEMPLATE, fileTemplate);
-    conf.set(ShardNameTemplateHelper.OUTPUT_FILE_SUFFIX, filenameSuffix);
-    rdd.saveAsNewAPIHadoopFile(outputDir, keyClass, valueClass, formatClass, conf);
   }
 
   private static <T, W extends BoundedWindow> TransformEvaluator<Window.Assign<T>> window() {
@@ -847,8 +598,6 @@ public final class TransformTranslator {
 
   static {
     EVALUATORS.put(Read.Bounded.class, readBounded());
-    EVALUATORS.put(HadoopIO.Read.Bound.class, readHadoop());
-    EVALUATORS.put(HadoopIO.Write.Bound.class, writeHadoop());
     EVALUATORS.put(ParDo.MultiOutput.class, parDo());
     EVALUATORS.put(GroupByKey.class, groupByKey());
     EVALUATORS.put(Combine.GroupedValues.class, combineGrouped());
