@@ -136,7 +136,7 @@ public class WindowingTest extends AbstractOperatorTest {
                                 .keyBy(t -> ComparablePair.of(t.getSecond(), t.getThird()))
                                 .valueBy(t -> null)
                                 .stateFactory(DistinctState::new)
-                                .combineStateBy(it -> it.iterator().next())
+                                .mergeStatesBy((t, os) -> {})
                                 .windowBy(Time.of(Duration.ofHours(1)), (Triple<Instant, Type, String> t) -> t.getFirst().toEpochMilli())
                                 .output();
 

@@ -289,8 +289,8 @@ public class TopPerKey<
   public DAG<Operator<?, ?>> getBasicOps() {
     Flow flow = getFlow();
 
-    StateSupport.MergeFromStateCombiner<MaxScored<VALUE, SCORE>> stateCombiner
-            = new StateSupport.MergeFromStateCombiner<>();
+    StateSupport.MergeFromStateMerger<Pair<VALUE, SCORE>, Pair<VALUE, SCORE>, MaxScored<VALUE, SCORE>>
+            stateCombiner = new StateSupport.MergeFromStateMerger<>();
     ReduceStateByKey<IN, IN, IN, KEY, Pair<VALUE, SCORE>, KEY, Pair<VALUE, SCORE>,
         MaxScored<VALUE, SCORE>, W>
         reduce =

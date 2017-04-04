@@ -17,12 +17,12 @@ package cz.seznam.euphoria.flink.batch;
 
 import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
-import cz.seznam.euphoria.core.client.functional.CombinableReduceFunction;
-import cz.seznam.euphoria.core.client.operator.state.StateFactory;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 import cz.seznam.euphoria.core.client.operator.ExtractEventTime;
 import cz.seznam.euphoria.core.client.operator.ReduceStateByKey;
 import cz.seznam.euphoria.core.client.operator.state.State;
+import cz.seznam.euphoria.core.client.operator.state.StateFactory;
+import cz.seznam.euphoria.core.client.operator.state.StateMerger;
 import cz.seznam.euphoria.core.client.operator.state.StorageProvider;
 import cz.seznam.euphoria.core.client.triggers.Trigger;
 import cz.seznam.euphoria.core.client.util.Pair;
@@ -129,7 +129,7 @@ public class ReduceStateByKeyTranslator implements BatchOperatorTranslator<Reduc
           ResultTypeQueryable<BatchElement<?, Pair>>
   {
     private final StateFactory<?, ?, State<?, ?>> stateFactory;
-    private final CombinableReduceFunction<State<?, ?>> stateCombiner;
+    private final StateMerger<?, ?, State<?, ?>> stateCombiner;
     private final StorageProvider stateStorageProvider;
     private final Windowing windowing;
     private final Trigger trigger;
@@ -141,7 +141,7 @@ public class ReduceStateByKeyTranslator implements BatchOperatorTranslator<Reduc
         Windowing windowing) {
 
       this.stateFactory = operator.getStateFactory();
-      this.stateCombiner = operator.getStateCombiner();
+      this.stateCombiner = operator.getStateMerger();
       this.stateStorageProvider = stateStorageProvider;
       this.windowing = windowing;
       this.trigger = windowing.getTrigger();
@@ -154,9 +154,9 @@ public class ReduceStateByKeyTranslator implements BatchOperatorTranslator<Reduc
     {
       GroupReducer reducer = new GroupReducer(
               stateFactory,
-              BatchElement::new,
               stateCombiner,
               stateStorageProvider,
+              BatchElement::new,
               windowing,
               trigger,
               elem -> out.collect((BatchElement) elem));

@@ -15,9 +15,10 @@
  */
 package cz.seznam.euphoria.core.client.operator;
 
-import cz.seznam.euphoria.core.client.functional.CombinableReduceFunction;
+import cz.seznam.euphoria.core.client.operator.state.State;
+import cz.seznam.euphoria.core.client.operator.state.StateMerger;
 
-import java.util.Iterator;
+import java.io.Serializable;
 
 /** Private helper class to provide utilities around state handling. */
 class StateSupport {
@@ -29,17 +30,13 @@ class StateSupport {
     void mergeFrom(S other);
   }
 
-  static class MergeFromStateCombiner<T extends MergeFrom<T>>
-          implements CombinableReduceFunction<T> {
+  static class MergeFromStateMerger<I, O, S extends State<I, O> & MergeFrom<S>>
+        implements StateMerger<I, O, S> {
     @Override
-    public T apply(Iterable<T> xs) {
-      final T first;
-      Iterator<T> x = xs.iterator();
-      first = x.next();
-      while (x.hasNext()) {
-        first.mergeFrom(x.next());
+    public void merge(S target, Iterable<S> others) {
+      for (S other : others) {
+        target.mergeFrom(other);
       }
-      return first;
     }
   }
 

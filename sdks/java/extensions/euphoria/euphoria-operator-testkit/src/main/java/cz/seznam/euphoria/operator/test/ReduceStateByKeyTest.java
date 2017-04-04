@@ -25,7 +25,6 @@ import cz.seznam.euphoria.core.client.dataset.windowing.TimeSliding;
 import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 import cz.seznam.euphoria.core.client.dataset.windowing.WindowedElement;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
-import cz.seznam.euphoria.core.client.operator.state.StateFactory;
 import cz.seznam.euphoria.core.client.functional.UnaryFunctor;
 import cz.seznam.euphoria.core.client.io.Context;
 import cz.seznam.euphoria.core.client.operator.ExtractEventTime;
@@ -34,6 +33,7 @@ import cz.seznam.euphoria.core.client.operator.ReduceStateByKey;
 import cz.seznam.euphoria.core.client.operator.state.ListStorage;
 import cz.seznam.euphoria.core.client.operator.state.ListStorageDescriptor;
 import cz.seznam.euphoria.core.client.operator.state.State;
+import cz.seznam.euphoria.core.client.operator.state.StateFactory;
 import cz.seznam.euphoria.core.client.operator.state.StorageProvider;
 import cz.seznam.euphoria.core.client.operator.state.ValueStorage;
 import cz.seznam.euphoria.core.client.operator.state.ValueStorageDescriptor;
@@ -52,7 +52,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -107,13 +106,10 @@ public class ReduceStateByKeyTest extends AbstractOperatorTest {
       data.clear();
     }
 
-    static SortState combine(Iterable<SortState> states) {
-      Iterator<SortState> iter = states.iterator();
-      SortState target = iter.next();
-      while (iter.hasNext()) {
-        target.data.addAll(iter.next().data.get());
+    static void combine(SortState target, Iterable<SortState> others) {
+      for (SortState other : others) {
+        target.data.addAll(other.data.get());
       }
-      return target;
     }
 
   }
@@ -127,7 +123,7 @@ public class ReduceStateByKeyTest extends AbstractOperatorTest {
             .keyBy(e -> "")
             .valueBy(e -> e)
             .stateFactory(SortState::new)
-            .combineStateBy(SortState::combine)
+            .mergeStatesBy(SortState::combine)
             .setNumPartitions(1)
             .setPartitioner(e -> 0)
             .output();
@@ -165,7 +161,7 @@ public class ReduceStateByKeyTest extends AbstractOperatorTest {
             .keyBy(e -> e % 3)
             .valueBy(e -> e)
             .stateFactory(SortState::new)
-            .combineStateBy(SortState::combine)
+            .mergeStatesBy(SortState::combine)
             .setNumPartitions(1)
             .setPartitioner(e -> 0)
             .windowBy(new ReduceByKeyTest.TestWindowing())
@@ -266,13 +262,10 @@ public class ReduceStateByKeyTest extends AbstractOperatorTest {
       count.clear();
     }
 
-    public static CountState combine(Iterable<CountState> xs) {
-      Iterator<CountState> iter = xs.iterator();
-      CountState first = iter.next();
-      while (iter.hasNext()) {
-        first.add(iter.next());
+    public static void combine(CountState target, Iterable<CountState> others) {
+      for (CountState other : others) {
+        target.add(other);
       }
-      return first;
     }
   }
 
@@ -303,7 +296,7 @@ public class ReduceStateByKeyTest extends AbstractOperatorTest {
             .keyBy(e -> e.getFirst().charAt(0) - '0')
             .valueBy(Pair::getFirst)
             .stateFactory((StateFactory<String, Long, CountState>) CountState::new)
-            .combineStateBy(CountState::combine)
+            .mergeStatesBy(CountState::combine)
             // FIXME .timedBy(Pair::getSecond) and make the assertion in the validation phase stronger
             .windowBy(Count.of(3))
             .setNumPartitions(1)
@@ -369,13 +362,11 @@ public class ReduceStateByKeyTest extends AbstractOperatorTest {
       vals.clear();
     }
 
-    public static <VALUE> AccState<VALUE> combine(Iterable<AccState<VALUE>> xs) {
-      Iterator<AccState<VALUE>> iter = xs.iterator();
-      AccState<VALUE> first = iter.next();
-      while (iter.hasNext()) {
-        first.add(iter.next());
+    public static <VALUE>
+    void combine(AccState<VALUE> target, Iterable<AccState<VALUE>> others) {
+      for (AccState<VALUE> other : others) {
+        target.add(other);
       }
-      return first;
     }
   }
 
@@ -406,7 +397,7 @@ public class ReduceStateByKeyTest extends AbstractOperatorTest {
                 .keyBy(e -> e.getFirst().charAt(0) - '0')
                 .valueBy(Pair::getFirst)
                 .stateFactory((StateFactory<String, String, AccState<String>>) AccState::new)
-                .combineStateBy(AccState::combine)
+                .mergeStatesBy(AccState::combine)
                 .windowBy(Time.of(Duration.ofSeconds(5)),
                         (Pair<String, Integer> e) -> e.getSecond() * 1_000L)
                 .setNumPartitions(1)
@@ -467,7 +458,7 @@ public class ReduceStateByKeyTest extends AbstractOperatorTest {
                 .keyBy(e -> e.getFirst().charAt(0) - '0')
                 .valueBy(e -> e.getFirst().substring(2))
                 .stateFactory((StateFactory<String, String, AccState<String>>) AccState::new)
-                .combineStateBy(AccState::combine)
+                .mergeStatesBy(AccState::combine)
                 .windowBy(TimeSliding.of(Duration.ofSeconds(10), Duration.ofSeconds(5)),
                         (Pair<String, Integer> e) -> e.getSecond() * 1_000L)
                 .setNumPartitions(2)
@@ -546,7 +537,7 @@ public class ReduceStateByKeyTest extends AbstractOperatorTest {
                 .keyBy(e -> e.getFirst().charAt(0) - '0')
                 .valueBy(Pair::getFirst)
                 .stateFactory((StateFactory<String, String, AccState<String>>) AccState::new)
-                .combineStateBy(AccState::combine)
+                .mergeStatesBy(AccState::combine)
                 .windowBy(Session.of(Duration.ofSeconds(5)),
                         (Pair<String, Integer> e) -> e.getSecond() * 1_000L)
                 .setNumPartitions(1)
@@ -649,7 +640,7 @@ public class ReduceStateByKeyTest extends AbstractOperatorTest {
                 .keyBy(e -> "")
                 .valueBy(Pair::getFirst)
                 .stateFactory(ReduceByKeyTest.SumState::new)
-                .combineStateBy(ReduceByKeyTest.SumState::combine)
+                .mergeStatesBy(ReduceByKeyTest.SumState::combine)
                 .windowBy(Time.of(Duration.ofSeconds(5)),
                           (ExtractEventTime<Pair<String, Integer>>) Pair::getSecond)
                 .output();
@@ -661,7 +652,7 @@ public class ReduceStateByKeyTest extends AbstractOperatorTest {
                 .keyBy(Pair::getFirst)
                 .valueBy(Pair::getSecond)
                 .stateFactory(ReduceByKeyTest.SumState::new)
-                .combineStateBy(ReduceByKeyTest.SumState::combine)
+                .mergeStatesBy(ReduceByKeyTest.SumState::combine)
                 .windowBy(new TimeAssertingWindowing<>())
                 .output();
         return FlatMap.of(output)
