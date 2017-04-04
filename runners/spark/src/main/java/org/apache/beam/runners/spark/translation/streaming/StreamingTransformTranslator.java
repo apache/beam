@@ -43,7 +43,6 @@ import org.apache.beam.runners.spark.metrics.SparkMetricsContainer;
 import org.apache.beam.runners.spark.stateful.SparkGroupAlsoByWindowViaWindowSet;
 import org.apache.beam.runners.spark.translation.BoundedDataset;
 import org.apache.beam.runners.spark.translation.Dataset;
-import org.apache.beam.runners.spark.translation.DoFnFunction;
 import org.apache.beam.runners.spark.translation.EvaluationContext;
 import org.apache.beam.runners.spark.translation.GroupCombineFunctions;
 import org.apache.beam.runners.spark.translation.MultiDoFnFunction;
@@ -368,8 +367,7 @@ public final class StreamingTransformTranslator {
     };
   }
 
-  private static <InputT, OutputT> TransformEvaluator<ParDo.MultiOutput<InputT, OutputT>>
-  multiDo() {
+  private static <InputT, OutputT> TransformEvaluator<ParDo.MultiOutput<InputT, OutputT>> parDo() {
     return new TransformEvaluator<ParDo.MultiOutput<InputT, OutputT>>() {
       public void evaluate(
           final ParDo.MultiOutput<InputT, OutputT> transform, final EvaluationContext context) {
@@ -388,42 +386,6 @@ public final class StreamingTransformTranslator {
 
         final String stepName = context.getCurrentTransform().getFullName();
         if (transform.getSideOutputTags().size() == 0) {
-          // Don't tag with the output and filter for a single-output ParDo, as it's additional
-          // identity transforms.
-          // Also see BEAM-1737 for failures when the two versions are condensed.
-          JavaDStream<WindowedValue<OutputT>> outStream =
-              dStream.transform(
-                  new Function<JavaRDD<WindowedValue<InputT>>, JavaRDD<WindowedValue<OutputT>>>() {
-                    @Override
-                    public JavaRDD<WindowedValue<OutputT>> call(JavaRDD<WindowedValue<InputT>> rdd)
-                        throws Exception {
-                      final JavaSparkContext jsc = new JavaSparkContext(rdd.context());
-                      final Accumulator<NamedAggregators> aggAccum =
-                          AggregatorsAccumulator.getInstance();
-                      final Accumulator<SparkMetricsContainer> metricsAccum =
-                          MetricsAccumulator.getInstance();
-                      final Map<TupleTag<?>, KV<WindowingStrategy<?, ?>, SideInputBroadcast<?>>>
-                          sideInputs =
-                              TranslationUtils.getSideInputs(
-                                  transform.getSideInputs(), jsc, pviews);
-                      return rdd.mapPartitions(
-                          new DoFnFunction<>(
-                              aggAccum,
-                              metricsAccum,
-                              stepName,
-                              doFn,
-                              runtimeContext,
-                              sideInputs,
-                              windowingStrategy));
-                    }
-                  });
-
-          PCollection<OutputT> output =
-              (PCollection<OutputT>)
-                  Iterables.getOnlyElement(context.getOutputs(transform)).getValue();
-          context.putDataset(
-              output, new UnboundedDataset<>(outStream, unboundedDataset.getStreamSources()));
-        } else {
           JavaPairDStream<TupleTag<?>, WindowedValue<?>> all =
               dStream
                   .transformToPair(
@@ -433,7 +395,6 @@ public final class StreamingTransformTranslator {
                         @Override
                         public JavaPairRDD<TupleTag<?>, WindowedValue<?>> call(
                             JavaRDD<WindowedValue<InputT>> rdd) throws Exception {
-                          String stepName = context.getCurrentTransform().getFullName();
                           final Accumulator<NamedAggregators> aggAccum =
                               AggregatorsAccumulator.getInstance();
                           final Accumulator<SparkMetricsContainer> metricsAccum =
@@ -525,7 +486,7 @@ public final class StreamingTransformTranslator {
     EVALUATORS.put(Read.Unbounded.class, readUnbounded());
     EVALUATORS.put(GroupByKey.class, groupByKey());
     EVALUATORS.put(Combine.GroupedValues.class, combineGrouped());
-    EVALUATORS.put(ParDo.MultiOutput.class, multiDo());
+    EVALUATORS.put(ParDo.MultiOutput.class, parDo());
     EVALUATORS.put(ConsoleIO.Write.Unbound.class, print());
     EVALUATORS.put(CreateStream.class, createFromQueue());
     EVALUATORS.put(Window.Assign.class, window());
