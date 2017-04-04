@@ -202,7 +202,7 @@ def dumps(o, enable_trace=True):
   return base64.b64encode(c)
 
 
-def loads(encoded):
+def loads(encoded, enable_trace=True):
   c = base64.b64decode(encoded)
 
   s = zlib.decompress(c)
@@ -211,8 +211,11 @@ def loads(encoded):
   try:
     return dill.loads(s)
   except Exception as e:          # pylint: disable=broad-except
-    dill.dill._trace(True)   # pylint: disable=protected-access
-    return dill.loads(s)
+    if enable_trace:
+      dill.dill._trace(True)   # pylint: disable=protected-access
+      return dill.loads(s)
+    else:
+      raise e
   finally:
     dill.dill._trace(False)  # pylint: disable=protected-access
 

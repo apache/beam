@@ -277,6 +277,7 @@ class Pipeline(object):
             else typehints.Any)
         type_hints = transform.get_type_hints()
         declared_output_type = type_hints.simple_output_type(transform.label)
+        print "Resul: %s" % result
         if declared_output_type:
           input_types = type_hints.input_types
           if input_types and input_types[0]:
@@ -290,6 +291,7 @@ class Pipeline(object):
         else:
           result.element_type = transform.infer_output_type(input_element_type)
 
+        print "Result element type: %s" % result.element_type
       assert isinstance(result.producer.inputs, tuple)
       current.add_output(result)
 
@@ -316,7 +318,8 @@ class Pipeline(object):
         try:
           # Transforms must be picklable.
           pickler.loads(pickler.dumps(transform_node.transform,
-                                      enable_trace=False))
+                                      enable_trace=False),
+                        enable_trace=False)
         except Exception:
           Visitor.ok = False
     self.visit(Visitor())
