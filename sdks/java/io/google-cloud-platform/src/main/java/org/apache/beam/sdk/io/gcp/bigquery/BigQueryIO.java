@@ -154,27 +154,35 @@ import org.slf4j.LoggerFactory;
  * <h3>Sharding BigQuery output tables</h3>
  *
  * <p>A common use case is to dynamically generate BigQuery table names based on
- * the current window. To support this,
+ * the current window or the current value. To support this,
  * {@link BigQueryIO.Write#to(SerializableFunction)}
- * accepts a function mapping the current window to a tablespec. For example,
+ * accepts a function mapping the current element to a tablespec. For example,
  * here's code that outputs daily tables to BigQuery:
  * <pre>{@code
  * PCollection<TableRow> quotes = ...
  * quotes.apply(Window.<TableRow>into(CalendarWindows.days(1)))
- *       .apply(BigQueryIO.Write
+ *       .apply(BigQueryIO.writeTableRows()
  *         .withSchema(schema)
- *         .to(new SerializableFunction<BoundedWindow, String>() {
- *           public String apply(BoundedWindow window) {
+ *         .to(new SerializableFunction<ValueInSingleWindow, String>() {
+ *           public String apply(ValueInSingleWindow value) {
  *             // The cast below is safe because CalendarWindows.days(1) produces IntervalWindows.
  *             String dayString = DateTimeFormat.forPattern("yyyy_MM_dd")
  *                  .withZone(DateTimeZone.UTC)
- *                  .print(((IntervalWindow) window).start());
+ *                  .print(((IntervalWindow) value.getWindow()).start());
  *             return "my-project:output.output_table_" + dayString;
  *           }
  *         }));
  * }</pre>
  *
- * <p>Per-window tables are not yet supported in batch mode.
+ * <p>Note that this also allows the table to be a function of the element as well as the current
+ * pane, in the case of triggered windows. In this case it might be convenient to call
+ * {@link BigQueryIO#write()} directly instead of using the {@link BigQueryIO#writeTableRows()}
+ * helper. This will allow the mapping function to access the element of the user-defined type.
+ * In this case, a formatting function must be specified using
+ * {@link BigQueryIO.Write#withFormatFunction} to convert each element into a {@link TableRow}
+ * object.
+ *
+ * <p>Per-value tables currently do not perform well in batch mode.
  *
  * <h3>Permissions</h3>
  *
