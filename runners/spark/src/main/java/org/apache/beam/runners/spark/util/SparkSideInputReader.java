@@ -54,9 +54,8 @@ public class SparkSideInputReader implements SideInputReader {
     checkNotNull(windowedBroadcastHelper, "SideInput for view " + view + " is not available.");
 
     //--- sideInput window
-    WindowingStrategy<?, ?> sideInputWindowStrategy = windowedBroadcastHelper.getKey();
     final BoundedWindow sideInputWindow =
-        sideInputWindowStrategy.getWindowFn().getSideInputWindow(window);
+        view.getWindowMappingFn().getSideInputWindow(window);
 
     //--- match the appropriate sideInput window.
     // a tag will point to all matching sideInputs, that is all windows.
