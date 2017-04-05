@@ -32,13 +32,12 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.util.Reshuffle;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PDone;
 
 /**
 * PTransform that performs streaming BigQuery write. To increase consistency,
 * it leverages BigQuery best effort de-dup mechanism.
  */
-class StreamWithDeDup<T> extends PTransform<PCollection<T>, PDone> {
+class StreamWithDeDup<T> extends PTransform<PCollection<T>, WriteResult> {
   private final Write<T> write;
 
   /** Constructor. */
@@ -52,7 +51,7 @@ class StreamWithDeDup<T> extends PTransform<PCollection<T>, PDone> {
   }
 
   @Override
-  public PDone expand(PCollection<T> input) {
+  public WriteResult expand(PCollection<T> input) {
     // A naive implementation would be to simply stream data directly to BigQuery.
     // However, this could occasionally lead to duplicated data, e.g., when
     // a VM that runs this code is restarted and the code is re-run.
@@ -86,13 +85,6 @@ class StreamWithDeDup<T> extends PTransform<PCollection<T>, PDone> {
                     write.getCreateDisposition(),
                     write.getTableDescription(),
                     write.getBigQueryServices())));
-
-    // Note that the implementation to return PDone here breaks the
-    // implicit assumption about the job execution order. If a user
-    // implements a PTransform that takes PDone returned here as its
-    // input, the transform may not necessarily be executed after
-    // the BigQueryIO.Write.
-
-    return PDone.in(input.getPipeline());
+    return WriteResult.in(input.getPipeline());
   }
 }

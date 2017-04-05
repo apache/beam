@@ -86,6 +86,7 @@
                 org.apache.beam.sdk.testing.UsesTimersInParDo,
                 org.apache.beam.sdk.testing.UsesSplittableParDo,
                 org.apache.beam.sdk.testing.UsesUnboundedPCollections,
+                org.apache.beam.sdk.testing.UsesTestStream,
               </excludedGroups>
             </configuration>
           </execution>
@@ -252,12 +253,6 @@
     <dependency>
       <groupId>com.google.protobuf</groupId>
       <artifactId>protobuf-java</artifactId>
-    </dependency>
-
-    <dependency>
-      <groupId>com.google.protobuf</groupId>
-      <artifactId>protobuf-lite</artifactId>
-      <scope>runtime</scope>
     </dependency>
 
     <dependency>

@@ -318,6 +318,11 @@ class Pipeline(object):
           pickler.loads(pickler.dumps(transform_node.transform))
         except Exception:
           Visitor.ok = False
+
+      def visit_value(self, value, _):
+        if isinstance(value, pvalue.PDone):
+          Visitor.ok = False
+
     self.visit(Visitor())
     return Visitor.ok
 
@@ -541,4 +546,5 @@ class AppliedPTransform(object):
         if pc not in result.inputs:
           pc.producer = result
           pc.tag = tag
+    result.update_input_refcounts()
     return result

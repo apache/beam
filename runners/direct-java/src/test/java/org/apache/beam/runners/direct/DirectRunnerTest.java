@@ -42,6 +42,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.beam.runners.direct.DirectRunner.DirectPipelineResult;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
+import org.apache.beam.sdk.PipelineResult.State;
 import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
@@ -274,6 +275,30 @@ public class DirectRunnerTest implements Serializable {
 
     // If cancel doesn't work, this will hang forever
     result.get().waitUntilFinish();
+  }
+
+  @Test
+  public void testWaitUntilFinishTimeout() throws Exception {
+    DirectOptions options = PipelineOptionsFactory.as(DirectOptions.class);
+    options.setBlockOnRun(false);
+    options.setRunner(DirectRunner.class);
+    Pipeline p = Pipeline.create(options);
+    p
+      .apply(Create.of(1L))
+      .apply(ParDo.of(
+          new DoFn<Long, Long>() {
+            @ProcessElement
+            public void hang(ProcessContext context) throws InterruptedException {
+              // Hangs "forever"
+              Thread.sleep(Long.MAX_VALUE);
+            }
+          }));
+    PipelineResult result = p.run();
+    // The pipeline should never complete;
+    assertThat(result.getState(), is(State.RUNNING));
+    // Must time out, otherwise this test will never complete
+    result.waitUntilFinish(Duration.millis(1L));
+    assertThat(result.getState(), is(State.RUNNING));
   }
 
   @Test

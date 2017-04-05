@@ -29,9 +29,12 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.View.CreatePCollectionView;
+import org.apache.beam.sdk.transforms.ViewFn;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.ProcessElementMethod;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
+import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TaggedPValue;
@@ -203,6 +206,21 @@ public class PTransformMatchers {
     };
   }
 
+  public static PTransformMatcher createViewWithViewFn(final Class<? extends ViewFn> viewFnType) {
+    return new PTransformMatcher() {
+      @Override
+      public boolean matches(AppliedPTransform<?, ?, ?> application) {
+        if (!(application.getTransform() instanceof CreatePCollectionView)) {
+          return false;
+        }
+        CreatePCollectionView<?, ?> createView =
+            (CreatePCollectionView<?, ?>) application.getTransform();
+        ViewFn<Iterable<WindowedValue<?>>, ?> viewFn = createView.getView().getViewFn();
+        return viewFn.getClass().equals(viewFnType);
+      }
+    };
+  }
+
   /**
    * A {@link PTransformMatcher} which matches a {@link Flatten.PCollections} which
    * consumes no input {@link PCollection PCollections}.
@@ -254,7 +272,8 @@ public class PTransformMatchers {
       @Override
       public boolean matches(AppliedPTransform<?, ?, ?> application) {
         if (application.getTransform() instanceof Write) {
-          return ((Write) application.getTransform()).getSharding() == null;
+          Write write = (Write) application.getTransform();
+          return write.getSharding() == null && write.getNumShards() == null;
         }
         return false;
       }
