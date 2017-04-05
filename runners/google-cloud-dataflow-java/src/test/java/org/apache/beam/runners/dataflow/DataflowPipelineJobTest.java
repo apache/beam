@@ -758,6 +758,12 @@ public class DataflowPipelineJobTest {
     job.cancel();
   }
 
+  /**
+   * Test that {@link DataflowPipelineJob#cancel} doesn't throw if the Dataflow service returns
+   * non-terminal state even though the cancel API call failed, which can happen in practice.
+   *
+   * <p>TODO: delete this code if the API calls become consistent.
+   */
   @Test
   public void testCancelTerminatedJobWithStaleState() throws IOException {
     Dataflow.Projects.Locations.Jobs.Get statusRequest =
