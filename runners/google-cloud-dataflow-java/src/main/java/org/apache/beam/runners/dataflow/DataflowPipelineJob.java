@@ -372,6 +372,11 @@ public class DataflowPipelineJob implements PipelineResult {
             LOG.warn("Cancel failed because job is already terminated. State is {}", state);
             return state;
           } else if (e.getMessage().contains("has terminated")) {
+            // Example message:
+            //    Workflow modification failed. Causes: (7603adc9e9bff51e): Cannot perform
+            //    operation 'cancel' on Job: 2017-04-01_22_50_59-9269855660514862348. Job has
+            //    terminated in state SUCCESS: Workflow job: 2017-04-01_22_50_59-9269855660514862348
+            //    succeeded.
             LOG.warn("Cancel failed because job is already terminated.", e);
             return state;
           } else {
