@@ -27,6 +27,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.util.concurrent.Uninterruptibles;
 import java.io.File;
 import java.io.IOException;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -217,10 +218,11 @@ public final class TestSparkRunner extends PipelineRunner<SparkPipelineResult> {
 
   @VisibleForTesting
   void adaptBoundedReads(Pipeline pipeline) {
-    pipeline.replace(
-        PTransformOverride.of(
-            PTransformMatchers.classEqualTo(BoundedReadFromUnboundedSource.class),
-            new AdaptedBoundedAsUnbounded.Factory()));
+    pipeline.replaceAll(
+        Collections.singletonList(
+            PTransformOverride.of(
+                PTransformMatchers.classEqualTo(BoundedReadFromUnboundedSource.class),
+                new AdaptedBoundedAsUnbounded.Factory())));
   }
 
   private static class AdaptedBoundedAsUnbounded<T> extends PTransform<PBegin, PCollection<T>> {
