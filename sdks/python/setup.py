@@ -98,8 +98,7 @@ REQUIRED_PACKAGES = [
     ]
 
 REQUIRED_TEST_PACKAGES = [
-    'pyhamcrest>=1.9,<2.0',
-    'parameterized==0.6.1'
+    'pyhamcrest>=1.9,<2.0'
     ]
 
 GCP_REQUIREMENTS = [
