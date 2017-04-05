@@ -221,6 +221,21 @@ public class PTransformMatchers {
     };
   }
 
+  public static PTransformMatcher createViewWithViewFn(final Class<? extends ViewFn> viewFnType) {
+    return new PTransformMatcher() {
+      @Override
+      public boolean matches(AppliedPTransform<?, ?, ?> application) {
+        if (!(application.getTransform() instanceof CreatePCollectionView)) {
+          return false;
+        }
+        CreatePCollectionView<?, ?> createView =
+            (CreatePCollectionView<?, ?>) application.getTransform();
+        ViewFn<Iterable<WindowedValue<?>>, ?> viewFn = createView.getView().getViewFn();
+        return viewFn.getClass().equals(viewFnType);
+      }
+    };
+  }
+
   /**
    * A {@link PTransformMatcher} which matches a {@link Flatten.PCollections} which
    * consumes no input {@link PCollection PCollections}.
