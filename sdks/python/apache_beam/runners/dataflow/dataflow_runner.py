@@ -391,7 +391,8 @@ class DataflowRunner(PipelineRunner):
     # Now create the step for the ParDo transform being handled.
     step = self._add_step(
         TransformNames.DO,
-        transform_node.full_label + '/Do' if transform_node.side_inputs else '',
+        transform_node.full_label + (
+            '/Do' if transform_node.side_inputs else ''),
         transform_node,
         transform_node.transform.side_output_tags)
     fn_data = self._pardo_fn_data(transform_node, lookup_label)
