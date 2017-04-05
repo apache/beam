@@ -169,13 +169,7 @@
 
     <dependency>
       <groupId>io.grpc</groupId>
-      <artifactId>grpc-protobuf-lite</artifactId>
-      <scope>runtime</scope>
-    </dependency>
-
-    <dependency>
-      <groupId>com.google.protobuf</groupId>
-      <artifactId>protobuf-lite</artifactId>
+      <artifactId>grpc-protobuf</artifactId>
       <scope>runtime</scope>
     </dependency>
 
