@@ -182,7 +182,7 @@ import org.slf4j.LoggerFactory;
  * {@link BigQueryIO.Write#withFormatFunction} to convert each element into a {@link TableRow}
  * object.
  *
- * <p>Per-value tables are not yet supported in batch mode.
+ * <p>Per-value tables currently do not perform well in batch mode.
  *
  * <h3>Permissions</h3>
  *
