@@ -30,6 +30,7 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
+import org.apache.beam.sdk.transforms.windowing.WindowMappingFn;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.PCollection;
@@ -155,12 +156,12 @@ public final class PCollectionViewTesting {
   }
 
   /**
-   * A {@link PCollectionView} explicitly built from its {@link TupleTag},
-   * {@link WindowingStrategy}, {@link Coder}, and conversion function.
+   * A {@link PCollectionView} explicitly built from its {@link TupleTag}, {@link
+   * WindowingStrategy}, {@link Coder}, and conversion function.
    *
    * <p>This method is only recommended for use by runner implementors to test their
-   * implementations. It is very easy to construct a {@link PCollectionView} that does
-   * not respect the invariants required for proper functioning.
+   * implementations. It is very easy to construct a {@link PCollectionView} that does not respect
+   * the invariants required for proper functioning.
    *
    * <p>Note that if the provided {@code WindowingStrategy} does not match that of the windowed
    * values provided to the view during execution, results are unpredictable.
@@ -171,10 +172,38 @@ public final class PCollectionViewTesting {
       ViewFn<Iterable<WindowedValue<ElemT>>, ViewT> viewFn,
       Coder<ElemT> elemCoder,
       WindowingStrategy<?, ?> windowingStrategy) {
+    return testingView(
+        pCollection,
+        tag,
+        viewFn,
+        windowingStrategy.getWindowFn().getDefaultWindowMappingFn(),
+        elemCoder,
+        windowingStrategy);
+  }
+
+  /**
+   * A {@link PCollectionView} explicitly built from its {@link TupleTag}, {@link
+   * WindowingStrategy}, {@link Coder}, {@link ViewFn} and {@link WindowMappingFn}.
+   *
+   * <p>This method is only recommended for use by runner implementors to test their
+   * implementations. It is very easy to construct a {@link PCollectionView} that does not respect
+   * the invariants required for proper functioning.
+   *
+   * <p>Note that if the provided {@code WindowingStrategy} does not match that of the windowed
+   * values provided to the view during execution, results are unpredictable.
+   */
+  public static <ElemT, ViewT> PCollectionView<ViewT> testingView(
+      PCollection<ElemT> pCollection,
+      TupleTag<Iterable<WindowedValue<ElemT>>> tag,
+      ViewFn<Iterable<WindowedValue<ElemT>>, ViewT> viewFn,
+      WindowMappingFn<?> windowMappingFn,
+      Coder<ElemT> elemCoder,
+      WindowingStrategy<?, ?> windowingStrategy) {
     return new PCollectionViewFromParts<>(
         pCollection,
         tag,
         viewFn,
+        windowMappingFn,
         windowingStrategy,
         IterableCoder.of(
             WindowedValue.getFullCoder(elemCoder, windowingStrategy.getWindowFn().windowCoder())));
@@ -226,6 +255,7 @@ public final class PCollectionViewTesting {
     private PCollection<ElemT> pCollection;
     private TupleTag<Iterable<WindowedValue<ElemT>>> tag;
     private ViewFn<Iterable<WindowedValue<ElemT>>, ViewT> viewFn;
+    private WindowMappingFn<?> windowMappingFn;
     private WindowingStrategy<?, ?> windowingStrategy;
     private Coder<Iterable<WindowedValue<ElemT>>> coder;
 
@@ -233,11 +263,13 @@ public final class PCollectionViewTesting {
         PCollection<ElemT> pCollection,
         TupleTag<Iterable<WindowedValue<ElemT>>> tag,
         ViewFn<Iterable<WindowedValue<ElemT>>, ViewT> viewFn,
+        WindowMappingFn<?> windowMappingFn,
         WindowingStrategy<?, ?> windowingStrategy,
         Coder<Iterable<WindowedValue<ElemT>>> coder) {
       this.pCollection = pCollection;
       this.tag = tag;
       this.viewFn = viewFn;
+      this.windowMappingFn = windowMappingFn;
       this.windowingStrategy = windowingStrategy;
       this.coder = coder;
     }
@@ -259,6 +291,11 @@ public final class PCollectionViewTesting {
       @SuppressWarnings({"unchecked", "rawtypes"})
       ViewFn<Iterable<WindowedValue<?>>, ViewT> untypedViewFn = (ViewFn) viewFn;
       return untypedViewFn;
+    }
+
+    @Override
+    public WindowMappingFn<?> getWindowMappingFn() {
+      return windowMappingFn;
     }
 
     @Override
