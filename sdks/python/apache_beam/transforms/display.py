@@ -40,7 +40,6 @@ from datetime import datetime, timedelta
 import inspect
 import json
 
-
 __all__ = ['HasDisplayData', 'DisplayDataItem', 'DisplayData']
 
 
