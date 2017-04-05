@@ -25,8 +25,6 @@ except ImportError:
   extra_types = None
 # pylint: enable=wrong-import-order, wrong-import-position
 
-from apache_beam.utils.value_provider import ValueProvider
-
 
 _MAXINT64 = (1 << 63) - 1
 _MININT64 = - (1 << 63)
@@ -106,10 +104,6 @@ def to_json_value(obj, with_type=False):
       raise TypeError('Can not encode {} as a 64-bit integer'.format(obj))
   elif isinstance(obj, float):
     return extra_types.JsonValue(double_value=obj)
-  elif isinstance(obj, ValueProvider):
-    if obj.is_accessible():
-      return to_json_value(obj.get())
-    return extra_types.JsonValue(is_null=True)
   else:
     raise TypeError('Cannot convert %s to a JSON value.' % repr(obj))
 
