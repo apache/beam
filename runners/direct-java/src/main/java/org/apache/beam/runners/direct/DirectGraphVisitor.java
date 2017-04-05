@@ -21,6 +21,7 @@ import static com.google.common.base.Preconditions.checkState;
 
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.ListMultimap;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -83,7 +84,13 @@ class DirectGraphVisitor extends PipelineVisitor.Defaults {
     if (node.getInputs().isEmpty()) {
       rootTransforms.add(appliedTransform);
     } else {
-      for (PValue value : node.getInputs().values()) {
+      Collection<PValue> mainInputs =
+          TransformInputs.nonAdditionalInputs(node.toAppliedPTransform());
+      if (!mainInputs.containsAll(node.getInputs().values())) {
+        System.out.printf(
+            "Main inputs reduced to %s from %s%n", mainInputs, node.getInputs().values());
+      }
+      for (PValue value : mainInputs) {
         primitiveConsumers.put(value, appliedTransform);
       }
     }
