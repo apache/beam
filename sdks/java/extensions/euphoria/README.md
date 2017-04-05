@@ -137,9 +137,8 @@ requests which do not pass the full build lifecycle as defined by the
 
 ## Documentation
 
-* Documentation is currently maintained in the form of a
-  [Wiki on Github](https://github.com/seznam/euphoria/wiki). A lot of work
-  in this area is still to be done.
+* An incipient documentation is currently maintained in the form of a
+  [Wiki on Github](https://github.com/seznam/euphoria/wiki), including a brief [FAQ page](https://github.com/seznam/euphoria/wiki/FAQ).
 
 * Another source of documentation are deliberately simple examples
   maintained in the [euphoria-examples module](https://github.com/seznam/euphoria/tree/master/euphoria-examples).
