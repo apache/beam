@@ -281,7 +281,7 @@ public class GameStats extends LeaderBoard {
     // Calculate the total score per team over fixed windows,
     // and emit cumulative updates for late data. Uses the side input derived above-- the set of
     // suspected robots-- to filter out scores from those users from the sum.
-    // Write the results to BigQuery.
+    // WriteFiles the results to BigQuery.
     rawEvents
       .apply("WindowIntoFixedWindows", Window.<GameActionInfo>into(
           FixedWindows.of(Duration.standardMinutes(options.getFixedWindowDuration()))))
@@ -299,7 +299,7 @@ public class GameStats extends LeaderBoard {
         // Extract and sum teamname/score pairs from the event data.
       .apply("ExtractTeamScore", new ExtractAndSumScore("team"))
       // [END DocInclude_FilterAndCalc]
-      // Write the result to BigQuery
+      // WriteFiles the result to BigQuery
       .apply("WriteTeamSums",
           new WriteWindowedToBigQuery<KV<String, Integer>>(
               options.getGameStatsTablePrefix() + "_team", configureWindowedWrite()));
@@ -326,7 +326,7 @@ public class GameStats extends LeaderBoard {
           FixedWindows.of(Duration.standardMinutes(options.getUserActivityWindowDuration()))))
       // Find the mean session duration in each window.
       .apply(Mean.<Integer>globally().withoutDefaults())
-      // Write this info to a BigQuery table.
+      // WriteFiles this info to a BigQuery table.
       .apply("WriteAvgSessionLength",
              new WriteWindowedToBigQuery<Double>(
                 options.getGameStatsTablePrefix() + "_sessions", configureSessionWindowWrite()));

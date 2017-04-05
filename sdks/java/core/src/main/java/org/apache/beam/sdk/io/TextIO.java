@@ -99,13 +99,13 @@ import org.apache.beam.sdk.values.PDone;
  *
  * <p>For example:
  * <pre>{@code
- * // A simple Write to a local file (only runs locally):
+ * // A simple WriteFiles to a local file (only runs locally):
  * PCollection<String> lines = ...;
- * lines.apply(TextIO.Write.to("/path/to/file.txt"));
+ * lines.apply(TextIO.WriteFiles.to("/path/to/file.txt"));
  *
  * // Same as above, only with Gzip compression:
  * PCollection<String> lines = ...;
- * lines.apply(TextIO.Write.to("/path/to/file.txt"));
+ * lines.apply(TextIO.WriteFiles.to("/path/to/file.txt"));
  *      .withSuffix(".txt")
  *      .withWritableByteChannelFactory(FileBasedSink.CompressionType.GZIP));
  * }</pre>
@@ -533,7 +533,7 @@ public class TextIO {
        * Returns a transform for writing to text files that's like this one but
        * that writes to the file(s) with the given filename prefix.
        *
-       * <p>See {@link TextIO.Write#to(String) Write.to(String)} for more information.
+       * <p>See {@link TextIO.Write#to(String) WriteFiles.to(String)} for more information.
        *
        * <p>Does not modify this object.
        */
@@ -696,18 +696,18 @@ public class TextIO {
       public PDone expand(PCollection<String> input) {
         if (filenamePolicy == null && filenamePrefix == null) {
           throw new IllegalStateException(
-              "need to set the filename prefix of an TextIO.Write transform");
+              "need to set the filename prefix of an TextIO.WriteFiles transform");
         }
         if (filenamePolicy != null && filenamePrefix != null) {
           throw new IllegalStateException(
               "cannot set both a filename policy and a filename prefix");
         }
-        org.apache.beam.sdk.io.Write<String> write = null;
+        WriteFiles<String> write = null;
         if (filenamePolicy != null) {
-         write = org.apache.beam.sdk.io.Write.to(
+         write = WriteFiles.to(
              new TextSink(filenamePolicy, header, footer, writableByteChannelFactory));
         } else {
-          write = org.apache.beam.sdk.io.Write.to(
+          write = WriteFiles.to(
               new TextSink(filenamePrefix, filenameSuffix, header, footer, shardTemplate,
                   writableByteChannelFactory));
         }
@@ -717,7 +717,7 @@ public class TextIO {
         if (windowedWrites) {
           write = write.withWindowedWrites();
         }
-        return input.apply("Write", write);
+        return input.apply("WriteFiles", write);
       }
 
       @Override

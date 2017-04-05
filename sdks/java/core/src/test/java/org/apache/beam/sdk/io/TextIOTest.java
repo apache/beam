@@ -103,7 +103,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 /**
- * Tests for TextIO Read and Write transforms.
+ * Tests for TextIO Read and WriteFiles transforms.
  */
 // TODO: Change the tests to use ValidatesRunner instead of NeedsRunner
 @RunWith(JUnit4.class)
@@ -545,7 +545,7 @@ public class TextIOTest {
     TextIO.Write.Bound write = TextIO.Write.to(outputPath);
 
     Set<DisplayData> displayData = evaluator.displayDataForPrimitiveTransforms(write);
-    assertThat("TextIO.Write should include the file prefix in its primitive display data",
+    assertThat("TextIO.WriteFiles should include the file prefix in its primitive display data",
         displayData, hasItem(hasDisplayItem(hasValue(startsWith(outputPath)))));
   }
 
@@ -848,7 +848,7 @@ public class TextIOTest {
   @Test
   public void testTextIOGetName() {
     assertEquals("TextIO.Read", TextIO.Read.from("somefile").getName());
-    assertEquals("TextIO.Write", TextIO.Write.to("somefile").getName());
+    assertEquals("TextIO.WriteFiles", TextIO.Write.to("somefile").getName());
     assertEquals("TextIO.Read", TextIO.Read.from("somefile").toString());
   }
 

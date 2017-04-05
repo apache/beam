@@ -72,10 +72,10 @@ public class UnionCoder extends StandardCoder<RawUnionValue> {
       Context context)
       throws IOException, CoderException  {
     int index = getIndexForEncoding(union);
-    // Write out the union tag.
+    // WriteFiles out the union tag.
     VarInt.encode(index, outStream);
 
-    // Write out the actual value.
+    // WriteFiles out the actual value.
     Coder<Object> coder = (Coder<Object>) elementCoders.get(index);
     coder.encode(
         union.getValue(),
@@ -121,9 +121,9 @@ public class UnionCoder extends StandardCoder<RawUnionValue> {
       RawUnionValue union, ElementByteSizeObserver observer, Context context)
       throws Exception {
     int index = getIndexForEncoding(union);
-    // Write out the union tag.
+    // WriteFiles out the union tag.
     observer.update(VarInt.getLength(index));
-    // Write out the actual value.
+    // WriteFiles out the actual value.
     @SuppressWarnings("unchecked")
     Coder<Object> coder = (Coder<Object>) elementCoders.get(index);
     coder.registerByteSizeObserver(union.getValue(), observer, context);

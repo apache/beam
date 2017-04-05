@@ -144,7 +144,7 @@ public final class ZipFiles {
                   + parentFile.getAbsolutePath());
             }
           }
-          // Write the file to the destination.
+          // WriteFiles the file to the destination.
           asByteSource(zipFileObj, entry).copyTo(Files.asByteSink(targetFile));
         }
       }

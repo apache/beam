@@ -870,10 +870,10 @@ public class BigQueryIOTest implements Serializable {
         .withoutValidation();
 
     Set<DisplayData> displayData = evaluator.displayDataForPrimitiveTransforms(write);
-    assertThat("BigQueryIO.Write should include the table spec in its primitive display data",
+    assertThat("BigQueryIO.WriteFiles should include the table spec in its primitive display data",
         displayData, hasItem(hasDisplayItem("tableSpec")));
 
-    assertThat("BigQueryIO.Write should include the table schema in its primitive display data",
+    assertThat("BigQueryIO.WriteFiles should include the table schema in its primitive display data",
         displayData, hasItem(hasDisplayItem("schema")));
   }
 
@@ -1176,7 +1176,7 @@ public class BigQueryIOTest implements Serializable {
   public void testBigQueryIOGetName() {
     assertEquals("BigQueryIO.Read",
         BigQueryIO.read().from("somedataset.sometable").getName());
-    assertEquals("BigQueryIO.Write",
+    assertEquals("BigQueryIO.WriteFiles",
         BigQueryIO.<TableRow>write().to("somedataset.sometable").getName());
   }
 

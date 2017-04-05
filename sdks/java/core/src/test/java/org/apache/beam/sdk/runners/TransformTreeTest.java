@@ -31,7 +31,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.io.TextIO;
-import org.apache.beam.sdk.io.Write;
+import org.apache.beam.sdk.io.WriteFiles;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Combine;
@@ -143,7 +143,7 @@ public class TransformTreeTest {
               assertTrue(visited.add(TransformsSeen.SAMPLE));
               assertNotNull(node.getEnclosingNode());
               assertTrue(node.isCompositeNode());
-            } else if (transform instanceof Write) {
+            } else if (transform instanceof WriteFiles) {
               assertTrue(visited.add(TransformsSeen.WRITE));
               assertNotNull(node.getEnclosingNode());
               assertTrue(node.isCompositeNode());
@@ -165,7 +165,7 @@ public class TransformTreeTest {
             PTransform<?, ?> transform = node.getTransform();
             // Pick is a composite, should not be visited here.
             assertThat(transform, not(instanceOf(Combine.Globally.class)));
-            assertThat(transform, not(instanceOf(Write.class)));
+            assertThat(transform, not(instanceOf(WriteFiles.class)));
             if (transform instanceof Read.Bounded
                 && node.getEnclosingNode().getTransform() instanceof TextIO.Read.Bound) {
               assertTrue(visited.add(TransformsSeen.READ));

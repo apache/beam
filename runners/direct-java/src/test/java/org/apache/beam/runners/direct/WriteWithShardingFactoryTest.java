@@ -41,7 +41,7 @@ import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.io.Sink;
 import org.apache.beam.sdk.io.TextIO;
-import org.apache.beam.sdk.io.Write;
+import org.apache.beam.sdk.io.WriteFiles;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
@@ -84,7 +84,7 @@ public class WriteWithShardingFactoryTest {
     String fileName = "resharded_write";
     String outputPath = tmp.getRoot().getAbsolutePath();
     String targetLocation = IOChannelUtils.resolve(outputPath, fileName);
-    // TextIO is implemented in terms of the Write PTransform. When sharding is not specified,
+    // TextIO is implemented in terms of the WriteFiles PTransform. When sharding is not specified,
     // resharding should be automatically applied
     p.apply(Create.of(strs)).apply(TextIO.Write.to(targetLocation));
 
@@ -121,16 +121,8 @@ public class WriteWithShardingFactoryTest {
 
   @Test
   public void withNoShardingSpecifiedReturnsNewTransform() {
-    Write<Object> original = Write.to(new TestSink());
-    PCollection<Object> objs = (PCollection) p.apply(Create.empty(VoidCoder.of()));
-
-    AppliedPTransform<PCollection<Object>, PDone, Write<Object>> originalApplication =
-        AppliedPTransform.of(
-            "write", objs.expand(), Collections.<TupleTag<?>, PValue>emptyMap(), original, p);
-
-    assertThat(
-        factory.getReplacementTransform(originalApplication).getTransform(),
-        not(equalTo((Object) original)));
+    WriteFiles<Object> original = WriteFiles.to(new TestSink());
+    assertThat(factory.getReplacementTransform(original), not(equalTo((Object) original)));
   }
 
   @Test

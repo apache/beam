@@ -179,7 +179,7 @@ public class XmlSinkTest {
   }
 
   /**
-   * Write a bundle with an XmlWriter and verify the output is expected.
+   * WriteFiles a bundle with an XmlWriter and verify the output is expected.
    */
   private <T> void runTestWrite(XmlWriter<T> writer, List<T> bundle, List<String> expected)
       throws Exception {
@@ -204,7 +204,7 @@ public class XmlSinkTest {
   }
 
   /**
-   * Write a bundle with an XmlWriter.
+   * WriteFiles a bundle with an XmlWriter.
    */
   private <T> void writeBundle(XmlWriter<T> writer, List<T> elements, WritableByteChannel channel)
       throws Exception {

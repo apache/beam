@@ -85,7 +85,7 @@ import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.FileBasedSink;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.io.UnboundedSource;
-import org.apache.beam.sdk.io.Write;
+import org.apache.beam.sdk.io.WriteFiles;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubUnboundedSink;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubUnboundedSource;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -341,10 +341,10 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
                   PTransformMatchers.stateOrTimerParDoSingle(),
                   BatchStatefulParDoOverrides.singleOutputOverrideFactory()))
 
-          // Write uses views internally
+          // WriteFiles uses views internally
           .add(
               PTransformOverride.of(
-                  PTransformMatchers.classEqualTo(Write.class), new BatchWriteFactory(this)))
+                  PTransformMatchers.classEqualTo(WriteFiles.class), new BatchWriteFactory(this)))
           .add(
               PTransformOverride.of(
                   PTransformMatchers.classEqualTo(Combine.GloballyAsSingletonView.class),
@@ -803,18 +803,28 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   }
 
   private class BatchWriteFactory<T>
-      implements PTransformOverrideFactory<PCollection<T>, PDone, Write<T>> {
+      implements PTransformOverrideFactory<PCollection<T>, PDone, WriteFiles<T>> {
     private final DataflowRunner runner;
     private BatchWriteFactory(DataflowRunner dataflowRunner) {
       this.runner = dataflowRunner;
     }
 
     @Override
+<<<<<<< HEAD
     public PTransformReplacement<PCollection<T>, PDone> getReplacementTransform(
         AppliedPTransform<PCollection<T>, PDone, Write<T>> transform) {
       return PTransformReplacement.of(
           PTransformReplacements.getSingletonMainInput(transform),
           new BatchWrite<>(runner, transform.getTransform()));
+=======
+    public PTransform<PCollection<T>, PDone> getReplacementTransform(WriteFiles<T> transform) {
+      return new BatchWrite<>(runner, transform);
+    }
+
+    @Override
+    public PCollection<T> getInput(List<TaggedPValue> inputs, Pipeline p) {
+      return (PCollection<T>) Iterables.getOnlyElement(inputs).getValue();
+>>>>>>> Start the process of getting rid of Sink.
     }
 
     @Override
@@ -826,17 +836,17 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
 
   /**
    * Specialized implementation which overrides
-   * {@link org.apache.beam.sdk.io.Write Write} to provide Google
+   * {@link WriteFiles WriteFiles} to provide Google
    * Cloud Dataflow specific path validation of {@link FileBasedSink}s.
    */
   private static class BatchWrite<T> extends PTransform<PCollection<T>, PDone> {
     private final DataflowRunner runner;
-    private final Write<T> transform;
+    private final WriteFiles<T> transform;
     /**
      * Builds an instance of this class from the overridden transform.
      */
     @SuppressWarnings("unused") // used via reflection in DataflowRunner#apply()
-    public BatchWrite(DataflowRunner runner, Write<T> transform) {
+    public BatchWrite(DataflowRunner runner, WriteFiles<T> transform) {
       this.runner = runner;
       this.transform = transform;
     }

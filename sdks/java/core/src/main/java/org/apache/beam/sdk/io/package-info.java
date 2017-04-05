@@ -26,10 +26,10 @@
  * PCollection<TableRow> inputData = pipeline.apply(
  *     BigQueryIO.read().from("clouddataflow-readonly:samples.weather_stations"));
  * }</pre>
- * and {@code Write} transforms that persist PCollections to external storage:
+ * and {@code WriteFiles} transforms that persist PCollections to external storage:
  * <pre> {@code
  * PCollection<Integer> numbers = ...;
- * numbers.apply(TextIO.Write.to("gs://my_bucket/path/to/numbers"));
+ * numbers.apply(TextIO.WriteFiles.to("gs://my_bucket/path/to/numbers"));
  * } </pre>
  */
 package org.apache.beam.sdk.io;

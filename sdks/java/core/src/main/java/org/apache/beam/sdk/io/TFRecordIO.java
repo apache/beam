@@ -344,8 +344,8 @@ public class TFRecordIO {
         throw new IllegalStateException(
             "need to set the filename prefix of a TFRecordIO.Write transform");
       }
-      org.apache.beam.sdk.io.Write<byte[]> write =
-          org.apache.beam.sdk.io.Write.to(
+      org.apache.beam.sdk.io.WriteFiles<byte[]> write =
+          org.apache.beam.sdk.io.WriteFiles.to(
               new TFRecordSink(
                   getFilenamePrefix(),
                   getFilenameSuffix(),

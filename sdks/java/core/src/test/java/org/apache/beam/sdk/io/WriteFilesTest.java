@@ -47,6 +47,7 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.io.FileBasedSink.FileBasedWriteOperation;
 import org.apache.beam.sdk.io.Sink.WriteOperation;
 import org.apache.beam.sdk.io.Sink.Writer;
 import org.apache.beam.sdk.options.Description;
@@ -84,10 +85,10 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 /**
- * Tests for the Write PTransform.
+ * Tests for the WriteFiles PTransform.
  */
 @RunWith(JUnit4.class)
-public class WriteTest {
+public class WriteFilesTest {
   @Rule public final TestPipeline p = TestPipeline.create();
   @Rule public ExpectedException thrown = ExpectedException.none();
 
@@ -153,7 +154,7 @@ public class WriteTest {
   }
 
   /**
-   * Test a Write transform with a PCollection of elements.
+   * Test a WriteFiles transform with a PCollection of elements.
    */
   @Test
   @Category(NeedsRunner.class)
@@ -164,7 +165,7 @@ public class WriteTest {
   }
 
   /**
-   * Test that Write with an empty input still produces one shard.
+   * Test that WriteFiles with an empty input still produces one shard.
    */
   @Test
   @Category(NeedsRunner.class)
@@ -175,7 +176,7 @@ public class WriteTest {
   }
 
   /**
-   * Test that Write with a configured number of shards produces the desired number of shards even
+   * Test that WriteFiles with a configured number of shards produces the desired number of shards even
    * when there are many elements.
    */
   @Test
@@ -211,7 +212,7 @@ public class WriteTest {
     }
 
     TestSink sink = new TestSink();
-    Write<String> write = Write.to(sink).withSharding(new LargestInt());
+    WriteFiles<String> write = WriteFiles.to(sink).withSharding(new LargestInt());
     p.apply(Create.timestamped(inputs, timestamps).withCoder(StringUtf8Coder.of()))
         .apply(IDENTITY_MAP)
         .apply(write);
@@ -225,7 +226,7 @@ public class WriteTest {
   }
 
   /**
-   * Test that Write with a configured number of shards produces the desired number of shards even
+   * Test that WriteFiles with a configured number of shards produces the desired number of shards even
    * when there are too few elements.
    */
   @Test
@@ -238,7 +239,7 @@ public class WriteTest {
   }
 
   /**
-   * Tests that a Write can balance many elements.
+   * Tests that a WriteFiles can balance many elements.
    */
   @Test
   @Category(NeedsRunner.class)
@@ -269,7 +270,7 @@ public class WriteTest {
   }
 
   /**
-   * Test a Write transform with an empty PCollection.
+   * Test a WriteFiles transform with an empty PCollection.
    */
   @Test
   @Category(NeedsRunner.class)
@@ -279,7 +280,7 @@ public class WriteTest {
   }
 
   /**
-   * Test a Write with a windowed PCollection.
+   * Test a WriteFiles with a windowed PCollection.
    */
   @Test
   @Category(NeedsRunner.class)
@@ -291,7 +292,7 @@ public class WriteTest {
   }
 
   /**
-   * Test a Write with sessions.
+   * Test a WriteFiles with sessions.
    */
   @Test
   @Category(NeedsRunner.class)
@@ -308,7 +309,7 @@ public class WriteTest {
   @Test
   public void testBuildWrite() {
     Sink<String> sink = new TestSink() {};
-    Write<String> write = Write.to(sink).withNumShards(3);
+    WriteFiles<String> write = WriteFiles.to(sink).withNumShards(3);
     assertThat(write.getSink(), is(sink));
     PTransform<PCollection<String>, PCollectionView<Integer>> originalSharding =
         write.getSharding();
@@ -318,12 +319,12 @@ public class WriteTest {
     assertThat(write.getNumShards().get(), equalTo(3));
     assertThat(write.getSharding(), equalTo(originalSharding));
 
-    Write<String> write2 = write.withSharding(SHARDING_TRANSFORM);
+    WriteFiles<String> write2 = write.withSharding(SHARDING_TRANSFORM);
     assertThat(write2.getSink(), is(sink));
     assertThat(write2.getSharding(), equalTo(SHARDING_TRANSFORM));
     // original unchanged
 
-    Write<String> writeUnsharded = write2.withRunnerDeterminedSharding();
+    WriteFiles<String> writeUnsharded = write2.withRunnerDeterminedSharding();
     assertThat(writeUnsharded.getSharding(), nullValue());
     assertThat(write.getSharding(), equalTo(originalSharding));
   }
@@ -336,7 +337,7 @@ public class WriteTest {
         builder.add(DisplayData.item("foo", "bar"));
       }
     };
-    Write<String> write = Write.to(sink);
+    WriteFiles<String> write = WriteFiles.to(sink);
     DisplayData displayData = DisplayData.from(write);
 
     assertThat(displayData, hasDisplayItem("sink", sink.getClass()));
@@ -351,7 +352,7 @@ public class WriteTest {
         builder.add(DisplayData.item("foo", "bar"));
       }
     };
-    Write<String> write = Write.to(sink).withNumShards(1);
+    WriteFiles<String> write = WriteFiles.to(sink).withNumShards(1);
     DisplayData displayData = DisplayData.from(write);
     assertThat(displayData, hasDisplayItem("sink", sink.getClass()));
     assertThat(displayData, includesDisplayDataFor("sink", sink));
@@ -366,8 +367,8 @@ public class WriteTest {
         builder.add(DisplayData.item("foo", "bar"));
       }
     };
-    Write<String> write =
-        Write.to(sink)
+    WriteFiles<String> write =
+        WriteFiles.to(sink)
             .withSharding(
                 new PTransform<PCollection<String>, PCollectionView<Integer>>() {
                   @Override
@@ -387,7 +388,7 @@ public class WriteTest {
   }
 
   /**
-   * Performs a Write transform and verifies the Write transform calls the appropriate methods on
+   * Performs a WriteFiles transform and verifies the WriteFiles transform calls the appropriate methods on
    * a test sink in the correct order, as well as verifies that the elements of a PCollection are
    * written to the sink.
    */
@@ -397,7 +398,7 @@ public class WriteTest {
   }
 
   /**
-   * Performs a Write transform with the desired number of shards. Verifies the Write transform
+   * Performs a WriteFiles transform with the desired number of shards. Verifies the WriteFiles transform
    * calls the appropriate methods on a test sink in the correct order, as well as verifies that
    * the elements of a PCollection are written to the sink. If numConfiguredShards is not null, also
    * verifies that the output number of shards is correct.
@@ -425,7 +426,7 @@ public class WriteTest {
     }
 
     TestSink sink = new TestSink();
-    Write<String> write = Write.to(sink);
+    WriteFiles<String> write = WriteFiles.to(sink);
     if (numConfiguredShards.isPresent()) {
       write = write.withNumShards(numConfiguredShards.get());
     }
@@ -444,13 +445,17 @@ public class WriteTest {
 
   // Test sink and associated write operation and writer. TestSink, TestWriteOperation, and
   // TestWriter each verify that the sequence of method calls is consistent with the specification
-  // of the Write PTransform.
-  private static class TestSink extends Sink<String> {
+  // of the WriteFiles PTransform.
+  private static class TestSink extends FileBasedSink<String> {
     private boolean createCalled = false;
     private boolean validateCalled = false;
 
+    public TestSink() {
+      super("", "");
+    }
+
     @Override
-    public WriteOperation<String, ?> createWriteOperation(PipelineOptions options) {
+    public FileBasedWriteOperation<String> createWriteOperation(PipelineOptions options) {
       assertTrue(validateCalled);
       assertTestFlagPresent(options);
       createCalled = true;
@@ -493,7 +498,7 @@ public class WriteTest {
     }
   }
 
-  private static class TestSinkWriteOperation extends WriteOperation<String, TestWriterResult> {
+  private static class TestSinkWriteOperation extends FileBasedWriteOperation<String> {
     private enum State {
       INITIAL,
       INITIALIZED,

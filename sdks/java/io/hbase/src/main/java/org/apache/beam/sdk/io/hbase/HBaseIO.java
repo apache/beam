@@ -532,7 +532,7 @@ public class HBaseIO {
     }
 
     /**
-     * Creates an uninitialized {@link HBaseIO.Write}. Before use, the {@code Write} must be
+     * Creates an uninitialized {@link HBaseIO.Write}. Before use, the {@code WriteFiles} must be
      * initialized with a
      * {@link HBaseIO.Write#withConfiguration(Configuration)} that specifies
      * the destination HBase instance, and a {@link HBaseIO.Write#withTableId tableId}

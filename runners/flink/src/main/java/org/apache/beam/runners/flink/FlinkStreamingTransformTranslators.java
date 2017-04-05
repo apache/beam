@@ -166,13 +166,13 @@ class FlinkStreamingTransformTranslators {
 
       // TODO: Implement these. We need Flink support for this.
       LOG.warn(
-          "Translation of TextIO.Write.needsValidation not yet supported. Is: {}.",
+          "Translation of TextIO.WriteFiles.needsValidation not yet supported. Is: {}.",
           needsValidation);
       LOG.warn(
-          "Translation of TextIO.Write.filenameSuffix not yet supported. Is: {}.",
+          "Translation of TextIO.WriteFiles.filenameSuffix not yet supported. Is: {}.",
           filenameSuffix);
       LOG.warn(
-          "Translation of TextIO.Write.shardNameTemplate not yet supported. Is: {}.",
+          "Translation of TextIO.WriteFiles.shardNameTemplate not yet supported. Is: {}.",
           shardNameTemplate);
 
       DataStream<String> dataSink = inputDataStream

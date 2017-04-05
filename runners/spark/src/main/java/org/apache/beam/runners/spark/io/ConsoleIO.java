@@ -30,7 +30,7 @@ public final class ConsoleIO {
   }
 
   /**
-   * Write on the console.
+   * WriteFiles on the console.
    */
   public static final class Write {
 

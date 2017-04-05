@@ -30,7 +30,7 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.Sink;
-import org.apache.beam.sdk.io.Write;
+import org.apache.beam.sdk.io.WriteFiles;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -40,7 +40,7 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.test.util.JavaProgramTestBase;
 
 /**
- * Tests the translation of custom Write sinks.
+ * Tests the translation of custom WriteFiles sinks.
  */
 public class WriteSinkITCase extends JavaProgramTestBase {
 
@@ -82,7 +82,7 @@ public class WriteSinkITCase extends JavaProgramTestBase {
     Pipeline p = FlinkTestPipeline.createForBatch();
 
     p.apply(Create.of(ImmutableList.copyOf(EXPECTED_RESULT))).setCoder(StringUtf8Coder.of())
-      .apply("CustomSink", Write.to(new MyCustomSink(resultPath)));
+      .apply("CustomSink", WriteFiles.to(new MyCustomSink(resultPath)));
 
     p.run();
   }

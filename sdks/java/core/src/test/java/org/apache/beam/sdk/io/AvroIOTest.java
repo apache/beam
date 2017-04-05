@@ -86,7 +86,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 /**
- * Tests for AvroIO Read and Write transforms.
+ * Tests for AvroIO Read and WriteFiles transforms.
  */
 @RunWith(JUnit4.class)
 public class AvroIOTest {
@@ -119,7 +119,7 @@ public class AvroIOTest {
   @Test
   public void testAvroIOGetName() {
     assertEquals("AvroIO.Read", AvroIO.Read.from("gs://bucket/foo*/baz").getName());
-    assertEquals("AvroIO.Write", AvroIO.Write.to("gs://bucket/foo/baz").getName());
+    assertEquals("AvroIO.WriteFiles", AvroIO.Write.to("gs://bucket/foo/baz").getName());
   }
 
   @DefaultCoder(AvroCoder.class)
@@ -541,7 +541,7 @@ public class AvroIOTest {
 
     runTestWrite(expectedElements, 4);
   }
-  // TODO: for Write only, test withSuffix,
+  // TODO: for WriteFiles only, test withSuffix,
   // withShardNameTemplate and withoutSharding.
 
   @Test
@@ -606,7 +606,7 @@ public class AvroIOTest {
         .withoutValidation();
 
     Set<DisplayData> displayData = evaluator.displayDataForPrimitiveTransforms(write);
-    assertThat("AvroIO.Write should include the file pattern in its primitive transform",
+    assertThat("AvroIO.WriteFiles should include the file pattern in its primitive transform",
         displayData, hasItem(hasDisplayItem("fileNamePattern")));
   }
 }

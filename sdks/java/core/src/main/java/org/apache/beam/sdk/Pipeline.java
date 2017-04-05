@@ -95,7 +95,7 @@ import org.slf4j.LoggerFactory;
  *     .apply(new Count<String>());
  * PCollection<String> formattedWordCounts =
  *     wordCounts.apply(ParDo.of(new FormatCounts()));
- * formattedWordCounts.apply(TextIO.Write.to("gs://bucket/dir/counts.txt"));
+ * formattedWordCounts.apply(TextIO.WriteFiles.to("gs://bucket/dir/counts.txt"));
  *
  * // PTransforms aren't executed when they're applied, rather they're
  * // just added to the Pipeline.  Once the whole Pipeline of PTransforms

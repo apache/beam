@@ -102,7 +102,7 @@ public class MongoDbIO {
     return new AutoValue_MongoDbIO_Read.Builder().setNumSplits(0).build();
   }
 
-  /** Write data to MongoDB. */
+  /** WriteFiles data to MongoDB. */
   public static Write write() {
     return new AutoValue_MongoDbIO_Write.Builder().setBatchSize(1024L).build();
   }

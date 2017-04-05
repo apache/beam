@@ -64,7 +64,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 /**
- * Tests for TFRecordIO Read and Write transforms.
+ * Tests for TFRecordIO Read and WriteFiles transforms.
  */
 @RunWith(JUnit4.class)
 public class TFRecordIOTest {

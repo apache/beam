@@ -105,8 +105,8 @@ public class MinimalWordCount {
                        }
                      }))
 
-     // Concept #4: Apply a write transform, TextIO.Write, at the end of the pipeline.
-     // TextIO.Write writes the contents of a PCollection (in this case, our PCollection of
+     // Concept #4: Apply a write transform, TextIO.WriteFiles, at the end of the pipeline.
+     // TextIO.WriteFiles writes the contents of a PCollection (in this case, our PCollection of
      // formatted strings) to a series of text files.
      //
      // By default, it will write to a set of files with names like wordcount-00001-of-00005

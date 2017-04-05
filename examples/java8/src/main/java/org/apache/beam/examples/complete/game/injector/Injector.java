@@ -392,7 +392,7 @@ class Injector {
 
       if (writeToFile) { // Won't use threading for the file write.
         publishDataToFile(fileName, numMessages, delayInMillis);
-      } else { // Write to PubSub.
+      } else { // WriteFiles to PubSub.
         // Start a thread to inject some data.
         new Thread(){
           @Override

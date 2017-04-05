@@ -28,7 +28,7 @@ import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.values.PCollection;
 
 /**
- * A {@code Sink} represents a resource that can be written to using the {@link Write} transform.
+ * A {@code Sink} represents a resource that can be written to using the {@link WriteFiles} transform.
  *
  * <p>A parallel write to a {@code Sink} consists of three phases:
  * <ol>
@@ -38,10 +38,10 @@ import org.apache.beam.sdk.values.PCollection;
  * etc.)
  * </ol>
  *
- * <p>The {@link Write} transform can be used in a pipeline to perform this write.
- * Specifically, a Write transform can be applied to a {@link PCollection} {@code p} by:
+ * <p>The {@link WriteFiles} transform can be used in a pipeline to perform this write.
+ * Specifically, a WriteFiles transform can be applied to a {@link PCollection} {@code p} by:
  *
- * <p>{@code p.apply(Write.to(new MySink()));}
+ * <p>{@code p.apply(WriteFiles.to(new MySink()));}
  *
  * <p>Implementing a {@link Sink} and the corresponding write operations requires extending three
  * abstract classes:
@@ -51,7 +51,7 @@ import org.apache.beam.sdk.values.PCollection;
  * Depending on the type of sink, it may contain fields such as the path to an output directory
  * on a filesystem, a database table name, etc. Implementors of {@link Sink} must
  * implement two methods: {@link Sink#validate} and {@link Sink#createWriteOperation}.
- * {@link Sink#validate Validate} is called by the Write transform at pipeline creation, and should
+ * {@link Sink#validate Validate} is called by the WriteFiles transform at pipeline creation, and should
  * validate that the Sink can be written to. The createWriteOperation method is also called at
  * pipeline creation, and should return a WriteOperation object that defines how to write to the
  * Sink. Note that implementations of Sink must be serializable and Sinks must be immutable.
@@ -76,7 +76,7 @@ import org.apache.beam.sdk.values.PCollection;
  * <h2>WriteOperation</h2>
  *
  * <p>{@link WriteOperation#initialize} and {@link WriteOperation#finalize} are conceptually called
- * once: at the beginning and end of a Write transform. However, implementors must ensure that these
+ * once: at the beginning and end of a WriteFiles transform. However, implementors must ensure that these
  * methods are idempotent, as they may be called multiple times on different machines in the case of
  * failure/retry or for redundancy.
  *
@@ -100,7 +100,7 @@ import org.apache.beam.sdk.values.PCollection;
  * event of failure/retry or for redundancy). However, exactly one of these executions will have its
  * result passed to the WriteOperation's finalize method. Each call to {@link Writer#openWindowed}
  * or {@link Writer#openUnwindowed} is passed a unique <i>bundle id</i> when it is called by the
- * Write transform, so even redundant or retried bundles will have a unique way of identifying
+ * WriteFiles transform, so even redundant or retried bundles will have a unique way of identifying
  * their output.
  *
  * <p>The bundle id should be used to guarantee that a bundle's output is unique. This uniqueness

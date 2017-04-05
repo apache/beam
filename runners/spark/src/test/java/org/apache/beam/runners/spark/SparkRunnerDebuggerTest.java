@@ -99,7 +99,7 @@ public class SparkRunnerDebuggerTest {
         + ".SparkRunnerDebuggerTest$PlusOne())\n"
         + "sparkContext.union(...)\n"
         + "_.mapPartitions(new org.apache.beam.runners.spark.examples.WordCount$FormatAsTextFn())\n"
-        + "_.<org.apache.beam.sdk.io.TextIO$Write$Bound>";
+        + "_.<org.apache.beam.sdk.io.TextIO$WriteFiles$Bound>";
 
     SparkRunnerDebugger.DebugSparkPipelineResult result =
         (SparkRunnerDebugger.DebugSparkPipelineResult) pipeline.run();

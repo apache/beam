@@ -210,7 +210,7 @@ public class TopWikipediaSessions {
     p.apply(TextIO.Read.from(options.getInput()))
         .apply(MapElements.via(new ParseTableRowJson()))
         .apply(new ComputeTopSessions(samplingThreshold))
-        .apply("Write", TextIO.Write.withoutSharding().to(options.getOutput()));
+        .apply("WriteFiles", TextIO.Write.withoutSharding().to(options.getOutput()));
 
     p.run().waitUntilFinish();
   }

@@ -100,9 +100,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * {@link DatastoreV1} provides an API to Read, Write and Delete {@link PCollection PCollections}
+ * {@link DatastoreV1} provides an API to Read, WriteFiles and Delete {@link PCollection PCollections}
  * of <a href="https://developers.google.com/datastore/">Google Cloud Datastore</a> version v1
- * {@link Entity} objects. Read is only supported for Bounded PCollections while Write and Delete
+ * {@link Entity} objects. Read is only supported for Bounded PCollections while WriteFiles and Delete
  * are supported for both Bounded and Unbounded PCollections.
  *
  * <p>This API currently requires an authentication workaround. To use {@link DatastoreV1}, users
@@ -1061,7 +1061,7 @@ public class DatastoreV1 {
     @Override
     public PDone expand(PCollection<T> input) {
       input.apply("Convert to Mutation", MapElements.via(mutationFn))
-          .apply("Write Mutation to Datastore", ParDo.of(
+          .apply("WriteFiles Mutation to Datastore", ParDo.of(
               new DatastoreWriterFn(projectId, localhost)));
 
       return PDone.in(input.getPipeline());

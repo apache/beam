@@ -176,7 +176,7 @@ public class MongoDbGridFSIO {
         .build();
   }
 
-  /** Write data to GridFS. Default behavior with String. */
+  /** WriteFiles data to GridFS. Default behavior with String. */
   public static Write<String> write() {
     return new AutoValue_MongoDbGridFSIO_Write.Builder<String>()
         .setConnectionConfiguration(ConnectionConfiguration.create())

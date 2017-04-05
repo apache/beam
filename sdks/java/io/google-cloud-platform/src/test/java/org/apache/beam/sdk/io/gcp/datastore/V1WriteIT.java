@@ -37,7 +37,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 /**
- * End-to-end tests for Datastore DatastoreV1.Write.
+ * End-to-end tests for Datastore DatastoreV1.WriteFiles.
  */
 @RunWith(JUnit4.class)
 public class V1WriteIT {
@@ -57,7 +57,7 @@ public class V1WriteIT {
   /**
    * An end-to-end test for {@link DatastoreV1.Write}.
    *
-   * <p>Write some test entities to Cloud Datastore.
+   * <p>WriteFiles some test entities to Cloud Datastore.
    * Read and count all the entities. Verify that the count matches the
    * number of entities written.
    */
@@ -65,7 +65,7 @@ public class V1WriteIT {
   public void testE2EV1Write() throws Exception {
     Pipeline p = Pipeline.create(options);
 
-    // Write to datastore
+    // WriteFiles to datastore
     p.apply(CountingInput.upTo(numEntities))
         .apply(ParDo.of(new CreateEntityFn(
             options.getKind(), options.getNamespace(), ancestor)))
