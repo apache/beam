@@ -65,7 +65,7 @@ class GCSFileSystem(FileSystem):
       """
       if pattern.endswith('/'):
         pattern += '*'
-      file_sizes = gcsio.GcsIO().size_of_files_in_glob(pattern)
+      file_sizes = gcsio.GcsIO().size_of_files_in_glob(pattern, limit)
       metadata_list = [FileMetadata(path, size)
                        for path, size in file_sizes.iteritems()]
       return MatchResult(pattern, metadata_list)
