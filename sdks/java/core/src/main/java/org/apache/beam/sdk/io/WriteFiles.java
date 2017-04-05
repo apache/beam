@@ -22,12 +22,15 @@ import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.io.FileBasedSink.FileResult;
@@ -48,6 +51,7 @@ import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
+import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
@@ -82,9 +86,7 @@ import org.slf4j.LoggerFactory;
 public class WriteFiles<T> extends PTransform<PCollection<T>, PDone> {
   private static final Logger LOG = LoggerFactory.getLogger(WriteFiles.class);
 
-  private static final int UNKNOWN_SHARDNUM = -1;
-  private static final int UNKNOWN_NUMSHARDS = -1;
-
+  static final int UNKNOWN_SHARDNUM = -1;
   private FileBasedSink<T> sink;
   private WriteOperation<T> writeOperation;
   // This allows the number of shards to be dynamically computed based on the input
@@ -119,9 +121,18 @@ public class WriteFiles<T> extends PTransform<PCollection<T>, PDone> {
 
   @Override
   public PDone expand(PCollection<T> input) {
-    checkArgument(IsBounded.BOUNDED == input.isBounded() || windowedWrites,
-        "%s can only be applied to an unbounded PCollection if doing windowed writes",
-        WriteFiles.class.getSimpleName());
+    if (input.isBounded() == IsBounded.UNBOUNDED) {
+      checkArgument(windowedWrites,
+          "Must use windowed writes when applying %s to an unbounded PCollection",
+          WriteFiles.class.getSimpleName());
+      // The reason for this is https://issues.apache.org/jira/browse/BEAM-1438
+      // and similar behavior in other runners.
+      checkArgument(
+          computeNumShards != null || numShardsProvider != null,
+          "When applying %s to an unbounded PCollection, "
+              + "must specify number of output shards explicitly",
+          WriteFiles.class.getSimpleName());
+    }
     this.writeOperation = sink.createWriteOperation();
     this.writeOperation.setWindowedWrites(windowedWrites);
     return createWrite(input);
@@ -246,26 +257,50 @@ public class WriteFiles<T> extends PTransform<PCollection<T>, PDone> {
     // initialized in processElement.
     private Writer<T> writer = null;
     private BoundedWindow window = null;
+    private Map<KV<BoundedWindow, PaneInfo>, Writer<T>> windowedWriters;
 
-    WriteBundles() {
-    }
-
-    @ProcessElement
-    public void processElement(ProcessContext c, BoundedWindow window) throws Exception {
-      // Lazily initialize the Writer
-      if (writer == null) {
-        LOG.info("Opening writer for write operation {}", writeOperation);
-        writer = writeOperation.createWriter();
-
-        if (windowedWrites) {
-          writer.openWindowed(UUID.randomUUID().toString(), window, c.pane(), UNKNOWN_SHARDNUM,
-              UNKNOWN_NUMSHARDS);
-        } else {
-          writer.openUnwindowed(UUID.randomUUID().toString(), UNKNOWN_SHARDNUM, UNKNOWN_NUMSHARDS);
+    Writer<T> getWriter(BoundedWindow window, PaneInfo paneInfo) throws Exception {
+      Writer<T> writer;
+      if (windowedWrites) {
+        // If we are doing windowed writes, we need to ensure that we have separate files for
+        // data in different windows.
+        KV<BoundedWindow, PaneInfo> key = KV.of(window, paneInfo);
+        writer = windowedWriters.get(key);
+        if (writer == null) {
+          LOG.info("Opening writer for write operation {}, window {}", writeOperation, window);
+          writer = writeOperation.createWriter();
+          writer.openWindowed(UUID.randomUUID().toString(), window, paneInfo, UNKNOWN_SHARDNUM);
+          windowedWriters.put(key, writer);
+          LOG.debug("Done opening writer {} for operation {} window {}", writer, writeOperation,
+              window);
+        }
+      } else {
+        // Unwindowed writes. Just cache a single writer for the bundle.
+        writer = this.writer;
+        if (writer == null) {
+          LOG.info("Opening writer for write operation {}", writeOperation);
+          writer = this.writer = writeOperation.createWriter();
+          writer.openUnwindowed(UUID.randomUUID().toString(), UNKNOWN_SHARDNUM);
+          LOG.debug("Done opening writer {} for operation {}", writer, writeOperation);
         }
         this.window = window;
         LOG.debug("Done opening writer {} for operation {}", writer, writeOperation);
       }
+      return writer;
+    }
+
+    @StartBundle
+    public void startBundle(StartBundleContext c) {
+      // Reset state in case of reuse. We need to make sure that each bundle gets unique writers.
+      writer = null;
+      if (windowedWrites) {
+        windowedWriters = Maps.newHashMap();
+      }
+    }
+
+    @ProcessElement
+    public void processElement(ProcessContext c, BoundedWindow window) throws Exception {
+      Writer<T> writer = getWriter(window, c.pane());
       try {
         writer.write(c.element());
       } catch (Exception e) {
@@ -292,6 +327,13 @@ public class WriteFiles<T> extends PTransform<PCollection<T>, PDone> {
         c.output(result, window.maxTimestamp(), window);
         // Reset state in case of reuse.
         writer = null;
+      } else {
+        for (Map.Entry<KV<BoundedWindow, PaneInfo>, Writer<T>> entry :
+            windowedWriters.entrySet()) {
+          FileResult result = entry.getValue().close();
+          BoundedWindow window = entry.getKey().getKey();
+          c.output(result, window.maxTimestamp(), window);
+        }
       }
     }
 
@@ -308,24 +350,16 @@ public class WriteFiles<T> extends PTransform<PCollection<T>, PDone> {
    * @see WriteBundles
    */
   private class WriteShardedBundles extends DoFn<KV<Integer, Iterable<T>>, FileResult> {
-    private final PCollectionView<Integer> numShardsView;
-
-    WriteShardedBundles(PCollectionView<Integer> numShardsView) {
-      this.numShardsView = numShardsView;
-    }
-
     @ProcessElement
     public void processElement(ProcessContext c, BoundedWindow window) throws Exception {
-      int numShards = numShardsView != null ? c.sideInput(numShardsView) : getNumShards().get();
       // In a sharded write, single input element represents one shard. We can open and close
       // the writer in each call to processElement.
       LOG.info("Opening writer for write operation {}", writeOperation);
       Writer<T> writer = writeOperation.createWriter();
       if (windowedWrites) {
-        writer.openWindowed(UUID.randomUUID().toString(), window, c.pane(), c.element().getKey(),
-            numShards);
+        writer.openWindowed(UUID.randomUUID().toString(), window, c.pane(), c.element().getKey());
       } else {
-        writer.openUnwindowed(UUID.randomUUID().toString(), UNKNOWN_SHARDNUM, UNKNOWN_NUMSHARDS);
+        writer.openUnwindowed(UUID.randomUUID().toString(), UNKNOWN_SHARDNUM);
       }
       LOG.debug("Done opening writer {} for operation {}", writer, writeOperation);
 
@@ -378,7 +412,7 @@ public class WriteFiles<T> extends PTransform<PCollection<T>, PDone> {
 
     @ProcessElement
     public void processElement(ProcessContext context) {
-      int shardCount = 0;
+      final int shardCount;
       if (numShardsView != null) {
         shardCount = context.sideInput(numShardsView);
       } else {
@@ -448,35 +482,33 @@ public class WriteFiles<T> extends PTransform<PCollection<T>, PDone> {
     // initial ParDo.
     PCollection<FileResult> results;
     final PCollectionView<Integer> numShardsView;
+    Coder<BoundedWindow> shardedWindowCoder =
+        (Coder<BoundedWindow>) input.getWindowingStrategy().getWindowFn().windowCoder();
     if (computeNumShards == null && numShardsProvider == null) {
-      if (windowedWrites) {
-        throw new IllegalStateException("When doing windowed writes, numShards must be set"
-            + "explicitly to a positive value");
-      }
       numShardsView = null;
-      results = input
-          .apply("WriteBundles",
-              ParDo.of(new WriteBundles()));
+      results = input.apply("WriteBundles", ParDo.of(new WriteBundles()));
     } else {
+      List<PCollectionView<?>> sideInputs = Lists.newArrayList();
       if (computeNumShards != null) {
         numShardsView = input.apply(computeNumShards);
-        results  = input
-            .apply("ApplyShardLabel", ParDo.of(
-                new ApplyShardingKey<T>(numShardsView, null)).withSideInputs(numShardsView))
-            .apply("GroupIntoShards", GroupByKey.<Integer, T>create())
-            .apply("WriteShardedBundles",
-                ParDo.of(new WriteShardedBundles(numShardsView))
-                    .withSideInputs(numShardsView));
+        sideInputs.add(numShardsView);
       } else {
         numShardsView = null;
-        results = input
-            .apply("ApplyShardLabel", ParDo.of(new ApplyShardingKey<T>(null, numShardsProvider)))
-            .apply("GroupIntoShards", GroupByKey.<Integer, T>create())
-            .apply("WriteShardedBundles",
-                ParDo.of(new WriteShardedBundles(null)));
       }
+
+      PCollection<KV<Integer, Iterable<T>>> sharded =
+          input
+              .apply("ApplyShardLabel", ParDo.of(
+                  new ApplyShardingKey<T>(numShardsView,
+                      (numShardsView != null) ? null : numShardsProvider))
+                  .withSideInputs(sideInputs))
+              .apply("GroupIntoShards", GroupByKey.<Integer, T>create());
+      shardedWindowCoder =
+          (Coder<BoundedWindow>) sharded.getWindowingStrategy().getWindowFn().windowCoder();
+
+      results = sharded.apply("WriteShardedBundles", ParDo.of(new WriteShardedBundles()));
     }
-    results.setCoder(FileResultCoder.of());
+    results.setCoder(FileResultCoder.of(shardedWindowCoder));
 
     if (windowedWrites) {
       // When processing streaming windowed writes, results will arrive multiple times. This
@@ -486,7 +518,8 @@ public class WriteFiles<T> extends PTransform<PCollection<T>, PDone> {
       // whenever new data arrives.
       PCollection<KV<Void, FileResult>> keyedResults =
           results.apply("AttachSingletonKey", WithKeys.<Void, FileResult>of((Void) null));
-      keyedResults.setCoder(KvCoder.of(VoidCoder.of(), FileResultCoder.of()));
+      keyedResults.setCoder(KvCoder.of(VoidCoder.of(),
+          FileResultCoder.of(shardedWindowCoder)));
 
       // Is the continuation trigger sufficient?
       keyedResults
@@ -497,7 +530,7 @@ public class WriteFiles<T> extends PTransform<PCollection<T>, PDone> {
               LOG.info("Finalizing write operation {}.", writeOperation);
               List<FileResult> results = Lists.newArrayList(c.element().getValue());
               writeOperation.finalize(results);
-              LOG.debug("Done finalizing write operation {}", writeOperation);
+              LOG.debug("Done finalizing write operation");
             }
           }));
     } else {
@@ -543,8 +576,7 @@ public class WriteFiles<T> extends PTransform<PCollection<T>, PDone> {
                     extraShardsNeeded, results.size(), minShardsNeeded);
                 for (int i = 0; i < extraShardsNeeded; ++i) {
                   Writer<T> writer = writeOperation.createWriter();
-                  writer.openUnwindowed(UUID.randomUUID().toString(), UNKNOWN_SHARDNUM,
-                      UNKNOWN_NUMSHARDS);
+                  writer.openUnwindowed(UUID.randomUUID().toString(), UNKNOWN_SHARDNUM);
                   FileResult emptyWrite = writer.close();
                   results.add(emptyWrite);
                 }
