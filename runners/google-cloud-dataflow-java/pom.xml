@@ -86,6 +86,7 @@
                 org.apache.beam.sdk.testing.UsesTimersInParDo,
                 org.apache.beam.sdk.testing.UsesSplittableParDo,
                 org.apache.beam.sdk.testing.UsesUnboundedPCollections,
+                org.apache.beam.sdk.testing.UsesTestStream,
               </excludedGroups>
             </configuration>
           </execution>
