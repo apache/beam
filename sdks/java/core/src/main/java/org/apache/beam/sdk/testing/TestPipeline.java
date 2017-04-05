@@ -296,7 +296,17 @@ public class TestPipeline extends Pipeline implements TestRule {
 
       @Override
       public void evaluate() throws Throwable {
+
         setDeducedEnforcementLevel();
+
+        // statement.evaluate() essentially runs the user code contained in the unit test at hand.
+        // Exceptions thrown during the execution of the user's test code will propagate here,
+        // unless the user explicitly handles them with a "catch" clause in his code. If the
+        // exception is handled by a user's "catch" clause, is does not interrupt the flow and
+        // we move on to invoking the configured enforcements.
+        // If the user does not handle a thrown exception, it will propagate here and interrupt
+        // the flow, preventing the enforcement(s) from being activated.
+        // The motivation for this is avoiding enforcements over faulty pipelines.
         statement.evaluate();
         enforcement.get().afterUserCodeFinished();
       }
@@ -327,6 +337,8 @@ public class TestPipeline extends Pipeline implements TestRule {
       }
     }
 
+    // If we reach this point, the pipeline has been run and no exceptions have been thrown during
+    // its execution.
     enforcement.get().afterPipelineExecution();
     return pipelineResult;
   }
