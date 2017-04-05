@@ -141,6 +141,8 @@ class PipelineRunner(object):
               # preceding a GroupByKey.
               pcoll.element_type = typehints.KV[typehints.Any, typehints.Any]
             else:
+              # TODO: Handle other valid types,
+              # e.g. Union[KV[str, int], KV[str, float]]
               raise ValueError(
                   "Input to GroupByKey must be of Tuple or Any type. "
                   "Found %s for %s" % (input_type, pcoll))
