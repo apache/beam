@@ -148,7 +148,7 @@
                     <exclude>com.google.cloud.bigtable.config.BigtableOptions*</exclude>
                     <exclude>com.google.cloud.bigtable.config.CredentialOptions*</exclude>
                     <exclude>com.google.cloud.bigtable.config.RetryOptions*</exclude>
-                    <exclude>com.google.cloud.bigtable.grpc.BigtableClusterName</exclude>
+                      <exclude>com.google.cloud.bigtable.grpc.BigtableClusterName</exclude>
                     <exclude>com.google.cloud.bigtable.grpc.BigtableTableName</exclude>
                   </excludes>
                 </relocation>
@@ -252,12 +252,6 @@
     <dependency>
       <groupId>com.google.protobuf</groupId>
       <artifactId>protobuf-java</artifactId>
-    </dependency>
-
-    <dependency>
-      <groupId>com.google.protobuf</groupId>
-      <artifactId>protobuf-lite</artifactId>
-      <scope>runtime</scope>
     </dependency>
 
     <dependency>
