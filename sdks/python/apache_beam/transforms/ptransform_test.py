@@ -435,6 +435,12 @@ class PTransformTest(unittest.TestCase):
     assert_that(result, equal_to([]))
     pipeline.run()
 
+  def test_flatten_same_pcollections(self):
+    pipeline = TestPipeline()
+    pc = pipeline | beam.Create(['a', 'b'])
+    assert_that((pc, pc, pc) | beam.Flatten(), equal_to(['a', 'b'] * 3))
+    pipeline.run()
+
   def test_flatten_pcollections_in_iterable(self):
     pipeline = TestPipeline()
     pcoll_1 = pipeline | 'Start 1' >> beam.Create([0, 1, 2, 3])

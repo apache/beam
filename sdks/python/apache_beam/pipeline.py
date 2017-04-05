@@ -546,4 +546,5 @@ class AppliedPTransform(object):
         if pc not in result.inputs:
           pc.producer = result
           pc.tag = tag
+    result.update_input_refcounts()
     return result
