@@ -823,10 +823,11 @@ class WatermarkManager {
       inputWmsBuilder.add(THE_END_OF_TIME);
     }
     for (PValue pvalue : inputs.values()) {
-      Watermark producerOutputWatermark =
-          getTransformWatermark(graph.getProducer(pvalue))
-              .synchronizedProcessingOutputWatermark;
-      inputWmsBuilder.add(producerOutputWatermark);
+      if (graph.getPrimitiveConsumers(pvalue).contains(transform)) {
+        Watermark producerOutputWatermark =
+            getTransformWatermark(graph.getProducer(pvalue)).synchronizedProcessingOutputWatermark;
+        inputWmsBuilder.add(producerOutputWatermark);
+      }
     }
     return inputWmsBuilder.build();
   }
@@ -838,9 +839,11 @@ class WatermarkManager {
       inputWatermarksBuilder.add(THE_END_OF_TIME);
     }
     for (PValue pvalue : inputs.values()) {
-      Watermark producerOutputWatermark =
-          getTransformWatermark(graph.getProducer(pvalue)).outputWatermark;
-      inputWatermarksBuilder.add(producerOutputWatermark);
+      if (graph.getPrimitiveConsumers(pvalue).contains(transform)) {
+        Watermark producerOutputWatermark =
+            getTransformWatermark(graph.getProducer(pvalue)).outputWatermark;
+        inputWatermarksBuilder.add(producerOutputWatermark);
+      }
     }
     List<Watermark> inputCollectionWatermarks = inputWatermarksBuilder.build();
     return inputCollectionWatermarks;
