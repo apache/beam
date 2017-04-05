@@ -57,6 +57,7 @@ import org.apache.beam.sdk.options.ValueProvider.NestedValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.transforms.display.HasDisplayData;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.IOChannelFactory;
@@ -70,12 +71,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Abstract {@link Sink} for file-based output. An implementation of FileBasedSink writes file-based
+ * Abstract clas for file-based output. An implementation of FileBasedSink writes file-based
  * output and defines the format of output files (how values are written, headers/footers, MIME
  * type, etc.).
  *
  * <p>At pipeline construction time, the methods of FileBasedSink are called to validate the sink
- * and to create a {@link Sink.WriteOperation} that manages the process of writing to the sink.
+ * and to create a {@link FileBasedWriteOperation} that manages the process of writing to the sink.
  *
  * <p>The process of writing to file-based sink is as follows:
  * <ol>
@@ -84,11 +85,28 @@ import org.slf4j.LoggerFactory;
  * <li>these temporary files are renamed with final output filenames.
  * </ol>
  *
+ * <p>In order to ensure fault-tolerance, a bundle may be executed multiple times (e.g., in the
+ * event of failure/retry or for redundancy). However, exactly one of these executions will have its
+ * result passed to the finalize method. Each call to {@link FileBasedWriter#openWindowed}
+ * or {@link FileBasedWriter#openUnwindowed} is passed a unique <i>bundle id</i> when it is called
+ * by the WriteFiles transform, so even redundant or retried bundles will have a unique way of
+ * identifying
+ * their output.
+ *
+ * <p>The bundle id should be used to guarantee that a bundle's output is unique. This uniqueness
+ * guarantee is important; if a bundle is to be output to a file, for example, the name of the file
+ * will encode the unique bundle id to avoid conflicts with other writers.
+ *
+ * {@link FileBasedSink} can take a custom {@link @FilenamePolicy} object to determine output
+ * filenames, and this policy object can be used to write windowed or triggered
+ * PCollections into separate files per window pane. This allows file output from unbounded
+ * PCollections, and also works for bounded PCollecctions.
+ *
  * <p>Supported file systems are those registered with {@link IOChannelUtils}.
  *
  * @param <T> the type of values written to the sink.
  */
-public abstract class FileBasedSink<T> extends Sink<T> {
+public abstract class FileBasedSink<T> implements Serializable, HasDisplayData {
   private static final Logger LOG = LoggerFactory.getLogger(FileBasedSink.class);
 
   /**
@@ -385,19 +403,15 @@ public abstract class FileBasedSink<T> extends Sink<T> {
     return fileNamePolicy;
   }
 
-  @Override
   public void validate(PipelineOptions options) {}
 
   /**
    * Return a subclass of {@link FileBasedSink.FileBasedWriteOperation} that will manage the write
    * to the sink.
    */
-  @Override
   public abstract FileBasedWriteOperation<T> createWriteOperation(PipelineOptions options);
 
-  @Override
   public void populateDisplayData(DisplayData.Builder builder) {
-    super.populateDisplayData(builder);
     getFileNamePolicy().populateDisplayData(builder);
   }
 
@@ -417,8 +431,7 @@ public abstract class FileBasedSink<T> extends Sink<T> {
   }
 
   /**
-   * Abstract {@link Sink.WriteOperation} that manages the process of writing to a
-   * {@link FileBasedSink}.
+   * Abstract operation that manages the process of writing to {@link FileBasedSink}.
    *
    * <p>The primary responsibilities of the FileBasedWriteOperation is the management of output
    * files. During a write, {@link FileBasedSink.FileBasedWriter}s write bundles to temporary file
@@ -457,7 +470,7 @@ public abstract class FileBasedSink<T> extends Sink<T> {
    *
    * @param <T> the type of values written to the sink.
    */
-  public abstract static class FileBasedWriteOperation<T> extends WriteOperation<T, FileResult> {
+  public abstract static class FileBasedWriteOperation<T> {
     /**
      * The Sink that this WriteOperation will write to.
      */
@@ -531,13 +544,13 @@ public abstract class FileBasedSink<T> extends Sink<T> {
 
     /**
      * Clients must implement to return a subclass of {@link FileBasedSink.FileBasedWriter}. This
-     * method must satisfy the restrictions placed on implementations of
-     * {@link Sink.WriteOperation#createWriter}. Namely, it must not mutate the state of the object.
+     * method must not mutate the state of the object.
      */
-    @Override
     public abstract FileBasedWriter<T> createWriter(PipelineOptions options) throws Exception;
 
-    @Override
+    /**
+     * Indicates that the operation will be performing windowed writes.
+     */
     public void setWindowedWrites(boolean windowedWrites) {
       this.windowedWrites = windowedWrites;
     }
@@ -545,10 +558,8 @@ public abstract class FileBasedSink<T> extends Sink<T> {
     /**
      * Initialization of the sink. Default implementation is a no-op. May be overridden by subclass
      * implementations to perform initialization of the sink at pipeline runtime. This method must
-     * be idempotent and is subject to the same implementation restrictions as
-     * {@link Sink.WriteOperation#initialize}.
+     * be idempotent.
      */
-    @Override
     public void initialize(PipelineOptions options) throws Exception {}
 
     /**
@@ -565,7 +576,6 @@ public abstract class FileBasedSink<T> extends Sink<T> {
      *
      * @param writerResults the results of writes (FileResult).
      */
-    @Override
     public void finalize(Iterable<FileResult> writerResults,
                          PipelineOptions options)
         throws Exception {
@@ -696,7 +706,6 @@ public abstract class FileBasedSink<T> extends Sink<T> {
     /**
      * Provides a coder for {@link FileBasedSink.FileResult}.
      */
-    @Override
     public Coder<FileResult> getWriterResultCoder() {
       return FileResultCoder.of();
     }
@@ -704,16 +713,15 @@ public abstract class FileBasedSink<T> extends Sink<T> {
     /**
      * Returns the FileBasedSink for this write operation.
      */
-    @Override
     public FileBasedSink<T> getSink() {
       return sink;
     }
   }
 
   /**
-   * Abstract {@link Sink.Writer} that writes a bundle to a {@link FileBasedSink}. Subclass
-   * implementations provide a method that can write a single value to a {@link WritableByteChannel}
-   * ({@link Sink.Writer#write}).
+   * Abstract writer that writes a bundle to a {@link FileBasedSink}. Subclass
+   * implementations provide a method that can write a single value to a
+   * {@link WritableByteChannel}.
    *
    * <p>Subclass implementations may also override methods that write headers and footers before and
    * after the values in a bundle, respectively, as well as provide a MIME type for the output
@@ -724,7 +732,7 @@ public abstract class FileBasedSink<T> extends Sink<T> {
    *
    * @param <T> the type of values to write.
    */
-  public abstract static class FileBasedWriter<T> extends Writer<T, FileResult> {
+  public abstract static class FileBasedWriter<T> {
     private static final Logger LOG = LoggerFactory.getLogger(FileBasedWriter.class);
 
     final FileBasedWriteOperation<T> writeOperation;
@@ -793,9 +801,17 @@ public abstract class FileBasedSink<T> extends Sink<T> {
     protected void finishWrite() throws Exception {}
 
     /**
-     * Opens the channel.
+     *  Performs bundle initialization. For example, creates a temporary file for writing or
+     * initializes any state that will be used across calls to {@link FileBasedWriter#write}.
+     *
+     * <p>The unique id that is given to open should be used to ensure that the writer's output
+     * does not interfere with the output of other Writers, as a bundle may be executed many
+     * times for fault tolerance.
+     *
+     * <p></p>The window and paneInfo arguments are populated when windowed writes are requested.
+     * shard and numbShards are populated for the case of static sharding. In cases where the
+     * runner is dynamically picking sharding, shard and numShards might both be set to -1.
      */
-    @Override
     public final void openWindowed(String uId,
                                    BoundedWindow window,
                                    PaneInfo paneInfo,
@@ -807,7 +823,15 @@ public abstract class FileBasedSink<T> extends Sink<T> {
       open(uId, window, paneInfo, shard, numShards);
     }
 
-    @Override
+    /**
+     * Called for each value in the bundle.
+     */
+    public abstract void write(T value) throws Exception;
+
+    /**
+     * Similar to {@link #openWindowed} however for the case where unwindowed writes were
+     * requested.
+     */
     public final void openUnwindowed(String uId,
                                      int shard,
                                      int numShards) throws Exception {
@@ -854,7 +878,6 @@ public abstract class FileBasedSink<T> extends Sink<T> {
       LOG.debug("Starting write of bundle {} to {}.", this.id, filename);
     }
 
-    @Override
     public void cleanup() throws Exception {
       if (filename != null) {
         IOChannelUtils.getFactory(filename).remove(Lists.<String>newArrayList(filename));
@@ -864,7 +887,6 @@ public abstract class FileBasedSink<T> extends Sink<T> {
     /**
      * Closes the channel and returns the bundle result.
      */
-    @Override
     public final FileResult close() throws Exception {
       try (WritableByteChannel theChannel = channel) {
         LOG.debug("Writing footer to {}.", filename);
@@ -892,7 +914,6 @@ public abstract class FileBasedSink<T> extends Sink<T> {
     /**
      * Return the FileBasedWriteOperation that this Writer belongs to.
      */
-    @Override
     public FileBasedWriteOperation<T> getWriteOperation() {
       return writeOperation;
     }

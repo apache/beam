@@ -36,7 +36,6 @@ import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.io.FileBasedSink.FileBasedWriteOperation;
 import org.apache.beam.sdk.io.FileBasedSink.FileBasedWriter;
 import org.apache.beam.sdk.io.FileBasedSink.FileResult;
-import org.apache.beam.sdk.io.Sink.Writer;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
@@ -100,8 +99,8 @@ public class WriteFiles<T> extends PTransform<PCollection<T>, PDone> {
   private boolean windowedWrites;
 
   /**
-   * Creates a {@link WriteFiles} transform that writes to the given {@link FileBasedSink}, letting the
-   * runner control how many different shards are produced.
+   * Creates a {@link WriteFiles} transform that writes to the given {@link FileBasedSink}, letting
+   * the runner control how many different shards are produced.
    */
   public static <T> WriteFiles<T> to(FileBasedSink<T> sink) {
     checkNotNull(sink, "sink");
@@ -424,9 +423,9 @@ public class WriteFiles<T> extends PTransform<PCollection<T>, PDone> {
    * input and the collection of writer results as a side-input. In this ParDo,
    * {@link FileBasedWriteOperation#finalize} is called to finalize the write.
    *
-   * <p>If the write of any element in the PCollection fails, {@link Writer#close} will be called
-   * before the exception that caused the write to fail is propagated and the write result will be
-   * discarded.
+   * <p>If the write of any element in the PCollection fails, {@link FileBasedWriter#close} will be
+   * called before the exception that caused the write to fail is propagated and the write result
+   * will be discarded.
    *
    * <p>Since the {@link FileBasedWriteOperation} is serialized after the initialization ParDo and
    * deserialized in the bundle-writing and finalization phases, any state change to the
