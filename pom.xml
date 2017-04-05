@@ -534,12 +534,12 @@
         <groupId>io.grpc</groupId>
         <artifactId>grpc-protobuf-lite</artifactId>
         <version>${grpc.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>com.google.protobuf</groupId>
-        <artifactId>protobuf-lite</artifactId>
-        <version>3.0.1</version>
+        <exclusions>
+          <exclusion>
+            <groupId>com.google.protobuf</groupId>
+            <artifactId>protobuf-lite</artifactId>
+          </exclusion>
+        </exclusions>
       </dependency>
 
       <dependency>
@@ -1537,6 +1537,11 @@
                   <!-- Keep aligned with preqrequisite section below. -->
                   <version>[3.2,)</version>
                 </requireMavenVersion>
+                <bannedDependencies>
+                  <excludes>
+                    <exclude>com.google.protobuf:protobuf-lite</exclude>
+                  </excludes>
+                </bannedDependencies>
               </rules>
             </configuration>
           </execution>
