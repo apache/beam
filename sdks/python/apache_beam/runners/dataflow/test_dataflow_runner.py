@@ -29,12 +29,18 @@ class TestDataflowRunner(DataflowRunner):
 
   def run(self, pipeline):
     """Execute test pipeline and verify test matcher"""
+    options = pipeline.options.view_as(TestOptions)
+    on_success_matcher = options.on_success_matcher
+
+    # [BEAM-1889] Do not send this to remote workers also, there is no need to
+    # send this option to remote executors.
+    options.on_success_matcher = None
+
     self.result = super(TestDataflowRunner, self).run(pipeline)
     self.result.wait_until_finish()
 
-    options = pipeline.options.view_as(TestOptions)
-    if options.on_success_matcher:
+    if on_success_matcher:
       from hamcrest import assert_that as hc_assert_that
-      hc_assert_that(self.result, pickler.loads(options.on_success_matcher))
+      hc_assert_that(self.result, pickler.loads(on_success_matcher))
 
     return self.result
