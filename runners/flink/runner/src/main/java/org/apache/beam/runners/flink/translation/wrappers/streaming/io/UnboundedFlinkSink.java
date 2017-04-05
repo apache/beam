@@ -28,6 +28,8 @@ import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.io.Sink;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.CloudObject;
 import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
 import org.apache.beam.sdk.values.TypeDescriptor;
@@ -60,6 +62,10 @@ public class UnboundedFlinkSink<T> extends Sink<T> {
       @Override
       public void initialize(PipelineOptions options) throws Exception {
 
+      }
+
+      @Override
+      public void setWindowedWrites(boolean windowedWrites) {
       }
 
       @Override
@@ -141,7 +147,19 @@ public class UnboundedFlinkSink<T> extends Sink<T> {
       public Writer<T, Object> createWriter(PipelineOptions options) throws Exception {
         return new Writer<T, Object>() {
           @Override
-          public void open(String uId) throws Exception {
+          public void openWindowed(String uId,
+                                   BoundedWindow window,
+                                   PaneInfo paneInfo,
+                                   int shard,
+                                   int numShards) throws Exception {
+          }
+
+          @Override
+          public void openUnwindowed(String uId, int shard, int numShards) throws Exception {
+          }
+
+          @Override
+          public void cleanup() throws Exception {
 
           }
 

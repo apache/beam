@@ -49,10 +49,10 @@ import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.Sink.WriteOperation;
 import org.apache.beam.sdk.io.Sink.Writer;
-import org.apache.beam.sdk.io.Write.ConstantShards;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactoryTest.TestPipelineOptions;
+import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
@@ -63,11 +63,12 @@ import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SimpleFunction;
-import org.apache.beam.sdk.transforms.ToString;
 import org.apache.beam.sdk.transforms.Top;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
+import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.Sessions;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
@@ -311,8 +312,10 @@ public class WriteTest {
     assertThat(write.getSink(), is(sink));
     PTransform<PCollection<String>, PCollectionView<Integer>> originalSharding =
         write.getSharding();
-    assertThat(write.getSharding(), instanceOf(ConstantShards.class));
-    assertThat(((ConstantShards<String>) write.getSharding()).getNumShards().get(), equalTo(3));
+
+    assertThat(write.getSharding(), is(nullValue()));
+    assertThat(write.getNumShards(), instanceOf(StaticValueProvider.class));
+    assertThat(write.getNumShards().get(), equalTo(3));
     assertThat(write.getSharding(), equalTo(originalSharding));
 
     Write<String> write2 = write.withSharding(SHARDING_TRANSFORM);
@@ -352,7 +355,7 @@ public class WriteTest {
     DisplayData displayData = DisplayData.from(write);
     assertThat(displayData, hasDisplayItem("sink", sink.getClass()));
     assertThat(displayData, includesDisplayDataFor("sink", sink));
-    assertThat(displayData, hasDisplayItem("Fixed Number of Shards", 1));
+    assertThat(displayData, hasDisplayItem("numShards", "1"));
   }
 
   @Test
@@ -381,17 +384,6 @@ public class WriteTest {
     assertThat(displayData, hasDisplayItem("sink", sink.getClass()));
     assertThat(displayData, includesDisplayDataFor("sink", sink));
     assertThat(displayData, hasDisplayItem("spam", "ham"));
-  }
-
-  @Test
-  public void testWriteUnbounded() {
-    PCollection<String> unbounded = p.apply(CountingInput.unbounded())
-        .apply(ToString.elements());
-
-    TestSink sink = new TestSink();
-    thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage("Write can only be applied to a Bounded PCollection");
-    unbounded.apply(Write.to(sink));
   }
 
   /**
@@ -535,6 +527,10 @@ public class WriteTest {
     }
 
     @Override
+    public void setWindowedWrites(boolean windowedWrites) {
+    }
+
+    @Override
     public void finalize(Iterable<TestWriterResult> bundleResults, PipelineOptions options)
         throws Exception {
       assertEquals("test_value", options.as(WriteOptions.class).getTestFlag());
@@ -633,7 +629,21 @@ public class WriteTest {
     }
 
     @Override
-    public void open(String uId) throws Exception {
+    public final void openWindowed(String uId,
+                                   BoundedWindow window,
+                                   PaneInfo paneInfo,
+                                   int shard,
+                                   int nShards) throws Exception {
+      numShards.incrementAndGet();
+      this.uId = uId;
+      assertEquals(State.INITIAL, state);
+      state = State.OPENED;
+    }
+
+    @Override
+    public final void openUnwindowed(String uId,
+                                     int shard,
+                                     int nShards) throws Exception {
       numShards.incrementAndGet();
       this.uId = uId;
       assertEquals(State.INITIAL, state);
@@ -653,7 +663,12 @@ public class WriteTest {
       state = State.CLOSED;
       return new TestWriterResult(uId, elementsWritten);
     }
+
+    @Override
+    public void cleanup() throws Exception {
+    }
   }
+
 
   /**
    * Options for test, exposed for PipelineOptionsFactory.
