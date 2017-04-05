@@ -34,7 +34,6 @@ import org.apache.avro.generic.GenericDatumReader;
 import org.apache.avro.mapred.AvroKey;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.DefaultCoder;
-import org.apache.beam.sdk.io.Sink;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.SerializableFunction;

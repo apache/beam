@@ -37,7 +37,6 @@ import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
-import org.apache.beam.sdk.io.Sink;
 import org.apache.beam.sdk.io.hadoop.SerializableConfiguration;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.SerializableFunction;
@@ -66,7 +65,8 @@ import org.apache.hadoop.mapreduce.task.JobContextImpl;
 import org.apache.hadoop.mapreduce.task.TaskAttemptContextImpl;
 
 /**
- * A {@link Sink} for writing records to a Hadoop filesystem using a Hadoop file-based output
+ * A {@link Sink} for writing records to a Hadoop filesystem using a Hadoop file-based
+ * output
  * format.
  *
  * <p>To write a {@link org.apache.beam.sdk.values.PCollection} of elements of type T to Hadoop
@@ -75,7 +75,7 @@ import org.apache.hadoop.mapreduce.task.TaskAttemptContextImpl;
  * value class V and finally the {@link SerializableFunction} to map from T to {@link KV} of K
  * and V.
  *
- * <p>{@code HDFSFileSink} can be used by {@link org.apache.beam.sdk.io.Write} to create write
+ * <p>{@code HDFSFileSink} can be used by {@link Write} to create write
  * transform. See example below.
  *
  * <p>{@code HDFSFileSink} comes with helper methods to write text and Apache Avro. For example:
