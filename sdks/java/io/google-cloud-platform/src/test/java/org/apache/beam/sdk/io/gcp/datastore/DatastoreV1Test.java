@@ -462,7 +462,7 @@ public class DatastoreV1Test {
   }
 
   /**
-   * Test building a WriteFiles using builder methods.
+   * Test building a Write using builder methods.
    */
   @Test
   public void testBuildWrite() throws Exception {

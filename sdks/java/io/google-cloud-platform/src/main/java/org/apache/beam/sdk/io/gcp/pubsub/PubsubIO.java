@@ -55,7 +55,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Read and WriteFiles {@link PTransform}s for Cloud Pub/Sub streams. These transforms create
+ * Read and Write {@link PTransform}s for Cloud Pub/Sub streams. These transforms create
  * and consume unbounded {@link PCollection PCollections}.
  *
  * <h3>Permissions</h3>
@@ -867,7 +867,7 @@ public class PubsubIO {
     @Override
     public PDone expand(PCollection<T> input) {
       if (topic == null) {
-        throw new IllegalStateException("need to set the topic of a PubsubIO.WriteFiles transform");
+        throw new IllegalStateException("need to set the topic of a PubsubIO.Write transform");
       }
       switch (input.isBounded()) {
         case BOUNDED:

@@ -71,7 +71,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Abstract clas for file-based output. An implementation of FileBasedSink writes file-based
+ * Abstract class for file-based output. An implementation of FileBasedSink writes file-based
  * output and defines the format of output files (how values are written, headers/footers, MIME
  * type, etc.).
  *
@@ -97,7 +97,7 @@ import org.slf4j.LoggerFactory;
  * guarantee is important; if a bundle is to be output to a file, for example, the name of the file
  * will encode the unique bundle id to avoid conflicts with other writers.
  *
- * {@link FileBasedSink} can take a custom {@link @FilenamePolicy} object to determine output
+ * {@link FileBasedSink} can take a custom {@link FilenamePolicy} object to determine output
  * filenames, and this policy object can be used to write windowed or triggered
  * PCollections into separate files per window pane. This allows file output from unbounded
  * PCollections, and also works for bounded PCollecctions.
@@ -470,7 +470,7 @@ public abstract class FileBasedSink<T> implements Serializable, HasDisplayData {
    *
    * @param <T> the type of values written to the sink.
    */
-  public abstract static class FileBasedWriteOperation<T> {
+  public abstract static class FileBasedWriteOperation<T> implements Serializable {
     /**
      * The Sink that this WriteOperation will write to.
      */
@@ -556,13 +556,6 @@ public abstract class FileBasedSink<T> implements Serializable, HasDisplayData {
     }
 
     /**
-     * Initialization of the sink. Default implementation is a no-op. May be overridden by subclass
-     * implementations to perform initialization of the sink at pipeline runtime. This method must
-     * be idempotent.
-     */
-    public void initialize(PipelineOptions options) throws Exception {}
-
-    /**
      * Finalizes writing by copying temporary output files to their final location and optionally
      * removing temporary files.
      *
@@ -577,8 +570,7 @@ public abstract class FileBasedSink<T> implements Serializable, HasDisplayData {
      * @param writerResults the results of writes (FileResult).
      */
     public void finalize(Iterable<FileResult> writerResults,
-                         PipelineOptions options)
-        throws Exception {
+                         PipelineOptions options) throws Exception {
       // Collect names of temporary files and rename them.
       Map<String, String> outputFilenames = buildOutputFilenames(writerResults);
       copyToOutputFiles(outputFilenames, options);
@@ -706,7 +698,7 @@ public abstract class FileBasedSink<T> implements Serializable, HasDisplayData {
     /**
      * Provides a coder for {@link FileBasedSink.FileResult}.
      */
-    public Coder<FileResult> getWriterResultCoder() {
+    public final Coder<FileResult> getFileResultCoder() {
       return FileResultCoder.of();
     }
 
@@ -809,7 +801,7 @@ public abstract class FileBasedSink<T> implements Serializable, HasDisplayData {
      * times for fault tolerance.
      *
      * <p></p>The window and paneInfo arguments are populated when windowed writes are requested.
-     * shard and numbShards are populated for the case of static sharding. In cases where the
+     * shard and numShards are populated for the case of static sharding. In cases where the
      * runner is dynamically picking sharding, shard and numShards might both be set to -1.
      */
     public final void openWindowed(String uId,
@@ -878,7 +870,7 @@ public abstract class FileBasedSink<T> implements Serializable, HasDisplayData {
       LOG.debug("Starting write of bundle {} to {}.", this.id, filename);
     }
 
-    public void cleanup() throws Exception {
+    public final void cleanup() throws Exception {
       if (filename != null) {
         IOChannelUtils.getFactory(filename).remove(Lists.<String>newArrayList(filename));
       }

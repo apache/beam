@@ -200,7 +200,7 @@ public class LeaderBoard extends HourlyTeamScore {
         new CalculateTeamScores(
             Duration.standardMinutes(options.getTeamWindowDuration()),
             Duration.standardMinutes(options.getAllowedLateness())))
-        // WriteFiles the results to BigQuery.
+        // Write the results to BigQuery.
         .apply("WriteTeamScoreSums",
                new WriteWindowedToBigQuery<KV<String, Integer>>(
                   options.getLeaderBoardTableName() + "_team", configureWindowedTableWrite()));
@@ -208,7 +208,7 @@ public class LeaderBoard extends HourlyTeamScore {
         .apply(
             "CalculateUserScores",
             new CalculateUserScores(Duration.standardMinutes(options.getAllowedLateness())))
-        // WriteFiles the results to BigQuery.
+        // Write the results to BigQuery.
         .apply(
             "WriteUserScoreSums",
             new WriteToBigQuery<KV<String, Integer>>(

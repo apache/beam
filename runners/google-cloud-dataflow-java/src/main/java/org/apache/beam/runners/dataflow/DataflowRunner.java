@@ -810,21 +810,11 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     }
 
     @Override
-<<<<<<< HEAD
     public PTransformReplacement<PCollection<T>, PDone> getReplacementTransform(
-        AppliedPTransform<PCollection<T>, PDone, Write<T>> transform) {
+        AppliedPTransform<PCollection<T>, PDone, WriteFiles<T>> transform) {
       return PTransformReplacement.of(
           PTransformReplacements.getSingletonMainInput(transform),
           new BatchWrite<>(runner, transform.getTransform()));
-=======
-    public PTransform<PCollection<T>, PDone> getReplacementTransform(WriteFiles<T> transform) {
-      return new BatchWrite<>(runner, transform);
-    }
-
-    @Override
-    public PCollection<T> getInput(List<TaggedPValue> inputs, Pipeline p) {
-      return (PCollection<T>) Iterables.getOnlyElement(inputs).getValue();
->>>>>>> Start the process of getting rid of Sink.
     }
 
     @Override

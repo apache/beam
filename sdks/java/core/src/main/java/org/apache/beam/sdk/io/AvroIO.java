@@ -111,15 +111,15 @@ import org.apache.beam.sdk.values.PDone;
  *
  * <p>For example:
  * <pre> {@code
- * // A simple WriteFiles to a local file (only runs locally):
+ * // A simple Write to a local file (only runs locally):
  * PCollection<AvroAutoGenClass> records = ...;
- * records.apply(AvroIO.WriteFiles.to("/path/to/file.avro")
+ * records.apply(AvroIO.Write.to("/path/to/file.avro")
  *                           .withSchema(AvroAutoGenClass.class));
  *
- * // A WriteFiles to a sharded GCS file (runs locally and using remote execution):
+ * // A Write to a sharded GCS file (runs locally and using remote execution):
  * Schema schema = new Schema.Parser().parse(new File("schema.avsc"));
  * PCollection<GenericRecord> records = ...;
- * records.apply("WriteToAvro", AvroIO.WriteFiles
+ * records.apply("WriteToAvro", AvroIO.Write
  *     .to("gs://my_bucket/path/to/numbers")
  *     .withSchema(schema)
  *     .withSuffix(".avro"));
@@ -876,14 +876,14 @@ public class AvroIO {
       public PDone expand(PCollection<T> input) {
         if (filenamePolicy == null && filenamePrefix == null) {
           throw new IllegalStateException(
-              "need to set the filename prefix of an AvroIO.WriteFiles transform");
+              "need to set the filename prefix of an AvroIO.Write transform");
         }
         if (filenamePolicy != null && filenamePrefix != null) {
           throw new IllegalStateException(
               "cannot set both a filename policy and a filename prefix");
         }
         if (schema == null) {
-          throw new IllegalStateException("need to set the schema of an AvroIO.WriteFiles transform");
+          throw new IllegalStateException("need to set the schema of an AvroIO.Write transform");
         }
 
         WriteFiles<T> write = null;
@@ -910,7 +910,7 @@ public class AvroIO {
         if (windowedWrites) {
           write = write.withWindowedWrites();
         }
-        return input.apply("WriteFiles", write);
+        return input.apply("Write", write);
       }
 
       @Override

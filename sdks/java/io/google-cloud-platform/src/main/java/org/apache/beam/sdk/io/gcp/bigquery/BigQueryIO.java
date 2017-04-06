@@ -143,7 +143,7 @@ import org.slf4j.LoggerFactory;
  * quotes.apply(BigQueryIO.writeTableRows()
  *     .to("my-project:output.output_table")
  *     .withSchema(schema)
- *     .withWriteDisposition(BigQueryIO.WriteFiles.WriteDisposition.WRITE_TRUNCATE));
+ *     .withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_TRUNCATE));
  * }</pre>
  *
  * <p>See {@link BigQueryIO.Write} for details on how to specify if a write should
@@ -233,7 +233,7 @@ public class BigQueryIO {
 
   /**
    * A formatting function that maps a TableRow to itself. This allows sending a
-   * {@code PCollection<TableRow>} directly to BigQueryIO.WriteFiles.
+   * {@code PCollection<TableRow>} directly to BigQueryIO.Write.
    */
    static final SerializableFunction<TableRow, TableRow> IDENTITY_FORMATTER =
       new SerializableFunction<TableRow, TableRow>() {
@@ -916,7 +916,7 @@ public class BigQueryIO {
 
       checkArgument(getFormatFunction() != null,
                     "A function must be provided to convert type into a TableRow. "
-      + "use BigQueryIO.WriteFiles.withFormatFunction to provide a formatting function.");
+      + "use BigQueryIO.Write.withFormatFunction to provide a formatting function.");
 
       // Require a schema if creating one or more tables.
       checkArgument(
@@ -953,7 +953,7 @@ public class BigQueryIO {
         String tempLocation = options.getTempLocation();
         checkArgument(
             !Strings.isNullOrEmpty(tempLocation),
-            "BigQueryIO.WriteFiles needs a GCS temp location to store temp files.");
+            "BigQueryIO.Write needs a GCS temp location to store temp files.");
         if (getBigQueryServices() == null) {
           try {
             GcsPath.fromUri(tempLocation);

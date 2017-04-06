@@ -168,7 +168,7 @@ public class BigtableIO {
   }
 
   /**
-   * Creates an uninitialized {@link BigtableIO.Write}. Before use, the {@code WriteFiles} must be
+   * Creates an uninitialized {@link BigtableIO.Write}. Before use, the {@code Write} must be
    * initialized with a
    * {@link BigtableIO.Write#withBigtableOptions(BigtableOptions) BigtableOptions} that specifies
    * the destination Cloud Bigtable instance, and a {@link BigtableIO.Write#withTableId tableId}

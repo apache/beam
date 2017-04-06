@@ -71,7 +71,7 @@ public class V1ReadIT {
   /**
    * An end-to-end test for {@link DatastoreV1.Read#withQuery(Query)}
    *
-   * <p>WriteFiles some test entities to datastore and then run a pipeline that
+   * <p>Write some test entities to datastore and then run a pipeline that
    * reads and counts the total number of entities. Verify that the count matches the
    * number of entities written.
    */
@@ -109,7 +109,7 @@ public class V1ReadIT {
   /**
    * An end-to-end test for {@link DatastoreV1.Read#withLiteralGqlQuery(String)}.
    *
-   * <p>WriteFiles some test entities to datastore and then run a pipeline that
+   * <p>Write some test entities to datastore and then run a pipeline that
    * reads and counts the total number of entities. Verify that the count matches
    * the number of entities written.
    */
@@ -143,7 +143,7 @@ public class V1ReadIT {
   private static void writeEntitiesToDatastore(V1TestOptions options, String project,
       String ancestor, long numEntities) throws Exception {
     Datastore datastore = getDatastore(options, project);
-    // WriteFiles test entities to datastore
+    // Write test entities to datastore
     V1TestWriter writer = new V1TestWriter(datastore, new UpsertMutationBuilder());
     Key ancestorKey = makeAncestorKey(options.getNamespace(), options.getKind(), ancestor);
 

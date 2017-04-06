@@ -240,12 +240,12 @@ public class AvroIOTransformTest {
   }
 
   /**
-   * Tests for AvroIO WriteFiles transforms, using classes generated from {@code user.avsc}.
+   * Tests for AvroIO Write transforms, using classes generated from {@code user.avsc}.
    */
   @RunWith(Parameterized.class)
   public static class AvroIOWriteTransformTest extends AvroIOTransformTest {
 
-    private static final String WRITE_TRANSFORM_NAME = "AvroIO.WriteFiles";
+    private static final String WRITE_TRANSFORM_NAME = "AvroIO.Write";
 
     private List<AvroGeneratedUser> readAvroFile(final File avroFile) throws IOException {
       final DatumReader<AvroGeneratedUser> userDatumReader =
@@ -318,7 +318,7 @@ public class AvroIOTransformTest {
       runTestWrite(writeTransform);
     }
 
-    // TODO: for WriteFiles only, test withSuffix, withNumShards,
+    // TODO: for Write only, test withSuffix, withNumShards,
     // withShardNameTemplate and withoutSharding.
   }
 }

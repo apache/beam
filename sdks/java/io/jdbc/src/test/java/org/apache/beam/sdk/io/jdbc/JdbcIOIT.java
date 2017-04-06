@@ -145,7 +145,7 @@ public class JdbcIOIT {
   /**
    * Tests writes to a postgres database.
    *
-   * <p>WriteFiles Tests must clean up their data - in this case, it uses a new table every test run so
+   * <p>Write Tests must clean up their data - in this case, it uses a new table every test run so
    * that it won't interfere with read tests/other write tests. It uses finally to attempt to
    * clean up data at the end of the test run.
    * @throws SQLException

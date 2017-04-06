@@ -45,7 +45,7 @@ package org.apache.beam.sdk.io;
  *
  * <pre>{@code
  *   pipeline.apply(
- *       TextIO.WriteFiles.to("gs://bucket/path")
+ *       TextIO.Write.to("gs://bucket/path")
  *                   .withShardNameTemplate("-SS-of-NN")
  *                   .withSuffix(".txt"))
  * }</pre>

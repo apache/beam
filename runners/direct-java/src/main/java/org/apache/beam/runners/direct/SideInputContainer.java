@@ -91,7 +91,7 @@ class SideInputContainer {
   }
 
   /**
-   * WriteFiles the provided values to the provided view.
+   * Write the provided values to the provided view.
    *
    * <p>The windowed values are first exploded, then for each window the pane is determined. For
    * each window, if the pane is later than the current pane stored within this container, write

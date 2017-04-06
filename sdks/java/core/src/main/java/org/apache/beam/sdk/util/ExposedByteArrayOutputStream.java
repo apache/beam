@@ -56,7 +56,7 @@ public class ExposedByteArrayOutputStream extends ByteArrayOutputStream {
   }
 
   /**
-   * WriteFiles {@code b} to the stream and take the ownership of {@code b}.
+   * Write {@code b} to the stream and take the ownership of {@code b}.
    * If the stream is empty, {@code b} itself will be used as the content of the stream and
    * no content copy will be involved.
    *

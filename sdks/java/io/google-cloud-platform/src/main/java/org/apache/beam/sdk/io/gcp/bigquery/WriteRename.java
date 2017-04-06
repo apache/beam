@@ -178,7 +178,7 @@ class WriteRename extends DoFn<String, Void> {
 
     builder
         .add(DisplayData.item("writeDisposition", writeDisposition.toString())
-            .withLabel("WriteFiles Disposition"))
+            .withLabel("Write Disposition"))
         .add(DisplayData.item("createDisposition", createDisposition.toString())
             .withLabel("Create Disposition"));
   }

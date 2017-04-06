@@ -306,7 +306,7 @@ public class MongoDBGridFSIOTest implements Serializable {
             .withUri("mongodb://localhost:" + port)
             .withDatabase(DATABASE)
             .withChunkSize(100L)
-            .withBucket("WriteFilesTest")
+            .withBucket("WriteTest")
             .withFilename("WriteTestData"));
 
     pipeline.apply("WithWriteFn", Create.of(intData))
@@ -319,7 +319,7 @@ public class MongoDBGridFSIOTest implements Serializable {
       })
         .withUri("mongodb://localhost:" + port)
         .withDatabase(DATABASE)
-        .withBucket("WriteFilesTest")
+        .withBucket("WriteTest")
         .withFilename("WriteTestIntData"));
 
     pipeline.run();
@@ -329,7 +329,7 @@ public class MongoDBGridFSIOTest implements Serializable {
       StringBuilder results = new StringBuilder();
       client = new Mongo("localhost", port);
       DB database = client.getDB(DATABASE);
-      GridFS gridfs = new GridFS(database, "WriteFilesTest");
+      GridFS gridfs = new GridFS(database, "WriteTest");
       List<GridFSDBFile> files = gridfs.find("WriteTestData");
       assertTrue(files.size() > 0);
       for (GridFSDBFile file : files) {
