@@ -29,7 +29,6 @@ import org.apache.activemq.broker.Connection;
 import org.apache.beam.sdk.io.mqtt.MqttIO.Read;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.values.PCollection;
 import org.fusesource.hawtbuf.Buffer;
@@ -42,7 +41,6 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.experimental.categories.Category;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -78,7 +76,6 @@ public class MqttIOTest {
   }
 
   @Test(timeout = 60 * 1000)
-  @Category(ValidatesRunner.class)
   public void testReadNoClientId() throws Exception {
     final String topicName = "READ_TOPIC_NO_CLIENT_ID";
     Read mqttReader = MqttIO.read()
@@ -138,7 +135,6 @@ public class MqttIOTest {
   }
 
   @Test(timeout = 60 * 1000)
-  @Category(ValidatesRunner.class)
   public void testRead() throws Exception {
     PCollection<byte[]> output = pipeline.apply(
         MqttIO.read()
@@ -198,7 +194,6 @@ public class MqttIOTest {
   }
 
   @Test
-  @Category(ValidatesRunner.class)
   public void testWrite() throws Exception {
     MQTT client = new MQTT();
     client.setHost("tcp://localhost:" + port);
