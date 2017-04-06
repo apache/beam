@@ -158,8 +158,8 @@ class WindowFn(object):
 
   def to_runner_api(self, context):
     urn, typed_param = self.to_runner_api_parameter(context)
-    return beam_runner_api_pb2.FunctionSpec(
-        spec=beam_runner_api_pb2.UrnWithParameter(
+    return beam_runner_api_pb2.SdkFunctionSpec(
+        spec=beam_runner_api_pb2.FunctionSpec(
             urn=urn,
             parameter=proto_utils.pack_Any(typed_param)))
 
