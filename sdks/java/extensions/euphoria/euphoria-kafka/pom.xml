@@ -40,20 +40,19 @@
   </description>
 
   <dependencies>
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>euphoria-core</artifactId>
+    </dependency>
 
     <dependency>
-      <groupId>com.google.guava</groupId>
-      <artifactId>guava</artifactId>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>shaded-guava</artifactId>
     </dependency>
 
     <dependency>
       <groupId>com.google.code.findbugs</groupId>
       <artifactId>jsr305</artifactId>
-    </dependency>
-
-    <dependency>
-      <groupId>cz.seznam.euphoria</groupId>
-      <artifactId>euphoria-core</artifactId>
     </dependency>
 
     <dependency>
@@ -85,7 +84,7 @@
     </dependency>
 
     <dependency>
-      <groupId>cz.seznam.euphoria</groupId>
+      <groupId>${project.groupId}</groupId>
       <artifactId>euphoria-inmem</artifactId>
       <scope>test</scope>
     </dependency>

@@ -15,10 +15,10 @@
  */
 package cz.seznam.euphoria.spark;
 
-import com.google.common.collect.Iterables;
 import cz.seznam.euphoria.core.client.graph.DAG;
 import cz.seznam.euphoria.core.client.graph.Node;
 import cz.seznam.euphoria.core.client.operator.Operator;
+import cz.seznam.euphoria.shaded.guava.com.google.common.collect.Iterables;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
 

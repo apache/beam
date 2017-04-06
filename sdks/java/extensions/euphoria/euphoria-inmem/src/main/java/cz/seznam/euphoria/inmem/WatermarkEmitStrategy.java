@@ -15,7 +15,7 @@
  */
 package cz.seznam.euphoria.inmem;
 
-import com.google.common.util.concurrent.ThreadFactoryBuilder;
+import cz.seznam.euphoria.shaded.guava.com.google.common.util.concurrent.ThreadFactoryBuilder;
 
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;

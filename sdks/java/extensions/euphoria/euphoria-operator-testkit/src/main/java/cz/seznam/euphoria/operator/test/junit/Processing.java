@@ -15,7 +15,7 @@
  */
 package cz.seznam.euphoria.operator.test.junit;
 
-import com.google.common.collect.Lists;
+import cz.seznam.euphoria.shaded.guava.com.google.common.collect.Lists;
 
 import java.lang.annotation.Inherited;
 import java.lang.annotation.Retention;

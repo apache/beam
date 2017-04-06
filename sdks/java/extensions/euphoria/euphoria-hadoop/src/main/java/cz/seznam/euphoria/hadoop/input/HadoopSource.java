@@ -15,7 +15,6 @@
  */
 package cz.seznam.euphoria.hadoop.input;
 
-import com.google.common.collect.AbstractIterator;
 import cz.seznam.euphoria.core.client.io.DataSource;
 import cz.seznam.euphoria.core.client.io.Partition;
 import cz.seznam.euphoria.core.client.io.Reader;
@@ -23,6 +22,7 @@ import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.hadoop.HadoopUtils;
 import cz.seznam.euphoria.hadoop.SerializableWritable;
 import cz.seznam.euphoria.hadoop.utils.Cloner;
+import cz.seznam.euphoria.shaded.guava.com.google.common.collect.AbstractIterator;
 import lombok.SneakyThrows;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.mapreduce.InputFormat;
