@@ -159,6 +159,15 @@
   <p>Note: This guide is still in progress. There is an open issue to finish the guide: <a href="https://issues.apache.org/jira/browse/BEAM-1025">BEAM-1025</a>.</p>
 </blockquote>
 
+<h2 id="example-io-transforms">Example I/O Transforms</h2>
+<p>Currently, Apache Beam’s I/O transforms use a variety of different
+styles. These transforms are good examples to follow:</p>
+<ul>
+  <li><a href="https://github.com/apache/beam/blob/master/sdks/java/io/google-cloud-platform/src/main/java/org/apache/beam/sdk/io/gcp/datastore/DatastoreIO.java"><code class="highlighter-rouge">DatastoreIO</code></a> - <code class="highlighter-rouge">ParDo</code> based database read and write that conforms to the PTransform style guide</li>
+  <li><a href="https://github.com/apache/beam/blob/master/sdks/java/io/google-cloud-platform/src/main/java/org/apache/beam/sdk/io/gcp/bigtable/BigtableIO.java"><code class="highlighter-rouge">BigtableIO</code></a> - Good test examples, and demonstrates Dynamic Work Rebalancing</li>
+  <li><a href="https://github.com/apache/beam/blob/master/sdks/java/io/jdbc/src/main/java/org/apache/beam/sdk/io/jdbc/JdbcIO.java"><code class="highlighter-rouge">JdbcIO</code></a> - Demonstrates reading using single <code class="highlighter-rouge">ParDo</code>+<code class="highlighter-rouge">GroupByKey</code> when data stores cannot be read in parallel</li>
+</ul>
+
 <h1 id="next-steps">Next steps</h1>
 
 <p><a href="/documentation/io/testing/">Testing I/O Transforms</a></p>
