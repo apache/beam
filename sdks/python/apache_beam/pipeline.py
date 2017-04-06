@@ -513,7 +513,7 @@ class AppliedPTransform(object):
     from apache_beam.runners.api import beam_runner_api_pb2
     return beam_runner_api_pb2.PTransform(
         unique_name=self.full_label,
-        spec=beam_runner_api_pb2.UrnWithParameter(
+        spec=beam_runner_api_pb2.FunctionSpec(
             urn=urns.PICKLED_TRANSFORM,
             parameter=proto_utils.pack_Any(
                 wrappers_pb2.BytesValue(value=pickler.dumps(self.transform)))),
