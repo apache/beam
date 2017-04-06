@@ -514,8 +514,7 @@ class ReduceFnContextFactory<K, InputT, OutputT, W extends BoundedWindow> {
         public <T> T sideInput(PCollectionView<T> view) {
           return sideInputReader.get(
               view,
-              view.getWindowingStrategyInternal()
-                  .getWindowFn()
+              view.getWindowMappingFn()
                   .getSideInputWindow(mainInputWindow));
         }
 
