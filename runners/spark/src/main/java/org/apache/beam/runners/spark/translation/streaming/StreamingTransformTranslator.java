@@ -387,38 +387,41 @@ public final class StreamingTransformTranslator {
         final String stepName = context.getCurrentTransform().getFullName();
         if (transform.getSideOutputTags().size() == 0) {
           JavaPairDStream<TupleTag<?>, WindowedValue<?>> all =
-              dStream
-                  .transformToPair(
-                      new Function<
-                          JavaRDD<WindowedValue<InputT>>,
-                          JavaPairRDD<TupleTag<?>, WindowedValue<?>>>() {
-                        @Override
-                        public JavaPairRDD<TupleTag<?>, WindowedValue<?>> call(
-                            JavaRDD<WindowedValue<InputT>> rdd) throws Exception {
-                          final Accumulator<NamedAggregators> aggAccum =
-                              AggregatorsAccumulator.getInstance();
-                          final Accumulator<SparkMetricsContainer> metricsAccum =
-                              MetricsAccumulator.getInstance();
-                          final Map<TupleTag<?>, KV<WindowingStrategy<?, ?>, SideInputBroadcast<?>>>
-                              sideInputs =
-                                  TranslationUtils.getSideInputs(
-                                      transform.getSideInputs(),
-                                      JavaSparkContext.fromSparkContext(rdd.context()),
-                                      pviews);
-                          return rdd.mapPartitionsToPair(
-                              new MultiDoFnFunction<>(
-                                  aggAccum,
-                                  metricsAccum,
-                                  stepName,
-                                  doFn,
-                                  runtimeContext,
-                                  transform.getMainOutputTag(),
-                                  sideInputs,
-                                  windowingStrategy));
-                        }
-                      })
-                  .cache();
-          for (TaggedPValue output : context.getOutputs(transform)) {
+              dStream.transformToPair(
+                  new Function<
+                      JavaRDD<WindowedValue<InputT>>,
+                      JavaPairRDD<TupleTag<?>, WindowedValue<?>>>() {
+                    @Override
+                    public JavaPairRDD<TupleTag<?>, WindowedValue<?>> call(
+                        JavaRDD<WindowedValue<InputT>> rdd) throws Exception {
+                      final Accumulator<NamedAggregators> aggAccum =
+                          AggregatorsAccumulator.getInstance();
+                      final Accumulator<SparkMetricsContainer> metricsAccum =
+                          MetricsAccumulator.getInstance();
+                      final Map<TupleTag<?>, KV<WindowingStrategy<?, ?>, SideInputBroadcast<?>>>
+                          sideInputs =
+                              TranslationUtils.getSideInputs(
+                                  transform.getSideInputs(),
+                                  JavaSparkContext.fromSparkContext(rdd.context()),
+                                  pviews);
+                      return rdd.mapPartitionsToPair(
+                          new MultiDoFnFunction<>(
+                              aggAccum,
+                              metricsAccum,
+                              stepName,
+                              doFn,
+                              runtimeContext,
+                              transform.getMainOutputTag(),
+                              sideInputs,
+                              windowingStrategy));
+                    }
+                  });
+          List<TaggedPValue> outputs = context.getOutputs(transform);
+          if (outputs.size() > 1) {
+            // cache the DStream if we're going to filter it more than once.
+            all.cache();
+          }
+          for (TaggedPValue output : outputs) {
             @SuppressWarnings("unchecked")
             JavaPairDStream<TupleTag<?>, WindowedValue<?>> filtered =
                 all.filter(new TranslationUtils.TupleTagFilter(output.getTag()));

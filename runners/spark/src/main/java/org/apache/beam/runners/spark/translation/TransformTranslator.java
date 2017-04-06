@@ -350,19 +350,22 @@ public final class TransformTranslator {
         Accumulator<NamedAggregators> aggAccum = AggregatorsAccumulator.getInstance();
         Accumulator<SparkMetricsContainer> metricsAccum = MetricsAccumulator.getInstance();
         JavaPairRDD<TupleTag<?>, WindowedValue<?>> all =
-            inRDD
-                .mapPartitionsToPair(
-                    new MultiDoFnFunction<>(
-                        aggAccum,
-                        metricsAccum,
-                        stepName,
-                        doFn,
-                        context.getRuntimeContext(),
-                        transform.getMainOutputTag(),
-                        TranslationUtils.getSideInputs(transform.getSideInputs(), context),
-                        windowingStrategy))
-                .cache();
-        for (TaggedPValue output : context.getOutputs(transform)) {
+            inRDD.mapPartitionsToPair(
+                new MultiDoFnFunction<>(
+                    aggAccum,
+                    metricsAccum,
+                    stepName,
+                    doFn,
+                    context.getRuntimeContext(),
+                    transform.getMainOutputTag(),
+                    TranslationUtils.getSideInputs(transform.getSideInputs(), context),
+                    windowingStrategy));
+        List<TaggedPValue> outputs = context.getOutputs(transform);
+        if (outputs.size() > 1) {
+          // cache the RDD if we're going to filter it more than once.
+          all.cache();
+        }
+        for (TaggedPValue output : outputs) {
           @SuppressWarnings("unchecked")
           JavaPairRDD<TupleTag<?>, WindowedValue<?>> filtered =
               all.filter(new TranslationUtils.TupleTagFilter(output.getTag()));
