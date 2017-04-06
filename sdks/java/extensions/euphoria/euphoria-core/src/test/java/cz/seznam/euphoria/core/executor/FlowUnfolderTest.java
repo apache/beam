@@ -15,7 +15,6 @@
  */
 package cz.seznam.euphoria.core.executor;
 
-import com.google.common.collect.Sets;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.windowing.Time;
 import cz.seznam.euphoria.core.client.flow.Flow;
@@ -35,6 +34,7 @@ import cz.seznam.euphoria.core.client.operator.Union;
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.core.executor.FlowUnfolder.InputOperator;
 import cz.seznam.euphoria.core.util.Settings;
+import cz.seznam.euphoria.shaded.guava.com.google.common.collect.Sets;
 import org.junit.Before;
 import org.junit.Test;
 

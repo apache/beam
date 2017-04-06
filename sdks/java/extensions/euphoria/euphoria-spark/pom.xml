@@ -34,13 +34,13 @@
 
   <dependencies>
     <dependency>
-      <groupId>cz.seznam.euphoria</groupId>
+      <groupId>${project.groupId}</groupId>
       <artifactId>euphoria-core</artifactId>
     </dependency>
 
     <dependency>
-      <groupId>com.google.guava</groupId>
-      <artifactId>guava</artifactId>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>shaded-guava</artifactId>
     </dependency>
 
     <dependency>
@@ -49,7 +49,7 @@
     </dependency>
 
     <dependency>
-      <groupId>cz.seznam.euphoria</groupId>
+      <groupId>${project.groupId}</groupId>
       <artifactId>euphoria-hadoop</artifactId>
       <exclusions>
         <!--
@@ -75,9 +75,8 @@
 
     <!-- test -->
     <dependency>
-      <groupId>cz.seznam.euphoria</groupId>
+      <groupId>${project.groupId}</groupId>
       <artifactId>euphoria-operator-testkit</artifactId>
-      <version>${project.version}</version>
       <scope>test</scope>
     </dependency>
 

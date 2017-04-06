@@ -15,7 +15,7 @@
  */
 package cz.seznam.euphoria.operator.test;
 
-import com.google.common.collect.Lists;
+import cz.seznam.euphoria.shaded.guava.com.google.common.collect.Lists;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.windowing.Count;
 import cz.seznam.euphoria.core.client.dataset.windowing.Session;

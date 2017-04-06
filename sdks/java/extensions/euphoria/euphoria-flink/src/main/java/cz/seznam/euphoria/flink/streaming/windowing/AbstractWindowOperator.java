@@ -15,7 +15,6 @@
  */
 package cz.seznam.euphoria.flink.streaming.windowing;
 
-import com.google.common.collect.Lists;
 import cz.seznam.euphoria.core.client.dataset.windowing.MergingWindowing;
 import cz.seznam.euphoria.core.client.dataset.windowing.TimedWindow;
 import cz.seznam.euphoria.core.client.dataset.windowing.Window;
@@ -35,6 +34,7 @@ import cz.seznam.euphoria.core.client.triggers.TriggerContext;
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.flink.storage.Descriptors;
 import cz.seznam.euphoria.flink.streaming.StreamingElement;
+import cz.seznam.euphoria.shaded.guava.com.google.common.collect.Lists;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
