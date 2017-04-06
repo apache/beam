@@ -15,9 +15,6 @@
  */
 package cz.seznam.euphoria.operator.test;
 
-import com.google.common.base.Joiner;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.windowing.Count;
 import cz.seznam.euphoria.core.client.dataset.windowing.MergingWindowing;
@@ -45,6 +42,9 @@ import cz.seznam.euphoria.core.client.util.Sums;
 import cz.seznam.euphoria.core.client.util.Triple;
 import cz.seznam.euphoria.operator.test.junit.AbstractOperatorTest;
 import cz.seznam.euphoria.operator.test.junit.Processing;
+import cz.seznam.euphoria.shaded.guava.com.google.common.base.Joiner;
+import cz.seznam.euphoria.shaded.guava.com.google.common.collect.Lists;
+import cz.seznam.euphoria.shaded.guava.com.google.common.collect.Sets;
 import org.junit.Assert;
 import org.junit.Test;
 

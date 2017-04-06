@@ -59,8 +59,13 @@
 
   <dependencies>
     <dependency>
-      <groupId>com.google.guava</groupId>
-      <artifactId>guava</artifactId>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>euphoria-core</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>shaded-guava</artifactId>
     </dependency>
 
     <dependency>
@@ -71,11 +76,6 @@
     <dependency>
       <groupId>org.slf4j</groupId>
       <artifactId>slf4j-api</artifactId>
-    </dependency>
-
-    <dependency>
-      <groupId>commons-io</groupId>
-      <artifactId>commons-io</artifactId>
     </dependency>
 
     <dependency>
@@ -93,11 +93,6 @@
       <groupId>org.mockito</groupId>
       <artifactId>mockito-all</artifactId>
       <scope>compile</scope>
-    </dependency>
-
-    <dependency>
-      <groupId>cz.seznam.euphoria</groupId>
-      <artifactId>euphoria-core</artifactId>
     </dependency>
   </dependencies>
 

@@ -30,7 +30,7 @@
   <url>https://github.com/seznam/euphoria</url>
 
   <description>
-    Relocates com.google.* from the guava libaries to
+    Relocates com.google.* from the guava libraries to
     cz.seznam.euphoria.shaded.guava.com.google.*
     to avoid clashes with other versions of the guava
     library.

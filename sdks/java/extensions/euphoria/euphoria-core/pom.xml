@@ -37,8 +37,8 @@
 
   <dependencies>
     <dependency>
-      <groupId>com.google.guava</groupId>
-      <artifactId>guava</artifactId>
+      <groupId>cz.seznam.euphoria</groupId>
+      <artifactId>shaded-guava</artifactId>
     </dependency>
 
     <dependency>

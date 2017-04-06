@@ -15,9 +15,9 @@
  */
 package cz.seznam.euphoria.inmem;
 
-import com.google.common.collect.Iterables;
 import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 import cz.seznam.euphoria.core.client.util.Pair;
+import cz.seznam.euphoria.shaded.guava.com.google.common.collect.Iterables;
 
 import java.util.ArrayList;
 import java.util.HashMap;

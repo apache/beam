@@ -15,12 +15,12 @@
  */
 package cz.seznam.euphoria.core.client.dataset.windowing;
 
-import com.google.common.collect.Iterables;
+import cz.seznam.euphoria.shaded.guava.com.google.common.collect.Iterables;
 import org.junit.Test;
 
 import java.time.Duration;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
 
 public class TimeTest {
 

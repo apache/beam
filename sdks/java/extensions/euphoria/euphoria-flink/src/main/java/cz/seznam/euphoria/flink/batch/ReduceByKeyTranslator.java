@@ -15,8 +15,6 @@
  */
 package cz.seznam.euphoria.flink.batch;
 
-import com.google.common.base.Preconditions;
-import com.google.common.collect.Iterables;
 import cz.seznam.euphoria.core.client.dataset.windowing.MergingWindowing;
 import cz.seznam.euphoria.core.client.dataset.windowing.TimedWindow;
 import cz.seznam.euphoria.core.client.dataset.windowing.Window;
@@ -28,6 +26,8 @@ import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.flink.FlinkOperator;
 import cz.seznam.euphoria.flink.Utils;
 import cz.seznam.euphoria.flink.functions.PartitionerWrapper;
+import cz.seznam.euphoria.shaded.guava.com.google.common.base.Preconditions;
+import cz.seznam.euphoria.shaded.guava.com.google.common.collect.Iterables;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.typeinfo.TypeHint;
 import org.apache.flink.api.java.DataSet;
@@ -37,7 +37,6 @@ import org.apache.flink.api.java.operators.Operator;
 import org.apache.flink.api.java.tuple.Tuple2;
 
 import java.util.Arrays;
-import java.util.Set;
 
 public class ReduceByKeyTranslator implements BatchOperatorTranslator<ReduceByKey> {
 

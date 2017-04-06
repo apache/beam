@@ -155,12 +155,6 @@
         </plugin>
 
         <plugin>
-          <groupId>de.softwareforge.mojo</groupId>
-          <artifactId>maven-protoc-plugin</artifactId>
-          <version>0.2-HPS-2</version>
-        </plugin>
-
-        <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-jar-plugin</artifactId>
           <version>3.0.2</version>
@@ -533,9 +527,9 @@
       <!-- other dependencies -->
 
       <dependency>
-        <groupId>com.google.guava</groupId>
-        <artifactId>guava</artifactId>
-        <version>${guava.version}</version>
+        <groupId>cz.seznam.euphoria</groupId>
+        <artifactId>shaded-guava</artifactId>
+        <version>21.0</version>
       </dependency>
 
       <dependency>
@@ -575,12 +569,6 @@
       </dependency>
 
       <dependency>
-        <groupId>commons-io</groupId>
-        <artifactId>commons-io</artifactId>
-        <version>2.4</version>
-      </dependency>
-
-      <dependency>
         <groupId>ch.qos.logback</groupId>
         <artifactId>logback-classic</artifactId>
         <version>1.1.2</version>
@@ -607,12 +595,6 @@
   <properties>
     <flink.version>1.2.0</flink.version>
     <spark.version>2.1.0</spark.version>
-    <!--
-      the guava version used by euphoria; this is
-      basically determined by hadoop's provided
-      version of this library
-    -->
-    <guava.version>11.0.2</guava.version>
   </properties>
 
 </project>

@@ -15,12 +15,12 @@
  */
 package cz.seznam.euphoria.flink.streaming.io;
 
-import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import cz.seznam.euphoria.core.client.dataset.windowing.Batch;
 import cz.seznam.euphoria.core.client.io.DataSource;
 import cz.seznam.euphoria.core.client.io.Partition;
 import cz.seznam.euphoria.core.client.io.Reader;
 import cz.seznam.euphoria.flink.streaming.StreamingElement;
+import cz.seznam.euphoria.shaded.guava.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
