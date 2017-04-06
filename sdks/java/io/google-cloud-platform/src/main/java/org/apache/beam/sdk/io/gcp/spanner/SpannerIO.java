@@ -31,17 +31,37 @@ import org.slf4j.LoggerFactory;
 
 
 /**
- * {@link Spanner} provides an API for reading from and writing to
- * <a href="https://cloud.google.com/spanner/">Google Cloud Spanner</a> over different
- * versions of the Cloud Spanner Client libraries.
+ * {@link SpannerIO} provides an API for reading from and writing to
+ * <a href="https://cloud.google.com/spanner/">Google Cloud Spanner</a>.
  *
  */
 @Experimental(Experimental.Kind.SOURCE_SINK)
 public class SpannerIO {
 
+  private SpannerIO() { }
+
   @VisibleForTesting
   public static final int SPANNER_MUTATIONS_PER_COMMIT_LIMIT = 20000;
 
+/*
+ * <p>To write a {@link PCollection} to Spanner, use {@link SpannerIO#writeTo} to
+ * specify the database location for output.
+ *
+ * <p>For example:
+ *
+ * <pre> {@code
+ * // Write data to a table.
+ * PipelineOptions options = PipelineOptionsFactory.fromArgs(args).create();
+ * options.getInput = <CSV text file location>
+ *
+ * Pipeline p = Pipeline.create(options);
+ *   p.apply(TextIO.Read.from(options.getInput()))
+ *       .apply(ParDo.of(new ParseLineFn(tableInfo)))
+ *       .apply(SpannerIO.writeTo(options.getProjectId(),
+ *           options.getInstanceId(), options.getDatabaseId()));
+ *
+ * } </pre>
+ */
   public static Writer writeTo(String projectId, String instanceId, String databaseId) {
     return new Writer(projectId, instanceId, databaseId);
   }
@@ -96,7 +116,7 @@ public class SpannerIO {
 
     @Override
     public PDone expand(PCollection<T> input) {
-      input.apply("Write Mutation to Spanner", ParDo.of(
+      input.apply("Write mutations to Spanner", ParDo.of(
               new SpannerWriterFn(projectId, instanceId, databaseId)));
 
       return PDone.in(input.getPipeline());
@@ -158,13 +178,13 @@ public class SpannerIO {
   @VisibleForTesting
   static class SpannerWriterFn<T, V> extends DoFn<Mutation, Void> {
     private static final Logger LOG = LoggerFactory.getLogger(SpannerWriterFn.class);
-    private Spanner spanner;
+    private transient Spanner spanner;
     private final String projectId;
     private final String instanceId;
     private final String databaseId;
     private transient DatabaseClient dbClient;
     // Current batch of mutations to be written.
-    private final List<Mutation> mutations = new ArrayList();
+    private final List<Mutation> mutations = new ArrayList<Mutation>();
 
     private static final int MAX_RETRIES = 5;
     private static final FluentBackoff BUNDLE_WRITE_BACKOFF =
