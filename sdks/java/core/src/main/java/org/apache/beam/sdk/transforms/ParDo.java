@@ -491,6 +491,59 @@ public class ParDo {
     return coders;
   }
 
+  private static void finishSpecifyingStateSpecs(
+      DoFn<?, ?> fn,
+      CoderRegistry coderRegistry,
+      Coder<?> inputCoder) {
+    DoFnSignature signature = DoFnSignatures.getSignature(fn.getClass());
+    Map<String, DoFnSignature.StateDeclaration> stateDeclarations = signature.stateDeclarations();
+    for (DoFnSignature.StateDeclaration stateDeclaration : stateDeclarations.values()) {
+      try {
+        StateSpec<?, ?> stateSpec = (StateSpec<?, ?>) stateDeclaration.field().get(fn);
+        stateSpec.offerCoders(codersForStateSpecTypes(stateDeclaration, coderRegistry, inputCoder));
+        stateSpec.finishSpecifying();
+      } catch (IllegalAccessException e) {
+        throw new RuntimeException(e);
+      }
+    }
+  }
+
+  /**
+   * Try to provide coders for as many of the type arguments of given
+   * {@link DoFnSignature.StateDeclaration} as possible.
+   */
+  private static <InputT> Coder[] codersForStateSpecTypes(
+      DoFnSignature.StateDeclaration stateDeclaration,
+      CoderRegistry coderRegistry,
+      Coder<InputT> inputCoder) {
+    Type stateType = stateDeclaration.stateType().getType();
+
+    if (!(stateType instanceof ParameterizedType)) {
+      // No type arguments means no coders to infer.
+      return new Coder[0];
+    }
+
+    Type[] typeArguments = ((ParameterizedType) stateType).getActualTypeArguments();
+    Coder[] coders = new Coder[typeArguments.length];
+
+    for (int i = 0; i < typeArguments.length; i++) {
+      Type typeArgument = typeArguments[i];
+      TypeDescriptor<?> typeDescriptor = TypeDescriptor.of(typeArgument);
+      try {
+        coders[i] = coderRegistry.getDefaultCoder(typeDescriptor);
+      } catch (CannotProvideCoderException e) {
+        try {
+          coders[i] = coderRegistry.getDefaultCoder(
+              typeDescriptor, inputCoder.getEncodedTypeDescriptor(), inputCoder);
+        } catch (CannotProvideCoderException ignored) {
+          // Since not all type arguments will have a registered coder we ignore this exception.
+        }
+      }
+    }
+
+    return coders;
+  }
+
   /**
    * Perform common validations of the {@link DoFn} against the input {@link PCollection}, for
    * example ensuring that the window type expected by the {@link DoFn} matches the window type of
