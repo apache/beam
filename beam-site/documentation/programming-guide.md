@@ -13,7 +13,7 @@ The **Beam Programming Guide** is intended for Beam users who want to use the Be
 
 
 <nav class="language-switcher">
-  <strong>Adapt for:</strong> 
+  <strong>Adapt for:</strong>
   <ul>
     <li data-type="language-java" class="active">Java SDK</li>
     <li data-type="language-py">Python SDK</li>
@@ -57,7 +57,7 @@ The Beam SDKs provide a number of abstractions that simplify the mechanics of la
 
 * `PCollection`: A `PCollection` represents a distributed data set that your Beam pipeline operates on. The data set can be *bounded*, meaning it comes from a fixed source like a file, or *unbounded*, meaning it comes from a continuously updating source via a subscription or other mechanism. Your pipeline typically creates an initial `PCollection` by reading data from an external data source, but you can also create a `PCollection` from in-memory data within your driver program. From there, `PCollection`s are the inputs and outputs for each step in your pipeline.
 
-* `Transform`: A `Transform` represents a data processing operation, or a step, in your pipeline. Every `Transform` takes one or more `PCollection` objects as input, perfroms a processing function that you provide on the elements of that `PCollection`, and produces one or more output `PCollection` objects. 
+* `Transform`: A `Transform` represents a data processing operation, or a step, in your pipeline. Every `Transform` takes one or more `PCollection` objects as input, performs a processing function that you provide on the elements of that `PCollection`, and produces one or more output `PCollection` objects.
 
 * I/O `Source` and `Sink`: Beam provides `Source` and `Sink` APIs to represent reading and writing data, respectively. `Source` encapsulates the code necessary to read data into your Beam pipeline from some external source, such as cloud file storage or a subscription to a streaming data source. `Sink` likewise encapsulates the code necessary to write the elements of a `PCollection` to an external data sink.
 
@@ -114,14 +114,14 @@ You create a `PCollection` by either reading data from an external source using 
 
 #### Reading from an external source
 
-To read from an external source, you use one of the [Beam-provided I/O adapters](#io). The adapters vary in their exact usage, but all of them from some external data source and return a `PCollection` whose elements represent the data records in that source. 
+To read from an external source, you use one of the [Beam-provided I/O adapters](#io). The adapters vary in their exact usage, but all of them from some external data source and return a `PCollection` whose elements represent the data records in that source.
 
 Each data source adapter has a `Read` transform; to read, you must apply that transform to the `Pipeline` object itself. <span class="language-java">`TextIO.Read`</span><span class="language-py">`io.TextFileSource`</span>, for example, reads from an external text file and returns a `PCollection` whose elements are of type `String`, each `String` represents one line from the text file. Here's how you would apply <span class="language-java">`TextIO.Read`</span><span class="language-py">`io.TextFileSource`</span> to your `Pipeline` to create a `PCollection`:
 
 ```java
 public static void main(String[] args) {
     // Create the pipeline.
-    PipelineOptions options = 
+    PipelineOptions options =
         PipelineOptionsFactory.fromArgs(args).create();
     Pipeline p = Pipeline.create(options);
 
@@ -160,7 +160,7 @@ public static void main(String[] args) {
       "Or to take arms against a sea of troubles, ");
 
     // Create the pipeline.
-    PipelineOptions options = 
+    PipelineOptions options =
         PipelineOptionsFactory.fromArgs(args).create();
     Pipeline p = Pipeline.create(options);
 
@@ -316,7 +316,7 @@ words = ...
 
 # The DoFn to perform on each element in the input PCollection.
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets_test.py tag:model_pardo_pardo
-%}    
+%}
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets_test.py tag:model_pardo_apply
 %}```
 
@@ -1046,7 +1046,7 @@ Read transforms read data from an external source and return a `PCollection` rep
 #### Using a read transform:
 
 ```java
-PCollection<String> lines = p.apply(TextIO.Read.from("gs://some/inputData.txt"));   
+PCollection<String> lines = p.apply(TextIO.Read.from("gs://some/inputData.txt"));
 ```
 
 ```py
@@ -1055,7 +1055,7 @@ lines = pipeline | beam.io.ReadFromText('gs://some/inputData.txt')
 
 ### Writing output data
 
-Write transforms write the data in a `PCollection` to an external data source. You will most often use write transforms at the end of your pipeline to output your pipeline's final results. However, you can use a write transform to output a `PCollection`'s data at any point in your pipeline. 
+Write transforms write the data in a `PCollection` to an external data source. You will most often use write transforms at the end of your pipeline to output your pipeline's final results. However, you can use a write transform to output a `PCollection`'s data at any point in your pipeline.
 
 #### Using a Write transform:
 
@@ -1187,7 +1187,7 @@ By default, the Beam SDK for Java automatically infers the `Coder` for the eleme
 {:.language-py}
 By default, the Beam SDK for Python automatically infers the `Coder` for the elements of an output `PCollection` using the typehints from the transform's function object, such as `DoFn`. In the case of `ParDo`, for example a `DoFn` with the typehints `@beam.typehints.with_input_types(int)` and `@beam.typehints.with_output_types(str)` accepts an input element of type int and produces an output element of type str. In such a case, the Beam SDK for Python will automatically infer the default `Coder` for the output `PCollection` (in the default pipeline `CoderRegistry`, this is `BytesCoder`).
 
-> NOTE: If you create your `PCollection` from in-memory data by using the `Create` transform, you cannot rely on coder inference and default coders. `Create` does not have access to any typing information for its arguments, and may not be able to infer a coder if the argument list contains a value whose exact run-time class doesn't have a default coder registered. 
+> NOTE: If you create your `PCollection` from in-memory data by using the `Create` transform, you cannot rely on coder inference and default coders. `Create` does not have access to any typing information for its arguments, and may not be able to infer a coder if the argument list contains a value whose exact run-time class doesn't have a default coder registered.
 
 {:.language-java}
 When using `Create`, the simplest way to ensure that you have the correct coder is by invoking `withCoder` when you apply the `Create` transform.
@@ -1352,9 +1352,9 @@ The Beam SDK for Python does not support annotating data types with a default co
 
 ## <a name="windowing"></a>Working with windowing
 
-Windowing subdivides a `PCollection` according to the timestamps of its individual elements. Transforms that aggregate multiple elements, such as `GroupByKey` and `Combine`, work implicitly on a per-window basis—that is, they process each `PCollection` as a succession of multiple, finite windows, though the entire collection itself may be of unbounded size.
+Windowing subdivides a `PCollection` according to the timestamps of its individual elements. Transforms that aggregate multiple elements, such as `GroupByKey` and `Combine`, work implicitly on a per-window basis — they process each `PCollection` as a succession of multiple, finite windows, though the entire collection itself may be of unbounded size.
 
-A related concept, called **triggers**, determines when to emit the results of aggregation as unbounded data arrives. Using a trigger can help to refine the windowing strategy for your `PCollection` to deal with late-arriving data or to provide early results. See the [triggers](#triggers) section for more information.
+A related concept, called **triggers**, determines when to emit the results of aggregation as unbounded data arrives. You can use triggers to refine the windowing strategy for your `PCollection`. Triggers allow you to deal with late-arriving data or to provide early results. See the [triggers](#triggers) section for more information.
 
 ### Windowing basics
 
@@ -1362,7 +1362,7 @@ Some Beam transforms, such as `GroupByKey` and `Combine`, group multiple element
 
 In the Beam model, any `PCollection` (including unbounded `PCollection`s) can be subdivided into logical windows. Each element in a `PCollection` is assigned to one or more windows according to the `PCollection`'s windowing function, and each individual window contains a finite number of elements. Grouping transforms then consider each `PCollection`'s elements on a per-window basis. `GroupByKey`, for example, implicitly groups the elements of a `PCollection` by _key and window_.
 
-**Caution:** The default windowing behavior is to assign all elements of a `PCollection` to a single, global window, _even for unbounded `PCollection`s_. Before you use a grouping transform such as `GroupByKey` on an unbounded `PCollection`, you must do at least one of the following:
+**Caution:** Beam's default windowing behavior is to assign all elements of a `PCollection` to a single, global window and discard late data, _even for unbounded `PCollection`s_. Before you use a grouping transform such as `GroupByKey` on an unbounded `PCollection`, you must do at least one of the following:
  * Set a non-global windowing function. See [Setting your PCollection's windowing function](#setwindowingfunction).
  * Set a non-default [trigger](#triggers). This allows the global window to emit results under other conditions, since the default windowing behavior (waiting for all data to arrive) will never occur.
 
@@ -1446,9 +1446,9 @@ A **session window** function defines windows that contain elements that are wit
 
 #### Single global window
 
-By default, all data in a `PCollection` is assigned to a single global window. If your data set is of a fixed size, you can leave the global window default for your `PCollection`.
+By default, all data in a `PCollection` is assigned to a single global window, and late data is discarded. If your data set is of a fixed size, you can use the global window default for your `PCollection`.
 
-You can use a single global window if you are working with an unbounded data set, e.g. from a streaming data source; however, use caution when applying aggregating transforms such as `GroupByKey` and `Combine`. A single global window with a default trigger generally requires the entire data set to be available before processing, which is not possible with continuously updating data. To perform aggregations on an unbounded `PCollection` that uses global windowing, you should specify a non-default trigger for that `PCollection`.
+You can use a single global window if you are working with an unbounded data set (e.g. from a streaming data source) but use caution when applying aggregating transforms such as `GroupByKey` and `Combine`. A single global window with a default trigger generally requires the entire data set to be available before processing, which is not possible with continuously updating data. To perform aggregations on an unbounded `PCollection` that uses global windowing, you should specify a non-default trigger for that `PCollection`.
 
 ### <a name="setwindowingfunction"></a>Setting your PCollection's windowing function
 
@@ -1456,7 +1456,7 @@ You can set the windowing function for a `PCollection` by applying the `Window` 
 
 Beam provides pre-defined `WindownFn`s for the basic windowing functions described here. You can also define your own `WindowFn` if you have a more complex need.
 
-When setting a windowing function, you may also want to set a trigger for your `PCollection`. The trigger determines when each individual window is aggregated and emitted, and helps refine how the windowing function performs with respect to late data and computing early results. See the [triggers](#triggers) section for more information.
+When you set a windowing function, you may also want to set a trigger for your `PCollection`. The trigger determines when each individual window is aggregated and emitted, and helps refine how the windowing function performs with respect to late data and computing early results. See the [triggers](#triggers) section for more information.
 
 #### Setting fixed-time windows
 
@@ -1513,7 +1513,7 @@ If your `PCollection` is bounded (the size is fixed), you can assign all the ele
 %}
 ```
 
-### Time skew, data lag, and late data
+### <a name="watermarks-late-data"></a>Watermarks and late data
 
 In any data processing system, there is a certain amount of lag between the time a data event occurs (the "event time", determined by the timestamp on the data element itself) and the time the actual data element gets processed at any stage in your pipeline (the "processing time", determined by the clock on the system processing the element). In addition, there are no guarantees that data events will appear in your pipeline in the same order that they were generated.
 
@@ -1523,11 +1523,14 @@ However, data isn't always guaranteed to arrive in a pipeline in time order, or 
 
 From our example, suppose we have a simple watermark that assumes approximately 30s of lag time between the data timestamps (the event time) and the time the data appears in the pipeline (the processing time), then Beam would close the first window at 5:30. If a data record arrives at 5:34, but with a timestamp that would put it in the 0:00-4:59 window (say, 3:38), then that record is late data.
 
-Note: For simplicity, we've assumed that we're using a very straightforward watermark that estimates the lag time/time skew. In practice, your `PCollection`'s data source determines the watermark, and watermarks can be more precise or complex.
+Note: For simplicity, we've assumed that we're using a very straightforward watermark that estimates the lag time. In practice, your `PCollection`'s data source determines the watermark, and watermarks can be more precise or complex.
 
-#### Managing time skew and late data
+Beam's default windowing configuration tries to determines when all data has arrived (based on the type of data source) and then advances the watermark past the end of the window. This default configuration does _not_ allow late data. [Triggers](#triggers) allow you to modify and refine the windowing strategy for a `PCollection`. You can use triggers to decide when each individual window aggregates and reports its results, including how the window emits late elements.
 
-> **Note:** Managing time skew and late data is not supported in the Beam SDK for Python.
+
+#### Managing late data
+
+> **Note:** Managing late data is not supported in the Beam SDK for Python.
 
 You can allow late data by invoking the `.withAllowedLateness` operation when you set your `PCollection`'s windowing strategy. The following code example demonstrates a windowing strategy that will allow late data up to two days after the end of a window.
 ```java
@@ -1539,7 +1542,6 @@ You can allow late data by invoking the `.withAllowedLateness` operation when yo
 
 When you set `.withAllowedLateness` on a `PCollection`, that allowed lateness propagates forward to any subsequent `PCollection` derived from the first `PCollection` you applied allowed lateness to. If you want to change the allowed lateness later in your pipeline, you must do so explictly by applying `Window.withAllowedLateness()` again.
 
-You can also use triggers to help you refine the windowing strategy for a `PCollection`. You can use triggers to determine exactly when each individual window aggregates and reports its results, including how the window emits late elements.
 
 ### Adding timestamps to a PCollection's elements
 
@@ -1571,4 +1573,187 @@ An example might be if your pipeline reads log records from an input file, and e
 
 ## <a name="triggers"></a>Working with triggers
 
-> **Note:** This guide is still in progress. There is an open issue to finish the guide ([BEAM-193](https://issues.apache.org/jira/browse/BEAM-193))
+> **NOTE:** This content applies only to the Beam SDK for Java. The Beam SDK for Python does not support triggers.
+
+When collecting and grouping data into windows, Beam uses **triggers** to determine when to emit the aggregated results of each window (referred to as a *pane*). If you use Beam's default windowing configuration and [default trigger](#default-trigger), Beam outputs the aggregated result when it [estimates all data has arrived](#watermarks-late-data), and discards all subsequent data for that window.
+
+You can set triggers for your `PCollection`s to change this default behavior. Beam provides a number of pre-built triggers that you can set:
+
+*   **Event time triggers**. These triggers operate on the event time, as indicated by the timestamp on each data element. Beam's default trigger is event time-based.
+*   **Processing time triggers**. These triggers operate on the processing time -- the time when the data element is processed at any given stage in the pipeline.
+*   **Data-driven triggers**. These triggers operate by examining the data as it arrives in each window, and firing when that data meets a certain property. Currently, data-driven triggers only support firing after a certain number of data elements.
+*   **Composite triggers**. These triggers combine multiple triggers in various ways.
+
+At a high level, triggers provide two additional capabilities compared to simply outputting at the end of a window:
+
+*   Triggers allow Beam to emit early results, before all the data in a given window has arrived. For example, emitting after a certain amouint of time elapses, or after a certain number of elements arrives.
+*   Triggers allow processing of late data by triggering after the event time watermark passes the end of the window.
+
+These capabilities allow you to control the flow of your data and balance between different factors depending on your use case:
+
+*   **Completeness:** How important is it to have all of your data before you compute your result?
+*   **Latency:** How long do you want to wait for data? For example, do you wait until you think you have all data? Do you process data as it arrives?
+*   **Cost:** How much compute power/money are you willing to spend to lower the latency?
+
+For example, a system that requires time-sensitive updates might use a strict time-based trigger that emits a window every *N* seconds, valuing promptness over data completeness. A system that values data completeness more than the exact timing of results might choose to use Beam's default trigger, which fires at the end of the window.
+
+You can also set a trigger for an unbounded `PCollection` that uses a [single global window for its windowing function](#windowing). This can be useful when you want your pipeline to provide periodic updates on an unbounded data set — for example, a running average of all data provided to the present time, updated every N seconds or every N elements.
+
+#### Event Time Triggers
+
+The `AfterWatermark` trigger operates on *event time*. The `AfterWatermark` trigger emits the contents of a window after the [watermark](#watermarks-late-data) passes the end of the window, based on the timestamps attached to the data elements. The watermark is a global progress metric, and is Beam's notion of input completeness within your pipeline at any given point. `AfterWatermark.pastEndOfWindow()` *only* fires when the watermark passes the end of the window.
+
+In addition, you can use `.withEarlyFirings(trigger)` and `.withLateFirings(trigger)` to configure triggers that fire if your pipeline receives data before or after the end of the window.
+
+The following example shows a billing scenario, and uses both early and late firings:
+```java
+  // Create a bill at the end of the month.
+  AfterWatermark.pastEndOfWindow()
+      // During the month, get near real-time estimates.
+      .withEarlyFirings(
+          AfterProcessingTime
+              .pastFirstElementInPane()
+              .plusDuration(Duration.standardMinutes(1))
+      // Fire on any late data so the bill can be corrected.
+      .withLateFirings(AfterPane.elementCountAtLeast(1))
+```
+
+```py
+  The Beam SDK for Python does not support triggers.
+```
+
+##### <a name="default-trigger"></a>**Default Trigger**
+
+The default trigger for a `PCollection` is based on event time, and emits the results of the window when the Beam's watermark passes the end of the window, and then fires each time late data arrives.
+
+However, if you are using both the default windowing configuration and the default trigger, the default trigger emits exactly once, and late data is discarded. This is because the default windowing configuration has an allowed lateness value of 0. See the Handling Late Data section for information about modifying this behavior.
+
+#### Processing Time Triggers
+
+The `AfterProcessingTime` trigger operates on *processing time*. For example, the `AfterProcessingTime.pastFirstElementInPane() ` trigger emits a window after a certain amount of processing time has passed since data was received. The processing time is determined by the system clock, rather than the data element's timestamp.
+
+The `AfterProcessingTime` trigger is useful for triggering early results from a window, particularly a window with a large time frame such as a single global window.
+
+#### Data-Driven Triggers
+
+Beam provides one data-driven trigger, `AfterPane.elementCountAtLeast()`. This trigger works on an element count; it fires after the current pane has collected at least *N* elements. This allows a window to emit early results (before all the data has accumulated), which can be particularly useful if you are using a single global window.
+
+It is important to note that if, for example, you use `.elementCountAtLeast(50)` and only 32 elements arrive, those 32 elements sit around forever. If the 32 elements are important to you, consider using [composite triggers](#composite-triggers) to combine multiple conditions. This allows you to specify multiple firing conditions such as “fire either when I receive 50 elements, or every 1 second”.
+
+### Setting a Trigger
+
+When you set a windowing function for a `PCollection` by using the `Window` transform, you can also specify a trigger.
+
+You set the trigger(s) for a `PCollection` by invoking the method `.triggering()` on the result of your `Window.into()` transform, as follows:
+
+```java
+  PCollection<String> pc = ...;
+  pc.apply(Window<String>.into(FixedWindows.of(1, TimeUnit.MINUTES))
+                               .triggering(AfterProcessingTime.pastFirstElementInPane()
+                                                              .plusDelayOf(Duration.standardMinutes(1)))
+                               .discardingFiredPanes());
+```
+
+This code sample sets a time-based trigger for a `PCollection`, which emits results one minute after the first element in that window has been processed. The last line in the code sample, `.discardingFiredPanes()`, is the window's **accumulation mode**.
+
+#### Window Accumulation Modes
+
+When you specify a trigger, you must also set the the window's **accumulation mode**. When a trigger fires, it emits the current contents of the window as a pane. Since a trigger can fire multiple times, the accumulation mode determines whether the system *accumulates* the window panes as the trigger fires, or *discards* them.
+
+To set a window to accumulate the panes that are produced when the trigger fires, invoke`.accumulatingFiredPanes()` when you set the trigger. To set a window to discard fired panes, invoke `.discardingFiredPanes()`.
+
+Let's look an example that uses a `PCollection` with fixed-time windowing and a data-based trigger. This is something you might do if, for example, each window represented a ten-minute running average, but you wanted to display the current value of the average in a UI more frequently than every ten minutes. We'll assume the following conditions:
+
+*   The `PCollection` uses 10-minute fixed-time windows.
+*   The `PCollection` has a repeating trigger that fires every time 3 elements arrive.
+
+The following diagram shows data events for key X as they arrive in the PCollection and are assigned to windows. To keep the diagram a bit simpler, we'll assume that the events all arrive in the pipeline in order.
+
+![Diagram of data events for acculumating mode example]({{ "/images/trigger-accumulation.png" | prepend: site.baseurl }} "Data events for accumulating mode example")
+
+##### Accumulating Mode
+
+If our trigger is set to `.accumulatingFiredPanes`, the trigger emits the following values each time it fires. Keep in mind that the trigger fires every time three elements arrive:
+
+```
+  First trigger firing:  [5, 8, 3]
+  Second trigger firing: [5, 8, 3, 15, 19, 23]
+  Third trigger firing:  [5, 8, 3, 15, 19, 23, 9, 13, 10]
+```
+
+
+##### Discarding Mode
+
+If our trigger is set to `.discardingFiredPanes`, the trigger emits the following values on each firing:
+
+```
+  First trigger firing:  [5, 8, 3]
+  Second trigger firing:           [15, 19, 23]
+  Third trigger firing:                         [9, 13, 10]
+```
+
+#### Handling Late Data
+
+If you want your pipeline to process data that arrives after the watermark passes the end of the window, you can apply an *allowed lateness* when you set your windowing configuration. This gives your trigger the opportunity to react to the late data. If allowed lateness is set, the default trigger will emit new results immediately whenever late data arrives.
+
+You set the allowed lateness by using `.withAllowedLateness()` when you set your windowing function:
+
+```java
+  PCollection<String> pc = ...;
+  pc.apply(Window<String>.into(FixedWindows.of(1, TimeUnit.MINUTES))
+                              .triggering(AfterProcessingTime.pastFirstElementInPane()
+                                                             .plusDelayOf(Duration.standardMinutes(1)))
+                              .withAllowedLateness(Duration.standardMinutes(30));
+```
+
+This allowed lateness propagates to all `PCollection`s derived as a result of applying transforms to the original `PCollection`. If you want to change the allowed lateness later in your pipeline, you can apply `Window.withAllowedLateness()` again, explicitly.
+
+
+### <a name="composite-triggers"></a>Composite Triggers
+
+You can combine multiple triggers to form **composite triggers**, and can specify a trigger to emit results repeatedly, at most once, or under other custom conditions.
+
+#### Composite Trigger Types
+
+Beam includes the following composite triggers:
+
+*   You can add additional early firings or late firings to `AfterWatermark.pastEndOfWindow` via `.withEarlyFirings` and `.withLateFirings`.
+*   `Repeatedly.forever` specifies a trigger that executes forever. Any time the trigger's conditions are met, it causes a window to emit results and then resets and starts over. It can be useful to combine `Repeatedly.forever` with `.orFinally` to specify a condition that causes the repeating trigger to stop.
+*   `AfterEach.inOrder` combines multiple triggers to fire in a specific sequence. Each time a trigger in the sequence emits a window, the sequence advances to the next trigger.
+*   `AfterFirst` takes multiple triggers and emits the first time *any* of its argument triggers is satisfied. This is equivalent to a logical OR operation for multiple triggers.
+*   `AfterAll` takes multiple triggers and emits when *all* of its argument triggers are satisfied. This is equivalent to a logical AND operation for multiple triggers.
+*   `orFinally` can serve as a final condition to cause any trigger to fire one final time and never fire again.
+
+#### Composition with AfterWatermark.pastEndOfWindow
+
+Some of the most useful composite triggers fire a single time when Beam estimates that all the data has arrived (i.e. when the watermark passes the end of the window) combined with either, or both, of the following:
+
+*   Speculative firings that precede the watermark passing the end of the window to allow faster processing of partial results.
+*   Late firings that happen after the watermark passes the end of the window, to allow for handling late-arriving data
+
+You can express this pattern using `AfterWatermark.pastEndOfWindow`. For example, the following example trigger code fires on the following conditions:
+
+*   On Beam's estimate that all the data has arrived (the watermark passes the end of the window)
+*   Any time late data arrives, after a ten-minute delay
+*   After two days, we assume no more data of interest will arrive, and the trigger stops executing
+
+```java
+  .apply(Window
+      .triggering(AfterWatermark
+           .pastEndOfWindow()
+           .withLateFirings(AfterProcessingTime
+                .pastFirstElementInPane()
+                .plusDelayOf(Duration.standardMinutes(10))))
+      .withAllowedLateness(Duration.standardDays(2)));
+```
+
+#### Other Composite Triggers
+
+You can also build other sorts of composite triggers. The following example code shows a simple composite trigger that fires whenever the pane has at least 100 elements, or after a minute.
+
+```java
+  Repeatedly.forever(AfterFirst.of(
+      AfterPane.elementCountAtLeast(100),
+      AfterProcessingTime.pastFirstElementInPane().plusDelayOf(Duration.standardMinutes(1))))
+```
+
