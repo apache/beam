@@ -15,13 +15,12 @@
  */
 package cz.seznam.euphoria.core.client.dataset.windowing;
 
-import com.google.common.base.Preconditions;
-import com.google.common.collect.AbstractIterator;
 import cz.seznam.euphoria.core.client.io.Context;
 import cz.seznam.euphoria.core.client.triggers.TimeTrigger;
 import cz.seznam.euphoria.core.client.triggers.Trigger;
+import cz.seznam.euphoria.shaded.guava.com.google.common.base.Preconditions;
+import cz.seznam.euphoria.shaded.guava.com.google.common.collect.AbstractIterator;
 
-import java.io.Serializable;
 import java.time.Duration;
 import java.util.Iterator;
 

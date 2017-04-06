@@ -15,8 +15,8 @@
  */
 package cz.seznam.euphoria.operator.test.junit;
 
-import com.google.common.base.Preconditions;
 import cz.seznam.euphoria.operator.test.junit.Processing.Type;
+import cz.seznam.euphoria.shaded.guava.com.google.common.base.Preconditions;
 import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.Description;

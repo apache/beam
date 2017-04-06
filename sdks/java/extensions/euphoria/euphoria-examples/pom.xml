@@ -63,23 +63,23 @@
 
   <dependencies>
     <dependency>
-      <groupId>cz.seznam.euphoria</groupId>
+      <groupId>${project.groupId}</groupId>
       <artifactId>euphoria-core</artifactId>
     </dependency>
     <dependency>
-      <groupId>cz.seznam.euphoria</groupId>
+      <groupId>${project.groupId}</groupId>
       <artifactId>euphoria-hadoop</artifactId>
     </dependency>
     <dependency>
-      <groupId>cz.seznam.euphoria</groupId>
+      <groupId>${project.groupId}</groupId>
       <artifactId>euphoria-flink</artifactId>
     </dependency>
     <dependency>
-      <groupId>cz.seznam.euphoria</groupId>
+      <groupId>${project.groupId}</groupId>
       <artifactId>euphoria-spark</artifactId>
     </dependency>
     <dependency>
-      <groupId>cz.seznam.euphoria</groupId>
+      <groupId>${project.groupId}</groupId>
       <artifactId>euphoria-inmem</artifactId>
     </dependency>
 

@@ -15,7 +15,6 @@
  */
 package cz.seznam.euphoria.flink;
 
-import com.google.common.collect.Sets;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.windowing.Batch;
 import cz.seznam.euphoria.core.client.dataset.windowing.TimeInterval;
@@ -27,6 +26,7 @@ import cz.seznam.euphoria.core.client.util.Triple;
 import cz.seznam.euphoria.flink.batch.BatchElement;
 import cz.seznam.euphoria.flink.streaming.StreamingElement;
 import cz.seznam.euphoria.flink.streaming.windowing.KeyedMultiWindowedElement;
+import cz.seznam.euphoria.shaded.guava.com.google.common.collect.Sets;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.slf4j.Logger;
