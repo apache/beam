@@ -21,7 +21,6 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 
-import com.google.auto.value.AutoValue;
 import java.io.Serializable;
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
@@ -32,7 +31,6 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
@@ -293,6 +291,18 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
      * See {@link Window} for more information.
      */
     public abstract PaneInfo pane();
+
+    /**
+     * Gives the runner a (best-effort) lower bound about the timestamps of future output associated
+     * with the current element.
+     *
+     * <p>If the {@link DoFn} has multiple outputs, the watermark applies to all of them.
+     *
+     * <p>Only splittable {@link DoFn DoFns} are allowed to call this method. It is safe to call
+     * this method from a different thread than the one running {@link ProcessElement}, but
+     * all calls must finish before {@link ProcessElement} returns.
+     */
+    public abstract void updateWatermark(Instant watermark);
   }
 
   /**
@@ -556,15 +566,11 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
    *     returned by {@link GetInitialRestriction} implements {@link HasDefaultTracker}.
    * <li>It <i>may</i> define a {@link GetRestrictionCoder} method.
    * <li>The type of restrictions used by all of these methods must be the same.
-   * <li>Its {@link ProcessElement} method <i>may</i> return a {@link ProcessContinuation} to
-   *     indicate whether there is more work to be done for the current element.
    * <li>Its {@link ProcessElement} method <i>must not</i> use any extra context parameters, such as
    *     {@link BoundedWindow}.
    * <li>The {@link DoFn} itself <i>may</i> be annotated with {@link BoundedPerElement} or
    *     {@link UnboundedPerElement}, but not both at the same time. If it's not annotated with
-   *     either of these, it's assumed to be {@link BoundedPerElement} if its {@link
-   *     ProcessElement} method returns {@code void} and {@link UnboundedPerElement} if it
-   *     returns a {@link ProcessContinuation}.
+   *     either of these, it's assumed to be {@link BoundedPerElement}.
    * </ul>
    *
    * <p>A non-splittable {@link DoFn} <i>must not</i> define any of these methods.
@@ -692,61 +698,9 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
   @Experimental(Kind.SPLITTABLE_DO_FN)
   public @interface UnboundedPerElement {}
 
-  // This can't be put into ProcessContinuation itself due to the following problem:
-  // http://ternarysearch.blogspot.com/2013/07/static-initialization-deadlock.html
-  private static final ProcessContinuation PROCESS_CONTINUATION_STOP =
-      new AutoValue_DoFn_ProcessContinuation(false, Duration.ZERO, null);
-
-  /**
-   * When used as a return value of {@link ProcessElement}, indicates whether there is more work to
-   * be done for the current element.
-   */
-  @Experimental(Kind.SPLITTABLE_DO_FN)
-  @AutoValue
-  public abstract static class ProcessContinuation {
-    /** Indicates that there is no more work to be done for the current element. */
-    public static ProcessContinuation stop() {
-      return PROCESS_CONTINUATION_STOP;
-    }
-
-    /** Indicates that there is more work to be done for the current element. */
-    public static ProcessContinuation resume() {
-      return new AutoValue_DoFn_ProcessContinuation(true, Duration.ZERO, null);
-    }
-
-    /**
-     * If false, the {@link DoFn} promises that there is no more work remaining for the current
-     * element, so the runner should not resume the {@link ProcessElement} call.
-     */
-    public abstract boolean shouldResume();
-
-    /**
-     * A minimum duration that should elapse between the end of this {@link ProcessElement} call and
-     * the {@link ProcessElement} call continuing processing of the same element. By default, zero.
-     */
-    public abstract Duration resumeDelay();
-
-    /**
-     * A lower bound provided by the {@link DoFn} on timestamps of the output that will be emitted
-     * by future {@link ProcessElement} calls continuing processing of the current element.
-     *
-     * <p>A runner should treat an absent value as equivalent to the timestamp of the input element.
-     */
-    @Nullable
-    public abstract Instant getWatermark();
-
-    /** Builder method to set the value of {@link #resumeDelay()}. */
-    public ProcessContinuation withResumeDelay(Duration resumeDelay) {
-      return new AutoValue_DoFn_ProcessContinuation(
-          shouldResume(), resumeDelay, getWatermark());
-    }
-
-    /** Builder method to set the value of {@link #getWatermark()}. */
-    public ProcessContinuation withWatermark(Instant watermark) {
-      return new AutoValue_DoFn_ProcessContinuation(
-          shouldResume(), resumeDelay(), watermark);
-    }
-  }
+  /** Do not use. See https://issues.apache.org/jira/browse/BEAM-1904 */
+  @Deprecated
+  public class ProcessContinuation {}
 
   /**
    * Returns an {@link Aggregator} with aggregation logic specified by the {@link CombineFn}

@@ -97,70 +97,57 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
       final WindowedValue<InputT> element,
       final TrackerT tracker) {
     final ProcessContext processContext = new ProcessContext(element, tracker);
-    DoFn.ProcessContinuation cont =
-        invoker.invokeProcessElement(
-            new DoFnInvoker.ArgumentProvider<InputT, OutputT>() {
-              @Override
-              public DoFn<InputT, OutputT>.ProcessContext processContext(
-                  DoFn<InputT, OutputT> doFn) {
-                return processContext;
-              }
+    invoker.invokeProcessElement(
+        new DoFnInvoker.ArgumentProvider<InputT, OutputT>() {
+          @Override
+          public DoFn<InputT, OutputT>.ProcessContext processContext(
+              DoFn<InputT, OutputT> doFn) {
+            return processContext;
+          }
 
-              @Override
-              public RestrictionTracker<?> restrictionTracker() {
-                return tracker;
-              }
+          @Override
+          public RestrictionTracker<?> restrictionTracker() {
+            return tracker;
+          }
 
-              // Unsupported methods below.
+          // Unsupported methods below.
 
-              @Override
-              public BoundedWindow window() {
-                throw new UnsupportedOperationException(
-                    "Access to window of the element not supported in Splittable DoFn");
-              }
+          @Override
+          public BoundedWindow window() {
+            throw new UnsupportedOperationException(
+                "Access to window of the element not supported in Splittable DoFn");
+          }
 
-              @Override
-              public DoFn<InputT, OutputT>.Context context(DoFn<InputT, OutputT> doFn) {
-                throw new IllegalStateException(
-                    "Should not access context() from @"
-                        + DoFn.ProcessElement.class.getSimpleName());
-              }
+          @Override
+          public DoFn<InputT, OutputT>.Context context(DoFn<InputT, OutputT> doFn) {
+            throw new IllegalStateException(
+                "Should not access context() from @"
+                    + DoFn.ProcessElement.class.getSimpleName());
+          }
 
-              @Override
-              public DoFn<InputT, OutputT>.OnTimerContext onTimerContext(
-                  DoFn<InputT, OutputT> doFn) {
-                throw new UnsupportedOperationException(
-                    "Access to timers not supported in Splittable DoFn");
-              }
+          @Override
+          public DoFn<InputT, OutputT>.OnTimerContext onTimerContext(
+              DoFn<InputT, OutputT> doFn) {
+            throw new UnsupportedOperationException(
+                "Access to timers not supported in Splittable DoFn");
+          }
 
-              @Override
-              public State state(String stateId) {
-                throw new UnsupportedOperationException(
-                    "Access to state not supported in Splittable DoFn");
-              }
+          @Override
+          public State state(String stateId) {
+            throw new UnsupportedOperationException(
+                "Access to state not supported in Splittable DoFn");
+          }
 
-              @Override
-              public Timer timer(String timerId) {
-                throw new UnsupportedOperationException(
-                    "Access to timers not supported in Splittable DoFn");
-              }
-            });
-    RestrictionT residual;
-    RestrictionT forcedCheckpoint = processContext.extractCheckpoint();
-    if (cont.shouldResume()) {
-      if (forcedCheckpoint == null) {
-        // If no checkpoint was forced, the call returned voluntarily (i.e. all tryClaim() calls
-        // succeeded) - but we still need to have a checkpoint to resume from.
-        residual = tracker.checkpoint();
-      } else {
-        // A checkpoint was forced - i.e. the call probably (but not guaranteed) returned because of
-        // a failed tryClaim() call.
-        residual = forcedCheckpoint;
-      }
-    } else {
-      residual = null;
-    }
-    return new Result(residual, cont);
+          @Override
+          public Timer timer(String timerId) {
+            throw new UnsupportedOperationException(
+                "Access to timers not supported in Splittable DoFn");
+          }
+        });
+
+    tracker.checkDone();
+    return new Result(
+        processContext.extractCheckpoint(), processContext.getLastReportedWatermark());
   }
 
   private class ProcessContext extends DoFn<InputT, OutputT>.ProcessContext {
@@ -176,6 +163,7 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
     private RestrictionT checkpoint;
     // A handle on the scheduled action to take a checkpoint.
     private Future<?> scheduledCheckpoint;
+    private Instant lastReportedWatermark;
 
     public ProcessContext(WindowedValue<InputT> element, TrackerT tracker) {
       fn.super();
@@ -238,6 +226,15 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
     @Override
     public PaneInfo pane() {
       return element.getPane();
+    }
+
+    @Override
+    public synchronized void updateWatermark(Instant watermark) {
+      lastReportedWatermark = watermark;
+    }
+
+    public synchronized Instant getLastReportedWatermark() {
+      return lastReportedWatermark;
     }
 
     @Override

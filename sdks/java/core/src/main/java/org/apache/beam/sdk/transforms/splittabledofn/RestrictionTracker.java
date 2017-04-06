@@ -38,5 +38,13 @@ public interface RestrictionTracker<RestrictionT> {
    */
   RestrictionT checkpoint();
 
+  /**
+   * Called by the runner after {@link DoFn.ProcessElement} returns.
+   *
+   * <p>Must throw an exception with an informative error message, if there is still any unclaimed
+   * work remaining in the restriction.
+   */
+  void checkDone() throws IllegalStateException;
+
   // TODO: Add the more general splitRemainderAfterFraction() and other methods.
 }
