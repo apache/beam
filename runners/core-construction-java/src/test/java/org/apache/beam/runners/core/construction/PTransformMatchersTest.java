@@ -38,6 +38,8 @@ import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Flatten;
+import org.apache.beam.sdk.transforms.Materialization;
+import org.apache.beam.sdk.transforms.Materializations;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Sum;
@@ -349,6 +351,14 @@ public class PTransformMatchersTest implements Serializable {
         PCollectionViews.iterableView(input, input.getWindowingStrategy(), input.getCoder());
     ViewFn<Iterable<WindowedValue<?>>, Iterable<Integer>> viewFn =
         new ViewFn<Iterable<WindowedValue<?>>, Iterable<Integer>>() {
+          @Override
+          public Materialization<Iterable<WindowedValue<?>>> getMaterialization() {
+            @SuppressWarnings({"rawtypes", "unchecked"})
+            Materialization<Iterable<WindowedValue<?>>> materialization =
+                (Materialization) Materializations.iterable();
+            return materialization;
+          }
+
           @Override
           public Iterable<Integer> apply(Iterable<WindowedValue<?>> contents) {
             return Collections.emptyList();
