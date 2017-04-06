@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.transforms;
 
 import java.io.Serializable;
-import org.apache.beam.sdk.runners.PipelineRunner;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 
