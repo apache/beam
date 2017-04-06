@@ -15,9 +15,6 @@
  */
 package cz.seznam.euphoria.inmem;
 
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Maps;
-import com.google.common.collect.Sets;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.windowing.Session;
 import cz.seznam.euphoria.core.client.dataset.windowing.Time;
@@ -35,6 +32,9 @@ import cz.seznam.euphoria.core.client.operator.ReduceWindow;
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.core.client.util.Sums;
 import cz.seznam.euphoria.core.client.util.Triple;
+import cz.seznam.euphoria.shaded.guava.com.google.common.collect.ImmutableMap;
+import cz.seznam.euphoria.shaded.guava.com.google.common.collect.Maps;
+import cz.seznam.euphoria.shaded.guava.com.google.common.collect.Sets;
 import org.junit.Test;
 
 import java.time.Duration;

@@ -15,7 +15,7 @@
  */
 package cz.seznam.euphoria.flink.batch;
 
-import com.google.common.base.Preconditions;
+import cz.seznam.euphoria.shaded.guava.com.google.common.base.Preconditions;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.functional.UnaryPredicate;
 import cz.seznam.euphoria.core.client.graph.DAG;

@@ -33,20 +33,14 @@
   </description>
 
   <dependencies>
-
     <dependency>
-      <groupId>cz.seznam.euphoria</groupId>
+      <groupId>${project.groupId}</groupId>
       <artifactId>euphoria-core</artifactId>
     </dependency>
 
     <dependency>
-      <groupId>commons-io</groupId>
-      <artifactId>commons-io</artifactId>
-    </dependency>
-
-    <dependency>
-      <groupId>com.google.guava</groupId>
-      <artifactId>guava</artifactId>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>shaded-guava</artifactId>
     </dependency>
 
     <dependency>

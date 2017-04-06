@@ -15,11 +15,11 @@
  */
 package cz.seznam.euphoria.operator.test;
 
-import com.google.common.collect.Sets;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.operator.MapElements;
 import cz.seznam.euphoria.operator.test.junit.AbstractOperatorTest;
 import cz.seznam.euphoria.operator.test.junit.Processing;
+import cz.seznam.euphoria.shaded.guava.com.google.common.collect.Sets;
 import org.junit.Test;
 
 import java.util.Arrays;

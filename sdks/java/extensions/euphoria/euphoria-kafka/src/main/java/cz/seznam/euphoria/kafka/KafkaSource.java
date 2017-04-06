@@ -15,9 +15,6 @@
  */
 package cz.seznam.euphoria.kafka;
 
-import com.google.common.collect.AbstractIterator;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
 import cz.seznam.euphoria.core.client.io.DataSource;
 import cz.seznam.euphoria.core.client.io.DataSourceFactory;
 import cz.seznam.euphoria.core.client.io.Partition;
@@ -25,6 +22,9 @@ import cz.seznam.euphoria.core.client.io.Reader;
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.core.util.Settings;
 import cz.seznam.euphoria.core.util.URIParams;
+import cz.seznam.euphoria.shaded.guava.com.google.common.collect.AbstractIterator;
+import cz.seznam.euphoria.shaded.guava.com.google.common.collect.Lists;
+import cz.seznam.euphoria.shaded.guava.com.google.common.collect.Sets;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;

@@ -15,7 +15,6 @@
  */
 package cz.seznam.euphoria.spark;
 
-import com.google.common.base.Preconditions;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.functional.UnaryPredicate;
 import cz.seznam.euphoria.core.client.graph.DAG;
@@ -29,6 +28,7 @@ import cz.seznam.euphoria.core.client.operator.Repartition;
 import cz.seznam.euphoria.core.client.operator.Union;
 import cz.seznam.euphoria.core.executor.FlowUnfolder;
 import cz.seznam.euphoria.hadoop.output.DataSinkOutputFormat;
+import cz.seznam.euphoria.shaded.guava.com.google.common.base.Preconditions;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.mapreduce.JobContext;

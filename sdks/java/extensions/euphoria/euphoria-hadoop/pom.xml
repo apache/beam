@@ -40,8 +40,8 @@
     </dependency>
 
     <dependency>
-      <groupId>com.google.guava</groupId>
-      <artifactId>guava</artifactId>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>shaded-guava</artifactId>
     </dependency>
 
     <dependency>
