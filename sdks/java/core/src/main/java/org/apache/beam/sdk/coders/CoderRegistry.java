@@ -113,7 +113,6 @@ public class CoderRegistry implements CoderProvider {
     registerCoder(Void.class, VoidCoder.class);
     registerCoder(byte[].class, ByteArrayCoder.class);
     registerCoder(IntervalWindow.class, IntervalWindow.getCoder());
-    //registerCoder(Object.class, VoidCoder.class);
   }
 
   /**
