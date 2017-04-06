@@ -24,9 +24,9 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.util.state.AccumulatorCombiningState;
 import org.apache.beam.sdk.util.state.BagState;
 import org.apache.beam.sdk.util.state.CombiningState;
+import org.apache.beam.sdk.util.state.GroupingState;
 import org.apache.beam.sdk.util.state.ReadableState;
 import org.apache.beam.sdk.util.state.SetState;
 import org.apache.beam.sdk.util.state.State;
@@ -159,7 +159,7 @@ public class StateMerging {
    * Prefetch all combining value state for {@code address} across all merging windows in {@code
    * context}.
    */
-  public static <K, StateT extends CombiningState<?, ?>, W extends BoundedWindow> void
+  public static <K, StateT extends GroupingState<?, ?>, W extends BoundedWindow> void
       prefetchCombiningValues(MergingStateAccessor<K, W> context,
           StateTag<? super K, StateT> address) {
     for (StateT state : context.accessInEachMergingWindow(address).values()) {
@@ -172,7 +172,7 @@ public class StateMerging {
    */
   public static <K, InputT, AccumT, OutputT, W extends BoundedWindow> void mergeCombiningValues(
       MergingStateAccessor<K, W> context,
-      StateTag<? super K, AccumulatorCombiningState<InputT, AccumT, OutputT>> address) {
+      StateTag<? super K, CombiningState<InputT, AccumT, OutputT>> address) {
     mergeCombiningValues(
         context.accessInEachMergingWindow(address).values(), context.access(address));
   }
@@ -182,8 +182,8 @@ public class StateMerging {
    * {@code result}.
    */
   public static <InputT, AccumT, OutputT, W extends BoundedWindow> void mergeCombiningValues(
-      Collection<AccumulatorCombiningState<InputT, AccumT, OutputT>> sources,
-      AccumulatorCombiningState<InputT, AccumT, OutputT> result) {
+      Collection<CombiningState<InputT, AccumT, OutputT>> sources,
+      CombiningState<InputT, AccumT, OutputT> result) {
     if (sources.isEmpty()) {
       // Nothing to merge.
       return;
@@ -194,18 +194,18 @@ public class StateMerging {
     }
     // Prefetch.
     List<ReadableState<AccumT>> futures = new ArrayList<>(sources.size());
-    for (AccumulatorCombiningState<InputT, AccumT, OutputT> source : sources) {
+    for (CombiningState<InputT, AccumT, OutputT> source : sources) {
       prefetchRead(source);
     }
     // Read.
     List<AccumT> accumulators = new ArrayList<>(futures.size());
-    for (AccumulatorCombiningState<InputT, AccumT, OutputT> source : sources) {
+    for (CombiningState<InputT, AccumT, OutputT> source : sources) {
       accumulators.add(source.getAccum());
     }
     // Merge (possibly update and return one of the existing accumulators).
     AccumT merged = result.mergeAccumulators(accumulators);
     // Clear sources.
-    for (AccumulatorCombiningState<InputT, AccumT, OutputT> source : sources) {
+    for (CombiningState<InputT, AccumT, OutputT> source : sources) {
       source.clear();
     }
     // Update result.
