@@ -17,29 +17,29 @@
  */
 package org.apache.beam.sdk.util.state;
 
+import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
+
 /**
- * State containing no duplicate elements.
- * Items can be added to the set and the contents read out.
- *
- * @param <T> The type of elements in the set.
+ * Utilities for constructing and manipulating {@link ReadableState} instances.
  */
-public interface SetState<T> extends GroupingState<T, Iterable<T>> {
-  /**
-   * Returns true if this set contains the specified element.
-   */
-  ReadableState<Boolean> contains(T t);
+@Experimental(Kind.STATE)
+public class ReadableStates {
 
   /**
-   * Ensures a value is a member of the set, returning {@code true} if it was added and {@code
-   * false} otherwise.
+   * A {@link ReadableState} constructed from a constant value, hence immediately available.
    */
-  ReadableState<Boolean> addIfAbsent(T t);
+  public static <T> ReadableState<T> immediate(final T value) {
+    return new ReadableState<T>() {
+      @Override
+      public T read() {
+        return value;
+      }
 
-  /**
-   * Removes the specified element from this set if it is present.
-   */
-  void remove(T t);
-
-  @Override
-  SetState<T> readLater();
+      @Override
+      public ReadableState<T> readLater() {
+        return this;
+      }
+    };
+  }
 }

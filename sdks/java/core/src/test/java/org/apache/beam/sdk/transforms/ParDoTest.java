@@ -2228,7 +2228,7 @@ public class ParDoTest implements Serializable {
             state.put(value.getKey(), value.getValue());
             count.add(1);
             if (count.read() >= 4) {
-              Iterable<Map.Entry<String, Integer>> iterate = state.iterate();
+              Iterable<Map.Entry<String, Integer>> iterate = state.entries().read();
               for (Map.Entry<String, Integer> entry : iterate) {
                 c.output(KV.of(entry.getKey(), entry.getValue()));
               }
@@ -2274,7 +2274,7 @@ public class ParDoTest implements Serializable {
             state.put(value.getKey(), new MyInteger(value.getValue()));
             count.add(1);
             if (count.read() >= 4) {
-              Iterable<Map.Entry<String, MyInteger>> iterate = state.iterate();
+              Iterable<Map.Entry<String, MyInteger>> iterate = state.entries().read();
               for (Map.Entry<String, MyInteger> entry : iterate) {
                 c.output(KV.of(entry.getKey(), entry.getValue()));
               }
@@ -2320,7 +2320,7 @@ public class ParDoTest implements Serializable {
             state.put(value.getKey(), new MyInteger(value.getValue()));
             count.add(1);
             if (count.read() >= 4) {
-              Iterable<Map.Entry<String, MyInteger>> iterate = state.iterate();
+              Iterable<Map.Entry<String, MyInteger>> iterate = state.entries().read();
               for (Map.Entry<String, MyInteger> entry : iterate) {
                 c.output(KV.of(entry.getKey(), entry.getValue()));
               }
