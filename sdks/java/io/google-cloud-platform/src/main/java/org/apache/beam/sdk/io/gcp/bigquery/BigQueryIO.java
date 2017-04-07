@@ -954,12 +954,6 @@ public class BigQueryIO {
 
       if (input.isBounded() == PCollection.IsBounded.UNBOUNDED || getTableRefFunction() != null) {
         // We will use BigQuery's streaming write API -- validate supported dispositions.
-        if (getTableRefFunction() != null) {
-          checkArgument(
-              getCreateDisposition() != CreateDisposition.CREATE_NEVER,
-              "CreateDisposition.CREATE_NEVER is not supported when using a tablespec"
-              + " function.");
-        }
         if (getJsonSchema() == null) {
           checkArgument(
               getCreateDisposition() == CreateDisposition.CREATE_NEVER,
