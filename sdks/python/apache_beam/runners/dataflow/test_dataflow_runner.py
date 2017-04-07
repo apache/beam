@@ -18,7 +18,7 @@
 """Wrapper of Beam runners that's built for running and verifying e2e tests."""
 
 from apache_beam.internal import pickler
-from apache_beam.utils.pipeline_options import TestOptions
+from apache_beam.utils.pipeline_options import TestOptions, GoogleCloudOptions
 from apache_beam.runners.dataflow.dataflow_runner import DataflowRunner
 
 
@@ -37,6 +37,14 @@ class TestDataflowRunner(DataflowRunner):
     options.on_success_matcher = None
 
     self.result = super(TestDataflowRunner, self).run(pipeline)
+    if self.result.has_job:
+      project = pipeline.options.view_as(GoogleCloudOptions).project
+      job_id = self.result.job_id()
+      # TODO(mark)(BEAM-1890): Use print since Nose dosen't show logs in some
+      # cases.
+      print (
+        'Found: https://pantheon.corp.google.com/dataflow/job/%s?project=%s' %
+        (job_id, project))
     self.result.wait_until_finish()
 
     if on_success_matcher:
