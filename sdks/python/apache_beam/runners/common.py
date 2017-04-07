@@ -51,6 +51,217 @@ class Receiver(object):
     raise NotImplementedError
 
 
+class Method(object):
+  """Represents a method of a DoFn object."""
+
+  def __init__(self, method_value, args, defaults):
+    self.args = args
+    self.defaults = defaults
+    self._method_value = method_value
+
+  def __call__(self, *args, **kwargs):
+    return self._method_value(*args, **kwargs)
+
+
+class DoFnSignature(object):
+  """Represents the signature of a given ``DoFn`` object.
+
+  Signature of a ``DoFn`` provides a view of the properties of a given ``DoFn``.
+  Among other things, this will give an extensible way for for (1) accessing the
+  structure of the ``DoFn`` including methods and method parameters
+  (2) identifying features that a given ``DoFn`` support, for example, whether
+  a given ``DoFn`` is a Splittable ``DoFn`` (
+  https://s.apache.org/splittable-do-fn) (3) validating a ``DoFn`` based on the
+  feature set offered by it.
+  """
+
+  def __init__(self):
+    # We add a property here for all methods defined by Beam DoFn features.
+    self.process_method = None
+    self.start_bundle_method = None
+    self.finish_bundle_method = None
+    self.do_fn = None
+
+  @staticmethod
+  def create_signature(do_fn):
+    """Creates the signature fo a given DoFn object."""
+    assert isinstance(do_fn, core.DoFn)
+    signature = DoFnSignature()
+
+    def _create_do_fn_method(do_fn, method_name):
+      arguments, _, _, defaults = do_fn.get_function_arguments(method_name)
+      defaults = defaults if defaults else []
+      method_value = getattr(do_fn, method_name)
+      return Method(method_value, arguments, defaults)
+
+    signature.do_fn = do_fn
+    signature.process_method = _create_do_fn_method(do_fn, 'process')
+    signature.start_bundle_method = _create_do_fn_method(do_fn, 'start_bundle')
+    signature.finish_bundle_method = _create_do_fn_method(
+        do_fn, 'finish_bundle')
+
+    return signature
+
+
+class DoFnInvoker(object):
+  """An abstraction that can be used to execute DoFn methods.
+
+  A DoFnInvoker describes a particular way for invoking methods of a DoFn
+  represented by a given DoFnSignature."""
+
+  def __init__(self, signature):
+    self.signature = signature
+
+  @staticmethod
+  def create_invoker(
+      signature, use_simple_invoker, context, side_inputs, input_args,
+      input_kwargs):
+    if use_simple_invoker:
+      return SimpleInvoker(signature)
+    else:
+      return PerWindowInvoker(
+          signature, context, side_inputs, input_args, input_kwargs)
+
+  def invoke_process(self, element, process_output_fn):
+    raise NotImplementedError
+
+  def invoke_start_bundle(self, process_output_fn):
+    defaults = self.signature.start_bundle_method.defaults
+    defaults = defaults if defaults else []
+    args = [self.context if d == core.DoFn.ContextParam else d
+            for d in defaults]
+    process_output_fn(None, self.signature.start_bundle_method(*args))
+
+  def invoke_finish_bundle(self, process_output_fn):
+    defaults = self.signature.start_bundle_method.defaults
+    defaults = defaults if defaults else []
+    args = [self.context if d == core.DoFn.ContextParam else d
+            for d in defaults]
+    process_output_fn(None, self.signature.finish_bundle_method(*args))
+
+
+class SimpleInvoker(DoFnInvoker):
+  """An invoker that processes elements ignoring windowing information."""
+
+  def invoke_process(self, element, process_output_fn):
+    process_output_fn(element, self.signature.process_method(element.value))
+
+
+class PerWindowInvoker(DoFnInvoker):
+  """An invoker that processes elements considering windowing information."""
+
+  def __init__(self, signature, context, side_inputs, input_args, input_kwargs):
+    super(PerWindowInvoker, self).__init__(signature)
+    self.side_inputs = side_inputs
+    self.context = context
+    self.has_windowed_inputs = not all(
+        si.is_globally_windowed() for si in side_inputs)
+    default_arg_values = signature.process_method.defaults
+    self.has_windowed_inputs = (self.has_windowed_inputs or
+                                core.DoFn.WindowParam in default_arg_values)
+
+    # Try to prepare all the arguments that can just be filled in
+    # without any additional work. in the process function.
+    # Also cache all the placeholders needed in the process function.
+
+    # Fill in sideInputs if they are globally windowed
+
+    global_window = GlobalWindow()
+
+    self.args = input_args if input_args else []
+    self.kwargs = input_kwargs if input_kwargs else {}
+
+    if not self.has_windowed_inputs:
+      self.args, self.kwargs = util.insert_values_in_args(
+          input_args, input_kwargs, [si[global_window] for si in side_inputs])
+
+    arguments = signature.process_method.args
+    defaults = signature.process_method.defaults
+
+    # Create placeholder for element parameter of DoFn.process() method.
+    self_in_args = int(signature.do_fn.is_process_bounded())
+
+    class ArgPlaceholder(object):
+      def __init__(self, placeholder):
+        self.placeholder = placeholder
+
+    if core.DoFn.ElementParam not in default_arg_values:
+      args_to_pick = len(arguments) - len(default_arg_values) - 1 - self_in_args
+      final_args = (
+          [ArgPlaceholder(core.DoFn.ElementParam)] + self.args[:args_to_pick])
+    else:
+      args_to_pick = len(arguments) - len(defaults) - self_in_args
+      final_args = self.args[:args_to_pick]
+
+    # Fill the OtherPlaceholders for context, window or timestamp
+    input_args = iter(self.args[args_to_pick:])
+    for a, d in zip(arguments[-len(defaults):], defaults):
+      if d == core.DoFn.ElementParam:
+        final_args.append(ArgPlaceholder(d))
+      elif d == core.DoFn.ContextParam:
+        final_args.append(ArgPlaceholder(d))
+      elif d == core.DoFn.WindowParam:
+        final_args.append(ArgPlaceholder(d))
+      elif d == core.DoFn.TimestampParam:
+        final_args.append(ArgPlaceholder(d))
+      elif d == core.DoFn.SideInputParam:
+        # If no more args are present then the value must be passed via kwarg
+        try:
+          final_args.append(input_args.next())
+        except StopIteration:
+          if a not in self.kwargs:
+            raise ValueError("Value for sideinput %s not provided" % a)
+      else:
+        # If no more args are present then the value must be passed via kwarg
+        try:
+          final_args.append(input_args.next())
+        except StopIteration:
+          pass
+    final_args.extend(list(input_args))
+    self.args = final_args
+
+    # Stash the list of placeholder positions for performance
+    self.placeholders = [(i, x.placeholder) for (i, x) in enumerate(self.args)
+                         if isinstance(x, ArgPlaceholder)]
+
+  def invoke_process(self, element, process_output_fn):
+    self.context.set_element(element)
+    # Call for the process function for each window if has windowed side inputs
+    # or if the process accesses the window parameter. We can just call it once
+    # otherwise as none of the arguments are changing
+    if self.has_windowed_inputs and len(element.windows) != 1:
+      for w in element.windows:
+        self._invoke_per_window(
+            WindowedValue(element.value, element.timestamp, (w,)),
+            process_output_fn)
+    else:
+      self._invoke_per_window(element, process_output_fn)
+
+  def _invoke_per_window(self, element, process_output_fn):
+    if self.has_windowed_inputs:
+      window, = element.windows
+      args, kwargs = util.insert_values_in_args(
+          self.args, self.kwargs, [si[window] for si in self.side_inputs])
+    else:
+      args, kwargs = self.args, self.kwargs
+    # TODO(sourabhbajaj): Investigate why we can't use `is` instead of ==
+    for i, p in self.placeholders:
+      if p == core.DoFn.ElementParam:
+        args[i] = element.value
+      elif p == core.DoFn.ContextParam:
+        args[i] = self.context
+      elif p == core.DoFn.WindowParam:
+        args[i] = window
+      elif p == core.DoFn.TimestampParam:
+        args[i] = element.timestamp
+
+    if not kwargs:
+      process_output_fn(element, self.signature.process_method(*args))
+    else:
+      process_output_fn(element, self.signature.process_method(
+          *args, **kwargs))
+
+
 class DoFnRunner(Receiver):
   """A helper class for executing ParDo operations.
   """
@@ -88,13 +299,14 @@ class DoFnRunner(Receiver):
       state: handle for accessing DoFn state
       scoped_metrics_container: Context switcher for metrics container
     """
-    self.step_name = step_name
-    self.window_fn = windowing.windowfn
     self.tagged_receivers = tagged_receivers
     self.scoped_metrics_container = (scoped_metrics_container
                                      or ScopedMetricsContainer())
 
-    global_window = GlobalWindow()
+    # Optimize for the common case.
+    self.main_receivers = as_receiver(tagged_receivers[None])
+
+    self.step_name = step_name
 
     # Need to support multiple iterations.
     side_inputs = list(side_inputs)
@@ -104,172 +316,63 @@ class DoFnRunner(Receiver):
     else:
       self.logging_context = get_logging_context(logger, step_name=step_name)
 
-    # Optimize for the common case.
-    self.main_receivers = as_receiver(tagged_receivers[None])
-
     # TODO(sourabh): Deprecate the use of context
     if state:
       assert context is None
-      self.context = DoFnContext(self.step_name, state=state)
+      context = DoFnContext(step_name, state=state)
     else:
       assert context is not None
-      self.context = context
+      context = context
 
-    class ArgPlaceholder(object):
-      def __init__(self, placeholder):
-        self.placeholder = placeholder
+    self.context = context
 
-    # Stash values for use in dofn_process.
-    self.side_inputs = side_inputs
-    self.has_windowed_inputs = not all(
-        si.is_globally_windowed() for si in self.side_inputs)
+    do_fn_signature = DoFnSignature.create_signature(fn)
 
-    self.args = args if args else []
-    self.kwargs = kwargs if kwargs else {}
-    self.dofn = fn
-    self.dofn_process = fn.process
+    default_arg_values = do_fn_signature.process_method.defaults
+    use_simple_invoker = (
+        not side_inputs and not args and not kwargs and not default_arg_values)
 
-    arguments, _, _, defaults = self.dofn.get_function_arguments('process')
-    defaults = defaults if defaults else []
-    self_in_args = int(self.dofn.is_process_bounded())
+    self.window_fn = windowing.windowfn
 
-    self.use_simple_invoker = (
-        not side_inputs and not args and not kwargs and not defaults)
-    if self.use_simple_invoker:
-      # As we're using the simple invoker we don't need to compute placeholders
-      return
-
-    self.has_windowed_inputs = (self.has_windowed_inputs or
-                                core.DoFn.WindowParam in defaults)
-
-    # Try to prepare all the arguments that can just be filled in
-    # without any additional work. in the process function.
-    # Also cache all the placeholders needed in the process function.
-
-    # Fill in sideInputs if they are globally windowed
-    if not self.has_windowed_inputs:
-      self.args, self.kwargs = util.insert_values_in_args(
-          args, kwargs, [si[global_window] for si in side_inputs])
-
-    # Create placeholder for element parameter
-    if core.DoFn.ElementParam not in defaults:
-      args_to_pick = len(arguments) - len(defaults) - 1 - self_in_args
-      final_args = [ArgPlaceholder(core.DoFn.ElementParam)] + \
-                   self.args[:args_to_pick]
-    else:
-      args_to_pick = len(arguments) - len(defaults) - self_in_args
-      final_args = self.args[:args_to_pick]
-
-    # Fill the OtherPlaceholders for context, window or timestamp
-    args = iter(self.args[args_to_pick:])
-    for a, d in zip(arguments[-len(defaults):], defaults):
-      if d == core.DoFn.ElementParam:
-        final_args.append(ArgPlaceholder(d))
-      elif d == core.DoFn.ContextParam:
-        final_args.append(ArgPlaceholder(d))
-      elif d == core.DoFn.WindowParam:
-        final_args.append(ArgPlaceholder(d))
-      elif d == core.DoFn.TimestampParam:
-        final_args.append(ArgPlaceholder(d))
-      elif d == core.DoFn.SideInputParam:
-        # If no more args are present then the value must be passed via kwarg
-        try:
-          final_args.append(args.next())
-        except StopIteration:
-          if a not in self.kwargs:
-            raise ValueError("Value for sideinput %s not provided" % a)
-      else:
-        # If no more args are present then the value must be passed via kwarg
-        try:
-          final_args.append(args.next())
-        except StopIteration:
-          pass
-    final_args.extend(list(args))
-    self.args = final_args
-
-    # Stash the list of placeholder positions for performance
-    self.placeholders = [(i, x.placeholder) for (i, x) in enumerate(self.args)
-                         if isinstance(x, ArgPlaceholder)]
+    self.do_fn_invoker = DoFnInvoker.create_invoker(
+        do_fn_signature, use_simple_invoker, context, side_inputs, args, kwargs)
 
   def receive(self, windowed_value):
     self.process(windowed_value)
 
-  def _dofn_simple_invoker(self, element):
-    self._process_outputs(element, self.dofn_process(element.value))
+  def process(self, windowed_value):
+    self._invoke_process_method(windowed_value)
 
-  def _dofn_per_window_invoker(self, element):
-    if self.has_windowed_inputs:
-      window, = element.windows
-      args, kwargs = util.insert_values_in_args(
-          self.args, self.kwargs, [si[window] for si in self.side_inputs])
-    else:
-      args, kwargs = self.args, self.kwargs
-    # TODO(sourabhbajaj): Investigate why we can't use `is` instead of ==
-    for i, p in self.placeholders:
-      if p == core.DoFn.ElementParam:
-        args[i] = element.value
-      elif p == core.DoFn.ContextParam:
-        args[i] = self.context
-      elif p == core.DoFn.WindowParam:
-        args[i] = window
-      elif p == core.DoFn.TimestampParam:
-        args[i] = element.timestamp
-    if not kwargs:
-      self._process_outputs(element, self.dofn_process(*args))
-    else:
-      self._process_outputs(element, self.dofn_process(*args, **kwargs))
-
-  def _dofn_invoker(self, element):
-    self.context.set_element(element)
-    # Call for the process function for each window if has windowed side inputs
-    # or if the process accesses the window parameter. We can just call it once
-    # otherwise as none of the arguments are changing
-    if self.has_windowed_inputs and len(element.windows) != 1:
-      for w in element.windows:
-        self._dofn_per_window_invoker(
-            WindowedValue(element.value, element.timestamp, (w,)))
-    else:
-      self._dofn_per_window_invoker(element)
-
-  def _invoke_bundle_method(self, method):
+  def _invoke_bundle_method(self, bundle_method):
     try:
       self.logging_context.enter()
       self.scoped_metrics_container.enter()
       self.context.set_element(None)
-      f = getattr(self.dofn, method)
-
-      _, _, _, defaults = self.dofn.get_function_arguments(method)
-      defaults = defaults if defaults else []
-      args = [self.context if d == core.DoFn.ContextParam else d
-              for d in defaults]
-      self._process_outputs(None, f(*args))
+      bundle_method(self._process_outputs)
     except BaseException as exn:
-      self.reraise_augmented(exn)
+      self._reraise_augmented(exn)
     finally:
       self.scoped_metrics_container.exit()
       self.logging_context.exit()
 
   def start(self):
-    self._invoke_bundle_method('start_bundle')
+    self._invoke_bundle_method(self.do_fn_invoker.invoke_start_bundle)
 
   def finish(self):
-    self._invoke_bundle_method('finish_bundle')
+    self._invoke_bundle_method(self.do_fn_invoker.invoke_finish_bundle)
 
-  def process(self, element):
+  def _invoke_process_method(self, element):
     try:
       self.logging_context.enter()
       self.scoped_metrics_container.enter()
-      if self.use_simple_invoker:
-        self._dofn_simple_invoker(element)
-      else:
-        self._dofn_invoker(element)
+      self.do_fn_invoker.invoke_process(element, self._process_outputs)
     except BaseException as exn:
-      self.reraise_augmented(exn)
+      self._reraise_augmented(exn)
     finally:
       self.scoped_metrics_container.exit()
       self.logging_context.exit()
 
-  def reraise_augmented(self, exn):
+  def _reraise_augmented(self, exn):
     if getattr(exn, '_tagged_with_step', False) or not self.step_name:
       raise
     args = exn.args
