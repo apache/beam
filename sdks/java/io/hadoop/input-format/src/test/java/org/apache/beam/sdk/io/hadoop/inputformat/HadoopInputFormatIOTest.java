@@ -13,7 +13,6 @@
  * the License.
  */
 package org.apache.beam.sdk.io.hadoop.inputformat;
-
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertEquals;
@@ -21,9 +20,7 @@ import static org.junit.Assert.assertThat;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
-import java.util.Map.Entry;
 
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.Coder;
@@ -156,23 +153,6 @@ public class HadoopInputFormatIOTest {
         .getValueTypeDescriptor().getRawType());
   }
 
-  /**
-   * This test validates functionality of {@link HadoopInputFormatIO.Read#populateDisplayData()
-   * populateDisplayData()}.
-   */
-  @Test
-  public void testReadDisplayData() {
-    HadoopInputFormatIO.Read<String, String> read = HadoopInputFormatIO.<String, String>read()
-        .withConfiguration(serConf.getHadoopConfiguration())
-        .withKeyTranslation(myKeyTranslate)
-        .withValueTranslation(myValueTranslate);
-    DisplayData displayData = DisplayData.from(read);
-    Iterator<Entry<String, String>> propertyElement = serConf.getHadoopConfiguration().iterator();
-    while (propertyElement.hasNext()) {
-      Entry<String, String> element = propertyElement.next();
-      assertThat(displayData, hasDisplayItem(element.getKey(), element.getValue()));
-    }
-  }
 
   /**
    * This test validates {@link HadoopInputFormatIO.Read Read} transform object creation fails with
@@ -415,6 +395,33 @@ public class HadoopInputFormatIOTest {
   }
 
   /**
+
+   * This test validates functionality of
+   * {@link HadoopInputFormatIO.HadoopInputFormatBoundedSource#populateDisplayData()
+   * populateDisplayData()}.
+   */
+  @Test
+  public void testReadDisplayData() {
+    HadoopInputFormatBoundedSource<Text, Employee> boundedSource =
+        new HadoopInputFormatBoundedSource<Text, Employee>(
+            serConf,
+            WritableCoder.of(Text.class),
+            AvroCoder.of(Employee.class),
+            null, // No key translation required.
+            null, // No value translation required.
+            new SerializableSplit());
+    DisplayData displayData = DisplayData.from(boundedSource);
+    assertThat(
+        displayData,
+        hasDisplayItem("mapreduce.job.inputformat.class",
+            serConf.getHadoopConfiguration().get("mapreduce.job.inputformat.class")));
+    assertThat(displayData,
+        hasDisplayItem("key.class", serConf.getHadoopConfiguration().get("key.class")));
+    assertThat(displayData,
+        hasDisplayItem("value.class", serConf.getHadoopConfiguration().get("value.class")));
+  }
+
+  /**
    * This test validates behavior of {@link HadoopInputFormatBoundedSource} if RecordReader object
    * creation fails.
    */
@@ -544,6 +551,35 @@ public class HadoopInputFormatIOTest {
       reader.close();
     }
     assertThat(bundleRecords, containsInAnyOrder(referenceRecords.toArray()));
+  }
+
+
+/**
+   * This test validates the method getFractionConsumed()- when a bad progress value is returned by
+   * the inputformat.
+   */
+  @Test
+  public void testGetFractionConsumedForBadProgressValue() throws Exception {
+    InputFormat<Text, Employee> mockInputFormat = Mockito.mock(EmployeeInputFormat.class);
+    EmployeeRecordReader mockReader = Mockito.mock(EmployeeRecordReader.class);
+    Mockito.when(
+        mockInputFormat.createRecordReader(Mockito.any(InputSplit.class),
+            Mockito.any(TaskAttemptContext.class))).thenReturn(mockReader);
+    Mockito.when(mockReader.nextKeyValue()).thenReturn(true);
+    Mockito.when(mockReader.getProgress()).thenReturn(2.0F);
+    InputSplit mockInputSplit = Mockito.mock(NewObjectsEmployeeInputSplit.class);
+    HadoopInputFormatBoundedSource<Text, Employee> boundedSource =
+        new HadoopInputFormatBoundedSource<Text, Employee>(
+            serConf,
+            WritableCoder.of(Text.class),
+            AvroCoder.of(Employee.class),
+            null, // No key translation required.
+            null, // No value translation required.
+            new SerializableSplit(mockInputSplit));
+    boundedSource.setInputFormatObj(mockInputFormat);
+    BoundedReader<KV<Text, Employee>> boundedReader = boundedSource.createReader(p.getOptions());
+    assertEquals(true, boundedReader.start());
+    assertEquals(null, boundedReader.getFractionConsumed());
   }
 
   /**
