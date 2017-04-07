@@ -43,8 +43,8 @@ class TestDataflowRunner(DataflowRunner):
       # TODO(markflyhigh)(BEAM-1890): Use print since Nose dosen't show logs
       # in some cases.
       print (
-        'Found: https://console.cloud.google.com/dataflow/job/%s?project=%s' %
-        (job_id, project))
+          'Found: https://console.cloud.google.com/dataflow/job/%s?project=%s' %
+          (job_id, project))
     self.result.wait_until_finish()
 
     if on_success_matcher:
