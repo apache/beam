@@ -384,6 +384,32 @@ public class PipelineTest {
                 new UnboundedCountingInputOverride())));
   }
 
+  /**
+   * Test {@link Pipeline#visualizePipeline()}.
+   */
+  @Test
+  public void testVisualizePipeline(){
+    PTransform<PCollection<? extends String>, PCollection<String>> myTransform =
+        addSuffix("+");
+
+    PCollection<String> input = pipeline.apply(Create.<String>of(ImmutableList.of("a", "b")));
+
+    PCollection<String> left = input.apply("Left1", myTransform).apply("Left2", myTransform);
+    PCollection<String> right = input.apply("Right", myTransform);
+
+    PCollection<String> both = PCollectionList.of(left).and(right)
+        .apply(Flatten.<String>pCollections());
+
+    String visualizedFlow = pipeline.visualizePipeline();
+    Assert.assertEquals(
+        "[end] Flatten.PCollections\n"
+        + "    Left2/Map/ParMultiDo(Anonymous)\n"
+        + "        Left1/Map/ParMultiDo(Anonymous)\n"
+        + "            Create.Values/Read(CreateSource)\n"
+        + "    Right/Map/ParMultiDo(Anonymous)\n"
+        + "        Create.Values/Read(CreateSource)\n", visualizedFlow);
+  }
+
   static class BoundedCountingInputOverride
       implements PTransformOverrideFactory<PBegin, PCollection<Long>, BoundedCountingInput> {
     @Override
