@@ -69,35 +69,51 @@ This table contains I/O transforms that are currently planned or in-progress. St
     <th>Name</th><th>Language</th><th>JIRA</th>
   </tr>
   <tr>
+    <td>AMQP</td><td>Java</td>
+    <td><a href="https://issues.apache.org/jira/browse/BEAM-1237">BEAM-1237</a></td>
+  </tr>
+  <tr>
     <td>Apache Cassandra</td><td>Java</td>
     <td><a href="https://issues.apache.org/jira/browse/BEAM-245">BEAM-245</a></td>
+  </tr>
+  <tr>
+    <td>Apache DistributedLog</td><td>Java</td>
+    <td><a href="https://issues.apache.org/jira/browse/BEAM-607">BEAM-607</a></td>
+  </tr>
+  <tr>
+    <td>Apache Hive</td><td>Java</td>
+    <td><a href="https://issues.apache.org/jira/browse/BEAM-1158">BEAM-1158</a></td>
   </tr>
   <tr>
     <td>Apache Parquet</td><td>Java</td>
     <td><a href="https://issues.apache.org/jira/browse/BEAM-214">BEAM-214</a></td>
   </tr>
   <tr>
-    <td>Redis</td><td>Java</td>
-    <td><a href="https://issues.apache.org/jira/browse/BEAM-1017">BEAM-1017</a></td>
+    <td>Apache Solr</td><td>Java</td>
+    <td><a href="https://issues.apache.org/jira/browse/BEAM-1236">BEAM-1236</a></td>
+  </tr>
+  <tr>
+    <td>Apache Sqoop</td><td>Java</td>
+    <td><a href="https://issues.apache.org/jira/browse/BEAM-67">BEAM-67</a></td>
+  </tr>
+  <tr>
+    <td>Couchbase</td><td>Java</td>
+    <td><a href="https://issues.apache.org/jira/browse/BEAM-1893">BEAM-1893</a></td>
   </tr>
   <tr>
     <td>Memcached</td><td>Java</td>
     <td><a href="https://issues.apache.org/jira/browse/BEAM-1678">BEAM-1678</a></td>
   </tr>
   <tr>
-    <td>Apache Solr</td><td>Java</td>
-    <td><a href="https://issues.apache.org/jira/browse/BEAM-1236">BEAM-1236</a></td>
+    <td>Neo4j</td><td>Java</td>
+    <td><a href="https://issues.apache.org/jira/browse/BEAM-1857">BEAM-1857</a></td>
+  </tr>
+  <tr>
+    <td>Redis</td><td>Java</td>
+    <td><a href="https://issues.apache.org/jira/browse/BEAM-1017">BEAM-1017</a></td>
   </tr>
   <tr>
     <td>RabbitMQ</td><td>Java</td>
     <td><a href="https://issues.apache.org/jira/browse/BEAM-1240">BEAM-1240</a></td>
-  </tr>
-  <tr>
-    <td>AMQP</td><td>Java</td>
-    <td><a href="https://issues.apache.org/jira/browse/BEAM-1237">BEAM-1237</a></td>
-  </tr>
-  <tr>
-    <td>Apache Hive</td><td>Java</td>
-    <td><a href="https://issues.apache.org/jira/browse/BEAM-1158">BEAM-1158</a></td>
   </tr>
 </table>
