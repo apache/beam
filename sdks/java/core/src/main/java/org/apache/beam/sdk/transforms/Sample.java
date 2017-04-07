@@ -81,6 +81,10 @@ public class Sample {
    * selected elements. If the input {@code PCollection} has fewer than {@code sampleSize} elements,
    * then the output {@code Iterable<T>} will be all the input's elements.
    *
+   * <p>All of the elements of the output {@code PCollection} should fit into
+   * main memory of a single worker machine.  This operation does not
+   * run in parallel.
+   *
    * <p>Example of use:
    *
    * <pre>{@code
