@@ -161,7 +161,7 @@ func ReflectFn(dofn interface{}) (*UserFn, error) {
 		// TODO(herohde): function types for re-iterables?
 
 		case reflect.Struct:
-			if _, ok := reflectx.FindTaggedField(t, reflectx.DataTag, reflectx.TypeTag /* ... */); ok {
+			if _, ok := reflectx.FindTaggedField(t, reflectx.DataTag /* ... */); ok {
 				kind = FnContext
 				validate = false
 			}

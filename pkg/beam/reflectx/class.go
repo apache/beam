@@ -14,18 +14,20 @@ const (
 	Invalid Class = iota
 	// Concrete type, such as int, string, struct { .. }.
 	Concrete
-	// Universal type: reflect.Value. (Maybe interface{}, too?)
+	// Universal type: typex.T.
 	Universal
-	// Encoded type: []byte. A coder is necessary to move to and from an
-	// encoded type. Certain transformations can be written purely as
-	// operations on encoded types and thus be generic and efficient.
-	Encoded
+	/*
+		// Encoded type: []byte. A coder is necessary to move to and from an
+		// encoded type. Certain transformations can be written purely as
+		// operations on encoded types and thus be generic and efficient.
+		Encoded
+	*/
 	// composite type: KV, GBK. It may be partially encoded or universal.
 	Composite
 )
 
 func (c Class) IsGeneric() bool {
-	return c == Universal || c == Encoded
+	return c == Universal // || c == Encoded
 }
 
 // IsAssignable returns true iff a from value can be assigned to the to value,
@@ -47,9 +49,9 @@ func IsAssignable(from, to reflect.Type) bool {
 // type is not suitable as data.
 func ClassOf(t reflect.Type) Class {
 	switch {
-	case t == ByteSlice:
-		return Encoded
-	case t == ReflectValue:
+	// case t == ByteSlice:
+	// 	return Encoded
+	case t == T:
 		return Universal
 	case IsComposite(t):
 		return Composite

@@ -101,6 +101,7 @@ func parDo(p *Pipeline, dofn interface{}, col PCollection, opts ...Option) ([]PC
 		}
 
 		n := p.real.NewNode(real)
+		n.Coder = NewCoder(real).coder
 
 		edge.Output = append(edge.Output, &graph.Outbound{To: n, T: t})
 		ret = append(ret, PCollection{n: n})

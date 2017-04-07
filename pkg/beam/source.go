@@ -38,6 +38,7 @@ func source(p *Pipeline, dofn interface{}, opts ...Option) (PCollection, error) 
 	// (2) Insert transformation
 
 	n := p.real.NewNode(out[0])
+	n.Coder = NewCoder(out[0]).coder
 
 	edge := p.real.NewEdge(p.parent)
 	edge.Op = graph.Source

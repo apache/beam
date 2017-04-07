@@ -12,7 +12,6 @@ const (
 
 	// Context binding tags
 	DataTag string = "data"
-	TypeTag string = "type"
 )
 
 // FindTaggedField returns the field tagged with any of the given values, if

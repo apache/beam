@@ -8,8 +8,6 @@ import (
 	"strings"
 )
 
-//go:generate protoc -I . v1.proto --go_out=plugins=grpc:v1
-
 // TODO(herohde): perhaps switch terminology closer to the Fn Runner, when ready.
 
 // Graph represents an in-progress deferred execution graph and is easily
@@ -109,7 +107,7 @@ func (n *Node) ID() int {
 
 func (n *Node) String() string {
 	if n.Coder != nil {
-		return fmt.Sprintf("{%v: %v/%v}", n.id, n.T, n.Coder.ID)
+		return fmt.Sprintf("{%v: %v/%+v}", n.id, n.T, n.Coder)
 	} else {
 		return fmt.Sprintf("{%v: %v/x}", n.id, n.T)
 	}
@@ -134,18 +132,16 @@ func (s *Scope) String() string {
 	return s.Parent.String() + "/" + s.Label
 }
 
-//go:generate $GOPATH/bin/stringer -type=Opcode
-
 // Opcode represents a primitive Fn API instruction kind.
-type Opcode int
+type Opcode string
 
 const (
-	External Opcode = iota
-	ParDo
-	GBK
-	Source
-	Sink
-	Flatten
+	External Opcode = "External"
+	ParDo    Opcode = "ParDo"
+	GBK      Opcode = "GBK"
+	Source   Opcode = "Source"
+	Sink     Opcode = "Sink"
+	Flatten  Opcode = "Flatten"
 )
 
 type Inbound struct {

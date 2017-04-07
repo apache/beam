@@ -1,15 +1,13 @@
 package dataflow
 
 import (
-	"encoding/base64"
 	"fmt"
 	"github.com/golang/protobuf/proto"
 	"github.com/apache/beam/sdks/go/pkg/beam/graph"
-	"github.com/apache/beam/sdks/go/pkg/beam/reflectx"
+	"github.com/apache/beam/sdks/go/pkg/beam/protox"
 	df "google.golang.org/api/dataflow/v1b3"
 	"log"
 	"path"
-	"reflect"
 )
 
 func translate(edges []*graph.MultiEdge) ([]*df.Step, error) {
@@ -35,6 +33,10 @@ func translate(edges []*graph.MultiEdge) ([]*df.Step, error) {
 				// which must be before the present one.
 
 				ref := nodes[edge.Input[i].From.ID()]
+				coder, err := graph.EncodeCoder(edge.Input[i].From.Coder)
+				if err != nil {
+					return nil, err
+				}
 				side := &df.Step{
 					Name: fmt.Sprintf("view%v_%v", edge.ID(), i),
 					Kind: "CollectionToSingleton",
@@ -43,12 +45,7 @@ func translate(edges []*graph.MultiEdge) ([]*df.Step, error) {
 						OutputInfo: []output{{
 							UserName:   "out",
 							OutputName: "out",
-							Encoding: &graph.CoderRef{
-								Type: "kind:windowed_value",
-								Components: []*graph.CoderRef{
-									translateCoder(edge.Input[i].From),
-								},
-							},
+							Encoding:   coder,
 						}},
 						UserName: buildName(edge.Parent, "AsView"),
 					}),
@@ -61,19 +58,28 @@ func translate(edges []*graph.MultiEdge) ([]*df.Step, error) {
 
 		for _, out := range edge.Output {
 			ref := nodes[out.To.ID()]
+			coder, err := graph.EncodeCoder(out.To.Coder)
+			if err != nil {
+				return nil, err
+			}
 			info := output{
 				UserName:   ref.OutputName,
 				OutputName: ref.OutputName,
-				Encoding:   translateCoder(out.To),
+				Encoding:   coder,
 			}
 			prop.OutputInfo = append(prop.OutputInfo, info)
 		}
 		if len(prop.OutputInfo) == 0 {
 			// NOTE: Dataflow seems to require at least one output.
+			coder, err := graph.EncodeCoder(edge.Input[0].From.Coder)
+			if err != nil {
+				return nil, err
+			}
+
 			prop.OutputInfo = []output{{
 				UserName:   "bogus",
 				OutputName: "bogus",
-				Encoding:   translateCoder(edge.Input[0].From),
+				Encoding:   coder,
 			}}
 		}
 
@@ -156,12 +162,7 @@ func serializeFn(edge *graph.MultiEdge) (string, error) {
 	}
 
 	log.Printf("SerializedFn: %v", proto.MarshalTextString(ref))
-
-	data, err := proto.Marshal(ref)
-	if err != nil {
-		return "", err
-	}
-	return base64.StdEncoding.EncodeToString(data), nil
+	return protox.EncodeBase64(ref)
 }
 
 // NOTE: Dataflow uses "/" to separate composite transforms, so we must remove
@@ -180,39 +181,6 @@ func buildScopeName(scope *graph.Scope) string {
 		return scope.Label
 	}
 	return buildScopeName(scope.Parent) + "/" + scope.Label
-}
-
-// TODO(herohde) 2/22/2017: for now, use structurally sound - but bogus - coders.
-
-func translateCoder(ref *graph.Node) *graph.CoderRef {
-	return &graph.CoderRef{
-		Type: "kind:windowed_value",
-		Components: []*graph.CoderRef{
-			translateType(ref.T),
-			{Type: "kind:global_window"},
-		},
-		IsWrapper: true,
-	}
-}
-
-func translateType(t reflect.Type) *graph.CoderRef {
-	if k, v, ok := reflectx.UnfoldComposite(t); ok {
-		return &graph.CoderRef{
-			Type: "kind:pair",
-			Components: []*graph.CoderRef{
-				translateType(k),
-				translateType(v),
-			},
-			IsPairLike: true,
-		}
-	}
-
-	return &graph.CoderRef{
-		Type: "kind:length_prefix",
-		Components: []*graph.CoderRef{
-			{Type: "json"},
-		},
-	}
 }
 
 func stepID(id int) string {

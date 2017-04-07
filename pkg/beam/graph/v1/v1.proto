@@ -42,6 +42,7 @@ message Type {
 
         // Data
         FNVALUE = 40;
+        TYPE = 41;
     }
     // (Required) Type kind.
     Kind kind = 1;
@@ -89,10 +90,47 @@ message FunctionRef {
     Type type = 2;
 }
 
+// CustomCoder
+message CustomCoder {
+    FunctionRef enc = 1;
+    FunctionRef dec = 2;
+
+    // (Optional) JSON-serialized data.
+    string data = 3;
+}
+
+// NOTE(herohde) 4/4/2017: we use (json) CoderRef to serialize coder to
+// inform the service, which may change it at the edges (notably adding
+// LengthPrefix). We thus have to be careful using the right one.
+
+message Window {
+    enum Kind {
+        GLOBAL = 0;
+    }
+    Kind kind = 1;
+}
+
+// Coder represents a serialized Coder. Unused, for now.
+message Coder {
+    enum Kind {
+        CUSTOM = 0;
+        VARINT = 1;
+        BYTES = 2;
+        PARI = 3;
+        LENGTHPREFIX = 4;
+        WINDOWEDVALUE = 5;
+        STREAM = 6;
+    }
+    Kind kind = 1;
+
+    repeated Coder components = 2;
+    CustomCoder custom = 3;
+    Window window = 4;
+}
+
 message Node {
     Type type = 1;
-
-    // Coder code = 3
+    // Coder coder = 2;
 }
 
 // MultiEdge prepresents a serialized MultiEdge. It includes the output
