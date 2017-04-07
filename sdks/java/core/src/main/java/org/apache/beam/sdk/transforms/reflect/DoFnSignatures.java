@@ -54,6 +54,7 @@ import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.TimerParam
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.WindowParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.StateDeclaration;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.TimerDeclaration;
+import org.apache.beam.sdk.transforms.splittabledofn.HasDefaultTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.Timer;
@@ -368,42 +369,35 @@ public class DoFnSignatures {
               errors.forMethod(DoFn.Teardown.class, teardownMethod), teardownMethod));
     }
 
-    DoFnSignature.GetInitialRestrictionMethod getInitialRestriction = null;
-    ErrorReporter getInitialRestrictionErrors = null;
+    ErrorReporter getInitialRestrictionErrors;
     if (getInitialRestrictionMethod != null) {
       getInitialRestrictionErrors =
           errors.forMethod(DoFn.GetInitialRestriction.class, getInitialRestrictionMethod);
       signatureBuilder.setGetInitialRestriction(
-          getInitialRestriction =
               analyzeGetInitialRestrictionMethod(
                   getInitialRestrictionErrors, fnT, getInitialRestrictionMethod, inputT));
     }
 
-    DoFnSignature.SplitRestrictionMethod splitRestriction = null;
     if (splitRestrictionMethod != null) {
       ErrorReporter splitRestrictionErrors =
           errors.forMethod(DoFn.SplitRestriction.class, splitRestrictionMethod);
       signatureBuilder.setSplitRestriction(
-          splitRestriction =
               analyzeSplitRestrictionMethod(
                   splitRestrictionErrors, fnT, splitRestrictionMethod, inputT));
     }
 
-    DoFnSignature.GetRestrictionCoderMethod getRestrictionCoder = null;
     if (getRestrictionCoderMethod != null) {
       ErrorReporter getRestrictionCoderErrors =
           errors.forMethod(DoFn.GetRestrictionCoder.class, getRestrictionCoderMethod);
       signatureBuilder.setGetRestrictionCoder(
-          getRestrictionCoder =
               analyzeGetRestrictionCoderMethod(
                   getRestrictionCoderErrors, fnT, getRestrictionCoderMethod));
     }
 
-    DoFnSignature.NewTrackerMethod newTracker = null;
     if (newTrackerMethod != null) {
       ErrorReporter newTrackerErrors = errors.forMethod(DoFn.NewTracker.class, newTrackerMethod);
       signatureBuilder.setNewTracker(
-          newTracker = analyzeNewTrackerMethod(newTrackerErrors, fnT, newTrackerMethod));
+          analyzeNewTrackerMethod(newTrackerErrors, fnT, newTrackerMethod));
     }
 
     signatureBuilder.setIsBoundedPerElement(inferBoundedness(fnT, processElement, errors));
@@ -501,38 +495,66 @@ public class DoFnSignatures {
     ErrorReporter processElementErrors =
         errors.forMethod(DoFn.ProcessElement.class, processElement.targetMethod());
 
+    final TypeDescriptor<?> trackerT;
+    final String originOfTrackerT;
+
     List<String> missingRequiredMethods = new ArrayList<>();
     if (getInitialRestriction == null) {
       missingRequiredMethods.add("@" + DoFn.GetInitialRestriction.class.getSimpleName());
     }
     if (newTracker == null) {
-      missingRequiredMethods.add("@" + DoFn.NewTracker.class.getSimpleName());
+      if (getInitialRestriction != null
+          && getInitialRestriction
+              .restrictionT()
+              .isSubtypeOf(TypeDescriptor.of(HasDefaultTracker.class))) {
+        trackerT =
+            getInitialRestriction
+                .restrictionT()
+                .resolveType(HasDefaultTracker.class.getTypeParameters()[1]);
+        originOfTrackerT =
+            String.format(
+                "restriction type %s of @%s method %s",
+                formatType(getInitialRestriction.restrictionT()),
+                DoFn.GetInitialRestriction.class.getSimpleName(),
+                format(getInitialRestriction.targetMethod()));
+      } else {
+        missingRequiredMethods.add("@" + DoFn.NewTracker.class.getSimpleName());
+        trackerT = null;
+        originOfTrackerT = null;
+      }
+    } else {
+      trackerT = newTracker.trackerT();
+      originOfTrackerT =
+          String.format(
+              "%s method %s",
+              DoFn.NewTracker.class.getSimpleName(), format(newTracker.targetMethod()));
+      ErrorReporter getInitialRestrictionErrors =
+          errors.forMethod(DoFn.GetInitialRestriction.class, getInitialRestriction.targetMethod());
+      TypeDescriptor<?> restrictionT = getInitialRestriction.restrictionT();
+      getInitialRestrictionErrors.checkArgument(
+          restrictionT.equals(newTracker.restrictionT()),
+          "Uses restriction type %s, but @%s method %s uses restriction type %s",
+          formatType(restrictionT),
+          DoFn.NewTracker.class.getSimpleName(),
+          format(newTracker.targetMethod()),
+          formatType(newTracker.restrictionT()));
     }
+
     if (!missingRequiredMethods.isEmpty()) {
       processElementErrors.throwIllegalArgument(
           "Splittable, but does not define the following required methods: %s",
           missingRequiredMethods);
     }
 
-    processElementErrors.checkArgument(
-        processElement.trackerT().equals(newTracker.trackerT()),
-        "Has tracker type %s, but @%s method %s uses tracker type %s",
-        formatType(processElement.trackerT()),
-        DoFn.NewTracker.class.getSimpleName(),
-        format(newTracker.targetMethod()),
-        formatType(newTracker.trackerT()));
-
     ErrorReporter getInitialRestrictionErrors =
         errors.forMethod(DoFn.GetInitialRestriction.class, getInitialRestriction.targetMethod());
     TypeDescriptor<?> restrictionT = getInitialRestriction.restrictionT();
-
-    getInitialRestrictionErrors.checkArgument(
-        restrictionT.equals(newTracker.restrictionT()),
-        "Uses restriction type %s, but @%s method %s uses restriction type %s",
-        formatType(restrictionT),
-        DoFn.NewTracker.class.getSimpleName(),
-        format(newTracker.targetMethod()),
-        formatType(newTracker.restrictionT()));
+    processElementErrors.checkArgument(
+        processElement.trackerT().equals(trackerT),
+        "Has tracker type %s, but the DoFn's tracker type was inferred as %s from %s",
+        formatType(processElement.trackerT()),
+        trackerT,
+        originOfTrackerT);
 
     if (getRestrictionCoder != null) {
       getInitialRestrictionErrors.checkArgument(

@@ -45,6 +45,7 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFnTester;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.splittabledofn.HasDefaultTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
@@ -72,10 +73,20 @@ public class SplittableParDoTest {
   private static final Duration MAX_BUNDLE_DURATION = Duration.standardSeconds(5);
 
   // ----------------- Tests for whether the transform sets boundedness correctly --------------
-  private static class SomeRestriction implements Serializable {}
+  private static class SomeRestriction
+      implements Serializable, HasDefaultTracker<SomeRestriction, SomeRestrictionTracker> {
+    @Override
+    public SomeRestrictionTracker newTracker() {
+      return new SomeRestrictionTracker(this);
+    }
+  }
 
   private static class SomeRestrictionTracker implements RestrictionTracker<SomeRestriction> {
-    private final SomeRestriction someRestriction = new SomeRestriction();
+    private final SomeRestriction someRestriction;
+
+    public SomeRestrictionTracker(SomeRestriction someRestriction) {
+      this.someRestriction = someRestriction;
+    }
 
     @Override
     public SomeRestriction currentRestriction() {
@@ -96,11 +107,6 @@ public class SplittableParDoTest {
     public SomeRestriction getInitialRestriction(Integer element) {
       return null;
     }
-
-    @NewTracker
-    public SomeRestrictionTracker newTracker(SomeRestriction restriction) {
-      return null;
-    }
   }
 
   private static class UnboundedFakeFn extends DoFn<Integer, String> {
@@ -112,11 +118,6 @@ public class SplittableParDoTest {
 
     @GetInitialRestriction
     public SomeRestriction getInitialRestriction(Integer element) {
-      return null;
-    }
-
-    @NewTracker
-    public SomeRestrictionTracker newTracker(SomeRestriction restriction) {
       return null;
     }
   }
@@ -376,11 +377,6 @@ public class SplittableParDoTest {
     public SomeRestriction getInitialRestriction(Integer elem) {
       return new SomeRestriction();
     }
-
-    @NewTracker
-    public SomeRestrictionTracker newTracker(SomeRestriction restriction) {
-      return new SomeRestrictionTracker();
-    }
   }
 
   @Test
@@ -438,11 +434,6 @@ public class SplittableParDoTest {
     public SomeRestriction getInitialRestriction(Integer elem) {
       return new SomeRestriction();
     }
-
-    @NewTracker
-    public SomeRestrictionTracker newTracker(SomeRestriction restriction) {
-      return new SomeRestrictionTracker();
-    }
   }
 
   @Test
@@ -474,11 +465,17 @@ public class SplittableParDoTest {
     assertThat(tester.takeOutputElements(), contains("42"));
   }
 
-  private static class SomeCheckpoint implements Serializable {
+  private static class SomeCheckpoint
+      implements Serializable, HasDefaultTracker<SomeCheckpoint, SomeCheckpointTracker> {
     private int firstUnprocessedIndex;
 
     private SomeCheckpoint(int firstUnprocessedIndex) {
       this.firstUnprocessedIndex = firstUnprocessedIndex;
+    }
+
+    @Override
+    public SomeCheckpointTracker newTracker() {
+      return new SomeCheckpointTracker(this);
     }
   }
 
@@ -542,11 +539,6 @@ public class SplittableParDoTest {
     @GetInitialRestriction
     public SomeCheckpoint getInitialRestriction(Integer elem) {
       throw new UnsupportedOperationException("Expected to be supplied explicitly in this test");
-    }
-
-    @NewTracker
-    public SomeCheckpointTracker newTracker(SomeCheckpoint restriction) {
-      return new SomeCheckpointTracker(restriction);
     }
   }
 
@@ -656,11 +648,6 @@ public class SplittableParDoTest {
     @GetInitialRestriction
     public SomeRestriction getInitialRestriction(Integer element) {
       return new SomeRestriction();
-    }
-
-    @NewTracker
-    public SomeRestrictionTracker newTracker(SomeRestriction restriction) {
-      return new SomeRestrictionTracker();
     }
 
     @Setup
