@@ -40,10 +40,9 @@ class TestDataflowRunner(DataflowRunner):
     if self.result.has_job:
       project = pipeline.options.view_as(GoogleCloudOptions).project
       job_id = self.result.job_id()
-      # TODO(mark)(BEAM-1890): Use print since Nose dosen't show logs in some
-      # cases.
+      # TODO(markflyhigh)(BEAM-1890)
       print (
-        'Found: https://pantheon.corp.google.com/dataflow/job/%s?project=%s' %
+        'Found: https://console.cloud.google.com/dataflow/job/%s?project=%s' %
         (job_id, project))
     self.result.wait_until_finish()
 
