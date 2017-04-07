@@ -95,8 +95,6 @@ class CreateTest(unittest.TestCase):
     source = Create._create_source(range(11), self.coder)
     source_test_utils.assertSplitAtFractionExhaustive(
         source, perform_multi_threaded_test=True)
-    source_test_utils.assertSplitAtFractionExhaustive(
-        source, perform_multi_threaded_test=False)
 
   def test_create_source_progress(self):
     num_values = 10

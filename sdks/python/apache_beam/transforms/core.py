@@ -1383,9 +1383,13 @@ class Create(PTransform):
 
   @staticmethod
   def _create_source(values, coder, is_serialized=False):
-    from apache_beam import io
+    from apache_beam.io import iobase
 
-    class _CreateSource(io.iobase.BoundedSource):
+    class _CreateSource(iobase.BoundedSource):
+      # If is_serialized is True, it means that the values are already
+      # serialized to bytes using the provided coder. This is the case when
+      # sub sources are created during initial splitting from a source that has
+      # has already serialized the values for size estimation.
       def __init__(self, values, coder, is_serialized=False):
         self._coder = coder
         self._serialized_values = []
@@ -1393,12 +1397,9 @@ class Create(PTransform):
         if is_serialized:
           self._serialized_values = values
         else:
-          for value in values:
-            serialized_value = self._coder.encode(value)
-            self._serialized_values.append(serialized_value)
+          self._serialized_values = map(self._coder.encode, values)
 
-        for serialized_value in self._serialized_values:
-          self._total_size += len(serialized_value)
+        self._total_size = sum(map(len, self._serialized_values))
 
       def read(self, range_tracker):
         start_position = range_tracker.start_position()
@@ -1421,10 +1422,10 @@ class Create(PTransform):
 
       def split(self, desired_bundle_size, start_position=None,
                 stop_position=None):
-        from apache_beam import io
+        from apache_beam.io import iobase
 
         if len(self._serialized_values) < 2:
-          yield io.iobase.SourceBundle(
+          yield iobase.SourceBundle(
               weight=0, source=self, start_position=0,
               stop_position=len(self._serialized_values))
         else:
@@ -1434,8 +1435,8 @@ class Create(PTransform):
             stop_position = len(self._serialized_values)
 
           avg_size_per_value = self._total_size / len(self._serialized_values)
-          num_values_per_split = max(desired_bundle_size / avg_size_per_value,
-                                     1)
+          num_values_per_split = max(
+              int(desired_bundle_size / avg_size_per_value), 1)
 
           start = start_position
           while start < stop_position:
@@ -1449,10 +1450,10 @@ class Create(PTransform):
                 self._serialized_values[start:end], self._coder,
                 is_serialized=True)
 
-            yield io.iobase.SourceBundle(weight=(end - start),
-                                         source=sub_source,
-                                         start_position=0,
-                                         stop_position=(end - start))
+            yield iobase.SourceBundle(weight=(end - start),
+                                      source=sub_source,
+                                      start_position=0,
+                                      stop_position=(end - start))
 
             start = end
 
