@@ -259,14 +259,14 @@
 
     <dependency>
       <groupId>com.google.cloud</groupId>
-      <artifactId>google-cloud-core</artifactId>
-      <version>0.9.3-alpha</version>
+      <artifactId>google-cloud-spanner</artifactId>
+      <version>${spanner.version}</version>
     </dependency>
 
     <dependency>
       <groupId>com.google.cloud</groupId>
-      <artifactId>google-cloud-spanner</artifactId>
-      <version>0.9.3-beta</version>
+      <artifactId>google-cloud-core</artifactId>
+      <version>${cloud-core.version}</version>
     </dependency>
 
     <dependency>

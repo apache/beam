@@ -2,9 +2,9 @@ package org.apache.beam.sdk.coders;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.google.cloud.ByteArray;
-import com.google.cloud.spanner.Date;
+import com.google.cloud.Date;
+import com.google.cloud.Timestamp;
 import com.google.cloud.spanner.Mutation;
-import com.google.cloud.spanner.Timestamp;
 import com.google.cloud.spanner.Type;
 import com.google.cloud.spanner.Value;
 import com.google.cloud.spanner.ValueBinder;
@@ -16,6 +16,7 @@ import java.io.DataOutput;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.nio.ByteBuffer;
 import java.util.Map;
 
 /**
@@ -66,7 +67,7 @@ public class SpannerMutationCoder extends AtomicCoder<Mutation> {
       }
 
       byte[] buf = out.toByteArray();
-      outStream.write(java.nio.ByteBuffer.allocate(4).putInt(buf.length).array());
+      outStream.write(ByteBuffer.allocate(4).putInt(buf.length).array());
       outStream.write(buf);
       outStream.flush();
   }
@@ -76,7 +77,7 @@ public class SpannerMutationCoder extends AtomicCoder<Mutation> {
 
       byte[] lengthSize = new byte[4];
       inStream.read(lengthSize, 0, 4);
-      int expectedSize = java.nio.ByteBuffer.wrap(lengthSize).getInt();
+      int expectedSize = ByteBuffer.wrap(lengthSize).getInt();
       byte[] data = new byte[expectedSize];
       inStream.read(data, 0, expectedSize);
       ByteArrayDataInput in = ByteStreams.newDataInput(data);

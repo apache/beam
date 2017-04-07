@@ -52,18 +52,20 @@ public class SpannerIO {
  * <pre> {@code
  * // Write data to a table.
  * PipelineOptions options = PipelineOptionsFactory.fromArgs(args).create();
- * options.getInput = <CSV text file location>
+ * options.getInput = <CSV text file location>;
+ * PCollection<Mutation> mutations = ...;
  *
  * Pipeline p = Pipeline.create(options);
  *   p.apply(TextIO.Read.from(options.getInput()))
- *       .apply(ParDo.of(new ParseLineFn(tableInfo)))
+ *       .apply(mutations)
  *       .apply(SpannerIO.writeTo(options.getProjectId(),
  *           options.getInstanceId(), options.getDatabaseId()));
+ *   p.run();
  *
  * } </pre>
  */
   public static Writer writeTo(String projectId, String instanceId, String databaseId) {
-    return new Writer(projectId, instanceId, databaseId);
+    return new Writer(projectId, instanceId, databaseId, SPANNER_MUTATIONS_PER_COMMIT_LIMIT);
   }
 
   /**
@@ -71,59 +73,38 @@ public class SpannerIO {
    *
    * @see SpannerIO
    */
-  public static class Writer extends MutationTransform<Mutation> {
-    /**
-     * Note that {@code projectId} is only {@code @Nullable} as a matter of build order, but if
-     * it is {@code null} at instantiation time, an error will be thrown.
-     */
-    Writer(String projectId, String instanceId, String databaseId) {
-      super(projectId, instanceId, databaseId);
-    }
+  public static class Writer extends PTransform<PCollection<Mutation>, PDone> {
 
-    /**
-     * Returns a new {@link Write} that writes to the Cloud Spanner for the specified location.
-     */
-    public Writer withLocation(String projectId, String instanceId, String databaseId) {
-      checkNotNull(projectId, "projectId");
-      checkNotNull(instanceId, "instanceId");
-      checkNotNull(databaseId, "databaseId");
-      return new Writer(projectId, instanceId, databaseId);
-    }
-
-  }
-
-
-  /**
-   * A {@link PTransform} that writes mutations to Cloud Spanner
-   *
-   * <b>Note:</b> Only idempotent Cloud Spanner mutation operations (upsert, etc.) should
-   * be used by the {@code DoFn} provided, as the commits are retried when failures occur.
-   */
-  private abstract static class MutationTransform<T> extends PTransform<PCollection<T>, PDone> {
     private final String projectId;
     private final String instanceId;
     private final String databaseId;
+    private int batchSize;
 
-    /**
-     * Note that {@code projectId} is only {@code @Nullable} as a matter of build order, but if
-     * it is {@code null} at instantiation time, an error will be thrown.
-     */
-    MutationTransform(String projectId, String instanceId, String databaseId) {
+    Writer(String projectId, String instanceId, String databaseId, int batchSize) {
       this.projectId = projectId;
       this.instanceId = instanceId;
       this.databaseId = databaseId;
+      this.batchSize = batchSize;
+    }
+
+    /**
+     * Returns a new {@link Write} with a limit on the number of mutations per batch.
+     * Defaults to SPANNER_MUTATIONS_PER_COMMIT_LIMIT.
+     */
+    public Writer withBatchSize(Integer batchSize) {
+      return new Writer(projectId, instanceId, databaseId, batchSize);
     }
 
     @Override
-    public PDone expand(PCollection<T> input) {
+    public PDone expand(PCollection<Mutation> input) {
       input.apply("Write mutations to Spanner", ParDo.of(
-              new SpannerWriterFn(projectId, instanceId, databaseId)));
+              new SpannerWriterFn(projectId, instanceId, databaseId, batchSize)));
 
       return PDone.in(input.getPipeline());
     }
 
     @Override
-    public void validate(PCollection<T> input) {
+    public void validate(PCollection<Mutation> input) {
       checkNotNull(projectId, "projectId");
       checkNotNull(instanceId, "instanceId");
       checkNotNull(databaseId, "databaseId");
@@ -162,6 +143,10 @@ public class SpannerIO {
       return databaseId;
     }
 
+    public int getBatchSize() {
+      return batchSize;
+    }
+
   }
 
 
@@ -182,9 +167,10 @@ public class SpannerIO {
     private final String projectId;
     private final String instanceId;
     private final String databaseId;
+    private final int batchSize;
     private transient DatabaseClient dbClient;
     // Current batch of mutations to be written.
-    private final List<Mutation> mutations = new ArrayList<Mutation>();
+    private final List<Mutation> mutations = new ArrayList<>();
 
     private static final int MAX_RETRIES = 5;
     private static final FluentBackoff BUNDLE_WRITE_BACKOFF =
@@ -192,31 +178,28 @@ public class SpannerIO {
             .withMaxRetries(MAX_RETRIES).withInitialBackoff(Duration.standardSeconds(5));
 
     @VisibleForTesting
-    SpannerWriterFn(String projectId, String instanceId, String databaseId) {
+    SpannerWriterFn(String projectId, String instanceId, String databaseId, int batchSize) {
       this.projectId = checkNotNull(projectId, "projectId");
       this.instanceId = checkNotNull(instanceId, "instanceId");
       this.databaseId = checkNotNull(databaseId, "databaseId");
+      this.batchSize = batchSize;
     }
 
     @Setup
     public void setup() throws Exception {
         SpannerOptions options = SpannerOptions.newBuilder().build();
         spanner = options.getService();
-    }
-
-    @StartBundle
-    public void startBundle(Context c) throws IOException {
-      dbClient = getDbClient(spanner, DatabaseId.of(projectId, instanceId, databaseId));
+        dbClient = getDbClient(spanner, DatabaseId.of(projectId, instanceId, databaseId));
     }
 
     @ProcessElement
     public void processElement(ProcessContext c) throws Exception {
       Mutation m = c.element();
+      mutations.add(m);
       int columnCount = m.asMap().size();
-      if ((mutations.size() + 1) * columnCount >= SpannerIO.SPANNER_MUTATIONS_PER_COMMIT_LIMIT) {
+      if ((mutations.size() + 1) * columnCount >= batchSize) {
         flushBatch();
       }
-      mutations.add(m);
     }
 
     @FinishBundle

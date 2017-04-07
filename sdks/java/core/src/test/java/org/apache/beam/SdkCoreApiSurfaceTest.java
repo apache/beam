@@ -45,6 +45,8 @@ public class SdkCoreApiSurfaceTest {
             "com.google.api.services.storage",
             "com.google.auth",
             "com.google.protobuf",
+            "com.google.cloud",
+            "com.google.cloud.spanner",
             "com.fasterxml.jackson.annotation",
             "com.fasterxml.jackson.core",
             "com.fasterxml.jackson.databind",
