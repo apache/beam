@@ -32,6 +32,7 @@ import org.apache.beam.sdk.transforms.DoFn.BoundedPerElement;
 import org.apache.beam.sdk.transforms.DoFn.UnboundedPerElement;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignaturesTestUtils.AnonymousMethod;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignaturesTestUtils.FakeDoFn;
+import org.apache.beam.sdk.transforms.splittabledofn.HasDefaultTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.PCollection;
@@ -328,6 +329,48 @@ public class DoFnSignaturesSplittableDoFnTest {
         "Splittable, but does not define the following required methods: "
             + "[@GetInitialRestriction, @NewTracker]");
     DoFnSignatures.getSignature(BadFn.class);
+  }
+
+  abstract class SomeDefaultTracker implements RestrictionTracker<RestrictionWithDefaultTracker> {}
+  abstract class RestrictionWithDefaultTracker
+      implements HasDefaultTracker<RestrictionWithDefaultTracker, SomeDefaultTracker> {}
+
+  @Test
+  public void testHasDefaultTracker() throws Exception {
+    class Fn extends DoFn<Integer, String> {
+      @ProcessElement
+      public void process(ProcessContext c, SomeDefaultTracker tracker) {}
+
+      @GetInitialRestriction
+      public RestrictionWithDefaultTracker getInitialRestriction(Integer element) {
+        return null;
+      }
+    }
+
+    DoFnSignature signature = DoFnSignatures.getSignature(Fn.class);
+    assertEquals(
+        SomeDefaultTracker.class, signature.processElement().trackerT().getRawType());
+  }
+
+  @Test
+  public void testRestrictionHasDefaultTrackerProcessUsesWrongTracker() throws Exception {
+    class Fn extends DoFn<Integer, String> {
+      @ProcessElement
+      public void process(ProcessContext c, SomeRestrictionTracker tracker) {}
+
+      @GetInitialRestriction
+      public RestrictionWithDefaultTracker getInitialRestriction(Integer element) {
+        return null;
+      }
+    }
+
+    thrown.expectMessage(
+        "Has tracker type SomeRestrictionTracker, but the DoFn's tracker type was inferred as ");
+    thrown.expectMessage("SomeDefaultTracker");
+    thrown.expectMessage(
+        "from restriction type RestrictionWithDefaultTracker "
+            + "of @GetInitialRestriction method getInitialRestriction(Integer)");
+    DoFnSignatures.getSignature(Fn.class);
   }
 
   @Test

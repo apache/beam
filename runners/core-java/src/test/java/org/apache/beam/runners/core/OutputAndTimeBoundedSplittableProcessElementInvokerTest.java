@@ -71,11 +71,6 @@ public class OutputAndTimeBoundedSplittableProcessElementInvokerTest {
     public OffsetRange getInitialRestriction(Integer element) {
       throw new UnsupportedOperationException("Should not be called in this test");
     }
-
-    @NewTracker
-    public OffsetRangeTracker newTracker(OffsetRange range) {
-      throw new UnsupportedOperationException("Should not be called in this test");
-    }
   }
 
   private SplittableProcessElementInvoker<Integer, String, OffsetRange, OffsetRangeTracker>.Result

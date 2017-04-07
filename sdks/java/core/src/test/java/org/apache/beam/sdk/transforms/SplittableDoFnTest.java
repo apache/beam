@@ -88,11 +88,6 @@ public class SplittableDoFnTest {
       receiver.output(new OffsetRange(range.getFrom(), (range.getFrom() + range.getTo()) / 2));
       receiver.output(new OffsetRange((range.getFrom() + range.getTo()) / 2, range.getTo()));
     }
-
-    @NewTracker
-    public OffsetRangeTracker newTracker(OffsetRange range) {
-      return new OffsetRangeTracker(range);
-    }
   }
 
   private static class ReifyTimestampsFn<T> extends DoFn<T, TimestampedValue<T>> {
@@ -220,11 +215,6 @@ public class SplittableDoFnTest {
     public OffsetRange getInitialRange(String element) {
       return new OffsetRange(0, MAX_INDEX);
     }
-
-    @NewTracker
-    public OffsetRangeTracker newTracker(OffsetRange range) {
-      return new OffsetRangeTracker(range);
-    }
   }
 
   @Test
@@ -258,11 +248,6 @@ public class SplittableDoFnTest {
     @GetInitialRestriction
     public OffsetRange getInitialRestriction(Integer value) {
       return new OffsetRange(0, 1);
-    }
-
-    @NewTracker
-    public OffsetRangeTracker newTracker(OffsetRange range) {
-      return new OffsetRangeTracker(range);
     }
   }
 
@@ -355,11 +340,6 @@ public class SplittableDoFnTest {
     @GetInitialRestriction
     public OffsetRange getInitialRestriction(String value) {
       return new OffsetRange(0, 1);
-    }
-
-    @NewTracker
-    public OffsetRangeTracker newTracker(OffsetRange range) {
-      return new OffsetRangeTracker(range);
     }
 
     @Setup

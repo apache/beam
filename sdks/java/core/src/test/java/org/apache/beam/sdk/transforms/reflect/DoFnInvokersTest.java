@@ -42,6 +42,7 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFn.ProcessContinuation;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvoker.FakeArgumentProvider;
 import org.apache.beam.sdk.transforms.reflect.testhelper.DoFnInvokersTestHelper;
+import org.apache.beam.sdk.transforms.splittabledofn.HasDefaultTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
@@ -391,19 +392,49 @@ public class DoFnInvokersTest {
             }));
   }
 
+  private static class RestrictionWithDefaultTracker
+      implements HasDefaultTracker<RestrictionWithDefaultTracker, DefaultTracker> {
+    @Override
+    public DefaultTracker newTracker() {
+      return new DefaultTracker();
+    }
+  }
+
+  private static class DefaultTracker implements RestrictionTracker<RestrictionWithDefaultTracker> {
+    @Override
+    public RestrictionWithDefaultTracker currentRestriction() {
+      throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public RestrictionWithDefaultTracker checkpoint() {
+      throw new UnsupportedOperationException();
+    }
+  }
+
+  private static class CoderForDefaultTracker extends CustomCoder<RestrictionWithDefaultTracker> {
+    public static CoderForDefaultTracker of() {
+      return new CoderForDefaultTracker();
+    }
+
+    @Override
+    public void encode(
+        RestrictionWithDefaultTracker value, OutputStream outStream, Context context) {}
+
+    @Override
+    public RestrictionWithDefaultTracker decode(InputStream inStream, Context context) {
+      return null;
+    }
+  }
+
   @Test
   public void testSplittableDoFnDefaultMethods() throws Exception {
     class MockFn extends DoFn<String, String> {
       @ProcessElement
-      public void processElement(ProcessContext c, SomeRestrictionTracker tracker) {}
+      public void processElement(ProcessContext c, DefaultTracker tracker) {}
 
       @GetInitialRestriction
-      public SomeRestriction getInitialRestriction(String element) {
-        return null;
-      }
-
-      @NewTracker
-      public SomeRestrictionTracker newTracker(SomeRestriction restriction) {
+      public RestrictionWithDefaultTracker getInitialRestriction(String element) {
         return null;
       }
     }
@@ -411,10 +442,10 @@ public class DoFnInvokersTest {
     DoFnInvoker<String, String> invoker = DoFnInvokers.invokerFor(fn);
 
     CoderRegistry coderRegistry = new CoderRegistry();
-    coderRegistry.registerCoder(SomeRestriction.class, SomeRestrictionCoder.class);
+    coderRegistry.registerCoder(RestrictionWithDefaultTracker.class, CoderForDefaultTracker.class);
     assertThat(
-        invoker.<SomeRestriction>invokeGetRestrictionCoder(coderRegistry),
-        instanceOf(SomeRestrictionCoder.class));
+        invoker.<RestrictionWithDefaultTracker>invokeGetRestrictionCoder(coderRegistry),
+        instanceOf(CoderForDefaultTracker.class));
     invoker.invokeSplitRestriction(
         "blah",
         "foo",
@@ -430,6 +461,9 @@ public class DoFnInvokersTest {
         });
     assertEquals(
         ProcessContinuation.stop(), invoker.invokeProcessElement(mockArgumentProvider));
+    assertThat(
+        invoker.invokeNewTracker(new RestrictionWithDefaultTracker()),
+        instanceOf(DefaultTracker.class));
   }
 
   // ---------------------------------------------------------------------------------------
