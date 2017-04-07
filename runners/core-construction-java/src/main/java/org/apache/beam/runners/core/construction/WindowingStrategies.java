@@ -19,15 +19,12 @@ package org.apache.beam.runners.core.construction;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.protobuf.Any;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.BytesValue;
 import com.google.protobuf.InvalidProtocolBufferException;
 import java.io.IOException;
 import java.io.Serializable;
-import java.util.UUID;
-import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.common.runner.v1.RunnerApi;
 import org.apache.beam.sdk.common.runner.v1.RunnerApi.Components;
 import org.apache.beam.sdk.common.runner.v1.RunnerApi.FunctionSpec;
@@ -127,62 +124,30 @@ public class WindowingStrategies implements Serializable {
     }
   }
 
-  // This URN says that the coder is just a UDF blob the indicated SDK understands
-  // TODO: standardize such things
-  public static final String CUSTOM_CODER_URN = "urn:beam:coders:javasdk:0.1";
-
   // This URN says that the WindowFn is just a UDF blob the indicated SDK understands
   // TODO: standardize such things
   public static final String CUSTOM_WINDOWFN_URN = "urn:beam:windowfn:javasdk:0.1";
 
-  private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
-
   /**
-   * Converts a {@link WindowFn} into a {@link RunnerApi.MessageWithComponents} where
-   * {@link RunnerApi.MessageWithComponents#getFunctionSpec()} is a {@link FunctionSpec}
-   * for the input {@link WindowFn}.
+   * Converts a {@link WindowFn} into a {@link RunnerApi.MessageWithComponents} where {@link
+   * RunnerApi.MessageWithComponents#getFunctionSpec()} is a {@link RunnerApi.FunctionSpec} for the
+   * input {@link WindowFn}.
    */
-  public static RunnerApi.MessageWithComponents toProto(WindowFn<?, ?> windowFn)
+  public static SdkFunctionSpec toProto(
+      WindowFn<?, ?> windowFn, @SuppressWarnings("unused") SdkComponents components)
       throws IOException {
-    Coder<?> windowCoder = windowFn.windowCoder();
-
-    // TODO: re-use components
-    String windowCoderId = UUID.randomUUID().toString();
-
-    SdkFunctionSpec windowFnSpec =
-        SdkFunctionSpec.newBuilder()
-            .setSpec(
-                FunctionSpec.newBuilder()
-                    .setUrn(CUSTOM_WINDOWFN_URN)
-                    .setParameter(
-                        Any.pack(
-                            BytesValue.newBuilder()
-                                .setValue(
-                                    ByteString.copyFrom(
-                                        SerializableUtils.serializeToByteArray(windowFn)))
-                                .build())))
-            .build();
-
-    RunnerApi.Coder windowCoderProto =
-        RunnerApi.Coder.newBuilder()
-            .setSpec(
-                SdkFunctionSpec.newBuilder()
-                    .setSpec(
-                        FunctionSpec.newBuilder()
-                            .setUrn(CUSTOM_CODER_URN)
-                            .setParameter(
-                                Any.pack(
-                                    BytesValue.newBuilder()
-                                        .setValue(
-                                            ByteString.copyFrom(
-                                                OBJECT_MAPPER.writeValueAsBytes(
-                                                    windowCoder.asCloudObject())))
-                                        .build()))))
-            .build();
-
-    return RunnerApi.MessageWithComponents.newBuilder()
-        .setSdkFunctionSpec(windowFnSpec)
-        .setComponents(Components.newBuilder().putCoders(windowCoderId, windowCoderProto))
+    return SdkFunctionSpec.newBuilder()
+        // TODO: Set environment ID
+        .setSpec(
+            FunctionSpec.newBuilder()
+                .setUrn(CUSTOM_WINDOWFN_URN)
+                .setParameter(
+                    Any.pack(
+                        BytesValue.newBuilder()
+                            .setValue(
+                                ByteString.copyFrom(
+                                    SerializableUtils.serializeToByteArray(windowFn)))
+                            .build())))
         .build();
   }
 
@@ -194,9 +159,22 @@ public class WindowingStrategies implements Serializable {
    */
   public static RunnerApi.MessageWithComponents toProto(WindowingStrategy<?, ?> windowingStrategy)
       throws IOException {
+    SdkComponents components = SdkComponents.create();
+    RunnerApi.WindowingStrategy windowingStrategyProto = toProto(windowingStrategy, components);
 
-    RunnerApi.MessageWithComponents windowFnWithComponents =
-        toProto(windowingStrategy.getWindowFn());
+    return RunnerApi.MessageWithComponents.newBuilder()
+        .setWindowingStrategy(windowingStrategyProto)
+        .setComponents(components.toComponents())
+        .build();
+  }
+
+  /**
+   * Converts a {@link WindowingStrategy} into a {@link RunnerApi.WindowingStrategy}, registering
+   * any components in the provided {@link SdkComponents}.
+   */
+  public static RunnerApi.WindowingStrategy toProto(
+      WindowingStrategy<?, ?> windowingStrategy, SdkComponents components) throws IOException {
+    SdkFunctionSpec windowFnSpec = toProto(windowingStrategy.getWindowFn(), components);
 
     RunnerApi.WindowingStrategy.Builder windowingStrategyProto =
         RunnerApi.WindowingStrategy.newBuilder()
@@ -205,11 +183,11 @@ public class WindowingStrategies implements Serializable {
             .setClosingBehavior(toProto(windowingStrategy.getClosingBehavior()))
             .setAllowedLateness(windowingStrategy.getAllowedLateness().getMillis())
             .setTrigger(Triggers.toProto(windowingStrategy.getTrigger()))
-            .setWindowFn(windowFnWithComponents.getSdkFunctionSpec());
+            .setWindowFn(windowFnSpec)
+            .setWindowCoderId(
+                components.registerCoder(windowingStrategy.getWindowFn().windowCoder()));
 
-    return RunnerApi.MessageWithComponents.newBuilder()
-        .setWindowingStrategy(windowingStrategyProto)
-        .setComponents(windowFnWithComponents.getComponents()).build();
+    return windowingStrategyProto.build();
   }
 
   /**
