@@ -326,7 +326,8 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     private final StringBuffer errorMessage;
     private volatile boolean hasSeenError;
 
-    private ErrorMonitorMessagesHandler(DataflowPipelineJob job, JobMessagesHandler messageHandler) {
+    private ErrorMonitorMessagesHandler(
+        DataflowPipelineJob job, JobMessagesHandler messageHandler) {
       this.job = job;
       this.messageHandler = messageHandler;
       this.errorMessage = new StringBuffer();
