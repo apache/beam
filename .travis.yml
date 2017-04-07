@@ -34,7 +34,7 @@ addons:
     - python2.7
 env:
   global:
-   - MAVEN_OVERRIDE="--settings=.travis/settings.xml"
+   - MAVEN_OVERRIDE="--settings=.test-infra/travis/settings.xml"
    - MAVEN_CONTAINER_OVERRIDE="-DbeamSurefireArgline='-Xmx512m'"
 
 matrix:
@@ -80,7 +80,7 @@ install:
 
 script:
   - if [ "$TEST_PYTHON" ]; then travis_retry $TOX_HOME/tox -c sdks/python/tox.ini; fi
-  - if [ ! "$TEST_PYTHON" ]; then travis_retry mvn --batch-mode --update-snapshots --no-snapshot-updates --threads 1C $MAVEN_OVERRIDE install && travis_retry bash -ex .travis/test_wordcount.sh; fi
+  - if [ ! "$TEST_PYTHON" ]; then travis_retry mvn --batch-mode --update-snapshots --no-snapshot-updates --threads 1C $MAVEN_OVERRIDE install && travis_retry bash -ex .test-infra/travis/test_wordcount.sh; fi
 
 cache:
   directories:
