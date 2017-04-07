@@ -24,6 +24,7 @@ import static org.hamcrest.Matchers.isEmptyOrNullString;
 import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertThat;
 
+import java.io.IOException;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.IterableCoder;
@@ -39,6 +40,7 @@ import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.util.WindowingStrategy.AccumulationMode;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
+import org.hamcrest.Matchers;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -56,13 +58,32 @@ public class SdkComponentsTest {
   private SdkComponents components = SdkComponents.create();
 
   @Test
-  public void registerCoder() {
+  public void registerCoder() throws IOException {
     Coder<?> coder =
         KvCoder.of(StringUtf8Coder.of(), IterableCoder.of(SetCoder.of(ByteArrayCoder.of())));
     String id = components.registerCoder(coder);
     assertThat(components.registerCoder(coder), equalTo(id));
     assertThat(id, not(isEmptyOrNullString()));
-    assertThat(components.registerCoder(VarLongCoder.of()), not(equalTo(id)));
+    VarLongCoder otherCoder = VarLongCoder.of();
+    assertThat(components.registerCoder(otherCoder), not(equalTo(id)));
+
+    components.toComponents().getCodersOrThrow(id);
+    components.toComponents().getCodersOrThrow(components.registerCoder(otherCoder));
+  }
+
+  @Test
+  public void registerCoderEqualsNotSame() throws IOException {
+    Coder<?> coder =
+        KvCoder.of(StringUtf8Coder.of(), IterableCoder.of(SetCoder.of(ByteArrayCoder.of())));
+    Coder<?> otherCoder =
+        KvCoder.of(StringUtf8Coder.of(), IterableCoder.of(SetCoder.of(ByteArrayCoder.of())));
+    assertThat(coder, Matchers.<Coder<?>>equalTo(otherCoder));
+    String id = components.registerCoder(coder);
+    String otherId = components.registerCoder(otherCoder);
+    assertThat(otherId, not(equalTo(id)));
+
+    components.toComponents().getCodersOrThrow(id);
+    components.toComponents().getCodersOrThrow(otherId);
   }
 
   @Test
