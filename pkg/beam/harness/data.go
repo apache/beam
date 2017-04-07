@@ -3,9 +3,14 @@ package harness
 import (
 	"context"
 	"fmt"
+	"github.com/apache/beam/sdks/go/pkg/beam/graph"
+	"github.com/apache/beam/sdks/go/pkg/beam/reflectx"
+	"github.com/apache/beam/sdks/go/pkg/beam/runners/local"
+	"github.com/apache/beam/sdks/go/pkg/beam/typex"
 	pb "github.com/apache/beam/sdks/go/third_party/beam/org_apache_beam_fn_v1"
 	"google.golang.org/grpc"
 	"log"
+	"reflect"
 	"sync"
 )
 
@@ -32,7 +37,7 @@ func (m *DataConnectionManager) Open(ctx context.Context, id, endpoint string) e
 		m.active = make(map[string]dataCon)
 	}
 	if _, found := m.active[id]; found {
-		return fmt.Errorf("Port %s already present", id)
+		return nil // fmt.Errorf("Port %s already present", id)
 	}
 
 	cc, err := connect(endpoint, 3)
@@ -85,20 +90,22 @@ type DataConnectionContext struct {
 	InstID string `beam:"data"`
 }
 
-func SinkFn(mgr *DataConnectionManager, id string, opt DataConnectionContext, target *pb.Target, in <-chan []byte) error {
+func SinkFn(mgr *DataConnectionManager, id string, coder *graph.Coder, t reflect.Type, opt DataConnectionContext, target *pb.Target, in <-chan typex.T) error {
 	var stream []byte
 	for elm := range in {
 		// CAVEAT: the implicit stream coding is simple concatenation of elements (in a nested context).
-		// We would have to require the "beam,Encoded" is a nested-context encoding. The global window
-		// serializes to the empty string. so it is a no-op.
+		// The global window serializes to the empty string. so it is a no-op.
 
-		log.Printf("Sink elm: %v", len(elm))
+		log.Printf("Sink elm: %v", elm)
 
-		stream = append(stream, elm...)
-		// stream = append(stream, []byte("")...)
+		data, err := local.Encode(coder, reflectx.Convert(reflect.ValueOf(elm), t))
+		if err != nil {
+			return err
+		}
+		stream = append(stream, data...)
 	}
 
-	log.Print("Sink done")
+	log.Print("Sink done: %v :: %v", len(stream), stream)
 
 	bundle := []*pb.Elements_Data{
 		{

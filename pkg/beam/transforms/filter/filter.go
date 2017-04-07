@@ -3,6 +3,7 @@ package filter
 import (
 	"github.com/apache/beam/sdks/go/pkg/beam"
 	"github.com/apache/beam/sdks/go/pkg/beam/graph"
+	"github.com/apache/beam/sdks/go/pkg/beam/typex"
 	"reflect"
 )
 
@@ -13,10 +14,10 @@ type filterOpt struct {
 	Fn graph.DataFnValue `beam:"data"`
 }
 
-func filterFn(opt filterOpt, in <-chan reflect.Value, out chan<- reflect.Value) error {
+func filterFn(opt filterOpt, in <-chan typex.T, out chan<- typex.T) error {
 	fn := reflect.ValueOf(opt.Fn.Fn)
 	for elm := range in {
-		ret := fn.Call([]reflect.Value{elm})
+		ret := fn.Call([]reflect.Value{reflect.ValueOf(elm)})
 		if ret[0].Bool() {
 			out <- elm
 		}

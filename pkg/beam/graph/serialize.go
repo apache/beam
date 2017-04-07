@@ -49,6 +49,73 @@ func EncodeMultiEdge(edge *MultiEdge) (*v1.MultiEdge, error) {
 	return ret, nil
 }
 
+func EncodeCustomCoder(c *CustomCoder) (*v1.CustomCoder, error) {
+	ret := &v1.CustomCoder{}
+
+	enc, err := EncodeFnRef(c.Enc.Fn.Interface())
+	if err != nil {
+		return nil, fmt.Errorf("Bad enc: %v", err)
+	}
+	ret.Enc = enc
+
+	dec, err := EncodeFnRef(c.Dec.Fn.Interface())
+	if err != nil {
+		return nil, fmt.Errorf("Bad dec: %v", err)
+	}
+	ret.Dec = dec
+
+	if c.Data != nil {
+		data, err := json.Marshal(c.Data)
+		if err != nil {
+			return nil, fmt.Errorf("Bad data: %v", err)
+		}
+		ret.Data = string(data)
+	}
+	return ret, nil
+}
+
+func DecodeCustomCoder(c *v1.CustomCoder) (*CustomCoder, error) {
+	enc, err := DecodeAndReflectFnRef(c.Enc)
+	if err != nil {
+		return nil, fmt.Errorf("Bad dec: %v", err)
+	}
+	dec, err := DecodeAndReflectFnRef(c.Dec)
+	if err != nil {
+		return nil, fmt.Errorf("Bad dec: %v", err)
+	}
+
+	ret := &CustomCoder{
+		Enc: enc,
+		Dec: dec,
+	}
+	if c.Data != "" {
+		data, err := DecodeData(enc, c.Data)
+		if err != nil {
+			return nil, fmt.Errorf("Bad data: %v", err)
+		}
+		ret.Data = data
+	}
+	return ret, nil
+}
+
+func DecodeData(dofn *UserFn, dataStr string) (interface{}, error) {
+	if ct, ok := dofn.Context(); ok {
+		f, _ := reflectx.FindTaggedField(ct, reflectx.DataTag)
+		// log.Printf("Data: %v of %v", me.Data, f.Type)
+
+		return reflectx.UnmarshalJSON(f.Type, dataStr)
+	}
+	return nil, nil
+}
+
+func DecodeAndReflectFnRef(ref *v1.FunctionRef) (*UserFn, error) {
+	enc, err := DecodeFnRef(ref)
+	if err != nil {
+		return nil, fmt.Errorf("Bad fn ref: %v", err)
+	}
+	return ReflectFn(enc)
+}
+
 func EncodeFnRef(fn interface{}) (*v1.FunctionRef, error) {
 	val := reflect.ValueOf(fn)
 	if val.Kind() != reflect.Func {
@@ -109,13 +176,18 @@ func encodeType(t reflect.Type, dataField bool) (*v1.Type, error) {
 	if t == reflectx.Error {
 		return &v1.Type{Kind: v1.Type_ERROR}, nil
 	}
-	if t == reflectx.ReflectValue {
+	if t == reflectx.T {
 		return &v1.Type{Kind: v1.Type_UNIVERSAL}, nil
 	}
 
-	// Special handling of datafield values.
-	if t == DataFnValueType && dataField {
-		return &v1.Type{Kind: v1.Type_FNVALUE}, nil
+	// Special handling of data field values. We al
+	if dataField {
+		if t == DataFnValueType {
+			return &v1.Type{Kind: v1.Type_FNVALUE}, nil
+		}
+		if t == DataTypeType {
+			return &v1.Type{Kind: v1.Type_TYPE}, nil
+		}
 	}
 
 	switch t.Kind() {
@@ -154,6 +226,7 @@ func encodeType(t reflect.Type, dataField bool) (*v1.Type, error) {
 		var fields []*v1.Type_StructField
 		for i := 0; i < t.NumField(); i++ {
 			f := t.Field(i)
+
 			fType, err := encodeType(f.Type, dataField || reflectx.HasTag(f, reflectx.DataTag))
 			if err != nil {
 				return nil, fmt.Errorf("Bad field type: %v", err)
@@ -287,10 +360,12 @@ func DecodeType(t *v1.Type) (reflect.Type, error) {
 	case v1.Type_ERROR:
 		return reflectx.Error, nil
 	case v1.Type_UNIVERSAL:
-		return reflectx.ReflectValue, nil
+		return reflectx.T, nil
 
 	case v1.Type_FNVALUE:
 		return DataFnValueType, nil
+	case v1.Type_TYPE:
+		return DataTypeType, nil
 
 	default:
 		return nil, fmt.Errorf("Unexpected type kind: %v", t.Kind)

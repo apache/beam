@@ -30,11 +30,12 @@ func groupByKey(p *Pipeline, a PCollection) (PCollection, error) {
 	}
 
 	n := p.real.NewNode(t)
+	n.Coder = NewCoder(t).coder
 
 	// (2) Add GBK edge
 
-	inT, _ := reflectx.MakeKV(reflectx.ByteSlice, value)
-	outT, _ := reflectx.MakeGBK(reflectx.ByteSlice, value)
+	inT, _ := reflectx.MakeKV(reflectx.T, value)
+	outT, _ := reflectx.MakeGBK(reflectx.T, value)
 
 	log.Printf("GBK real: %v, in: %v, out: %v", t, inT, outT)
 

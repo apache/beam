@@ -1,5 +1,7 @@
 package beam
 
+import "github.com/apache/beam/sdks/go/pkg/beam/typex"
+
 // Sample data types
 
 // ExampleCombineFn is the sample combine fn.
@@ -15,7 +17,7 @@ type OutputType int64
 type InputType int64
 
 // Key is of type beam.EncodedData
-type Key EncodedData
+type Key typex.EncodedData
 
 // Underlying data type of the combiner needs to be serializable per Beam serialization rules.
 

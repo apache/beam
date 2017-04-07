@@ -2,8 +2,9 @@ package beam
 
 import (
 	"encoding/json"
-	"fmt"
 	"github.com/apache/beam/sdks/go/pkg/beam/graph"
+	"github.com/apache/beam/sdks/go/pkg/beam/reflectx"
+	"github.com/apache/beam/sdks/go/pkg/beam/typex"
 	"log"
 	"reflect"
 )
@@ -13,91 +14,79 @@ type Coder struct {
 	coder *graph.Coder
 }
 
-func (c Coder) ID() string {
-	if c.coder == nil {
-		return "(no coder)"
-	}
-	return c.coder.ID
-}
+// TODO(herohde) 4/4/2017: for convenience, we use the magic json coding
+// everywhere. To be replaced by Coder registry, sharing, etc.
 
-func NewCoder(id string, encode, decode, data interface{}) (Coder, error) {
-	enc, err := graph.ReflectFn(encode)
+func NewCoder(t reflect.Type) Coder {
+	inner, err := inferCoder(t)
 	if err != nil {
-		return Coder{}, fmt.Errorf("Bad encode: %v", err)
+		panic(err) // for now
 	}
-	dec, err := graph.ReflectFn(decode)
-	if err != nil {
-		return Coder{}, fmt.Errorf("Bad decode: %v", err)
-	}
-
-	// TODO(herohde): validate coder signature.
 
 	c := &graph.Coder{
-		ID:   id,
-		Enc:  enc,
-		Dec:  dec,
-		Data: data,
+		Kind:       graph.WindowedValue,
+		Components: []*graph.Coder{inner},
+		Window:     &graph.Window{Kind: graph.GlobalWindow},
 	}
-	return Coder{c}, nil
+	return Coder{c}
 }
 
-//type UniversalCoder interface {
-//	ID() string
-//	Encode(t reflect.Type, in reflect.Value /* <-chan T */, out chan<- []byte) error
-//	Decode(t reflect.Type, in <-chan []byte, out reflect.Value /* chan<- T */) error
-//}
+func inferCoder(t reflect.Type) (*graph.Coder, error) {
+	if k, v, ok := reflectx.UnfoldComposite(t); ok {
+		key, err := inferCoder(k)
+		if err != nil {
+			return nil, err
+		}
+		value, err := inferCoder(v)
+		if err != nil {
+			return nil, err
+		}
+		return &graph.Coder{Kind: graph.Pair, Components: []*graph.Coder{key, value}}, nil
+	}
 
-// Universal coders have the below signature.
+	if t.Kind() == reflect.Chan {
+		elm, err := inferCoder(t.Elem())
+		if err != nil {
+			return nil, err
+		}
+		return &graph.Coder{Kind: graph.Stream, Components: []*graph.Coder{elm}}, nil
+	}
+
+	return &graph.Coder{Kind: graph.LengthPrefix, Components: []*graph.Coder{{
+		Kind: graph.Custom, Custom: NewCustomCoder(t),
+	}}}, nil
+}
+
+// TODO(herohde) 4/5/2017: decide whether we want an Encoded form. For now,
+// we'll use exploded form coders only using typex.T. It seems too cumbersome
+// to to allow channel form for coders. We might also need a form that doesn't
+// require LengthPrefix'ing to cut up the bytestream from the FnHarness.
+
+// Concrete and universal coders both have a similar signature. Conversion is
+// handled by reflection.
 
 type jsonContext struct {
-	T reflect.Type `beam:"type"`
+	T graph.DataType `beam:"data"`
 }
 
-func jsonEnc(_ jsonContext, in reflect.Value /* <-chan T */, out chan<- []byte) error {
-	for {
-		val, ok := in.Recv()
-		if !ok {
-			return nil
-		}
+func jsonEnc(_ jsonContext, in typex.T) ([]byte, error) {
+	return json.Marshal(in)
+}
 
-		data, err := json.Marshal(val.Interface())
-		if err != nil {
-			return err
-		}
-		out <- data
+func jsonDec(ctx jsonContext, in []byte) (typex.T, error) {
+	val := reflect.New(ctx.T.T)
+	if err := json.Unmarshal(in, val.Interface()); err != nil {
+		return nil, err
 	}
+	return val.Elem().Interface(), nil
 }
 
-func jsonDec(ctx jsonContext, out reflect.Value /* chan<- T */, in <-chan []byte) error {
-	for data := range in {
-		val := reflect.New(ctx.T)
-		if err := json.Unmarshal(data, val.Interface()); err != nil {
-			return err
-		}
-		out.Send(val.Elem())
-	}
-	return nil
-}
+// TODO: select optimal coder based on type, notably handling int, string, etc.
 
-var InternalCoder *graph.Coder
-
-func init() {
-	coder, err := NewCoder("json", jsonEnc, jsonDec, nil)
+func NewCustomCoder(t reflect.Type) *graph.CustomCoder {
+	coder, err := graph.NewCustomCoder("json", jsonEnc, jsonDec, graph.DataType{t})
 	if err != nil {
 		log.Fatalf("Bad coder: %v", err)
 	}
-	InternalCoder = coder.coder
-}
-
-// TODO(herohde): KV coder, GBK coder
-
-// TODO(herohde): Concretely typed coders have a dynamic signature. We can plumb them
-// together and avoid reflection on the data path.
-
-func EncInt(t reflect.Type, in <-chan int, out chan<- []byte) error {
-	return nil
-}
-
-func DecInt(t reflect.Type, in <-chan []byte, out chan<- int) error {
-	return nil
+	return coder
 }

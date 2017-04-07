@@ -67,7 +67,7 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 			Experiments: []string{"use_gci_image"},
 			UserAgent: newMsg(userAgent{
 				Name:    "Apache Beam SDK for Go",
-				Version: "0.1.0",
+				Version: "0.2.0",
 			}),
 			Version: newMsg(version{
 				JobType: "FNAPI_BATCH",
@@ -158,7 +158,7 @@ func stageWorker(ctx context.Context, project, location, worker string) (string,
 		return full, nil
 	}
 
-	client, err := newStorageClient(ctx)
+	client, err := NewStorageClient(ctx)
 	if err != nil {
 		return "", err
 	}

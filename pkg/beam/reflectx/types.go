@@ -3,6 +3,7 @@ package reflectx
 
 import (
 	"fmt"
+	"github.com/apache/beam/sdks/go/pkg/beam/typex"
 	"reflect"
 )
 
@@ -22,9 +23,10 @@ var (
 	String = reflect.TypeOf((*string)(nil)).Elem()
 	Error  = reflect.TypeOf((*error)(nil)).Elem()
 
-	ByteSlice    = reflect.TypeOf((*[]byte)(nil)).Elem()
-	ReflectValue = reflect.TypeOf((*reflect.Value)(nil)).Elem()
-	ReflectType  = reflect.TypeOf((*reflect.Type)(nil)).Elem()
+	ByteSlice   = reflect.TypeOf((*[]byte)(nil)).Elem()
+	ReflectType = reflect.TypeOf((*reflect.Type)(nil)).Elem()
+
+	T = reflect.TypeOf((*typex.T)(nil)).Elem()
 )
 
 // SkipPtr returns the target of a Ptr type, if a Ptr. Otherwise itself.

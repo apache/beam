@@ -1,12 +1,15 @@
 package count
 
-import "github.com/apache/beam/sdks/go/pkg/beam"
+import (
+	"github.com/apache/beam/sdks/go/pkg/beam"
+	"github.com/apache/beam/sdks/go/pkg/beam/typex"
+)
 
 // NOTE(herohde): KV uses []byte as a generic "untyped" value with coder-equality.
 
 type KV struct {
-	Key   []byte `beam:"key"`
-	Count int    `beam:"value"`
+	Key   typex.T `beam:"key"`
+	Count int     `beam:"value"`
 }
 
 // GOOD: it is generic.
@@ -14,7 +17,7 @@ type KV struct {
 
 // TODO: a real implementation would be less naive ..
 
-func Map(elms <-chan []byte, out chan<- KV) {
+func Map(elms <-chan typex.T, out chan<- KV) {
 	for elm := range elms {
 		out <- KV{elm, 1}
 	}
@@ -24,7 +27,7 @@ func Map(elms <-chan []byte, out chan<- KV) {
 // ensure that we can classify the signature correctly. For example, does the below match
 // a []byte collection with a side-input or a KV collection after GBK.
 
-func Reduce(key []byte, counts <-chan int, out chan<- KV) {
+func Reduce(key typex.T, counts <-chan int, out chan<- KV) {
 	total := 0
 	for c := range counts {
 		total += c
@@ -41,7 +44,7 @@ func PerElement(p *beam.Pipeline, col beam.PCollection) beam.PCollection {
 	return beam.ParDo(p, Reduce, post)
 }
 
-func Drop(kvs <-chan KV, out chan<- []byte) {
+func Drop(kvs <-chan KV, out chan<- typex.T) {
 	for kv := range kvs {
 		out <- kv.Key
 	}

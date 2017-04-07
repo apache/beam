@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/apache/beam/sdks/go/pkg/beam"
 	"github.com/apache/beam/sdks/go/pkg/beam/graph"
+	"github.com/apache/beam/sdks/go/pkg/beam/graph/coderx"
 	"github.com/apache/beam/sdks/go/pkg/beam/reflectx"
 	"log"
 	"reflect"
@@ -62,7 +63,7 @@ func ExecuteBundle(ctx context.Context, edges map[int]*graph.MultiEdge) error {
 	for id, list := range consumers {
 		if len(list) == 1 {
 			input := edges[list[0].to].Input[list[0].input]
-			read[list[0]] = shim(write[id], beam.InternalCoder /* input.From.Coder */, input.From.T, input.T)
+			read[list[0]] = shim(write[id], input.From.Coder, input.From.T, input.T)
 			continue
 		}
 
@@ -79,7 +80,7 @@ func ExecuteBundle(ctx context.Context, edges map[int]*graph.MultiEdge) error {
 		for i, elm := range list {
 			ch := buffer(dup[i])
 			input := edges[elm.to].Input[elm.input]
-			read[elm] = shim(ch, beam.InternalCoder /* input.From.Coder */, input.From.T, input.T)
+			read[elm] = shim(ch, input.From.Coder, input.From.T, input.T)
 		}
 	}
 
@@ -109,10 +110,12 @@ func ExecuteBundle(ctx context.Context, edges map[int]*graph.MultiEdge) error {
 			}()
 
 		case graph.GBK:
+			coder := edge.Input[0].From.Coder
+
 			wg.Add(1)
 			go func() {
 				defer wg.Done()
-				gbk(ctx, in[0], out[0])
+				gbk(ctx, coder, in[0], out[0])
 			}()
 
 		default:
@@ -216,7 +219,7 @@ func call(ctx context.Context, userfn *graph.UserFn, data interface{}, in, out [
 
 	log.Printf("Call: %v [Data: %v : %v]", userfn, data, reflect.TypeOf(data))
 
-	userCtx, hasCtx := makeContext(userfn, data, nil)
+	userCtx, hasCtx := makeContext(userfn, data)
 
 	switch {
 	case !userfn.HasDirectInput() && !userfn.HasDirectOutput():
@@ -240,7 +243,7 @@ func call(ctx context.Context, userfn *graph.UserFn, data interface{}, in, out [
 		primary := in[0]
 		rest := append(in[1:], out...)
 
-		keyFn, valueFn := unpack(primary.Type().Elem())
+		keyFn, valueFn := reflectx.UnpackFn(primary.Type().Elem())
 
 		for {
 			val, ok := primary.Recv()
@@ -269,15 +272,12 @@ func call(ctx context.Context, userfn *graph.UserFn, data interface{}, in, out [
 	// log.Printf("Call exit: %v", userfn)
 }
 
-func makeContext(fn *graph.UserFn, data interface{}, t reflect.Type) (reflect.Value, bool) {
+func makeContext(fn *graph.UserFn, data interface{}) (reflect.Value, bool) {
 	if ctxType, hasCtx := fn.Context(); hasCtx {
 		ctx := reflect.New(ctxType).Elem()
 
 		if f, ok := reflectx.FindTaggedField(ctxType, reflectx.DataTag); ok {
 			ctx.FieldByIndex(f.Index).Set(reflect.ValueOf(data))
-		}
-		if f, ok := reflectx.FindTaggedField(ctxType, reflectx.TypeTag); ok {
-			ctx.FieldByIndex(f.Index).Set(reflect.ValueOf(t))
 		}
 		// TODO(herohde): other static context, such as context.Context
 
@@ -288,215 +288,26 @@ func makeContext(fn *graph.UserFn, data interface{}, t reflect.Type) (reflect.Va
 
 func shim(ch reflect.Value, coder *graph.Coder, real, to reflect.Type) reflect.Value {
 	from := ch.Type().Elem()
-
-	log.Printf("Shim: %v -> %v -> %v", from, real, to)
-
 	if from == to {
-		// Same type: shortcuts Universal -> Universal and Encoded -> Encoded.
+		// Same type: shortcuts Universal -> Universal, too.
 		return ch
 	}
 
-	// (1) Front conversion.
+	log.Printf("Shim: %v -> %v -> %v", from, real, to)
 
-	switch reflectx.ClassOf(from) {
-	case reflectx.Encoded:
-		// Must decode.
+	ret := reflect.MakeChan(reflect.ChanOf(reflect.BothDir, to), 100)
+	go func() {
+		defer ret.Close()
 
-		if coder == nil {
-			log.Fatalf("Missing coder: %v", coder)
+		for {
+			val, ok := ch.Recv()
+			if !ok {
+				break
+			}
+			ret.Send(reflectx.Convert(val, to))
 		}
-
-		ret := reflect.MakeChan(reflect.ChanOf(reflect.BothDir, real), 100)
-		go func() {
-			defer ret.Close()
-
-			if err := decode(coder, ch, ret); err != nil {
-				log.Printf("Code failed: %v", err)
-			}
-		}()
-		return shim(ret, coder, real, to)
-
-	case reflectx.Universal:
-		// Must reify.
-
-		ret := reflect.MakeChan(reflect.ChanOf(reflect.BothDir, real), 100)
-		go func() {
-			defer ret.Close()
-
-			for {
-				val, ok := ch.Recv()
-				if !ok {
-					break
-				}
-				ret.Send(val.Interface().(reflect.Value))
-			}
-		}()
-		return shim(ret, coder, real, to)
-	}
-
-	switch {
-	case reflectx.IsKV(from) && reflectx.IsKV(real) && reflectx.IsKV(to):
-		// Recursive KV.
-
-		fromK, fromV, _ := reflectx.UnfoldKV(from)
-		realK, realV, _ := reflectx.UnfoldKV(real)
-		toK, toV, _ := reflectx.UnfoldKV(to)
-
-		ret := reflect.MakeChan(reflect.ChanOf(reflect.BothDir, to), 100)
-		retK := reflect.MakeChan(reflect.ChanOf(reflect.BothDir, fromK), 100)
-		retV := reflect.MakeChan(reflect.ChanOf(reflect.BothDir, fromV), 100)
-
-		recvK := shim(retK, beam.InternalCoder, realK, toK)
-		recvV := shim(retV, beam.InternalCoder, realV, toV)
-
-		keyFn, valueFn := unpack(from)
-		packFn := pack(to)
-
-		go func() {
-			defer retK.Close()
-			defer retV.Close()
-			defer ret.Close()
-
-			for {
-				val, ok := ch.Recv()
-				if !ok {
-					break
-				}
-
-				k, v := keyFn(val), valueFn(val)
-
-				retK.Send(k)
-				retV.Send(v)
-
-				k2, _ := recvK.Recv()
-				v2, _ := recvV.Recv()
-
-				ret.Send(packFn(k2, v2))
-			}
-		}()
-
-		return ret
-
-	case reflectx.IsGBK(from) && reflectx.IsGBK(real) && reflectx.IsGBK(to):
-		// Recursive GBK
-
-		fromK, fromV, _ := reflectx.UnfoldKV(from)
-		realK, realV, _ := reflectx.UnfoldKV(real)
-		toK, toV, _ := reflectx.UnfoldKV(to)
-
-		if fromV != realV || realV != toV {
-			log.Fatalf("Bad GBK values: %v != %v != %v", fromV, realV, toV)
-		}
-
-		ret := reflect.MakeChan(reflect.ChanOf(reflect.BothDir, to), 100)
-		retK := reflect.MakeChan(reflect.ChanOf(reflect.BothDir, fromK), 100)
-		recvK := shim(retK, beam.InternalCoder, realK, toK)
-
-		keyFn, valueFn := unpack(from)
-		packFn := pack(to)
-
-		go func() {
-			defer retK.Close()
-			defer ret.Close()
-
-			for {
-				val, ok := ch.Recv()
-				if !ok {
-					break
-				}
-
-				k, v := keyFn(val), valueFn(val)
-
-				retK.Send(k)
-				k2, _ := recvK.Recv()
-				ret.Send(packFn(k2, v))
-			}
-		}()
-
-		return ret
-	}
-
-	// (2) Back conversion.
-
-	switch reflectx.ClassOf(to) {
-	case reflectx.Encoded:
-		// Must encode.
-
-		if coder == nil {
-			log.Fatalf("Missing coder: %v", coder)
-		}
-
-		ret := reflect.MakeChan(reflect.ChanOf(reflect.BothDir, to), 100)
-		go func() {
-			defer ret.Close()
-
-			if err := encode(coder, ch, ret); err != nil {
-				log.Printf("Code failed: %v", err)
-			}
-		}()
-		return ret
-
-	case reflectx.Universal:
-		// Must reflect.
-
-		ret := reflect.MakeChan(reflect.ChanOf(reflect.BothDir, to), 100)
-		go func() {
-			defer ret.Close()
-
-			for {
-				val, ok := ch.Recv()
-				if !ok {
-					break
-				}
-				ret.Send(reflect.ValueOf(val))
-			}
-		}()
-		return ret
-	}
-
-	log.Fatalf("Bad conversion: %v -> %v -> %v", from, real, to)
-	return reflect.Value{}
-}
-
-// NOTE: encode/decode use a reflected channel as FnValue, so they are invoked in
-// a slightly different way than normal calls.
-
-// TODO(herohde): support concrete coders
-
-func encode(coder *graph.Coder, in, out reflect.Value /* chan T, chan []byte */) error {
-	userCtx, hasCtx := makeContext(coder.Enc, coder.Data, in.Type().Elem())
-
-	var args []reflect.Value
-	if hasCtx {
-		args = append(args, userCtx)
-	}
-	args = append(args, reflect.ValueOf(in) /* 2x reflect */, out)
-
-	// log.Printf("Enc: %v <- %v", coder.Enc, args)
-
-	ret := coder.Enc.Fn.Call(args)
-	if index, ok := coder.Enc.HasError(); ok && !ret[index].IsNil() {
-		return fmt.Errorf("Encode error: %v", ret[index].Interface())
-	}
-	return nil
-}
-
-func decode(coder *graph.Coder, in, out reflect.Value /* chan []byte, chan T */) error {
-	userCtx, hasCtx := makeContext(coder.Dec, coder.Data, out.Type().Elem())
-
-	var args []reflect.Value
-	if hasCtx {
-		args = append(args, userCtx)
-	}
-	args = append(args, reflect.ValueOf(out) /* 2x reflect */, in)
-
-	// log.Printf("Dec: %v <- %v", coder.Dec, args)
-
-	ret := coder.Dec.Fn.Call(args)
-	if index, ok := coder.Dec.HasError(); ok && !ret[index].IsNil() {
-		return fmt.Errorf("Decode error: %v", ret[index].Interface())
-	}
-	return nil
+	}()
+	return ret
 }
 
 // gbk uses naive buffering, for now.
@@ -507,11 +318,12 @@ type group struct {
 	Values []reflect.Value
 }
 
-func gbk(ctx context.Context, in, out reflect.Value) {
+func gbk(ctx context.Context, coder *graph.Coder, in, out reflect.Value) error {
 	defer out.Close()
 
-	keyFn, valueFn := unpack(in.Type().Elem())
-	packFn := pack(out.Type().Elem())
+	keyFn, valueFn := reflectx.UnpackFn(in.Type().Elem())
+	keyCoder := findKeyCoder(coder)
+	packFn := reflectx.PackFn(out.Type().Elem())
 
 	// (1) read all elements.
 
@@ -523,7 +335,11 @@ func gbk(ctx context.Context, in, out reflect.Value) {
 		}
 
 		key := keyFn(val)
-		id := string(key.Interface().([]byte))
+		encoded, err := Encode(keyCoder, key)
+		if err != nil {
+			return fmt.Errorf("failed to encode key: %v", key.Interface())
+		}
+		id := string(encoded)
 
 		g, ok := buffer[id]
 		if !ok {
@@ -547,38 +363,85 @@ func gbk(ctx context.Context, in, out reflect.Value) {
 
 		out.Send(packFn(g.Key, ch))
 	}
+	return nil
 }
 
-// pack, unpack avoids some reflection for each element.
+// TODO(herohde) 4/6/2017: move runtime execution parts out of local. Open
+// questions are where (graph/coder + graph/runtime?) and how to best handle
+// "magic" context, if any.
 
-func pack(t reflect.Type) func(reflect.Value, reflect.Value) reflect.Value {
-	key, _ := reflectx.FindTaggedField(t, reflectx.KeyTag)
-	value, _ := reflectx.FindTaggedField(t, reflectx.ValueTag, reflectx.ValuesTag)
+func Encode(coder *graph.Coder, value reflect.Value) ([]byte, error) {
+	switch coder.Kind {
+	case graph.Custom:
+		c, _ := coder.UnfoldCustom()
 
-	return func(k reflect.Value, v reflect.Value) reflect.Value {
-		ret := reflect.New(t).Elem()
-		ret.FieldByIndex(key.Index).Set(k)
-		ret.FieldByIndex(value.Index).Set(v)
-		return ret
+		var args []reflect.Value
+
+		userCtx, hasCtx := makeContext(c.Enc, c.Data)
+		if hasCtx {
+			args = append(args, userCtx)
+		}
+		args = append(args, value)
+
+		ret := c.Enc.Fn.Call(args)
+		if index, ok := c.Enc.HasError(); ok && !ret[index].IsNil() {
+			return nil, fmt.Errorf("encode error: %v", ret[index].Interface())
+		}
+		return ret[0].Interface().([]byte), nil
+
+	case graph.LengthPrefix:
+		c, _ := coder.UnfoldLengthPrefix()
+
+		data, err := Encode(c, value)
+		if err != nil {
+			return nil, err
+		}
+
+		size := len(data)
+		prefix := coderx.EncodeVarInt((int32)(size))
+		return append(prefix, data...), nil
+
+	case graph.Pair:
+		k, v, _ := coder.UnfoldPair()
+		keyFn, valFn := reflectx.UnpackFn(value.Type())
+
+		key, err := Encode(k, keyFn(value))
+		if err != nil {
+			return nil, err
+		}
+		val, err := Encode(v, valFn(value))
+		if err != nil {
+			return nil, err
+		}
+		return append(key, val...), nil
+
+	case graph.WindowedValue:
+		c, _, _ := coder.UnfoldWindowedValue()
+
+		// TODO(herohde) 4/7/2017: actually handle windows. Backfilling implicit
+		// context is the death of chan-based bundle processing.
+
+		return Encode(c, value)
+
+	default:
+		return nil, fmt.Errorf("Unexpected coder: %v", coder)
 	}
 }
 
-func unpack(t reflect.Type) (func(reflect.Value) reflect.Value, func(reflect.Value) reflect.Value) {
-	key, _ := reflectx.FindTaggedField(t, reflectx.KeyTag)
-	value, _ := reflectx.FindTaggedField(t, reflectx.ValueTag, reflectx.ValuesTag)
+func findKeyCoder(coder *graph.Coder) *graph.Coder {
+	if c, _, ok := coder.UnfoldWindowedValue(); ok {
+		return findKeyCoder(c)
+	}
 
-	keyFn := func(v reflect.Value) reflect.Value {
-		return v.FieldByIndex(key.Index)
+	k, _, ok := coder.UnfoldPair()
+	if !ok {
+		panic(fmt.Errorf("Expected pair coder: %v", coder))
 	}
-	valueFn := func(v reflect.Value) reflect.Value {
-		return v.FieldByIndex(value.Index)
-	}
-	return keyFn, valueFn
+	return k
 }
 
 func closeout(pipes []reflect.Value) {
 	for _, pipe := range pipes {
 		pipe.Close()
 	}
-
 }

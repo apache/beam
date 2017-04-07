@@ -12,8 +12,8 @@ import (
 	"net/url"
 )
 
-// newStorageClient creates a new GCS client with default application credentials.
-func newStorageClient(ctx context.Context) (*storage.Service, error) {
+// NewStorageClient creates a new GCS client with default application credentials.
+func NewStorageClient(ctx context.Context) (*storage.Service, error) {
 	cl, err := google.DefaultClient(ctx, storage.DevstorageFullControlScope)
 	if err != nil {
 		return nil, err
