@@ -35,9 +35,9 @@ import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.OutputTimeFns;
-import org.apache.beam.sdk.util.state.AccumulatorCombiningState;
 import org.apache.beam.sdk.util.state.BagState;
 import org.apache.beam.sdk.util.state.CombiningState;
+import org.apache.beam.sdk.util.state.GroupingState;
 import org.apache.beam.sdk.util.state.ReadableState;
 import org.apache.beam.sdk.util.state.ValueState;
 import org.apache.beam.sdk.util.state.WatermarkHoldState;
@@ -58,7 +58,7 @@ public class ApexStateInternalsTest {
 
   private static final StateTag<Object, ValueState<String>> STRING_VALUE_ADDR =
       StateTags.value("stringValue", StringUtf8Coder.of());
-  private static final StateTag<Object, AccumulatorCombiningState<Integer, int[], Integer>>
+  private static final StateTag<Object, CombiningState<Integer, int[], Integer>>
       SUM_INTEGER_ADDR = StateTags.combiningValueFromInputInternal(
           "sumInteger", VarIntCoder.of(), Sum.ofIntegers());
   private static final StateTag<Object, BagState<String>> STRING_BAG_ADDR =
@@ -148,7 +148,7 @@ public class ApexStateInternalsTest {
 
   @Test
   public void testCombiningValue() throws Exception {
-    CombiningState<Integer, Integer> value = underTest.state(NAMESPACE_1, SUM_INTEGER_ADDR);
+    GroupingState<Integer, Integer> value = underTest.state(NAMESPACE_1, SUM_INTEGER_ADDR);
 
     // State instances are cached, but depend on the namespace.
     assertEquals(value, underTest.state(NAMESPACE_1, SUM_INTEGER_ADDR));
@@ -168,7 +168,7 @@ public class ApexStateInternalsTest {
 
   @Test
   public void testCombiningIsEmpty() throws Exception {
-    CombiningState<Integer, Integer> value = underTest.state(NAMESPACE_1, SUM_INTEGER_ADDR);
+    GroupingState<Integer, Integer> value = underTest.state(NAMESPACE_1, SUM_INTEGER_ADDR);
 
     assertThat(value.isEmpty().read(), Matchers.is(true));
     ReadableState<Boolean> readFuture = value.isEmpty();
@@ -181,9 +181,9 @@ public class ApexStateInternalsTest {
 
   @Test
   public void testMergeCombiningValueIntoSource() throws Exception {
-    AccumulatorCombiningState<Integer, int[], Integer> value1 =
+    CombiningState<Integer, int[], Integer> value1 =
         underTest.state(NAMESPACE_1, SUM_INTEGER_ADDR);
-    AccumulatorCombiningState<Integer, int[], Integer> value2 =
+    CombiningState<Integer, int[], Integer> value2 =
         underTest.state(NAMESPACE_2, SUM_INTEGER_ADDR);
 
     value1.add(5);
@@ -202,11 +202,11 @@ public class ApexStateInternalsTest {
 
   @Test
   public void testMergeCombiningValueIntoNewNamespace() throws Exception {
-    AccumulatorCombiningState<Integer, int[], Integer> value1 =
+    CombiningState<Integer, int[], Integer> value1 =
         underTest.state(NAMESPACE_1, SUM_INTEGER_ADDR);
-    AccumulatorCombiningState<Integer, int[], Integer> value2 =
+    CombiningState<Integer, int[], Integer> value2 =
         underTest.state(NAMESPACE_2, SUM_INTEGER_ADDR);
-    AccumulatorCombiningState<Integer, int[], Integer> value3 =
+    CombiningState<Integer, int[], Integer> value3 =
         underTest.state(NAMESPACE_3, SUM_INTEGER_ADDR);
 
     value1.add(5);

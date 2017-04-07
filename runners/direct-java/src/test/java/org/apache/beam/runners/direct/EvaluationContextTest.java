@@ -414,8 +414,7 @@ public class EvaluationContextTest {
   }
 
   @Test
-  public void isDoneWithUnboundedPCollectionAndShutdown() {
-    context.getPipelineOptions().setShutdownUnboundedProducersWithMaxWatermark(true);
+  public void isDoneWithUnboundedPCollection() {
     assertThat(context.isDone(unboundedProducer), is(false));
 
     context.handleResult(
@@ -427,33 +426,7 @@ public class EvaluationContextTest {
   }
 
   @Test
-  public void isDoneWithUnboundedPCollectionAndNotShutdown() {
-    context.getPipelineOptions().setShutdownUnboundedProducersWithMaxWatermark(false);
-    assertThat(context.isDone(graph.getProducer(unbounded)), is(false));
-
-    context.handleResult(
-        null,
-        ImmutableList.<TimerData>of(),
-        StepTransformResult.withoutHold(graph.getProducer(unbounded)).build());
-    assertThat(context.isDone(graph.getProducer(unbounded)), is(false));
-  }
-
-  @Test
-  public void isDoneWithOnlyBoundedPCollections() {
-    context.getPipelineOptions().setShutdownUnboundedProducersWithMaxWatermark(false);
-    assertThat(context.isDone(createdProducer), is(false));
-
-    context.handleResult(
-        null,
-        ImmutableList.<TimerData>of(),
-        StepTransformResult.withoutHold(createdProducer).build());
-    context.extractFiredTimers();
-    assertThat(context.isDone(createdProducer), is(true));
-  }
-
-  @Test
   public void isDoneWithPartiallyDone() {
-    context.getPipelineOptions().setShutdownUnboundedProducersWithMaxWatermark(true);
     assertThat(context.isDone(), is(false));
 
     UncommittedBundle<Integer> rootBundle = context.createBundle(created);
@@ -482,34 +455,6 @@ public class EvaluationContextTest {
     }
     context.extractFiredTimers();
     assertThat(context.isDone(), is(true));
-  }
-
-  @Test
-  public void isDoneWithUnboundedAndNotShutdown() {
-    context.getPipelineOptions().setShutdownUnboundedProducersWithMaxWatermark(false);
-    assertThat(context.isDone(), is(false));
-
-    context.handleResult(
-        null,
-        ImmutableList.<TimerData>of(),
-        StepTransformResult.withoutHold(createdProducer).build());
-    context.handleResult(
-        null,
-        ImmutableList.<TimerData>of(),
-        StepTransformResult.withoutHold(unboundedProducer).build());
-    context.handleResult(
-        context.createBundle(created).commit(Instant.now()),
-        ImmutableList.<TimerData>of(),
-        StepTransformResult.withoutHold(downstreamProducer).build());
-    context.extractFiredTimers();
-    assertThat(context.isDone(), is(false));
-
-    context.handleResult(
-        context.createBundle(created).commit(Instant.now()),
-        ImmutableList.<TimerData>of(),
-        StepTransformResult.withoutHold(viewProducer).build());
-    context.extractFiredTimers();
-    assertThat(context.isDone(), is(false));
   }
 
   private static class TestBoundedWindow extends BoundedWindow {

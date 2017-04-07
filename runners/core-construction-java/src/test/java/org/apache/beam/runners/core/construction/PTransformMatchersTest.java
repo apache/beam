@@ -38,16 +38,23 @@ import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Flatten;
+import org.apache.beam.sdk.transforms.Materialization;
+import org.apache.beam.sdk.transforms.Materializations;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Sum;
+import org.apache.beam.sdk.transforms.View;
+import org.apache.beam.sdk.transforms.View.CreatePCollectionView;
+import org.apache.beam.sdk.transforms.ViewFn;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
+import org.apache.beam.sdk.util.PCollectionViews;
 import org.apache.beam.sdk.util.TimeDomain;
 import org.apache.beam.sdk.util.Timer;
 import org.apache.beam.sdk.util.TimerSpec;
 import org.apache.beam.sdk.util.TimerSpecs;
+import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.util.state.StateSpec;
 import org.apache.beam.sdk.util.state.StateSpecs;
@@ -56,6 +63,7 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.PCollectionList;
+import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.TaggedPValue;
 import org.apache.beam.sdk.values.TupleTag;
@@ -322,6 +330,55 @@ public class PTransformMatchersTest implements Serializable {
     AppliedPTransform<?, ?, ?> notParDo = getAppliedTransform(Create.empty(VoidCoder.of()));
     PTransformMatcher matcher = PTransformMatchers.parDoWithFnType(doFnWithState.getClass());
     assertThat(matcher.matches(notParDo), is(false));
+  }
+
+  @Test
+  public void createViewWithViewFn() {
+    PCollection<Integer> input = p.apply(Create.of(1));
+    PCollectionView<Iterable<Integer>> view =
+        PCollectionViews.iterableView(input, input.getWindowingStrategy(), input.getCoder());
+    ViewFn<Iterable<WindowedValue<?>>, Iterable<Integer>> viewFn = view.getViewFn();
+    CreatePCollectionView<?, ?> createView = CreatePCollectionView.of(view);
+
+    PTransformMatcher matcher = PTransformMatchers.createViewWithViewFn(viewFn.getClass());
+    assertThat(matcher.matches(getAppliedTransform(createView)), is(true));
+  }
+
+  @Test
+  public void createViewWithViewFnDifferentViewFn() {
+    PCollection<Integer> input = p.apply(Create.of(1));
+    PCollectionView<Iterable<Integer>> view =
+        PCollectionViews.iterableView(input, input.getWindowingStrategy(), input.getCoder());
+    ViewFn<Iterable<WindowedValue<?>>, Iterable<Integer>> viewFn =
+        new ViewFn<Iterable<WindowedValue<?>>, Iterable<Integer>>() {
+          @Override
+          public Materialization<Iterable<WindowedValue<?>>> getMaterialization() {
+            @SuppressWarnings({"rawtypes", "unchecked"})
+            Materialization<Iterable<WindowedValue<?>>> materialization =
+                (Materialization) Materializations.iterable();
+            return materialization;
+          }
+
+          @Override
+          public Iterable<Integer> apply(Iterable<WindowedValue<?>> contents) {
+            return Collections.emptyList();
+          }
+        };
+    CreatePCollectionView<?, ?> createView = CreatePCollectionView.of(view);
+
+    PTransformMatcher matcher = PTransformMatchers.createViewWithViewFn(viewFn.getClass());
+    assertThat(matcher.matches(getAppliedTransform(createView)), is(false));
+  }
+
+  @Test
+  public void createViewWithViewFnNotCreatePCollectionView() {
+    PCollection<Integer> input = p.apply(Create.of(1));
+    PCollectionView<Iterable<Integer>> view =
+        PCollectionViews.iterableView(input, input.getWindowingStrategy(), input.getCoder());
+
+    PTransformMatcher matcher =
+        PTransformMatchers.createViewWithViewFn(view.getViewFn().getClass());
+    assertThat(matcher.matches(getAppliedTransform(View.asIterable())), is(false));
   }
 
   @Test

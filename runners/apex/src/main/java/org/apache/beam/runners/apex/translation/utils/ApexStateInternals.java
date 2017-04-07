@@ -43,8 +43,8 @@ import org.apache.beam.sdk.transforms.CombineWithContext.KeyedCombineFnWithConte
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.OutputTimeFn;
 import org.apache.beam.sdk.util.CombineFnUtil;
-import org.apache.beam.sdk.util.state.AccumulatorCombiningState;
 import org.apache.beam.sdk.util.state.BagState;
+import org.apache.beam.sdk.util.state.CombiningState;
 import org.apache.beam.sdk.util.state.MapState;
 import org.apache.beam.sdk.util.state.ReadableState;
 import org.apache.beam.sdk.util.state.SetState;
@@ -139,12 +139,12 @@ public class ApexStateInternals<K> implements StateInternals<K>, Serializable {
     }
 
     @Override
-    public <InputT, AccumT, OutputT> AccumulatorCombiningState<InputT, AccumT, OutputT>
+    public <InputT, AccumT, OutputT> CombiningState<InputT, AccumT, OutputT>
         bindCombiningValue(
-            StateTag<? super K, AccumulatorCombiningState<InputT, AccumT, OutputT>> address,
+            StateTag<? super K, CombiningState<InputT, AccumT, OutputT>> address,
             Coder<AccumT> accumCoder,
             final CombineFn<InputT, AccumT, OutputT> combineFn) {
-      return new ApexAccumulatorCombiningState<>(
+      return new ApexCombiningState<>(
           namespace,
           address,
           accumCoder,
@@ -161,12 +161,12 @@ public class ApexStateInternals<K> implements StateInternals<K>, Serializable {
     }
 
     @Override
-    public <InputT, AccumT, OutputT> AccumulatorCombiningState<InputT, AccumT, OutputT>
+    public <InputT, AccumT, OutputT> CombiningState<InputT, AccumT, OutputT>
         bindKeyedCombiningValue(
-            StateTag<? super K, AccumulatorCombiningState<InputT, AccumT, OutputT>> address,
+            StateTag<? super K, CombiningState<InputT, AccumT, OutputT>> address,
             Coder<AccumT> accumCoder,
             KeyedCombineFn<? super K, InputT, AccumT, OutputT> combineFn) {
-      return new ApexAccumulatorCombiningState<>(
+      return new ApexCombiningState<>(
           namespace,
           address,
           accumCoder,
@@ -174,9 +174,9 @@ public class ApexStateInternals<K> implements StateInternals<K>, Serializable {
     }
 
     @Override
-    public <InputT, AccumT, OutputT> AccumulatorCombiningState<InputT, AccumT, OutputT>
+    public <InputT, AccumT, OutputT> CombiningState<InputT, AccumT, OutputT>
         bindKeyedCombiningValueWithContext(
-            StateTag<? super K, AccumulatorCombiningState<InputT, AccumT, OutputT>> address,
+            StateTag<? super K, CombiningState<InputT, AccumT, OutputT>> address,
             Coder<AccumT> accumCoder,
             KeyedCombineFnWithContext<? super K, InputT, AccumT, OutputT> combineFn) {
       return bindKeyedCombiningValue(address, accumCoder, CombineFnUtil.bindContext(combineFn, c));
@@ -323,14 +323,14 @@ public class ApexStateInternals<K> implements StateInternals<K>, Serializable {
 
   }
 
-  private final class ApexAccumulatorCombiningState<K, InputT, AccumT, OutputT>
+  private final class ApexCombiningState<K, InputT, AccumT, OutputT>
       extends AbstractState<AccumT>
-      implements AccumulatorCombiningState<InputT, AccumT, OutputT> {
+      implements CombiningState<InputT, AccumT, OutputT> {
     private final K key;
     private final KeyedCombineFn<? super K, InputT, AccumT, OutputT> combineFn;
 
-    private ApexAccumulatorCombiningState(StateNamespace namespace,
-        StateTag<? super K, AccumulatorCombiningState<InputT, AccumT, OutputT>> address,
+    private ApexCombiningState(StateNamespace namespace,
+        StateTag<? super K, CombiningState<InputT, AccumT, OutputT>> address,
         Coder<AccumT> coder,
         K key, KeyedCombineFn<? super K, InputT, AccumT, OutputT> combineFn) {
       super(namespace, address, coder);
@@ -339,7 +339,7 @@ public class ApexStateInternals<K> implements StateInternals<K>, Serializable {
     }
 
     @Override
-    public ApexAccumulatorCombiningState<K, InputT, AccumT, OutputT> readLater() {
+    public ApexCombiningState<K, InputT, AccumT, OutputT> readLater() {
       return this;
     }
 

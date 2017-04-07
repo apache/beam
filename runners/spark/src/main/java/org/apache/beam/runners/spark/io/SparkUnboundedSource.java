@@ -18,6 +18,8 @@
 
 package org.apache.beam.runners.spark.io;
 
+import java.io.Closeable;
+import java.io.IOException;
 import java.io.Serializable;
 import java.util.Collections;
 import org.apache.beam.runners.spark.SparkPipelineOptions;
@@ -32,6 +34,10 @@ import org.apache.beam.runners.spark.util.GlobalWatermarkHolder.SparkWatermarks;
 import org.apache.beam.sdk.io.Source;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.io.UnboundedSource.CheckpointMark;
+import org.apache.beam.sdk.metrics.Gauge;
+import org.apache.beam.sdk.metrics.Metrics;
+import org.apache.beam.sdk.metrics.MetricsContainer;
+import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -102,29 +108,21 @@ public class SparkUnboundedSource {
 
     // report the number of input elements for this InputDStream to the InputInfoTracker.
     int id = inputDStream.inputDStream().id();
-    JavaDStream<Metadata> metadataDStream = mapWithStateDStream.map(
-        new Function<Tuple2<Iterable<byte[]>, Metadata>, Metadata>() {
-          @Override
-          public Metadata call(Tuple2<Iterable<byte[]>, Metadata> t2) throws Exception {
-            return t2._2();
-          }
-        });
+    JavaDStream<Metadata> metadataDStream = mapWithStateDStream.map(new Tuple2MetadataFunction());
 
     // register ReadReportDStream to report information related to this read.
-    new ReadReportDStream(metadataDStream.dstream(), id, getSourceName(source, id)).register();
+    new ReadReportDStream(metadataDStream.dstream(), id, getSourceName(source, id), stepName)
+        .register();
 
     // output the actual (deserialized) stream.
     WindowedValue.FullWindowedValueCoder<T> coder =
         WindowedValue.FullWindowedValueCoder.of(
             source.getDefaultOutputCoder(),
             GlobalWindow.Coder.INSTANCE);
-    JavaDStream<WindowedValue<T>> readUnboundedStream = mapWithStateDStream.flatMap(
-        new FlatMapFunction<Tuple2<Iterable<byte[]>, Metadata>, byte[]>() {
-          @Override
-          public Iterable<byte[]> call(Tuple2<Iterable<byte[]>, Metadata> t2) throws Exception {
-            return t2._1();
-          }
-        }).map(CoderHelpers.fromByteFunction(coder));
+    JavaDStream<WindowedValue<T>> readUnboundedStream =
+        mapWithStateDStream
+            .flatMap(new Tuple2byteFlatMapFunction())
+            .map(CoderHelpers.fromByteFunction(coder));
     return new UnboundedDataset<>(readUnboundedStream, Collections.singletonList(id));
   }
 
@@ -157,18 +155,25 @@ public class SparkUnboundedSource {
    * <p>Updates {@link MetricsAccumulator} with metrics reported in the read.</p>
    */
   private static class ReadReportDStream extends DStream<BoxedUnit> {
+
+    private static final String READ_DURATION_MILLIS = "readDurationMillis";
+    private static final String NAMESPACE = "spark-runner.io";
+
     private final DStream<Metadata> parent;
     private final int inputDStreamId;
     private final String sourceName;
+    private final String stepName;
 
     ReadReportDStream(
         DStream<Metadata> parent,
         int inputDStreamId,
-        String sourceName) {
+        String sourceName,
+        String stepName) {
       super(parent.ssc(), JavaSparkContext$.MODULE$.<BoxedUnit>fakeClassTag());
       this.parent = parent;
       this.inputDStreamId = inputDStreamId;
       this.sourceName = sourceName;
+      this.stepName = stepName;
     }
 
     @Override
@@ -191,6 +196,7 @@ public class SparkUnboundedSource {
       SparkWatermarks sparkWatermark = null;
       Instant globalLowWatermarkForBatch = BoundedWindow.TIMESTAMP_MIN_VALUE;
       Instant globalHighWatermarkForBatch = BoundedWindow.TIMESTAMP_MIN_VALUE;
+      long maxReadDuration = 0;
       if (parentRDDOpt.isDefined()) {
         JavaRDD<Metadata> parentRDD = parentRDDOpt.get().toJavaRDD();
         for (Metadata metadata: parentRDD.collect()) {
@@ -205,6 +211,16 @@ public class SparkUnboundedSource {
               globalHighWatermarkForBatch.isBefore(partitionHighWatermark)
                   ? partitionHighWatermark : globalHighWatermarkForBatch;
           // Update metrics reported in the read
+          final Gauge gauge = Metrics.gauge(NAMESPACE, READ_DURATION_MILLIS);
+          final MetricsContainer container = metadata.getMetricsContainer().getContainer(stepName);
+          try (Closeable ignored = MetricsEnvironment.scopedMetricsContainer(container)) {
+            final long readDurationMillis = metadata.getReadDurationMillis();
+            if (readDurationMillis > maxReadDuration) {
+              gauge.set(readDurationMillis);
+            }
+          } catch (IOException e) {
+            throw new RuntimeException(e);
+          }
           metricsAccum.value().update(metadata.getMetricsContainer());
         }
 
@@ -244,14 +260,17 @@ public class SparkUnboundedSource {
     private final long numRecords;
     private final Instant lowWatermark;
     private final Instant highWatermark;
+    private final long readDurationMillis;
     private final SparkMetricsContainer metricsContainer;
 
     public Metadata(
         long numRecords,
         Instant lowWatermark,
         Instant highWatermark,
+        final long readDurationMillis,
         SparkMetricsContainer metricsContainer) {
       this.numRecords = numRecords;
+      this.readDurationMillis = readDurationMillis;
       this.metricsContainer = metricsContainer;
       this.lowWatermark = lowWatermark;
       this.highWatermark = highWatermark;
@@ -270,8 +289,30 @@ public class SparkUnboundedSource {
       return highWatermark;
     }
 
+    public long getReadDurationMillis() {
+      return readDurationMillis;
+    }
+
     SparkMetricsContainer getMetricsContainer() {
       return metricsContainer;
+    }
+  }
+
+  private static class Tuple2MetadataFunction
+      implements Function<Tuple2<Iterable<byte[]>, Metadata>, Metadata> {
+
+    @Override
+    public Metadata call(Tuple2<Iterable<byte[]>, Metadata> t2) throws Exception {
+      return t2._2();
+    }
+  }
+
+  private static class Tuple2byteFlatMapFunction
+      implements FlatMapFunction<Tuple2<Iterable<byte[]>, Metadata>, byte[]> {
+
+    @Override
+    public Iterable<byte[]> call(Tuple2<Iterable<byte[]>, Metadata> t2) throws Exception {
+      return t2._1();
     }
   }
 }

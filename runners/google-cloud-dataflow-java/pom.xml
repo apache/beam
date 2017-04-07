@@ -33,7 +33,7 @@
   <packaging>jar</packaging>
 
   <properties>
-    <dataflow.container_version>beam-master-20170329</dataflow.container_version>
+    <dataflow.container_version>beam-master-20170405</dataflow.container_version>
     <dataflow.fnapi_environment_major_version>1</dataflow.fnapi_environment_major_version>
     <dataflow.legacy_environment_major_version>6</dataflow.legacy_environment_major_version>
   </properties>
@@ -86,6 +86,7 @@
                 org.apache.beam.sdk.testing.UsesTimersInParDo,
                 org.apache.beam.sdk.testing.UsesSplittableParDo,
                 org.apache.beam.sdk.testing.UsesUnboundedPCollections,
+                org.apache.beam.sdk.testing.UsesTestStream,
               </excludedGroups>
             </configuration>
           </execution>
@@ -252,12 +253,6 @@
     <dependency>
       <groupId>com.google.protobuf</groupId>
       <artifactId>protobuf-java</artifactId>
-    </dependency>
-
-    <dependency>
-      <groupId>com.google.protobuf</groupId>
-      <artifactId>protobuf-lite</artifactId>
-      <scope>runtime</scope>
     </dependency>
 
     <dependency>

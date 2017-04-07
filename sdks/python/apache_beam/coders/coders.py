@@ -188,8 +188,8 @@ class Coder(object):
     # TODO(BEAM-115): Use specialized URNs and components.
     from apache_beam.runners.api import beam_runner_api_pb2
     return beam_runner_api_pb2.Coder(
-        spec=beam_runner_api_pb2.FunctionSpec(
-            spec=beam_runner_api_pb2.UrnWithParameter(
+        spec=beam_runner_api_pb2.SdkFunctionSpec(
+            spec=beam_runner_api_pb2.FunctionSpec(
                 urn=urns.PICKLED_CODER,
                 parameter=proto_utils.pack_Any(
                     google.protobuf.wrappers_pb2.BytesValue(

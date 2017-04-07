@@ -70,7 +70,6 @@ import org.apache.beam.sdk.util.gcsfs.GcsPath;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
-import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -155,27 +154,35 @@ import org.slf4j.LoggerFactory;
  * <h3>Sharding BigQuery output tables</h3>
  *
  * <p>A common use case is to dynamically generate BigQuery table names based on
- * the current window. To support this,
+ * the current window or the current value. To support this,
  * {@link BigQueryIO.Write#to(SerializableFunction)}
- * accepts a function mapping the current window to a tablespec. For example,
+ * accepts a function mapping the current element to a tablespec. For example,
  * here's code that outputs daily tables to BigQuery:
  * <pre>{@code
  * PCollection<TableRow> quotes = ...
  * quotes.apply(Window.<TableRow>into(CalendarWindows.days(1)))
- *       .apply(BigQueryIO.Write
+ *       .apply(BigQueryIO.writeTableRows()
  *         .withSchema(schema)
- *         .to(new SerializableFunction<BoundedWindow, String>() {
- *           public String apply(BoundedWindow window) {
+ *         .to(new SerializableFunction<ValueInSingleWindow, String>() {
+ *           public String apply(ValueInSingleWindow value) {
  *             // The cast below is safe because CalendarWindows.days(1) produces IntervalWindows.
  *             String dayString = DateTimeFormat.forPattern("yyyy_MM_dd")
  *                  .withZone(DateTimeZone.UTC)
- *                  .print(((IntervalWindow) window).start());
+ *                  .print(((IntervalWindow) value.getWindow()).start());
  *             return "my-project:output.output_table_" + dayString;
  *           }
  *         }));
  * }</pre>
  *
- * <p>Per-window tables are not yet supported in batch mode.
+ * <p>Note that this also allows the table to be a function of the element as well as the current
+ * pane, in the case of triggered windows. In this case it might be convenient to call
+ * {@link BigQueryIO#write()} directly instead of using the {@link BigQueryIO#writeTableRows()}
+ * helper. This will allow the mapping function to access the element of the user-defined type.
+ * In this case, a formatting function must be specified using
+ * {@link BigQueryIO.Write#withFormatFunction} to convert each element into a {@link TableRow}
+ * object.
+ *
+ * <p>Per-value tables currently do not perform well in batch mode.
  *
  * <h3>Permissions</h3>
  *
@@ -674,7 +681,7 @@ public class BigQueryIO {
 
   /** Implementation of {@link #write}. */
   @AutoValue
-  public abstract static class Write<T> extends PTransform<PCollection<T>, PDone> {
+  public abstract static class Write<T> extends PTransform<PCollection<T>, WriteResult> {
     @VisibleForTesting
     // Maximum number of files in a single partition.
     static final int MAX_NUM_FILES = 10000;
@@ -984,7 +991,7 @@ public class BigQueryIO {
     }
 
     @Override
-    public PDone expand(PCollection<T> input) {
+    public WriteResult expand(PCollection<T> input) {
       // When writing an Unbounded PCollection, or when a tablespec function is defined, we use
       // StreamWithDeDup and BigQuery's streaming import API.
       if (input.isBounded() == IsBounded.UNBOUNDED || getTableRefFunction() != null) {

@@ -21,7 +21,7 @@ package org.apache.beam.sdk.util.state;
  * Base interface for all state locations.
  *
  * <p>Specific types of state add appropriate accessors for reading and writing values, see
- * {@link ValueState}, {@link BagState}, and {@link CombiningState}.
+ * {@link ValueState}, {@link BagState}, and {@link GroupingState}.
  */
 public interface State {
 

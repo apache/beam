@@ -395,4 +395,17 @@ public class PubsubUnboundedSourceTest {
     assertThat(readerFromOriginal.subscription, equalTo(createdSubscription));
     assertThat(readerFromDeser.subscription, equalTo(createdSubscription));
   }
+
+  /**
+   * Tests that checkpoints finalized after the reader is closed succeed.
+   */
+  @Test
+  public void closeWithActiveCheckpoints() throws Exception {
+    setupOneMessage();
+    PubsubReader<String> reader = primSource.createReader(p.getOptions(), null);
+    reader.start();
+    PubsubCheckpoint<String> checkpoint = reader.getCheckpointMark();
+    reader.close();
+    checkpoint.finalizeCheckpoint();
+  }
 }

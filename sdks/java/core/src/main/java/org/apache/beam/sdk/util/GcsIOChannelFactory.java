@@ -99,7 +99,8 @@ public class GcsIOChannelFactory implements IOChannelFactory {
   }
 
   @Override
-  public void copy(List<String> srcFilenames, List<String> destFilenames) throws IOException {
+  public void copy(Iterable<String> srcFilenames, Iterable<String> destFilenames)
+      throws IOException {
     options.getGcsUtil().copy(srcFilenames, destFilenames);
   }
 

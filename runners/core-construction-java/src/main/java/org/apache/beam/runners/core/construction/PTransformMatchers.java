@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.core.construction;
 
+import com.google.common.base.MoreObjects;
 import java.util.HashSet;
 import java.util.Set;
 import org.apache.beam.sdk.annotations.Experimental;
@@ -28,9 +29,12 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.View.CreatePCollectionView;
+import org.apache.beam.sdk.transforms.ViewFn;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.ProcessElementMethod;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
+import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TaggedPValue;
@@ -67,6 +71,13 @@ public class PTransformMatchers {
     public boolean matches(AppliedPTransform<?, ?, ?> application) {
       return application.getTransform().getClass().equals(clazz);
     }
+
+    @Override
+    public String toString() {
+      return MoreObjects.toStringHelper(EqualClassPTransformMatcher.class)
+          .add("class", clazz)
+          .toString();
+    }
   }
 
   /**
@@ -84,6 +95,11 @@ public class PTransformMatchers {
           return signature.processElement().isSplittable();
         }
         return false;
+      }
+
+      @Override
+      public String toString() {
+        return MoreObjects.toStringHelper("SplittableParDoSingleMatcher").toString();
       }
     };
   }
@@ -105,6 +121,11 @@ public class PTransformMatchers {
         }
         return false;
       }
+
+      @Override
+      public String toString() {
+        return MoreObjects.toStringHelper("StateOrTimerParDoSingleMatcher").toString();
+      }
     };
   }
 
@@ -123,6 +144,11 @@ public class PTransformMatchers {
           return signature.processElement().isSplittable();
         }
         return false;
+      }
+
+      @Override
+      public String toString() {
+        return MoreObjects.toStringHelper("SplittableParDoMultiMatcher").toString();
       }
     };
   }
@@ -143,6 +169,11 @@ public class PTransformMatchers {
           return signature.usesState() || signature.usesTimers();
         }
         return false;
+      }
+
+      @Override
+      public String toString() {
+        return MoreObjects.toStringHelper("StateOrTimerParDoMultiMatcher").toString();
       }
     };
   }
@@ -165,6 +196,28 @@ public class PTransformMatchers {
         }
         return fnType.equals(fn.getClass());
       }
+
+      @Override
+      public String toString() {
+        return MoreObjects.toStringHelper("ParDoWithFnTypeMatcher")
+            .add("fnType", fnType)
+            .toString();
+      }
+    };
+  }
+
+  public static PTransformMatcher createViewWithViewFn(final Class<? extends ViewFn> viewFnType) {
+    return new PTransformMatcher() {
+      @Override
+      public boolean matches(AppliedPTransform<?, ?, ?> application) {
+        if (!(application.getTransform() instanceof CreatePCollectionView)) {
+          return false;
+        }
+        CreatePCollectionView<?, ?> createView =
+            (CreatePCollectionView<?, ?>) application.getTransform();
+        ViewFn<Iterable<WindowedValue<?>>, ?> viewFn = createView.getView().getViewFn();
+        return viewFn.getClass().equals(viewFnType);
+      }
     };
   }
 
@@ -178,6 +231,11 @@ public class PTransformMatchers {
       public boolean matches(AppliedPTransform<?, ?, ?> application) {
         return (application.getTransform() instanceof Flatten.PCollections)
             && application.getInputs().isEmpty();
+      }
+
+      @Override
+      public String toString() {
+        return MoreObjects.toStringHelper("EmptyFlattenMatcher").toString();
       }
     };
   }
@@ -201,6 +259,11 @@ public class PTransformMatchers {
         }
         return false;
       }
+
+      @Override
+      public String toString() {
+        return MoreObjects.toStringHelper("FlattenWithDuplicateInputsMatcher").toString();
+      }
     };
   }
 
@@ -209,7 +272,8 @@ public class PTransformMatchers {
       @Override
       public boolean matches(AppliedPTransform<?, ?, ?> application) {
         if (application.getTransform() instanceof Write) {
-          return ((Write) application.getTransform()).getSharding() == null;
+          Write write = (Write) application.getTransform();
+          return write.getSharding() == null && write.getNumShards() == null;
         }
         return false;
       }

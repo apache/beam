@@ -683,7 +683,8 @@ def model_custom_source(count):
       lines, beam.equal_to(
           ['line ' + str(number) for number in range(0, count)]))
 
-  p.run().wait_until_finish()
+  # Don't test runner api due to pickling errors.
+  p.run(test_runner_api=False).wait_until_finish()
 
 
 def model_custom_sink(simplekv, KVs, final_table_name_no_ptransform,

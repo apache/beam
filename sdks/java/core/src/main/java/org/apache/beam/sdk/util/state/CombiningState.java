@@ -20,23 +20,34 @@ package org.apache.beam.sdk.util.state;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
 
 /**
- * State that combines multiple {@code InputT} values using a {@link CombineFn} to produce a single
- * {@code OutputT} value.
+ * State for a single value that is managed by a {@link CombineFn}. This is an internal extension
+ * to {@link GroupingState} that includes the {@code AccumT} type.
  *
  * @param <InputT> the type of values added to the state
+ * @param <AccumT> the type of accumulator
  * @param <OutputT> the type of value extracted from the state
  */
-public interface CombiningState<InputT, OutputT> extends ReadableState<OutputT>, State {
-  /**
-   * Add a value to the buffer.
-   */
-  void add(InputT value);
+public interface CombiningState<InputT, AccumT, OutputT>
+    extends GroupingState<InputT, OutputT> {
 
   /**
-   * Return true if this state is empty.
+   * Read the merged accumulator for this combining value. It is implied that reading the
+   * state involes reading the accumulator, so {@link #readLater} is sufficient to prefetch for
+   * this.
    */
-  ReadableState<Boolean> isEmpty();
+  AccumT getAccum();
+
+  /**
+   * Add an accumulator to this combining value. Depending on implementation this may immediately
+   * merge it with the previous accumulator, or may buffer this accumulator for a future merge.
+   */
+  void addAccum(AccumT accum);
+
+  /**
+   * Merge the given accumulators according to the underlying combiner.
+   */
+  AccumT mergeAccumulators(Iterable<AccumT> accumulators);
 
   @Override
-  CombiningState<InputT, OutputT> readLater();
+  CombiningState<InputT, AccumT, OutputT> readLater();
 }

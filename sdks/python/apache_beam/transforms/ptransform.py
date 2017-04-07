@@ -463,7 +463,7 @@ class PTransformWithSideInputs(PTransform):
           'AsIter(pcollection) or AsSingleton(pcollection) to indicate how the '
           'PCollection is to be used.')
     self.args, self.kwargs, self.side_inputs = util.remove_objects_from_args(
-        args, kwargs, pvalue.PCollectionView)
+        args, kwargs, pvalue.AsSideInput)
     self.raw_side_inputs = args, kwargs
 
     # Prevent name collisions with fns of the form '<function <lambda> at ...>'
@@ -519,7 +519,7 @@ class PTransformWithSideInputs(PTransform):
       args, kwargs = self.raw_side_inputs
 
       def element_type(side_input):
-        if isinstance(side_input, pvalue.PCollectionView):
+        if isinstance(side_input, pvalue.AsSideInput):
           return side_input.element_type
         else:
           return instance_to_type(side_input)

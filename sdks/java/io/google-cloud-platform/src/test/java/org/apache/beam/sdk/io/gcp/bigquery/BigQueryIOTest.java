@@ -118,12 +118,10 @@ import org.apache.beam.sdk.options.ValueProvider.NestedValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.testing.CoderProperties;
 import org.apache.beam.sdk.testing.ExpectedLogs;
-import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.SourceTestUtils;
 import org.apache.beam.sdk.testing.SourceTestUtils.ExpectedSplitOutcome;
 import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFnTester;
@@ -153,6 +151,7 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
 import org.hamcrest.CoreMatchers;
 import org.hamcrest.Matchers;
@@ -162,7 +161,6 @@ import org.junit.Before;
 import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.experimental.categories.Category;
 import org.junit.rules.ExpectedException;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
@@ -802,7 +800,6 @@ public class BigQueryIOTest implements Serializable {
   }
 
   @Test
-  @Category(NeedsRunner.class)
   public void testBuildSourceWithTableAndFlatten() {
     BigQueryOptions bqOptions = TestPipeline.testingPipelineOptions().as(BigQueryOptions.class);
     bqOptions.setProject("defaultProject");
@@ -821,7 +818,6 @@ public class BigQueryIOTest implements Serializable {
   }
 
   @Test
-  @Category(NeedsRunner.class)
   public void testBuildSourceWithTableAndFlattenWithoutValidation() {
     BigQueryOptions bqOptions = TestPipeline.testingPipelineOptions().as(BigQueryOptions.class);
     bqOptions.setProject("defaultProject");
@@ -841,7 +837,6 @@ public class BigQueryIOTest implements Serializable {
   }
 
   @Test
-  @Category(NeedsRunner.class)
   public void testBuildSourceWithTableAndSqlDialect() {
     BigQueryOptions bqOptions = PipelineOptionsFactory.as(BigQueryOptions.class);
     bqOptions.setProject("defaultProject");
@@ -860,7 +855,6 @@ public class BigQueryIOTest implements Serializable {
   }
 
   @Test
-  @Category(NeedsRunner.class)
   public void testReadFromTable() throws IOException, InterruptedException {
     BigQueryOptions bqOptions = TestPipeline.testingPipelineOptions().as(BigQueryOptions.class);
     bqOptions.setProject("defaultProject");
@@ -943,7 +937,6 @@ public class BigQueryIOTest implements Serializable {
   }
 
   @Test
-  @Category(NeedsRunner.class)
   public void testWrite() throws Exception {
     BigQueryOptions bqOptions = TestPipeline.testingPipelineOptions().as(BigQueryOptions.class);
     bqOptions.setProject("defaultProject");
@@ -975,7 +968,6 @@ public class BigQueryIOTest implements Serializable {
   }
 
   @Test
-  @Category(NeedsRunner.class)
   public void testStreamingWrite() throws Exception {
     BigQueryOptions bqOptions = TestPipeline.testingPipelineOptions().as(BigQueryOptions.class);
     bqOptions.setProject("defaultProject");
@@ -1104,7 +1096,6 @@ public class BigQueryIOTest implements Serializable {
   }
 
   @Test
-  @Category(NeedsRunner.class)
   public void testStreamingWriteWithWindowFn() throws Exception {
     BigQueryOptions bqOptions = TestPipeline.testingPipelineOptions().as(BigQueryOptions.class);
     bqOptions.setProject("defaultProject");
@@ -1187,7 +1178,6 @@ public class BigQueryIOTest implements Serializable {
   }
 
   @Test
-  @Category(NeedsRunner.class)
   public void testWriteUnknown() throws Exception {
     BigQueryOptions bqOptions = TestPipeline.testingPipelineOptions().as(BigQueryOptions.class);
     bqOptions.setProject("defaultProject");
@@ -1220,7 +1210,6 @@ public class BigQueryIOTest implements Serializable {
   }
 
   @Test
-  @Category(NeedsRunner.class)
   public void testWriteFailedJobs() throws Exception {
     BigQueryOptions bqOptions = TestPipeline.testingPipelineOptions().as(BigQueryOptions.class);
     bqOptions.setProject("defaultProject");
@@ -1290,8 +1279,7 @@ public class BigQueryIOTest implements Serializable {
   }
 
   @Test
-  @Category(ValidatesRunner.class)
-  @Ignore("[BEAM-436] DirectRunner ValidatesRunner tempLocation configuration insufficient")
+  @Ignore("[BEAM-436] DirectRunner tempLocation configuration insufficient")
   public void testTableSourcePrimitiveDisplayData() throws IOException, InterruptedException {
     DisplayDataEvaluator evaluator = DisplayDataEvaluator.create();
     BigQueryIO.Read read = BigQueryIO.read()
@@ -1307,8 +1295,7 @@ public class BigQueryIOTest implements Serializable {
   }
 
   @Test
-  @Category(ValidatesRunner.class)
-  @Ignore("[BEAM-436] DirectRunner ValidatesRunner tempLocation configuration insufficient")
+  @Ignore("[BEAM-436] DirectRunner tempLocation configuration insufficient")
   public void testQuerySourcePrimitiveDisplayData() throws IOException, InterruptedException {
     DisplayDataEvaluator evaluator = DisplayDataEvaluator.create();
     BigQueryIO.Read read = BigQueryIO.read()
@@ -1334,15 +1321,13 @@ public class BigQueryIOTest implements Serializable {
   }
 
   @Test
-  @Category(ValidatesRunner.class)
-  @Ignore("[BEAM-436] DirectRunner ValidatesRunner tempLocation configuration insufficient")
+  @Ignore("[BEAM-436] DirectRunner tempLocation configuration insufficient")
   public void testBatchWritePrimitiveDisplayData() throws IOException, InterruptedException {
     testWritePrimitiveDisplayData(/* streaming: */ false);
   }
 
   @Test
-  @Category(ValidatesRunner.class)
-  @Ignore("[BEAM-436] DirectRunner ValidatesRunner tempLocation configuration insufficient")
+  @Ignore("[BEAM-436] DirectRunner tempLocation configuration insufficient")
   public void testStreamingWritePrimitiveDisplayData() throws IOException, InterruptedException {
     testWritePrimitiveDisplayData(/* streaming: */ true);
   }
@@ -2013,7 +1998,6 @@ public class BigQueryIOTest implements Serializable {
   }
 
   @Test
-  @Category(NeedsRunner.class)
   public void testPassThroughThenCleanup() throws Exception {
 
     PCollection<Integer> output = p
@@ -2030,7 +2014,6 @@ public class BigQueryIOTest implements Serializable {
   }
 
   @Test
-  @Category(NeedsRunner.class)
   public void testPassThroughThenCleanupExecuted() throws Exception {
 
     p.apply(Create.empty(VarIntCoder.of()))
@@ -2108,8 +2091,10 @@ public class BigQueryIOTest implements Serializable {
     TupleTag<KV<Long, List<String>>> singlePartitionTag =
         new TupleTag<KV<Long, List<String>>>("singlePartitionTag") {};
 
+    PCollection<KV<String, Long>> filesPCollection =
+        p.apply(Create.of(files).withType(new TypeDescriptor<KV<String, Long>>() {}));
     PCollectionView<Iterable<KV<String, Long>>> filesView = PCollectionViews.iterableView(
-        p,
+        filesPCollection,
         WindowingStrategy.globalDefault(),
         KvCoder.of(StringUtf8Coder.of(), VarLongCoder.of()));
 
@@ -2173,8 +2158,9 @@ public class BigQueryIOTest implements Serializable {
       expectedTempTables.add(String.format("{\"tableId\":\"%s_%05d\"}", jobIdToken, i));
     }
 
+    PCollection<String> expectedTempTablesPCollection = p.apply(Create.of(expectedTempTables));
     PCollectionView<Iterable<String>> tempTablesView = PCollectionViews.iterableView(
-        p,
+        expectedTempTablesPCollection,
         WindowingStrategy.globalDefault(),
         StringUtf8Coder.of());
     PCollection<String> jobIdTokenCollection = p.apply("CreateJobId", Create.of("jobId"));
@@ -2251,10 +2237,10 @@ public class BigQueryIOTest implements Serializable {
       tempTables.add(String.format("{\"tableId\":\"%s_%05d\"}", jobIdToken, i));
     }
 
-    PCollectionView<Iterable<String>> tempTablesView = PCollectionViews.iterableView(
-        p,
-        WindowingStrategy.globalDefault(),
-        StringUtf8Coder.of());
+    PCollection<String> tempTablesPCollection = p.apply(Create.of(tempTables));
+    PCollectionView<Iterable<String>> tempTablesView =
+        PCollectionViews.iterableView(
+            tempTablesPCollection, WindowingStrategy.globalDefault(), StringUtf8Coder.of());
     PCollection<String> jobIdTokenCollection = p.apply("CreateJobId", Create.of("jobId"));
     PCollectionView<String> jobIdTokenView =
         jobIdTokenCollection.apply(View.<String>asSingleton());

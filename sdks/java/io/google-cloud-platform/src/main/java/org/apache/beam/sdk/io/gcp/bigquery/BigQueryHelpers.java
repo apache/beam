@@ -43,7 +43,7 @@ import org.apache.beam.sdk.transforms.SerializableFunction;
 /**
  * A set of helper functions and classes used by {@link BigQueryIO}.
  */
-class BigQueryHelpers {
+public class BigQueryHelpers {
   private static final String RESOURCE_NOT_FOUND_ERROR =
       "BigQuery %1$s not found for table \"%2$s\" . Please create the %1$s before pipeline"
           + " execution. If the %1$s is created by an earlier stage of the pipeline, this"
@@ -78,7 +78,7 @@ class BigQueryHelpers {
   /**
    * Returns a canonical string representation of the {@link TableReference}.
    */
-  static String toTableSpec(TableReference ref) {
+  public static String toTableSpec(TableReference ref) {
     StringBuilder sb = new StringBuilder();
     if (ref.getProjectId() != null) {
       sb.append(ref.getProjectId());
@@ -104,7 +104,7 @@ class BigQueryHelpers {
    *
    * <p>If the project id is omitted, the default project id is used.
    */
-  static TableReference parseTableSpec(String tableSpec) {
+  public static TableReference parseTableSpec(String tableSpec) {
     Matcher match = BigQueryIO.TABLE_SPEC.matcher(tableSpec);
     if (!match.matches()) {
       throw new IllegalArgumentException(

@@ -15,31 +15,31 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.beam.sdk.util.state;
 
-package org.apache.beam.runners.spark.io.hadoop;
-
-import java.io.IOException;
-import java.io.OutputStream;
-import org.apache.avro.mapreduce.AvroKeyOutputFormat;
-import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.mapreduce.JobContext;
-import org.apache.hadoop.mapreduce.TaskAttemptContext;
+import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 
 /**
- * Templated Avro key output format.
+ * Utilities for constructing and manipulating {@link ReadableState} instances.
  */
-public class TemplatedAvroKeyOutputFormat<T> extends AvroKeyOutputFormat<T>
-    implements ShardNameTemplateAware {
+@Experimental(Kind.STATE)
+public class ReadableStates {
 
-  @Override
-  public void checkOutputSpecs(JobContext job) {
-    // don't fail if the output already exists
+  /**
+   * A {@link ReadableState} constructed from a constant value, hence immediately available.
+   */
+  public static <T> ReadableState<T> immediate(final T value) {
+    return new ReadableState<T>() {
+      @Override
+      public T read() {
+        return value;
+      }
+
+      @Override
+      public ReadableState<T> readLater() {
+        return this;
+      }
+    };
   }
-
-  @Override
-  protected OutputStream getAvroFileOutputStream(TaskAttemptContext context) throws IOException {
-    Path path = ShardNameTemplateHelper.getDefaultWorkFile(this, context);
-    return path.getFileSystem(context.getConfiguration()).create(path);
-  }
-
 }

@@ -66,7 +66,7 @@ public class HDFSFileSinkTest {
     Sink.WriteOperation<T, String> writeOperation =
         (Sink.WriteOperation<T, String>) sink.createWriteOperation(options);
     Sink.Writer<T, String> writer = writeOperation.createWriter(options);
-    writer.open(UUID.randomUUID().toString());
+    writer.openUnwindowed(UUID.randomUUID().toString(),  -1, -1);
     for (T t: toWrite) {
       writer.write(t);
     }

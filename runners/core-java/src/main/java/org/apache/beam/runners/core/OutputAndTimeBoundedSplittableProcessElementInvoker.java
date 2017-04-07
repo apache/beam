@@ -226,8 +226,7 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
     public <T> T sideInput(PCollectionView<T> view) {
       return sideInputReader.get(
           view,
-          view.getWindowingStrategyInternal()
-              .getWindowFn()
+          view.getWindowMappingFn()
               .getSideInputWindow(Iterables.getOnlyElement(element.getWindows())));
     }
 

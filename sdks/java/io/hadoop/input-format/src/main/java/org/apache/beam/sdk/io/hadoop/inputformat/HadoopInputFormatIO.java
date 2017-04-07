@@ -431,6 +431,7 @@ public class HadoopInputFormatIO {
     }
 
     @Override
+
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
       Configuration hadoopConfig = getConfiguration().getHadoopConfiguration();

@@ -257,7 +257,7 @@ public class View {
     @Override
     public PCollectionView<List<T>> expand(PCollection<T> input) {
       return input.apply(CreatePCollectionView.<T, List<T>>of(PCollectionViews.listView(
-          input.getPipeline(), input.getWindowingStrategy(), input.getCoder())));
+          input, input.getWindowingStrategy(), input.getCoder())));
     }
   }
 
@@ -283,7 +283,7 @@ public class View {
     @Override
     public PCollectionView<Iterable<T>> expand(PCollection<T> input) {
       return input.apply(CreatePCollectionView.<T, Iterable<T>>of(PCollectionViews.iterableView(
-          input.getPipeline(), input.getWindowingStrategy(), input.getCoder())));
+          input, input.getWindowingStrategy(), input.getCoder())));
     }
   }
 
@@ -427,7 +427,7 @@ public class View {
     public PCollectionView<Map<K, Iterable<V>>> expand(PCollection<KV<K, V>> input) {
       return input.apply(CreatePCollectionView.<KV<K, V>, Map<K, Iterable<V>>>of(
           PCollectionViews.multimapView(
-              input.getPipeline(),
+              input,
               input.getWindowingStrategy(),
               input.getCoder())));
     }
@@ -464,7 +464,7 @@ public class View {
     public PCollectionView<Map<K, V>> expand(PCollection<KV<K, V>> input) {
       return input.apply(CreatePCollectionView.<KV<K, V>, Map<K, V>>of(
           PCollectionViews.mapView(
-              input.getPipeline(),
+              input,
               input.getWindowingStrategy(),
               input.getCoder())));
     }

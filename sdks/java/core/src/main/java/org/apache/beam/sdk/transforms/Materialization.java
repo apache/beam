@@ -16,7 +16,21 @@
  * limitations under the License.
  */
 
+package org.apache.beam.sdk.transforms;
+
+import org.apache.beam.sdk.runners.PipelineRunner;
+
 /**
- * Spark-specific transforms for reading from and writing to Hadoop file systems (HDFS).
+ * How a view should be physically materialized by a {@link PipelineRunner}.
+ *
+ * <p>A {@link PipelineRunner} will support some set of materializations, and will reject
+ * {@link ViewFn ViewFns} that require materializations it does not support. See
+ * {@link Materializations} for known implementations.
  */
-package org.apache.beam.runners.spark.io.hadoop;
+public interface Materialization<T> {
+  /**
+   * Gets the URN describing this {@link Materialization}. This is a stable, SDK-independent URN
+   * understood by a {@link PipelineRunner}.
+   */
+  String getUrn();
+}

@@ -32,7 +32,7 @@
   <packaging>jar</packaging>
 
   <properties>
-    <bigtable.version>0.9.5.1</bigtable.version>
+    <bigtable.version>0.9.6</bigtable.version>
   </properties>
 
   <build>
@@ -77,26 +77,6 @@
               <systemPropertyVariables>
                 <beamTestPipelineOptions>${integrationTestPipelineOptions}</beamTestPipelineOptions>
               </systemPropertyVariables>
-            </configuration>
-          </execution>
-        </executions>
-      </plugin>
-
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-dependency-plugin</artifactId>
-        <executions>
-          <execution>
-            <goals><goal>analyze-only</goal></goals>
-            <configuration>
-              <usedDependencies>
-                <!--
-                  BEAM-1632: Conflicting classes are brought in by bigtable-protos resulting in
-                  maven-dependency:analyze `unused dependency` error. Marking this as a
-                  `usedDependency` until the issue is resolved.
-                 -->
-                <usedDependency>com.google.api.grpc:grpc-google-common-protos</usedDependency>
-              </usedDependencies>
             </configuration>
           </execution>
         </executions>
@@ -146,11 +126,6 @@
     <dependency>
       <groupId>com.google.cloud.datastore</groupId>
       <artifactId>datastore-v1-protos</artifactId>
-    </dependency>
-
-    <dependency>
-      <groupId>com.google.protobuf</groupId>
-      <artifactId>protobuf-lite</artifactId>
     </dependency>
 
     <dependency>
@@ -228,7 +203,7 @@
     <dependency>
       <groupId>io.netty</groupId>
       <artifactId>netty-tcnative-boringssl-static</artifactId>
-      <version>1.1.33.Fork18</version>
+      <version>1.1.33.Fork26</version>
       <scope>runtime</scope>
     </dependency>
 

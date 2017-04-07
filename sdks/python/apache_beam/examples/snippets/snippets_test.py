@@ -328,6 +328,9 @@ class TypeHintsTest(unittest.TestCase):
     lines = (p | beam.Create(
         ['banana,fruit,3', 'kiwi,fruit,2', 'kiwi,fruit,2', 'zucchini,veg,3']))
 
+    # For pickling
+    global Player  # pylint: disable=global-variable-not-assigned
+
     # [START type_hints_deterministic_key]
     class Player(object):
       def __init__(self, team, name):

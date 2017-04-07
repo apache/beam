@@ -13,7 +13,6 @@
  * the License.
  */
 package org.apache.beam.sdk.io.hadoop.inputformat;
-
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertEquals;
@@ -153,6 +152,7 @@ public class HadoopInputFormatIOTest {
     assertEquals(diffConf.getHadoopConfiguration().getClass("value.class", Object.class), read
         .getValueTypeDescriptor().getRawType());
   }
+
 
   /**
    * This test validates {@link HadoopInputFormatIO.Read Read} transform object creation fails with
@@ -395,6 +395,7 @@ public class HadoopInputFormatIOTest {
   }
 
   /**
+
    * This test validates functionality of
    * {@link HadoopInputFormatIO.HadoopInputFormatBoundedSource#populateDisplayData()
    * populateDisplayData()}.
@@ -478,8 +479,7 @@ public class HadoopInputFormatIOTest {
    */
   @Test
   public void testReadersStartWhenZeroRecords() throws Exception {
-
-    InputFormat mockInputFormat = Mockito.mock(EmployeeInputFormat.class);
+    InputFormat<Text, Employee> mockInputFormat = Mockito.mock(EmployeeInputFormat.class);
     EmployeeRecordReader mockReader = Mockito.mock(EmployeeRecordReader.class);
     Mockito.when(
         mockInputFormat.createRecordReader(Mockito.any(InputSplit.class),
@@ -494,10 +494,9 @@ public class HadoopInputFormatIOTest {
             null, // No key translation required.
             null, // No value translation required.
             new SerializableSplit(mockInputSplit));
-    boundedSource.setInputFormatObj(mockInputFormat);
-    BoundedReader<KV<Text, Employee>> reader = boundedSource.createReader(p.getOptions());
-    assertEquals(false, reader.start());
-    assertEquals(Double.valueOf(1), reader.getFractionConsumed());
+    BoundedReader<KV<Text, Employee>> boundedReader = boundedSource.createReader(p.getOptions());
+    assertEquals(false, boundedReader.start());
+    assertEquals(Double.valueOf(1), boundedReader.getFractionConsumed());
   }
 
   /**
@@ -554,6 +553,7 @@ public class HadoopInputFormatIOTest {
     assertThat(bundleRecords, containsInAnyOrder(referenceRecords.toArray()));
   }
 
+
 /**
    * This test validates the method getFractionConsumed()- when a bad progress value is returned by
    * the inputformat.
@@ -581,6 +581,7 @@ public class HadoopInputFormatIOTest {
     assertEquals(true, boundedReader.start());
     assertEquals(null, boundedReader.getFractionConsumed());
   }
+
   /**
    * This test validates that reader and its parent source reads the same records.
    */

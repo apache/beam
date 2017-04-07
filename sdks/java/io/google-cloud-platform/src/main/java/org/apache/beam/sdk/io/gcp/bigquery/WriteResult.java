@@ -15,31 +15,33 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.beam.sdk.io.gcp.bigquery;
 
-package org.apache.beam.runners.spark.io.hadoop;
+import java.util.Collections;
+import java.util.List;
 
-import java.io.IOException;
-import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.mapreduce.JobContext;
-import org.apache.hadoop.mapreduce.TaskAttemptContext;
-import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat;
+import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.values.POutputValueBase;
+import org.apache.beam.sdk.values.TaggedPValue;
+
 
 /**
- * Templates text output format.
+ * The result of a {@link BigQueryIO.Write} transform.
  */
-public class TemplatedTextOutputFormat<K, V> extends TextOutputFormat<K, V>
-    implements ShardNameTemplateAware {
-
-  @Override
-  public void checkOutputSpecs(JobContext job) {
-    // don't fail if the output already exists
+final class WriteResult extends POutputValueBase {
+  /**
+   * Creates a {@link WriteResult} in the given {@link Pipeline}.
+   */
+  static WriteResult in(Pipeline pipeline) {
+    return new WriteResult(pipeline);
   }
 
   @Override
-  public Path getDefaultWorkFile(TaskAttemptContext context,
-      String extension) throws IOException {
-    // note that the passed-in extension is ignored since it comes from the template
-    return ShardNameTemplateHelper.getDefaultWorkFile(this, context);
+  public List<TaggedPValue> expand() {
+    return Collections.emptyList();
   }
 
+  private WriteResult(Pipeline pipeline) {
+    super(pipeline);
+  }
 }

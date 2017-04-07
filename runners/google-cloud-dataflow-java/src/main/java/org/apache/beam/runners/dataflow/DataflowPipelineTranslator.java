@@ -79,7 +79,6 @@ import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.HasDisplayData;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
@@ -409,7 +408,10 @@ public class DataflowPipelineTranslator {
       PTransform<?, ?> transform = node.getTransform();
       TransformTranslator translator = getTransformTranslator(transform.getClass());
       checkState(
-          translator != null, "no translator registered for primitive transform %s", transform);
+          translator != null,
+          "no translator registered for primitive transform %s at node %s",
+          transform,
+          node.getFullName());
       LOG.debug("Translating {}", transform);
       currentTransform = node.toAppliedPTransform();
       translator.translate(transform, this);
@@ -691,15 +693,15 @@ public class DataflowPipelineTranslator {
 
   static {
     registerTransformTranslator(
-        View.CreatePCollectionView.class,
-        new TransformTranslator<View.CreatePCollectionView>() {
+        CreateDataflowView.class,
+        new TransformTranslator<CreateDataflowView>() {
           @Override
-          public void translate(View.CreatePCollectionView transform, TranslationContext context) {
+          public void translate(CreateDataflowView transform, TranslationContext context) {
             translateTyped(transform, context);
           }
 
           private <ElemT, ViewT> void translateTyped(
-              View.CreatePCollectionView<ElemT, ViewT> transform, TranslationContext context) {
+              CreateDataflowView<ElemT, ViewT> transform, TranslationContext context) {
             StepTranslationContext stepContext =
                 context.addStep(transform, "CollectionToSingleton");
             PCollection<ElemT> input = context.getInput(transform);

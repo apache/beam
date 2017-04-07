@@ -59,7 +59,7 @@ public class Reshuffle<K, V> extends PTransform<PCollection<KV<K, V>>, PCollecti
     // here to fail. Instead, we install a valid WindowFn that leaves all windows unchanged.
     // The OutputTimeFn is set to ensure the GroupByKey does not shift elements forwards in time.
     // Because this outputs as fast as possible, this should not hold the watermark.
-    Window.Bound<KV<K, V>> rewindow =
+    Window<KV<K, V>> rewindow =
         Window.<KV<K, V>>into(new IdentityWindowFn<>(originalStrategy.getWindowFn().windowCoder()))
             .triggering(new ReshuffleTrigger<>())
             .discardingFiredPanes()

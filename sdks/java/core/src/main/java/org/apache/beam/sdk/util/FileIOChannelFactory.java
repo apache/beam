@@ -22,6 +22,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 import com.google.common.base.Predicate;
 import com.google.common.base.Predicates;
 import com.google.common.collect.Iterables;
+import com.google.common.collect.Lists;
 import java.io.BufferedOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
@@ -45,6 +46,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.regex.Matcher;
 import javax.annotation.Nullable;
+
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -175,17 +177,20 @@ public class FileIOChannelFactory implements IOChannelFactory {
   }
 
   @Override
-  public void copy(List<String> srcFilenames, List<String> destFilenames) throws IOException {
+  public void copy(Iterable<String> srcFilenames, Iterable<String> destFilenames) throws
+      IOException {
+    List<String> srcList = Lists.newArrayList(srcFilenames);
+    List<String> destList = Lists.newArrayList(destFilenames);
     checkArgument(
-        srcFilenames.size() == destFilenames.size(),
+        srcList.size() == destList.size(),
         "Number of source files %s must equal number of destination files %s",
-        srcFilenames.size(),
-        destFilenames.size());
-    int numFiles = srcFilenames.size();
+        srcList.size(),
+        destList.size());
+    int numFiles = srcList.size();
     for (int i = 0; i < numFiles; i++) {
-      String src = srcFilenames.get(i);
-      String dst = destFilenames.get(i);
-      LOG.debug("Copying {} to {}", src, dst);
+      String src = srcList.get(i);
+      String dst = destList.get(i);
+      LOG.info("Copying {} to {}", src, dst);
       try {
         // Copy the source file, replacing the existing destination.
         // Paths.get(x) will not work on Windows OSes cause of the ":" after the drive letter.
@@ -194,7 +199,7 @@ public class FileIOChannelFactory implements IOChannelFactory {
             new File(dst).toPath(),
             StandardCopyOption.REPLACE_EXISTING);
       } catch (NoSuchFileException e) {
-        LOG.debug("{} does not exist.", src);
+        LOG.info("{} does not exist.", src);
         // Suppress exception if file does not exist.
       }
     }
