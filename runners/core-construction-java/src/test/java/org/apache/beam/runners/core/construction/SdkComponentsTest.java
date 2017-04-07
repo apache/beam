@@ -112,14 +112,15 @@ public class SdkComponentsTest {
   }
 
   @Test
-  public void registerPCollection() {
+  public void registerPCollection() throws IOException {
     PCollection<Long> pCollection = pipeline.apply(CountingInput.unbounded()).setName("foo");
     String id = components.registerPCollection(pCollection);
     assertThat(id, equalTo("foo"));
+    components.toComponents().getPcollectionsOrThrow(id);
   }
 
   @Test
-  public void registerPCollectionExistingNameCollision() {
+  public void registerPCollectionExistingNameCollision()  throws IOException {
     PCollection<Long> pCollection =
         pipeline.apply("FirstCount", CountingInput.unbounded()).setName("foo");
     String firstId = components.registerPCollection(pCollection);
@@ -129,6 +130,8 @@ public class SdkComponentsTest {
     assertThat(firstId, equalTo("foo"));
     assertThat(secondId, containsString("foo"));
     assertThat(secondId, not(equalTo("foo")));
+    components.toComponents().getPcollectionsOrThrow(firstId);
+    components.toComponents().getPcollectionsOrThrow(secondId);
   }
 
   @Test

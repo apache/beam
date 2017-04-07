@@ -81,13 +81,14 @@ class SdkComponents {
    * ID for the {@link PCollection}. Multiple registrations of the same {@link PCollection} will
    * return the same unique ID.
    */
-  String registerPCollection(PCollection<?> pCollection) {
+  String registerPCollection(PCollection<?> pCollection) throws IOException {
     String existing = pCollectionIds.get(pCollection);
     if (existing != null) {
       return existing;
     }
     String uniqueName = uniqify(pCollection.getName(), pCollectionIds.values());
     pCollectionIds.put(pCollection, uniqueName);
+    componentsBuilder.putPcollections(uniqueName, PCollections.toProto(pCollection, this));
     return uniqueName;
   }
 
