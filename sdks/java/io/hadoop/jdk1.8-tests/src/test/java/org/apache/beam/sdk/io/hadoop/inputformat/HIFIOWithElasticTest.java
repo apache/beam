@@ -25,7 +25,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 
-import org.apache.beam.sdk.io.hadoop.inputformat.hashing.HashingFn;
+import org.apache.beam.sdk.io.common.HashingFn;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Combine;
@@ -105,7 +105,7 @@ public class HIFIOWithElasticTest implements Serializable {
   @Test
   public void testHifIOWithElastic() {
     // Expected hashcode is evaluated during insertion time one time and hardcoded here.
-    String expectedHashCode = "e2098f431f90193aa4545e033e6fd2217aafe7b6";
+    String expectedHashCode = "a62a85f5f081e3840baf1028d4d6c6bc";
     Configuration conf = getConfiguration();
     PCollection<KV<Text, LinkedMapWritable>> esData =
         pipeline.apply(HadoopInputFormatIO.<Text, LinkedMapWritable>read().withConfiguration(conf));
@@ -135,7 +135,7 @@ public class HIFIOWithElasticTest implements Serializable {
   @Test
   public void testHifIOWithElasticQuery() {
     long expectedRowCount = 1L;
-    String expectedHashCode = "caa37dbd8258e3a7f98932958c819a57aab044ec";
+    String expectedHashCode = "cfbf3e5c993d44e57535a114e25f782d";
     Configuration conf = getConfiguration();
     String fieldValue = ELASTIC_TYPE_ID_PREFIX + "2";
     String query = "{"
