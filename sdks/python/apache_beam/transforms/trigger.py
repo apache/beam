@@ -192,7 +192,7 @@ class TriggerFn(object):
         'after_all': AfterAll,
         'after_any': AfterFirst,
         'after_each': AfterEach,
-        'after_end_of_widow': AfterWatermark,
+        'after_end_of_window': AfterWatermark,
         # after_processing_time, after_synchronized_processing_time
         # always
         'default': DefaultTrigger,
@@ -338,12 +338,12 @@ class AfterWatermark(TriggerFn):
   def from_runner_api(proto, context):
     return AfterWatermark(
         early=TriggerFn.from_runner_api(
-            proto.after_end_of_widow.early_firings, context)
-        if proto.after_end_of_widow.HasField('early_firings')
+            proto.after_end_of_window.early_firings, context)
+        if proto.after_end_of_window.HasField('early_firings')
         else None,
         late=TriggerFn.from_runner_api(
-            proto.after_end_of_widow.late_firings, context)
-        if proto.after_end_of_widow.HasField('late_firings')
+            proto.after_end_of_window.late_firings, context)
+        if proto.after_end_of_window.HasField('late_firings')
         else None)
 
   def to_runner_api(self, context):
@@ -352,7 +352,7 @@ class AfterWatermark(TriggerFn):
     late_proto = self.late.underlying.to_runner_api(
         context) if self.late else None
     return beam_runner_api_pb2.Trigger(
-        after_end_of_widow=beam_runner_api_pb2.Trigger.AfterEndOfWindow(
+        after_end_of_window=beam_runner_api_pb2.Trigger.AfterEndOfWindow(
             early_firings=early_proto,
             late_firings=late_proto))
 

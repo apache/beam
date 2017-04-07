@@ -44,7 +44,6 @@ import org.apache.activemq.security.SimpleAuthenticationPlugin;
 import org.apache.activemq.store.memory.MemoryPersistenceAdapter;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
@@ -54,7 +53,6 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
@@ -122,7 +120,6 @@ public class JmsIOTest {
   }
 
   @Test
-  @Category(NeedsRunner.class)
   public void testAuthenticationRequired() {
     pipeline.apply(
         JmsIO.read()
@@ -133,7 +130,6 @@ public class JmsIOTest {
   }
 
   @Test
-  @Category(NeedsRunner.class)
   public void testAuthenticationWithBadPassword() {
     pipeline.apply(
         JmsIO.read()
@@ -147,7 +143,6 @@ public class JmsIOTest {
   }
 
   @Test
-  @Category(NeedsRunner.class)
   public void testReadMessages() throws Exception {
 
     // produce message
@@ -187,7 +182,6 @@ public class JmsIOTest {
   }
 
   @Test
-  @Category(NeedsRunner.class)
   public void testWriteMessage() throws Exception {
 
     ArrayList<String> data = new ArrayList<>();

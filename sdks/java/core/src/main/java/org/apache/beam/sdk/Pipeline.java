@@ -228,7 +228,7 @@ public class Pipeline {
         });
   }
 
-  public void replace(final PTransformOverride override) {
+  private void replace(final PTransformOverride override) {
     final Collection<Node> matches = new ArrayList<>();
     transforms.visit(
         new PipelineVisitor.Defaults() {

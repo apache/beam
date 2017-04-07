@@ -38,6 +38,11 @@ import org.apache.beam.sdk.values.PCollectionView;
  */
 public abstract class ViewFn<PrimitiveViewT, ViewT> implements Serializable {
   /**
+   * Gets the materialization of this {@link ViewFn}.
+   */
+  public abstract Materialization<PrimitiveViewT> getMaterialization();
+
+  /**
    * A function to adapt a primitive view type to a desired view type.
    */
   public abstract ViewT apply(PrimitiveViewT contents);

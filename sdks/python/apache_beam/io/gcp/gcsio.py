@@ -29,6 +29,7 @@ import os
 import Queue
 import re
 import threading
+import time
 import traceback
 
 from apache_beam.utils import retry
@@ -368,7 +369,7 @@ class GcsIO(object):
 
   @retry.with_exponential_backoff(
       retry_filter=retry.retry_on_server_errors_and_timeout_filter)
-  def size_of_files_in_glob(self, pattern):
+  def size_of_files_in_glob(self, pattern, limit=None):
     """Returns the size of all the files in the glob as a dictionary
 
     Args:
@@ -379,16 +380,29 @@ class GcsIO(object):
     prefix = re.match('^[^[*?]*', name_pattern).group(0)
     request = storage.StorageObjectsListRequest(bucket=bucket, prefix=prefix)
     file_sizes = {}
+    counter = 0
+    start_time = time.time()
+    logging.info("Starting the size estimation of the input")
     while True:
       response = self.client.objects.List(request)
       for item in response.items:
         if fnmatch.fnmatch(item.name, name_pattern):
           file_name = 'gs://%s/%s' % (item.bucket, item.name)
           file_sizes[file_name] = item.size
+        counter += 1
+        if limit is not None and counter >= limit:
+          break
+        if counter % 10000 == 0:
+          logging.info("Finished computing size of: %s files", len(file_sizes))
       if response.nextPageToken:
         request.pageToken = response.nextPageToken
+        if limit is not None and len(file_sizes) >= limit:
+          break
       else:
         break
+    logging.info(
+        "Finished the size estimation of the input at %s files. " +\
+        "Estimation took %s seconds", counter, time.time() - start_time)
     return file_sizes
 
 

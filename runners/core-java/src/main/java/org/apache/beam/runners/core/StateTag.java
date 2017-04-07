@@ -28,8 +28,8 @@ import org.apache.beam.sdk.transforms.CombineWithContext.KeyedCombineFnWithConte
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.OutputTimeFn;
-import org.apache.beam.sdk.util.state.AccumulatorCombiningState;
 import org.apache.beam.sdk.util.state.BagState;
+import org.apache.beam.sdk.util.state.CombiningState;
 import org.apache.beam.sdk.util.state.MapState;
 import org.apache.beam.sdk.util.state.SetState;
 import org.apache.beam.sdk.util.state.State;
@@ -94,20 +94,20 @@ public interface StateTag<K, StateT extends State> extends Serializable {
         StateTag<? super K, MapState<KeyT, ValueT>> spec,
         Coder<KeyT> mapKeyCoder, Coder<ValueT> mapValueCoder);
 
-    <InputT, AccumT, OutputT> AccumulatorCombiningState<InputT, AccumT, OutputT> bindCombiningValue(
-        StateTag<? super K, AccumulatorCombiningState<InputT, AccumT, OutputT>> spec,
+    <InputT, AccumT, OutputT> CombiningState<InputT, AccumT, OutputT> bindCombiningValue(
+        StateTag<? super K, CombiningState<InputT, AccumT, OutputT>> spec,
         Coder<AccumT> accumCoder,
         CombineFn<InputT, AccumT, OutputT> combineFn);
 
     <InputT, AccumT, OutputT>
-    AccumulatorCombiningState<InputT, AccumT, OutputT> bindKeyedCombiningValue(
-        StateTag<? super K, AccumulatorCombiningState<InputT, AccumT, OutputT>> spec,
+    CombiningState<InputT, AccumT, OutputT> bindKeyedCombiningValue(
+        StateTag<? super K, CombiningState<InputT, AccumT, OutputT>> spec,
         Coder<AccumT> accumCoder,
         KeyedCombineFn<? super K, InputT, AccumT, OutputT> combineFn);
 
     <InputT, AccumT, OutputT>
-    AccumulatorCombiningState<InputT, AccumT, OutputT> bindKeyedCombiningValueWithContext(
-        StateTag<? super K, AccumulatorCombiningState<InputT, AccumT, OutputT>> spec,
+    CombiningState<InputT, AccumT, OutputT> bindKeyedCombiningValueWithContext(
+        StateTag<? super K, CombiningState<InputT, AccumT, OutputT>> spec,
         Coder<AccumT> accumCoder,
         KeyedCombineFnWithContext<? super K, InputT, AccumT, OutputT>
             combineFn);

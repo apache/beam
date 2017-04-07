@@ -17,8 +17,6 @@
  */
 package org.apache.beam.runners.core;
 
-import static com.google.common.base.Preconditions.checkNotNull;
-
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -38,10 +36,11 @@ import org.apache.beam.sdk.transforms.CombineWithContext.KeyedCombineFnWithConte
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.OutputTimeFn;
 import org.apache.beam.sdk.util.CombineFnUtil;
-import org.apache.beam.sdk.util.state.AccumulatorCombiningState;
 import org.apache.beam.sdk.util.state.BagState;
+import org.apache.beam.sdk.util.state.CombiningState;
 import org.apache.beam.sdk.util.state.MapState;
 import org.apache.beam.sdk.util.state.ReadableState;
+import org.apache.beam.sdk.util.state.ReadableStates;
 import org.apache.beam.sdk.util.state.SetState;
 import org.apache.beam.sdk.util.state.State;
 import org.apache.beam.sdk.util.state.StateContext;
@@ -148,12 +147,12 @@ public class InMemoryStateInternals<K> implements StateInternals<K> {
     }
 
     @Override
-    public <InputT, AccumT, OutputT> AccumulatorCombiningState<InputT, AccumT, OutputT>
+    public <InputT, AccumT, OutputT> CombiningState<InputT, AccumT, OutputT>
         bindCombiningValue(
-            StateTag<? super K, AccumulatorCombiningState<InputT, AccumT, OutputT>> address,
+            StateTag<? super K, CombiningState<InputT, AccumT, OutputT>> address,
             Coder<AccumT> accumCoder,
             final CombineFn<InputT, AccumT, OutputT> combineFn) {
-      return new InMemoryCombiningValue<K, InputT, AccumT, OutputT>(key, combineFn.<K>asKeyedFn());
+      return new InMemoryCombiningState<K, InputT, AccumT, OutputT>(key, combineFn.<K>asKeyedFn());
     }
 
     @Override
@@ -164,18 +163,18 @@ public class InMemoryStateInternals<K> implements StateInternals<K> {
     }
 
     @Override
-    public <InputT, AccumT, OutputT> AccumulatorCombiningState<InputT, AccumT, OutputT>
+    public <InputT, AccumT, OutputT> CombiningState<InputT, AccumT, OutputT>
         bindKeyedCombiningValue(
-            StateTag<? super K, AccumulatorCombiningState<InputT, AccumT, OutputT>> address,
+            StateTag<? super K, CombiningState<InputT, AccumT, OutputT>> address,
             Coder<AccumT> accumCoder,
             KeyedCombineFn<? super K, InputT, AccumT, OutputT> combineFn) {
-      return new InMemoryCombiningValue<K, InputT, AccumT, OutputT>(key, combineFn);
+      return new InMemoryCombiningState<K, InputT, AccumT, OutputT>(key, combineFn);
     }
 
     @Override
-    public <InputT, AccumT, OutputT> AccumulatorCombiningState<InputT, AccumT, OutputT>
+    public <InputT, AccumT, OutputT> CombiningState<InputT, AccumT, OutputT>
         bindKeyedCombiningValueWithContext(
-            StateTag<? super K, AccumulatorCombiningState<InputT, AccumT, OutputT>> address,
+            StateTag<? super K, CombiningState<InputT, AccumT, OutputT>> address,
             Coder<AccumT> accumCoder,
             KeyedCombineFnWithContext<? super K, InputT, AccumT, OutputT> combineFn) {
       return bindKeyedCombiningValue(address, accumCoder, CombineFnUtil.bindContext(combineFn, c));
@@ -307,17 +306,17 @@ public class InMemoryStateInternals<K> implements StateInternals<K> {
   }
 
   /**
-   * An {@link InMemoryState} implementation of {@link AccumulatorCombiningState}.
+   * An {@link InMemoryState} implementation of {@link CombiningState}.
    */
-  public static final class InMemoryCombiningValue<K, InputT, AccumT, OutputT>
-      implements AccumulatorCombiningState<InputT, AccumT, OutputT>,
-          InMemoryState<InMemoryCombiningValue<K, InputT, AccumT, OutputT>> {
+  public static final class InMemoryCombiningState<K, InputT, AccumT, OutputT>
+      implements CombiningState<InputT, AccumT, OutputT>,
+          InMemoryState<InMemoryCombiningState<K, InputT, AccumT, OutputT>> {
     private final K key;
     private boolean isCleared = true;
     private final KeyedCombineFn<? super K, InputT, AccumT, OutputT> combineFn;
     private AccumT accum;
 
-    public InMemoryCombiningValue(
+    public InMemoryCombiningState(
         K key, KeyedCombineFn<? super K, InputT, AccumT, OutputT> combineFn) {
       this.key = key;
       this.combineFn = combineFn;
@@ -325,7 +324,7 @@ public class InMemoryStateInternals<K> implements StateInternals<K> {
     }
 
     @Override
-    public InMemoryCombiningValue<K, InputT, AccumT, OutputT> readLater() {
+    public InMemoryCombiningState<K, InputT, AccumT, OutputT> readLater() {
       return this;
     }
 
@@ -384,9 +383,9 @@ public class InMemoryStateInternals<K> implements StateInternals<K> {
     }
 
     @Override
-    public InMemoryCombiningValue<K, InputT, AccumT, OutputT> copy() {
-      InMemoryCombiningValue<K, InputT, AccumT, OutputT> that =
-          new InMemoryCombiningValue<>(key, combineFn);
+    public InMemoryCombiningState<K, InputT, AccumT, OutputT> copy() {
+      InMemoryCombiningState<K, InputT, AccumT, OutputT> that =
+          new InMemoryCombiningState<>(key, combineFn);
       if (!this.isCleared) {
         that.isCleared = this.isCleared;
         that.addAccum(accum);
@@ -468,45 +467,20 @@ public class InMemoryStateInternals<K> implements StateInternals<K> {
     }
 
     @Override
-    public boolean contains(T t) {
-      return contents.contains(t);
+    public ReadableState<Boolean> contains(T t) {
+      return ReadableStates.immediate(contents.contains(t));
     }
 
     @Override
-    public boolean addIfAbsent(T t) {
-      return contents.add(t);
+    public ReadableState<Boolean> addIfAbsent(T t) {
+      boolean alreadyContained = contents.contains(t);
+      contents.add(t);
+      return ReadableStates.immediate(!alreadyContained);
     }
 
     @Override
     public void remove(T t) {
       contents.remove(t);
-    }
-
-    @Override
-    public SetState<T> readLater(Iterable<T> elements) {
-      return this;
-    }
-
-    @Override
-    public boolean containsAny(Iterable<T> elements) {
-      elements = checkNotNull(elements);
-      for (T t : elements) {
-        if (contents.contains(t)) {
-          return true;
-        }
-      }
-      return false;
-    }
-
-    @Override
-    public boolean containsAll(Iterable<T> elements) {
-      elements = checkNotNull(elements);
-      for (T t : elements) {
-        if (!contents.contains(t)) {
-          return false;
-        }
-      }
-      return true;
     }
 
     @Override
@@ -565,8 +539,8 @@ public class InMemoryStateInternals<K> implements StateInternals<K> {
     }
 
     @Override
-    public V get(K key) {
-      return contents.get(key);
+    public ReadableState<V> get(K key) {
+      return ReadableStates.immediate(contents.get(key));
     }
 
     @Override
@@ -575,13 +549,13 @@ public class InMemoryStateInternals<K> implements StateInternals<K> {
     }
 
     @Override
-    public V putIfAbsent(K key, V value) {
+    public ReadableState<V> putIfAbsent(K key, V value) {
       V v = contents.get(key);
       if (v == null) {
         v = contents.put(key, value);
       }
 
-      return v;
+      return ReadableStates.immediate(v);
     }
 
     @Override
@@ -590,42 +564,18 @@ public class InMemoryStateInternals<K> implements StateInternals<K> {
     }
 
     @Override
-    public Iterable<V> get(Iterable<K> keys) {
-      List<V> values = new ArrayList<>();
-      for (K k : keys) {
-        values.add(contents.get(k));
-      }
-      return values;
+    public ReadableState<Iterable<K>> keys() {
+      return ReadableStates.immediate((Iterable<K>) contents.keySet());
     }
 
     @Override
-    public MapState<K, V> getLater(K k) {
-      return this;
+    public ReadableState<Iterable<V>> values() {
+      return ReadableStates.immediate((Iterable<V>) contents.values());
     }
 
     @Override
-    public MapState<K, V> getLater(Iterable<K> keys) {
-      return this;
-    }
-
-    @Override
-    public Iterable<K> keys() {
-      return contents.keySet();
-    }
-
-    @Override
-    public Iterable<V> values() {
-      return contents.values();
-    }
-
-    @Override
-    public MapState<K, V> iterateLater() {
-      return this;
-    }
-
-    @Override
-    public Iterable<Map.Entry<K, V>> iterate() {
-      return contents.entrySet();
+    public ReadableState<Iterable<Map.Entry<K, V>>> entries() {
+      return ReadableStates.immediate((Iterable<Map.Entry<K, V>>) contents.entrySet());
     }
 
     @Override

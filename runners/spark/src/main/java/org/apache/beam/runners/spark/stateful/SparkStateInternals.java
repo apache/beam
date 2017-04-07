@@ -36,8 +36,8 @@ import org.apache.beam.sdk.transforms.CombineWithContext.KeyedCombineFnWithConte
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.OutputTimeFn;
 import org.apache.beam.sdk.util.CombineFnUtil;
-import org.apache.beam.sdk.util.state.AccumulatorCombiningState;
 import org.apache.beam.sdk.util.state.BagState;
+import org.apache.beam.sdk.util.state.CombiningState;
 import org.apache.beam.sdk.util.state.MapState;
 import org.apache.beam.sdk.util.state.ReadableState;
 import org.apache.beam.sdk.util.state.SetState;
@@ -137,31 +137,31 @@ class SparkStateInternals<K> implements StateInternals<K> {
     }
 
     @Override
-    public <InputT, AccumT, OutputT> AccumulatorCombiningState<InputT, AccumT, OutputT>
+    public <InputT, AccumT, OutputT> CombiningState<InputT, AccumT, OutputT>
         bindCombiningValue(
-            StateTag<? super K, AccumulatorCombiningState<InputT, AccumT, OutputT>> address,
+            StateTag<? super K, CombiningState<InputT, AccumT, OutputT>> address,
             Coder<AccumT> accumCoder,
             CombineFn<InputT, AccumT, OutputT> combineFn) {
-      return new SparkAccumulatorCombiningState<>(namespace, address, accumCoder, key,
+      return new SparkCombiningState<>(namespace, address, accumCoder, key,
           combineFn.<K>asKeyedFn());
     }
 
     @Override
-    public <InputT, AccumT, OutputT> AccumulatorCombiningState<InputT, AccumT, OutputT>
+    public <InputT, AccumT, OutputT> CombiningState<InputT, AccumT, OutputT>
         bindKeyedCombiningValue(
-            StateTag<? super K, AccumulatorCombiningState<InputT, AccumT, OutputT>> address,
+            StateTag<? super K, CombiningState<InputT, AccumT, OutputT>> address,
             Coder<AccumT> accumCoder,
             KeyedCombineFn<? super K, InputT, AccumT, OutputT> combineFn) {
-      return new SparkAccumulatorCombiningState<>(namespace, address, accumCoder, key, combineFn);
+      return new SparkCombiningState<>(namespace, address, accumCoder, key, combineFn);
     }
 
     @Override
-    public <InputT, AccumT, OutputT> AccumulatorCombiningState<InputT, AccumT, OutputT>
+    public <InputT, AccumT, OutputT> CombiningState<InputT, AccumT, OutputT>
         bindKeyedCombiningValueWithContext(
-            StateTag<? super K, AccumulatorCombiningState<InputT, AccumT, OutputT>> address,
+            StateTag<? super K, CombiningState<InputT, AccumT, OutputT>> address,
             Coder<AccumT> accumCoder,
             KeyedCombineFnWithContext<? super K, InputT, AccumT, OutputT> combineFn) {
-      return new SparkAccumulatorCombiningState<>(namespace, address, accumCoder, key,
+      return new SparkCombiningState<>(namespace, address, accumCoder, key,
           CombineFnUtil.bindContext(combineFn, c));
     }
 
@@ -300,16 +300,16 @@ class SparkStateInternals<K> implements StateInternals<K> {
     }
   }
 
-  private class SparkAccumulatorCombiningState<K, InputT, AccumT, OutputT>
+  private class SparkCombiningState<K, InputT, AccumT, OutputT>
       extends AbstractState<AccumT>
-          implements AccumulatorCombiningState<InputT, AccumT, OutputT> {
+          implements CombiningState<InputT, AccumT, OutputT> {
 
     private final K key;
     private final KeyedCombineFn<? super K, InputT, AccumT, OutputT> combineFn;
 
-    private SparkAccumulatorCombiningState(
+    private SparkCombiningState(
         StateNamespace namespace,
-        StateTag<? super K, AccumulatorCombiningState<InputT, AccumT, OutputT>> address,
+        StateTag<? super K, CombiningState<InputT, AccumT, OutputT>> address,
         Coder<AccumT> coder,
         K key,
         KeyedCombineFn<? super K, InputT, AccumT, OutputT> combineFn) {
@@ -319,7 +319,7 @@ class SparkStateInternals<K> implements StateInternals<K> {
     }
 
     @Override
-    public SparkAccumulatorCombiningState<K, InputT, AccumT, OutputT> readLater() {
+    public SparkCombiningState<K, InputT, AccumT, OutputT> readLater() {
       return this;
     }
 
