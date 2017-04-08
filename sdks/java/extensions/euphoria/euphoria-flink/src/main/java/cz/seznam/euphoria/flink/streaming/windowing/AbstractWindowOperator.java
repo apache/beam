@@ -309,6 +309,7 @@ public abstract class AbstractWindowOperator<I, KEY, WID extends Window>
 
       if (tr.isPurge()) {
         windowState.close();
+        storageProvider.setWindow(window);
         trigger.onClear(window, triggerContext);
         removeWindow(window, mergingWindowSet);
       }
