@@ -23,7 +23,9 @@ import java.util.HashMap;
 import java.util.Map;
 import org.apache.beam.runners.apex.ApexPipelineOptions;
 import org.apache.beam.runners.apex.ApexRunner.CreateApexPCollectionView;
+import org.apache.beam.runners.apex.translation.operators.ApexProcessFnOperator;
 import org.apache.beam.runners.apex.translation.operators.ApexReadUnboundedInputOperator;
+import org.apache.beam.runners.core.SplittableParDo;
 import org.apache.beam.runners.core.construction.PrimitiveCreate;
 import org.apache.beam.runners.core.construction.UnboundedReadFromBoundedSource.BoundedToUnboundedSourceAdapter;
 import org.apache.beam.sdk.Pipeline;
@@ -35,6 +37,7 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.View.CreatePCollectionView;
 import org.apache.beam.sdk.transforms.windowing.Window;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PValue;
 import org.slf4j.Logger;
@@ -60,6 +63,10 @@ public class ApexPipelineTranslator implements Pipeline.PipelineVisitor {
   static {
     // register TransformTranslators
     registerTransformTranslator(ParDo.MultiOutput.class, new ParDoTranslator<>());
+    registerTransformTranslator(SplittableParDo.ProcessElements.class,
+        new ParDoTranslator.SplittableProcessElementsTranslator());
+    registerTransformTranslator(SplittableParDo.GBKIntoKeyedWorkItems.class,
+        new GBKIntoKeyedWorkItemsTranslator());
     registerTransformTranslator(Read.Unbounded.class, new ReadUnboundedTranslator());
     registerTransformTranslator(Read.Bounded.class, new ReadBoundedTranslator());
     registerTransformTranslator(GroupByKey.class, new GroupByKeyTranslator());
@@ -174,4 +181,20 @@ public class ApexPipelineTranslator implements Pipeline.PipelineVisitor {
       LOG.debug("view {}", view.getName());
     }
   }
+
+  private static class GBKIntoKeyedWorkItemsTranslator<K, InputT>
+    implements TransformTranslator<SplittableParDo.GBKIntoKeyedWorkItems<K, InputT>> {
+
+    @Override
+    public void translate(
+        SplittableParDo.GBKIntoKeyedWorkItems<K, InputT> transform, TranslationContext context) {
+      // https://issues.apache.org/jira/browse/BEAM-1850
+      ApexProcessFnOperator<KV<K, InputT>> operator = ApexProcessFnOperator.toKeyedWorkItems(
+          context.getPipelineOptions());
+      context.addOperator(operator, operator.outputPort);
+      context.addStream(context.getInput(), operator.inputPort);
+    }
+
+  }
+
 }

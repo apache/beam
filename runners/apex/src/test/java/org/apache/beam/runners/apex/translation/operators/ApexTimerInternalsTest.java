@@ -60,7 +60,7 @@ public class ApexTimerInternalsTest {
     Instant instant2 = new Instant(2);
 
     ApexTimerInternals<String> timerInternals = new ApexTimerInternals<>(timerDataCoder);
-    timerInternals.setContext(key1, StringUtf8Coder.of(), Instant.now());
+    timerInternals.setContext(key1, StringUtf8Coder.of(), Instant.now(), null);
 
     TimerData timerData0 = TimerData.of("timerData0", StateNamespaces.global(),
         instant0, TimeDomain.EVENT_TIME);
@@ -98,7 +98,7 @@ public class ApexTimerInternalsTest {
     Instant instant1 = new Instant(1);
 
     ApexTimerInternals<String> timerInternals = new ApexTimerInternals<>(timerDataCoder);
-    timerInternals.setContext(key1, StringUtf8Coder.of(), Instant.now());
+    timerInternals.setContext(key1, StringUtf8Coder.of(), Instant.now(), null);
 
     TimerData timerData0 = TimerData.of("timerData0", StateNamespaces.global(),
         instant0, TimeDomain.EVENT_TIME);
@@ -133,11 +133,11 @@ public class ApexTimerInternalsTest {
         new Instant(0), TimeDomain.EVENT_TIME);
     String key = "key";
     ApexTimerInternals<String> timerInternals = new ApexTimerInternals<>(timerDataCoder);
-    timerInternals.setContext(key, StringUtf8Coder.of(), Instant.now());
+    timerInternals.setContext(key, StringUtf8Coder.of(), Instant.now(), null);
     timerInternals.setTimer(timerData);
     ApexTimerInternals<String> cloned;
     assertNotNull("Serialization", cloned = KryoCloneUtils.cloneObject(timerInternals));
-    cloned.setContext(key, StringUtf8Coder.of(), Instant.now());
+    cloned.setContext(key, StringUtf8Coder.of(), Instant.now(), null);
     Map<?, Set<Slice>> timers = cloned.getTimerSet(TimeDomain.EVENT_TIME).getMap();
     assertEquals(1, timers.size());
   }

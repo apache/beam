@@ -202,7 +202,7 @@ public class ApexGroupByKeyOperator<K, V> implements Operator,
         windowedValue.getTimestamp(),
         windowedValue.getWindows(),
         windowedValue.getPane());
-    timerInternals.setContext(kv.getKey(), this.keyCoder, this.inputWatermark);
+    timerInternals.setContext(kv.getKey(), this.keyCoder, this.inputWatermark, null);
     ReduceFnRunner<K, V, Iterable<V>, BoundedWindow> reduceFnRunner =
         newReduceFnRunner(kv.getKey());
     reduceFnRunner.processElements(Collections.singletonList(updatedWindowedValue));
@@ -211,7 +211,7 @@ public class ApexGroupByKeyOperator<K, V> implements Operator,
 
   @Override
   public void fireTimer(K key, Collection<TimerData> timerData) {
-    timerInternals.setContext(key, keyCoder, inputWatermark);
+    timerInternals.setContext(key, keyCoder, inputWatermark, null);
     ReduceFnRunner<K, V, Iterable<V>, BoundedWindow> reduceFnRunner = newReduceFnRunner(key);
     try {
       reduceFnRunner.onTimers(timerData);

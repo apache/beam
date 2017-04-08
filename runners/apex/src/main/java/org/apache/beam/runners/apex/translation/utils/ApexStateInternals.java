@@ -438,6 +438,10 @@ public class ApexStateInternals<K> implements StateInternals {
       this.keyCoder = keyCoder;
     }
 
+    public Coder<K> getKeyCoder() {
+      return this.keyCoder;
+    }
+
     @Override
     public ApexStateInternals<K> stateInternalsForKey(K key) {
       final Slice keyBytes;
