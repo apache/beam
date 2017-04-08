@@ -24,6 +24,8 @@ import static org.junit.Assert.assertThat;
 
 import com.datatorrent.lib.util.KryoCloneUtils;
 import java.util.Arrays;
+import org.apache.beam.runners.apex.translation.utils.ApexStateInternals.ApexStateBackend;
+import org.apache.beam.runners.apex.translation.utils.ApexStateInternals.ApexStateInternalsFactory;
 import org.apache.beam.runners.core.StateMerging;
 import org.apache.beam.runners.core.StateNamespace;
 import org.apache.beam.runners.core.StateNamespaceForTest;
@@ -76,7 +78,9 @@ public class ApexStateInternalsTest {
 
   @Before
   public void initStateInternals() {
-    underTest = new ApexStateInternals<>(null);
+    underTest = new ApexStateInternals.ApexStateBackend()
+        .newStateInternalsFactory(StringUtf8Coder.of())
+        .stateInternalsForKey((String) null);
   }
 
   @Test
@@ -344,16 +348,21 @@ public class ApexStateInternalsTest {
 
   @Test
   public void testSerialization() throws Exception {
-    ApexStateInternals<String> original = new ApexStateInternals<String>(null);
-    ValueState<String> value = original.state(NAMESPACE_1, STRING_VALUE_ADDR);
-    assertEquals(original.state(NAMESPACE_1, STRING_VALUE_ADDR), value);
+    ApexStateInternalsFactory<String> sif = new ApexStateBackend().
+        newStateInternalsFactory(StringUtf8Coder.of());
+    ApexStateInternals<String> keyAndState = sif.stateInternalsForKey("dummy");
+
+    ValueState<String> value = keyAndState.state(NAMESPACE_1, STRING_VALUE_ADDR);
+    assertEquals(keyAndState.state(NAMESPACE_1, STRING_VALUE_ADDR), value);
     value.write("hello");
 
-    ApexStateInternals<String> cloned;
-    assertNotNull("Serialization", cloned = KryoCloneUtils.cloneObject(original));
-    ValueState<String> clonedValue = cloned.state(NAMESPACE_1, STRING_VALUE_ADDR);
+    ApexStateInternalsFactory<String> cloned;
+    assertNotNull("Serialization", cloned = KryoCloneUtils.cloneObject(sif));
+    ApexStateInternals<String> clonedKeyAndState = cloned.stateInternalsForKey("dummy");
+
+    ValueState<String> clonedValue = clonedKeyAndState.state(NAMESPACE_1, STRING_VALUE_ADDR);
     assertThat(clonedValue.read(), Matchers.equalTo("hello"));
-    assertEquals(cloned.state(NAMESPACE_1, STRING_VALUE_ADDR), value);
+    assertEquals(clonedKeyAndState.state(NAMESPACE_1, STRING_VALUE_ADDR), value);
   }
 
 }

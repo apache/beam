@@ -216,7 +216,7 @@ public class ParDoTranslatorTest {
             WindowingStrategy.globalDefault(),
             Collections.<PCollectionView<?>>singletonList(singletonView),
             coder,
-            new ApexStateInternals.ApexStateInternalsFactory<Void>());
+            new ApexStateInternals.ApexStateBackend());
     operator.setup(null);
     operator.beginWindow(0);
     WindowedValue<Integer> wv1 = WindowedValue.valueInGlobalWindow(1);

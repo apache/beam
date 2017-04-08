@@ -39,6 +39,7 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
 import org.apache.beam.runners.apex.ApexPipelineOptions;
+import org.apache.beam.runners.apex.translation.utils.ApexStateInternals.ApexStateBackend;
 import org.apache.beam.runners.apex.translation.utils.ApexStreamTuple;
 import org.apache.beam.runners.apex.translation.utils.SerializablePipelineOptions;
 import org.apache.beam.runners.core.GroupAlsoByWindowViaWindowSetDoFn;
@@ -95,7 +96,6 @@ public class ApexGroupByKeyOperator<K, V> implements Operator {
   private final SerializablePipelineOptions serializedOptions;
   @Bind(JavaSerializer.class)
   private final StateInternalsFactory<K> stateInternalsFactory;
-  private Map<ByteBuffer, StateInternals<K>> perKeyStateInternals = new HashMap<>();
   private Map<ByteBuffer, Set<TimerInternals.TimerData>> activeTimers = new HashMap<>();
 
   private transient ProcessContext context;
@@ -135,13 +135,13 @@ public class ApexGroupByKeyOperator<K, V> implements Operator {
 
   @SuppressWarnings("unchecked")
   public ApexGroupByKeyOperator(ApexPipelineOptions pipelineOptions, PCollection<KV<K, V>> input,
-      StateInternalsFactory<K> stateInternalsFactory) {
+      ApexStateBackend stateBackend) {
     checkNotNull(pipelineOptions);
     this.serializedOptions = new SerializablePipelineOptions(pipelineOptions);
     this.windowingStrategy = (WindowingStrategy<V, BoundedWindow>) input.getWindowingStrategy();
     this.keyCoder = ((KvCoder<K, V>) input.getCoder()).getKeyCoder();
     this.valueCoder = ((KvCoder<K, V>) input.getCoder()).getValueCoder();
-    this.stateInternalsFactory = stateInternalsFactory;
+    this.stateInternalsFactory = stateBackend.newStateInternalsFactory(keyCoder);
   }
 
   @SuppressWarnings("unused") // for Kryo
@@ -222,18 +222,7 @@ public class ApexGroupByKeyOperator<K, V> implements Operator {
   }
 
   private StateInternals<K> getStateInternalsForKey(K key) {
-    final ByteBuffer keyBytes;
-    try {
-      keyBytes = ByteBuffer.wrap(CoderUtils.encodeToByteArray(keyCoder, key));
-    } catch (CoderException e) {
-      throw new RuntimeException(e);
-    }
-    StateInternals<K> stateInternals = perKeyStateInternals.get(keyBytes);
-    if (stateInternals == null) {
-      stateInternals = stateInternalsFactory.stateInternalsForKey(key);
-      perKeyStateInternals.put(keyBytes, stateInternals);
-    }
-    return stateInternals;
+    return stateInternalsFactory.stateInternalsForKey(key);
   }
 
   private void registerActiveTimer(K key, TimerInternals.TimerData timer) {
@@ -423,7 +412,7 @@ public class ApexGroupByKeyOperator<K, V> implements Operator {
    * An implementation of Beam's {@link TimerInternals}.
    *
    */
-  public class ApexTimerInternals implements TimerInternals {
+  private class ApexTimerInternals implements TimerInternals {
 
     @Deprecated
     @Override

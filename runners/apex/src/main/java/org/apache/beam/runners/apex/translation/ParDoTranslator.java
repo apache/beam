@@ -82,23 +82,22 @@ class ParDoTranslator<InputT, OutputT>
     }
 
     List<TaggedPValue> outputs = context.getOutputs();
-    PCollection<InputT> input = (PCollection<InputT>) context.getInput();
+    PCollection<InputT> input = context.getInput();
     List<PCollectionView<?>> sideInputs = transform.getSideInputs();
     Coder<InputT> inputCoder = input.getCoder();
     WindowedValueCoder<InputT> wvInputCoder =
         FullWindowedValueCoder.of(
             inputCoder, input.getWindowingStrategy().getWindowFn().windowCoder());
 
-    ApexParDoOperator<InputT, OutputT> operator =
-        new ApexParDoOperator<>(
+    ApexParDoOperator<InputT, OutputT> operator = new ApexParDoOperator<>(
             context.getPipelineOptions(),
             doFn,
             transform.getMainOutputTag(),
             transform.getSideOutputTags().getAll(),
-            ((PCollection<InputT>) context.getInput()).getWindowingStrategy(),
+            input.getWindowingStrategy(),
             sideInputs,
             wvInputCoder,
-            context.<Void>stateInternalsFactory());
+            context.getStateBackend());
 
     Map<PCollection<?>, OutputPort<?>> ports = Maps.newHashMapWithExpectedSize(outputs.size());
     for (TaggedPValue output : outputs) {
@@ -126,15 +125,15 @@ class ParDoTranslator<InputT, OutputT>
     context.addOperator(operator, ports);
     context.addStream(context.getInput(), operator.input);
     if (!sideInputs.isEmpty()) {
-      addSideInputs(operator, sideInputs, context);
+      addSideInputs(operator.sideInput1, sideInputs, context);
     }
   }
 
   static void addSideInputs(
-      ApexParDoOperator<?, ?> operator,
+      Operator.InputPort<?> sideInputPort,
       List<PCollectionView<?>> sideInputs,
       TranslationContext context) {
-    Operator.InputPort<?>[] sideInputPorts = {operator.sideInput1};
+    Operator.InputPort<?>[] sideInputPorts = {sideInputPort};
     if (sideInputs.size() > sideInputPorts.length) {
       PCollection<?> unionCollection = unionSideInputs(sideInputs, context);
       context.addStream(unionCollection, sideInputPorts[0]);
