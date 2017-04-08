@@ -65,10 +65,12 @@ class DirectRunner(PipelineRunner):
     from apache_beam.runners.direct.executor import Executor
     from apache_beam.runners.direct.transform_evaluator import \
       TransformEvaluatorRegistry
+    from apache_beam.runners.runner import group_by_key_input_visitor
 
     MetricsEnvironment.set_metrics_supported(True)
     logging.info('Running pipeline with DirectRunner.')
     self.visitor = ConsumerTrackingPipelineVisitor()
+    pipeline.visit(group_by_key_input_visitor())
     pipeline.visit(self.visitor)
 
     evaluation_context = EvaluationContext(
