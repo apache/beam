@@ -40,6 +40,7 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.HasDisplayData;
+import org.apache.beam.sdk.transforms.splittabledofn.HasDefaultTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
@@ -548,10 +549,11 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
    * <ul>
    * <li>It <i>must</i> define a {@link GetInitialRestriction} method.
    * <li>It <i>may</i> define a {@link SplitRestriction} method.
-   * <li>It <i>must</i> define a {@link NewTracker} method returning the same type as the type of
+   * <li>It <i>may</i> define a {@link NewTracker} method returning the same type as the type of
    *     the {@link RestrictionTracker} argument of {@link ProcessElement}, which in turn must be a
    *     subtype of {@code RestrictionTracker<R>} where {@code R} is the restriction type returned
-   *     by {@link GetInitialRestriction}.
+   *     by {@link GetInitialRestriction}. This method is optional in case the restriction type
+   *     returned by {@link GetInitialRestriction} implements {@link HasDefaultTracker}.
    * <li>It <i>may</i> define a {@link GetRestrictionCoder} method.
    * <li>The type of restrictions used by all of these methods must be the same.
    * <li>Its {@link ProcessElement} method <i>may</i> return a {@link ProcessContinuation} to
