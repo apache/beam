@@ -1375,30 +1375,26 @@ class Create(PTransform):
     ouput_type = (self.get_type_hints().simple_output_type(self.label) or
                   self.infer_output_type(None))
     coder = typecoders.registry.get_coder(ouput_type)
-    source = self._create_source(self.value, coder)
+    source = self._create_source_from_iterable(self.value, coder)
     return pbegin.pipeline | Read(source).with_output_types(ouput_type)
 
   def get_windowing(self, unused_inputs):
     return Windowing(GlobalWindows())
 
   @staticmethod
-  def _create_source(values, coder, is_serialized=False):
+  def _create_source_from_iterable(values, coder):
+    return Create._create_source(map(coder.encode, values), coder)
+
+  @staticmethod
+  def _create_source(serialized_values, coder):
     from apache_beam.io import iobase
 
     class _CreateSource(iobase.BoundedSource):
-      # If is_serialized is True, it means that the values are already
-      # serialized to bytes using the provided coder. This is the case when
-      # sub sources are created during initial splitting from a source that has
-      # has already serialized the values for size estimation.
-      def __init__(self, values, coder, is_serialized=False):
+      def __init__(self, serialized_values, coder):
         self._coder = coder
         self._serialized_values = []
         self._total_size = 0
-        if is_serialized:
-          self._serialized_values = values
-        else:
-          self._serialized_values = map(self._coder.encode, values)
-
+        self._serialized_values = serialized_values
         self._total_size = sum(map(len, self._serialized_values))
 
       def read(self, range_tracker):
@@ -1447,8 +1443,7 @@ class Create(PTransform):
               end = stop_position
 
             sub_source = Create._create_source(
-                self._serialized_values[start:end], self._coder,
-                is_serialized=True)
+                self._serialized_values[start:end], self._coder)
 
             yield iobase.SourceBundle(weight=(end - start),
                                       source=sub_source,
@@ -1469,7 +1464,7 @@ class Create(PTransform):
       def estimate_size(self):
         return self._total_size
 
-    return _CreateSource(values, coder, is_serialized)
+    return _CreateSource(serialized_values, coder)
 
 
 def Read(*args, **kwargs):

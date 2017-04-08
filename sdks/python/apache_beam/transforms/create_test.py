@@ -40,7 +40,7 @@ class CreateTest(unittest.TestCase):
     self.check_read(range(10), self.coder)
 
   def check_read(self, values, coder):
-    source = Create._create_source(values, coder)
+    source = Create._create_source_from_iterable(values, coder)
     read_values = source_test_utils.readFromSource(source)
     self.assertEqual(sorted(values), sorted(read_values))
 
@@ -67,7 +67,7 @@ class CreateTest(unittest.TestCase):
     the data read from original source is equal to the union of the data read
     from the split sources.
     """
-    source = Create._create_source(values, coder)
+    source = Create._create_source_from_iterable(values, coder)
     desired_bundle_size = source._total_size / num_splits
     splits = source.split(desired_bundle_size)
     splits_info = [
@@ -77,11 +77,11 @@ class CreateTest(unittest.TestCase):
                                                         splits_info)
 
   def test_create_source_read_reentrant(self):
-    source = Create._create_source(range(9), self.coder)
+    source = Create._create_source_from_iterable(range(9), self.coder)
     source_test_utils.assertReentrantReadsSucceed((source, None, None))
 
   def test_create_source_read_reentrant_with_initial_splits(self):
-    source = Create._create_source(range(24), self.coder)
+    source = Create._create_source_from_iterable(range(24), self.coder)
     for split in source.split(desired_bundle_size=5):
       source_test_utils.assertReentrantReadsSucceed((split.source,
                                                      split.start_position,
@@ -89,16 +89,16 @@ class CreateTest(unittest.TestCase):
 
   def test_create_source_dynamic_splitting(self):
     # 2 values
-    source = Create._create_source(range(2), self.coder)
+    source = Create._create_source_from_iterable(range(2), self.coder)
     source_test_utils.assertSplitAtFractionExhaustive(source)
     # Multiple values.
-    source = Create._create_source(range(11), self.coder)
+    source = Create._create_source_from_iterable(range(11), self.coder)
     source_test_utils.assertSplitAtFractionExhaustive(
         source, perform_multi_threaded_test=True)
 
   def test_create_source_progress(self):
     num_values = 10
-    source = Create._create_source(range(num_values), self.coder)
+    source = Create._create_source_from_iterable(range(num_values), self.coder)
     splits = [split for split in source.split(desired_bundle_size=100)]
     assert len(splits) == 1
     fraction_consumed_report = []
