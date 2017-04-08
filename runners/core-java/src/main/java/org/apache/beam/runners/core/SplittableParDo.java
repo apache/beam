@@ -324,14 +324,12 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
     /**
      * The state cell containing a watermark hold for the output of this {@link DoFn}. The hold is
      * acquired during the first {@link DoFn.ProcessElement} call for each element and restriction,
-     * and is released when the {@link DoFn.ProcessElement} call returns {@link
-     * DoFn.ProcessContinuation#stop}.
+     * and is released when the {@link DoFn.ProcessElement} call returns and there is no residual
+     * restriction captured by the {@link SplittableProcessElementInvoker}.
      *
      * <p>A hold is needed to avoid letting the output watermark immediately progress together with
      * the input watermark when the first {@link DoFn.ProcessElement} call for this element
      * completes.
-     *
-     * <p>The hold is updated with the future output watermark reported by ProcessContinuation.
      */
     private static final StateTag<Object, WatermarkHoldState<GlobalWindow>> watermarkHoldTag =
         StateTags.makeSystemTagInternal(
@@ -461,7 +459,7 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
               invoker, elementAndRestriction.element(), tracker);
 
       // Save state for resuming.
-      if (!result.getContinuation().shouldResume()) {
+      if (result.getResidualRestriction() == null) {
         // All work for this element/restriction is completed. Clear state and release hold.
         elementState.clear();
         restrictionState.clear();
@@ -469,16 +467,15 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
         return;
       }
       restrictionState.write(result.getResidualRestriction());
-      Instant futureOutputWatermark = result.getContinuation().getWatermark();
+      Instant futureOutputWatermark = result.getFutureOutputWatermark();
       if (futureOutputWatermark == null) {
         futureOutputWatermark = elementAndRestriction.element().getTimestamp();
       }
-      Instant wakeupTime =
-          timerInternals.currentProcessingTime().plus(result.getContinuation().resumeDelay());
       holdState.add(futureOutputWatermark);
       // Set a timer to continue processing this element.
       timerInternals.setTimer(
-          TimerInternals.TimerData.of(stateNamespace, wakeupTime, TimeDomain.PROCESSING_TIME));
+          TimerInternals.TimerData.of(
+              stateNamespace, timerInternals.currentProcessingTime(), TimeDomain.PROCESSING_TIME));
     }
 
     /**
