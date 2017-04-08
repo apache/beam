@@ -55,6 +55,7 @@ class ApexTimerInternals<K> implements TimerInternals, Serializable {
 
   private transient K currentKey;
   private transient Instant currentInputWatermark;
+  private transient Instant currentOutputWatermark;
   private transient Coder<K> keyCoder;
 
   public ApexTimerInternals(TimerDataCoder timerDataCoder) {
@@ -62,10 +63,12 @@ class ApexTimerInternals<K> implements TimerInternals, Serializable {
     this.processingTimeTimers = new TimerSet(timerDataCoder);
   }
 
-  public void setContext(K key, Coder<K> keyCoder, Instant inputWatermark) {
+  public void setContext(K key, Coder<K> keyCoder, Instant inputWatermark,
+      Instant outputWatermark) {
     this.currentKey = key;
     this.keyCoder = keyCoder;
     this.currentInputWatermark = inputWatermark;
+    this.currentOutputWatermark = outputWatermark;
   }
 
   @VisibleForTesting
@@ -118,7 +121,7 @@ class ApexTimerInternals<K> implements TimerInternals, Serializable {
 
   @Override
   public Instant currentOutputWatermarkTime() {
-    return null;
+    return currentOutputWatermark;
   }
 
   public interface TimerProcessor<K> {
@@ -128,10 +131,18 @@ class ApexTimerInternals<K> implements TimerInternals, Serializable {
   /**
    * Fire the timers that are ready. These are the timers
    * that are registered to be triggered at a time before the current time.
+   * Timer processing may register new timers, which can cause the returned
+   * timestamp to be before the the current time. The caller may repeat
+   * the call until such backdated timers are cleared.
+   * @return minimum timestamp of registered timers.
    */
-  public void fireReadyTimers(long currentTime,
+  public long fireReadyTimers(long currentTime,
       TimerProcessor<K> timerProcessor, TimeDomain timeDomain) {
     TimerSet timers = getTimerSet(timeDomain);
+
+    // move minTimestamp first,
+    // timer additions that result from firing may modify it
+    timers.minTimestamp = currentTime;
 
     // we keep the timers to return in a different list and launch them later
     // because we cannot prevent a trigger from registering another timer,
@@ -173,6 +184,8 @@ class ApexTimerInternals<K> implements TimerInternals, Serializable {
         }
       }
     }
+
+    return timers.minTimestamp;
   }
 
   private Slice getKeyBytes(K key) {
@@ -186,6 +199,7 @@ class ApexTimerInternals<K> implements TimerInternals, Serializable {
   protected static class TimerSet implements Serializable {
     private final Map<Slice, Set<Slice>> activeTimers = new HashMap<>();
     private final TimerDataCoder timerDataCoder;
+    private long minTimestamp = Long.MAX_VALUE;
 
     protected TimerSet(TimerDataCoder timerDataCoder) {
       this.timerDataCoder = timerDataCoder;
@@ -205,6 +219,7 @@ class ApexTimerInternals<K> implements TimerInternals, Serializable {
       }
 
       activeTimers.put(keyBytes, timersForKey);
+      this.minTimestamp = Math.min(minTimestamp, timer.getTimestamp().getMillis());
     }
 
     public void deleteTimer(Slice keyBytes, StateNamespace namespace, String timerId) {

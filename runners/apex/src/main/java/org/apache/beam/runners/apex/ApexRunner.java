@@ -31,6 +31,7 @@ import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.atomic.AtomicReference;
 import org.apache.apex.api.EmbeddedAppLauncher;
@@ -38,9 +39,11 @@ import org.apache.apex.api.Launcher;
 import org.apache.apex.api.Launcher.AppHandle;
 import org.apache.apex.api.Launcher.LaunchMode;
 import org.apache.beam.runners.apex.translation.ApexPipelineTranslator;
+import org.apache.beam.runners.core.SplittableParDo;
 import org.apache.beam.runners.core.construction.PTransformMatchers;
 import org.apache.beam.runners.core.construction.PTransformReplacements;
 import org.apache.beam.runners.core.construction.PrimitiveCreate;
+import org.apache.beam.runners.core.construction.ReplacementOutputs;
 import org.apache.beam.runners.core.construction.SingleInputOutputOverrideFactory;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineRunner;
@@ -51,18 +54,23 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsValidator;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.runners.PTransformOverride;
+import org.apache.beam.sdk.runners.PTransformOverrideFactory;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.Combine.GloballyAsSingletonView;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.ParDo.MultiOutput;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.View.AsIterable;
 import org.apache.beam.sdk.transforms.View.AsSingleton;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PCollectionViews;
+import org.apache.beam.sdk.values.PValue;
+import org.apache.beam.sdk.values.TupleTag;
 import org.apache.hadoop.conf.Configuration;
 
 /**
@@ -112,6 +120,10 @@ public class ApexRunner extends PipelineRunner<ApexRunnerResult> {
             PTransformOverride.of(
                 PTransformMatchers.classEqualTo(Combine.GloballyAsSingletonView.class),
                 new StreamingCombineGloballyAsSingletonView.Factory()))
+        .add(
+            PTransformOverride.of(
+                PTransformMatchers.splittableParDoMulti(),
+                new SplittableParDoOverrideFactory<>()))
         .build();
   }
 
@@ -421,6 +433,28 @@ public class ApexRunner extends PipelineRunner<ApexRunnerResult> {
     @Override
     public Coder<List<T>> getDefaultOutputCoder(CoderRegistry registry, Coder<T> inputCoder) {
       return ListCoder.of(inputCoder);
+    }
+  }
+
+  /**
+   * A {@link PTransformOverrideFactory} that overrides a
+   * <a href="https://s.apache.org/splittable-do-fn">Splittable DoFn</a> with
+   * {@link SplittableParDo}.
+   */
+  static class SplittableParDoOverrideFactory<InputT, OutputT> implements PTransformOverrideFactory<
+      PCollection<InputT>, PCollectionTuple, MultiOutput<InputT, OutputT>> {
+    @Override
+    public PTransformReplacement<PCollection<InputT>, PCollectionTuple> getReplacementTransform(
+        AppliedPTransform<PCollection<InputT>, PCollectionTuple, MultiOutput<InputT, OutputT>>
+          transform) {
+      return PTransformReplacement.of(PTransformReplacements.getSingletonMainInput(transform),
+          new SplittableParDo<>(transform.getTransform()));
+    }
+
+    @Override
+    public Map<PValue, ReplacementOutput> mapOutputs(Map<TupleTag<?>, PValue> outputs,
+        PCollectionTuple newOutput) {
+      return ReplacementOutputs.tagged(outputs, newOutput);
     }
   }
 
