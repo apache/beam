@@ -45,7 +45,7 @@ public class ReduceStateByKeyTest {
             .keyBy(s -> s)
             .valueBy(s -> 1L)
             .stateFactory(WordCountState::new)
-            .combineStateBy(WordCountState::combine)
+            .mergeStatesBy(WordCountState::combine)
             .windowBy(windowing)
             .output();
 
@@ -57,7 +57,7 @@ public class ReduceStateByKeyTest {
     assertEquals("ReduceStateByKey1", reduce.getName());
     assertNotNull(reduce.getKeyExtractor());
     assertNotNull(reduce.getValueExtractor());
-    assertNotNull(reduce.getStateCombiner());
+    assertNotNull(reduce.getStateMerger());
     assertNotNull(reduce.getStateFactory());
     assertEquals(reduced, reduce.output());
     assertSame(windowing, reduce.getWindowing());
@@ -77,7 +77,7 @@ public class ReduceStateByKeyTest {
             .keyBy(s -> s)
             .valueBy(s -> 1L)
             .stateFactory(WordCountState::new)
-            .combineStateBy(WordCountState::combine)
+            .mergeStatesBy(WordCountState::combine)
             .output();
 
     ReduceStateByKey reduce = (ReduceStateByKey) flow.operators().iterator().next();
@@ -93,7 +93,7 @@ public class ReduceStateByKeyTest {
             .keyBy(s -> s)
             .valueBy(s -> 1L)
             .stateFactory(WordCountState::new)
-            .combineStateBy(WordCountState::combine)
+            .mergeStatesBy(WordCountState::combine)
             .windowBy(Time.of(Duration.ofHours(1)), (s -> 0L))
             .output();
 
@@ -111,7 +111,7 @@ public class ReduceStateByKeyTest {
             .keyBy(s -> s)
             .valueBy(s -> 1L)
             .stateFactory(WordCountState::new)
-            .combineStateBy(WordCountState::combine)
+            .mergeStatesBy(WordCountState::combine)
             .windowBy(Time.of(Duration.ofHours(1)))
             .setPartitioning(new HashPartitioning<>(1))
             .output();
@@ -132,7 +132,7 @@ public class ReduceStateByKeyTest {
             .keyBy(s -> s)
             .valueBy(s -> 1L)
             .stateFactory(WordCountState::new)
-            .combineStateBy(WordCountState::combine)
+            .mergeStatesBy(WordCountState::combine)
             .setPartitioner(new HashPartitioner<>())
             .setNumPartitions(5)
             .windowBy(Time.of(Duration.ofHours(1)))
@@ -155,7 +155,7 @@ public class ReduceStateByKeyTest {
     protected WordCountState(
         Context<Long> context,
         StorageProvider storageProvider) {
-      super(context, storageProvider);
+      super(context);
       sum = storageProvider.getValueStorage(ValueStorageDescriptor.of(
           "sum", Long.class, 0L));
     }
@@ -170,18 +170,10 @@ public class ReduceStateByKeyTest {
       this.getContext().collect(sum.get());
     }
 
-    static WordCountState combine(Iterable<WordCountState> others) {
-      WordCountState state = null;
-      for (WordCountState s : others) {
-        if (state == null) {
-          state = new WordCountState(
-              s.getContext(),
-              s.getStorageProvider());
-        }
-        state.add(s.sum.get());
+    static void combine(WordCountState target, Iterable<WordCountState> others) {
+      for (WordCountState other : others) {
+        target.add(other.sum.get());
       }
-
-      return state;
     }
 
     @Override

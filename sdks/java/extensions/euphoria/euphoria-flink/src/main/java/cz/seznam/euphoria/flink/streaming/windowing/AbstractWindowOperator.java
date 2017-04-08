@@ -19,13 +19,13 @@ import cz.seznam.euphoria.core.client.dataset.windowing.MergingWindowing;
 import cz.seznam.euphoria.core.client.dataset.windowing.TimedWindow;
 import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
-import cz.seznam.euphoria.core.client.functional.CombinableReduceFunction;
-import cz.seznam.euphoria.core.client.functional.StateFactory;
 import cz.seznam.euphoria.core.client.io.Context;
 import cz.seznam.euphoria.core.client.operator.state.ListStorage;
 import cz.seznam.euphoria.core.client.operator.state.ListStorageDescriptor;
 import cz.seznam.euphoria.core.client.operator.state.MergingStorageDescriptor;
 import cz.seznam.euphoria.core.client.operator.state.State;
+import cz.seznam.euphoria.core.client.operator.state.StateFactory;
+import cz.seznam.euphoria.core.client.operator.state.StateMerger;
 import cz.seznam.euphoria.core.client.operator.state.StorageDescriptor;
 import cz.seznam.euphoria.core.client.operator.state.ValueStorage;
 import cz.seznam.euphoria.core.client.operator.state.ValueStorageDescriptor;
@@ -65,8 +65,8 @@ public abstract class AbstractWindowOperator<I, KEY, WID extends Window>
 
   private final Windowing<?, WID> windowing;
   private final Trigger<WID> trigger;
-  private final StateFactory<?, State> stateFactory;
-  private final CombinableReduceFunction<State> stateCombiner;
+  private final StateFactory<?, ?, State<?, ?>> stateFactory;
+  private final StateMerger<?, ?, State<?, ?>> stateCombiner;
 
 
   // FIXME Arguable hack that ensures all remaining opened windows
@@ -94,8 +94,8 @@ public abstract class AbstractWindowOperator<I, KEY, WID extends Window>
   private transient TypeSerializer<WID> windowSerializer;
 
   public AbstractWindowOperator(Windowing<?, WID> windowing,
-                                StateFactory<?, State> stateFactory,
-                                CombinableReduceFunction<State> stateCombiner,
+                                StateFactory<?, ?, State<?, ?>> stateFactory,
+                                StateMerger<?, ?, State<?, ?>> stateCombiner,
                                 boolean localMode,
                                 int descriptorsCacheMaxSize) {
     this.windowing = Objects.requireNonNull(windowing);
@@ -182,16 +182,12 @@ public abstract class AbstractWindowOperator<I, KEY, WID extends Window>
                     removeWindow(merged, null);
                   }
 
-                  // FIXME This implementation relies on fact that
-                  // stateCombiner function is actually "fold left".
-                  // That means the result state will end up in the
-                  // first state given to the combiner function.
-
                   // merge all mergedStateWindows into stateResultWindow
-                  List<State> states = new ArrayList<>();
-                  states.add(getWindowState(stateResultWindow));
-                  mergedStateWindows.forEach(sw -> states.add(getWindowState(sw)));
-                  stateCombiner.apply(states);
+                  {
+                    List<State> states = new ArrayList<>();
+                    mergedStateWindows.forEach(sw -> states.add(getWindowState(sw)));
+                    stateCombiner.merge(getWindowState(stateResultWindow), (List) states);
+                  }
 
                   // remove merged window states
                   mergedStateWindows.forEach(sw -> {
@@ -322,7 +318,7 @@ public abstract class AbstractWindowOperator<I, KEY, WID extends Window>
   @SuppressWarnings("unchecked")
   private State getWindowState(WID window) {
     storageProvider.setWindow(window);
-    return stateFactory.apply(outputContext, storageProvider);
+    return stateFactory.createState(outputContext, storageProvider);
   }
 
   private MergingWindowSet<WID> getMergingWindowSet()  {

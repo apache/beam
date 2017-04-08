@@ -17,11 +17,12 @@ package cz.seznam.euphoria.flink.streaming;
 
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.functional.CombinableReduceFunction;
-import cz.seznam.euphoria.core.client.functional.StateFactory;
+import cz.seznam.euphoria.core.client.operator.state.StateFactory;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 import cz.seznam.euphoria.core.client.operator.ExtractEventTime;
 import cz.seznam.euphoria.core.client.operator.ReduceStateByKey;
 import cz.seznam.euphoria.core.client.operator.state.State;
+import cz.seznam.euphoria.core.client.operator.state.StateMerger;
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.core.util.Settings;
 import cz.seznam.euphoria.flink.FlinkOperator;
@@ -73,8 +74,8 @@ class ReduceStateByKeyTranslator implements StreamingOperatorTranslator<ReduceSt
 
     ReduceStateByKey origOperator = operator.getOriginalOperator();
 
-    StateFactory<?, State> stateFactory = origOperator.getStateFactory();
-    CombinableReduceFunction stateCombiner = origOperator.getStateCombiner();
+    StateFactory<?, ?, State<?, ?>> stateFactory = origOperator.getStateFactory();
+    StateMerger<?, ?, State<?, ?>> stateCombiner = origOperator.getStateMerger();
 
     Windowing windowing = origOperator.getWindowing();
     if (windowing == null) {

@@ -539,7 +539,7 @@ public class ReduceByKeyTest extends AbstractOperatorTest {
     private final ValueStorage<Integer> sum;
 
     SumState(Context<Integer> context, StorageProvider storageProvider) {
-      super(context, storageProvider);
+      super(context);
       sum = storageProvider.getValueStorage(
           ValueStorageDescriptor.of("sum-state", Integer.class, 0));
     }
@@ -559,15 +559,10 @@ public class ReduceByKeyTest extends AbstractOperatorTest {
       sum.clear();
     }
 
-    static SumState combine(Iterable<SumState> states) {
-      SumState target = null;
-      for (SumState state : states) {
-        if (target == null) {
-          target = new SumState(state.getContext(), state.getStorageProvider());
-        }
-        target.add(state.sum.get());
+    static void combine(SumState target, Iterable<SumState> others) {
+      for (SumState other : others) {
+        target.add(other.sum.get());
       }
-      return target;
     }
   }
 
@@ -634,7 +629,7 @@ public class ReduceByKeyTest extends AbstractOperatorTest {
                 .keyBy(Pair::getFirst)
                 .valueBy(Pair::getSecond)
                 .stateFactory(SumState::new)
-                .combineStateBy(SumState::combine)
+                .mergeStatesBy(SumState::combine)
                 .windowBy(new AssertingWindowing<>())
                 .output();
         return FlatMap.of(output)

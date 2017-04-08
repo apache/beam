@@ -276,7 +276,7 @@ public class InMemExecutorTest {
         Context<Integer> c,
         StorageProvider storageProvider) {
       
-      super(c, storageProvider);
+      super(c);
       data = storageProvider.getListStorage(
           ListStorageDescriptor.of("data", Integer.class));
     }
@@ -296,17 +296,10 @@ public class InMemExecutorTest {
       }
     }
 
-    static SortState combine(Iterable<SortState> others) {
-      SortState ret = null;
-      for (SortState s : others) {
-        if (ret == null) {
-          ret = new SortState(
-              s.getContext(),
-              s.getStorageProvider());
-        }
-        ret.data.addAll(s.data.get());
+    static void combine(SortState target, Iterable<SortState> others) {
+      for (SortState other : others) {
+        target.data.addAll(other.data.get());
       }
-      return ret;
     }
 
     @Override
@@ -415,7 +408,7 @@ public class InMemExecutorTest {
         .keyBy(i -> i % 10)
         .valueBy(e -> e)
         .stateFactory(SortState::new)
-        .combineStateBy(SortState::combine)
+        .mergeStatesBy(SortState::combine)
         .windowBy(windowing)
         .output();
 

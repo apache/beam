@@ -318,7 +318,7 @@ public class Join<LEFT, RIGHT, KEY, OUT, W extends Window>
 
     @SuppressWarnings("unchecked")
     public JoinState(Context<OUT> context, StorageProvider storageProvider) {
-      super(context, storageProvider);
+      super(context);
       leftElements = storageProvider.getListStorage(LEFT_STATE_DESCR);
       rightElements = storageProvider.getListStorage(RIGHT_STATE_DESCR);
     }
@@ -451,7 +451,7 @@ public class Join<LEFT, RIGHT, KEY, OUT, W extends Window>
               getWindowing(),
               getEventTimeAssigner(),
               JoinState::new,
-              new StateSupport.MergeFromStateCombiner<>(),
+              new StateSupport.MergeFromStateMerger<>(),
               partitioning
         );
 

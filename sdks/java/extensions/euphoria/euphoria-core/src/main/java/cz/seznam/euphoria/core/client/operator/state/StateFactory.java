@@ -13,15 +13,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package cz.seznam.euphoria.core.client.functional;
+package cz.seznam.euphoria.core.client.operator.state;
 
 import cz.seznam.euphoria.core.client.io.Context;
-import cz.seznam.euphoria.core.client.operator.state.StorageProvider;
+
+import java.io.Serializable;
 
 /**
  * Factory for states.
  */
-public interface StateFactory<T, STATE>
-    extends BinaryFunction<Context<T>, StorageProvider, STATE> {
+@FunctionalInterface
+public interface StateFactory<IN, OUT, STATE extends State<IN, OUT>> extends Serializable {
+
+  STATE createState(Context<OUT> context, StorageProvider storageProvider);
 
 }

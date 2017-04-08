@@ -24,13 +24,13 @@ import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.functional.CombinableReduceFunction;
 import cz.seznam.euphoria.core.client.functional.ReduceFunction;
-import cz.seznam.euphoria.core.client.functional.StateFactory;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 import cz.seznam.euphoria.core.client.graph.DAG;
 import cz.seznam.euphoria.core.client.io.Context;
 import cz.seznam.euphoria.core.client.operator.state.ListStorage;
 import cz.seznam.euphoria.core.client.operator.state.ListStorageDescriptor;
 import cz.seznam.euphoria.core.client.operator.state.State;
+import cz.seznam.euphoria.core.client.operator.state.StateFactory;
 import cz.seznam.euphoria.core.client.operator.state.StorageProvider;
 import cz.seznam.euphoria.core.client.operator.state.ValueStorage;
 import cz.seznam.euphoria.core.client.operator.state.ValueStorageDescriptor;
@@ -268,8 +268,8 @@ public class ReduceByKey<
   @SuppressWarnings("unchecked")
   @Override
   public DAG<Operator<?, ?>> getBasicOps() {
-    CombinableReduceFunction<StateSupport.MergeFrom<OUT>> stateCombine =
-            new StateSupport.MergeFromStateCombiner();
+    StateSupport.MergeFromStateMerger stateCombine =
+            new StateSupport.MergeFromStateMerger<>();
     StateFactory stateFactory = isCombinable()
             ? new CombiningReduceState.Factory<>((CombinableReduceFunction) reducer)
             : new NonCombiningReduceState.Factory<>(reducer);
@@ -287,7 +287,7 @@ public class ReduceByKey<
           extends State<E, E>
           implements StateSupport.MergeFrom<CombiningReduceState<E>> {
 
-    static final class Factory<E> implements StateFactory<E, State<E, E>> {
+    static final class Factory<E> implements StateFactory<E, E, State<E, E>> {
       private final CombinableReduceFunction<E> r;
 
       Factory(CombinableReduceFunction<E> r) {
@@ -295,8 +295,8 @@ public class ReduceByKey<
       }
 
       @Override
-      public State<E, E> apply(Context<E> ctx, StorageProvider storageProvider) {
-        return new CombiningReduceState<>(ctx, storageProvider, r);
+      public State<E, E> createState(Context<E> context, StorageProvider storageProvider) {
+        return new CombiningReduceState<>(context, storageProvider, r);
       }
     }
 
@@ -310,7 +310,7 @@ public class ReduceByKey<
     CombiningReduceState(Context<E> context,
                          StorageProvider storageProvider,
                          CombinableReduceFunction<E> reducer) {
-      super(context, storageProvider);
+      super(context);
       this.reducer = Objects.requireNonNull(reducer);
 
       @SuppressWarnings("unchecked")
@@ -340,26 +340,26 @@ public class ReduceByKey<
 
     @Override
     public void mergeFrom(CombiningReduceState<E> other) {
-      this.storage.set(this.reducer.apply(Arrays.asList(this.storage.get(), other.storage.get())));
+      this.add(other.storage.get());
     }
   }
 
-  private static class NonCombiningReduceState<VALUE, OUT>
-          extends State<VALUE, OUT>
-          implements StateSupport.MergeFrom<NonCombiningReduceState<VALUE, OUT>> {
+  private static class NonCombiningReduceState<IN, OUT>
+          extends State<IN, OUT>
+          implements StateSupport.MergeFrom<NonCombiningReduceState<IN, OUT>> {
 
-    static final class Factory<VALUE, OUT>
-            implements StateFactory<OUT, NonCombiningReduceState<VALUE, OUT>> {
-      private final ReduceFunction<VALUE, OUT> r;
+    static final class Factory<IN, OUT>
+            implements StateFactory<IN, OUT, NonCombiningReduceState<IN, OUT>> {
+      private final ReduceFunction<IN, OUT> r;
 
-      Factory(ReduceFunction<VALUE, OUT> r) {
+      Factory(ReduceFunction<IN, OUT> r) {
         this.r = Objects.requireNonNull(r);
       }
 
       @Override
-      public NonCombiningReduceState<VALUE, OUT>
-      apply(Context<OUT> ctx, StorageProvider storageProvider) {
-        return new NonCombiningReduceState<>(ctx, storageProvider, r);
+      public NonCombiningReduceState<IN, OUT>
+      createState(Context<OUT> context, StorageProvider storageProvider) {
+        return new NonCombiningReduceState<>(context, storageProvider, r);
       }
     }
 
@@ -367,22 +367,22 @@ public class ReduceByKey<
     private static final ListStorageDescriptor STORAGE_DESC =
             ListStorageDescriptor.of("values", (Class) Object.class);
 
-    private final ReduceFunction<VALUE, OUT> reducer;
-    private final ListStorage<VALUE> reducibleValues;
+    private final ReduceFunction<IN, OUT> reducer;
+    private final ListStorage<IN> reducibleValues;
 
     NonCombiningReduceState(Context<OUT> context,
                             StorageProvider storageProvider,
-                            ReduceFunction<VALUE, OUT> reducer) {
-      super(context, storageProvider);
+                            ReduceFunction<IN, OUT> reducer) {
+      super(context);
       this.reducer = Objects.requireNonNull(reducer);
 
       @SuppressWarnings("unchecked")
-      ListStorage<VALUE> ls = storageProvider.getListStorage(STORAGE_DESC);
+      ListStorage<IN> ls = storageProvider.getListStorage(STORAGE_DESC);
       reducibleValues = ls;
     }
 
     @Override
-    public void add(VALUE element) {
+    public void add(IN element) {
       reducibleValues.add(element);
     }
 
@@ -398,7 +398,7 @@ public class ReduceByKey<
     }
 
     @Override
-    public void mergeFrom(NonCombiningReduceState<VALUE, OUT> other) {
+    public void mergeFrom(NonCombiningReduceState<IN, OUT> other) {
       this.reducibleValues.addAll(other.reducibleValues.get());
     }
   }

@@ -19,7 +19,6 @@ import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.windowing.Time;
 import cz.seznam.euphoria.core.client.dataset.windowing.TimeInterval;
 import cz.seznam.euphoria.core.client.flow.Flow;
-import cz.seznam.euphoria.core.client.functional.StateFactory;
 import cz.seznam.euphoria.core.client.io.Context;
 import cz.seznam.euphoria.core.client.io.ListDataSink;
 import cz.seznam.euphoria.core.client.io.ListDataSource;
@@ -29,6 +28,7 @@ import cz.seznam.euphoria.core.client.operator.ReduceStateByKey;
 import cz.seznam.euphoria.core.client.operator.state.ListStorage;
 import cz.seznam.euphoria.core.client.operator.state.ListStorageDescriptor;
 import cz.seznam.euphoria.core.client.operator.state.State;
+import cz.seznam.euphoria.core.client.operator.state.StateFactory;
 import cz.seznam.euphoria.core.client.operator.state.StorageProvider;
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.core.client.util.Triple;
@@ -37,7 +37,6 @@ import org.junit.Test;
 
 import java.time.Duration;
 import java.util.Arrays;
-import java.util.Iterator;
 import java.util.stream.Collectors;
 
 import static java.util.Arrays.asList;
@@ -51,7 +50,7 @@ public class RSBKWindowingTest {
     AccState(Context<VALUE> context,
              StorageProvider storageProvider)
     {
-      super(context, storageProvider);
+      super(context);
       reducableValues = storageProvider.getListStorage(
           ListStorageDescriptor.of("vals", (Class) Object.class));
     }
@@ -78,13 +77,11 @@ public class RSBKWindowingTest {
       reducableValues.clear();
     }
 
-    public static <VALUE> AccState<VALUE> combine(Iterable<AccState<VALUE>> xs) {
-      Iterator<AccState<VALUE>> iter = xs.iterator();
-      AccState<VALUE> first = iter.next();
-      while (iter.hasNext()) {
-        first.add(iter.next());
+    public static <VALUE>
+    void combine(AccState<VALUE> target, Iterable<AccState<VALUE>> others) {
+      for (AccState<VALUE> other : others) {
+        target.add(other);
       }
-      return first;
     }
   }
 
@@ -111,9 +108,8 @@ public class RSBKWindowingTest {
         ReduceStateByKey.of(f.createInput(source))
         .keyBy(Pair::getFirst)
         .valueBy(e -> e)
-        .stateFactory((StateFactory<Pair<String, Integer>, AccState<Pair<String,
-            Integer>>>) AccState::new)
-        .combineStateBy(AccState::combine)
+        .stateFactory((StateFactory<Pair<String, Integer>, Pair<String, Integer>, AccState<Pair<String, Integer>>>) AccState::new)
+        .mergeStatesBy(AccState::combine)
         .windowBy(Time.of(Duration.ofMillis(5)),
             // ~ event time
             (ExtractEventTime<Pair<String, Integer>>) what -> (long) what.getSecond())
@@ -163,8 +159,8 @@ public class RSBKWindowingTest {
         ReduceStateByKey.of(f.createInput(source))
             .keyBy(Pair::getFirst)
             .valueBy(e -> e)
-            .stateFactory((StateFactory<Pair<String, Integer>, AccState<Pair<String, Integer>>>) AccState::new)
-            .combineStateBy(AccState::combine)
+            .stateFactory((StateFactory<Pair<String, Integer>, Pair<String, Integer>, AccState<Pair<String, Integer>>>) AccState::new)
+            .mergeStatesBy(AccState::combine)
             .windowBy(Time.of(Duration.ofMillis(5)),
                 // ~ event time
                 (ExtractEventTime<Pair<String, Integer>>) what -> (long) what.getSecond())
@@ -178,9 +174,8 @@ public class RSBKWindowingTest {
         ReduceStateByKey.of(secondStep)
         .keyBy(Pair::getFirst)
         .valueBy(e -> e)
-        .stateFactory((StateFactory<Pair<String, Integer>, AccState<Pair<String,
-            Integer>>>) AccState::new)
-        .combineStateBy(AccState::combine)
+        .stateFactory((StateFactory<Pair<String, Integer>, Pair<String, Integer>, AccState<Pair<String, Integer>>>) AccState::new)
+        .mergeStatesBy(AccState::combine)
         .windowBy(Time.of(Duration.ofMillis(5)),
             // ~ event time
             (ExtractEventTime<Pair<String, Integer>>) what -> (long) what.getSecond())
