@@ -192,7 +192,11 @@ public class GroupReducer<WID extends Window, KEY, I> {
       //  c) the target window's trigger #onClear won't be called
       sources.remove(target);
 
-      // XXX only if sources non empty!
+      // ~ do not bother with the rest of thi for loop if we have
+      // no source windows to merge
+      if (sources.isEmpty()) {
+        continue;
+      }
 
       // ~ make sure to create the target state if necessary
       State targetState = getStateForUpdate(target);
