@@ -22,10 +22,12 @@ import cz.seznam.euphoria.core.client.operator.SingleInputOperator;
 import cz.seznam.euphoria.shaded.guava.com.google.common.collect.Iterables;
 import org.apache.flink.streaming.api.datastream.DataStream;
 
-import java.util.ArrayList;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
+
+import static java.util.Objects.requireNonNull;
+import static java.util.stream.Collectors.toList;
 
 /**
  * Keeps track of mapping between Euphoria {@link Dataset} and
@@ -53,7 +55,7 @@ public abstract class ExecutorContext<E, D> {
   }
 
   /**
-   * Retrieve list of Flink {@link DataStream} inputs of given operator
+   * Retrieves list of Flink {@link DataStream} inputs of given operator
    *
    * @param operator the operator to inspect
    *
@@ -64,17 +66,32 @@ public abstract class ExecutorContext<E, D> {
    * @see #setOutput(FlinkOperator, Object)
    */
   public List<D> getInputStreams(FlinkOperator<?> operator) {
-    List<Node<FlinkOperator<?>>> parents = dag.getNode(operator).getParents();
-    List<D> inputs = new ArrayList<>(parents.size());
-    for (Node<FlinkOperator<?>> p : parents) {
-      D pout = outputs.get(dag.getNode(p.get()).get());
-      if (pout == null) {
-        throw new IllegalArgumentException(
-                "Output DataStream/DataSet missing for operator " + p.get().getName());
-      }
-      inputs.add(pout);
-    }
-    return inputs;
+    return getInputOperators(operator).stream()
+            .map(p -> {
+              D pout = outputs.get(dag.getNode(p).get());
+              if (pout == null) {
+                throw new IllegalArgumentException(
+                        "Output DataStream/DataSet missing for operator " + p.getName());
+              }
+              return pout;
+            })
+            .collect(toList());
+  }
+
+  /**
+   * Retrieves a list of the producers of the given operator's inputs. This
+   * corresponds to {@link #getInputStreams(FlinkOperator)}
+   *
+   * @param operator the operator whose input producers to retrieve
+   *
+   * @return a list of all the specified opertor's input producers; never {@code null}
+   *
+   * @see #getInputStreams(FlinkOperator)
+   */
+  public List<FlinkOperator<?>> getInputOperators(FlinkOperator<?> operator) {
+    return dag.getNode(requireNonNull(operator)).getParents().stream()
+            .map(Node::get)
+            .collect(toList());
   }
 
   /**

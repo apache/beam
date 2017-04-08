@@ -53,9 +53,10 @@ public class ReduceByKeyTranslator implements BatchOperatorTranslator<ReduceByKe
   public DataSet translate(FlinkOperator<ReduceByKey> operator,
                            BatchExecutorContext context) {
 
-    // FIXME parallelism should be set to the same level as parent until we reach "shuffling"
-
-    DataSet input = Iterables.getOnlyElement(context.getInputStreams(operator));
+    int inputParallelism =
+            Iterables.getOnlyElement(context.getInputOperators(operator)).getParallelism();
+    DataSet input =
+            Iterables.getOnlyElement(context.getInputStreams(operator));
 
     ReduceByKey origOperator = operator.getOriginalOperator();
     final UnaryFunction<Iterable, Object> reducer = origOperator.getReducer();
@@ -101,18 +102,16 @@ public class ReduceByKeyTranslator implements BatchOperatorTranslator<ReduceByKe
           });
       tuples = wAssigned
           .name(operator.getName() + "::map-input")
-          .setParallelism(operator.getParallelism())
+          .setParallelism(inputParallelism)
           .returns(new TypeHint<BatchElement<Window, Pair>>() {});
     }
 
     // ~ reduce the data now
-    Operator<BatchElement<Window, Pair>, ?> reduced;
-    reduced = tuples
-        .groupBy(new RBKKeySelector())
-        .reduce(new RBKReducer(reducer));
-    reduced = reduced
-        .setParallelism(operator.getParallelism())
-        .name(operator.getName() + "::reduce");
+    Operator<BatchElement<Window, Pair>, ?> reduced =
+            tuples.groupBy(new RBKKeySelector())
+                    .reduce(new RBKReducer(reducer))
+                    .setParallelism(operator.getParallelism())
+                    .name(operator.getName() + "::reduce");
 
     // FIXME partitioner should be applied during "reduce" to avoid
     // unnecessary shuffle, but there is no (known) way how to set custom
