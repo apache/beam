@@ -84,15 +84,13 @@ public class BatchFlowTranslator extends FlowTranslator {
 
   private final Map<Class, Translation> translations = new IdentityHashMap<>();
   private final ExecutionEnvironment env;
-  private final Settings settings;
-  
+
   public BatchFlowTranslator(Settings settings, ExecutionEnvironment env) {
     this(settings, env, DEFAULT_SPLIT_ASSIGNER_FACTORY);
   }
 
   public BatchFlowTranslator(Settings settings, ExecutionEnvironment env, 
                              SplitAssignerFactory splitAssignerFactory) {
-    this.settings = settings;
     this.env = Objects.requireNonNull(env);
 
     // basic operators

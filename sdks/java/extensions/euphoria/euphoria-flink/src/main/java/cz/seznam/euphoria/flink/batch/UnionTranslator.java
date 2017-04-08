@@ -34,8 +34,8 @@ class UnionTranslator implements BatchOperatorTranslator<Union> {
 
     List<DataSet> inputs = (List) context.getInputStreams(operator);
     if (inputs.size() != 2) {
-      throw new IllegalStateException("Should have two datasets on input, got "
-          + inputs.size());
+      throw new IllegalStateException(
+              "Should have two datasets on input, got " + inputs.size());
     }
     Optional<DataSet> reduce = inputs.stream().reduce((l, r) -> l.union(r));
     return reduce.get();

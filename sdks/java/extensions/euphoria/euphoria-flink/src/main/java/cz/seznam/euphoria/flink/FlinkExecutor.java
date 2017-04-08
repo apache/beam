@@ -111,9 +111,7 @@ public class FlinkExecutor implements Executor {
       Settings settings = flow.getSettings();
 
       if (mode == ExecutionEnvironment.Mode.STREAMING) {
-        if (stateBackend.isPresent()) {
-          environment.getStreamEnv().setStateBackend(stateBackend.get());
-        }
+        stateBackend.ifPresent(be -> environment.getStreamEnv().setStateBackend(be));
         if (checkpointInterval != null) {
           LOG.info("Enabled checkpoints every: {}", checkpointInterval);
           environment.getStreamEnv().enableCheckpointing(checkpointInterval.toMillis());
@@ -138,9 +136,9 @@ public class FlinkExecutor implements Executor {
       }
 
       try {
-        LOG.info("Before execute");
+        LOG.debug("Before execute");
         environment.execute(); // blocking operation
-        LOG.info("After execute");
+        LOG.debug("After execute");
       } catch (Throwable e) {
         // when exception thrown rollback all sinks
         for (DataSink<?> s : sinks) {
@@ -153,7 +151,7 @@ public class FlinkExecutor implements Executor {
         throw e;
       }
 
-      LOG.info("Before commit");
+      LOG.debug("Before commit");
       // when the execution is successful commit all sinks
       Exception ex = null;
       for (DataSink<?> s : sinks) {
@@ -164,6 +162,7 @@ public class FlinkExecutor implements Executor {
           ex = e;
         }
       }
+      LOG.debug("After commit");
 
       // rethrow the exception if any
       if (ex != null) {
