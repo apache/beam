@@ -698,10 +698,6 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
   @Experimental(Kind.SPLITTABLE_DO_FN)
   public @interface UnboundedPerElement {}
 
-  /** Do not use. See https://issues.apache.org/jira/browse/BEAM-1904 */
-  @Deprecated
-  public class ProcessContinuation {}
-
   /**
    * Returns an {@link Aggregator} with aggregation logic specified by the {@link CombineFn}
    * argument. The name provided must be unique across {@link Aggregator}s created within the {@link
