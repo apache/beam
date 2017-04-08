@@ -131,7 +131,9 @@ class MergingWindowSet<W extends Window> {
       mergedWindows.remove(mergeResult);
 
       // If no window is actually merged we can skip merging phase.
-      if (mergedWindows.isEmpty()) continue;
+      if (mergedWindows.isEmpty()) {
+        continue;
+      }
 
       // Pick any of the merged windows and choose that window's state window
       // as the state window for the merge result
