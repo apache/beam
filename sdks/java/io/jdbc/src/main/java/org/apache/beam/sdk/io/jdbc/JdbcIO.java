@@ -229,7 +229,9 @@ public class JdbcIO {
      * @return
      */
     public DataSourceConfiguration withConnectionProperties(String connectionProperties) {
-      checkArgument(connectionProperties != null, "connectionProperties is null");
+      checkArgument(connectionProperties != null, "DataSourceConfiguration.create(driver, url)"
+          + ".withConnectionProperties(connectionProperties) "
+          + "called with null connectionProperties");
       return builder().setConnectionProperties(connectionProperties).build();
     }
 
