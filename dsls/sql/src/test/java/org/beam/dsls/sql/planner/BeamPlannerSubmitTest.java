@@ -36,7 +36,7 @@ public class BeamPlannerSubmitTest extends BasePlanner {
     pipeline.run().waitUntilFinish();
 
     Assert.assertTrue(MockedBeamSQLTable.CONTENT.size() == 1);
-    Assert.assertEquals("order_id=12345,site_id=0,price=20.5", MockedBeamSQLTable.CONTENT.get(0));
+    Assert.assertEquals("order_id=12345,site_id=0,price=20.5,order_time=null", MockedBeamSQLTable.CONTENT.get(0));
   }
 
 }

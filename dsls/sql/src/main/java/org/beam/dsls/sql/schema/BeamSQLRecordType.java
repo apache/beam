@@ -25,25 +25,26 @@ import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.DefaultCoder;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeField;
+import org.apache.calcite.sql.type.SqlTypeName;
 
 /**
  * Field type information in {@link BeamSQLRow}.
  *
  */
-@DefaultCoder(AvroCoder.class)
+//@DefaultCoder(BeamSQLRecordTypeCoder.class)
 public class BeamSQLRecordType implements Serializable {
   /**
    *
    */
   private static final long serialVersionUID = -5318734648766104712L;
   private List<String> fieldsName = new ArrayList<>();
-  private List<String> fieldsType = new ArrayList<>();
+  private List<SqlTypeName> fieldsType = new ArrayList<>();
 
   public static BeamSQLRecordType from(RelDataType tableInfo) {
     BeamSQLRecordType record = new BeamSQLRecordType();
     for (RelDataTypeField f : tableInfo.getFieldList()) {
       record.fieldsName.add(f.getName());
-      record.fieldsType.add(f.getType().getSqlTypeName().getName());
+      record.fieldsType.add(f.getType().getSqlTypeName());
     }
     return record;
   }
@@ -60,11 +61,11 @@ public class BeamSQLRecordType implements Serializable {
     this.fieldsName = fieldsName;
   }
 
-  public List<String> getFieldsType() {
+  public List<SqlTypeName> getFieldsType() {
     return fieldsType;
   }
 
-  public void setFieldsType(List<String> fieldsType) {
+  public void setFieldsType(List<SqlTypeName> fieldsType) {
     this.fieldsType = fieldsType;
   }
 

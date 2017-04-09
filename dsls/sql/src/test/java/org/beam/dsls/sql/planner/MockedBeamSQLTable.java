@@ -18,6 +18,7 @@
 package org.beam.dsls.sql.planner;
 
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 
 import org.apache.beam.sdk.transforms.Create;
@@ -60,19 +61,25 @@ public class MockedBeamSQLTable extends BaseBeamTable {
     row1.addField(0, 12345L);
     row1.addField(1, 0);
     row1.addField(2, 10.5);
-    row1.addField(3, System.currentTimeMillis());
+    row1.addField(3, new Date());
 
     BeamSQLRow row2 = new BeamSQLRow(beamSqlRecordType);
     row2.addField(0, 12345L);
     row2.addField(1, 1);
     row2.addField(2, 20.5);
-    row2.addField(3, System.currentTimeMillis());
+    row2.addField(3, new Date());
 
     BeamSQLRow row3 = new BeamSQLRow(beamSqlRecordType);
     row3.addField(0, 12345L);
     row3.addField(1, 0);
     row3.addField(2, 20.5);
-    row3.addField(3, System.currentTimeMillis());
+    row3.addField(3, new Date());
+
+    BeamSQLRow row4 = new BeamSQLRow(beamSqlRecordType);
+    row4.addField(0, null);
+    row4.addField(1, null);
+    row4.addField(2, 20.5);
+    row4.addField(3, new Date());
 
     return Create.of(row1, row2, row3);
   }

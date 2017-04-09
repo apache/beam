@@ -20,12 +20,16 @@ package org.beam.dsls.sql.planner;
 import java.util.Map;
 
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.values.PCollection;
 import org.beam.dsls.sql.rel.BeamRelNode;
 import org.beam.dsls.sql.schema.BaseBeamTable;
+import org.beam.dsls.sql.schema.BeamSQLRecordType;
+import org.beam.dsls.sql.schema.BeamSQLRecordTypeCoder;
 import org.beam.dsls.sql.schema.BeamSQLRow;
+import org.beam.dsls.sql.schema.BeamSqlRowCoder;
 
 /**
  * {@link BeamPipelineCreator} converts a {@link BeamRelNode} tree, into a Beam
@@ -50,6 +54,9 @@ public class BeamPipelineCreator {
     options.setJobName("BeamPlanCreator");
 
     pipeline = Pipeline.create(options);
+    CoderRegistry cr = pipeline.getCoderRegistry();
+    cr.registerCoder(BeamSQLRow.class, BeamSqlRowCoder.of());
+    cr.registerCoder(BeamSQLRecordType.class, BeamSQLRecordTypeCoder.of());
   }
 
   public PCollection<BeamSQLRow> getLatestStream() {
