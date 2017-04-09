@@ -139,19 +139,13 @@ public class MicrobatchSource<T, CheckpointMarkT extends UnboundedSource.Checkpo
     }
   }
 
-  private static final Object READER_CACHE_LOCK = new Object();
-
-  private void initReaderCache(long readerCacheInterval) {
+  private synchronized void initReaderCache(long readerCacheInterval) {
     if (readerCache == null) {
-      synchronized (READER_CACHE_LOCK) {
-        if (readerCache == null) {
-          LOG.info("Creating reader cache. Cache interval = " + readerCacheInterval + " ms.");
-          readerCache =
-              CacheBuilder.newBuilder()
-                  .expireAfterAccess(readerCacheInterval, TimeUnit.MILLISECONDS)
-                  .build();
-        }
-      }
+      LOG.info("Creating reader cache. Cache interval = " + readerCacheInterval + " ms.");
+      readerCache =
+          CacheBuilder.newBuilder()
+              .expireAfterAccess(readerCacheInterval, TimeUnit.MILLISECONDS)
+              .build();
     }
   }
 
