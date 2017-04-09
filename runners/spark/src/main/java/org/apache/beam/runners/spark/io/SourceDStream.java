@@ -60,6 +60,11 @@ class SourceDStream<T, CheckpointMarkT extends UnboundedSource.CheckpointMark>
   private final UnboundedSource<T, CheckpointMarkT> unboundedSource;
   private final SparkRuntimeContext runtimeContext;
   private final Duration boundReadDuration;
+  // Reader cache interval to expire readers if they haven't been accessed in the last microbatch.
+  // The reason we expire readers is that upon executor death/addition source split ownership can be
+  // reshuffled between executors. When this happens we want to close and expire unused readers
+  // in the executor in case it regains ownership of the source split in the future - to avoid
+  // resuming from an earlier checkpoint.
   private final double readerCacheInterval;
   // Number of partitions for the DStream is final and remains the same throughout the entire
   // lifetime of the pipeline, including when resuming from checkpoint.
@@ -85,8 +90,7 @@ class SourceDStream<T, CheckpointMarkT extends UnboundedSource.CheckpointMark>
     SparkPipelineOptions options = runtimeContext.getPipelineOptions().as(
         SparkPipelineOptions.class);
 
-    // Reader cache interval is set to expire readers if they have not been accessed in the last
-    // microbatch. 50% of batch interval is added to accommodate latency.
+    // Reader cache expiration interval. 50% of batch interval is added to accommodate latency.
     this.readerCacheInterval = 1.5 * options.getBatchIntervalMillis();
 
     this.boundReadDuration = boundReadDuration(options.getReadTimePercentage(),
