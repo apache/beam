@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.metrics;
 
 import com.google.auto.value.AutoValue;
-import java.io.Serializable;
 
 /**
  * Data describing the the distribution. This should retain enough detail that it can be combined
@@ -29,7 +28,7 @@ import java.io.Serializable;
  * the approximate value of those quantiles.
  */
 @AutoValue
-public abstract class DistributionData implements Serializable {
+public abstract class DistributionData implements MetricData<DistributionResult> {
 
   public abstract long sum();
   public abstract long count();
@@ -46,14 +45,17 @@ public abstract class DistributionData implements Serializable {
     return create(value, 1, value, value);
   }
 
-  public DistributionData combine(DistributionData value) {
+  @Override
+  public DistributionData combine(MetricData<DistributionResult> other) {
+    DistributionData that = (DistributionData) other;
     return create(
-        sum() + value.sum(),
-        count() + value.count(),
-        Math.min(value.min(), min()),
-        Math.max(value.max(), max()));
+        sum() + that.sum(),
+        count() + that.count(),
+        Math.min(min(), that.min()),
+        Math.max(max(), that.max()));
   }
 
+  @Override
   public DistributionResult extractResult() {
     return DistributionResult.create(sum(), count(), min(), max());
   }

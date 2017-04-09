@@ -32,7 +32,7 @@ import org.apache.beam.sdk.annotations.Experimental.Kind;
 public abstract class MetricUpdates {
 
   public static final MetricUpdates EMPTY = MetricUpdates.create(
-      Collections.<MetricUpdate<Long>>emptyList(),
+      Collections.<MetricUpdate<CounterData>>emptyList(),
       Collections.<MetricUpdate<DistributionData>>emptyList(),
       Collections.<MetricUpdate<GaugeData>>emptyList());
 
@@ -60,7 +60,7 @@ public abstract class MetricUpdates {
   }
 
   /** All of the counter updates. */
-  public abstract Iterable<MetricUpdate<Long>> counterUpdates();
+  public abstract Iterable<MetricUpdate<CounterData>> counterUpdates();
 
   /** All of the distribution updates. */
   public abstract Iterable<MetricUpdate<DistributionData>> distributionUpdates();
@@ -70,7 +70,7 @@ public abstract class MetricUpdates {
 
   /** Create a new {@link MetricUpdates} bundle. */
   public static MetricUpdates create(
-      Iterable<MetricUpdate<Long>> counterUpdates,
+      Iterable<MetricUpdate<CounterData>> counterUpdates,
       Iterable<MetricUpdate<DistributionData>> distributionUpdates,
       Iterable<MetricUpdate<GaugeData>> gaugeUpdates) {
     return new AutoValue_MetricUpdates(counterUpdates, distributionUpdates, gaugeUpdates);

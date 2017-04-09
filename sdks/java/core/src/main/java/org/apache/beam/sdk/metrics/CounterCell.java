@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.metrics;
 
-import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 
@@ -30,11 +30,10 @@ import org.apache.beam.sdk.annotations.Experimental.Kind;
  * indirection.
  */
 @Experimental(Kind.METRICS)
-public class CounterCell implements MetricCell<Counter, Long>, Counter {
+public class CounterCell implements MetricCell<Counter, CounterData>, Counter {
 
   private final DirtyState dirty = new DirtyState();
-  private final AtomicLong value = new AtomicLong();
-
+  private final AtomicReference<CounterData> value = new AtomicReference<>(CounterData.EMPTY);
   /**
    * Package-visibility because all {@link CounterCell CounterCells} should be created by
    * {@link MetricsContainer#getCounter(MetricName)}.
@@ -43,7 +42,10 @@ public class CounterCell implements MetricCell<Counter, Long>, Counter {
 
   /** Increment the counter by the given amount. */
   private void add(long n) {
-    value.addAndGet(n);
+    CounterData original;
+    do {
+      original = value.get();
+    } while (!value.compareAndSet(original, original.combine(CounterData.create(n))));
     dirty.afterModification();
   }
 
@@ -53,7 +55,7 @@ public class CounterCell implements MetricCell<Counter, Long>, Counter {
   }
 
   @Override
-  public Long getCumulative() {
+  public CounterData getCumulative() {
     return value.get();
   }
 

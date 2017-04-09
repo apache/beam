@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.metrics;
 
 import com.google.auto.value.AutoValue;
-import java.io.Serializable;
 import org.joda.time.Instant;
 
 /**
@@ -26,7 +25,7 @@ import org.joda.time.Instant;
  * other {@link GaugeData}.
  */
 @AutoValue
-public abstract class GaugeData implements Serializable {
+public abstract class GaugeData implements MetricData<GaugeResult> {
 
   public abstract long value();
 
@@ -40,14 +39,17 @@ public abstract class GaugeData implements Serializable {
     return EmptyGaugeData.INSTANCE;
   }
 
-  public GaugeData combine(GaugeData other) {
-    if (this.timestamp().isAfter(other.timestamp())) {
+  @Override
+  public GaugeData combine(MetricData<GaugeResult> other) {
+    GaugeData that = (GaugeData) other;
+    if (this.timestamp().isAfter(that.timestamp())) {
       return this;
     } else {
-      return other;
+      return that;
     }
   }
 
+  @Override
   public GaugeResult extractResult() {
     return GaugeResult.create(value(), timestamp());
   }
