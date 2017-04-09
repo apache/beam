@@ -174,6 +174,7 @@ public class JdbcIO {
     @Nullable abstract String getUrl();
     @Nullable abstract String getUsername();
     @Nullable abstract String getPassword();
+    @Nullable abstract String getConnectionProperties();
     @Nullable abstract DataSource getDataSource();
 
     abstract Builder builder();
@@ -184,6 +185,7 @@ public class JdbcIO {
       abstract Builder setUrl(String url);
       abstract Builder setUsername(String username);
       abstract Builder setPassword(String password);
+      abstract Builder setConnectionProperties(String connectionProperties);
       abstract Builder setDataSource(DataSource dataSource);
       abstract DataSourceConfiguration build();
     }
@@ -217,6 +219,22 @@ public class JdbcIO {
       return builder().setPassword(password).build();
     }
 
+    /**
+     * Sets the connection properties passed to driver.connect(...).
+     * Format of the string must be [propertyName=property;]*
+     *
+     * <p>NOTE - The "user" and "password" properties can be add via {@link #withUsername(String)},
+     * {@link #withPassword(String)}, so they do not need to be included here.
+     * @param connectionProperties
+     * @return
+     */
+    public DataSourceConfiguration withConnectionProperties(String connectionProperties) {
+      checkArgument(connectionProperties != null, "DataSourceConfiguration.create(driver, url)"
+          + ".withConnectionProperties(connectionProperties) "
+          + "called with null connectionProperties");
+      return builder().setConnectionProperties(connectionProperties).build();
+    }
+
     private void populateDisplayData(DisplayData.Builder builder) {
       if (getDataSource() != null) {
         builder.addIfNotNull(DisplayData.item("dataSource", getDataSource().getClass().getName()));
@@ -238,6 +256,9 @@ public class JdbcIO {
         basicDataSource.setUrl(getUrl());
         basicDataSource.setUsername(getUsername());
         basicDataSource.setPassword(getPassword());
+        if (getConnectionProperties() != null) {
+          basicDataSource.setConnectionProperties(getConnectionProperties());
+        }
         return basicDataSource.getConnection();
       }
     }
