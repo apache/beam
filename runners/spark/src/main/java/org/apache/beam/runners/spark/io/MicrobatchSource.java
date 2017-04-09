@@ -22,6 +22,8 @@ import com.google.api.client.util.BackOff;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
+import com.google.common.cache.RemovalListener;
+import com.google.common.cache.RemovalNotification;
 import com.google.common.util.concurrent.Uninterruptibles;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -145,6 +147,7 @@ public class MicrobatchSource<T, CheckpointMarkT extends UnboundedSource.Checkpo
       readerCache =
           CacheBuilder.newBuilder()
               .expireAfterAccess(readerCacheInterval, TimeUnit.MILLISECONDS)
+              .removalListener(new ReaderCacheRemovalListener())
               .build();
     }
   }
@@ -312,6 +315,21 @@ public class MicrobatchSource<T, CheckpointMarkT extends UnboundedSource.Checkpo
       LOG.info("No cached reader found for split: [" + source
           + "]. Creating new reader at checkpoint mark " + checkpointMark);
       return new Reader(source.createReader(options, checkpointMark));
+    }
+  }
+
+  /**
+   * Listener to be called when a reader is removed from {@link MicrobatchSource#readerCache}.
+   */
+  private static class ReaderCacheRemovalListener
+      implements RemovalListener<MicrobatchSource<?, ?>, BoundedReader<?>> {
+    @Override public void onRemoval(
+        RemovalNotification<MicrobatchSource<?, ?>, BoundedReader<?>> notification) {
+      try {
+        notification.getValue().close();
+      } catch (IOException e) {
+        throw new RuntimeException(e);
+      }
     }
   }
 
