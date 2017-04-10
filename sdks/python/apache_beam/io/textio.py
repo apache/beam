@@ -385,7 +385,6 @@ class ReadFromText(PTransform):
     """
 
     super(ReadFromText, self).__init__(**kwargs)
-    self._strip_trailing_newlines = strip_trailing_newlines
     self._source = _TextSource(
         file_pattern, min_bundle_size, compression_type,
         strip_trailing_newlines, coder, validate=validate,

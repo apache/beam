@@ -66,7 +66,7 @@ public class ApexGroupByKeyOperatorTest {
     input.setCoder(KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of()));
 
     ApexGroupByKeyOperator<String, Integer> operator = new ApexGroupByKeyOperator<>(options,
-        input, new ApexStateInternals.ApexStateInternalsFactory<String>()
+        input, new ApexStateInternals.ApexStateBackend()
         );
 
     operator.setup(null);

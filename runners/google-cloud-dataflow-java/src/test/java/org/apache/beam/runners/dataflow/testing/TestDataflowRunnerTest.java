@@ -32,6 +32,7 @@ import static org.mockito.Matchers.anyString;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.doCallRealMethod;
 import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -207,7 +208,7 @@ public class TestDataflowRunnerTest {
       runner.run(p, mockRunner);
     } catch (AssertionError expected) {
       assertThat(expected.getMessage(), containsString("FooException"));
-      verify(mockJob, atLeastOnce()).cancel();
+      verify(mockJob, never()).cancel();
       return;
     }
     // Note that fail throws an AssertionError which is why it is placed out here

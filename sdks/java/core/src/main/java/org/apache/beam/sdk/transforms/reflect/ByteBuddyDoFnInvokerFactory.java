@@ -50,6 +50,7 @@ import net.bytebuddy.implementation.bytecode.Throw;
 import net.bytebuddy.implementation.bytecode.assign.Assigner;
 import net.bytebuddy.implementation.bytecode.assign.Assigner.Typing;
 import net.bytebuddy.implementation.bytecode.assign.TypeCasting;
+import net.bytebuddy.implementation.bytecode.constant.NullConstant;
 import net.bytebuddy.implementation.bytecode.constant.TextConstant;
 import net.bytebuddy.implementation.bytecode.member.FieldAccess;
 import net.bytebuddy.implementation.bytecode.member.MethodInvocation;
@@ -74,6 +75,8 @@ import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.Restrictio
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.StateParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.TimerParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.WindowParameter;
+import org.apache.beam.sdk.transforms.splittabledofn.HasDefaultTracker;
+import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.util.Timer;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.values.TypeDescriptor;
@@ -85,8 +88,6 @@ public class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
   public static final String PROCESS_CONTEXT_PARAMETER_METHOD = "processContext";
   public static final String ON_TIMER_CONTEXT_PARAMETER_METHOD = "onTimerContext";
   public static final String WINDOW_PARAMETER_METHOD = "window";
-  public static final String INPUT_PROVIDER_PARAMETER_METHOD = "inputProvider";
-  public static final String OUTPUT_RECEIVER_PARAMETER_METHOD = "outputReceiver";
   public static final String RESTRICTION_TRACKER_PARAMETER_METHOD = "restrictionTracker";
   public static final String STATE_PARAMETER_METHOD = "state";
   public static final String TIMER_PARAMETER_METHOD = "timer";
@@ -259,6 +260,15 @@ public class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
     }
   }
 
+  /** Default implementation of {@link DoFn.NewTracker}, for delegation by bytebuddy. */
+  public static class DefaultNewTracker {
+    /** Uses {@link HasDefaultTracker} to produce the tracker. */
+    @SuppressWarnings("unused")
+    public static RestrictionTracker invokeNewTracker(Object restriction) {
+      return ((HasDefaultTracker) restriction).newTracker();
+    }
+  }
+
   /** Generates a {@link DoFnInvoker} class for the given {@link DoFnSignature}. */
   private static Class<? extends DoFnInvoker<?, ?>> generateInvokerClass(DoFnSignature signature) {
     Class<? extends DoFn<?, ?>> fnClass = signature.fnClass();
@@ -308,7 +318,7 @@ public class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
             .method(ElementMatchers.named("invokeGetRestrictionCoder"))
             .intercept(getRestrictionCoderDelegation(clazzDescription, signature))
             .method(ElementMatchers.named("invokeNewTracker"))
-            .intercept(delegateWithDowncastOrThrow(clazzDescription, signature.newTracker()));
+            .intercept(newTrackerDelegation(clazzDescription, signature.newTracker()));
 
     DynamicType.Unloaded<?> unloaded = builder.make();
 
@@ -345,6 +355,17 @@ public class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
     } else {
       return new DowncastingParametersMethodDelegation(
           doFnType, signature.splitRestriction().targetMethod());
+    }
+  }
+
+  private static Implementation newTrackerDelegation(
+      TypeDescription doFnType, @Nullable DoFnSignature.NewTrackerMethod signature) {
+    if (signature == null) {
+      // We must have already verified that in this case the restriction type
+      // is a subtype of HasDefaultTracker.
+      return MethodDelegation.to(DefaultNewTracker.class);
+    } else {
+      return delegateWithDowncastOrThrow(doFnType, signature);
     }
   }
 
@@ -605,17 +626,6 @@ public class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
    * {@link ProcessElement} method.
    */
   private static final class ProcessElementDelegation extends DoFnMethodDelegation {
-    private static final MethodDescription PROCESS_CONTINUATION_STOP_METHOD;
-
-    static {
-      try {
-        PROCESS_CONTINUATION_STOP_METHOD =
-            new MethodDescription.ForLoadedMethod(DoFn.ProcessContinuation.class.getMethod("stop"));
-      } catch (NoSuchMethodException e) {
-        throw new RuntimeException("Failed to locate ProcessContinuation.stop()");
-      }
-    }
-
     private final DoFnSignature.ProcessElementMethod signature;
 
     /** Implementation of {@link MethodDelegation} for the {@link ProcessElement} method. */
@@ -652,12 +662,8 @@ public class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
 
     @Override
     protected StackManipulation afterDelegation(MethodDescription instrumentedMethod) {
-      if (TypeDescription.VOID.equals(targetMethod.getReturnType().asErasure())) {
-        return new StackManipulation.Compound(
-            MethodInvocation.invoke(PROCESS_CONTINUATION_STOP_METHOD), MethodReturn.REFERENCE);
-      } else {
-        return MethodReturn.of(targetMethod.getReturnType().asErasure());
-      }
+      return new StackManipulation.Compound(
+          NullConstant.INSTANCE, MethodReturn.REFERENCE);
     }
   }
 

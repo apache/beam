@@ -17,15 +17,11 @@
  */
 package org.apache.beam.runners.core;
 
-import static org.apache.beam.sdk.transforms.DoFn.ProcessContinuation.resume;
-import static org.apache.beam.sdk.transforms.DoFn.ProcessContinuation.stop;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.lessThan;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
 
 import java.util.Collection;
 import java.util.concurrent.Executors;
@@ -54,26 +50,16 @@ public class OutputAndTimeBoundedSplittableProcessElementInvokerTest {
     }
 
     @ProcessElement
-    public ProcessContinuation process(ProcessContext context, OffsetRangeTracker tracker)
+    public void process(ProcessContext context, OffsetRangeTracker tracker)
         throws Exception {
-      OffsetRange range = tracker.currentRestriction();
-      for (int i = (int) range.getFrom(); i < range.getTo(); ++i) {
-        if (!tracker.tryClaim(i)) {
-          return resume();
-        }
+      for (long i = tracker.currentRestriction().getFrom(); tracker.tryClaim(i); ++i) {
         Thread.sleep(sleepBeforeEachOutput.getMillis());
         context.output("" + i);
       }
-      return stop();
     }
 
     @GetInitialRestriction
     public OffsetRange getInitialRestriction(Integer element) {
-      throw new UnsupportedOperationException("Should not be called in this test");
-    }
-
-    @NewTracker
-    public OffsetRangeTracker newTracker(OffsetRange range) {
       throw new UnsupportedOperationException("Should not be called in this test");
     }
   }
@@ -116,7 +102,6 @@ public class OutputAndTimeBoundedSplittableProcessElementInvokerTest {
   public void testInvokeProcessElementOutputBounded() throws Exception {
     SplittableProcessElementInvoker<Integer, String, OffsetRange, OffsetRangeTracker>.Result res =
         runTest(10000, Duration.ZERO);
-    assertTrue(res.getContinuation().shouldResume());
     OffsetRange residualRange = res.getResidualRestriction();
     // Should process the first 100 elements.
     assertEquals(1000, residualRange.getFrom());
@@ -127,7 +112,6 @@ public class OutputAndTimeBoundedSplittableProcessElementInvokerTest {
   public void testInvokeProcessElementTimeBounded() throws Exception {
     SplittableProcessElementInvoker<Integer, String, OffsetRange, OffsetRangeTracker>.Result res =
         runTest(10000, Duration.millis(100));
-    assertTrue(res.getContinuation().shouldResume());
     OffsetRange residualRange = res.getResidualRestriction();
     // Should process ideally around 30 elements - but due to timing flakiness, we can't enforce
     // that precisely. Just test that it's not egregiously off.
@@ -140,7 +124,6 @@ public class OutputAndTimeBoundedSplittableProcessElementInvokerTest {
   public void testInvokeProcessElementVoluntaryReturn() throws Exception {
     SplittableProcessElementInvoker<Integer, String, OffsetRange, OffsetRangeTracker>.Result res =
         runTest(5, Duration.millis(100));
-    assertFalse(res.getContinuation().shouldResume());
     assertNull(res.getResidualRestriction());
   }
 }

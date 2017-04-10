@@ -542,6 +542,11 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     }
 
     @Override
+    public void updateWatermark(Instant watermark) {
+      throw new UnsupportedOperationException("Only splittable DoFn's can use updateWatermark()");
+    }
+
+    @Override
     public void output(OutputT output) {
       context.outputWindowedValue(windowedValue.withValue(output));
     }

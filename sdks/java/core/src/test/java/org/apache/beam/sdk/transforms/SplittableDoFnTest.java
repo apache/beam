@@ -18,8 +18,6 @@
 package org.apache.beam.sdk.transforms;
 
 import static com.google.common.base.Preconditions.checkState;
-import static org.apache.beam.sdk.transforms.DoFn.ProcessContinuation.resume;
-import static org.apache.beam.sdk.transforms.DoFn.ProcessContinuation.stop;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -67,14 +65,10 @@ public class SplittableDoFnTest {
 
   static class PairStringWithIndexToLength extends DoFn<String, KV<String, Integer>> {
     @ProcessElement
-    public ProcessContinuation process(ProcessContext c, OffsetRangeTracker tracker) {
+    public void process(ProcessContext c, OffsetRangeTracker tracker) {
       for (long i = tracker.currentRestriction().getFrom(); tracker.tryClaim(i); ++i) {
         c.output(KV.of(c.element(), (int) i));
-        if (i % 3 == 0) {
-          return resume();
-        }
       }
-      return stop();
     }
 
     @GetInitialRestriction
@@ -87,11 +81,6 @@ public class SplittableDoFnTest {
         String element, OffsetRange range, OutputReceiver<OffsetRange> receiver) {
       receiver.output(new OffsetRange(range.getFrom(), (range.getFrom() + range.getTo()) / 2));
       receiver.output(new OffsetRange((range.getFrom() + range.getTo()) / 2, range.getTo()));
-    }
-
-    @NewTracker
-    public OffsetRangeTracker newTracker(OffsetRange range) {
-      return new OffsetRangeTracker(range);
     }
   }
 
@@ -201,29 +190,19 @@ public class SplittableDoFnTest {
     }
 
     @ProcessElement
-    public ProcessContinuation processElement(ProcessContext c, OffsetRangeTracker tracker) {
+    public void processElement(ProcessContext c, OffsetRangeTracker tracker) {
       int[] blockStarts = {-1, 0, 12, 123, 1234, 12345, 34567, MAX_INDEX};
       int trueStart = snapToNextBlock((int) tracker.currentRestriction().getFrom(), blockStarts);
-      int trueEnd = snapToNextBlock((int) tracker.currentRestriction().getTo(), blockStarts);
-      for (int i = trueStart; i < trueEnd; ++i) {
-        if (!tracker.tryClaim(blockStarts[i])) {
-          return resume();
-        }
+      for (int i = trueStart; tracker.tryClaim(blockStarts[i]); ++i) {
         for (int index = blockStarts[i]; index < blockStarts[i + 1]; ++index) {
           c.output(index);
         }
       }
-      return stop();
     }
 
     @GetInitialRestriction
     public OffsetRange getInitialRange(String element) {
       return new OffsetRange(0, MAX_INDEX);
-    }
-
-    @NewTracker
-    public OffsetRangeTracker newTracker(OffsetRange range) {
-      return new OffsetRangeTracker(range);
     }
   }
 
@@ -258,11 +237,6 @@ public class SplittableDoFnTest {
     @GetInitialRestriction
     public OffsetRange getInitialRestriction(Integer value) {
       return new OffsetRange(0, 1);
-    }
-
-    @NewTracker
-    public OffsetRangeTracker newTracker(OffsetRange range) {
-      return new OffsetRangeTracker(range);
     }
   }
 
@@ -355,11 +329,6 @@ public class SplittableDoFnTest {
     @GetInitialRestriction
     public OffsetRange getInitialRestriction(String value) {
       return new OffsetRange(0, 1);
-    }
-
-    @NewTracker
-    public OffsetRangeTracker newTracker(OffsetRange range) {
-      return new OffsetRangeTracker(range);
     }
 
     @Setup
