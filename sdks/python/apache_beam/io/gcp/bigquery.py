@@ -839,7 +839,7 @@ class BigQueryWrapper(object):
       self.client.datasets.Delete(request)
     except HttpError as exn:
       if exn.status_code == 404:
-        logging.warning('Dataaset %s:%s does not exist', project_id,
+        logging.warning('Dataset %s:%s does not exist', project_id,
                         dataset_id)
         return
       else:
@@ -857,12 +857,12 @@ class BigQueryWrapper(object):
       if project_id is not None:
         # Unittests don't pass projectIds so they can be run without error
         raise RuntimeError(
-            'Temporary dataset %s:%s already exists so cannot be used as temporary.'
+            'Dataset %s:%s already exists so cannot be used as temporary.'
             % (project_id, dataset_id))
     except HttpError as exn:
       if exn.status_code == 404:
         logging.warning(
-            'Temporary dataset %s:%s does not exist so we will create it'
+            'Dataset %s:%s does not exist so we will create it as temporary'
             % (project_id, dataset_id))
         self.get_or_create_dataset(project_id, dataset_id)
       else:
