@@ -24,7 +24,7 @@ class common_job_properties {
 
   // Sets common top-level job properties for website repository jobs.
   static void setTopLevelWebsiteJobProperties(context) {
-    setTopLevelJobProperties(context, 'beam-site', 'asf-site', 30)
+    setTopLevelJobProperties(context, 'beam-site', 'asf-site', 60)
   }
 
   // Sets common top-level job properties for main repository jobs.
