@@ -367,6 +367,15 @@ class BigQuerySource(dataflow_io.NativeSource):
       (3) both a table and a query is specified.
     """
 
+    # Import here to avoid adding the dependency for local running scenarios.
+    try:
+      # pylint: disable=wrong-import-order, wrong-import-position
+      from apitools.base.py import *
+    except ImportError:
+      raise ImportError(
+          'Google Cloud IO not available, '
+          'please install apache_beam[gcp]')
+
     if table is not None and query is not None:
       raise ValueError('Both a BigQuery table and a query were specified.'
                        ' Please specify only one of these.')
@@ -467,6 +476,16 @@ class BigQuerySink(dataflow_io.NativeSink):
       ValueError: if the table reference as a string does not match the expected
       format.
     """
+
+    # Import here to avoid adding the dependency for local running scenarios.
+    try:
+      # pylint: disable=wrong-import-order, wrong-import-position
+      from apitools.base.py import *
+    except ImportError:
+      raise ImportError(
+          'Google Cloud IO not available, '
+          'please install apache_beam[gcp]')
+
     self.table_reference = _parse_table_reference(table, dataset, project)
     # Transform the table schema into a bigquery.TableSchema instance.
     if isinstance(schema, basestring):

@@ -78,7 +78,15 @@ def create_runner(runner_name):
 
   if '.' in runner_name:
     module, runner = runner_name.rsplit('.', 1)
-    return getattr(__import__(module, {}, {}, [runner], -1), runner)()
+    try:
+      return getattr(__import__(module, {}, {}, [runner], -1), runner)()
+    except ImportError:
+      if runner_name in _KNOWN_DATAFLOW_RUNNERS:
+        raise ImportError(
+            'Google Cloud Dataflow runner not available, '
+            'please install apache_beam[gcp]')
+      else:
+        raise
   else:
     raise ValueError(
         'Unexpected pipeline runner: %s. Valid values are %s '
