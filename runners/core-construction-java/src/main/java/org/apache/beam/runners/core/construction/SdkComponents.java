@@ -59,10 +59,8 @@ class SdkComponents {
 
   /**
    * Registers the provided {@link AppliedPTransform} into this {@link SdkComponents}, returning a
-   * unique ID for the {@link AppliedPTransform}. Multiple calls to {@link #registerPTransform} with
-   * the same {@link AppliedPTransform} will return the same unique ID.
-   *
-   * <p>Uses the full name of the transform as the id.
+   * unique ID for the {@link AppliedPTransform}. Multiple registrations of the same
+   * {@link AppliedPTransform} will return the same unique ID.
    */
   String registerPTransform(AppliedPTransform<?, ?, ?> pTransform) {
     String existing = transformIds.get(pTransform);
@@ -79,10 +77,8 @@ class SdkComponents {
 
   /**
    * Registers the provided {@link PCollection} into this {@link SdkComponents}, returning a unique
-   * ID for the {@link PCollection}. Multiple calls to {@link #registerPCollection(PCollection)}
-   * with the same {@link PCollection}will return the same unique ID.
-   *
-   * <p>Uses a unique name based on the result of {@link PCollection#getName()}.
+   * ID for the {@link PCollection}. Multiple registrations of the same {@link PCollection} will
+   * return the same unique ID.
    */
   String registerPCollection(PCollection<?> pCollection) {
     String existing = pCollectionIds.get(pCollection);
@@ -96,16 +92,19 @@ class SdkComponents {
 
   /**
    * Registers the provided {@link WindowingStrategy} into this {@link SdkComponents}, returning a
-   * unique ID for the {@link WindowingStrategy}. Multiple calls to {@link
-   * #registerWindowingStrategy(WindowingStrategy)} with the equal {@link WindowingStrategy
-   * WindowingStrategies} will return the same unique ID.
+   * unique ID for the {@link WindowingStrategy}. Multiple registrations of the same {@link
+   * WindowingStrategy} will return the same unique ID.
    */
   String registerWindowingStrategy(WindowingStrategy<?, ?> windowingStrategy) {
     String existing = windowingStrategyIds.get(windowingStrategy);
     if (existing != null) {
       return existing;
     }
-    String baseName = NameUtils.approximateSimpleName(windowingStrategy);
+    String baseName =
+        String.format(
+            "%s(%s)",
+            NameUtils.approximateSimpleName(windowingStrategy),
+            NameUtils.approximateSimpleName(windowingStrategy.getWindowFn()));
     String name = uniqify(baseName, windowingStrategyIds.values());
     windowingStrategyIds.put(windowingStrategy, name);
     return name;
@@ -113,8 +112,8 @@ class SdkComponents {
 
   /**
    * Registers the provided {@link Coder} into this {@link SdkComponents}, returning a unique ID for
-   * the {@link Coder}. Multiple calls to {@link #registerCoder(Coder)} with the identical {@link
-   * Coder coders} will return the same unique ID.
+   * the {@link Coder}. Multiple registrations of the same {@link Coder} will return the same
+   * unique ID.
    *
    * <p>Coders are stored by identity to ensure that coders with implementations of {@link
    * #equals(Object)} and {@link #hashCode()} but incompatible binary formats are not considered the

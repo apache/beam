@@ -56,7 +56,7 @@ public class SdkComponentsTest {
   private SdkComponents components = SdkComponents.create();
 
   @Test
-  public void getCoderId() {
+  public void registerCoder() {
     Coder<?> coder =
         KvCoder.of(StringUtf8Coder.of(), IterableCoder.of(SetCoder.of(ByteArrayCoder.of())));
     String id = components.registerCoder(coder);
@@ -66,7 +66,7 @@ public class SdkComponentsTest {
   }
 
   @Test
-  public void getTransformId() {
+  public void registerTransform() {
     Create.Values<Integer> create = Create.of(1, 2, 3);
     PCollection<Integer> pt = pipeline.apply(create);
     String userName = "my_transform/my_nesting";
@@ -79,7 +79,7 @@ public class SdkComponentsTest {
   }
 
   @Test
-  public void getTransformIdEmptyFullName() {
+  public void registerTransformIdEmptyFullName() {
     Create.Values<Integer> create = Create.of(1, 2, 3);
     PCollection<Integer> pt = pipeline.apply(create);
     AppliedPTransform<?, ?, ?> transform =
@@ -91,14 +91,14 @@ public class SdkComponentsTest {
   }
 
   @Test
-  public void getPCollectionId() {
+  public void registerPCollection() {
     PCollection<Long> pCollection = pipeline.apply(CountingInput.unbounded()).setName("foo");
     String id = components.registerPCollection(pCollection);
     assertThat(id, equalTo("foo"));
   }
 
   @Test
-  public void putPCollectionExistingNameCollision() {
+  public void registerPCollectionExistingNameCollision() {
     PCollection<Long> pCollection =
         pipeline.apply("FirstCount", CountingInput.unbounded()).setName("foo");
     String firstId = components.registerPCollection(pCollection);
@@ -111,18 +111,15 @@ public class SdkComponentsTest {
   }
 
   @Test
-  public void getWindowingStrategyId() {
+  public void registerWindowingStrategy() {
     WindowingStrategy<?, ?> strategy =
         WindowingStrategy.globalDefault().withMode(AccumulationMode.ACCUMULATING_FIRED_PANES);
     String name = components.registerWindowingStrategy(strategy);
     assertThat(name, not(isEmptyOrNullString()));
   }
 
-  // TODO: Determine if desired
-  // @Test public void windowingStrategyGlobalDefault()
-
   @Test
-  public void getWindowingStrategyIdEqualStrategies() {
+  public void registerWindowingStrategyIdEqualStrategies() {
     WindowingStrategy<?, ?> strategy =
         WindowingStrategy.globalDefault().withMode(AccumulationMode.ACCUMULATING_FIRED_PANES);
     String name = components.registerWindowingStrategy(strategy);
