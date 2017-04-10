@@ -92,6 +92,16 @@ class ReadFromDatastore(PTransform):
       namespace: An optional namespace.
       num_splits: Number of splits for the query.
     """
+
+    # Import here to avoid adding the dependency for local running scenarios.
+    try:
+      # pylint: disable=wrong-import-order, wrong-import-position
+      from apitools.base.py import *
+    except ImportError:
+      raise ImportError(
+          'Google Cloud IO not available, '
+          'please install apache_beam[gcp]')
+
     logging.warning('datastoreio read transform is experimental.')
     super(ReadFromDatastore, self).__init__()
 
@@ -368,6 +378,16 @@ class _Mutate(PTransform):
 class WriteToDatastore(_Mutate):
   """A ``PTransform`` to write a ``PCollection[Entity]`` to Cloud Datastore."""
   def __init__(self, project):
+
+    # Import here to avoid adding the dependency for local running scenarios.
+    try:
+      # pylint: disable=wrong-import-order, wrong-import-position
+      from apitools.base.py import *
+    except ImportError:
+      raise ImportError(
+          'Google Cloud IO not available, '
+          'please install apache_beam[gcp]')
+
     super(WriteToDatastore, self).__init__(
         project, WriteToDatastore.to_upsert_mutation)
 

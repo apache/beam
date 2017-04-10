@@ -152,8 +152,13 @@ class DataflowRunner(PipelineRunner):
   def run(self, pipeline):
     """Remotely executes entire pipeline or parts reachable from node."""
     # Import here to avoid adding the dependency for local running scenarios.
-    # pylint: disable=wrong-import-order, wrong-import-position
-    from apache_beam.runners.dataflow.internal import apiclient
+    try:
+      # pylint: disable=wrong-import-order, wrong-import-position
+      from apache_beam.runners.dataflow.internal import apiclient
+    except ImportError:
+      raise ImportError(
+          'Google Cloud Dataflow runner not available, '
+          'please install apache_beam[gcp]')
     self.job = apiclient.Job(pipeline.options)
 
     # The superclass's run will trigger a traversal of all reachable nodes.
