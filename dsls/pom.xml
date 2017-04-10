@@ -27,10 +27,11 @@
   </parent>
 
   <artifactId>beam-dsls-parent</artifactId>
+  <packaging>pom</packaging>
   <name>Apache Beam :: DSLs</name>
 
   <modules>
-    <!-- <module>sql</module> -->
+    <module>sql</module>
   </modules>
 
   <build>
