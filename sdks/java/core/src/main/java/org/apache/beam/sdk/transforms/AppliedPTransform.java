@@ -38,6 +38,8 @@ import org.apache.beam.sdk.values.TaggedPValue;
 public abstract class AppliedPTransform<
     InputT extends PInput, OutputT extends POutput,
     TransformT extends PTransform<? super InputT, OutputT>> {
+  // To prevent extension outside of this package.
+  AppliedPTransform() {}
 
   public static <InputT extends PInput, OutputT extends POutput,
           TransformT extends PTransform<? super InputT, OutputT>>

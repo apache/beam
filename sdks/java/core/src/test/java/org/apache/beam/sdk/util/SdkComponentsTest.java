@@ -58,10 +58,10 @@ public class SdkComponentsTest {
   public void getCoderId() {
     Coder<?> coder =
         KvCoder.of(StringUtf8Coder.of(), IterableCoder.of(SetCoder.of(ByteArrayCoder.of())));
-    String id = components.getCoderId(coder);
-    assertThat(components.getCoderId(coder), equalTo(id));
+    String id = components.registerCoder(coder);
+    assertThat(components.registerCoder(coder), equalTo(id));
     assertThat(id, not(isEmptyOrNullString()));
-    assertThat(components.getCoderId(VarLongCoder.of()), not(equalTo(id)));
+    assertThat(components.registerCoder(VarLongCoder.of()), not(equalTo(id)));
   }
 
   @Test
@@ -72,9 +72,9 @@ public class SdkComponentsTest {
     AppliedPTransform<?, ?, ?> transform =
         AppliedPTransform.<PBegin, PCollection<Integer>, Create.Values<Integer>>of(
             userName, pipeline.begin().expand(), pt.expand(), create, pipeline);
-    String componentName = components.getTransformId(transform);
+    String componentName = components.registerPTransform(transform);
     assertThat(componentName, equalTo(userName));
-    assertThat(components.getTransformId(transform), equalTo(componentName));
+    assertThat(components.registerPTransform(transform), equalTo(componentName));
   }
 
   @Test
@@ -84,7 +84,7 @@ public class SdkComponentsTest {
     AppliedPTransform<?, ?, ?> transform =
         AppliedPTransform.<PBegin, PCollection<Integer>, Create.Values<Integer>>of(
             "", pipeline.begin().expand(), pt.expand(), create, pipeline);
-    String assignedName = components.getTransformId(transform);
+    String assignedName = components.registerPTransform(transform);
 
     assertThat(assignedName, not(isEmptyOrNullString()));
   }
@@ -92,7 +92,7 @@ public class SdkComponentsTest {
   @Test
   public void getPCollectionId() {
     PCollection<Long> pCollection = pipeline.apply(CountingInput.unbounded()).setName("foo");
-    String id = components.getPCollectionId(pCollection);
+    String id = components.registerPCollection(pCollection);
     assertThat(id, equalTo("foo"));
   }
 
@@ -100,10 +100,10 @@ public class SdkComponentsTest {
   public void putPCollectionExistingNameCollision() {
     PCollection<Long> pCollection =
         pipeline.apply("FirstCount", CountingInput.unbounded()).setName("foo");
-    String firstId = components.getPCollectionId(pCollection);
+    String firstId = components.registerPCollection(pCollection);
     PCollection<Long> duplicate =
         pipeline.apply("SecondCount", CountingInput.unbounded()).setName("foo");
-    String secondId = components.getPCollectionId(duplicate);
+    String secondId = components.registerPCollection(duplicate);
     assertThat(firstId, equalTo("foo"));
     assertThat(secondId, containsString("foo"));
     assertThat(secondId, not(equalTo("foo")));
@@ -113,7 +113,7 @@ public class SdkComponentsTest {
   public void getWindowingStrategyId() {
     WindowingStrategy<?, ?> strategy =
         WindowingStrategy.globalDefault().withMode(AccumulationMode.ACCUMULATING_FIRED_PANES);
-    String name = components.getWindowingStrategyId(strategy);
+    String name = components.registerWindowingStrategy(strategy);
     assertThat(name, not(isEmptyOrNullString()));
   }
 
@@ -124,9 +124,9 @@ public class SdkComponentsTest {
   public void getWindowingStrategyIdEqualStrategies() {
     WindowingStrategy<?, ?> strategy =
         WindowingStrategy.globalDefault().withMode(AccumulationMode.ACCUMULATING_FIRED_PANES);
-    String name = components.getWindowingStrategyId(strategy);
+    String name = components.registerWindowingStrategy(strategy);
     String duplicateName =
-        components.getWindowingStrategyId(
+        components.registerWindowingStrategy(
             WindowingStrategy.globalDefault().withMode(AccumulationMode.ACCUMULATING_FIRED_PANES));
     assertThat(name, equalTo(duplicateName));
   }

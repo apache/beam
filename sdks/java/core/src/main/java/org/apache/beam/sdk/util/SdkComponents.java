@@ -18,6 +18,7 @@
 
 package org.apache.beam.sdk.util;
 
+import com.google.common.base.Equivalence;
 import com.google.common.collect.BiMap;
 import com.google.common.collect.HashBiMap;
 import java.util.Set;
@@ -30,19 +31,19 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
 
 /** SDK objects that will be represented at some later point within a {@link Components} object. */
-public class SdkComponents {
+class SdkComponents {
   private final RunnerApi.Components.Builder componentsBuilder;
 
   private final BiMap<AppliedPTransform<?, ?, ?>, String> transformIds;
   private final BiMap<PCollection<?>, String> pCollectionIds;
   private final BiMap<WindowingStrategy<?, ?>, String> windowingStrategyIds;
-  private final BiMap<Coder<?>, String> coderIds;
+
+  /** A map of Coder to IDs. Coders are stored here with identity equivalence. */
+  private final BiMap<Equivalence.Wrapper<? extends Coder<?>>, String> coderIds;
   // TODO: Specify environments
 
-  /**
-   * Create a new {@link SdkComponents} with no components.
-   */
-  public static SdkComponents create() {
+  /** Create a new {@link SdkComponents} with no components. */
+  static SdkComponents create() {
     return new SdkComponents();
   }
 
@@ -55,11 +56,13 @@ public class SdkComponents {
   }
 
   /**
-   * Adds the provided {@link AppliedPTransform} into this {@link SdkComponents}.
+   * Registers the provided {@link AppliedPTransform} into this {@link SdkComponents}, returning a
+   * unique ID for the {@link AppliedPTransform}. Multiple calls to {@link #registerPTransform} with
+   * the same {@link AppliedPTransform} will return the same unique ID.
    *
    * <p>Uses the full name of the transform as the id.
    */
-  public String getTransformId(AppliedPTransform<?, ?, ?> pTransform) {
+  String registerPTransform(AppliedPTransform<?, ?, ?> pTransform) {
     String existing = transformIds.get(pTransform);
     if (existing != null) {
       return existing;
@@ -73,12 +76,13 @@ public class SdkComponents {
   }
 
   /**
-   * Puts the provided {@link PCollection} into this {@link SdkComponents} if it is not already
-   * present, returning the id of the provided {@link PCollection} in this {@link SdkComponents}.
+   * Registers the provided {@link PCollection} into this {@link SdkComponents}, returning a unique
+   * ID for the {@link PCollection}. Multiple calls to {@link #registerPCollection(PCollection)}
+   * with the same {@link PCollection}will return the same unique ID.
    *
    * <p>Uses a unique name based on the result of {@link PCollection#getName()}.
    */
-  public String getPCollectionId(PCollection<?> pCollection) {
+  String registerPCollection(PCollection<?> pCollection) {
     String existing = pCollectionIds.get(pCollection);
     if (existing != null) {
       return existing;
@@ -89,11 +93,12 @@ public class SdkComponents {
   }
 
   /**
-   * Puts the provided {@link WindowingStrategy} into this {@link SdkComponents} if it is not
-   * already present, returning the id of the {@link WindowingStrategy} in this {@link
-   * SdkComponents}.
+   * Registers the provided {@link WindowingStrategy} into this {@link SdkComponents}, returning a
+   * unique ID for the {@link WindowingStrategy}. Multiple calls to {@link
+   * #registerWindowingStrategy(WindowingStrategy)} with the equal {@link WindowingStrategy
+   * WindowingStrategies} will return the same unique ID.
    */
-  public String getWindowingStrategyId(WindowingStrategy<?, ?> windowingStrategy) {
+  String registerWindowingStrategy(WindowingStrategy<?, ?> windowingStrategy) {
     String existing = windowingStrategyIds.get(windowingStrategy);
     if (existing != null) {
       return existing;
@@ -105,17 +110,22 @@ public class SdkComponents {
   }
 
   /**
-   * Puts the provided {@link Coder} into this {@link SdkComponents} if it is not already present,
-   * returning the id of the {@link Coder} in this {@link SdkComponents}.
+   * Registers the provided {@link Coder} into this {@link SdkComponents}, returning a unique ID for
+   * the {@link Coder}. Multiple calls to {@link #registerCoder(Coder)} with the identical {@link
+   * Coder coders} will return the same unique ID.
+   *
+   * <p>Coders are stored by identity to ensure that coders with implementations of {@link
+   * #equals(Object)} and {@link #hashCode()} but incompatible binary formats are not considered the
+   * same coder.
    */
-  public String getCoderId(Coder<?> coder) {
-    String existing = coderIds.get(coder);
+  String registerCoder(Coder<?> coder) {
+    String existing = coderIds.get(Equivalence.identity().wrap(coder));
     if (existing != null) {
       return existing;
     }
     String baseName = NameUtils.approximateSimpleName(coder);
     String name = uniqify(baseName, coderIds.values());
-    coderIds.put(coder, name);
+    coderIds.put(Equivalence.identity().wrap(coder), name);
     return name;
   }
 
@@ -135,7 +145,7 @@ public class SdkComponents {
    * PCollection PCollections}, and {@link PTransform PTransforms}.
    */
   @Experimental
-  public RunnerApi.Components toComponents() {
+  RunnerApi.Components toComponents() {
     return componentsBuilder.build();
   }
 }
