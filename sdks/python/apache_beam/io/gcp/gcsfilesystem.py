@@ -31,6 +31,8 @@ class GCSFileSystem(FileSystem):
   """A GCS ``FileSystem`` implementation for accessing files on GCS.
   """
 
+  CHUNK_SIZE = gcsio.MAX_BATCH_OPERATION_SIZE  # Chuck size in batch operations
+
   def mkdirs(self, path):
     """Recursively create directories for the provided path.
 
@@ -174,7 +176,7 @@ class GCSFileSystem(FileSystem):
     gcs_current_batch = []
     for src, dest in zip(source_file_names, destination_file_names):
       gcs_current_batch.append((src, dest))
-      if len(gcs_current_batch) == gcsio.MAX_BATCH_OPERATION_SIZE:
+      if len(gcs_current_batch) == self.CHUNK_SIZE:
         gcs_batches.append(gcs_current_batch)
         gcs_current_batch = []
     if gcs_current_batch:
