@@ -35,7 +35,6 @@ from apache_beam.utils.value_provider import ValueProvider
 from apache_beam.utils.value_provider import StaticValueProvider
 from apache_beam.utils.value_provider import check_accessible
 
-MAX_BATCH_OPERATION_SIZE = 100
 DEFAULT_SHARD_NAME_TEMPLATE = '-SSSSS-of-NNNNN'
 
 
@@ -270,6 +269,7 @@ class FileSink(iobase.Sink):
 
     source_files = []
     destination_files = []
+    chunk_size = self._file_system.CHUNK_SIZE
     for shard_num, shard in enumerate(writer_results):
       final_name = ''.join([
           file_path_prefix, self.shard_name_format % dict(
@@ -278,12 +278,12 @@ class FileSink(iobase.Sink):
       source_files.append(shard)
       destination_files.append(final_name)
 
-    source_file_batch = [source_files[i:i + MAX_BATCH_OPERATION_SIZE]
+    source_file_batch = [source_files[i:i + chunk_size]
                          for i in xrange(0, len(source_files),
-                                         MAX_BATCH_OPERATION_SIZE)]
-    destination_file_batch = [destination_files[i:i + MAX_BATCH_OPERATION_SIZE]
+                                         chunk_size)]
+    destination_file_batch = [destination_files[i:i + chunk_size]
                               for i in xrange(0, len(destination_files),
-                                              MAX_BATCH_OPERATION_SIZE)]
+                                              chunk_size)]
 
     logging.info(
         'Starting finalize_write threads with num_shards: %d, '
