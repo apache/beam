@@ -173,9 +173,9 @@ class PipelineTest(unittest.TestCase):
                      set(visitor.visited))
     self.assertEqual(set(visitor.enter_composite),
                      set(visitor.leave_composite))
-    self.assertEqual(2, len(visitor.enter_composite))
-    self.assertEqual(visitor.enter_composite[1].transform, transform)
-    self.assertEqual(visitor.leave_composite[0].transform, transform)
+    self.assertEqual(3, len(visitor.enter_composite))
+    self.assertEqual(visitor.enter_composite[2].transform, transform)
+    self.assertEqual(visitor.leave_composite[1].transform, transform)
 
   def test_apply_custom_transform(self):
     pipeline = TestPipeline()

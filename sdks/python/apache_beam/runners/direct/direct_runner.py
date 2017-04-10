@@ -97,6 +97,7 @@ class DirectRunner(PipelineRunner):
       # We are running in eager mode, block until the pipeline execution
       # completes in order to have full results in the cache.
       result.wait_until_finish()
+      print "finishing"
       self._cache.finalize()
 
       # Unset runtime options after the pipeline finishes.
@@ -133,12 +134,15 @@ class BufferingInMemoryCache(object):
     return self._pvalue_cache
 
   def append(self, applied_ptransform, tag, elements):
+    print "append"
     assert not self._finalized
     assert elements is not None
+    assert self._cache is not None
     self._cache[(applied_ptransform, tag)].extend(elements)
 
   def finalize(self):
     """Make buffered cache elements visible to the underlying PValueCache."""
+    print "finalize"
     assert not self._finalized
     for key, value in self._cache.iteritems():
       applied_ptransform, tag = key

@@ -375,6 +375,7 @@ class PTransform(WithTypeHints, HasDisplayData):
     replacements = {id(v): p | 'CreatePInput%s' % ix >> Create(v)
                     for ix, v in enumerate(pvalues)
                     if not isinstance(v, pvalue.PValue) and v is not None}
+
     pvalueish = _SetInputPValues().visit(pvalueish, replacements)
     self.pipeline = p
     result = p.apply(self, pvalueish, label)
