@@ -108,7 +108,10 @@ def run(argv=None):
   # Actually run the pipeline (all operations above are deferred).
   result = p.run()
   result.wait_until_finish()
-  if hasattr(result, 'has_job') and result.has_job:
+
+  # Do not query metrics when creating a template which doesn't run
+  if (not hasattr(result, 'has_job')    # direct runner
+      or result.has_job):               # not just a template creation
     empty_lines_filter = MetricsFilter().with_name('empty_lines')
     query_result = result.metrics().query(empty_lines_filter)
     if query_result['counters']:
