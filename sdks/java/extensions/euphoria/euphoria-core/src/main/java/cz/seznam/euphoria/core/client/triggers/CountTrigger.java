@@ -57,14 +57,7 @@ public class CountTrigger<W extends Window> implements Trigger<W> {
   }
 
   @Override
-  public TriggerResult onMerge(W window, TriggerContext.TriggerMergeContext ctx) {
+  public void onMerge(W window, TriggerContext.TriggerMergeContext ctx) {
     ctx.mergeStoredState(COUNT_DESCR);
-    ValueStorage<Long> count = ctx.getValueStorage(COUNT_DESCR);
-
-    if (count.get() >= maxCount) {
-      count.clear();
-      return TriggerResult.FLUSH_AND_PURGE;
-    }
-    return TriggerResult.NOOP;
   }
 }

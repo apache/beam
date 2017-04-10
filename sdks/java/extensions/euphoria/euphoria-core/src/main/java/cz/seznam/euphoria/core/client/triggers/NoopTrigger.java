@@ -52,7 +52,7 @@ public final class NoopTrigger<W extends Window> implements Trigger<W> {
   }
 
   @Override
-  public TriggerResult onMerge(W window, TriggerContext.TriggerMergeContext ctx) {
-    return TriggerResult.NOOP;
+  public void onMerge(W window, TriggerContext.TriggerMergeContext ctx) {
+
   }
 }

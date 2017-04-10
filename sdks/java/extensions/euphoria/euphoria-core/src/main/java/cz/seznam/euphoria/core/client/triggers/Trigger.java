@@ -90,10 +90,8 @@ public interface Trigger<W extends Window> extends Serializable {
    *
    * @param window Resulting window from the merge operation.
    * @param ctx    Context instance
-   *
-   * @return instruction to the caller of how to continue processing the window
    */
-  TriggerResult onMerge(W window, TriggerContext.TriggerMergeContext ctx);
+  void onMerge(W window, TriggerContext.TriggerMergeContext ctx);
 
   /**
    * Represents result returned from scheduling methods.
