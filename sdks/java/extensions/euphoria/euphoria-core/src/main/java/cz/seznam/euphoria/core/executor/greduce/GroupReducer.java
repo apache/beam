@@ -110,13 +110,10 @@ public class GroupReducer<WID extends Window, KEY, I> {
 
     // ~ get the target window
     WID window = elem.getWindow();
-    Trigger.TriggerResult windowTr = Trigger.TriggerResult.NOOP;
 
     // ~ merge the new window into existing ones if necessary
     if (windowing instanceof MergingWindowing) {
-      Pair<WID, Trigger.TriggerResult> r = mergeWindows(window);
-      window = r.getFirst();
-      windowTr = Trigger.TriggerResult.merge(windowTr, r.getSecond());
+      window = mergeWindows(window);
     }
 
     // ~ add the value to the target window state
@@ -128,8 +125,8 @@ public class GroupReducer<WID extends Window, KEY, I> {
     // ~ process trigger#onElement
     {
       ElementTriggerContext trgCtx = new ElementTriggerContext(window);
-      windowTr = Trigger.TriggerResult.merge(
-          windowTr, trigger.onElement(elem.getTimestamp(), window, trgCtx));
+      Trigger.TriggerResult windowTr =
+              trigger.onElement(elem.getTimestamp(), window, trgCtx);
       processTriggerResult(window, trgCtx, windowTr);
     }
   }
@@ -165,13 +162,11 @@ public class GroupReducer<WID extends Window, KEY, I> {
   // placed into and a trigger indicating how to react on the window after adding
   // the element
   @SuppressWarnings("unchecked")
-  private Pair<WID, Trigger.TriggerResult> mergeWindows(WID newWindow) {
+  private WID mergeWindows(WID newWindow) {
     if (states.containsKey(newWindow)) {
       // ~ the new window exists ... there's nothing to merge
-      return Pair.of(newWindow, Trigger.TriggerResult.NOOP);
+      return newWindow;
     }
-
-    Trigger.TriggerResult newWindowTr = Trigger.TriggerResult.NOOP;
 
     Collection<Pair<Collection<WID>, WID>> merges =
         ((MergingWindowing) windowing).mergeWindows(getActivesWindowsPlus(newWindow));
@@ -213,11 +208,7 @@ public class GroupReducer<WID extends Window, KEY, I> {
       }
 
       // ~ merge trigger states
-      Trigger.TriggerResult tr =
-          trigger.onMerge(target, new MergingTriggerContext(sources, target));
-      if (newWindow.equals(target)) {
-        newWindowTr = Trigger.TriggerResult.merge(newWindowTr, tr);
-      }
+      trigger.onMerge(target, new MergingTriggerContext(sources, target));
       // ~ clear the trigger states of the merged windows
       for (WID source : sources) {
         if (!source.equals(newWindow)) {
@@ -226,7 +217,7 @@ public class GroupReducer<WID extends Window, KEY, I> {
       }
     }
 
-    return Pair.of(newWindow, newWindowTr);
+    return newWindow;
   }
 
   private List<WID> getActivesWindowsPlus(WID newWindow) {

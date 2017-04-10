@@ -75,13 +75,9 @@ public class AfterFirstCompositeTrigger<W extends Window> implements Trigger<W> 
   }
 
   @Override
-  public TriggerResult onMerge(W window, TriggerContext.TriggerMergeContext ctx) {
-    TriggerResult r = TriggerResult.NOOP;
+  public void onMerge(W window, TriggerContext.TriggerMergeContext ctx) {
     for (Trigger<W> t : subtriggers) {
-      r = TriggerResult.merge(
-              r, t.onMerge(window, ctx));
+      t.onMerge(window, ctx);
     }
-
-    return r;
   }
 }

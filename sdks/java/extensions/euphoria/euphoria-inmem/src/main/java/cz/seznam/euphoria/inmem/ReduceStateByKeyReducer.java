@@ -766,7 +766,6 @@ class ReduceStateByKeyReducer implements Runnable {
       Collection<Pair<Collection<Window>, Window>> cmds =
           ((MergingWindowing) windowing).mergeWindows(current);
 
-      Trigger.TriggerResult tr = Trigger.TriggerResult.NOOP;
       for (Pair<Collection<Window>, Window> cmd : cmds) {
         Collection<Window> srcs = cmd.getFirst();
         Window trgt = cmd.getSecond();
@@ -782,10 +781,9 @@ class ReduceStateByKeyReducer implements Runnable {
             processing.mergeWindowStates(srcs, new KeyedWindow<>(trgt, itemKey));
 
         // ~ merge window trigger states
-        tr = Trigger.TriggerResult.merge(tr, trigger.onMerge(
-            trgt,
-            new MergingElementTriggerContext(new KeyedWindow<>(trgt, itemKey), merged)));
-        // ~ clear window trigger states for the merged winndows
+        trigger.onMerge(trgt,
+                new MergingElementTriggerContext(new KeyedWindow<>(trgt, itemKey), merged));
+        // ~ clear window trigger states for the merged windows
         for (KeyedWindow w : merged) {
           trigger.onClear(w.window(), new ElementTriggerContext(w));
         }
@@ -797,8 +795,8 @@ class ReduceStateByKeyReducer implements Runnable {
           new ElementTriggerContext(new KeyedWindow(window, itemKey));
       State windowState = processing.getWindowStateForUpdate(pitctx.getScope());
       windowState.add(itemValue);
-      tr = Trigger.TriggerResult.merge(
-          tr, trigger.onElement(getCurrentElementTime(), window, pitctx));
+      Trigger.TriggerResult tr =
+              trigger.onElement(getCurrentElementTime(), window, pitctx);
       // ~ handle trigger result
       handleTriggerResult(tr, pitctx);
     }

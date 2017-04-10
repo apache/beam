@@ -355,12 +355,8 @@ public class ReduceByKeyTest extends AbstractOperatorTest {
     }
 
     @Override
-    public TriggerResult onMerge(CWindow w, TriggerContext.TriggerMergeContext ctx) {
+    public void onMerge(CWindow w, TriggerContext.TriggerMergeContext ctx) {
       ctx.mergeStoredState(countDesc);
-      if (ctx.getValueStorage(countDesc).get() >= w.bucket) {
-        return TriggerResult.FLUSH_AND_PURGE;
-      }
-      return TriggerResult.NOOP;
     }
   }
 
