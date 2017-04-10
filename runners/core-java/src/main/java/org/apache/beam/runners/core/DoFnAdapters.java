@@ -286,6 +286,11 @@ public class DoFnAdapters {
     }
 
     @Override
+    public void updateWatermark(Instant watermark) {
+      throw new UnsupportedOperationException("Only splittable DoFn's can use updateWatermark()");
+    }
+
+    @Override
     public BoundedWindow window() {
       return context.window();
     }

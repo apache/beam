@@ -259,7 +259,7 @@ class CompressedFile(object):
 
   @property
   def seekable(self):
-    return self._file.mode == 'r'
+    return 'r' in self._file.mode
 
   def _clear_read_buffer(self):
     """Clears the read buffer by removing all the contents and

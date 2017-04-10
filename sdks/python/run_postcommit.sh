@@ -73,7 +73,8 @@ echo "mock" >> postcommit_requirements.txt
 # Run ValidatesRunner tests on Google Cloud Dataflow service
 echo ">>> RUNNING DATAFLOW RUNNER VALIDATESRUNNER TESTS"
 python setup.py nosetests \
-  -a ValidatesRunner \
+  --attr ValidatesRunner \
+  --nocapture \
   --processes=4 \
   --process-timeout=600 \
   --test-pipeline-options=" \
@@ -89,7 +90,8 @@ python setup.py nosetests \
 # and validate that jobs finish successfully.
 echo ">>> RUNNING TEST DATAFLOW RUNNER it tests"
 python setup.py nosetests \
-  -a IT \
+  --attr IT \
+  --nocapture \
   --processes=4 \
   --process-timeout=600 \
   --test-pipeline-options=" \
