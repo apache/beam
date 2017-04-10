@@ -839,7 +839,7 @@ class BigQueryWrapper(object):
       self.client.datasets.Delete(request)
     except HttpError as exn:
       if exn.status_code == 404:
-        logging.warning('Dataaset %s:%s does not exist', project_id,
+        logging.warning('Dataset %s:%s does not exist', project_id,
                         dataset_id)
         return
       else:
@@ -861,7 +861,9 @@ class BigQueryWrapper(object):
             % (project_id, dataset_id))
     except HttpError as exn:
       if exn.status_code == 404:
-        logging.warning('Dataset does not exist so we will create it')
+        logging.warning(
+            'Dataset %s:%s does not exist so we will create it as temporary',
+            project_id, dataset_id)
         self.get_or_create_dataset(project_id, dataset_id)
       else:
         raise
