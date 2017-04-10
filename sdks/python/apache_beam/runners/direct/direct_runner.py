@@ -32,6 +32,7 @@ from apache_beam.runners.runner import PipelineResult
 from apache_beam.runners.runner import PipelineRunner
 from apache_beam.runners.runner import PipelineState
 from apache_beam.runners.runner import PValueCache
+from apache_beam.runners.runner import group_by_key_input_visitor
 from apache_beam.utils.pipeline_options import DirectOptions
 from apache_beam.utils.value_provider import RuntimeValueProvider
 
@@ -68,21 +69,22 @@ class DirectRunner(PipelineRunner):
 
     MetricsEnvironment.set_metrics_supported(True)
     logging.info('Running pipeline with DirectRunner.')
-    self.visitor = ConsumerTrackingPipelineVisitor()
-    pipeline.visit(self.visitor)
+    self.consumer_tracking_visitor = ConsumerTrackingPipelineVisitor()
+    pipeline.visit(group_by_key_input_visitor())
+    pipeline.visit(self.consumer_tracking_visitor)
 
     evaluation_context = EvaluationContext(
         pipeline.options,
         BundleFactory(stacked=pipeline.options.view_as(DirectOptions)
                       .direct_runner_use_stacked_bundle),
-        self.visitor.root_transforms,
-        self.visitor.value_to_consumers,
-        self.visitor.step_names,
-        self.visitor.views)
+        self.consumer_tracking_visitor.root_transforms,
+        self.consumer_tracking_visitor.value_to_consumers,
+        self.consumer_tracking_visitor.step_names,
+        self.consumer_tracking_visitor.views)
 
     evaluation_context.use_pvalue_cache(self._cache)
 
-    executor = Executor(self.visitor.value_to_consumers,
+    executor = Executor(self.consumer_tracking_visitor.value_to_consumers,
                         TransformEvaluatorRegistry(evaluation_context),
                         evaluation_context)
     # Start the executor. This is a non-blocking call, it will start the
@@ -90,7 +92,7 @@ class DirectRunner(PipelineRunner):
 
     if pipeline.options:
       RuntimeValueProvider.set_runtime_options(pipeline.options._options_id, {})
-    executor.start(self.visitor.root_transforms)
+    executor.start(self.consumer_tracking_visitor.root_transforms)
     result = DirectPipelineResult(executor, evaluation_context)
 
     if self._cache:
