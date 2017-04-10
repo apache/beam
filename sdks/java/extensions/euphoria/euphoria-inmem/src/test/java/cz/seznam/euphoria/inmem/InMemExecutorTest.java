@@ -386,9 +386,8 @@ public class InMemExecutorTest {
     }
 
     @Override
-    public TriggerResult onMerge(SizedCountWindow window, TriggerContext.TriggerMergeContext ctx) {
+    public void onMerge(SizedCountWindow window, TriggerContext.TriggerMergeContext ctx) {
       ctx.mergeStoredState(countDesc);
-      return TriggerResult.NOOP;
     }
   } // ~ end of SizedCountTrigger
 

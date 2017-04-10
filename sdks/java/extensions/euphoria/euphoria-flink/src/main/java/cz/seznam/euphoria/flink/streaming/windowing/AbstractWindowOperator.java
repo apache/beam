@@ -170,10 +170,8 @@ public abstract class AbstractWindowOperator<I, KEY, WID extends Window>
                   setupEnvironment(getCurrentKey(), mergeResult);
                   triggerContext.setWindow(mergeResult);
 
-                  processTriggerResult(mergeResult,
-                          null,
-                          triggerContext.onMerge(mergedWindows),
-                          mergingWindowSet);
+                  // merge trigger states
+                  triggerContext.onMerge(mergedWindows);
 
                   // clear all merged windows
                   for (WID merged : mergedWindows) {
@@ -414,9 +412,9 @@ public abstract class AbstractWindowOperator<I, KEY, WID extends Window>
       throw new UnsupportedOperationException(descriptor + " is not supported for merging yet!");
     }
 
-    private Trigger.TriggerResult onMerge(Iterable<WID> mergedWindows) {
+    private void onMerge(Iterable<WID> mergedWindows) {
       this.mergedWindows = Lists.newArrayList(mergedWindows);
-      return trigger.onMerge(window, this);
+      trigger.onMerge(window, this);
     }
 
     private void setWindow(WID window) {

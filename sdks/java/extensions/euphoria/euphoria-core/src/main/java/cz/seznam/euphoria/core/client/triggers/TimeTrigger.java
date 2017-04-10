@@ -51,8 +51,8 @@ public class TimeTrigger implements Trigger<TimeInterval> {
   }
 
   @Override
-  public TriggerResult onMerge(TimeInterval window, TriggerContext.TriggerMergeContext ctx) {
-    return registerTimer(window, ctx);
+  public void onMerge(TimeInterval window, TriggerContext.TriggerMergeContext ctx) {
+    registerTimer(window, ctx);
   }
 
   private TriggerResult registerTimer(TimeInterval window, TriggerContext ctx) {
