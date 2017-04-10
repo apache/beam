@@ -87,6 +87,7 @@ def create_runner(runner_name):
 
 
 def group_by_key_input_visitor():
+  # Imported here to avoid circular dependencies.
   from apache_beam.pipeline import PipelineVisitor
 
   class GroupByKeyInputVisitor(PipelineVisitor):

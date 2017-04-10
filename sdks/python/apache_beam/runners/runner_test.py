@@ -34,9 +34,11 @@ from apache_beam.metrics.cells import DistributionResult
 from apache_beam.metrics.execution import MetricKey
 from apache_beam.metrics.execution import MetricResult
 from apache_beam.metrics.metricbase import MetricName
-from apache_beam.pipeline import Pipeline, AppliedPTransform
+from apache_beam.pipeline import AppliedPTransform
+from apache_beam.pipeline import Pipeline
 from apache_beam.pvalue import PCollection
-from apache_beam.runners import DirectRunner, runner
+from apache_beam.runners import DirectRunner
+from apache_beam.runners import runner
 from apache_beam.runners import create_runner
 from apache_beam.test_pipeline import TestPipeline
 from apache_beam.transforms.util import assert_that
