@@ -438,6 +438,8 @@ class DataflowApplicationClient(object):
     if not template_location:
       return self.submit_job_description(job)
     else:
+      logging.info('A template was just created at location %s',
+                   template_location)
       return None
 
   def create_job_description(self, job):
