@@ -18,11 +18,9 @@
 package org.beam.dsls.sql.schema.kafka;
 
 import static com.google.common.base.Preconditions.checkArgument;
-
 import java.io.Serializable;
 import java.util.List;
 import java.util.Map;
-
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.io.kafka.KafkaIO;
 import org.apache.beam.sdk.transforms.PTransform;

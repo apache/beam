@@ -18,7 +18,6 @@
 package org.beam.dsls.sql.planner;
 
 import java.io.Serializable;
-
 import org.apache.calcite.plan.RelOptUtil;
 import org.apache.calcite.schema.Schema;
 import org.apache.calcite.schema.SchemaPlus;

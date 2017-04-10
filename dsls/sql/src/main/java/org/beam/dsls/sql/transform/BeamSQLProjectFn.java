@@ -18,7 +18,6 @@
 package org.beam.dsls.sql.transform;
 
 import java.util.List;
-
 import org.apache.beam.sdk.transforms.DoFn;
 import org.beam.dsls.sql.interpreter.BeamSQLExpressionExecutor;
 import org.beam.dsls.sql.rel.BeamProjectRel;

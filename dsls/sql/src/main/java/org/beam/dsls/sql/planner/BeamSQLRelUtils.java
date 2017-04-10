@@ -18,7 +18,6 @@
 package org.beam.dsls.sql.planner;
 
 import java.util.concurrent.atomic.AtomicInteger;
-
 import org.apache.calcite.plan.RelOptUtil;
 import org.apache.calcite.plan.volcano.RelSubset;
 import org.apache.calcite.rel.RelNode;

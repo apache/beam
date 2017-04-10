@@ -18,13 +18,9 @@
 package org.beam.dsls.sql.schema;
 
 import java.io.Serializable;
-import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Date;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
-
 import org.apache.calcite.sql.type.SqlTypeName;
 
 /**

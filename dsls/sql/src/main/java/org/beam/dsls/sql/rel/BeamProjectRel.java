@@ -18,7 +18,6 @@
 package org.beam.dsls.sql.rel;
 
 import java.util.List;
-
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;

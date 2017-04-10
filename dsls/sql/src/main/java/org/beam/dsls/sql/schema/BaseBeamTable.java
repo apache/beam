@@ -18,7 +18,6 @@
 package org.beam.dsls.sql.schema;
 
 import java.io.Serializable;
-
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
@@ -30,9 +29,9 @@ import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.rel.type.RelProtoDataType;
 import org.apache.calcite.schema.ScannableTable;
 import org.apache.calcite.schema.Schema.TableType;
-import org.beam.dsls.sql.planner.BeamQueryPlanner;
 import org.apache.calcite.schema.Statistic;
 import org.apache.calcite.schema.Statistics;
+import org.beam.dsls.sql.planner.BeamQueryPlanner;
 
 /**
  * Each IO in Beam has one table schema, by extending {@link BaseBeamTable}.

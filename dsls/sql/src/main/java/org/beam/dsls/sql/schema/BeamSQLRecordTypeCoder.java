@@ -1,6 +1,5 @@
 package org.beam.dsls.sql.schema;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -11,7 +10,6 @@ import org.apache.beam.sdk.coders.StandardCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.calcite.sql.type.SqlTypeName;
-import org.apache.beam.sdk.coders.Coder.Context;
 
 /**
  * A {@link Coder} for {@link BeamSQLRecordType}.
@@ -24,7 +22,6 @@ public class BeamSQLRecordTypeCoder extends StandardCoder<BeamSQLRecordType> {
   private static final BeamSQLRecordTypeCoder INSTANCE = new BeamSQLRecordTypeCoder();
   private BeamSQLRecordTypeCoder(){}
 
-  @JsonCreator
   public static BeamSQLRecordTypeCoder of() {
     return INSTANCE;
   }

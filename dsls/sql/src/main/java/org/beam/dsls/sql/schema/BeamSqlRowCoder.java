@@ -1,6 +1,5 @@
 package org.beam.dsls.sql.schema;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -8,16 +7,12 @@ import java.util.Date;
 import java.util.List;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.BigEndianLongCoder;
-import org.apache.beam.sdk.coders.BigIntegerCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.DoubleCoder;
 import org.apache.beam.sdk.coders.ListCoder;
-import org.apache.beam.sdk.coders.MapCoder;
 import org.apache.beam.sdk.coders.StandardCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
-import org.apache.beam.sdk.coders.VarIntCoder;
-import org.apache.beam.sdk.coders.Coder.Context;
 
 /**
  * A {@link Coder} encodes {@link BeamSQLRow}.
@@ -36,7 +31,6 @@ public class BeamSqlRowCoder extends StandardCoder<BeamSQLRow>{
   private static final BeamSqlRowCoder INSTANCE = new BeamSqlRowCoder();
   private BeamSqlRowCoder(){}
 
-  @JsonCreator
   public static BeamSqlRowCoder of() {
     return INSTANCE;
   }

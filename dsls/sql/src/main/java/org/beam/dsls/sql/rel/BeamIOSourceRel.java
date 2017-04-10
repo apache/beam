@@ -18,7 +18,6 @@
 package org.beam.dsls.sql.rel;
 
 import com.google.common.base.Joiner;
-
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.calcite.plan.RelOptCluster;

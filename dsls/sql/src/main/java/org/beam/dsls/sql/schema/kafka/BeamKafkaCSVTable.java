@@ -18,7 +18,6 @@
 package org.beam.dsls.sql.schema.kafka;
 
 import java.util.List;
-
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;

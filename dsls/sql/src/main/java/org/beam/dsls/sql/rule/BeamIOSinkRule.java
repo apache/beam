@@ -18,7 +18,6 @@
 package org.beam.dsls.sql.rule;
 
 import java.util.List;
-
 import org.apache.calcite.plan.Convention;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptTable;
