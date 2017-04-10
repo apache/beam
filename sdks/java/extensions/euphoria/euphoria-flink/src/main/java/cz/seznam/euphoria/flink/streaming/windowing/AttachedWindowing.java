@@ -60,7 +60,7 @@ public class AttachedWindowing<T, WID extends Window> implements Windowing<T, WI
     }
 
     @Override
-    public TriggerResult onMerge(WID window, TriggerContext.TriggerMergeContext ctx) {
+    public void onMerge(WID window, TriggerContext.TriggerMergeContext ctx) {
       throw new UnsupportedOperationException("Merging of attached windows not allowed");
     }
   }

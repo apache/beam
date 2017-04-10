@@ -309,8 +309,8 @@ public class WindowingTest extends AbstractOperatorTest {
     }
 
     @Override
-    public TriggerResult onMerge(TimeInterval window, TriggerContext.TriggerMergeContext ctx) {
-      return trigger.onMerge(window, ctx);
+    public void onMerge(TimeInterval window, TriggerContext.TriggerMergeContext ctx) {
+      trigger.onMerge(window, ctx);
     }
   }
 
@@ -342,9 +342,9 @@ public class WindowingTest extends AbstractOperatorTest {
           }
 
           @Override
-          public TriggerResult onMerge(TimeInterval window, TriggerContext.TriggerMergeContext ctx) {
+          public void onMerge(TimeInterval window, TriggerContext.TriggerMergeContext ctx) {
             ctx.mergeStoredState(CSession.TR_STATE);
-            return super.onMerge(window, ctx);
+            super.onMerge(window, ctx);
           }
 
           @Override
