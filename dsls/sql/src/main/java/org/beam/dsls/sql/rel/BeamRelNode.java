@@ -33,8 +33,6 @@ public interface BeamRelNode extends RelNode {
    * {@link BeamPipelineCreator} visits it with a DFS(Depth-First-Search)
    * algorithm.
    *
-   * @param planCreator
-   * @throws Exception
    */
   Pipeline buildBeamPipeline(BeamPipelineCreator planCreator) throws Exception;
 }

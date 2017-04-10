@@ -60,14 +60,12 @@ public abstract class BaseBeamTable implements ScannableTable, Serializable {
   /**
    * create a {@code IO.read()} instance to read from source.
    *
-   * @return
    */
   public abstract PTransform<? super PBegin, PCollection<BeamSQLRow>> buildIOReader();
 
   /**
    * create a {@code IO.write()} instance to write to target.
    *
-   * @return
    */
   public abstract PTransform<? super PCollection<BeamSQLRow>, PDone> buildIOWriter();
 

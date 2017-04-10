@@ -31,8 +31,8 @@ import org.beam.dsls.sql.schema.BaseBeamTable;
 import org.beam.dsls.sql.schema.kafka.BeamKafkaCSVTable;
 
 /**
- * This is one quick example.<br/>
- * Before start, follow https://kafka.apache.org/quickstart to setup a Kafka
+ * This is one quick example.
+ * <p>Before start, follow https://kafka.apache.org/quickstart to setup a Kafka
  * cluster locally, and run below commands to create required Kafka topics:
  * <pre>
  * <code>

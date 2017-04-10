@@ -17,6 +17,6 @@
  */
 
 /**
- * {@link PTransform} used in a BeamSQL pipeline.
+ * {@link org.apache.beam.sdk.transforms.PTransform} used in a BeamSQL pipeline.
  */
 package org.beam.dsls.sql.transform;

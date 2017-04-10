@@ -17,6 +17,6 @@
  */
 
 /**
- * {@link RelOptRule} to generate {@link BeamRelNode}.
+ * {@link org.apache.calcite.plan.RelOptRule} to generate {@link org.beam.dsls.sql.rel.BeamRelNode}.
  */
 package org.beam.dsls.sql.rule;

@@ -70,27 +70,15 @@ public abstract class BeamKafkaTable extends BaseBeamTable implements Serializab
     return BeamIOType.UNBOUNDED;
   }
 
-  /**
-   *
-   * @return
-   */
   public abstract PTransform<PCollection<KV<byte[], byte[]>>, PCollection<BeamSQLRow>>
       getPTransformForInput();
 
-  /**
-   *
-   * @return
-   */
   public abstract PTransform<PCollection<BeamSQLRow>, PCollection<KV<byte[], byte[]>>>
       getPTransformForOutput();
 
   @Override
   public PTransform<? super PBegin, PCollection<BeamSQLRow>> buildIOReader() {
     return new PTransform<PBegin, PCollection<BeamSQLRow>>() {
-      /**
-       *
-       */
-      private static final long serialVersionUID = 9167792271351182771L;
 
       @Override
       public PCollection<BeamSQLRow> expand(PBegin input) {

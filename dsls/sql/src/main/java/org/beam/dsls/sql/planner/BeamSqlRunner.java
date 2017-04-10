@@ -49,8 +49,6 @@ public class BeamSqlRunner implements Serializable {
   /**
    * Add a schema.
    *
-   * @param schemaName
-   * @param scheme
    */
   public void addSchema(String schemaName, Schema scheme) {
     schema.add(schemaName, schema);
@@ -59,8 +57,6 @@ public class BeamSqlRunner implements Serializable {
   /**
    * add a {@link BaseBeamTable} to schema repository.
    *
-   * @param tableName
-   * @param table
    */
   public void addTable(String tableName, BaseBeamTable table) {
     schema.add(tableName, table);
@@ -70,8 +66,6 @@ public class BeamSqlRunner implements Serializable {
   /**
    * submit as a Beam pipeline.
    *
-   * @param sqlString
-   * @throws Exception
    */
   public void submitQuery(String sqlString) throws Exception {
     planner.submitToRun(sqlString);
@@ -81,10 +75,6 @@ public class BeamSqlRunner implements Serializable {
   /**
    * explain and display the execution plan.
    *
-   * @param sqlString
-   * @throws ValidationException
-   * @throws RelConversionException
-   * @throws SqlParseException
    */
   public String explainQuery(String sqlString)
       throws ValidationException, RelConversionException, SqlParseException {

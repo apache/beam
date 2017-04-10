@@ -47,11 +47,6 @@ public class BeamProjectRel extends Project implements BeamRelNode {
   /**
    * projects: {@link RexLiteral}, {@link RexInputRef}, {@link RexCall}.
    *
-   * @param cluster
-   * @param traits
-   * @param input
-   * @param projects
-   * @param rowType
    */
   public BeamProjectRel(RelOptCluster cluster, RelTraitSet traits, RelNode input,
       List<? extends RexNode> projects, RelDataType rowType) {

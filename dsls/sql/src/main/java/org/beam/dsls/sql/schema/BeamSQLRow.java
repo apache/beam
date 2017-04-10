@@ -27,7 +27,6 @@ import org.apache.calcite.sql.type.SqlTypeName;
  * Repersent a generic ROW record in Beam SQL.
  *
  */
-//@DefaultCoder(BeamSqlRowCoder.class)
 public class BeamSQLRow implements Serializable {
   /**
    *
@@ -216,7 +215,6 @@ public class BeamSQLRow implements Serializable {
 
   /**
    * Return data fields as key=value.
-   * @return
    */
   public String valueInString() {
     StringBuffer sb = new StringBuffer();
