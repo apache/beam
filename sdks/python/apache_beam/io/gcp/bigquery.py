@@ -857,11 +857,13 @@ class BigQueryWrapper(object):
       if project_id is not None:
         # Unittests don't pass projectIds so they can be run without error
         raise RuntimeError(
-            'Dataset %s:%s already exists so cannot be used as temporary.'
+            'Temporary dataset %s:%s already exists so cannot be used as temporary.'
             % (project_id, dataset_id))
     except HttpError as exn:
       if exn.status_code == 404:
-        logging.warning('Dataset does not exist so we will create it')
+        logging.warning(
+            'Temporary dataset %s:%s does not exist so we will create it'
+            % (project_id, dataset_id))
         self.get_or_create_dataset(project_id, dataset_id)
       else:
         raise
