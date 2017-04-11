@@ -88,6 +88,7 @@ import org.apache.beam.sdk.util.CloudObject;
 import org.apache.beam.sdk.util.PropertyNames;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.util.WindowingStrategies;
 import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
@@ -891,7 +892,15 @@ public class DataflowPipelineTranslator {
             stepContext.addOutput(context.getOutput(transform));
 
             WindowingStrategy<?, ?> strategy = context.getOutput(transform).getWindowingStrategy();
-            byte[] serializedBytes = serializeToByteArray(strategy);
+
+            byte[] serializedBytes;
+            try {
+              serializedBytes = WindowingStrategies.toProto(strategy).toByteArray();
+            } catch (IOException e) {
+              throw new RuntimeException(
+                  String.format("Error serializing WindowingStrategy %s as protobuf", strategy), e);
+            }
+
             String serializedJson = byteArrayToJsonString(serializedBytes);
             stepContext.addInput(PropertyNames.SERIALIZED_FN, serializedJson);
           }
