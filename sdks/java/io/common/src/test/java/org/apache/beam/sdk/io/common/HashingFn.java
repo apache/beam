@@ -12,7 +12,7 @@
  * or implied. See the License for the specific language governing permissions and limitations under
  * the License.
  */
-package org.apache.beam.sdk.io.hadoop.inputformat.hashing;
+package org.apache.beam.sdk.io.common;
 
 import com.google.common.collect.Lists;
 import com.google.common.hash.HashCode;
@@ -62,7 +62,7 @@ public class HashingFn extends CombineFn<String, HashingFn.Accum, String> {
      if (accum.hashCode != null) {
       elementHashes.add(accum.hashCode);
     }
-    HashCode inputHashCode = Hashing.sha1().hashString(input, StandardCharsets.UTF_8);
+    HashCode inputHashCode = Hashing.murmur3_128().hashString(input, StandardCharsets.UTF_8);
     elementHashes.add(inputHashCode);
     accum.hashCode = Hashing.combineUnordered(elementHashes);
     return accum;

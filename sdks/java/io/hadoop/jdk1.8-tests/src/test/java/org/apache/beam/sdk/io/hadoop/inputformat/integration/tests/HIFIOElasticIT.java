@@ -17,9 +17,9 @@ package org.apache.beam.sdk.io.hadoop.inputformat.integration.tests;
 import java.io.IOException;
 import java.io.Serializable;
 
+import org.apache.beam.sdk.io.common.HashingFn;
 import org.apache.beam.sdk.io.hadoop.inputformat.HadoopInputFormatIO;
 import org.apache.beam.sdk.io.hadoop.inputformat.custom.options.HIFTestOptions;
-import org.apache.beam.sdk.io.hadoop.inputformat.hashing.HashingFn;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
