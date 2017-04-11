@@ -31,18 +31,19 @@ import java.util.Objects;
 
 /**
  * A convenience data sink based on hadoop's {@link TextOutputFormat} for
- * directly accepting String values.
+ * directly accepting any values and rendering them using their
+ * {@link Object#toString()} implementation as text.
  */
-public class HadoopStringSink implements DataSink<String> {
+public class HadoopToStringSink<T> implements DataSink<T> {
 
   /**
-   * A standard URI based factory for instance of {@link HadoopStringSink}.
+   * A standard URI based factory for instance of {@link HadoopToStringSink}.
    */
   public static final class Factory implements DataSinkFactory {
     @Override
     @SuppressWarnings("unchecked")
     public <T> DataSink<T> get(URI uri, Settings settings) {
-      return (DataSink<T>) new HadoopStringSink(
+      return (DataSink<T>) new HadoopToStringSink(
           uri.toString(), HadoopUtils.createConfiguration(settings));
     }
   }
@@ -50,14 +51,14 @@ public class HadoopStringSink implements DataSink<String> {
   private final HadoopTextFileSink<String, NullWritable> impl;
 
   /**
-   * Convenience constructor invoking {@link #HadoopStringSink(String, Configuration)}
+   * Convenience constructor invoking {@link #HadoopToStringSink(String, Configuration)}
    * with a newly created hadoop configuration.
    *
    * @param path the path where to place the output to
    *
    * @throws NullPointerException if any of the given parameters is {@code null}
    */
-  public HadoopStringSink(String path) {
+  public HadoopToStringSink(String path) {
     this(path, new Configuration());
   }
 
@@ -72,7 +73,7 @@ public class HadoopStringSink implements DataSink<String> {
    * @throws NullPointerException if any of the parameters is {@code null}
    */
   @SuppressWarnings("unchecked")
-  public HadoopStringSink(String path, Configuration hadoopConfig) {
+  public HadoopToStringSink(String path, Configuration hadoopConfig) {
     impl = new HadoopTextFileSink<>(path, hadoopConfig);
   }
 
@@ -82,7 +83,7 @@ public class HadoopStringSink implements DataSink<String> {
   }
 
   @Override
-  public Writer<String> openWriter(int partitionId) {
+  public Writer<T> openWriter(int partitionId) {
     return new WriterAdapter<>(impl.openWriter(partitionId));
   }
 
@@ -97,15 +98,15 @@ public class HadoopStringSink implements DataSink<String> {
   }
 
   private static final class WriterAdapter<E> implements Writer<E> {
-    private final Writer<Pair<E, NullWritable>> impl;
+    private final Writer<Pair<String, NullWritable>> impl;
 
-    WriterAdapter(Writer<Pair<E, NullWritable>> impl) {
+    WriterAdapter(Writer<Pair<String, NullWritable>> impl) {
       this.impl = Objects.requireNonNull(impl);
     }
 
     @Override
     public void write(E elem) throws IOException {
-      impl.write(Pair.of(elem, NullWritable.get()));
+      impl.write(Pair.of(elem == null ? null : elem.toString(), NullWritable.get()));
     }
 
     @Override
