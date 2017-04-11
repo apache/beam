@@ -18,10 +18,17 @@
 
 package org.apache.beam.runners.core.construction;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+import static com.google.common.base.Preconditions.checkState;
+
 import com.google.common.base.Equivalence;
 import com.google.common.collect.BiMap;
 import com.google.common.collect.HashBiMap;
 import java.io.IOException;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Set;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.Coder;
@@ -63,15 +70,36 @@ class SdkComponents {
    * unique ID for the {@link AppliedPTransform}. Multiple registrations of the same
    * {@link AppliedPTransform} will return the same unique ID.
    */
-  String registerPTransform(AppliedPTransform<?, ?, ?> pTransform) {
+  public String registerPTransform(
+      AppliedPTransform<?, ?, ?> pTransform, List<AppliedPTransform<?, ?, ?>> children)
+      throws IOException {
+    String name = registerPTransform(pTransform);
+    // If this transform is present in the components, nothing to do. return the existing name.
+    // Otherwise the transform must be translated and added to the components.
+    if (componentsBuilder.getTransformsOrDefault(name, null) != null) {
+      return name;
+    }
+    checkNotNull(children, "child nodes may not be null");
+    componentsBuilder.putTransforms(name, PTransforms.toProto(pTransform, children, this));
+    return name;
+  }
+
+  /**
+   * Gets the ID for the provided {@link AppliedPTransform}. The provided {@link AppliedPTransform}
+   * will not be added to the components produced by this {@link SdkComponents} until it is
+   * translated via {@link #registerPTransform(AppliedPTransform, List)}.
+   */
+  public String registerPTransform(AppliedPTransform<?, ?, ?> pTransform) {
     String existing = transformIds.get(pTransform);
     if (existing != null) {
       return existing;
     }
+
     String name = pTransform.getFullName();
     if (name.isEmpty()) {
-      name = uniqify("unnamed_ptransform", transformIds.values());
+      name = "unnamed-ptransform";
     }
+    name = uniqify(name, transformIds.values());
     transformIds.put(pTransform, name);
     return name;
   }
@@ -155,5 +183,24 @@ class SdkComponents {
   @Experimental
   RunnerApi.Components toComponents() {
     return componentsBuilder.build();
+  }
+
+  /**
+   * Checks to ensure that all elements that were registered are present within the components
+   * returned by {@link #toComponents()}.
+   */
+  public void validate() {
+    Map<AppliedPTransform<?, ?, ?>, String> missingTransforms = new HashMap<>();
+    for (Entry<AppliedPTransform<?, ?, ?>, String> registeredTransform : transformIds.entrySet()) {
+      if (componentsBuilder.getTransformsMap().containsKey(registeredTransform.getValue())) {
+        missingTransforms.put(
+            registeredTransform.getKey(), registeredTransform.getValue());
+      }
+    }
+    checkState(
+        missingTransforms.isEmpty(),
+        "%s transforms were registered but were never added to components. Missing transform %s",
+        missingTransforms.size(),
+        missingTransforms);
   }
 }
