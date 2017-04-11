@@ -101,8 +101,8 @@ public class WindowingStrategiesTest {
     RunnerApi.Components protoComponents = components.toComponents();
 
     assertThat(
-        WindowingStrategies.fromProto(proto, protoComponents),
-        Matchers.<WindowingStrategy<?, ?>>equalTo(windowingStrategy));
+        WindowingStrategies.fromProto(proto, protoComponents).fixDefaults(),
+        Matchers.<WindowingStrategy<?, ?>>equalTo(windowingStrategy.fixDefaults()));
 
     protoComponents.getCodersOrThrow(
         components.registerCoder(windowingStrategy.getWindowFn().windowCoder()));

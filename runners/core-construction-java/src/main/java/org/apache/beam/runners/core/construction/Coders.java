@@ -76,8 +76,10 @@ public class Coders {
   private static RunnerApi.Coder toKnownCoder(Coder<?> coder, SdkComponents components)
       throws IOException {
     List<String> componentIds = new ArrayList<>();
-    for (Coder<?> componentCoder : coder.getCoderArguments()) {
-      componentIds.add(components.registerCoder(componentCoder));
+    if (coder.getCoderArguments() != null) {
+      for (Coder<?> componentCoder : coder.getCoderArguments()) {
+        componentIds.add(components.registerCoder(componentCoder));
+      }
     }
     return RunnerApi.Coder.newBuilder()
         .addAllComponentCoderIds(componentIds)
