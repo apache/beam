@@ -21,6 +21,7 @@ package org.apache.beam.runners.core.construction;
 import com.google.common.base.Equivalence;
 import com.google.common.collect.BiMap;
 import com.google.common.collect.HashBiMap;
+import java.io.IOException;
 import java.util.Set;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.Coder;
@@ -119,7 +120,7 @@ class SdkComponents {
    * #equals(Object)} and {@link #hashCode()} but incompatible binary formats are not considered the
    * same coder.
    */
-  String registerCoder(Coder<?> coder) {
+  String registerCoder(Coder<?> coder) throws IOException {
     String existing = coderIds.get(Equivalence.identity().wrap(coder));
     if (existing != null) {
       return existing;
@@ -127,6 +128,8 @@ class SdkComponents {
     String baseName = NameUtils.approximateSimpleName(coder);
     String name = uniqify(baseName, coderIds.values());
     coderIds.put(Equivalence.identity().wrap(coder), name);
+    RunnerApi.Coder coderProto = Coders.toProto(coder, this);
+    componentsBuilder.putCoders(name, coderProto);
     return name;
   }
 
