@@ -25,8 +25,6 @@ import com.datastax.driver.mapping.annotations.Column;
 import com.datastax.driver.mapping.annotations.Table;
 
 import java.io.Serializable;
-import java.util.ArrayList;
-import java.util.List;
 
 import org.apache.beam.sdk.io.hadoop.inputformat.hashing.HashingFn;
 import org.apache.beam.sdk.testing.PAssert;
@@ -67,11 +65,6 @@ public class HIFIOWithEmbeddedCassandraTest implements Serializable {
   private static transient Cluster cluster;
   private static transient Session session;
   private static final long TEST_DATA_ROW_COUNT = 10L;
-  private static final String INTERNAL_CASSANDRA_KEYSPACE = "system";
-  private static final String INTERNAL_CASSANDRA_AUTH_KEYSPACE = "system_auth";
-  private static final String INTERNAL_CASSANDRA_DISTRIBUTED_KEYSPACE = "system_distributed";
-  private static final String INTERNAL_CASSANDRA_SCHEMA_KEYSPACE = "system_schema";
-  private static final String INTERNAL_CASSANDRA_TRACES_KEYSPACE = "system_traces";
   private static EmbeddedCassandraService cassandra = new EmbeddedCassandraService();
 
   @Rule
@@ -87,13 +80,6 @@ public class HIFIOWithEmbeddedCassandraTest implements Serializable {
     // Expected hashcode is evaluated during insertion time one time and hardcoded here.
     String expectedHashCode = "4651110ba1ef2cd3a7315091ca27877b18fceb0e";
     Configuration conf = getConfiguration();
-    SimpleFunction<Row, String> myValueTranslate = new SimpleFunction<Row, String>() {
-      @Override
-      public String apply(Row input) {
-        String scientistRecord = input.getInt("id") + "|" + input.getString("scientist");
-        return scientistRecord;
-      }
-    };
     PCollection<KV<Long, String>> cassandraData =
         p.apply(HadoopInputFormatIO.<Long, String>read().withConfiguration(conf)
             .withValueTranslation(myValueTranslate));
@@ -108,6 +94,14 @@ public class HIFIOWithEmbeddedCassandraTest implements Serializable {
     p.run().waitUntilFinish();
   }
 
+  SimpleFunction<Row, String> myValueTranslate = new SimpleFunction<Row, String>() {
+    @Override
+    public String apply(Row input) {
+      String scientistRecord = input.getInt("id") + "|" + input.getString("scientist");
+      return scientistRecord;
+    }
+  };
+
   /**
    * Test to read data from embedded Cassandra instance based on query and verify whether data is
    * read successfully.
@@ -119,13 +113,6 @@ public class HIFIOWithEmbeddedCassandraTest implements Serializable {
     Configuration conf = getConfiguration();
     conf.set("cassandra.input.cql", "select * from " + CASSANDRA_KEYSPACE + "." + CASSANDRA_TABLE
         + " where token(id) > ? and token(id) <= ? and scientist='Faraday1' allow filtering");
-    SimpleFunction<Row, String> myValueTranslate = new SimpleFunction<Row, String>() {
-      @Override
-      public String apply(Row input) {
-        String scientistRecord = input.getInt("id") + "|" + input.getString("scientist");
-        return scientistRecord;
-      }
-    };
     PCollection<KV<Long, String>> cassandraData =
         p.apply(HadoopInputFormatIO.<Long, String>read().withConfiguration(conf)
             .withValueTranslation(myValueTranslate));
@@ -189,33 +176,8 @@ public class HIFIOWithEmbeddedCassandraTest implements Serializable {
 
   @AfterClass
   public static void stopEmbeddedCassandra() throws Exception {
-    dropKeyspaces();
     session.close();
     cluster.close();
-  }
-
-  /**
-   * Drop all keyspaces (expect system).
-   */
-  private static void dropKeyspaces() {
-    List<String> keyspaces = new ArrayList<String>();
-    for (com.datastax.driver.core.KeyspaceMetadata keyspace :
-       cluster.getMetadata().getKeyspaces()) {
-      if (!isSystemKeyspaceName(keyspace.getName())) {
-        keyspaces.add(keyspace.getName());
-      }
-    }
-    for (String keyspace : keyspaces) {
-      session.execute("DROP KEYSPACE " + keyspace);
-    }
-  }
-
-  private static boolean isSystemKeyspaceName(String keyspaceName) {
-    return INTERNAL_CASSANDRA_KEYSPACE.equals(keyspaceName)
-        || INTERNAL_CASSANDRA_AUTH_KEYSPACE.equals(keyspaceName)
-        || INTERNAL_CASSANDRA_DISTRIBUTED_KEYSPACE.equals(keyspaceName)
-        || INTERNAL_CASSANDRA_SCHEMA_KEYSPACE.equals(keyspaceName)
-        || INTERNAL_CASSANDRA_TRACES_KEYSPACE.equals(keyspaceName);
   }
 
   /**

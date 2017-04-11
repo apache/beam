@@ -498,6 +498,7 @@ public class HadoopInputFormatIOTest {
     BoundedReader<KV<Text, Employee>> reader = boundedSource.createReader(p.getOptions());
     assertEquals(false, reader.start());
     assertEquals(Double.valueOf(1), reader.getFractionConsumed());
+    reader.close();
   }
 
   /**
@@ -566,6 +567,7 @@ public class HadoopInputFormatIOTest {
         mockInputFormat.createRecordReader(Mockito.any(InputSplit.class),
             Mockito.any(TaskAttemptContext.class))).thenReturn(mockReader);
     Mockito.when(mockReader.nextKeyValue()).thenReturn(true);
+    // Set to a bad value , not in range of 0 to 1
     Mockito.when(mockReader.getProgress()).thenReturn(2.0F);
     InputSplit mockInputSplit = Mockito.mock(NewObjectsEmployeeInputSplit.class);
     HadoopInputFormatBoundedSource<Text, Employee> boundedSource =
@@ -577,9 +579,23 @@ public class HadoopInputFormatIOTest {
             null, // No value translation required.
             new SerializableSplit(mockInputSplit));
     boundedSource.setInputFormatObj(mockInputFormat);
-    BoundedReader<KV<Text, Employee>> boundedReader = boundedSource.createReader(p.getOptions());
-    assertEquals(true, boundedReader.start());
-    assertEquals(null, boundedReader.getFractionConsumed());
+    BoundedReader<KV<Text, Employee>> reader = boundedSource.createReader(p.getOptions());
+    assertEquals(Double.valueOf(0), reader.getFractionConsumed());
+    boolean start = reader.start();
+    assertEquals(true, start);
+    if (start) {
+      boolean advance = reader.advance();
+      assertEquals(null, reader.getFractionConsumed());
+      assertEquals(true, advance);
+      if (advance) {
+        advance = reader.advance();
+        assertEquals(null, reader.getFractionConsumed());
+      }
+    }
+    // Validate if getFractionConsumed() returns null after few number of reads as getProgress
+    // returns invalid value '2' which is not in the range of 0 to 1.
+    assertEquals(null, reader.getFractionConsumed());
+    reader.close();
   }
   /**
    * This test validates that reader and its parent source reads the same records.
