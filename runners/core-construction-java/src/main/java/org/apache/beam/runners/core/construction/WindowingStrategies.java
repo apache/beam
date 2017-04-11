@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.util;
+package org.apache.beam.runners.core.construction;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
@@ -36,9 +36,10 @@ import org.apache.beam.sdk.transforms.windowing.OutputTimeFn;
 import org.apache.beam.sdk.transforms.windowing.OutputTimeFns;
 import org.apache.beam.sdk.transforms.windowing.Trigger;
 import org.apache.beam.sdk.transforms.windowing.Triggers;
-import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.Window.ClosingBehavior;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
+import org.apache.beam.sdk.util.SerializableUtils;
+import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.util.WindowingStrategy.AccumulationMode;
 import org.apache.beam.sdk.util.WindowingStrategy.CombineWindowFnOutputTimes;
 import org.joda.time.Duration;
@@ -82,7 +83,7 @@ public class WindowingStrategies implements Serializable {
     }
   }
 
-  public static RunnerApi.ClosingBehavior toProto(Window.ClosingBehavior closingBehavior) {
+  public static RunnerApi.ClosingBehavior toProto(ClosingBehavior closingBehavior) {
     switch (closingBehavior) {
       case FIRE_ALWAYS:
         return RunnerApi.ClosingBehavior.EMIT_ALWAYS;
@@ -138,7 +139,7 @@ public class WindowingStrategies implements Serializable {
 
   /**
    * Converts a {@link WindowFn} into a {@link RunnerApi.MessageWithComponents} where
-   * {@link RunnerApi.MessageWithComponents#getFunctionSpec()} is a {@link RunnerApi.FunctionSpec}
+   * {@link RunnerApi.MessageWithComponents#getFunctionSpec()} is a {@link FunctionSpec}
    * for the input {@link WindowFn}.
    */
   public static RunnerApi.MessageWithComponents toProto(WindowFn<?, ?> windowFn)
@@ -148,8 +149,8 @@ public class WindowingStrategies implements Serializable {
     // TODO: re-use components
     String windowCoderId = UUID.randomUUID().toString();
 
-    RunnerApi.SdkFunctionSpec windowFnSpec =
-        RunnerApi.SdkFunctionSpec.newBuilder()
+    SdkFunctionSpec windowFnSpec =
+        SdkFunctionSpec.newBuilder()
             .setSpec(
                 FunctionSpec.newBuilder()
                     .setUrn(CUSTOM_WINDOWFN_URN)
@@ -212,7 +213,7 @@ public class WindowingStrategies implements Serializable {
   }
 
   /**
-   * Converts from a {@link RunnerApi.WindowingStrategy} accompanied by {@link RunnerApi.Components}
+   * Converts from a {@link RunnerApi.WindowingStrategy} accompanied by {@link Components}
    * to the SDK's {@link WindowingStrategy}.
    */
   public static WindowingStrategy<?, ?> fromProto(RunnerApi.MessageWithComponents proto)
@@ -233,7 +234,7 @@ public class WindowingStrategies implements Serializable {
    * the provided components to dereferences identifiers found in the proto.
    */
   public static WindowingStrategy<?, ?> fromProto(
-      RunnerApi.WindowingStrategy proto, RunnerApi.Components components)
+      RunnerApi.WindowingStrategy proto, Components components)
       throws InvalidProtocolBufferException {
 
     SdkFunctionSpec windowFnSpec = proto.getWindowFn();
