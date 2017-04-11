@@ -45,11 +45,11 @@ call *one* row of the main table and *all* rows of the side table. The runner
 may use some caching techniques to share the side inputs between calls in order
 to avoid excessive reading:::
 
-  main_table = pipeline | 'very_big' >> beam.io.Read(beam.io.BigQuerySource()
-  side_table = pipeline | 'not_big' >> beam.io.Read(beam.io.BigQuerySource()
+  main_table = pipeline | 'VeryBig' >> beam.io.Read(beam.io.BigQuerySource()
+  side_table = pipeline | 'NotBig' >> beam.io.Read(beam.io.BigQuerySource()
   results = (
       main_table
-      | 'process data' >> beam.Map(
+      | 'ProcessData' >> beam.Map(
           lambda element, side_input: ..., AsList(side_table)))
 
 There is no difference in how main and side inputs are read. What makes the
