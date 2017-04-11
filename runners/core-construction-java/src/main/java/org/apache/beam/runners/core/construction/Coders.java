@@ -45,15 +45,15 @@ import org.apache.beam.sdk.util.Serializer;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowedValue.FullWindowedValueCoder;
 
-/** Utilities for working with {@link Coder Coders}. */
+/** Converts to and from Beam Runner API representations of {@link Coder Coders}. */
 public class Coders {
   private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
-  // This URN says that the coder is just a UDF blob the indicated SDK understands
+  // This URN says that the coder is just a UDF blob this SDK understands
   // TODO: standardize such things
   public static final String CUSTOM_CODER_URN = "urn:beam:coders:javasdk:0.1";
 
-  // The URNs for coders are shared across languages
+  // The URNs for coders which are shared across languages
   private static final BiMap<Class<? extends Coder>, String> KNOWN_CODER_URNS =
       ImmutableBiMap.<Class<? extends Coder>, String>builder()
           .put(ByteArrayCoder.class, "urn:beam:coders:bytes:0.1")
