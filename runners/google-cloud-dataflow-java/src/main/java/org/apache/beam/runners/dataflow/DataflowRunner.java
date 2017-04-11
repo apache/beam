@@ -39,7 +39,6 @@ import com.google.common.base.Strings;
 import com.google.common.base.Utf8;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import java.io.File;
 import java.io.IOException;
@@ -65,7 +64,6 @@ import org.apache.beam.runners.core.construction.PTransformMatchers;
 import org.apache.beam.runners.core.construction.ReplacementOutputs;
 import org.apache.beam.runners.core.construction.SingleInputOutputOverrideFactory;
 import org.apache.beam.runners.core.construction.UnboundedReadFromBoundedSource;
-import org.apache.beam.runners.core.construction.UnsupportedOverrideFactory;
 import org.apache.beam.runners.dataflow.BatchViewOverrides.BatchCombineGloballyAsSingletonViewFactory;
 import org.apache.beam.runners.dataflow.DataflowPipelineTranslator.JobSpecification;
 import org.apache.beam.runners.dataflow.StreamingViewOverrides.StreamingCreatePCollectionViewFactory;
@@ -330,14 +328,6 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
                   PTransformMatchers.classEqualTo(View.CreatePCollectionView.class),
                   new StreamingCreatePCollectionViewFactory()));
     } else {
-      // In batch mode must use the custom Pubsub bounded source/sink.
-      for (Class<? extends PTransform> unsupported :
-          ImmutableSet.of(PubsubUnboundedSink.class, PubsubUnboundedSource.class)) {
-        overridesBuilder.add(
-            PTransformOverride.of(
-                PTransformMatchers.classEqualTo(unsupported),
-                UnsupportedOverrideFactory.withMessage(getUnsupportedMessage(unsupported, false))));
-      }
       overridesBuilder
           // State and timer pardos are implemented by expansion to GBK-then-ParDo
           .add(
@@ -397,12 +387,6 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
                 PTransformMatchers.classEqualTo(ParDo.SingleOutput.class),
                 new PrimitiveParDoSingleFactory()));
     return overridesBuilder.build();
-  }
-
-  private String getUnsupportedMessage(Class<?> unsupported, boolean streaming) {
-    return String.format(
-        "%s is not supported in %s",
-        NameUtils.approximateSimpleName(unsupported), streaming ? "streaming" : "batch");
   }
 
   private static class ReflectiveOneToOneOverrideFactory<
