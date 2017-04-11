@@ -32,25 +32,6 @@ spec:
     port: 9300
     protocol: TCP
 ---
-# To create Elasticsearch frontend cluster Kubernetes service.
-# It sets up a load balancer on TCP port 9200 that distributes network traffic to the ES client nodes.
-apiVersion: v1
-kind: Service
-metadata:
-  name: elasticsearch
-  labels:
-    component: elasticsearch
-    role: client
-spec:
-  type: LoadBalancer
-  selector:
-    component: elasticsearch
-    role: client
-  ports:
-  - name: http
-    port: 9200
-    protocol: TCP
----
 # The Kubernetes deployment script for Elasticsearch master nodes.
 apiVersion: extensions/v1beta1
 kind: Deployment

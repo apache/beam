@@ -22,7 +22,6 @@ metadata:
   labels:
     component: elasticsearch
 spec:
-  type: LoadBalancer
   selector:
     component: elasticsearch
   ports:
