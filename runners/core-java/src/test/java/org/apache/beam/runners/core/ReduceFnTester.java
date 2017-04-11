@@ -113,7 +113,8 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
   private boolean autoAdvanceOutputWatermark = true;
 
   private final InMemoryLongSumAggregator droppedDueToClosedWindow =
-      new InMemoryLongSumAggregator(GroupAlsoByWindowsDoFn.DROPPED_DUE_TO_CLOSED_WINDOW_COUNTER);
+      new InMemoryLongSumAggregator(
+          GroupAlsoByWindowsAggregators.DROPPED_DUE_TO_CLOSED_WINDOW_COUNTER);
 
   /**
    * Creates a {@link ReduceFnTester} for the given {@link WindowingStrategy}, creating
