@@ -17,7 +17,10 @@
  */
 package org.apache.beam.runners.flink;
 
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Iterables;
 import java.io.IOException;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Map;
 import org.apache.beam.sdk.AggregatorRetrievalException;
@@ -53,13 +56,28 @@ public class FlinkRunnerResult implements PipelineResult {
   @Override
   public <T> AggregatorValues<T> getAggregatorValues(final Aggregator<?, T> aggregator)
       throws AggregatorRetrievalException {
+    return getAggregatorValues(aggregator.getName());
+  }
+
+  @SuppressWarnings("unchecked")
+  public <T> T getAggregatorValue(String name) throws AggregatorRetrievalException {
+    return (T) Iterables.getOnlyElement(getAggregatorValues(name).getValues());
+  }
+
+  @SuppressWarnings("unchecked")
+  public <T> AggregatorValues<T> getAggregatorValues(String name)
+      throws AggregatorRetrievalException {
     // TODO provide a list of all accumulator step values
-    Object value = aggregators.get(aggregator.getName());
+    final T value = (T) aggregators.get(name);
     if (value != null) {
       return new AggregatorValues<T>() {
         @Override
-        public Map<String, T> getValuesAtSteps() {
-          return (Map<String, T>) aggregators;
+        public Collection<T> getValues() {
+          return ImmutableList.of(value);
+        }
+
+        @Override public Map<String, T> getValuesAtSteps() {
+          throw new UnsupportedOperationException("getValuesAtSteps is not supported.");
         }
       };
     } else {
