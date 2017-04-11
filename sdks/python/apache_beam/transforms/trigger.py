@@ -186,7 +186,7 @@ class TriggerFn(object):
   def from_runner_api(proto, context):
     return {
         'after_all': AfterAll,
-        'after_any': AfterFirst,
+        'after_any': AfterAny,
         'after_each': AfterEach,
         'after_end_of_window': AfterWatermark,
         # after_processing_time, after_synchronized_processing_time
@@ -488,7 +488,8 @@ class ParallelTriggerFn(TriggerFn):
         in proto.after_all.subtriggers or proto.after_any.subtriggers]
     if proto.after_all.subtriggers:
       return AfterAll(*subtriggers)
-    return AfterFirst(*subtriggers)
+    else:
+      return AfterAny(*subtriggers)
 
   def to_runner_api(self, context):
     subtriggers = [
@@ -505,7 +506,7 @@ class ParallelTriggerFn(TriggerFn):
       raise NotImplementedError(self)
 
 
-class AfterFirst(ParallelTriggerFn):
+class AfterAny(ParallelTriggerFn):
   """Fires when any subtrigger fires.
 
   Also finishes when any subtrigger finishes.
@@ -589,7 +590,8 @@ class AfterEach(TriggerFn):
                 for subtrigger in self.triggers]))
 
 
-class OrFinally(AfterFirst):
+class OrFinally(AfterAny):
+
   @staticmethod
   def from_runner_api(proto, context):
     return OrFinally(
