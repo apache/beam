@@ -147,6 +147,7 @@ public class HIFIOWithEmbeddedCassandraTest implements Serializable {
   }
 
   public static void createCassandraData() throws Exception {
+    session.execute("DROP KEYSPACE IF EXISTS " + CASSANDRA_KEYSPACE);
     session.execute("CREATE KEYSPACE " + CASSANDRA_KEYSPACE
         + " WITH REPLICATION = {'class':'SimpleStrategy', 'replication_factor':1};");
     session.execute("USE " + CASSANDRA_KEYSPACE);
