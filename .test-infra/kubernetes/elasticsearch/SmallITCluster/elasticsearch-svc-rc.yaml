@@ -22,9 +22,9 @@ metadata:
   labels:
     component: elasticsearch
 spec:
-  type: LoadBalancer
   selector:
     component: elasticsearch
+  type: NodePort
   ports:
   - name: http
     port: 9200
@@ -47,6 +47,18 @@ spec:
     metadata:
       labels:
         component: elasticsearch
+      annotations:
+        pod.beta.kubernetes.io/init-containers: '[
+          {
+          "name": "sysctl",
+            "image": "busybox",
+            "imagePullPolicy": "IfNotPresent",
+            "command": ["sysctl", "-w", "vm.max_map_count=262144"],
+            "securityContext": {
+              "privileged": true
+            }
+          }
+        ]'
     spec:
       containers:
       - name: es

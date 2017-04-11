@@ -12,12 +12,22 @@
 #    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
-#
 
-#!/bin/sh
-set -e
-
-# Create Elasticsearch services and deployments.
-kubectl create -f elasticsearch-service-for-local-dev.yaml
-kubectl create -f elasticsearch-svc-rc.yaml
-
+# To create Elasticsearch frontend cluster Kubernetes service.
+# It sets up a load balancer on TCP port 9200 that distributes network traffic to the ES client nodes.
+apiVersion: v1
+kind: Service
+metadata:
+  name: elasticsearch-external
+  labels:
+    component: elasticsearch
+    role: client
+spec:
+  type: LoadBalancer
+  selector:
+    component: elasticsearch
+    role: client
+  ports:
+  - name: http
+    port: 9200
+    protocol: TCP

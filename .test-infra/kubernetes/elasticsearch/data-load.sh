@@ -18,12 +18,12 @@
 set -e
 
 # Identify external IP
-external_ip="$(kubectl get svc elasticsearch -o jsonpath='{.status.loadBalancer.ingress[0].ip}')"
+external_ip="$(kubectl get svc elasticsearch-external -o jsonpath='{.status.loadBalancer.ingress[0].ip}')"
 echo "Waiting for the Elasticsearch service to come up ........"
 while [ -z "$external_ip" ]
 do
    sleep 10s
-   external_ip="$(kubectl get svc elasticsearch -o jsonpath='{.status.loadBalancer.ingress[0].ip}')"
+   external_ip="$(kubectl get svc elasticsearch-external -o jsonpath='{.status.loadBalancer.ingress[0].ip}')"
    echo "."
 done
 echo "External IP - $external_ip"

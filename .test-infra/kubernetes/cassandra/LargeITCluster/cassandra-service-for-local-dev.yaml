@@ -12,12 +12,17 @@
 #    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
-#
 
-#!/bin/sh
-set -e
-
-# Create Elasticsearch services and deployments.
-kubectl create -f elasticsearch-service-for-local-dev.yaml
-kubectl create -f elasticsearch-svc-rc.yaml
-
+# Cassandra external service which is exposed as a load balancer.
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: cassandra
+  name: cassandra-external
+spec:
+  ports:
+    - port: 9042
+  selector:
+    app: cassandra
+  type: LoadBalancer
