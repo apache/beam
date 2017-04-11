@@ -959,8 +959,8 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
 
     # If this type-checks than no error should be raised.
     d = (self.p
-         | 'bools' >> beam.Create([True, False, True]).with_output_types(bool)
-         | 'to_ints' >> beam.Map(bool_to_int))
+         | 'Bools' >> beam.Create([True, False, True]).with_output_types(bool)
+         | 'ToInts' >> beam.Map(bool_to_int))
     assert_that(d, equal_to([1, 0, 1]))
     self.p.run()
 

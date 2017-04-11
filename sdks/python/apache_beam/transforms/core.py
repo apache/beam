@@ -1098,21 +1098,22 @@ class GroupByKey(PTransform):
 
       # pylint: disable=bad-continuation
       return (pcoll
-              | 'reify_windows' >> (ParDo(self.ReifyWindows())
+              | 'ReifyWindows' >> (ParDo(self.ReifyWindows())
                  .with_output_types(reify_output_type))
-              | 'group_by_key' >> (GroupByKeyOnly()
+              | 'GroupByKey' >> (GroupByKeyOnly()
                  .with_input_types(reify_output_type)
                  .with_output_types(gbk_input_type))
-              | ('group_by_window' >> ParDo(
+              | ('GroupByWindow' >> ParDo(
                      self.GroupAlsoByWindow(pcoll.windowing))
                  .with_input_types(gbk_input_type)
                  .with_output_types(gbk_output_type)))
-    # If the input_type is None, run the default
-    return (pcoll
-            | 'reify_windows' >> ParDo(self.ReifyWindows())
-            | 'group_by_key' >> GroupByKeyOnly()
-            | 'group_by_window' >> ParDo(
-                self.GroupAlsoByWindow(pcoll.windowing)))
+    else:
+      # The input_type is None, run the default
+      return (pcoll
+              | 'ReifyWindows' >> ParDo(self.ReifyWindows())
+              | 'GroupByKey' >> GroupByKeyOnly()
+              | 'GroupByWindow' >> ParDo(
+                    self.GroupAlsoByWindow(pcoll.windowing)))
 
 
 @typehints.with_input_types(typehints.KV[K, V])
