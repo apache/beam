@@ -68,8 +68,7 @@ public class CodersTest {
     SdkComponents componentsBuilder = SdkComponents.create();
     RunnerApi.Coder coderProto = Coders.toProto(coder, componentsBuilder);
 
-    // TODO: Get some real components
-    Components encodedComponents = Components.getDefaultInstance();
+    Components encodedComponents = componentsBuilder.toComponents();
     Coder<?> decodedCoder = Coders.fromProto(coderProto, encodedComponents);
     assertThat(decodedCoder, Matchers.<Coder<?>>equalTo(coder));
   }
