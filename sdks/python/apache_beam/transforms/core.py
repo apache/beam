@@ -1185,6 +1185,10 @@ class Windowing(object):
       else:
         raise ValueError(
             'accumulation_mode must be provided for non-trivial triggers')
+    if not windowfn.get_window_coder().is_deterministic():
+      raise ValueError(
+          'window fn (%s) does not have a determanistic coder (%s)' % (
+              window_fn, windowfn.get_window_coder()))
     self.windowfn = windowfn
     self.triggerfn = triggerfn
     self.accumulation_mode = accumulation_mode
