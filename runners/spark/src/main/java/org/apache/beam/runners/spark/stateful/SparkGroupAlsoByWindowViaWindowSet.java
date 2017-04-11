@@ -412,12 +412,14 @@ public class SparkGroupAlsoByWindowViaWindowSet {
     }
 
     @Override
-    public <SideOutputT> void sideOutputWindowedValue(
-        TupleTag<SideOutputT> tag,
-        SideOutputT output, Instant timestamp,
+    public <AdditionalOutputT> void outputWindowedValue(
+        TupleTag<AdditionalOutputT> tag,
+        AdditionalOutputT output,
+        Instant timestamp,
         Collection<? extends BoundedWindow> windows,
         PaneInfo pane) {
-      throw new UnsupportedOperationException("Side outputs are not allowed in GroupAlsoByWindow.");
+      throw new UnsupportedOperationException(
+          "Tagged outputs are not allowed in GroupAlsoByWindow.");
     }
   }
 

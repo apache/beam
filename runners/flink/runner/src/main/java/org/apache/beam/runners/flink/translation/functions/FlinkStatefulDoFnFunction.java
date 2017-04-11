@@ -88,7 +88,7 @@ public class FlinkStatefulDoFnFunction<K, V, OutputT>
     if (outputMap == null) {
       outputManager = new FlinkDoFnFunction.DoFnOutputManager(out);
     } else {
-      // it has some sideOutputs
+      // it has some additional Outputs
       outputManager =
           new FlinkDoFnFunction.MultiDoFnOutputManager((Collector) out, outputMap);
     }
@@ -114,7 +114,7 @@ public class FlinkStatefulDoFnFunction<K, V, OutputT>
         new FlinkSideInputReader(sideInputs, runtimeContext),
         outputManager,
         mainOutputTag,
-        // see SimpleDoFnRunner, just use it to limit number of side outputs
+        // see SimpleDoFnRunner, just use it to limit number of additional outputs
         Collections.<TupleTag<?>>emptyList(),
         new FlinkNoOpStepContext() {
           @Override

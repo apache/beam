@@ -46,7 +46,7 @@ public class FakeStepContext implements StepContext {
   }
 
   @Override
-  public void noteSideOutput(TupleTag<?> tag, WindowedValue<?> output) {
+  public void noteOutput(TupleTag<?> tag, WindowedValue<?> output) {
   }
 
   @Override

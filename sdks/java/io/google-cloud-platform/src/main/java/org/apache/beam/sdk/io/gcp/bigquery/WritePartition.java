@@ -61,7 +61,7 @@ class WritePartition extends DoFn<String, KV<Long, List<String>>> {
       KV<String, Long> fileResult = results.get(i);
       if (currNumFiles + 1 > Write.MAX_NUM_FILES
           || currSizeBytes + fileResult.getValue() > Write.MAX_SIZE_BYTES) {
-        c.sideOutput(multiPartitionsTag, KV.of(++partitionId, currResults));
+        c.output(multiPartitionsTag, KV.of(++partitionId, currResults));
         currResults = Lists.newArrayList();
         currNumFiles = 0;
         currSizeBytes = 0;
@@ -71,9 +71,9 @@ class WritePartition extends DoFn<String, KV<Long, List<String>>> {
       currResults.add(fileResult.getKey());
     }
     if (partitionId == 0) {
-      c.sideOutput(singlePartitionTag, KV.of(++partitionId, currResults));
+      c.output(singlePartitionTag, KV.of(++partitionId, currResults));
     } else {
-      c.sideOutput(multiPartitionsTag, KV.of(++partitionId, currResults));
+      c.output(multiPartitionsTag, KV.of(++partitionId, currResults));
     }
   }
 }

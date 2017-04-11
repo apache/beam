@@ -106,7 +106,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
       SideInputReader sideInputReader,
       OutputManager outputManager,
       TupleTag<OutputT> mainOutputTag,
-      List<TupleTag<?>> sideOutputTags,
+      List<TupleTag<?>> additionalOutputTags,
       StepContext stepContext,
       AggregatorFactory aggregatorFactory,
       WindowingStrategy<?, ?> windowingStrategy) {
@@ -133,7 +133,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
             sideInputReader,
             outputManager,
             mainOutputTag,
-            sideOutputTags,
+            additionalOutputTags,
             stepContext,
             aggregatorFactory,
             windowingStrategy.getWindowFn());
@@ -257,7 +257,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
         SideInputReader sideInputReader,
         OutputManager outputManager,
         TupleTag<OutputT> mainOutputTag,
-        List<TupleTag<?>> sideOutputTags,
+        List<TupleTag<?>> additionalOutputTags,
         StepContext stepContext,
         AggregatorFactory aggregatorFactory,
         WindowFn<?, ?> windowFn) {
@@ -270,8 +270,8 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
       this.outputTags = Sets.newHashSet();
 
       outputTags.add(mainOutputTag);
-      for (TupleTag<?> sideOutputTag : sideOutputTags) {
-        outputTags.add(sideOutputTag);
+      for (TupleTag<?> additionalOutputTag : additionalOutputTags) {
+        outputTags.add(additionalOutputTag);
       }
 
       this.stepContext = stepContext;
@@ -355,16 +355,16 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
       }
     }
 
-    private <T> void sideOutputWindowedValue(
+    private <T> void outputWindowedValue(
         TupleTag<T> tag,
         T output,
         Instant timestamp,
         Collection<? extends BoundedWindow> windows,
         PaneInfo pane) {
-      sideOutputWindowedValue(tag, makeWindowedValue(output, timestamp, windows, pane));
+      outputWindowedValue(tag, makeWindowedValue(output, timestamp, windows, pane));
     }
 
-    private <T> void sideOutputWindowedValue(TupleTag<T> tag, WindowedValue<T> windowedElem) {
+    private <T> void outputWindowedValue(TupleTag<T> tag, WindowedValue<T> windowedElem) {
       if (!outputTags.contains(tag)) {
         // This tag wasn't declared nor was it seen before during this execution.
         // Thus, this must be a new, undeclared and unconsumed output.
@@ -372,18 +372,18 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
         // outputs.
         if (outputTags.size() >= MAX_SIDE_OUTPUTS) {
           throw new IllegalArgumentException(
-              "the number of side outputs has exceeded a limit of " + MAX_SIDE_OUTPUTS);
+              "the number of outputs has exceeded a limit of " + MAX_SIDE_OUTPUTS);
         }
         outputTags.add(tag);
       }
 
       outputManager.output(tag, windowedElem);
       if (stepContext != null) {
-        stepContext.noteSideOutput(tag, windowedElem);
+        stepContext.noteOutput(tag, windowedElem);
       }
     }
 
-    // Following implementations of output, outputWithTimestamp, and sideOutput
+    // Following implementations of output, outputWithTimestamp, and output
     // are only accessible in DoFn.startBundle and DoFn.finishBundle, and will be shadowed by
     // ProcessContext's versions in DoFn.processElement.
     @Override
@@ -397,15 +397,15 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     }
 
     @Override
-    public <T> void sideOutput(TupleTag<T> tag, T output) {
-      checkNotNull(tag, "TupleTag passed to sideOutput cannot be null");
-      sideOutputWindowedValue(tag, output, null, null, PaneInfo.NO_FIRING);
+    public <T> void output(TupleTag<T> tag, T output) {
+      checkNotNull(tag, "TupleTag passed to output cannot be null");
+      outputWindowedValue(tag, output, null, null, PaneInfo.NO_FIRING);
     }
 
     @Override
-    public <T> void sideOutputWithTimestamp(TupleTag<T> tag, T output, Instant timestamp) {
-      checkNotNull(tag, "TupleTag passed to sideOutputWithTimestamp cannot be null");
-      sideOutputWindowedValue(tag, output, timestamp, null, PaneInfo.NO_FIRING);
+    public <T> void outputWithTimestamp(TupleTag<T> tag, T output, Instant timestamp) {
+      checkNotNull(tag, "TupleTag passed to outputWithTimestamp cannot be null");
+      outputWindowedValue(tag, output, timestamp, null, PaneInfo.NO_FIRING);
     }
 
     @Override
@@ -559,16 +559,16 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     }
 
     @Override
-    public <T> void sideOutput(TupleTag<T> tag, T output) {
-      checkNotNull(tag, "Tag passed to sideOutput cannot be null");
-      context.sideOutputWindowedValue(tag, windowedValue.withValue(output));
+    public <T> void output(TupleTag<T> tag, T output) {
+      checkNotNull(tag, "Tag passed to output cannot be null");
+      context.outputWindowedValue(tag, windowedValue.withValue(output));
     }
 
     @Override
-    public <T> void sideOutputWithTimestamp(TupleTag<T> tag, T output, Instant timestamp) {
-      checkNotNull(tag, "Tag passed to sideOutputWithTimestamp cannot be null");
+    public <T> void outputWithTimestamp(TupleTag<T> tag, T output, Instant timestamp) {
+      checkNotNull(tag, "Tag passed to outputWithTimestamp cannot be null");
       checkTimestamp(timestamp);
-      context.sideOutputWindowedValue(
+      context.outputWindowedValue(
           tag, output, timestamp, windowedValue.getWindows(), windowedValue.getPane());
     }
 
@@ -787,14 +787,14 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     }
 
     @Override
-    public <T> void sideOutput(TupleTag<T> tag, T output) {
-      context.sideOutputWindowedValue(
+    public <T> void output(TupleTag<T> tag, T output) {
+      context.outputWindowedValue(
           tag, output, timestamp, Collections.singleton(window()), PaneInfo.NO_FIRING);
     }
 
     @Override
-    public <T> void sideOutputWithTimestamp(TupleTag<T> tag, T output, Instant timestamp) {
-      context.sideOutputWindowedValue(
+    public <T> void outputWithTimestamp(TupleTag<T> tag, T output, Instant timestamp) {
+      context.outputWindowedValue(
           tag, output, timestamp, Collections.singleton(window()), PaneInfo.NO_FIRING);
     }
 

@@ -70,7 +70,7 @@ public class ParDoEvaluatorTest {
   @Mock private EvaluationContext evaluationContext;
   private PCollection<Integer> inputPc;
   private TupleTag<Integer> mainOutputTag;
-  private List<TupleTag<?>> sideOutputTags;
+  private List<TupleTag<?>> additionalOutputTags;
   private BundleFactory bundleFactory;
 
   @Rule
@@ -81,7 +81,7 @@ public class ParDoEvaluatorTest {
     MockitoAnnotations.initMocks(this);
     inputPc = p.apply(Create.of(1, 2, 3));
     mainOutputTag = new TupleTag<Integer>() {};
-    sideOutputTags = TupleTagList.empty().getAll();
+    additionalOutputTags = TupleTagList.empty().getAll();
 
     bundleFactory = ImmutableListBundleFactory.create();
   }
@@ -168,7 +168,7 @@ public class ParDoEvaluatorTest {
         null /* key */,
         ImmutableList.<PCollectionView<?>>of(singletonView),
         mainOutputTag,
-        sideOutputTags,
+        additionalOutputTags,
         ImmutableMap.<TupleTag<?>, PCollection<?>>of(mainOutputTag, output));
   }
 

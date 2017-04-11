@@ -353,13 +353,14 @@ public class ApexGroupByKeyOperator<K, V> implements Operator {
         }
 
         @Override
-        public <SideOutputT> void sideOutputWindowedValue(
-            TupleTag<SideOutputT> tag,
-            SideOutputT output,
+        public <AdditionalOutputT> void outputWindowedValue(
+            TupleTag<AdditionalOutputT> tag,
+            AdditionalOutputT output,
             Instant timestamp,
             Collection<? extends BoundedWindow> windows,
             PaneInfo pane) {
-          throw new UnsupportedOperationException("GroupAlsoByWindow should not use side outputs");
+          throw new UnsupportedOperationException(
+              "GroupAlsoByWindow should not use tagged outputs");
         }
 
         @Override
@@ -390,15 +391,13 @@ public class ApexGroupByKeyOperator<K, V> implements Operator {
     }
 
     @Override
-    public <T> void sideOutput(TupleTag<T> tag, T output) {
-      // ignore the side output, this can happen when a user does not register
-      // side outputs but then outputs using a freshly created TupleTag.
-      throw new RuntimeException("sideOutput() is not available when grouping by window.");
+    public <T> void output(TupleTag<T> tag, T output) {
+      throw new RuntimeException("output() is not available when grouping by window.");
     }
 
     @Override
-    public <T> void sideOutputWithTimestamp(TupleTag<T> tag, T output, Instant timestamp) {
-      sideOutput(tag, output);
+    public <T> void outputWithTimestamp(TupleTag<T> tag, T output, Instant timestamp) {
+      output(tag, output);
     }
 
     @Override
