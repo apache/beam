@@ -135,16 +135,15 @@ public abstract class OldDoFn<InputT, OutputT> implements Serializable, HasDispl
     public abstract void outputWithTimestamp(OutputT output, Instant timestamp);
 
     /**
-     * Adds the given element to the side output {@code PCollection} with the
+     * Adds the given element to the output {@code PCollection} with the
      * given tag.
      *
-     * <p>Once passed to {@code sideOutput} the element should not be modified
+     * <p>Once passed to {@code output} the element should not be modified
      * in any way.
      *
      * <p>The caller of {@code ParDo} uses {@link ParDo.SingleOutput#withOutputTags withOutputTags}
-     * to specify the tags of side outputs that it consumes. Non-consumed side
-     * outputs, e.g., outputs for monitoring purposes only, don't necessarily
-     * need to be specified.
+     * to specify the tags of outputs that it consumes. Outputs that are not consumed, e.g., outputs
+     * for monitoring purposes only, don't necessarily need to be specified.
      *
      * <p>The output element will have the same timestamp and be in the same
      * windows as the input element passed to {@link OldDoFn#processElement processElement}.
@@ -159,32 +158,27 @@ public abstract class OldDoFn<InputT, OutputT> implements Serializable, HasDispl
      *
      * @see ParDo.SingleOutput#withOutputTags
      */
-    public abstract <T> void sideOutput(TupleTag<T> tag, T output);
+    public abstract <T> void output(TupleTag<T> tag, T output);
 
     /**
-     * Adds the given element to the specified side output {@code PCollection},
-     * with the given timestamp.
+     * Adds the given element to the specified output {@code PCollection}, with the given timestamp.
      *
-     * <p>Once passed to {@code sideOutputWithTimestamp} the element should not be
-     * modified in any way.
+     * <p>Once passed to {@code outputWithTimestamp} the element should not be modified in any way.
      *
-     * <p>If invoked from {@link OldDoFn#processElement processElement}, the timestamp
-     * must not be older than the input element's timestamp minus
-     * {@link OldDoFn#getAllowedTimestampSkew getAllowedTimestampSkew}.  The output element will
-     * be in the same windows as the input element.
+     * <p>If invoked from {@link OldDoFn#processElement processElement}, the timestamp must not be
+     * older than the input element's timestamp minus {@link OldDoFn#getAllowedTimestampSkew
+     * getAllowedTimestampSkew}. The output element will be in the same windows as the input
+     * element.
      *
      * <p>If invoked from {@link #startBundle startBundle} or {@link #finishBundle finishBundle},
-     * this will attempt to use the
-     * {@link org.apache.beam.sdk.transforms.windowing.WindowFn}
-     * of the input {@code PCollection} to determine what windows the element
-     * should be in, throwing an exception if the {@code WindowFn} attempts
-     * to access any information about the input element except for the
-     * timestamp.
+     * this will attempt to use the {@link org.apache.beam.sdk.transforms.windowing.WindowFn} of the
+     * input {@code PCollection} to determine what windows the element should be in, throwing an
+     * exception if the {@code WindowFn} attempts to access any information about the input element
+     * except for the timestamp.
      *
      * @see ParDo.SingleOutput#withOutputTags
      */
-    public abstract <T> void sideOutputWithTimestamp(
-        TupleTag<T> tag, T output, Instant timestamp);
+    public abstract <T> void outputWithTimestamp(TupleTag<T> tag, T output, Instant timestamp);
 
     /**
      * Creates an {@link Aggregator} in the {@link OldDoFn} context with the

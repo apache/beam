@@ -114,11 +114,11 @@ public abstract class BaseExecutionContext<T extends ExecutionContext.StepContex
 
   /**
    * Hook for subclasses to implement that will be called whenever
-   * {@code DoFn.Context#sideOutput}
+   * {@code DoFn.Context#output}
    * is called.
    */
   @Override
-  public void noteSideOutput(TupleTag<?> tag, WindowedValue<?> output) {}
+  public void noteOutput(TupleTag<?> tag, WindowedValue<?> output) {}
 
   /**
    * Base class for implementations of {@link ExecutionContext.StepContext}.
@@ -153,8 +153,8 @@ public abstract class BaseExecutionContext<T extends ExecutionContext.StepContex
     }
 
     @Override
-    public void noteSideOutput(TupleTag<?> tag, WindowedValue<?> output) {
-      executionContext.noteSideOutput(tag, output);
+    public void noteOutput(TupleTag<?> tag, WindowedValue<?> output) {
+      executionContext.noteOutput(tag, output);
     }
 
     @Override

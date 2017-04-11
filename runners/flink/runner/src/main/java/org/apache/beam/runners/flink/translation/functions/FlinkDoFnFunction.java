@@ -87,7 +87,7 @@ public class FlinkDoFnFunction<InputT, OutputT>
     if (outputMap == null) {
       outputManager = new FlinkDoFnFunction.DoFnOutputManager(out);
     } else {
-      // it has some sideOutputs
+      // it has some additional outputs
       outputManager =
           new FlinkDoFnFunction.MultiDoFnOutputManager((Collector) out, outputMap);
     }
@@ -97,7 +97,7 @@ public class FlinkDoFnFunction<InputT, OutputT>
         new FlinkSideInputReader(sideInputs, runtimeContext),
         outputManager,
         mainOutputTag,
-        // see SimpleDoFnRunner, just use it to limit number of side outputs
+        // see SimpleDoFnRunner, just use it to limit number of additional outputs
         Collections.<TupleTag<?>>emptyList(),
         new FlinkNoOpStepContext(),
         new FlinkAggregatorFactory(runtimeContext),

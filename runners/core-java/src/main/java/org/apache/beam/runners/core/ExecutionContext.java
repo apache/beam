@@ -48,10 +48,10 @@ public interface ExecutionContext {
 
   /**
    * Hook for subclasses to implement that will be called whenever
-   * {@link org.apache.beam.sdk.transforms.DoFn.Context#sideOutput}
+   * {@link org.apache.beam.sdk.transforms.DoFn.Context#output}
    * is called.
    */
-  void noteSideOutput(TupleTag<?> tag, WindowedValue<?> output);
+  void noteOutput(TupleTag<?> tag, WindowedValue<?> output);
 
   /**
    * Per-step, per-key context used for retrieving state.
@@ -77,10 +77,10 @@ public interface ExecutionContext {
 
     /**
      * Hook for subclasses to implement that will be called whenever
-     * {@link org.apache.beam.sdk.transforms.DoFn.Context#sideOutput}
+     * {@link org.apache.beam.sdk.transforms.DoFn.Context#output}
      * is called.
      */
-    void noteSideOutput(TupleTag<?> tag, WindowedValue<?> output);
+    void noteOutput(TupleTag<?> tag, WindowedValue<?> output);
 
     /**
      * Writes the given {@code PCollectionView} data to a globally accessible location.
