@@ -393,17 +393,21 @@ public class PipelineTest {
     }
 
     @Override
-    public PBegin getInput(List<TaggedPValue> inputs, Pipeline p) {
+    public PBegin getInput(Map<TupleTag<?>, PValue> inputs, Pipeline p) {
       return p.begin();
     }
 
     @Override
     public Map<PValue, ReplacementOutput> mapOutputs(
-        List<TaggedPValue> outputs, PCollection<Long> newOutput) {
+        Map<TupleTag<?>, PValue> outputs, PCollection<Long> newOutput) {
+      Map.Entry<TupleTag<?>, PValue> original = Iterables.getOnlyElement(outputs.entrySet());
+      Map.Entry<TupleTag<?>, PValue> replacement =
+          Iterables.getOnlyElement(newOutput.expand().entrySet());
       return Collections.<PValue, ReplacementOutput>singletonMap(
           newOutput,
           ReplacementOutput.of(
-              Iterables.getOnlyElement(outputs), Iterables.getOnlyElement(newOutput.expand())));
+              TaggedPValue.of(original.getKey(), original.getValue()),
+              TaggedPValue.of(replacement.getKey(), replacement.getValue())));
     }
   }
   static class UnboundedCountingInputOverride
@@ -415,17 +419,21 @@ public class PipelineTest {
     }
 
     @Override
-    public PBegin getInput(List<TaggedPValue> inputs, Pipeline p) {
+    public PBegin getInput(Map<TupleTag<?>, PValue> inputs, Pipeline p) {
       return p.begin();
     }
 
     @Override
     public Map<PValue, ReplacementOutput> mapOutputs(
-        List<TaggedPValue> outputs, PCollection<Long> newOutput) {
+        Map<TupleTag<?>, PValue> outputs, PCollection<Long> newOutput) {
+      Map.Entry<TupleTag<?>, PValue> original = Iterables.getOnlyElement(outputs.entrySet());
+      Map.Entry<TupleTag<?>, PValue> replacement =
+          Iterables.getOnlyElement(newOutput.expand().entrySet());
       return Collections.<PValue, ReplacementOutput>singletonMap(
           newOutput,
           ReplacementOutput.of(
-              Iterables.getOnlyElement(outputs), Iterables.getOnlyElement(newOutput.expand())));
+              TaggedPValue.of(original.getKey(), original.getValue()),
+              TaggedPValue.of(replacement.getKey(), replacement.getValue())));
     }
   }
 }

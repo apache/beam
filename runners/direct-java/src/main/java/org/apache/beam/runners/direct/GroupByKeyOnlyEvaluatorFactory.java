@@ -105,7 +105,7 @@ class GroupByKeyOnlyEvaluatorFactory implements TransformEvaluatorFactory {
       this.application = application;
       this.keyCoder =
           getKeyCoder(
-              ((PCollection<KV<K, V>>) Iterables.getOnlyElement(application.getInputs()).getValue())
+              ((PCollection<KV<K, V>>) Iterables.getOnlyElement(application.getInputs().values()))
                   .getCoder());
       this.groupingMap = new HashMap<>();
     }
@@ -158,7 +158,7 @@ class GroupByKeyOnlyEvaluatorFactory implements TransformEvaluatorFactory {
             evaluationContext.createKeyedBundle(
                 StructuralKey.of(key, keyCoder),
                 (PCollection<KeyedWorkItem<K, V>>)
-                    Iterables.getOnlyElement(application.getOutputs()).getValue());
+                    Iterables.getOnlyElement(application.getOutputs().values()));
         bundle.add(WindowedValue.valueInGlobalWindow(groupedKv));
         resultBuilder.addOutput(bundle);
       }

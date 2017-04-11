@@ -19,17 +19,16 @@
 package org.apache.beam.runners.core.construction;
 
 import com.google.common.collect.Iterables;
-import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.runners.PTransformOverrideFactory;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PValue;
-import org.apache.beam.sdk.values.TaggedPValue;
+import org.apache.beam.sdk.values.TupleTag;
 
 /**
  * A {@link PTransformOverrideFactory} which consumes from a {@link PValue} and produces a
- * {@link PValue}. {@link #getInput(List, Pipeline)} and {@link #mapOutputs(List, PValue)} are
+ * {@link PValue}. {@link #getInput(Map, Pipeline)} and {@link #mapOutputs(Map, PValue)} are
  * implemented.
  */
 public abstract class SingleInputOutputOverrideFactory<
@@ -38,13 +37,13 @@ public abstract class SingleInputOutputOverrideFactory<
         TransformT extends PTransform<InputT, OutputT>>
     implements PTransformOverrideFactory<InputT, OutputT, TransformT> {
   @Override
-  public final InputT getInput(List<TaggedPValue> inputs, Pipeline p) {
-    return (InputT) Iterables.getOnlyElement(inputs).getValue();
+  public final InputT getInput(Map<TupleTag<?>, PValue> inputs, Pipeline p) {
+    return (InputT) Iterables.getOnlyElement(inputs.values());
   }
 
   @Override
   public final Map<PValue, ReplacementOutput> mapOutputs(
-      List<TaggedPValue> outputs, OutputT newOutput) {
+      Map<TupleTag<?>, PValue> outputs, OutputT newOutput) {
     return ReplacementOutputs.singleton(outputs, newOutput);
   }
 }

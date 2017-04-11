@@ -21,18 +21,15 @@ package org.apache.beam.runners.core.construction;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertThat;
 
-import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
-import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.runners.PTransformOverrideFactory.ReplacementOutput;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
-import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.PCollectionTuple;
-import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TaggedPValue;
 import org.apache.beam.sdk.values.TupleTag;
@@ -79,8 +76,10 @@ public class ReplacementOutputsTest {
     assertThat(replacements, Matchers.<PValue>hasKey(replacementInts));
 
     ReplacementOutput replacement = replacements.get(replacementInts);
-    TaggedPValue taggedInts = Iterables.getOnlyElement(ints.expand());
-    assertThat(replacement.getOriginal(), equalTo(taggedInts));
+    Map.Entry<TupleTag<?>, PValue> taggedInts = Iterables.getOnlyElement(ints.expand().entrySet());
+    assertThat(
+        replacement.getOriginal().getTag(), Matchers.<TupleTag<?>>equalTo(taggedInts.getKey()));
+    assertThat(replacement.getOriginal().getValue(), equalTo(taggedInts.getValue()));
     assertThat(replacement.getReplacement().getValue(), Matchers.<PValue>equalTo(replacementInts));
   }
 
@@ -88,44 +87,11 @@ public class ReplacementOutputsTest {
   public void singletonMultipleOriginalsThrows() {
     thrown.expect(IllegalArgumentException.class);
     ReplacementOutputs.singleton(
-        ImmutableList.copyOf(Iterables.concat(ints.expand(), moreInts.expand())), replacementInts);
-  }
-
-  @Test
-  public void orderedSucceeds() {
-    List<TaggedPValue> originals = PCollectionList.of(ints).and(moreInts).expand();
-    Map<PValue, ReplacementOutput> replacements =
-        ReplacementOutputs.ordered(
-            originals, PCollectionList.of(replacementInts).and(moreReplacementInts));
-    assertThat(
-        replacements.keySet(),
-        Matchers.<PValue>containsInAnyOrder(replacementInts, moreReplacementInts));
-
-    ReplacementOutput intsMapping = replacements.get(replacementInts);
-    assertThat(intsMapping.getOriginal().getValue(), Matchers.<PValue>equalTo(ints));
-    assertThat(intsMapping.getReplacement().getValue(), Matchers.<PValue>equalTo(replacementInts));
-
-    ReplacementOutput moreIntsMapping = replacements.get(moreReplacementInts);
-    assertThat(moreIntsMapping.getOriginal().getValue(), Matchers.<PValue>equalTo(moreInts));
-    assertThat(
-        moreIntsMapping.getReplacement().getValue(), Matchers.<PValue>equalTo(moreReplacementInts));
-  }
-
-  @Test
-  public void orderedTooManyReplacements() {
-    thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage("same size");
-    ReplacementOutputs.ordered(
-        PCollectionList.of(ints).expand(),
-        PCollectionList.of(replacementInts).and(moreReplacementInts));
-  }
-
-  @Test
-  public void orderedTooFewReplacements() {
-    thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage("same size");
-    ReplacementOutputs.ordered(
-        PCollectionList.of(ints).and(moreInts).expand(), PCollectionList.of(moreReplacementInts));
+        ImmutableMap.<TupleTag<?>, PValue>builder()
+            .putAll(ints.expand())
+            .putAll(moreInts.expand())
+            .build(),
+        replacementInts);
   }
 
   private TupleTag<Integer> intsTag = new TupleTag<>();
@@ -166,61 +132,6 @@ public class ReplacementOutputsTest {
             ReplacementOutput.of(
                 TaggedPValue.of(moreIntsTag, moreInts),
                 TaggedPValue.of(moreIntsTag, moreReplacementInts))));
-  }
-
-  /**
-   * When a call to {@link ReplacementOutputs#tagged(List, POutput)} is made where the first
-   * argument contains multiple copies of the same {@link TaggedPValue}, the call succeeds using
-   * that mapping.
-   */
-  @Test
-  public void taggedMultipleInstances() {
-    List<TaggedPValue> original =
-        ImmutableList.of(
-            TaggedPValue.of(intsTag, ints),
-            TaggedPValue.of(strsTag, strs),
-            TaggedPValue.of(intsTag, ints));
-
-    Map<PValue, ReplacementOutput> replacements =
-        ReplacementOutputs.tagged(
-            original, PCollectionTuple.of(strsTag, replacementStrs).and(intsTag, replacementInts));
-    assertThat(
-        replacements.keySet(),
-        Matchers.<PValue>containsInAnyOrder(replacementStrs, replacementInts));
-    ReplacementOutput intsReplacement = replacements.get(replacementInts);
-    ReplacementOutput strsReplacement = replacements.get(replacementStrs);
-
-    assertThat(
-        intsReplacement,
-        equalTo(
-            ReplacementOutput.of(
-                TaggedPValue.of(intsTag, ints), TaggedPValue.of(intsTag, replacementInts))));
-    assertThat(
-        strsReplacement,
-        equalTo(
-            ReplacementOutput.of(
-                TaggedPValue.of(strsTag, strs), TaggedPValue.of(strsTag, replacementStrs))));
-  }
-
-  /**
-   * When a call to {@link ReplacementOutputs#tagged(List, POutput)} is made where a single tag
-   * has multiple {@link PValue PValues} mapped to it, the call fails.
-   */
-  @Test
-  public void taggedMultipleConflictingInstancesThrows() {
-    List<TaggedPValue> original =
-        ImmutableList.of(
-            TaggedPValue.of(intsTag, ints), TaggedPValue.of(intsTag, moreReplacementInts));
-    thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage("different values");
-    thrown.expectMessage(intsTag.toString());
-    thrown.expectMessage(ints.toString());
-    thrown.expectMessage(moreReplacementInts.toString());
-    ReplacementOutputs.tagged(
-        original,
-        PCollectionTuple.of(strsTag, replacementStrs)
-            .and(moreIntsTag, moreReplacementInts)
-            .and(intsTag, replacementInts));
   }
 
   @Test

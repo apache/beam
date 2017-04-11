@@ -24,7 +24,6 @@ import com.google.common.base.Suppliers;
 import com.google.common.collect.Iterables;
 import java.io.Serializable;
 import java.util.Collections;
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
 import org.apache.beam.sdk.Pipeline;
@@ -41,7 +40,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.PValue;
-import org.apache.beam.sdk.values.TaggedPValue;
+import org.apache.beam.sdk.values.TupleTag;
 
 /**
  * A {@link PTransformOverrideFactory} that overrides {@link Write} {@link PTransform PTransforms}
@@ -60,12 +59,13 @@ class WriteWithShardingFactory<InputT>
   }
 
   @Override
-  public PCollection<InputT> getInput(List<TaggedPValue> inputs, Pipeline p) {
-    return (PCollection<InputT>) Iterables.getOnlyElement(inputs).getValue();
+  public PCollection<InputT> getInput(Map<TupleTag<?>, PValue> inputs, Pipeline p) {
+    return (PCollection<InputT>) Iterables.getOnlyElement(inputs.values());
   }
 
   @Override
-  public Map<PValue, ReplacementOutput> mapOutputs(List<TaggedPValue> outputs, PDone newOutput) {
+  public Map<PValue, ReplacementOutput> mapOutputs(
+      Map<TupleTag<?>, PValue> outputs, PDone newOutput) {
     return Collections.emptyMap();
   }
 

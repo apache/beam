@@ -97,7 +97,6 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.PValue;
-import org.apache.beam.sdk.values.TaggedPValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TypedPValue;
 import org.slf4j.Logger;
@@ -371,24 +370,25 @@ public class DataflowPipelineTranslator {
     }
 
     @Override
-    public <InputT extends PInput> List<TaggedPValue> getInputs(PTransform<InputT, ?> transform) {
+    public <InputT extends PInput> Map<TupleTag<?>, PValue> getInputs(
+        PTransform<InputT, ?> transform) {
       return getCurrentTransform(transform).getInputs();
     }
 
     @Override
     public <InputT extends PValue> InputT getInput(PTransform<InputT, ?> transform) {
-      return (InputT) Iterables.getOnlyElement(getInputs(transform)).getValue();
+      return (InputT) Iterables.getOnlyElement(getInputs(transform).values());
     }
 
     @Override
-    public <OutputT extends POutput> List<TaggedPValue> getOutputs(
+    public <OutputT extends POutput> Map<TupleTag<?>, PValue> getOutputs(
         PTransform<?, OutputT> transform) {
       return getCurrentTransform(transform).getOutputs();
     }
 
     @Override
     public <OutputT extends PValue> OutputT getOutput(PTransform<?, OutputT> transform) {
-      return (OutputT) Iterables.getOnlyElement(getOutputs(transform)).getValue();
+      return (OutputT) Iterables.getOnlyElement(getOutputs(transform).values());
     }
 
     @Override
@@ -758,10 +758,10 @@ public class DataflowPipelineTranslator {
             StepTranslationContext stepContext = context.addStep(transform, "Flatten");
 
             List<OutputReference> inputs = new LinkedList<>();
-            for (TaggedPValue input : context.getInputs(transform)) {
+            for (PValue input : context.getInputs(transform).values()) {
               inputs.add(
                   context.asOutputReference(
-                      input.getValue(), context.getProducer(input.getValue())));
+                      input, context.getProducer(input)));
             }
             stepContext.addInput(PropertyNames.INPUTS, inputs);
             stepContext.addOutput(context.getOutput(transform));
@@ -967,11 +967,11 @@ public class DataflowPipelineTranslator {
   }
 
   private static BiMap<Long, TupleTag<?>> translateOutputs(
-      List<TaggedPValue> outputs,
+      Map<TupleTag<?>, PValue> outputs,
       StepTranslationContext stepContext) {
     ImmutableBiMap.Builder<Long, TupleTag<?>> mapBuilder = ImmutableBiMap.builder();
-    for (TaggedPValue taggedOutput : outputs) {
-      TupleTag<?> tag = taggedOutput.getTag();
+    for (Map.Entry<TupleTag<?>, PValue> taggedOutput : outputs.entrySet()) {
+      TupleTag<?> tag = taggedOutput.getKey();
       checkArgument(taggedOutput.getValue() instanceof PCollection,
           "Non %s returned from Multi-output %s",
           PCollection.class.getSimpleName(),

@@ -72,7 +72,8 @@ import org.apache.beam.sdk.util.NoopPathValidator;
 import org.apache.beam.sdk.util.TestCredential;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
-import org.apache.beam.sdk.values.TaggedPValue;
+import org.apache.beam.sdk.values.PValue;
+import org.apache.beam.sdk.values.TupleTag;
 import org.joda.time.Duration;
 import org.junit.Before;
 import org.junit.Rule;
@@ -689,8 +690,8 @@ public class DataflowPipelineJobTest {
     when(input.getPipeline()).thenReturn(p);
     return AppliedPTransform.of(
         fullName,
-        Collections.<TaggedPValue>emptyList(),
-        Collections.<TaggedPValue>emptyList(),
+        Collections.<TupleTag<?>, PValue>emptyMap(),
+        Collections.<TupleTag<?>, PValue>emptyMap(),
         transform,
         p);
   }

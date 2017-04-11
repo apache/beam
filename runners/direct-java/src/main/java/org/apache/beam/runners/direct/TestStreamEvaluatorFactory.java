@@ -48,8 +48,8 @@ import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.PValue;
-import org.apache.beam.sdk.values.TaggedPValue;
 import org.apache.beam.sdk.values.TimestampedValue;
+import org.apache.beam.sdk.values.TupleTag;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
@@ -108,7 +108,7 @@ class TestStreamEvaluatorFactory implements TransformEvaluatorFactory {
       if (event.getType().equals(EventType.ELEMENT)) {
         UncommittedBundle<T> bundle =
             context.createBundle(
-                (PCollection<T>) Iterables.getOnlyElement(application.getOutputs()).getValue());
+                (PCollection<T>) Iterables.getOnlyElement(application.getOutputs().values()));
         for (TimestampedValue<T> elem : ((ElementEvent<T>) event).getElements()) {
           bundle.add(
               WindowedValue.timestampedValueInGlobalWindow(elem.getValue(), elem.getTimestamp()));
@@ -176,13 +176,13 @@ class TestStreamEvaluatorFactory implements TransformEvaluatorFactory {
     }
 
     @Override
-    public PBegin getInput(List<TaggedPValue> inputs, Pipeline p) {
+    public PBegin getInput(Map<TupleTag<?>, PValue> inputs, Pipeline p) {
       return p.begin();
     }
 
     @Override
     public Map<PValue, ReplacementOutput> mapOutputs(
-        List<TaggedPValue> outputs, PCollection<T> newOutput) {
+        Map<TupleTag<?>, PValue> outputs, PCollection<T> newOutput) {
       return ReplacementOutputs.singleton(outputs, newOutput);
     }
 
