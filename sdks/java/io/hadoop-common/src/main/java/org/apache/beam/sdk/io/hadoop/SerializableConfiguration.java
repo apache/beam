@@ -17,14 +17,21 @@
  */
 package org.apache.beam.sdk.io.hadoop;
 
+import com.google.common.base.Strings;
+import com.google.common.collect.Lists;
 import java.io.Externalizable;
+import java.io.File;
 import java.io.IOException;
 import java.io.ObjectInput;
 import java.io.ObjectOutput;
+import java.util.List;
 import java.util.Map;
 import javax.annotation.Nullable;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.mapreduce.Job;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A wrapper to allow Hadoop {@link Configuration}s to be serialized using Java's standard
@@ -32,6 +39,7 @@ import org.apache.hadoop.mapreduce.Job;
  */
 public class SerializableConfiguration implements Externalizable {
   private static final long serialVersionUID = 0L;
+  private static final Logger LOG = LoggerFactory.getLogger(SerializableConfiguration.class);
 
   private transient Configuration conf;
 
@@ -91,6 +99,36 @@ public class SerializableConfiguration implements Externalizable {
       return new Configuration();
     } else {
       return conf.get();
+    }
+  }
+
+  /**
+   * Loading hadoop configuration from HADOOP_CONF_DIR and YARN_CONF_DIR environment variable
+   *
+   * <p>Currently this makes a shallow copy of the conf directory. If there are cases where a
+   * Hadoop config directory contains subdirectories, this code will have to be fixed.
+   */
+  public static void readConfigurationFromFile(@Nullable SerializableConfiguration conf){
+    if (conf != null) {
+      List<String> hadoopEnvList = Lists.newArrayList("HADOOP_CONF_DIR", "YARN_CONF_DIR");
+      for (String env : hadoopEnvList){
+        String path = System.getenv(env);
+        if (!Strings.isNullOrEmpty(path)){
+          File dir = new File(path);
+          if (dir.isDirectory()) {
+            File[] files = dir.listFiles();
+            if (files == null) {
+              LOG.warn("Failed to list files under directory " + dir);
+            } else {
+              for (File file : files) {
+                if (file.isFile() && file.getName().endsWith(".xml")) {
+                  conf.get().addResource(new Path(file.getAbsolutePath()));
+                }
+              }
+            }
+          }
+        }
+      }
     }
   }
 
