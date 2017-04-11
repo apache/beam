@@ -139,8 +139,6 @@ class PipelineRunner(object):
 
   The base runner provides a run() method for visiting every node in the
   pipeline's DAG and executing the transforms computing the PValue in the node.
-  It also provides a clear() method for visiting every node and clearing out
-  the values contained in PValue objects produced during a run.
 
   A custom runner will typically provide implementations for some of the
   transform methods (ParDo, GroupByKey, Create, etc.). It may also
@@ -169,38 +167,6 @@ class PipelineRunner(object):
 
     pipeline.visit(group_by_key_input_visitor())
     pipeline.visit(RunVisitor(self))
-
-  def clear(self, pipeline, node=None):
-    """Clear all nodes or nodes reachable from node of materialized values.
-
-    Args:
-      pipeline: Pipeline object containing PValues to be cleared.
-      node: Optional node in the Pipeline processing DAG. If specified only
-        nodes reachable from this node will be cleared (ancestors of the node).
-
-    This method is not intended (for now) to be called by users of Runner
-    objects. It is a hook for future layers on top of the current programming
-    model to control how much of the previously computed values are kept
-    around. Presumably an interactivity layer will use it. The simplest way
-    to change the behavior would be to define a runner that overwrites the
-    clear_pvalue() method since this method (runner.clear) will visit all
-    relevant nodes and call clear_pvalue on them.
-
-    """
-
-    # Imported here to avoid circular dependencies.
-    # pylint: disable=wrong-import-order, wrong-import-position
-    from apache_beam.pipeline import PipelineVisitor
-
-    class ClearVisitor(PipelineVisitor):
-
-      def __init__(self, runner):
-        self.runner = runner
-
-      def visit_value(self, value, _):
-        self.runner.clear_pvalue(value)
-
-    pipeline.visit(ClearVisitor(self), node=node)
 
   def apply(self, transform, input):
     """Runner callback for a pipeline.apply call.
