@@ -14,10 +14,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# Hashcode for 1000 records is 5ea121d90d95c84076f7556605080f4b2c3081a7, 
+# For test with query to select one record from 1000 docs, 
+# hashcode is a19593e4c72a67e26cb470130864daabf5a99d62
+
+# Script to load data using YCSB on Cassandra one node cluster.
+
 #!/bin/bash
 set -e
 
+# Record count set to 1000, change this value to load as per requirement.
 recordcount=1000
+
 # Identify the pod
 cassandra_pods="kubectl get pods -l name=cassandra"
 running_seed="$(kubectl get pods -o json -l name=cassandra -o jsonpath=\
@@ -31,9 +39,9 @@ while ! $container_state; do
   container_state="$(kubectl get pods -l name=cassandra -o jsonpath="{.items[0].status.containerStatuses[0].ready}")"
   echo "."
 done
+
 # After starting the service, it takes couple of minutes to generate the external IP for the
 # service. Hence, wait for sometime.
-
 # Identify external IP of the pod
 external_ip="$(kubectl get svc cassandra -o jsonpath='{.status.loadBalancer.ingress[0].ip}')"
 echo "Waiting for the Cassandra service to come up ........"

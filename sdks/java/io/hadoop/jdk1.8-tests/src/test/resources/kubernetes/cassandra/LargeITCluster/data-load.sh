@@ -14,22 +14,31 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# Hashcode for 50m records is c89f996324e4dd4b6071a9b735281e0329a58b75
+
 # Script to load data using YCSB on Cassandra multi node cluster.
  
 #!/bin/bash
 
 set -e
-recordcount=1000
 
-# Delete cassandra single node set up if already exists
-services_exists="$(kubectl get svc -o=name)"
-#convert string of space(' ') separated words to array of words
-service_list=( $services_exists )
+# Record count set to 50000000, change this value to load as per requirement.
+recordcount=50000000
 
+# Function to delete the temporary cassandra service in an erroneous and successful situation
 function delete_service {
-cd ../LargeITCluster
-kubectl delete -f cassandra-svc-temp.yaml
+  cd ../LargeITCluster
+  kubectl delete -f cassandra-svc-temp.yaml
 }
+
+# Delete cassandra single node set up before exit 
+trap delete_service EXIT
+
+# Check if cassandra service already exists
+services_exists="$(kubectl get svc -o=name)"
+
+#Convert string of space(' ') separated words to array of words
+service_list=( $services_exists )
 
 for i in "${service_list[@]}"
 do
@@ -41,7 +50,7 @@ do
    fi
 done
   
-# Temporary set up cassandra single node cluster 
+# Temporarily set up cassandra single node cluster for invoking cqlsh on actual cluster remotely
 kubectl create -f cassandra-svc-temp.yaml
 
 num_of_replicas=$(kubectl get statefulset cassandra --output=jsonpath={.spec.replicas})
@@ -78,6 +87,7 @@ temp_running_seed="$(kubectl get pods -l name=cassandra-temp -o jsonpath="{.item
 # service. Hence, wait for sometime and identify external IP of the pod
 external_ip="$(kubectl get svc cassandra-external -o jsonpath=\
 '{.status.loadBalancer.ingress[0].ip}')"
+
 echo "Waiting for the Cassandra service to come up ........"
 while [ -z "$external_ip" ]
 do
@@ -110,11 +120,8 @@ cd ../ycsb-0.12.0
 
 echo "Starting to load data on ${external_ip}"
 echo "-----------------------------"
-# Record count set to 1000, change this value to load as per requirement.
+
 # dataintegrity flag is set to true to load deterministic data
 ./bin/ycsb load cassandra-cql -p hosts=${external_ip} -p dataintegrity=true -p recordcount=\
-${recordcount} -p insertorder=ordered -p fieldlength=20 -P workloads/workloadd \
+${recordcount} -p insertorder=ordered -p fieldlength=20 -threads 200 -P workloads/workloadd \
 -s > workloada_load_res.txt
-
-# Delete cassandra single node set up before exit 
-trap delete_service EXIT
