@@ -57,6 +57,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
 import javax.annotation.Nullable;
+import org.apache.beam.runners.core.construction.WindowingStrategies;
 import org.apache.beam.runners.dataflow.BatchViewOverrides.GroupByKeyAndSortValuesOnly;
 import org.apache.beam.runners.dataflow.DataflowRunner.CombineGroupedValues;
 import org.apache.beam.runners.dataflow.PrimitiveParDoSingleFactory.ParDoSingle;
@@ -112,6 +113,15 @@ public class DataflowPipelineTranslator {
   // Must be kept in sync with their internal counterparts.
   private static final Logger LOG = LoggerFactory.getLogger(DataflowPipelineTranslator.class);
   private static final ObjectMapper MAPPER = new ObjectMapper();
+
+  private static byte[] serializeWindowingStrategy(WindowingStrategy<?, ?> windowingStrategy) {
+    try {
+      return WindowingStrategies.toProto(windowingStrategy).toByteArray();
+    } catch (Exception e) {
+      throw new RuntimeException(
+          String.format("Unable to format windowing strategy %s as bytes", windowingStrategy), e);
+    }
+  }
 
   /**
    * A map from {@link PTransform} subclass to the corresponding
@@ -815,7 +825,7 @@ public class DataflowPipelineTranslator {
             stepContext.addInput(PropertyNames.DISALLOW_COMBINER_LIFTING, disallowCombinerLifting);
             stepContext.addInput(
                 PropertyNames.SERIALIZED_FN,
-                byteArrayToJsonString(serializeToByteArray(windowingStrategy)));
+                byteArrayToJsonString(serializeWindowingStrategy(windowingStrategy)));
             stepContext.addInput(
                 PropertyNames.IS_MERGING_WINDOW_FN,
                 !windowingStrategy.getWindowFn().isNonMerging());
@@ -893,7 +903,7 @@ public class DataflowPipelineTranslator {
             stepContext.addOutput(context.getOutput(transform));
 
             WindowingStrategy<?, ?> strategy = context.getOutput(transform).getWindowingStrategy();
-            byte[] serializedBytes = serializeToByteArray(strategy);
+            byte[] serializedBytes = serializeWindowingStrategy(strategy);
             String serializedJson = byteArrayToJsonString(serializedBytes);
             assert Arrays.equals(serializedBytes, jsonStringToByteArray(serializedJson));
             stepContext.addInput(PropertyNames.SERIALIZED_FN, serializedJson);
