@@ -26,7 +26,7 @@ import com.datastax.driver.mapping.annotations.Table;
 
 import java.io.Serializable;
 
-import org.apache.beam.sdk.io.hadoop.inputformat.hashing.HashingFn;
+import org.apache.beam.sdk.io.common.HashingFn;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Combine;
@@ -78,7 +78,7 @@ public class HIFIOWithEmbeddedCassandraTest implements Serializable {
   @Test
   public void testHIFReadForCassandra() throws Exception {
     // Expected hashcode is evaluated during insertion time one time and hardcoded here.
-    String expectedHashCode = "4651110ba1ef2cd3a7315091ca27877b18fceb0e";
+    String expectedHashCode = "1b9780833cce000138b9afa25ba63486";
     Configuration conf = getConfiguration();
     PCollection<KV<Long, String>> cassandraData =
         p.apply(HadoopInputFormatIO.<Long, String>read().withConfiguration(conf)
@@ -109,7 +109,7 @@ public class HIFIOWithEmbeddedCassandraTest implements Serializable {
   @Test
   public void testHIFReadForCassandraQuery() throws Exception {
     Long expectedCount = 1L;
-    String expectedChecksum = "6a62f24ccce0713004889aec1cf226949482d188";
+    String expectedChecksum = "f11caabc7a9fc170e22b41218749166c";
     Configuration conf = getConfiguration();
     conf.set("cassandra.input.cql", "select * from " + CASSANDRA_KEYSPACE + "." + CASSANDRA_TABLE
         + " where token(id) > ? and token(id) <= ? and scientist='Faraday1' allow filtering");
