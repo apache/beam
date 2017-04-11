@@ -42,7 +42,8 @@ spec:
     spec:
       containers:
       - name: cassandra
-        image: quay.io/vorstella/cassandra-k8s:latest
+# Tag v1.2 of cassandra image loads 3.10 version of Cassandra
+        image: quay.io/vorstella/cassandra-k8s:v1.2
         imagePullPolicy: Always
         ports:
         - containerPort: 7000

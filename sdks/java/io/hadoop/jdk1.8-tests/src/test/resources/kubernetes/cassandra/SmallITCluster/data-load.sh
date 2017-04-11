@@ -22,8 +22,15 @@ recordcount=1000
 cassandra_pods="kubectl get pods -l name=cassandra"
 running_seed="$(kubectl get pods -o json -l name=cassandra -o jsonpath=\
 '{.items[0].metadata.name}')"
-echo "Detected Running Pod $running_seed"
+echo "Detected Pod $running_seed"
 
+echo "Waiting for Cassandra pod to be in ready state"
+container_state="$(kubectl get pods -l name=cassandra -o jsonpath="{.items[0].status.containerStatuses[0].ready}")"
+while ! $container_state; do
+  sleep 10s
+  container_state="$(kubectl get pods -l name=cassandra -o jsonpath="{.items[0].status.containerStatuses[0].ready}")"
+  echo "."
+done
 # After starting the service, it takes couple of minutes to generate the external IP for the
 # service. Hence, wait for sometime.
 
@@ -56,7 +63,7 @@ echo "Table creation .............."
 echo "-----------------------------"
 echo "$table_creation_command"
 
-cd ycsb-0.12.0
+cd ../ycsb-0.12.0
 
 echo "Starting to load data on ${external_ip}"
 echo "-----------------------------"

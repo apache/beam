@@ -20,6 +20,27 @@
 
 set -e
 recordcount=1000
+
+# Delete cassandra single node set up if already exists
+services_exists="$(kubectl get svc -o=name)"
+#convert string of space(' ') separated words to array of words
+service_list=( $services_exists )
+
+function delete_service {
+cd ../LargeITCluster
+kubectl delete -f cassandra-svc-temp.yaml
+}
+
+for i in "${service_list[@]}"
+do
+   if [ "$i" == "services/cassandra-temp" ]; then
+      echo "Service cassandra-temp already exists"
+      echo "Deleting service cassandra-temp "
+      delete_service
+      break 
+   fi
+done
+  
 # Temporary set up cassandra single node cluster 
 kubectl create -f cassandra-svc-temp.yaml
 
@@ -41,6 +62,14 @@ do
    ready_pod="$(kubectl get pods -l app=cassandra -o jsonpath="{.items[$i].metadata.name}")"
    echo "$ready_pod is ready"
    i=$((i+1))
+done
+
+echo "Waiting for temporary pod to be in ready state"
+temp_container_state="$(kubectl get pods -l name=cassandra-temp -o jsonpath="{.items[0].status.containerStatuses[0].ready}")"
+while ! $temp_container_state; do
+  sleep 10s
+  temp_container_state="$(kubectl get pods -l name=cassandra-temp -o jsonpath="{.items[0].status.containerStatuses[0].ready}")"
+  echo "."
 done
 
 temp_running_seed="$(kubectl get pods -l name=cassandra-temp -o jsonpath="{.items[0].metadata.name}")"
@@ -87,6 +116,5 @@ echo "-----------------------------"
 ${recordcount} -p insertorder=ordered -p fieldlength=20 -P workloads/workloadd \
 -s > workloada_load_res.txt
 
-# Delete cassandra sinle node set up
-cd ../LargeITCluster
-kubectl delete -f cassandra-svc-temp.yaml
+# Delete cassandra single node set up before exit 
+trap delete_service EXIT
