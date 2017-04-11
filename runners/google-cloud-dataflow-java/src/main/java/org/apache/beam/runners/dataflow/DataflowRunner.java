@@ -84,8 +84,6 @@ import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.FileBasedSink;
-import org.apache.beam.sdk.io.PubsubIO.Read.PubsubBoundedReader;
-import org.apache.beam.sdk.io.PubsubIO.Write.PubsubBoundedWriter;
 import org.apache.beam.sdk.io.PubsubUnboundedSink;
 import org.apache.beam.sdk.io.PubsubUnboundedSource;
 import org.apache.beam.sdk.io.Read;
@@ -304,15 +302,6 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
             PTransformOverride.of(
                 PTransformMatchers.emptyFlatten(), EmptyFlattenAsCreateFactory.instance()));
     if (streaming) {
-      // In streaming mode must use either the custom Pubsub unbounded source/sink or
-      // defer to Windmill's built-in implementation.
-      for (Class<? extends DoFn> unsupported :
-          ImmutableSet.of(PubsubBoundedReader.class, PubsubBoundedWriter.class)) {
-        overridesBuilder.add(
-            PTransformOverride.of(
-                PTransformMatchers.parDoWithFnType(unsupported),
-                UnsupportedOverrideFactory.withMessage(getUnsupportedMessage(unsupported, true))));
-      }
       if (!hasExperiment(options, "enable_custom_pubsub_source")) {
         overridesBuilder.add(
             PTransformOverride.of(
