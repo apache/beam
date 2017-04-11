@@ -33,7 +33,7 @@ from apache_beam.transforms.trigger import AccumulationMode
 from apache_beam.transforms.trigger import AfterAll
 from apache_beam.transforms.trigger import AfterCount
 from apache_beam.transforms.trigger import AfterEach
-from apache_beam.transforms.trigger import AfterFirst
+from apache_beam.transforms.trigger import AfterAny
 from apache_beam.transforms.trigger import AfterWatermark
 from apache_beam.transforms.trigger import DefaultTrigger
 from apache_beam.transforms.trigger import GeneralTriggerDriver
@@ -217,7 +217,7 @@ class TriggerTest(unittest.TestCase):
   def test_fixed_after_first(self):
     self.run_trigger_simple(
         FixedWindows(10),  # pyformat break
-        AfterFirst(AfterCount(2), AfterWatermark()),
+        AfterAny(AfterCount(2), AfterWatermark()),
         AccumulationMode.ACCUMULATING,
         [(1, 'a'), (2, 'b'), (3, 'c')],
         {IntervalWindow(0, 10): [set('ab')]},
@@ -225,7 +225,7 @@ class TriggerTest(unittest.TestCase):
         2)
     self.run_trigger_simple(
         FixedWindows(10),  # pyformat break
-        AfterFirst(AfterCount(5), AfterWatermark()),
+        AfterAny(AfterCount(5), AfterWatermark()),
         AccumulationMode.ACCUMULATING,
         [(1, 'a'), (2, 'b'), (3, 'c')],
         {IntervalWindow(0, 10): [set('abc')]},
@@ -236,7 +236,7 @@ class TriggerTest(unittest.TestCase):
   def test_repeatedly_after_first(self):
     self.run_trigger_simple(
         FixedWindows(100),  # pyformat break
-        Repeatedly(AfterFirst(AfterCount(3), AfterWatermark())),
+        Repeatedly(AfterAny(AfterCount(3), AfterWatermark())),
         AccumulationMode.ACCUMULATING,
         zip(range(7), 'abcdefg'),
         {IntervalWindow(0, 100): [
@@ -388,7 +388,7 @@ class RunnerApiTest(unittest.TestCase):
     for trigger_fn in (
         DefaultTrigger(),
         AfterAll(AfterCount(1), AfterCount(10)),
-        AfterFirst(AfterCount(10), AfterCount(100)),
+        AfterAny(AfterCount(10), AfterCount(100)),
         AfterWatermark(early=AfterCount(1000)),
         AfterWatermark(early=AfterCount(1000), late=AfterCount(1)),
         Repeatedly(AfterCount(100)),
