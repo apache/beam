@@ -66,13 +66,16 @@ public class PTransforms {
           components.registerPCollection((PCollection<?>) taggedInput.getValue()));
     }
     for (Map.Entry<TupleTag<?>, PValue> taggedOutput : appliedPTransform.getOutputs().entrySet()) {
-      checkArgument(
-          taggedOutput.getValue() instanceof PCollection,
-          "Unexpected output type %s",
-          taggedOutput.getValue().getClass());
-      transformBuilder.putOutputs(
-          toProto(taggedOutput.getKey()),
-          components.registerPCollection((PCollection<?>) taggedOutput.getValue()));
+      // TODO: Remove gating
+      if (taggedOutput.getValue() instanceof PCollection) {
+        checkArgument(
+            taggedOutput.getValue() instanceof PCollection,
+            "Unexpected output type %s",
+            taggedOutput.getValue().getClass());
+        transformBuilder.putOutputs(
+            toProto(taggedOutput.getKey()),
+            components.registerPCollection((PCollection<?>) taggedOutput.getValue()));
+      }
     }
     for (AppliedPTransform<?, ?, ?> subtransform : subtransforms) {
       transformBuilder.addSubtransforms(components.getExistingPTransformId(subtransform));
