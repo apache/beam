@@ -208,7 +208,7 @@ categories:
             l3: State is supported for non-merging windows. SetState and MapState are not yet supported.
           - class: flink
             l1: 'Partially'
-            l2: streaming, non-merging windows
+            l2: non-merging windows
             l3: State is supported for non-merging windows. SetState and MapState are not yet supported.
           - class: spark
             l1: 'No'
@@ -571,7 +571,7 @@ categories:
             l3: Dataflow supports timers in non-merging windows.
           - class: flink
             l1: 'Partially'
-            l2: streaming, non-merging windows
+            l2: non-merging windows
             l3: The Flink Runner supports timers in non-merging windows.
           - class: spark
             l1: 'No'
