@@ -154,6 +154,8 @@ public class HadoopSource<K, V> implements DataSource<Pair<K, V>> {
     private final Class<K> keyClass;
     private final Class<V> valueClass;
 
+    private transient InputSplit hadoopSplitDeserialized;
+
     @SneakyThrows
     @SuppressWarnings("unchecked")
     public HadoopPartition(Class<K> keyClass, Class<V> valueClass,
@@ -178,8 +180,7 @@ public class HadoopSource<K, V> implements DataSource<Pair<K, V>> {
     @Override
     @SneakyThrows
     public Reader<Pair<K, V>> openReader() throws IOException {
-      InputSplit hadoopSplit =
-              (InputSplit) HadoopUtils.deserializeFromBytes(this.hadoopSplit);
+      InputSplit hadoopSplit = getHadoopInputSplit();
       Configuration conf = this.conf.getWritable();
       TaskAttemptContext ctx = HadoopUtils.createTaskContext(conf, 0);
       @SuppressWarnings("unchecked")
@@ -194,6 +195,19 @@ public class HadoopSource<K, V> implements DataSource<Pair<K, V>> {
 
       return new HadoopReader<>(reader, keyClass, valueClass, conf);
 
+    }
+
+    private InputSplit getHadoopInputSplit() {
+      if (hadoopSplitDeserialized == null) {
+        hadoopSplitDeserialized =
+            (InputSplit) HadoopUtils.deserializeFromBytes(this.hadoopSplit);
+      }
+      return hadoopSplitDeserialized;
+    }
+
+    @Override
+    public String toString() {
+      return getClass().getName() + "<" +  getHadoopInputSplit() + ">";
     }
   }
 
