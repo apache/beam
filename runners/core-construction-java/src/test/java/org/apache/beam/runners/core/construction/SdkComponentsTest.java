@@ -25,6 +25,7 @@ import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertThat;
 
 import java.io.IOException;
+import java.util.Collections;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.IterableCoder;
@@ -32,6 +33,7 @@ import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.SetCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarLongCoder;
+import org.apache.beam.sdk.common.runner.v1.RunnerApi.Components;
 import org.apache.beam.sdk.io.CountingInput;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
@@ -87,28 +89,92 @@ public class SdkComponentsTest {
   }
 
   @Test
-  public void registerTransform() {
+  public void registerTransformNoChildren() throws IOException {
     Create.Values<Integer> create = Create.of(1, 2, 3);
     PCollection<Integer> pt = pipeline.apply(create);
     String userName = "my_transform/my_nesting";
     AppliedPTransform<?, ?, ?> transform =
         AppliedPTransform.<PBegin, PCollection<Integer>, Create.Values<Integer>>of(
             userName, pipeline.begin().expand(), pt.expand(), create, pipeline);
-    String componentName = components.registerPTransform(transform);
+    String componentName =
+        components.registerPTransform(
+            transform, Collections.<AppliedPTransform<?, ?, ?>>emptyList());
     assertThat(componentName, equalTo(userName));
-    assertThat(components.registerPTransform(transform), equalTo(componentName));
+    assertThat(components.getExistingPTransformId(transform), equalTo(componentName));
   }
 
   @Test
-  public void registerTransformIdEmptyFullName() {
+  public void registerTransformAfterChildren() throws IOException {
+    Create.Values<Long> create = Create.of(1L, 2L, 3L);
+    CountingInput.UnboundedCountingInput createChild = CountingInput.unbounded();
+
+    PCollection<Long> pt = pipeline.apply(create);
+    String userName = "my_transform";
+    String childUserName = "my_transform/my_nesting";
+    AppliedPTransform<?, ?, ?> transform =
+        AppliedPTransform.<PBegin, PCollection<Long>, Create.Values<Long>>of(
+            userName, pipeline.begin().expand(), pt.expand(), create, pipeline);
+    AppliedPTransform<?, ?, ?> childTransform =
+        AppliedPTransform.<PBegin, PCollection<Long>, CountingInput.UnboundedCountingInput>of(
+            childUserName, pipeline.begin().expand(), pt.expand(), createChild, pipeline);
+
+    String childId = components.registerPTransform(childTransform,
+        Collections.<AppliedPTransform<?, ?, ?>>emptyList());
+    String parentId = components.registerPTransform(transform,
+        Collections.<AppliedPTransform<?, ?, ?>>singletonList(childTransform));
+    Components components = this.components.toComponents();
+    assertThat(components.getTransformsOrThrow(parentId).getSubtransforms(0), equalTo(childId));
+    assertThat(components.getTransformsOrThrow(childId).getSubtransformsCount(), equalTo(0));
+  }
+
+  @Test
+  public void registerTransformEmptyFullName() throws IOException {
     Create.Values<Integer> create = Create.of(1, 2, 3);
     PCollection<Integer> pt = pipeline.apply(create);
     AppliedPTransform<?, ?, ?> transform =
         AppliedPTransform.<PBegin, PCollection<Integer>, Create.Values<Integer>>of(
             "", pipeline.begin().expand(), pt.expand(), create, pipeline);
-    String assignedName = components.registerPTransform(transform);
 
-    assertThat(assignedName, not(isEmptyOrNullString()));
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage(transform.toString());
+    components.getExistingPTransformId(transform);
+  }
+
+  @Test
+  public void registerTransformNullComponents() throws IOException {
+    Create.Values<Integer> create = Create.of(1, 2, 3);
+    PCollection<Integer> pt = pipeline.apply(create);
+    String userName = "my_transform/my_nesting";
+    AppliedPTransform<?, ?, ?> transform =
+        AppliedPTransform.<PBegin, PCollection<Integer>, Create.Values<Integer>>of(
+            userName, pipeline.begin().expand(), pt.expand(), create, pipeline);
+    thrown.expect(NullPointerException.class);
+    thrown.expectMessage("child nodes may not be null");
+    components.registerPTransform(transform, null);
+  }
+
+  /**
+   * Tests that trying to register a transform which has unregistered children throws.
+   */
+  @Test
+  public void registerTransformWithUnregisteredChildren() throws IOException {
+    Create.Values<Long> create = Create.of(1L, 2L, 3L);
+    CountingInput.UnboundedCountingInput createChild = CountingInput.unbounded();
+
+    PCollection<Long> pt = pipeline.apply(create);
+    String userName = "my_transform";
+    String childUserName = "my_transform/my_nesting";
+    AppliedPTransform<?, ?, ?> transform =
+        AppliedPTransform.<PBegin, PCollection<Long>, Create.Values<Long>>of(
+            userName, pipeline.begin().expand(), pt.expand(), create, pipeline);
+    AppliedPTransform<?, ?, ?> childTransform =
+        AppliedPTransform.<PBegin, PCollection<Long>, CountingInput.UnboundedCountingInput>of(
+            childUserName, pipeline.begin().expand(), pt.expand(), createChild, pipeline);
+
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage(childTransform.toString());
+    components.registerPTransform(
+        transform, Collections.<AppliedPTransform<?, ?, ?>>singletonList(childTransform));
   }
 
   @Test
