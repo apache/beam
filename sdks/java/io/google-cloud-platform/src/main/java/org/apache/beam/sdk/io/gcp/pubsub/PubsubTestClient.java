@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.beam.sdk.util;
+package org.apache.beam.sdk.io.gcp.pubsub;
 
 import static com.google.common.base.Preconditions.checkState;
 
@@ -40,7 +40,7 @@ import org.apache.beam.sdk.options.PubsubOptions;
  * testing {@link #publish}, {@link #pull}, {@link #acknowledge} and {@link #modifyAckDeadline}
  * methods. Relies on statics to mimic the Pubsub service, though we try to hide that.
  */
-public class PubsubTestClient extends PubsubClient implements Serializable {
+class PubsubTestClient extends PubsubClient implements Serializable {
   /**
    * Mimic the state of the simulated Pubsub 'service'.
    *
@@ -123,7 +123,7 @@ public class PubsubTestClient extends PubsubClient implements Serializable {
    * The factory must be closed when the test is complete, at which point final validation will
    * occur.
    */
-  public static PubsubTestClientFactory createFactoryForPublish(
+  static PubsubTestClientFactory createFactoryForPublish(
       final TopicPath expectedTopic,
       final Iterable<OutgoingMessage> expectedOutgoingMessages,
       final Iterable<OutgoingMessage> failingOutgoingMessages) {

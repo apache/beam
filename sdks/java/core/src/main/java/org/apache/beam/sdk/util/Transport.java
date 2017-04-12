@@ -107,8 +107,7 @@ public class Transport {
   /**
    * Returns a Pubsub client builder using the specified {@link PubsubOptions}.
    *
-   * @deprecated Use an appropriate
-   * {@link org.apache.beam.sdk.util.PubsubClient.PubsubClientFactory}
+   * @deprecated Use an appropriate org.apache.beam.sdk.util.PubsubClient.PubsubClientFactory
    */
   @Deprecated
   public static Pubsub.Builder
