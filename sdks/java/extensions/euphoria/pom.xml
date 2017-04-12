@@ -440,7 +440,7 @@
             </configuration>
             <executions>
               <execution>
-                <phase>compile</phase>
+                <phase>process-classes</phase>
                 <goals>
                   <goal>check</goal>
                 </goals>
