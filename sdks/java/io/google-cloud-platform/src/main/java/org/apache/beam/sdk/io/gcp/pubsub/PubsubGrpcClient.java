@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.beam.sdk.util;
+package org.apache.beam.sdk.io.gcp.pubsub;
 
 import static com.google.common.base.Preconditions.checkState;
 
@@ -70,7 +70,7 @@ import org.apache.beam.sdk.options.PubsubOptions;
  * <p>CAUTION: Currently uses the application default credentials and does not respect any
  * credentials-related arguments in {@link GcpOptions}.
  */
-public class PubsubGrpcClient extends PubsubClient {
+class PubsubGrpcClient extends PubsubClient {
   private static final String PUBSUB_ADDRESS = "pubsub.googleapis.com";
   private static final int PUBSUB_PORT = 443;
   private static final int LIST_BATCH_SIZE = 1000;

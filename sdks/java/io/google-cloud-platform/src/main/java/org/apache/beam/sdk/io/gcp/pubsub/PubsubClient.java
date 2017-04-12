@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.beam.sdk.util;
+package org.apache.beam.sdk.io.gcp.pubsub;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
@@ -37,7 +37,7 @@ import org.apache.beam.sdk.options.PubsubOptions;
 /**
  * An (abstract) helper class for talking to Pubsub via an underlying transport.
  */
-public abstract class PubsubClient implements Closeable {
+abstract class PubsubClient implements Closeable {
   /**
    * Factory for creating clients.
    */
@@ -121,7 +121,7 @@ public abstract class PubsubClient implements Closeable {
   /**
    * Path representing a cloud project id.
    */
-  public static class ProjectPath implements Serializable {
+  static class ProjectPath implements Serializable {
     private final String projectId;
 
     /**
@@ -304,7 +304,7 @@ public abstract class PubsubClient implements Closeable {
    * <p>NOTE: This class is {@link Serializable} only to support the {@link PubsubTestClient}.
    * Java serialization is never used for non-test clients.
    */
-  public static class OutgoingMessage implements Serializable {
+  static class OutgoingMessage implements Serializable {
     /**
      * Underlying (encoded) element.
      */
@@ -368,7 +368,7 @@ public abstract class PubsubClient implements Closeable {
    * <p>NOTE: This class is {@link Serializable} only to support the {@link PubsubTestClient}.
    * Java serialization is never used for non-test clients.
    */
-  public static class IncomingMessage implements Serializable {
+  static class IncomingMessage implements Serializable {
     /**
      * Underlying (encoded) element.
      */
