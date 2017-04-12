@@ -43,7 +43,6 @@ from apache_beam.runners.runner import PipelineState
 from apache_beam.transforms.display import DisplayData
 from apache_beam.typehints import typehints
 from apache_beam.utils.pipeline_options import StandardOptions
-from apache_beam.utils.value_provider import RuntimeValueProviderError
 
 
 class DataflowRunner(PipelineRunner):
@@ -477,11 +476,6 @@ class DataflowRunner(PipelineRunner):
             'estimated_size_bytes': json_value.get_typed_value_descriptor(
                 transform.source.estimate_size())
         }
-      except RuntimeValueProviderError:
-        # Size estimation is best effort, and this error is by value provider.
-        logging.info(
-            'Could not estimate size of source %r due to ' + \
-            'RuntimeValueProviderError', transform.source)
       except Exception:  # pylint: disable=broad-except
         # Size estimation is best effort. So we log the error and continue.
         logging.info(

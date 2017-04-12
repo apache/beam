@@ -34,7 +34,6 @@ from apache_beam.runners.runner import PipelineState
 from apache_beam.runners.runner import PValueCache
 from apache_beam.runners.runner import group_by_key_input_visitor
 from apache_beam.utils.pipeline_options import DirectOptions
-from apache_beam.utils.value_provider import RuntimeValueProvider
 
 
 class DirectRunner(PipelineRunner):
@@ -89,9 +88,6 @@ class DirectRunner(PipelineRunner):
                         evaluation_context)
     # Start the executor. This is a non-blocking call, it will start the
     # execution in background threads and return.
-
-    if pipeline.options:
-      RuntimeValueProvider.set_runtime_options(pipeline.options._options_id, {})
     executor.start(self.consumer_tracking_visitor.root_transforms)
     result = DirectPipelineResult(executor, evaluation_context)
 
@@ -100,11 +96,6 @@ class DirectRunner(PipelineRunner):
       # completes in order to have full results in the cache.
       result.wait_until_finish()
       self._cache.finalize()
-
-      # Unset runtime options after the pipeline finishes.
-      # TODO: Move this to a post finish hook and clean for all cases.
-      if pipeline.options:
-        RuntimeValueProvider.unset_runtime_options(pipeline.options._options_id)
 
     return result
 
