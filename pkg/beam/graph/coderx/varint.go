@@ -29,7 +29,7 @@ func EncodeVarUint64(value uint64) []byte {
 	}
 }
 
-// TODO: maybe add an io.Reader form as well
+// TODO(herohde): maybe add an io.Reader or similar form as well.
 
 // DecodeVarUint64 decodes an uint64. The input data is expected to contain
 // the encoding, but may be longer.

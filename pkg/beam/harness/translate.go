@@ -42,6 +42,45 @@ type output struct {
 //   outputs:<key:"out" value:<coder_reference:"-5" > >
 // >
 
+// Output from GBK:
+//
+// primitive_transform: <
+//   id: "-24"
+//     function_spec: <
+//       id: "-25"
+//       urn: "urn:org.apache.beam:source:runner:0.1"
+//       data: <
+//           type_url: "type.googleapis.com/org.apache.beam.fn.v1.RemoteGrpcPort"
+//           value: "\n\025\n\002-1\022\017localhost:46567"
+//         >
+//       >
+//       inputs: <
+//         key: "-22"
+//         value: <
+//         >
+//       >
+//       outputs: <
+//         key: "-23"
+//         value: <
+//           coder_reference: "-30"
+//         >
+//       >
+//     >
+//
+//    Coder -30: {
+//       "@type": "kind:windowed_value",
+//       "component_encodings":[
+//           {"@type":"kind:pair",
+//            "component_encodings":[
+//                {"@type":"kind:length_prefix",
+//                 "component_encodings":[{"@type":"CmUKMmdpdGh1Yi5jb20vZ29vZ2xlL2 [...]"}]},
+//                {"@type":"kind:stream",
+//                 "component_encodings":[
+//                     {"@type": "kind:length_prefix",
+//                      "component_encodings\":[{"@type":"CmUKMmdpdGh1Yi5jb20vZ29vZ2 [...]"}]}]}]},
+//           {\"@type\":\"kind:global_window\"}]"
+//    }
+
 // translateBundle translates a ProcessBundleDescriptor to a sub-graph that can run
 // bundles.
 func translateBundle(ctx context.Context, mgr *DataConnectionManager, bundle *pb.ProcessBundleDescriptor) (*graph.Graph, error) {
@@ -166,6 +205,49 @@ func translateBundle(ctx context.Context, mgr *DataConnectionManager, bundle *pb
 				edge.Output = append(edge.Output, output)
 			}
 
+		case "urn:org.apache.beam:source:runner:0.1":
+			var port pb.RemoteGrpcPort
+			if err := protox.Unpack(spec.Data, RemoteGrpcPortTypeUrl, &port); err != nil {
+				return nil, err
+			}
+			if size := len(transform.GetInputs()); size != 1 {
+				return nil, fmt.Errorf("Expected 1 output, got %v", size)
+			}
+
+			portID := port.GetApiServiceDescriptor().GetId()
+			portUrl := port.GetApiServiceDescriptor().GetUrl()
+			if err := mgr.Open(ctx, portID, portUrl); err != nil {
+				return nil, fmt.Errorf("Failed to open data port %v: %v", portUrl, err)
+			}
+
+			var target *pb.Target
+			for key, _ := range transform.GetInputs() {
+				target = &pb.Target{transform.GetId(), key}
+			}
+
+			edge := g.NewEdge(g.Root())
+			edge.Op = graph.External
+
+			to := translateOutputs(transform)
+			for i := 0; i < len(to); i++ {
+				coder := coders[to[i].Coder]
+				n := g.NewNode(coder.T)
+				n.Coder = coder
+
+				nodes[to[i].NodeID] = n
+
+				output := &graph.Outbound{
+					To: n,
+					T:  reflectx.T,
+				}
+				edge.Output = append(edge.Output, output)
+			}
+
+			n := edge.Output[0].To
+			edge.DoFn, _ = graph.ReflectFn(func(opt DataConnectionContext, out chan<- typex.T) error {
+				return SourceFn(mgr, portID, n.Coder, opt, target, out)
+			})
+
 		case "urn:org.apache.beam:sink:runner:0.1":
 			var port pb.RemoteGrpcPort
 			if err := protox.Unpack(spec.Data, RemoteGrpcPortTypeUrl, &port); err != nil {
@@ -186,9 +268,6 @@ func translateBundle(ctx context.Context, mgr *DataConnectionManager, bundle *pb
 				target = &pb.Target{transform.GetId(), key}
 			}
 
-			// NOTE: we use the Encoded type as input to receive serialized data of type n.T.
-			// For now, all we need is to wrap pipeline data into the global window.
-
 			edge := g.NewEdge(g.Root())
 			edge.Op = graph.External
 
@@ -201,7 +280,7 @@ func translateBundle(ctx context.Context, mgr *DataConnectionManager, bundle *pb
 
 			n := edge.Input[0].From
 			edge.DoFn, _ = graph.ReflectFn(func(opt DataConnectionContext, in <-chan typex.T) error {
-				return SinkFn(mgr, portID, n.Coder, n.T, opt, target, in)
+				return SinkFn(mgr, portID, n.Coder, opt, target, in)
 			})
 
 		default:

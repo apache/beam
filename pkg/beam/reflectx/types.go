@@ -23,9 +23,6 @@ var (
 	String = reflect.TypeOf((*string)(nil)).Elem()
 	Error  = reflect.TypeOf((*error)(nil)).Elem()
 
-	ByteSlice   = reflect.TypeOf((*[]byte)(nil)).Elem()
-	ReflectType = reflect.TypeOf((*reflect.Type)(nil)).Elem()
-
 	T = reflect.TypeOf((*typex.T)(nil)).Elem()
 )
 
@@ -36,6 +33,9 @@ func SkipPtr(t reflect.Type) reflect.Type {
 	}
 	return t
 }
+
+// TODO(herohde) 4/11/2017: Just use a "pair" KV type and drop the tag difference between
+// KV and GBK result?
 
 // MakeKV returns a synthetic KV type.
 func MakeKV(key, value reflect.Type) (reflect.Type, error) {

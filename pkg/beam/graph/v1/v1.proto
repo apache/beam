@@ -92,11 +92,18 @@ message FunctionRef {
 
 // CustomCoder
 message CustomCoder {
-    FunctionRef enc = 1;
-    FunctionRef dec = 2;
+    // (Required) Name of the coder. For informational purposes only.
+    string name = 1;
+    // (Required) Concrete type being coded.
+    Type type = 2;
+
+    // (Required) Encoding function.
+    FunctionRef enc = 3;
+    // (Required) Decoding function.
+    FunctionRef dec = 4;
 
     // (Optional) JSON-serialized data.
-    string data = 3;
+    string data = 5;
 }
 
 // NOTE(herohde) 4/4/2017: we use (json) CoderRef to serialize coder to
