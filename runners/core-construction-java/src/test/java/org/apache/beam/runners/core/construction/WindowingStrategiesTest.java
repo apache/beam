@@ -22,6 +22,7 @@ import static org.junit.Assert.assertThat;
 
 import com.google.auto.value.AutoValue;
 import com.google.common.collect.ImmutableList;
+import org.apache.beam.sdk.common.runner.v1.RunnerApi;
 import org.apache.beam.sdk.transforms.windowing.AfterWatermark;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.OutputTimeFns;
@@ -30,6 +31,7 @@ import org.apache.beam.sdk.transforms.windowing.Window.ClosingBehavior;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.util.WindowingStrategy.AccumulationMode;
+import org.hamcrest.Matchers;
 import org.joda.time.Duration;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -88,5 +90,21 @@ public class WindowingStrategiesTest {
     assertThat(
         toProtoAndBackWindowingStrategy,
         equalTo((WindowingStrategy) windowingStrategy.fixDefaults()));
+  }
+
+  @Test
+  public void testToProtoAndBackWithComponents() throws Exception {
+    WindowingStrategy<?, ?> windowingStrategy = toProtoAndBackSpec.getWindowingStrategy();
+    SdkComponents components = SdkComponents.create();
+    RunnerApi.WindowingStrategy proto =
+        WindowingStrategies.toProto(windowingStrategy, components);
+    RunnerApi.Components protoComponents = components.toComponents();
+
+    assertThat(
+        WindowingStrategies.fromProto(proto, protoComponents).fixDefaults(),
+        Matchers.<WindowingStrategy<?, ?>>equalTo(windowingStrategy.fixDefaults()));
+
+    protoComponents.getCodersOrThrow(
+        components.registerCoder(windowingStrategy.getWindowFn().windowCoder()));
   }
 }
