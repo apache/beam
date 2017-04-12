@@ -101,6 +101,10 @@ This table contains I/O transforms that are currently planned or in-progress. St
     <td><a href="https://issues.apache.org/jira/browse/BEAM-1893">BEAM-1893</a></td>
   </tr>
   <tr>
+    <td>JSON</td><td>Java</td>
+    <td><a href="https://issues.apache.org/jira/browse/BEAM-1581">BEAM-1581</a></td>
+  </tr>
+  <tr>
     <td>Memcached</td><td>Java</td>
     <td><a href="https://issues.apache.org/jira/browse/BEAM-1678">BEAM-1678</a></td>
   </tr>
