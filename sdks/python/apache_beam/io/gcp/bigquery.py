@@ -607,7 +607,20 @@ class BigQueryReader(dataflow_io.NativeSourceReader):
 
   def __enter__(self):
     self.client = BigQueryWrapper(client=self.test_bigquery_client)
-    self.client.create_temporary_dataset(self.executing_project)
+
+    tr = self.source.table_reference
+    if tr.projectId is None:
+      source_project_id = self.executing_project
+    else:
+      source_project_id = tr.projectId
+
+    source_dataset_id = tr.datasetId
+    source_table_id = tr.tableId
+    source_location = self.client.get_table_location(
+        source_project_id, source_dataset_id, source_table_id)
+
+    self.client.create_temporary_dataset(
+        self.executing_project, location=source_location)
     return self
 
   def __exit__(self, exception_type, exception_value, traceback):
@@ -801,7 +814,7 @@ class BigQueryWrapper(object):
   @retry.with_exponential_backoff(
       num_retries=MAX_RETRIES,
       retry_filter=retry.retry_on_server_errors_and_timeout_filter)
-  def get_or_create_dataset(self, project_id, dataset_id):
+  def get_or_create_dataset(self, project_id, dataset_id, location=None):
     # Check if dataset already exists otherwise create it
     try:
       dataset = self.client.datasets.Get(bigquery.BigqueryDatasetsGetRequest(
@@ -809,9 +822,11 @@ class BigQueryWrapper(object):
       return dataset
     except HttpError as exn:
       if exn.status_code == 404:
-        dataset = bigquery.Dataset(
-            datasetReference=bigquery.DatasetReference(
-                projectId=project_id, datasetId=dataset_id))
+        dataset_reference = bigquery.DatasetReference(
+            projectId=project_id, datasetId=dataset_id)
+        dataset = bigquery.Dataset(datasetReference=dataset_reference)
+        if location is not None:
+          dataset.location = location
         request = bigquery.BigqueryDatasetsInsertRequest(
             projectId=project_id, dataset=dataset)
         response = self.client.datasets.Insert(request)
@@ -867,7 +882,15 @@ class BigQueryWrapper(object):
   @retry.with_exponential_backoff(
       num_retries=MAX_RETRIES,
       retry_filter=retry.retry_on_server_errors_and_timeout_filter)
-  def create_temporary_dataset(self, project_id):
+  def get_table_location(self, project_id, dataset_id, table_id):
+    table = self._get_table(project_id, dataset_id, table_id)
+    return table.location
+
+  @retry.with_exponential_backoff(
+      num_retries=MAX_RETRIES,
+      retry_filter=retry.retry_on_server_errors_and_timeout_filter)
+  def create_temporary_dataset(self, project_id, location=None):
+    # TODO: make location required, once "query" locations can be determined
     dataset_id = BigQueryWrapper.TEMP_DATASET + self._temporary_table_suffix
     # Check if dataset exists to make sure that the temporary id is unique
     try:
@@ -881,9 +904,10 @@ class BigQueryWrapper(object):
     except HttpError as exn:
       if exn.status_code == 404:
         logging.warning(
-            'Dataset %s:%s does not exist so we will create it as temporary',
-            project_id, dataset_id)
-        self.get_or_create_dataset(project_id, dataset_id)
+            'Dataset %s:%s does not exist so we will create it as temporary '
+            'with location=%s',
+            project_id, dataset_id, location)
+        self.get_or_create_dataset(project_id, dataset_id, location=location)
       else:
         raise
 
