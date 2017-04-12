@@ -93,7 +93,7 @@ message Pipeline {
   Components components = 1;
 
   // (Required) The ids of all PTransforms that are not contained within another PTransform
-  repeated string top_level_transforms = 2;
+  repeated string root_transform_ids = 2;
 
   // (Optional) Static display data for the pipeline. If there is none,
   // it may be omitted.
