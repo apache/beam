@@ -215,11 +215,11 @@ message ParDoPayload {
   // the expected access pattern.
   map<string, SideInput> side_inputs = 3;
 
-  // (Optional) if the DoFn uses state, a list of the specs for cells.
-  repeated StateSpec state_specs = 4;
+  // (Optional) A mapping of local state names to state specifications.
+  map<string, StateSpec> state_specs = 4;
 
-  // (Optional) if the DoFn uses timers, a list of the specs for timers.
-  repeated TimerSpec timer_specs = 5;
+  // (Optional) A mapping of local timer names to timer specifications.
+  map<string, TimerSpec> timer_specs = 5;
 }
 
 // Parameters that a UDF might require.
@@ -227,7 +227,7 @@ message ParDoPayload {
 // The details of how a runner sends these parameters to the SDK harness
 // are the subject of the Fn API.
 //
-// The details ofo how an SDK harness delivers them to the UDF is entirely
+// The details of how an SDK harness delivers them to the UDF is entirely
 // up to the SDK. (for some SDKs there may be parameters that are not
 // represented here if the runner doesn't need to do anything)
 //
