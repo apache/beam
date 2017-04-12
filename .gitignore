@@ -19,6 +19,9 @@ build/
 dist/
 distribute-*
 env/
+sdks/python/**/*.c
+sdks/python/**/*.so
+sdks/python/**/*.egg
 
 # Ignore IntelliJ files.
 .idea/

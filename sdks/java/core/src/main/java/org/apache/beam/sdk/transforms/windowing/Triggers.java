@@ -287,6 +287,8 @@ public class Triggers implements Serializable {
         return trigger;
       case AFTER_SYNCHRONIZED_PROCESSING_TIME:
         return AfterSynchronizedProcessingTime.ofFirstElement();
+      case ALWAYS:
+        return new ReshuffleTrigger();
       case ELEMENT_COUNT:
         return AfterPane.elementCountAtLeast(triggerProto.getElementCount().getElementCount());
       case NEVER:

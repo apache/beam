@@ -36,41 +36,6 @@
 
   <build>
     <plugins>
-      <plugin>
-       <!-- Guava shading is required as Cassandra tests require version
-       19 of Guava, by default project wide Guava shading may not suffice as it
-       loads a different version of guava which will not work for Cassandra tests -->
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-shade-plugin</artifactId>
-        <executions>
-          <execution>
-            <phase>package</phase>
-            <goals>
-              <goal>shade</goal>
-            </goals>
-            <configuration>
-              <artifactSet>
-                <includes>
-                  <include>com.google.guava:guava:19.0</include>
-                </includes>
-              </artifactSet>
-              <relocations>
-                <relocation>
-                  <pattern>com.google.common</pattern>
-                  <shadedPattern>org.apache.beam.sdk.io.hadoop.jdk1.8-tests.repackaged.com.google.common</shadedPattern>
-                </relocation>
-               <relocation>
-                 <pattern>com.google.thirdparty</pattern>
-                 <shadedPattern>org.apache.beam.sdk.io.hadoop.jdk1.8-tests.repackaged.com.google.thirdparty</shadedPattern>
-                 </relocation>
-               </relocations>
-               <transformers>
-                 <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer" />
-               </transformers>
-            </configuration>
-          </execution>
-        </executions>
-      </plugin>
       <!-- Overridden enforcer plugin for JDK1.8 for running tests -->
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
@@ -178,11 +143,6 @@
       <artifactId>beam-sdks-java-io-hadoop-input-format</artifactId>
     </dependency>
     <dependency>
-      <groupId>com.google.guava</groupId>
-      <artifactId>guava</artifactId>
-      <version>${guava.version}</version>
-    </dependency>
-    <dependency>
       <groupId>org.slf4j</groupId>
       <artifactId>slf4j-api</artifactId>
     </dependency>
@@ -206,6 +166,12 @@
       <groupId>org.apache.beam</groupId>
       <artifactId>beam-runners-direct-java</artifactId>
       <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.beam</groupId>
+      <artifactId>beam-sdks-java-io-common</artifactId>
+      <scope>test</scope>
+      <classifier>tests</classifier>
     </dependency>
     <dependency>
       <groupId>org.apache.logging.log4j</groupId>

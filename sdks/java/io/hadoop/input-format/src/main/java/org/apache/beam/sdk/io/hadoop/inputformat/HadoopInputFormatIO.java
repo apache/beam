@@ -36,9 +36,7 @@ import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.List;
-import java.util.Map.Entry;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -360,20 +358,6 @@ public class HadoopInputFormatIO {
             + e.getMessage(), e);
       }
     }
-
-    @Override
-    public void populateDisplayData(DisplayData.Builder builder) {
-      super.populateDisplayData(builder);
-      if (getConfiguration().getHadoopConfiguration() != null) {
-        Iterator<Entry<String, String>> configProperties = getConfiguration()
-            .getHadoopConfiguration().iterator();
-        while (configProperties.hasNext()) {
-          Entry<String, String> property = configProperties.next();
-          builder.addIfNotNull(DisplayData.item(property.getKey(), property.getValue())
-              .withLabel(property.getKey()));
-        }
-      }
-    }
   }
 
   /**
@@ -444,6 +428,23 @@ public class HadoopInputFormatIO {
       checkNotNull(conf, "conf");
       checkNotNull(keyCoder, "keyCoder");
       checkNotNull(valueCoder, "valueCoder");
+    }
+
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      super.populateDisplayData(builder);
+      Configuration hadoopConfig = getConfiguration().getHadoopConfiguration();
+      if (hadoopConfig != null) {
+        builder.addIfNotNull(DisplayData.item("mapreduce.job.inputformat.class",
+            hadoopConfig.get("mapreduce.job.inputformat.class"))
+            .withLabel("InputFormat Class"));
+        builder.addIfNotNull(DisplayData.item("key.class",
+            hadoopConfig.get("key.class"))
+            .withLabel("Key Class"));
+        builder.addIfNotNull(DisplayData.item("value.class",
+            hadoopConfig.get("value.class"))
+            .withLabel("Value Class"));
+      }
     }
 
     @Override

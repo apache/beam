@@ -21,7 +21,6 @@ package org.apache.beam.runners.core.construction;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertThat;
 
-import com.google.common.collect.Iterables;
 import java.util.Collections;
 import java.util.Map;
 import org.apache.beam.sdk.io.CountingInput;
@@ -34,6 +33,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TaggedPValue;
+import org.apache.beam.sdk.values.TupleTag;
 import org.hamcrest.Matchers;
 import org.junit.Rule;
 import org.junit.Test;
@@ -55,7 +55,7 @@ public class EmptyFlattenAsCreateFactoryTest {
   @Test
   public void getInputEmptySucceeds() {
     assertThat(
-        factory.getInput(Collections.<TaggedPValue>emptyList(), pipeline).size(), equalTo(0));
+        factory.getInput(Collections.<TupleTag<?>, PValue>emptyMap(), pipeline).size(), equalTo(0));
   }
 
   @Test
@@ -80,8 +80,8 @@ public class EmptyFlattenAsCreateFactoryTest {
         Matchers.<PValue, ReplacementOutput>hasEntry(
             replacement,
             ReplacementOutput.of(
-                Iterables.getOnlyElement(original.expand()),
-                Iterables.getOnlyElement(replacement.expand()))));
+                TaggedPValue.ofExpandedValue(original),
+                TaggedPValue.ofExpandedValue(replacement))));
   }
 
   @Test

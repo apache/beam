@@ -22,6 +22,7 @@ import com.google.common.collect.Iterables;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -55,7 +56,7 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.PValue;
-import org.apache.beam.sdk.values.TaggedPValue;
+import org.apache.beam.sdk.values.TupleTag;
 import org.apache.spark.SparkEnv$;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.metrics.MetricsSystem;
@@ -315,8 +316,7 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
       // The goal is to detect the PCollections accessed more than one time, and so enable cache
       // on the underlying RDDs or DStreams.
 
-      for (TaggedPValue input : node.getInputs()) {
-        PValue value = input.getValue();
+      for (PValue value : node.getInputs().values()) {
         if (value instanceof PCollection) {
           long count = 1L;
           if (ctxt.getCacheCandidates().get(value) != null) {
@@ -362,7 +362,7 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
       if (node.getInputs().size() != 1) {
         return false;
       }
-      PValue input = Iterables.getOnlyElement(node.getInputs()).getValue();
+      PValue input = Iterables.getOnlyElement(node.getInputs().values());
       if (!(input instanceof PCollection)
           || ((PCollection) input).getWindowingStrategy().getWindowFn().isNonMerging()) {
         return false;
@@ -420,14 +420,14 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
       //--- determine if node is bounded/unbounded.
       // usually, the input determines if the PCollection to apply the next transformation to
       // is BOUNDED or UNBOUNDED, meaning RDD/DStream.
-      Collection<TaggedPValue> pValues;
+      Map<TupleTag<?>, PValue> pValues;
       if (node.getInputs().isEmpty()) {
         // in case of a PBegin, it's the output.
         pValues = node.getOutputs();
       } else {
         pValues = node.getInputs();
       }
-      PCollection.IsBounded isNodeBounded = isBoundedCollection(pValues);
+      PCollection.IsBounded isNodeBounded = isBoundedCollection(pValues.values());
       // translate accordingly.
       LOG.debug("Translating {} as {}", transform, isNodeBounded);
       return isNodeBounded.equals(PCollection.IsBounded.BOUNDED)
@@ -435,15 +435,15 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
           : translator.translateUnbounded(transformClass);
     }
 
-    protected PCollection.IsBounded isBoundedCollection(Collection<TaggedPValue> pValues) {
+    protected PCollection.IsBounded isBoundedCollection(Collection<PValue> pValues) {
       // anything that is not a PCollection, is BOUNDED.
       // For PCollections:
       // BOUNDED behaves as the Identity Element, BOUNDED + BOUNDED = BOUNDED
       // while BOUNDED + UNBOUNDED = UNBOUNDED.
       PCollection.IsBounded isBounded = PCollection.IsBounded.BOUNDED;
-      for (TaggedPValue pValue : pValues) {
-        if (pValue.getValue() instanceof PCollection) {
-          isBounded = isBounded.and(((PCollection) pValue.getValue()).isBounded());
+      for (PValue pValue : pValues) {
+        if (pValue instanceof PCollection) {
+          isBounded = isBounded.and(((PCollection) pValue).isBounded());
         } else {
           isBounded = isBounded.and(PCollection.IsBounded.BOUNDED);
         }

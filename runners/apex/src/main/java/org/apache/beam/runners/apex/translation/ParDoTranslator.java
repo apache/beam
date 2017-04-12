@@ -27,6 +27,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import org.apache.beam.runners.apex.ApexRunner;
 import org.apache.beam.runners.apex.translation.operators.ApexParDoOperator;
 import org.apache.beam.sdk.coders.Coder;
@@ -38,7 +39,7 @@ import org.apache.beam.sdk.util.WindowedValue.FullWindowedValueCoder;
 import org.apache.beam.sdk.util.WindowedValue.WindowedValueCoder;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
-import org.apache.beam.sdk.values.TaggedPValue;
+import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -81,8 +82,8 @@ class ParDoTranslator<InputT, OutputT>
               ApexRunner.class.getSimpleName()));
     }
 
-    List<TaggedPValue> outputs = context.getOutputs();
-    PCollection<InputT> input = context.getInput();
+    Map<TupleTag<?>, PValue> outputs = context.getOutputs();
+    PCollection<InputT> input = (PCollection<InputT>) context.getInput();
     List<PCollectionView<?>> sideInputs = transform.getSideInputs();
     Coder<InputT> inputCoder = input.getCoder();
     WindowedValueCoder<InputT> wvInputCoder =
@@ -100,7 +101,7 @@ class ParDoTranslator<InputT, OutputT>
             context.getStateBackend());
 
     Map<PCollection<?>, OutputPort<?>> ports = Maps.newHashMapWithExpectedSize(outputs.size());
-    for (TaggedPValue output : outputs) {
+    for (Entry<TupleTag<?>, PValue> output : outputs.entrySet()) {
       checkArgument(
           output.getValue() instanceof PCollection,
           "%s %s outputs non-PCollection %s of type %s",
@@ -109,12 +110,12 @@ class ParDoTranslator<InputT, OutputT>
           output.getValue(),
           output.getValue().getClass().getSimpleName());
       PCollection<?> pc = (PCollection<?>) output.getValue();
-      if (output.getTag().equals(transform.getMainOutputTag())) {
+      if (output.getKey().equals(transform.getMainOutputTag())) {
         ports.put(pc, operator.output);
       } else {
         int portIndex = 0;
         for (TupleTag<?> tag : transform.getSideOutputTags().getAll()) {
-          if (tag.equals(output.getTag())) {
+          if (tag.equals(output.getKey())) {
             ports.put(pc, operator.sideOutputPorts[portIndex]);
             break;
           }
