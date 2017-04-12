@@ -18,7 +18,10 @@
 
 package org.apache.beam.runners.core.construction;
 
+import static com.google.common.base.Preconditions.checkArgument;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.BiMap;
 import com.google.common.collect.ImmutableBiMap;
 import com.google.protobuf.Any;
@@ -32,7 +35,7 @@ import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
-import org.apache.beam.sdk.coders.VarIntCoder;
+import org.apache.beam.sdk.coders.StandardCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.common.runner.v1.RunnerApi;
 import org.apache.beam.sdk.common.runner.v1.RunnerApi.Components;
@@ -54,11 +57,12 @@ public class Coders {
   public static final String CUSTOM_CODER_URN = "urn:beam:coders:javasdk:0.1";
 
   // The URNs for coders which are shared across languages
-  private static final BiMap<Class<? extends Coder>, String> KNOWN_CODER_URNS =
-      ImmutableBiMap.<Class<? extends Coder>, String>builder()
+  @VisibleForTesting
+  static final BiMap<Class<? extends StandardCoder>, String> KNOWN_CODER_URNS =
+      ImmutableBiMap.<Class<? extends StandardCoder>, String>builder()
           .put(ByteArrayCoder.class, "urn:beam:coders:bytes:0.1")
           .put(KvCoder.class, "urn:beam:coders:kv:0.1")
-          .put(VarIntCoder.class, "urn:beam:coders:varint:0.1")
+          .put(VarLongCoder.class, "urn:beam:coders:varint:0.1")
           .put(IntervalWindowCoder.class, "urn:beam:coders:interval_window:0.1")
           .put(IterableCoder.class, "urn:beam:coders:stream:0.1")
           .put(GlobalWindow.Coder.class, "urn:beam:coders:global_window:0.1")
@@ -75,11 +79,17 @@ public class Coders {
 
   private static RunnerApi.Coder toKnownCoder(Coder<?> coder, SdkComponents components)
       throws IOException {
+    checkArgument(
+        coder instanceof StandardCoder,
+        "A Known %s must implement %s, but %s of class %s does not",
+        Coder.class.getSimpleName(),
+        StandardCoder.class.getSimpleName(),
+        coder,
+        coder.getClass().getName());
+    StandardCoder<?> stdCoder = (StandardCoder<?>) coder;
     List<String> componentIds = new ArrayList<>();
-    if (coder.getCoderArguments() != null) {
-      for (Coder<?> componentCoder : coder.getCoderArguments()) {
-        componentIds.add(components.registerCoder(componentCoder));
-      }
+    for (Coder<?> componentCoder : stdCoder.getComponents()) {
+      componentIds.add(components.registerCoder(componentCoder));
     }
     return RunnerApi.Coder.newBuilder()
         .addAllComponentCoderIds(componentIds)
