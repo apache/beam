@@ -13,20 +13,16 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 
+
 apiVersion: v1
-kind: Pod
+kind: Service
 metadata:
-  name: postgres-no-pv
+  name: postgres-for-dev
   labels:
-    name: postgres-no-pv
+    name: postgres
 spec:
-  containers:
-    - name: postgres
-      image: postgres
-      env:
-        - name: POSTGRES_PASSWORD
-          value: uuinkks
-        - name: PGDATA
-          value: /var/lib/postgresql/data/pgdata
-      ports:
-        - containerPort: 5432
+  ports:
+    - port: 5432
+  selector:
+    name: postgres
+  type: LoadBalancer
