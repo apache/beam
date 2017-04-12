@@ -132,7 +132,7 @@ public class HIFIOCassandraIT implements Serializable {
     Configuration conf = getConfiguration(options);
     conf.set("cassandra.input.cql", "select * from " + CASSANDRA_KEYSPACE + "." + CASSANDRA_TABLE
         + " where token(y_id) > ? and token(y_id) <= ? "
-        + "and field0 = 'user48:field0:431531' allow filtering");
+        + "and field0 = 'user48:field0:431531'");
     PCollection<KV<Long, String>> cassandraData =
         pipeline.apply(HadoopInputFormatIO.<Long, String>read().withConfiguration(conf)
             .withValueTranslation(myValueTranslate));

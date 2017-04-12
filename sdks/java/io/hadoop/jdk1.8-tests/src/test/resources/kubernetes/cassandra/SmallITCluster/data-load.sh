@@ -71,6 +71,10 @@ echo "Table creation .............."
 echo "-----------------------------"
 echo "$table_creation_command"
 
+# Create index
+index_creation_command="CREATE INDEX IF NOT EXISTS field0_index ON ycsb.usertable (field0);"
+kubectl exec -ti $running_seed -- cqlsh -e "$index_creation_command"
+
 cd ../ycsb-0.12.0
 
 echo "Starting to load data on ${external_ip}"

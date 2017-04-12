@@ -18,7 +18,7 @@
 
 #!/bin/bash
 
-find_cassandra_pods="kubectl get pods -l app=cassandra"
+find_cassandra_pods="kubectl get pods -l name=cassandra"
 
 first_running_seed="$($find_cassandra_pods -o jsonpath="{.items[0].metadata.name}")"
 
