@@ -14,10 +14,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-#!/bin/bash
-set -e
-
-# Create Cassandra services and Replication controller.
-kubectl create -f cassandra-service-for-local-dev.yaml
-kubectl create -f cassandra-svc-rc.yaml
-
+# Kubernetes service exposing a public LoadBalancer cassandra service.
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    name: cassandra-external
+  name: cassandra-external
+spec:
+  ports:
+    - port: 9042
+      name: cql
+  selector:
+    name: cassandra
+  type: LoadBalancer

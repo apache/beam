@@ -31,21 +31,6 @@ spec:
   selector:
     name: cassandra
 ---
-# Kubernetes service file exposing Cassandra endpoint used by clients.
-apiVersion: v1
-kind: Service
-metadata:
-  labels:
-    name: cassandra
-  name: cassandra
-spec:
-  ports:
-    - port: 9042
-      name: cql
-  selector:
-    name: cassandra
-  type: LoadBalancer
----
 # Replication Controller for Cassandra which tracks the Cassandra pods.
 apiVersion: v1
 kind: ReplicationController
