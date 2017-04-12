@@ -131,6 +131,14 @@ public class FlinkExecutor implements Executor {
       List<DataSink<?>> sinks = translator.translateInto(flow);
 
       if (dumpExecPlan) {
+        if (mode == ExecutionEnvironment.Mode.BATCH) {
+          // ~ see https://issues.apache.org/jira/browse/FLINK-6296
+          LOG.warn("Dumping the executing plan in {} mode" +
+                   " cause Flink to fail a succeeding executing attempt" +
+                   " in certain scenarios! Please try calling" +
+                   " #setDumpExecutionPlan(false) if your flow" +
+                   " does start executing.");
+        }
         LOG.info("Flink execution plan for {}: {}",
             flow.getName(), environment.dumpExecutionPlan());
       }
