@@ -121,7 +121,7 @@ class UnboundedReadEvaluatorFactory implements TransformEvaluatorFactory {
         WindowedValue<UnboundedSourceShard<OutputT, CheckpointMarkT>> element) throws IOException {
       UncommittedBundle<OutputT> output =
           evaluationContext.createBundle(
-              (PCollection<OutputT>) getOnlyElement(transform.getOutputs()).getValue());
+              (PCollection<OutputT>) getOnlyElement(transform.getOutputs().values()));
       UnboundedSourceShard<OutputT, CheckpointMarkT> shard = element.getValue();
       UnboundedReader<OutputT> reader = null;
       try {
@@ -227,7 +227,7 @@ class UnboundedReadEvaluatorFactory implements TransformEvaluatorFactory {
       // committing the output.
       if (!reader.getWatermark().isBefore(BoundedWindow.TIMESTAMP_MAX_VALUE)) {
         PCollection<OutputT> outputPc =
-            (PCollection<OutputT>) Iterables.getOnlyElement(transform.getOutputs()).getValue();
+            (PCollection<OutputT>) Iterables.getOnlyElement(transform.getOutputs().values());
         evaluationContext.scheduleAfterOutputWouldBeProduced(
             outputPc,
             GlobalWindow.INSTANCE,

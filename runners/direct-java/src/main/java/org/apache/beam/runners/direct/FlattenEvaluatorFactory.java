@@ -57,7 +57,7 @@ class FlattenEvaluatorFactory implements TransformEvaluatorFactory {
           application) {
     final UncommittedBundle<InputT> outputBundle =
         evaluationContext.createBundle(
-            (PCollection<InputT>) Iterables.getOnlyElement(application.getOutputs()).getValue());
+            (PCollection<InputT>) Iterables.getOnlyElement(application.getOutputs().values()));
     final TransformResult<InputT> result =
         StepTransformResult.<InputT>withoutHold(application).addOutput(outputBundle).build();
     return new FlattenEvaluator<>(outputBundle, result);

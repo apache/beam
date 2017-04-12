@@ -18,7 +18,6 @@
 
 package org.apache.beam.runners.core.construction;
 
-import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.runners.PTransformOverrideFactory;
@@ -30,7 +29,7 @@ import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.PValue;
-import org.apache.beam.sdk.values.TaggedPValue;
+import org.apache.beam.sdk.values.TupleTag;
 
 /**
  * An implementation of {@link Create} that returns a primitive {@link PCollection}.
@@ -63,13 +62,13 @@ public class PrimitiveCreate<T> extends PTransform<PBegin, PCollection<T>> {
     }
 
     @Override
-    public PBegin getInput(List<TaggedPValue> inputs, Pipeline p) {
+    public PBegin getInput(Map<TupleTag<?>, PValue> inputs, Pipeline p) {
       return p.begin();
     }
 
     @Override
     public Map<PValue, ReplacementOutput> mapOutputs(
-        List<TaggedPValue> outputs, PCollection<T> newOutput) {
+        Map<TupleTag<?>, PValue> outputs, PCollection<T> newOutput) {
       return ReplacementOutputs.singleton(outputs, newOutput);
     }
   }

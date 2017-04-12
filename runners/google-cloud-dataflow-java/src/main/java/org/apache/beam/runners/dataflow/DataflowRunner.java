@@ -39,7 +39,6 @@ import com.google.common.base.Strings;
 import com.google.common.base.Utf8;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import java.io.File;
 import java.io.IOException;
@@ -64,7 +63,7 @@ import org.apache.beam.runners.core.construction.EmptyFlattenAsCreateFactory;
 import org.apache.beam.runners.core.construction.PTransformMatchers;
 import org.apache.beam.runners.core.construction.ReplacementOutputs;
 import org.apache.beam.runners.core.construction.SingleInputOutputOverrideFactory;
-import org.apache.beam.runners.core.construction.UnsupportedOverrideFactory;
+import org.apache.beam.runners.core.construction.UnboundedReadFromBoundedSource;
 import org.apache.beam.runners.dataflow.BatchViewOverrides.BatchCombineGloballyAsSingletonViewFactory;
 import org.apache.beam.runners.dataflow.DataflowPipelineTranslator.JobSpecification;
 import org.apache.beam.runners.dataflow.StreamingViewOverrides.StreamingCreatePCollectionViewFactory;
@@ -83,8 +82,6 @@ import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.FileBasedSink;
-import org.apache.beam.sdk.io.PubsubIO.Read.PubsubBoundedReader;
-import org.apache.beam.sdk.io.PubsubIO.Write.PubsubBoundedWriter;
 import org.apache.beam.sdk.io.PubsubUnboundedSink;
 import org.apache.beam.sdk.io.PubsubUnboundedSource;
 import org.apache.beam.sdk.io.Read;
@@ -128,7 +125,7 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.PValue;
-import org.apache.beam.sdk.values.TaggedPValue;
+import org.apache.beam.sdk.values.TupleTag;
 import org.joda.time.DateTimeUtils;
 import org.joda.time.DateTimeZone;
 import org.joda.time.format.DateTimeFormat;
@@ -303,15 +300,6 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
             PTransformOverride.of(
                 PTransformMatchers.emptyFlatten(), EmptyFlattenAsCreateFactory.instance()));
     if (streaming) {
-      // In streaming mode must use either the custom Pubsub unbounded source/sink or
-      // defer to Windmill's built-in implementation.
-      for (Class<? extends DoFn> unsupported :
-          ImmutableSet.of(PubsubBoundedReader.class, PubsubBoundedWriter.class)) {
-        overridesBuilder.add(
-            PTransformOverride.of(
-                PTransformMatchers.parDoWithFnType(unsupported),
-                UnsupportedOverrideFactory.withMessage(getUnsupportedMessage(unsupported, true))));
-      }
       if (!hasExperiment(options, "enable_custom_pubsub_source")) {
         overridesBuilder.add(
             PTransformOverride.of(
@@ -340,14 +328,6 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
                   PTransformMatchers.classEqualTo(View.CreatePCollectionView.class),
                   new StreamingCreatePCollectionViewFactory()));
     } else {
-      // In batch mode must use the custom Pubsub bounded source/sink.
-      for (Class<? extends PTransform> unsupported :
-          ImmutableSet.of(PubsubUnboundedSink.class, PubsubUnboundedSource.class)) {
-        overridesBuilder.add(
-            PTransformOverride.of(
-                PTransformMatchers.classEqualTo(unsupported),
-                UnsupportedOverrideFactory.withMessage(getUnsupportedMessage(unsupported, false))));
-      }
       overridesBuilder
           // State and timer pardos are implemented by expansion to GBK-then-ParDo
           .add(
@@ -409,12 +389,6 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     return overridesBuilder.build();
   }
 
-  private String getUnsupportedMessage(Class<?> unsupported, boolean streaming) {
-    return String.format(
-        "%s is not supported in %s",
-        NameUtils.approximateSimpleName(unsupported), streaming ? "streaming" : "batch");
-  }
-
   private static class ReflectiveOneToOneOverrideFactory<
           InputT extends PValue,
           OutputT extends PValue,
@@ -460,13 +434,13 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     }
 
     @Override
-    public PBegin getInput(List<TaggedPValue> inputs, Pipeline p) {
+    public PBegin getInput(Map<TupleTag<?>, PValue> inputs, Pipeline p) {
       return p.begin();
     }
 
     @Override
     public Map<PValue, ReplacementOutput> mapOutputs(
-        List<TaggedPValue> outputs, PCollection<T> newOutput) {
+        Map<TupleTag<?>, PValue> outputs, PCollection<T> newOutput) {
       return ReplacementOutputs.singleton(outputs, newOutput);
     }
   }
@@ -590,9 +564,10 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       }
       String fileLocation = firstNonNull(
           options.getTemplateLocation(), options.getDataflowJobFile());
-      checkArgument(fileLocation.startsWith("/") || fileLocation.startsWith("gs://"),
-          String.format(
-              "Location must be local or on Cloud Storage, got {}.", fileLocation));
+      checkArgument(
+          fileLocation.startsWith("/") || fileLocation.startsWith("gs://"),
+          "Location must be local or on Cloud Storage, got %s.",
+          fileLocation);
       String workSpecJson = DataflowPipelineTranslator.jobToString(newJob);
       try (PrintWriter printWriter = new PrintWriter(
           Channels.newOutputStream(IOChannelUtils.create(fileLocation, MimeTypes.TEXT)))) {
@@ -770,7 +745,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
               if (node.getTransform() instanceof View.AsMap
                   || node.getTransform() instanceof View.AsMultimap) {
                 PCollection<KV<?, ?>> input =
-                    (PCollection<KV<?, ?>>) Iterables.getOnlyElement(node.getInputs()).getValue();
+                    (PCollection<KV<?, ?>>) Iterables.getOnlyElement(node.getInputs().values());
                 KvCoder<?, ?> inputCoder = (KvCoder) input.getCoder();
                 try {
                   inputCoder.getKeyCoder().verifyDeterministic();
@@ -835,13 +810,13 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     }
 
     @Override
-    public PCollection<T> getInput(List<TaggedPValue> inputs, Pipeline p) {
-      return (PCollection<T>) Iterables.getOnlyElement(inputs).getValue();
+    public PCollection<T> getInput(Map<TupleTag<?>, PValue> inputs, Pipeline p) {
+      return (PCollection<T>) Iterables.getOnlyElement(inputs.values());
     }
 
     @Override
     public Map<PValue, ReplacementOutput> mapOutputs(
-        List<TaggedPValue> outputs, PDone newOutput) {
+        Map<TupleTag<?>, PValue> outputs, PDone newOutput) {
       return Collections.emptyMap();
     }
   }
@@ -1193,7 +1168,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     public final PCollection<T> expand(PBegin input) {
       source.validate();
 
-      return Pipeline.applyTransform(input, new DataflowUnboundedReadFromBoundedSource<>(source))
+      return Pipeline.applyTransform(input, new UnboundedReadFromBoundedSource<>(source))
           .setIsBoundedInternal(IsBounded.BOUNDED);
     }
   }
@@ -1327,13 +1302,13 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
 
     @Override
     public PCollection<KV<K, Iterable<InputT>>> getInput(
-        List<TaggedPValue> inputs, Pipeline p) {
-      return (PCollection<KV<K, Iterable<InputT>>>) Iterables.getOnlyElement(inputs).getValue();
+        Map<TupleTag<?>, PValue> inputs, Pipeline p) {
+      return (PCollection<KV<K, Iterable<InputT>>>) Iterables.getOnlyElement(inputs.values());
     }
 
     @Override
     public Map<PValue, ReplacementOutput> mapOutputs(
-        List<TaggedPValue> outputs, PCollection<KV<K, OutputT>> newOutput) {
+        Map<TupleTag<?>, PValue> outputs, PCollection<KV<K, OutputT>> newOutput) {
       return ReplacementOutputs.singleton(outputs, newOutput);
     }
   }
@@ -1353,12 +1328,13 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     }
 
     @Override
-    public PCollection<T> getInput(List<TaggedPValue> inputs, Pipeline p) {
-      return (PCollection<T>) Iterables.getOnlyElement(inputs).getValue();
+    public PCollection<T> getInput(Map<TupleTag<?>, PValue> inputs, Pipeline p) {
+      return (PCollection<T>) Iterables.getOnlyElement(inputs.values());
     }
 
     @Override
-    public Map<PValue, ReplacementOutput> mapOutputs(List<TaggedPValue> outputs, PDone newOutput) {
+    public Map<PValue, ReplacementOutput> mapOutputs(
+        Map<TupleTag<?>, PValue> outputs, PDone newOutput) {
       return Collections.emptyMap();
     }
   }

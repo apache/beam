@@ -20,6 +20,7 @@
 package org.apache.beam.sdk.values;
 
 import com.google.auto.value.AutoValue;
+import com.google.common.collect.Iterables;
 
 /**
  * A (TupleTag, PValue) pair used in the expansion of a {@link PInput} or {@link POutput}.
@@ -28,6 +29,10 @@ import com.google.auto.value.AutoValue;
 public abstract class TaggedPValue {
   public static TaggedPValue of(TupleTag<?> tag, PValue value) {
     return new AutoValue_TaggedPValue(tag, value);
+  }
+
+  public static TaggedPValue ofExpandedValue(PValue value) {
+    return of(Iterables.getOnlyElement(value.expand().keySet()), value);
   }
 
   /**

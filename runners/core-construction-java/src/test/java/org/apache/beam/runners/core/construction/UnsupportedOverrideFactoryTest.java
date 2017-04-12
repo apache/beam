@@ -23,7 +23,8 @@ import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.values.PDone;
-import org.apache.beam.sdk.values.TaggedPValue;
+import org.apache.beam.sdk.values.PValue;
+import org.apache.beam.sdk.values.TupleTag;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -53,13 +54,13 @@ public class UnsupportedOverrideFactoryTest {
   public void getInputThrows() {
     thrown.expect(UnsupportedOperationException.class);
     thrown.expectMessage(message);
-    factory.getInput(Collections.<TaggedPValue>emptyList(), pipeline);
+    factory.getInput(Collections.<TupleTag<?>, PValue>emptyMap(), pipeline);
   }
 
   @Test
   public void mapOutputThrows() {
     thrown.expect(UnsupportedOperationException.class);
     thrown.expectMessage(message);
-    factory.mapOutputs(Collections.<TaggedPValue>emptyList(), PDone.in(pipeline));
+    factory.mapOutputs(Collections.<TupleTag<?>, PValue>emptyMap(), PDone.in(pipeline));
   }
 }

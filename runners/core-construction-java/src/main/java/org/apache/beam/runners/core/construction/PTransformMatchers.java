@@ -37,7 +37,6 @@ import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PValue;
-import org.apache.beam.sdk.values.TaggedPValue;
 
 /**
  * A {@link PTransformMatcher} that matches {@link PTransform PTransforms} based on the class of the
@@ -250,8 +249,8 @@ public class PTransformMatchers {
       public boolean matches(AppliedPTransform<?, ?, ?> application) {
         if (application.getTransform() instanceof Flatten.PCollections) {
           Set<PValue> observed = new HashSet<>();
-          for (TaggedPValue pvalue : application.getInputs()) {
-            boolean firstInstance = observed.add(pvalue.getValue());
+          for (PValue pvalue : application.getInputs().values()) {
+            boolean firstInstance = observed.add(pvalue);
             if (!firstInstance) {
               return true;
             }

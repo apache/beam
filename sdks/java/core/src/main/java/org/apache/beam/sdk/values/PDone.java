@@ -18,7 +18,7 @@
 package org.apache.beam.sdk.values;
 
 import java.util.Collections;
-import java.util.List;
+import java.util.Map;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.transforms.PTransform;
 
@@ -36,9 +36,9 @@ public class PDone extends POutputValueBase {
   }
 
   @Override
-  public List<TaggedPValue> expand() {
+  public Map<TupleTag<?>, PValue> expand() {
     // A PDone contains no PValues.
-    return Collections.emptyList();
+    return Collections.emptyMap();
   }
 
   private PDone(Pipeline pipeline) {

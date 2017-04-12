@@ -21,7 +21,6 @@ The runner will create a JSON description of the job graph and then submit it
 to the Dataflow Service for remote execution by a worker.
 """
 
-import base64
 import logging
 import threading
 import time
@@ -44,6 +43,7 @@ from apache_beam.runners.runner import PipelineState
 from apache_beam.transforms.display import DisplayData
 from apache_beam.typehints import typehints
 from apache_beam.utils.pipeline_options import StandardOptions
+from apache_beam.utils.value_provider import RuntimeValueProviderError
 
 
 class DataflowRunner(PipelineRunner):
@@ -261,29 +261,6 @@ class DataflowRunner(PipelineRunner):
 
     return step
 
-  def run_Create(self, transform_node):
-    transform = transform_node.transform
-    step = self._add_step(TransformNames.CREATE_PCOLLECTION,
-                          transform_node.full_label, transform_node)
-    # TODO(silviuc): Eventually use a coder based on typecoders.
-    # Note that we base64-encode values here so that the service will accept
-    # the values.
-    element_coder = coders.PickleCoder()
-    step.add_property(
-        PropertyNames.ELEMENT,
-        [base64.b64encode(element_coder.encode(v))
-         for v in transform.value])
-    # The service expects a WindowedValueCoder here, so we wrap the actual
-    # encoding in a WindowedValueCoder.
-    step.encoding = self._get_cloud_encoding(
-        coders.WindowedValueCoder(element_coder))
-    step.add_property(
-        PropertyNames.OUTPUT_INFO,
-        [{PropertyNames.USER_NAME: (
-            '%s.%s' % (transform_node.full_label, PropertyNames.OUT)),
-          PropertyNames.ENCODING: step.encoding,
-          PropertyNames.OUTPUT_NAME: PropertyNames.OUT}])
-
   def _add_singleton_step(self, label, full_label, tag, input_step):
     """Creates a CollectionToSingleton step used to handle ParDo side inputs."""
     # Import here to avoid adding the dependency for local running scenarios.
@@ -500,6 +477,11 @@ class DataflowRunner(PipelineRunner):
             'estimated_size_bytes': json_value.get_typed_value_descriptor(
                 transform.source.estimate_size())
         }
+      except RuntimeValueProviderError:
+        # Size estimation is best effort, and this error is by value provider.
+        logging.info(
+            'Could not estimate size of source %r due to ' + \
+            'RuntimeValueProviderError', transform.source)
       except Exception:  # pylint: disable=broad-except
         # Size estimation is best effort. So we log the error and continue.
         logging.info(

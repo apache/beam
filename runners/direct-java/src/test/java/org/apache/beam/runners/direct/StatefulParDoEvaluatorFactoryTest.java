@@ -308,7 +308,7 @@ public class StatefulParDoEvaluatorFactoryTest implements Serializable {
         BUNDLE_FACTORY
             .createBundle(
                 (PCollection<KeyedWorkItem<String, KV<String, Integer>>>)
-                    Iterables.getOnlyElement(producingTransform.getInputs()).getValue())
+                    Iterables.getOnlyElement(producingTransform.getInputs().values()))
             .add(gbkOutputElement)
             .commit(Instant.now());
     TransformEvaluator<KeyedWorkItem<String, KV<String, Integer>>> evaluator =

@@ -95,17 +95,13 @@ public class PubsubIOTest {
     PubsubIO.Read<String> read = PubsubIO.<String>read()
         .topic(StaticValueProvider.of(topic))
         .timestampLabel("myTimestamp")
-        .idLabel("myId")
-        .maxNumRecords(1234)
-        .maxReadTime(maxReadTime);
+        .idLabel("myId");
 
     DisplayData displayData = DisplayData.from(read);
 
     assertThat(displayData, hasDisplayItem("topic", topic));
     assertThat(displayData, hasDisplayItem("timestampLabel", "myTimestamp"));
     assertThat(displayData, hasDisplayItem("idLabel", "myId"));
-    assertThat(displayData, hasDisplayItem("maxNumRecords", 1234));
-    assertThat(displayData, hasDisplayItem("maxReadTime", maxReadTime));
   }
 
   @Test
@@ -116,17 +112,13 @@ public class PubsubIOTest {
     PubsubIO.Read<String> read = PubsubIO.<String>read()
         .subscription(StaticValueProvider.of(subscription))
         .timestampLabel("myTimestamp")
-        .idLabel("myId")
-        .maxNumRecords(1234)
-        .maxReadTime(maxReadTime);
+        .idLabel("myId");
 
     DisplayData displayData = DisplayData.from(read);
 
     assertThat(displayData, hasDisplayItem("subscription", subscription));
     assertThat(displayData, hasDisplayItem("timestampLabel", "myTimestamp"));
     assertThat(displayData, hasDisplayItem("idLabel", "myId"));
-    assertThat(displayData, hasDisplayItem("maxNumRecords", 1234));
-    assertThat(displayData, hasDisplayItem("maxReadTime", maxReadTime));
   }
 
   @Test
