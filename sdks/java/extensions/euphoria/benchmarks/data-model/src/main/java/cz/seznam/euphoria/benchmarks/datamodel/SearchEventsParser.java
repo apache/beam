@@ -56,7 +56,7 @@ public class SearchEventsParser implements Serializable {
       return null;
     }
 
-    String[] split = s.split("\t", 2);
+    String[] split = s.split("\t");
     if (split.length < 2) {
       return null;
     }
